@@ -1,10 +1,6 @@
 package org.tygus.synsl.parsing
 
-import java.io.File
-
 import org.scalatest.{FunSpec, Matchers}
-
-import scala.io.{BufferedSource, Source}
 
 /**
   * @author Ilya Sergey
