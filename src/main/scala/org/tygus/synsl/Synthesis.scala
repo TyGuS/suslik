@@ -16,6 +16,7 @@ object Synthesis {
   def synthesize(spec: Spec): Procedure = {
 
     // TODO: implement Nadia's rules
+    ???
 
   }
 
