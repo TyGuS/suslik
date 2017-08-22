@@ -1,12 +1,14 @@
 package org.tygus.synsl.language
 
+import org.tygus.synsl.PrettyPrinting
+
 /**
   * @author Ilya Sergey
   */
 
-trait Expressions {
+object Expressions {
 
-  sealed abstract class Expr {
+  sealed abstract class Expr extends PrettyPrinting {
     // Type-coercing visitor (yikes!)
     def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
 
@@ -25,16 +27,17 @@ trait Expressions {
 
       collector(Set.empty)(this)
     }
+
   }
 
   // Program-level variable: program-level or ghost
   case class Var(name: String) extends Expr {
-    override def toString: String = name
+    override def pp: String = name
   }
 
   // Program-level constant
   case class PConst(value: Any) extends Expr {
-    override def toString: String = value.toString
+    override def pp: String = value.toString
   }
 
   abstract class BinaryExpr(val left: Expr, val right: Expr) extends Expr
@@ -51,6 +54,8 @@ trait Expressions {
 
 
 }
+
+
 
 
 

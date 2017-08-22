@@ -1,18 +1,22 @@
 package org.tygus.synsl.parsing
 
-import org.tygus.synsl.language.{BoolType, CLang, IntType, PrimitiveType}
-import org.tygus.synsl.logic.Specifications
+import org.tygus.synsl.language.{BoolType, IntType, PrimitiveType, VoidType}
+import org.tygus.synsl.logic.Specifications._
+import org.tygus.synsl.language.Expressions._
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
 
-class SynslParser extends StandardTokenParsers with Specifications with CLang {
+class SynslParser extends StandardTokenParsers {
 
   override val lexical = new SynslLexical
 
-  def primitiveTypeParser: Parser[PrimitiveType] = "int" ^^^ IntType ||| "bool" ^^^ BoolType
+  def primitiveType: Parser[PrimitiveType] =
+    "int" ^^^ IntType |||
+        "bool" ^^^ BoolType |||
+        "void" ^^^ VoidType
 
-  def formal: Parser[(PrimitiveType, Var)] = primitiveTypeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
+  def formal: Parser[(PrimitiveType, Var)] = primitiveType ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
   def intLiteral: Parser[PConst] =
     numericLit ^^ (x => PConst(Integer.parseInt(x)))
@@ -53,14 +57,14 @@ class SynslParser extends StandardTokenParsers with Specifications with CLang {
           ||| "not" ~> parenPhi ^^ PNeg
       )
 
-  def simpleSigma: Parser[SpatialFormula] = (
+  def simpleSigma: Parser[SFormula] = (
       "emp" ^^^ Emp
           ||| "true" ^^^ STrue
           ||| "false" ^^^ SFalse
           ||| (ident <~ ":->") ~ expr ^^ { case a ~ b => PointsTo(a, 0, b) }
       )
 
-  def sigma: Parser[SpatialFormula] =
+  def sigma: Parser[SFormula] =
     simpleSigma |||
         rep1sep(simpleSigma, "**") ^^ { ss => ss.tail.foldLeft(ss.head)((x, y) => Sep(x, y)) }
 
@@ -69,8 +73,8 @@ class SynslParser extends StandardTokenParsers with Specifications with CLang {
     case None ~ s => Assertion(PTrue, s)
   }
 
-  def spec: Parser[Spec] = assertion ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ name ~ formals ~ post => Spec(pre, post, name, formals)
+  def spec: Parser[Spec] = assertion ~ primitiveType ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+    case pre ~ tpe ~ name ~ formals ~ post => Spec(pre, post, tpe, name, formals)
   }
 
   def parse(input: String): ParseResult[Spec] = spec(new lexical.Scanner(input)) match {

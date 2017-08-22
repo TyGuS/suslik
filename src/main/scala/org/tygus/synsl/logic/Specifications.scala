@@ -1,16 +1,18 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.{Expressions, PrimitiveType}
+import org.tygus.synsl.PrettyPrinting
+import org.tygus.synsl.language.SynslType
+import org.tygus.synsl.language.Expressions._
 
 
 /**
   * Pure fragment of the logic
   */
-trait PureFormulas extends Expressions {
+trait PureFormulas {
 
   type Ident = String
 
-  sealed abstract class PureFormula {
+  sealed abstract class PureFormula extends PrettyPrinting {
 
     // Collect certain sub-expressions
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
@@ -33,32 +35,32 @@ trait PureFormulas extends Expressions {
   }
 
   object PTrue extends PureFormula {
-    override def toString: Ident = "true"
+    override def pp: Ident = "true"
   }
   object PFalse extends PureFormula {
-    override def toString: Ident = "false"
+    override def pp: Ident = "false"
   }
 
   // Ф <= Ф', Ф < Ф', Ф == Ф'
   case class PLeq(left: Expr, right: Expr) extends PureFormula {
-    override def toString: Ident = s"$left <= $right"
+    override def pp: Ident = s"${left.pp} <= ${right.pp}"
   }
   case class PLtn(left: Expr, right: Expr) extends PureFormula {
-    override def toString: Ident = s"$left < $right"
+    override def pp: Ident = s"${left.pp} < ${right.pp}"
   }
   case class PEq(left: Expr, right: Expr) extends PureFormula {
-    override def toString: Ident = s"$left = $right"
+    override def pp: Ident = s"${left.pp} = ${right.pp}"
   }
 
   // Connectives
   case class PAnd(left: PureFormula, right: PureFormula) extends PureFormula {
-    override def toString: Ident = s"($left /\\ $right)"
+    override def pp: Ident = s"(${left.pp} /\\ ${right.pp})"
   }
   case class POr(left: PureFormula, right: PureFormula) extends PureFormula {
-    override def toString: Ident = s"($left \\/ $right)"
+    override def pp: Ident = s"(${left.pp} \\/ ${right.pp})"
   }
   case class PNeg(arg: PureFormula) extends PureFormula {
-    override def toString: Ident = s"~~$arg"
+    override def pp: Ident = s"~~${arg.pp}"
   }
 
 }
@@ -68,10 +70,10 @@ trait PureFormulas extends Expressions {
   */
 trait SpatialFormulas extends PureFormulas {
 
-  sealed abstract class SpatialFormula {
+  sealed abstract class SFormula extends PrettyPrinting {
     // Collect certain sub-expressions
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
-      def collector(acc: Set[R])(sigma: SpatialFormula): Set[R] = sigma match {
+      def collector(acc: Set[R])(sigma: SFormula): Set[R] = sigma match {
         case STrue => acc
         case SFalse => acc
         case Emp => acc
@@ -84,36 +86,73 @@ trait SpatialFormulas extends PureFormulas {
       collector(Set.empty)(this)
     }
 
+    def canonicalize: SFormula = this
+
   }
 
-  case object Emp extends SpatialFormula {
-    override def toString: Ident = "emp"
+  case object Emp extends SFormula {
+    override def pp: Ident = "emp"
   }
-  case object STrue extends SpatialFormula {
-    override def toString: Ident = "true"
+  case object STrue extends SFormula {
+    override def pp: Ident = "true"
   }
-  case object SFalse extends SpatialFormula {
-    override def toString: Ident = "false"
+  case object SFalse extends SFormula {
+    override def pp: Ident = "false"
   }
 
   // Should we support pointer arithmetics here
-  case class PointsTo(id: String, offset: Int = 0, value: Expr) extends SpatialFormula {
-    override def toString: Ident = s"$id :-> $value"
+  case class PointsTo(id: String, offset: Int = 0, value: Expr) extends SFormula {
+    override def pp: Ident = s"$id :-> ${value.pp}"
   }
 
-  case class Sep(left: SpatialFormula, right: SpatialFormula) extends SpatialFormula {
-    override def toString: Ident = s"$left ** $right"
+  case class Sep(left: SFormula, right: SFormula) extends SFormula {
+    override def pp: Ident = s"${left.pp} ** ${right.pp}"
+
+    // TODO: Implement all machinery to work with the separating conjunections
+
+    // Unroll to a list of non-sep formulas
+    private def unroll: Seq[SFormula] = {
+      val l = left match {
+        case sp: Sep => sp.unroll
+        case x => Seq(x)
+      }
+      val r = right match {
+        case sp: Sep => sp.unroll
+        case x => Seq(x)
+      }
+      l ++ r
+    }
+
+    // Bring to a canonical form
+    // TODO: discuss what a canonical form should be
+    override def canonicalize: SFormula = {
+      val lst = this.unroll
+      // Bring first all sorted points-to assertions
+      val ptsSorted = lst.filter(_.isInstanceOf[PointsTo]).sortBy(p => p.asInstanceOf[PointsTo].id)
+      val nonpts = lst.filterNot(_.isInstanceOf[PointsTo])
+
+      val chunks = ptsSorted ++ nonpts
+      if (chunks.isEmpty) {
+        println("crap!")
+      }
+      assert(chunks.nonEmpty)
+      if (chunks.size == 1) return chunks.head
+
+      val rchs = chunks.reverse
+      rchs.tail.foldLeft(rchs.head)((a, b) => Sep(b, a))
+    }
+
   }
 
   // TODO: extend with inductive predicates
 
 }
 
-trait Specifications extends SpatialFormulas {
+object Specifications extends SpatialFormulas {
 
-  case class Assertion(phi: PureFormula, sigma: SpatialFormula) {
+  case class Assertion(phi: PureFormula, sigma: SFormula) {
 
-    override def toString: Ident = s"{$phi ; $sigma}"
+    def pp: String = s"{${phi.pp} ; ${sigma.canonicalize.pp}}"
 
     // Get free variables
     def varsPhi: Set[Var] = phi.collectE(_.isInstanceOf[Var])
@@ -134,12 +173,15 @@ trait Specifications extends SpatialFormulas {
     *
     * @param pre     precondition
     * @param post    postcondition
+    * @param name    Procedure name
+    * @param tpe     Procedure return type
     * @param formals parameters of the code fragment
     */
-  case class Spec(pre: Assertion, post: Assertion, name: Ident, formals: Seq[(PrimitiveType, Var)]) {
+  case class Spec(pre: Assertion, post: Assertion, tpe: SynslType, name: Ident, formals: Seq[(SynslType, Var)]) {
 
-    override def toString: Ident =
-      s"$pre $name(${formals.map { case (t, i) => s"$t $i" }.mkString(", ")}) $post"
+    def pp: String = s"${pre.pp} ${tpe.pp} " +
+        s"$name(${formals.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) " +
+        s"${post.pp}"
 
     // Universally quantified ghosts: do not take formals into the account
     def universals: Set[Var] = pre.vars -- formals.map(_._2)
