@@ -1,4 +1,4 @@
-package org.tygus.synsl.language.syntax
+package org.tygus.synsl.language
 
 /**
   * @author Ilya Sergey

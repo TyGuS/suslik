@@ -1,6 +1,6 @@
-package org.tygus.synsl.logic.syntax
+package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.syntax._
+import org.tygus.synsl.language.{Expressions, PrimitiveType}
 
 
 /**

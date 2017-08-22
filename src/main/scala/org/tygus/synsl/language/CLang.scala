@@ -1,4 +1,4 @@
-package org.tygus.synsl.language.syntax
+package org.tygus.synsl.language
 
 /**
   * Syntax of a simple C-like language
@@ -7,5 +7,7 @@ package org.tygus.synsl.language.syntax
   */
 
 trait CLang {
+
+  // TODO: implement statements
 
 }

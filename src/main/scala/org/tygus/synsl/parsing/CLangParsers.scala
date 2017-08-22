@@ -1,6 +1,6 @@
 package org.tygus.synsl.parsing
 
-import org.tygus.synsl.language.syntax.{CLang, Expressions}
+import org.tygus.synsl.language.{CLang, Expressions}
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 

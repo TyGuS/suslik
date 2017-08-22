@@ -1,7 +1,7 @@
 package org.tygus.synsl.parsing
 
-import org.tygus.synsl.language.syntax._
-import org.tygus.synsl.logic.syntax.Specifications
+import org.tygus.synsl.language.{BoolType, CLang, IntType, PrimitiveType}
+import org.tygus.synsl.logic.Specifications
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
