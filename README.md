@@ -1,2 +1,3 @@
-# synsl
-Synthesis of heap-Manipulating Programs from Separation Logic Specifications
+# Syn-SL
+
+Synthesis of heap-manipulating programs from Separation Logic specs
