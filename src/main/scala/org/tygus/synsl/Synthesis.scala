@@ -9,7 +9,7 @@ import org.tygus.synsl.logic.Specifications._
   * @author Ilya Sergey
   */
 
-object Synthesis {
+object Synthesis extends Rules {
 
   type Gamma = Seq[(SynslType, Var)]
 
