@@ -1,6 +1,6 @@
 package org.tygus.synsl.parsing
 
-import org.tygus.synsl.language.{BoolType, IntType, PrimitiveType, VoidType}
+import org.tygus.synsl.language._
 import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.language.Expressions._
 
@@ -16,7 +16,10 @@ class SynslParser extends StandardTokenParsers {
         "bool" ^^^ BoolType |||
         "void" ^^^ VoidType
 
-  def formal: Parser[(PrimitiveType, Var)] = primitiveType ~ ident ^^ { case a ~ b => (a, Var(b)) }
+  def tpeParser : Parser[SynslType] =
+    primitiveType <~ "*" ^^ {PtrType(_)} ||| primitiveType
+
+  def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
   def intLiteral: Parser[PConst] =
     numericLit ^^ (x => PConst(Integer.parseInt(x)))
@@ -73,7 +76,7 @@ class SynslParser extends StandardTokenParsers {
     case None ~ s => Assertion(PTrue, s)
   }
 
-  def spec: Parser[FullSpec] = assertion ~ primitiveType ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+  def spec: Parser[FullSpec] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
     case pre ~ tpe ~ name ~ gamma ~ post => FullSpec(Spec(pre, post, gamma), tpe, Some(name))
   }
 

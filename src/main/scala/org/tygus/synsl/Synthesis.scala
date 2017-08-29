@@ -31,20 +31,29 @@ object Synthesis extends Rules {
 
     def tryRules(rules: List[Rule]): Option[Statement] = rules match {
       case r :: rs =>
-        if (!r.isApplicable(spec)) tryRules(rs)
-        else r(spec) match {
-          case LastStatement(st) => Some(st)
-          case MoreGoals(goals, kont) =>
-            // Synthesize the rest lazily
-            val stmts = (for (subgoal <- goals) yield synthesize(subgoal, depth + 1)).toStream
-            // Some of subgoals have failed
-            if (stmts.exists(_.isEmpty)) None
-            else {
-              val subGoalResults = stmts.map(_.get)
-              val withKont = kont(subGoalResults)
-              Some(withKont)
-            }
+        // println(s"Rule $r is ${if (r.isApplicable(spec)) "" else "NOT"} applicable for spec ${spec.pp}\n")
 
+
+        if (!r.isApplicable(spec)) tryRules(rs)
+        else {
+          // rule is applicable
+          val result: RuleResult = r(spec)
+          result match {
+            case LastStatement(st) => Some(st)
+            case MoreGoals(goals, kont) =>
+              // Synthesize the rest lazily
+              val stmts = (for (subgoal <- goals) yield synthesize(subgoal, depth + 1)).toStream
+              // Some of sub-goals have failed
+              if (stmts.exists(_.isEmpty)) {
+                // That was a bad rule, backtrack and try the rest of the rules
+                tryRules(rs)
+              } else {
+                val subGoalResults = stmts.map(_.get)
+                val withKont = kont(subGoalResults)
+                Some(withKont)
+              }
+
+          }
         }
       case Nil => None
     }

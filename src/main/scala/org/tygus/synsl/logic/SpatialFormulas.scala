@@ -24,27 +24,29 @@ trait SpatialFormulas extends PureFormulas {
       collector(Set.empty)(this)
     }
 
-    def canonicalize: SFormula = this
+    def canonicalize(putFirst: (SFormula) => Boolean): SFormula = this
 
-    def getHeadHeaplet: Option[PointsTo] = this.canonicalize match {
+    def canon = this.canonicalize(_ => true)
+
+    def getHeadHeaplet: Option[PointsTo] = this match {
       case Sep(left, _) => left.getHeadHeaplet
       case p@PointsTo(_, _, _) => Some(p)
       case _ => None
     }
 
-    def replaceHeadHeaplet(hp2: PointsTo): SFormula = this.canonicalize match {
+    def replaceHeadHeaplet(hp2: PointsTo): SFormula = this match {
       case Sep(left, right) => Sep(left.replaceHeadHeaplet(hp2), right)
       case p@PointsTo(_, _, _) => hp2
       case s => s
     }
 
-    def stripHeadHeaplet: SFormula = {
-      val f = this.canonicalize match {
-        case Sep(left, right) => Sep(left.stripHeadHeaplet, right)
-        case p@PointsTo(_, _, _) => Emp
+    def removeHeaplet(g: PointsTo => Boolean): SFormula = {
+      val f = this match {
+        case Sep(left, right) => Sep(left.removeHeaplet(g), right.removeHeaplet(g))
+        case p@PointsTo(_, _, _) if g(p) => Emp
         case s => s
       }
-      f.canonicalize
+      f.canonicalize(_ => true)
     }
 
     // TODO: This is why we need fancy SL-based tools
@@ -102,13 +104,16 @@ trait SpatialFormulas extends PureFormulas {
 
     // Bring to a canonical form
     // TODO: discuss what a canonical form should be
-    override def canonicalize: SFormula = {
+    override def canonicalize(putFirst: SFormula => Boolean): SFormula = {
       val lst = this.unroll
       // Bring first all sorted points-to assertions
       val ptsSorted = lst.filter(_.isInstanceOf[PointsTo]).sortBy(p => p.asInstanceOf[PointsTo].id)
       val nonpts = lst.filterNot(_.isInstanceOf[PointsTo])
 
-      val chunks = ptsSorted ++ nonpts
+      // TODO: this is hacky, please, refactor
+      val first = ptsSorted.filter(putFirst)
+      val second = ptsSorted.filterNot(putFirst)
+      val chunks = first ++ second ++ nonpts
       assert(chunks.nonEmpty)
       if (chunks.size == 1) return chunks.head
 

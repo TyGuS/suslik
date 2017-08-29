@@ -10,13 +10,16 @@ import org.tygus.synsl.parsing.SynslParser
 
 class SimpleSynthesisTests extends FunSpec with Matchers {
 
-  val spec1 = "{true; emp} void foo(int x) {true ; emp}"
+  val spec1 = "{true; emp} void foo(int* x) {true ; emp}"
   val spec2 = "{true; x :-> a} void foo(int x) {true ; x :-> a}"
   val spec3 = "{true; x :-> 1} void foo(int x) {true ; x :-> 43}"
   val spec4 = "{true; x :-> 1 ** y :-> 2} void bar(int x, int y) {true ; y :-> 239 ** x :-> 43}"
   val spec5 = "{true; x :-> a ** y :-> 2} void bar(int x, int y) {true ; x :-> a ** y :-> 12}"
   val spec6 = "{true; x :-> a ** y :-> 2} void bar(int x, int y) {true ; x :-> a ** y :-> a}"
-//  val spec4 = "{true; x :-> a ** y :-> b} void swap(int x, int y) {true ; x :-> b ** y :-> a}"
+  val spec7 = "{true; x :-> a ** y :-> b} void swap(int x, int y) {true ; x :-> b ** y :-> a}"
+  val spec8 = "{true; x :-> a ** y :-> c ** z :-> b ** t :-> q } " +
+              "void swap (int x, int z, int y, int t) " +
+              "{ true; x :-> c ** z :-> b ** t :-> q ** y :-> 41 }"
 
   import Synthesis._
 
@@ -31,8 +34,11 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
 
     sresult match {
       case Some(res) =>
+        println("Specification:\n")
+        println(s"${spec.pp}\n")
         println("Successfully synthesised:")
-        println(res.pp)
+        println(s"${res.pp}")
+        println("-----------------------------------------------------\n")
       case None =>
         assert(false, s"Failed to synthesise:\n$sresult")
     }
@@ -70,10 +76,15 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       synthesizeFromSpec(spec6)
     }
 
-//    it("should be able to synthesize a swap program") {
-//      // Testing [frame]
-//      synthesizeFromSpec(spec4)
-//    }
+    it("should be able to synthesize a swap program") {
+      // Testing [read], [frame] and [write]
+      synthesizeFromSpec(spec7)
+    }
+
+    it("should be able to synthesize a complex swap program") {
+      // Testing [read], [frame] and [write]
+      synthesizeFromSpec(spec8)
+    }
 
   }
 

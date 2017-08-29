@@ -20,3 +20,7 @@ case object IntType extends PrimitiveType {
 case object VoidType extends PrimitiveType {
   override def pp: String = "void"
 }
+
+case class PtrType(inner: SynslType) extends SynslType {
+  override def pp: String = s"${inner.pp}*"
+}

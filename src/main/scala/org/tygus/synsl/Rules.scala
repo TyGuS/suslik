@@ -59,6 +59,9 @@ trait Rules {
   */
 
   object EmpRule extends Rule {
+
+    override def toString: Ident = "[emp]"
+
     def isApplicable(spec: Spec): Boolean = {
       // TODO: Ignore the pure parts for now
       // TODO: Replace this by a general entailment checker
@@ -84,8 +87,17 @@ trait Rules {
 
   object ReadRule extends Rule {
 
+    def isGhostHeaplet(spec: Spec): SFormula => Boolean = {
+      case PointsTo(id, offset, a@(Var(_))) => spec.isGhost(a)
+      case _ => false
+    }
+
+    override def toString: Ident = "[read]"
+
     def isApplicable(spec: Spec): Boolean = {
-      spec.pre.sigma.getHeadHeaplet match {
+      // TODO: this is a hack, rework for non-head forms
+      val preCanonical = spec.pre.sigma.canonicalize(isGhostHeaplet(spec))
+      preCanonical.getHeadHeaplet match {
         case Some(PointsTo(_, _, a@(Var(_)))) =>
           spec.isGhost(a) && spec.getType(a).nonEmpty
         case _ => false
@@ -96,7 +108,8 @@ trait Rules {
       assert(isApplicable(spec), s"The rule [read] is not applicable for the spec ${spec.pp}")
 
       val Spec(pre, post, gamma: Gamma) = spec
-      val Some(PointsTo(x, _, a@(Var(_)))) = pre.sigma.getHeadHeaplet
+      val preWithGhostHead = pre.sigma.canonicalize(isGhostHeaplet(spec))
+      val Some(PointsTo(x, _, a@(Var(_)))) = preWithGhostHead.getHeadHeaplet
       val y = generateFreshVar(spec)
 
       assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
@@ -122,11 +135,13 @@ trait Rules {
    */
   object WriteRule extends Rule {
 
+    override def toString: Ident = "[write]"
+
     def isApplicable(spec: Spec): Boolean = {
       // Pre-heaplet from a canonical form
-      val h1 = spec.pre.sigma.getHeadHeaplet
+      val h1 = spec.pre.sigma.canon.getHeadHeaplet
       // Post-heaplet from a canonical form
-      val h2 = spec.post.sigma.getHeadHeaplet
+      val h2 = spec.post.sigma.canon.getHeadHeaplet
       (h1, h2) match {
         case (Some(PointsTo(x, _, _)), Some(PointsTo(y, _, e2)))
           if x == y && spec.isConcrete(Var(x)) =>
@@ -141,12 +156,12 @@ trait Rules {
 
 
       val Spec(pre, post, gamma: Gamma) = spec
-      val Some(PointsTo(x, offset, e2: Expr)) = post.sigma.getHeadHeaplet
+      val Some(PointsTo(x, offset, e2: Expr)) = post.sigma.canon.getHeadHeaplet
 
       assert(e2.vars.forall(v => spec.isConcrete(v)),
         s"Expression ${e2.pp} contains uninstantiated ghost variables in the spec ${spec.pp}.")
 
-      val subGoalSpec = Spec(pre.stripHeadHeaplet, post.stripHeadHeaplet, gamma)
+      val subGoalSpec = Spec(pre.removeHeaplet(_.id == x), post.removeHeaplet(_.id == x), gamma)
       val kont: StmtProducer = smts => {
         assert(smts.nonEmpty, s"The rest of the program is empty")
         val rest = smts.head
@@ -170,11 +185,13 @@ trait Rules {
    */
   object FrameRule extends Rule {
 
+    override def toString: Ident = "[frame]"
+
     def isApplicable(spec: Spec): Boolean = {
       // Pre-heaplet from a canonical form
-      val h1 = spec.pre.sigma.getHeadHeaplet
+      val h1 = spec.pre.sigma.canon.getHeadHeaplet
       // Post-heaplet from a canonical form
-      val h2 = spec.post.sigma.getHeadHeaplet
+      val h2 = spec.post.sigma.canon.getHeadHeaplet
       (h1, h2) match {
         case (Some(p1@PointsTo(x, o1, e1)), Some(p2@PointsTo(y, o2, e2)))
           if p1 == p2 => true
@@ -186,13 +203,13 @@ trait Rules {
       assert(isApplicable(spec), s"The rule [frame] is not applicable for the spec ${spec.pp}.")
 
       val Spec(pre, post, gamma: Gamma) = spec
-      val Some(p1) = pre.sigma.getHeadHeaplet
-      val Some(p2) = post.sigma.getHeadHeaplet
+      val Some(p1) = pre.sigma.canon.getHeadHeaplet
+      val Some(p2) = post.sigma.canon.getHeadHeaplet
 
       assert(p1 == p2,
         s"Pre/posts have different head heaplets in the spec ${spec.pp}.")
 
-      val subGoalSpec = Spec(pre.stripHeadHeaplet, post.stripHeadHeaplet, gamma)
+      val subGoalSpec = Spec(pre.removeHeaplet(_.id == p1.id), post.removeHeaplet(_.id == p1.id), gamma)
       val kont: StmtProducer = smts => {
         assert(smts.nonEmpty, s"The rest of the program is empty")
         smts.head

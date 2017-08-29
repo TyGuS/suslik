@@ -10,7 +10,7 @@ object Specifications extends SpatialFormulas {
 
   case class Assertion(phi: PureFormula, sigma: SFormula) extends Substitutable[Assertion] {
 
-    def pp: String = s"{${phi.pp} ; ${sigma.canonicalize.pp}}"
+    def pp: String = s"{${phi.pp} ; ${sigma.canonicalize(_ => true).pp}}"
 
     // Get free variables
     def varsPhi: Set[Var] = phi.collectE(_.isInstanceOf[Var])
@@ -25,7 +25,7 @@ object Specifications extends SpatialFormulas {
 
     def subst(x: Var, by: Expr): Assertion = Assertion(phi.subst(x, by), sigma.subst(x, by))
 
-    def stripHeadHeaplet = Assertion(phi, sigma.stripHeadHeaplet)
+    def removeHeaplet(f: PointsTo => Boolean) = Assertion(phi, sigma.removeHeaplet(f))
   }
 
 
@@ -80,8 +80,8 @@ object Specifications extends SpatialFormulas {
 
     override def pp: String = {
       val Spec(pre, post, gamma) = spec
-      s"${pre.pp} ${tpe.pp} " +
-          s"$name(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) " +
+      s"${pre.pp}\n${tpe.pp} " +
+          s"$name(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
           s"${post.pp}"
     }
 

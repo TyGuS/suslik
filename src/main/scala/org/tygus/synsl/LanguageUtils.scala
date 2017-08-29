@@ -26,7 +26,8 @@ object LanguageUtils {
     var candidate = Var(s"$tmpName")
     val existing = s.vars
     while (existing.contains(candidate)) {
-      candidate = Var(s"$tmpName\$$counter")
+      counter = counter + 1
+      candidate = Var(s"$tmpName$counter")
     }
     candidate
   }
