@@ -54,8 +54,9 @@ trait Rules {
   /*
   Empty rule: supposed to be applied at the end
 
+                  P |- Q
       ---------------------------------------- [emp]
-      Γ ; { emp } ; { emp } ---> return;
+      Γ ; { true; P } ; { true; Q } ---> return;
   */
 
   object EmpRule extends Rule {
@@ -84,7 +85,6 @@ trait Rules {
       ---------------------------------------------------------------------- [read]
               Γ ; { φ ; x -> A * P } ; { ψ ; Q } ---> let y := *x ; S
   */
-
   object ReadRule extends Rule {
 
     def isGhostHeaplet(spec: Spec): SFormula => Boolean = {
