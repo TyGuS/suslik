@@ -15,7 +15,6 @@ trait Rules {
   import Specifications._
   import Statements._
 
-
   type Pre = Assertion
   type Post = Assertion
 
@@ -95,8 +94,9 @@ trait Rules {
       /*
       TODO:
       1. Generate fresh variable (wrt. gamma)
-      2. Change the spec for the goal
-      3. Make a continuation for wrapping the rest
+      2. Implement the substitution
+      3. Change the spec for the goal
+      4. Make a continuation for wrapping the rest
        */
 
 

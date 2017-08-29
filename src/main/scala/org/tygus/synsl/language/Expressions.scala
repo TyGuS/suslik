@@ -1,6 +1,6 @@
 package org.tygus.synsl.language
 
-import org.tygus.synsl.PrettyPrinting
+import org.tygus.synsl.{PrettyPrinting, Substitutable}
 
 /**
   * @author Ilya Sergey
@@ -8,7 +8,8 @@ import org.tygus.synsl.PrettyPrinting
 
 object Expressions {
 
-  sealed abstract class Expr extends PrettyPrinting {
+  sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
+
     // Type-coercing visitor (yikes!)
     def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
 
@@ -33,14 +34,19 @@ object Expressions {
   // Program-level variable: program-level or ghost
   case class Var(name: String) extends Expr {
     override def pp: String = name
+    def subst(x: Var, by: Expr): Expr =
+      if (x.name == this.name) by else this
   }
 
   // Program-level constant
   case class PConst(value: Any) extends Expr {
     override def pp: String = value.toString
+    def subst(x: Var, by: Expr): Expr = this
   }
 
-  abstract class BinaryExpr(val left: Expr, val right: Expr) extends Expr
+  sealed case class BinaryExpr(left: Expr, right: Expr) extends Expr {
+    def subst(x: Var, by: Expr): Expr = this.copy(left.subst(x, by), right.subst(x, by))
+  }
 
   // Binary expressions
   case class EPlus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
@@ -50,7 +56,10 @@ object Expressions {
   case class EEq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
   case class EAnd(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
   case class EOr(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
-  case class ENeg(arg: Expr) extends Expr
+
+  case class ENeg(arg: Expr) extends Expr {
+    def subst(x: Var, by: Expr): Expr = ENeg(arg.subst(x, by))
+  }
 
 
 }
