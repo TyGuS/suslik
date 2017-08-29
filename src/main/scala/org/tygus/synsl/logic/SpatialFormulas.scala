@@ -32,6 +32,21 @@ trait SpatialFormulas extends PureFormulas {
       case _ => None
     }
 
+    def replaceHeadHeaplet(hp2: PointsTo): SFormula = this.canonicalize match {
+      case Sep(left, right) => Sep(left.replaceHeadHeaplet(hp2), right)
+      case p@PointsTo(_, _, _) => hp2
+      case s => s
+    }
+
+    def stripHeadHeaplet: SFormula = {
+      val f = this.canonicalize match {
+        case Sep(left, right) => Sep(left.stripHeadHeaplet, right)
+        case p@PointsTo(_, _, _) => Emp
+        case s => s
+      }
+      f.canonicalize
+    }
+
     // TODO: This is why we need fancy SL-based tools
     def entails(other: SFormula): Boolean = this == other
 
@@ -74,10 +89,12 @@ trait SpatialFormulas extends PureFormulas {
     private def unroll: Seq[SFormula] = {
       val l = left match {
         case sp: Sep => sp.unroll
+        case Emp => Seq()
         case x => Seq(x)
       }
       val r = right match {
         case sp: Sep => sp.unroll
+        case Emp => Seq()
         case x => Seq(x)
       }
       l ++ r

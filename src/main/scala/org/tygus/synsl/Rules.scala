@@ -1,6 +1,7 @@
 package org.tygus.synsl
 
-import org.tygus.synsl.language.Expressions.Var
+import org.tygus.synsl.LanguageUtils.generateFreshVar
+import org.tygus.synsl.language.Expressions.{Expr, Var}
 import org.tygus.synsl.language.Statements
 import org.tygus.synsl.logic.Specifications
 
@@ -82,6 +83,7 @@ trait Rules {
   */
 
   object ReadRule extends Rule {
+
     def isApplicable(spec: Spec): Boolean = {
       spec.pre.sigma.getHeadHeaplet match {
         case Some(PointsTo(_, _, a@(Var(_)))) =>
@@ -91,18 +93,115 @@ trait Rules {
     }
 
     def apply(spec: Spec): RuleResult = {
-      /*
-      TODO:
-      1. Generate fresh variable (wrt. gamma)
-      2. Implement the substitution
-      3. Change the spec for the goal
-      4. Make a continuation for wrapping the rest
-       */
+      assert(isApplicable(spec), s"The rule [read] is not applicable for the spec ${spec.pp}")
 
+      val Spec(pre, post, gamma: Gamma) = spec
+      val Some(PointsTo(x, _, a@(Var(_)))) = pre.sigma.getHeadHeaplet
+      val y = generateFreshVar(spec)
 
+      assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
+      val tpy = spec.getType(a).get
 
-      ???
+      val subGoalSpec = Spec(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
+      val kont: StmtProducer = smts => {
+        assert(smts.nonEmpty, s"The rest of the program is empty")
+        val rest = smts.head
+        Load(y, tpy, Var(x), rest)
+      }
+
+      MoreGoals(Seq(subGoalSpec), kont)
     }
   }
+
+  /*
+  Write rule: create a new write from where it's possible
+
+                      Γ ; { φ ; P } ; { ψ ; Q } ---> S
+      -------------------------------------------------------------- [write]
+       Γ ; { φ ; x -> e1 * P } ; { ψ ; x -> e2 * Q } ---> *x := e2 ; S
+   */
+  object WriteRule extends Rule {
+
+    def isApplicable(spec: Spec): Boolean = {
+      // Pre-heaplet from a canonical form
+      val h1 = spec.pre.sigma.getHeadHeaplet
+      // Post-heaplet from a canonical form
+      val h2 = spec.post.sigma.getHeadHeaplet
+      (h1, h2) match {
+        case (Some(PointsTo(x, _, _)), Some(PointsTo(y, _, e2)))
+          if x == y && spec.isConcrete(Var(x)) =>
+          // All e2's variables areinstantiated
+          e2.vars.forall(v => spec.isConcrete(v))
+        case _ => false
+      }
+    }
+
+    def apply(spec: Spec): RuleResult = {
+      assert(isApplicable(spec), s"The rule [write] is not applicable for the spec ${spec.pp}.")
+
+
+      val Spec(pre, post, gamma: Gamma) = spec
+      val Some(PointsTo(x, offset, e2: Expr)) = post.sigma.getHeadHeaplet
+
+      assert(e2.vars.forall(v => spec.isConcrete(v)),
+        s"Expression ${e2.pp} contains uninstantiated ghost variables in the spec ${spec.pp}.")
+
+      val subGoalSpec = Spec(pre.stripHeadHeaplet, post.stripHeadHeaplet, gamma)
+      val kont: StmtProducer = smts => {
+        assert(smts.nonEmpty, s"The rest of the program is empty")
+        val rest = smts.head
+        Store(Var(x), e2, rest)
+      }
+
+      MoreGoals(Seq(subGoalSpec), kont)
+    }
+
+  }
+
+  /*
+  Frame rule: reduce the size of the specification
+  TODO: generalize from just heaplets
+
+        (GV(Q) / GV(P)) ∪ GV(R) = Ø
+      Γ ; { φ ; P } ; { ψ ; Q } ---> S
+    ---------------------------------------- [frame]
+    Γ ; { φ ; P * R } ; { ψ ; Q * R } ---> S
+
+   */
+  object FrameRule extends Rule {
+
+    def isApplicable(spec: Spec): Boolean = {
+      // Pre-heaplet from a canonical form
+      val h1 = spec.pre.sigma.getHeadHeaplet
+      // Post-heaplet from a canonical form
+      val h2 = spec.post.sigma.getHeadHeaplet
+      (h1, h2) match {
+        case (Some(p1@PointsTo(x, o1, e1)), Some(p2@PointsTo(y, o2, e2)))
+          if p1 == p2 => true
+        case _ => false
+      }
+    }
+
+    def apply(spec: Spec): RuleResult = {
+      assert(isApplicable(spec), s"The rule [frame] is not applicable for the spec ${spec.pp}.")
+
+      val Spec(pre, post, gamma: Gamma) = spec
+      val Some(p1) = pre.sigma.getHeadHeaplet
+      val Some(p2) = post.sigma.getHeadHeaplet
+
+      assert(p1 == p2,
+        s"Pre/posts have different head heaplets in the spec ${spec.pp}.")
+
+      val subGoalSpec = Spec(pre.stripHeadHeaplet, post.stripHeadHeaplet, gamma)
+      val kont: StmtProducer = smts => {
+        assert(smts.nonEmpty, s"The rest of the program is empty")
+        smts.head
+      }
+
+      MoreGoals(Seq(subGoalSpec), kont)
+    }
+
+  }
+
 
 }

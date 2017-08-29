@@ -8,7 +8,7 @@ object Specifications extends SpatialFormulas {
 
   type Gamma = Seq[(SynslType, Var)]
 
-  case class Assertion(phi: PureFormula, sigma: SFormula) {
+  case class Assertion(phi: PureFormula, sigma: SFormula) extends Substitutable[Assertion] {
 
     def pp: String = s"{${phi.pp} ; ${sigma.canonicalize.pp}}"
 
@@ -22,13 +22,24 @@ object Specifications extends SpatialFormulas {
     // Collect arbitrary expressions
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
       phi.collectE(p) ++ sigma.collectE(p)
+
+    def subst(x: Var, by: Expr): Assertion = Assertion(phi.subst(x, by), sigma.subst(x, by))
+
+    def stripHeadHeaplet = Assertion(phi, sigma.stripHeadHeaplet)
   }
 
 
   /**
     * Main class for contextual Hoare-style specifications
     */
-  case class Spec(pre: Assertion, post: Assertion, gamma: Gamma) {
+  case class Spec(pre: Assertion, post: Assertion, gamma: Gamma) extends PrettyPrinting {
+
+    override def pp: String =
+      s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |- " +
+          s"${pre.pp} ${post.pp}"
+
+    def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
+
     def ghosts: Set[Var] = pre.vars -- formals
 
     def formals: Set[Var] = gamma.map(_._2).toSet
@@ -39,10 +50,11 @@ object Specifications extends SpatialFormulas {
 
     def constantsInPost: Set[PConst] = post.collectE(_.isInstanceOf[PConst])
 
-    /**
-      * Determine whether `x` is a ghost vriaable wrt. given spec and gamma
-      */
+    // Determine whether `x` is a ghost vriaable wrt. given spec and gamma
     def isGhost(x: Var): Boolean = ghosts.contains(x)
+
+    // Determine whether x is in the context
+    def isConcrete(x: Var) : Boolean = gamma.map(_._2).contains(x)
 
     def getType(x: Var): Option[SynslType] = {
       // TODO: all ghosts are ints for now, until we descide how to infer it

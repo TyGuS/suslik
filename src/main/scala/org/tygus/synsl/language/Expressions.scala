@@ -29,6 +29,8 @@ object Expressions {
       collector(Set.empty)(this)
     }
 
+    def vars: Set[Var] = collect(_.isInstanceOf[Var])
+
   }
 
   // Program-level variable: program-level or ghost
