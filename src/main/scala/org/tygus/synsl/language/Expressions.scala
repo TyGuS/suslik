@@ -46,18 +46,38 @@ object Expressions {
     def subst(x: Var, by: Expr): Expr = this
   }
 
-  sealed case class BinaryExpr(left: Expr, right: Expr) extends Expr {
-    def subst(x: Var, by: Expr): Expr = this.copy(left.subst(x, by), right.subst(x, by))
+  sealed abstract class BinaryExpr(val left: Expr, val right: Expr) extends Expr {
   }
 
   // Binary expressions
-  case class EPlus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
-  case class EMinus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
-  case class ELeq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
-  case class ELtn(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
-  case class EEq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
-  case class EAnd(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
-  case class EOr(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right)
+  // TODO: Figure out how to use Scala's generic programming to solve this annoying instance of the expression problem
+  case class EPlus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
+    def subst(x: Var, by: Expr): Expr = EPlus(left.subst(x, by), right.subst(x, by))
+  }
+
+  case class EMinus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
+    def subst(x: Var, by: Expr): Expr = EMinus(left.subst(x, by), right.subst(x, by))
+  }
+
+  case class ELeq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
+    def subst(x: Var, by: Expr): Expr = ELeq(left.subst(x, by), right.subst(x, by))
+  }
+
+  case class ELtn(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
+    def subst(x: Var, by: Expr): Expr = ELtn(left.subst(x, by), right.subst(x, by))
+  }
+
+  case class EEq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
+    def subst(x: Var, by: Expr): Expr = EEq(left.subst(x, by), right.subst(x, by))
+  }
+
+  case class EAnd(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
+    def subst(x: Var, by: Expr): Expr = EAnd(left.subst(x, by), right.subst(x, by))
+  }
+
+  case class EOr(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
+    def subst(x: Var, by: Expr): Expr = EOr(left.subst(x, by), right.subst(x, by))
+  }
 
   case class ENeg(arg: Expr) extends Expr {
     def subst(x: Var, by: Expr): Expr = ENeg(arg.subst(x, by))

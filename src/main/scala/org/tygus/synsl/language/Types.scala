@@ -11,10 +11,10 @@ abstract class SynslType extends PrettyPrinting
 abstract class PrimitiveType extends SynslType
 
 case object BoolType extends PrimitiveType {
-  override def pp: String = "int"
+  override def pp: String = "bool"
 }
 case object IntType extends PrimitiveType {
-  override def pp: String = "bool"
+  override def pp: String = "int"
 }
 
 case object VoidType extends PrimitiveType {

@@ -16,7 +16,7 @@ object Statements {
 
       val builder = new StringBuilder
 
-      def build(s: Statement, offset: Int = 0): Unit = {
+      def build(s: Statement, offset: Int = 2): Unit = {
         builder.append(mkSpaces(offset))
         s match {
           case Return(r) =>
@@ -25,16 +25,17 @@ object Statements {
               case None => builder.append("return;")
             }
           case Store(to, e, rest) =>
-            builder.append(s"*$to = ${e.toString};\n")
+            builder.append(s"*${to.pp} = ${e.pp};\n")
             build(rest)
           case Load(to, tpe, from, rest) =>
-            builder.append(s"$tpe $to = $from;\n")
+            builder.append(s"${tpe.pp} ${to.pp} = ${from.pp};\n")
             build(rest)
           case Call(to, tpe, fun, args, rest) =>
-            builder.append(s"$tpe $to = $fun(${args.mkString(", ")});\n")
+            builder.append(s"${tpe.pp} ${to.pp} = " +
+                s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n")
             build(rest)
           case If(cond, tb, eb) =>
-            builder.append(s"if ($cond) {\n")
+            builder.append(s"if (${cond.pp}) {\n")
             build(tb, offset + 2)
             builder.append(mkSpaces(offset)).append(s"} else {\n")
             build(eb, offset + 2)
@@ -66,9 +67,14 @@ object Statements {
   // TODO: add allocation/deallocation
 
   // A procedure
-  case class Procedure(name: String, formals: Seq[(SynslType, Var)], body: Statement) {
+  case class Procedure(name: String, tp: SynslType, formals: Seq[(SynslType, Var)], body: Statement) {
 
-//    def pp : String =
+  def pp : String =
+    s"""
+      |${tp.pp} $name (${formals.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) {
+      |${body.pp}
+      |}
+    """.stripMargin
 
 
   }
