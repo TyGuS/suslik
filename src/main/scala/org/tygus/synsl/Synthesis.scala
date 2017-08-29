@@ -11,9 +11,7 @@ import org.tygus.synsl.logic.Specifications._
 
 object Synthesis extends Rules {
 
-  type Gamma = Seq[(SynslType, Var)]
-
-  def synthesize(spec: Spec): Procedure = {
+  def synthesize(spec: FullSpec): Procedure = {
 
     // TODO: implement Nadia's rules
     ???

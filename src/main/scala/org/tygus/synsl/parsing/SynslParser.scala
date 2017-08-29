@@ -73,11 +73,11 @@ class SynslParser extends StandardTokenParsers {
     case None ~ s => Assertion(PTrue, s)
   }
 
-  def spec: Parser[Spec] = assertion ~ primitiveType ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ formals ~ post => Spec(pre, post, tpe, name, formals)
+  def spec: Parser[FullSpec] = assertion ~ primitiveType ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+    case pre ~ tpe ~ name ~ gamma ~ post => FullSpec(Spec(pre, post, gamma), tpe, Some(name))
   }
 
-  def parse(input: String): ParseResult[Spec] = spec(new lexical.Scanner(input)) match {
+  def parse(input: String): ParseResult[FullSpec] = spec(new lexical.Scanner(input)) match {
     case e: Error => Failure(e.msg, e.next)
     case Success(_, in) if !in.atEnd => Failure("Non fully parsed", in)
     case s => s

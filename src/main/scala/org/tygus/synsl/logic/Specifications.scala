@@ -1,7 +1,7 @@
 package org.tygus.synsl.logic
 
 import org.tygus.synsl.PrettyPrinting
-import org.tygus.synsl.language.SynslType
+import org.tygus.synsl.language.{IntType, SynslType}
 import org.tygus.synsl.language.Expressions._
 
 
@@ -88,6 +88,16 @@ trait SpatialFormulas extends PureFormulas {
 
     def canonicalize: SFormula = this
 
+    def getHeadHeaplet: Option[PointsTo] = this.canonicalize match {
+      case Sep(left, _) => left.getHeadHeaplet
+      case p@PointsTo(_, _, _) => Some(p)
+      case _ => None
+    }
+
+    // TODO: This is why we need fancy SL-based tools
+    def entails(other: SFormula): Boolean = this == other
+
+    def |-(other: SFormula): Boolean = this.entails(other)
   }
 
   case object Emp extends SFormula {
@@ -132,9 +142,6 @@ trait SpatialFormulas extends PureFormulas {
       val nonpts = lst.filterNot(_.isInstanceOf[PointsTo])
 
       val chunks = ptsSorted ++ nonpts
-      if (chunks.isEmpty) {
-        println("crap!")
-      }
       assert(chunks.nonEmpty)
       if (chunks.size == 1) return chunks.head
 
@@ -150,6 +157,8 @@ trait SpatialFormulas extends PureFormulas {
 
 object Specifications extends SpatialFormulas {
 
+  type Gamma = Seq[(SynslType, Var)]
+
   case class Assertion(phi: PureFormula, sigma: SFormula) {
 
     def pp: String = s"{${phi.pp} ; ${sigma.canonicalize.pp}}"
@@ -164,34 +173,58 @@ object Specifications extends SpatialFormulas {
     // Collect arbitrary expressions
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
       phi.collectE(p) ++ sigma.collectE(p)
-
-    // TODO: engineer more well-formedness
   }
 
+
   /**
-    * Hoare-style SL specification
-    *
-    * @param pre     precondition
-    * @param post    postcondition
-    * @param name    Procedure name
-    * @param tpe     Procedure return type
-    * @param formals parameters of the code fragment
+    * Main class for contextual Hoare-style specifications
     */
-  case class Spec(pre: Assertion, post: Assertion, tpe: SynslType, name: Ident, formals: Seq[(SynslType, Var)]) {
+  case class Spec(pre: Assertion, post: Assertion, gamma: Gamma) {
+    def ghosts: Set[Var] = pre.vars -- formals
 
-    def pp: String = s"${pre.pp} ${tpe.pp} " +
-        s"$name(${formals.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) " +
-        s"${post.pp}"
+    def formals: Set[Var] = gamma.map(_._2).toSet
 
-    // Universally quantified ghosts: do not take formals into the account
-    def universals: Set[Var] = pre.vars -- formals.map(_._2)
-
-    def existentials: Set[Var] = post.vars -- pre.vars
+    def existentials: Set[Var] = (post.vars -- ghosts) -- formals
 
     def givenConstants: Set[PConst] = pre.collectE(_.isInstanceOf[PConst])
 
     def constantsInPost: Set[PConst] = post.collectE(_.isInstanceOf[PConst])
 
+    /**
+      * Determine whether `x` is a ghost vriaable wrt. given spec and gamma
+      */
+    def isGhost(x: Var): Boolean = ghosts.contains(x)
+
+    def getType(x: Var): Option[SynslType] = {
+      // TODO: all ghosts are ints for now, until we descide how to infer it
+      if (isGhost(x)) return Some(IntType)
+
+      // Typed variables get the type automatically
+      gamma.find(_._2 == x) match {
+        case Some((t, _)) => Some(t)
+        case None => None
+      }
+    }
   }
+
+  /**
+    * Hoare-style SL specification
+    *
+    * @param spec pre/postconditions and variable context
+    * @param name Procedure name (optional)
+    * @param tpe  Procedure return type
+    */
+  case class FullSpec(spec: Spec, tpe: SynslType, name: Option[Ident])
+      extends PrettyPrinting {
+
+    override def pp: String = {
+      val Spec(pre, post, gamma) = spec
+      s"${pre.pp} ${tpe.pp} " +
+          s"$name(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) " +
+          s"${post.pp}"
+    }
+
+  }
+
 
 }
