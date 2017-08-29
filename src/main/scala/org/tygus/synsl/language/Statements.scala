@@ -28,7 +28,7 @@ object Statements {
             builder.append(s"*${to.pp} = ${e.pp};\n")
             build(rest)
           case Load(to, tpe, from, rest) =>
-            builder.append(s"${tpe.pp} ${to.pp} = ${from.pp};\n")
+            builder.append(s"${tpe.pp} ${to.pp} = *${from.pp};\n")
             build(rest)
           case Call(to, tpe, fun, args, rest) =>
             builder.append(s"${tpe.pp} ${to.pp} = " +
