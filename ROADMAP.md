@@ -4,9 +4,13 @@
 
 * [DONE] Do not generate spurious loads, which are later unused
     - [DONE] Implement visitor for statements
-* Make rule querying uniform (no more canonicalize fiddling)
-* Support for pointer types
-* Type inference for ghosts (right now it's a dummy int)
+* [DONE] Support for pointer types
+* [DONE] Make rule querying uniform (no more canonicalize fiddling)
+* [DONE] Type inference for ghosts (right now it's a dummy int)
+
+## More expressive SL
+
+* Inductive predicates
 
 ## Synthesis machinery
 
