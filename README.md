@@ -11,3 +11,7 @@ To compile and test, execute from the root folder of the project
 ```
 sbt test
 ```
+
+## Project Structure Description
+
+Coming soon!
