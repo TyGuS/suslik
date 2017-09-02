@@ -1,7 +1,7 @@
 package org.tygus.synsl.logic
 
 import org.tygus.synsl.{PrettyPrinting, Substitutable}
-import org.tygus.synsl.language.{IntType, SynslType}
+import org.tygus.synsl.language.{IntType, PtrType, SynslType}
 import org.tygus.synsl.language.Expressions._
 
 object Specifications extends SpatialFormulas {
@@ -58,7 +58,22 @@ object Specifications extends SpatialFormulas {
 
     def getType(x: Var): Option[SynslType] = {
       // TODO: all ghosts are ints for now, until we descide how to infer it
-      if (isGhost(x)) return Some(IntType)
+      if (isGhost(x)) {
+        // Deduce the type from the parameter types and the spec
+        val candidates = pre.sigma.findSubFormula {
+          case PointsTo(_, _, v) => v == x
+          case _ => false
+        }
+        if (candidates.isEmpty) return None
+        val PointsTo(y, _, _) = candidates.head
+
+        val assocType: Option[(SynslType, Var)] = gamma.find(pv => pv._2.name == y)
+        if (assocType.isEmpty) return None
+        return assocType.get._1 match {
+          case PtrType(inner) => Some(inner)
+          case _ => None
+        }
+      }
 
       // Typed variables get the type automatically
       gamma.find(_._2 == x) match {

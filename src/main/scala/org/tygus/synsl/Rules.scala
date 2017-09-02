@@ -95,7 +95,11 @@ trait Rules {
     override def toString: Ident = "[read]"
 
     def isApplicable(spec: Spec): Boolean = {
-      spec.pre.sigma.findSubFormula(isGhostHeaplet(spec)).nonEmpty
+      val hs = spec.pre.sigma.findSubFormula(isGhostHeaplet(spec))
+      if (hs.isEmpty) return false
+      val PointsTo(x, _, a@(Var(_))) = hs.head
+      val tpy = spec.getType(a)
+      tpy.nonEmpty
     }
 
     def apply(spec: Spec): RuleResult = {

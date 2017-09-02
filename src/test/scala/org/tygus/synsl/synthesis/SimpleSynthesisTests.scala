@@ -18,7 +18,7 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
   val spec6 = "{true; x :-> a ** y :-> 2} void bar(int* x, int* y) {true ; x :-> a ** y :-> a}"
   val spec7 = "{true; x :-> a ** y :-> b} void swap(int* x, int* y) {true ; x :-> b ** y :-> a}"
   val spec8 = "{true; x :-> a ** y :-> c ** z :-> b ** t :-> q } " +
-              "void swap (int* x, int* z, int* y, int* t) " +
+              "void swap (bool* x, int* z, bool* y, int* t) " +
               "{ true; x :-> c ** z :-> b ** t :-> q ** y :-> 41 }"
   val spec9 = "{true; x :-> a ** y :-> c ** z :-> b ** t :-> q } " +
               "void swap (int* x, int* z, int* y, int* t) " +
