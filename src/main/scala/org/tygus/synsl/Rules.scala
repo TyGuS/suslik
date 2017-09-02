@@ -119,7 +119,8 @@ trait Rules {
       val kont: StmtProducer = smts => {
         assert(smts.nonEmpty, s"The rest of the program is empty")
         val rest = smts.head
-        Load(y, tpy, Var(x), rest)
+        // Do not generate read for unused variables
+        if (rest.usedVars.contains(y)) Load(y, tpy, Var(x), rest) else rest
       }
 
       MoreGoals(Seq(subGoalSpec), kont)
