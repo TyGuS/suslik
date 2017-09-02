@@ -95,21 +95,16 @@ trait Rules {
     override def toString: Ident = "[read]"
 
     def isApplicable(spec: Spec): Boolean = {
-      // TODO: this is a hack, rework for non-head forms
-      val preCanonical = spec.pre.sigma.canonicalize(isGhostHeaplet(spec))
-      preCanonical.getHeadHeaplet match {
-        case Some(PointsTo(_, _, a@(Var(_)))) =>
-          spec.isGhost(a) && spec.getType(a).nonEmpty
-        case _ => false
-      }
+      spec.pre.sigma.findSubFormula(isGhostHeaplet(spec)).nonEmpty
     }
 
     def apply(spec: Spec): RuleResult = {
       assert(isApplicable(spec), s"The rule [read] is not applicable for the spec ${spec.pp}")
 
       val Spec(pre, post, gamma: Gamma) = spec
-      val preWithGhostHead = pre.sigma.canonicalize(isGhostHeaplet(spec))
-      val Some(PointsTo(x, _, a@(Var(_)))) = preWithGhostHead.getHeadHeaplet
+      val ghostHeaplets = spec.pre.sigma.findSubFormula(isGhostHeaplet(spec)).toList
+      assert(ghostHeaplets.nonEmpty)
+      val PointsTo(x, _, a@(Var(_))) = ghostHeaplets.head
       val y = generateFreshVar(spec)
 
       assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
@@ -138,31 +133,37 @@ trait Rules {
 
     override def toString: Ident = "[write]"
 
+    def findHeapletFor(x: Ident, spec: Spec): SFormula => Boolean = {
+      case PointsTo(y, _, e2) =>
+        x == y && spec.isConcrete(Var(x)) &&
+            e2.vars.forall(v => spec.isConcrete(v))
+      case _ => false
+    }
+
     def isApplicable(spec: Spec): Boolean = {
       // Pre-heaplet from a canonical form
-      val h1 = spec.pre.sigma.canon.getHeadHeaplet
-      // Post-heaplet from a canonical form
-      val h2 = spec.post.sigma.canon.getHeadHeaplet
-      (h1, h2) match {
-        case (Some(PointsTo(x, _, _)), Some(PointsTo(y, _, e2)))
-          if x == y && spec.isConcrete(Var(x)) =>
-          // All e2's variables areinstantiated
-          e2.vars.forall(v => spec.isConcrete(v))
-        case _ => false
-      }
+      val hs1 = spec.pre.sigma.findSubFormula(_.isInstanceOf[PointsTo])
+      if (hs1.isEmpty) return false
+      val PointsTo(x, _, _) = hs1.head.asInstanceOf[PointsTo]
+      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, spec))
+
+      assert(hs2.size <= 1, s"Post-condition is inconsistent:\n${spec.pp}")
+      hs2.nonEmpty
     }
 
     def apply(spec: Spec): RuleResult = {
       assert(isApplicable(spec), s"The rule [write] is not applicable for the spec ${spec.pp}.")
-
-
       val Spec(pre, post, gamma: Gamma) = spec
-      val Some(PointsTo(x, offset, e2: Expr)) = post.sigma.canon.getHeadHeaplet
+
+      val hs1 = spec.pre.sigma.findSubFormula(_.isInstanceOf[PointsTo])
+      val h1@PointsTo(x, _, _) = hs1.head.asInstanceOf[PointsTo]
+      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, spec))
+      val h2@PointsTo(_, offset, e2: Expr) = hs2.head
 
       assert(e2.vars.forall(v => spec.isConcrete(v)),
         s"Expression ${e2.pp} contains uninstantiated ghost variables in the spec ${spec.pp}.")
 
-      val subGoalSpec = Spec(pre.removeHeaplet(_.id == x), post.removeHeaplet(_.id == x), gamma)
+      val subGoalSpec = Spec(pre.removeSubformula(_ == h1), post.removeSubformula(_ == h2), gamma)
       val kont: StmtProducer = smts => {
         assert(smts.nonEmpty, s"The rest of the program is empty")
         val rest = smts.head
@@ -190,9 +191,9 @@ trait Rules {
 
     def isApplicable(spec: Spec): Boolean = {
       // Pre-heaplet from a canonical form
-      val h1 = spec.pre.sigma.canon.getHeadHeaplet
+      val h1 = spec.pre.sigma.simpl.canonicalize.getHeadHeaplet
       // Post-heaplet from a canonical form
-      val h2 = spec.post.sigma.canon.getHeadHeaplet
+      val h2 = spec.post.sigma.simpl.canonicalize.getHeadHeaplet
       (h1, h2) match {
         case (Some(p1@PointsTo(x, o1, e1)), Some(p2@PointsTo(y, o2, e2)))
           if p1 == p2 => true
@@ -204,13 +205,13 @@ trait Rules {
       assert(isApplicable(spec), s"The rule [frame] is not applicable for the spec ${spec.pp}.")
 
       val Spec(pre, post, gamma: Gamma) = spec
-      val Some(p1) = pre.sigma.canon.getHeadHeaplet
-      val Some(p2) = post.sigma.canon.getHeadHeaplet
+      val Some(p1) = pre.sigma.simpl.canonicalize.getHeadHeaplet
+      val Some(p2) = post.sigma.simpl.canonicalize.getHeadHeaplet
 
       assert(p1 == p2,
         s"Pre/posts have different head heaplets in the spec ${spec.pp}.")
 
-      val subGoalSpec = Spec(pre.removeHeaplet(_.id == p1.id), post.removeHeaplet(_.id == p1.id), gamma)
+      val subGoalSpec = Spec(pre.removeSubformula(_ == p1), post.removeSubformula(_ == p2), gamma)
       val kont: StmtProducer = smts => {
         assert(smts.nonEmpty, s"The rest of the program is empty")
         smts.head

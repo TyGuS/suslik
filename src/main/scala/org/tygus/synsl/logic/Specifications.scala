@@ -10,7 +10,7 @@ object Specifications extends SpatialFormulas {
 
   case class Assertion(phi: PureFormula, sigma: SFormula) extends Substitutable[Assertion] {
 
-    def pp: String = s"{${phi.pp} ; ${sigma.canonicalize(_ => true).pp}}"
+    def pp: String = s"{${phi.pp} ; ${sigma.simpl.canonicalize.pp}}"
 
     // Get free variables
     def varsPhi: Set[Var] = phi.collectE(_.isInstanceOf[Var])
@@ -25,7 +25,7 @@ object Specifications extends SpatialFormulas {
 
     def subst(x: Var, by: Expr): Assertion = Assertion(phi.subst(x, by), sigma.subst(x, by))
 
-    def removeHeaplet(f: PointsTo => Boolean) = Assertion(phi, sigma.removeHeaplet(f))
+    def removeSubformula(f: SFormula => Boolean) = Assertion(phi, sigma.removeSubformula(f))
   }
 
 
@@ -54,7 +54,7 @@ object Specifications extends SpatialFormulas {
     def isGhost(x: Var): Boolean = ghosts.contains(x)
 
     // Determine whether x is in the context
-    def isConcrete(x: Var) : Boolean = gamma.map(_._2).contains(x)
+    def isConcrete(x: Var): Boolean = gamma.map(_._2).contains(x)
 
     def getType(x: Var): Option[SynslType] = {
       // TODO: all ghosts are ints for now, until we descide how to infer it

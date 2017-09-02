@@ -2,8 +2,9 @@
 
 ## Immediate fixes
 
-* Do not generate spurious loads, which are later unused
-    - Implement visitor for statements
+* [DONE] Do not generate spurious loads, which are later unused
+    - [DONE] Implement visitor for statements
+* Make rule querying uniform (no more canonicalize fiddling)
 * Support for pointer types
 * Type inference for ghosts (right now it's a dummy int)
 

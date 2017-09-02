@@ -20,6 +20,10 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
   val spec8 = "{true; x :-> a ** y :-> c ** z :-> b ** t :-> q } " +
               "void swap (int* x, int* z, int* y, int* t) " +
               "{ true; x :-> c ** z :-> b ** t :-> q ** y :-> 41 }"
+  val spec9 = "{true; x :-> a ** y :-> c ** z :-> b ** t :-> q } " +
+              "void swap (int* x, int* z, int* y, int* t) " +
+              "{ true; x :-> q ** z :-> c ** t :-> a ** y :-> b }"
+
 
   import Synthesis._
 
@@ -81,9 +85,14 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       synthesizeFromSpec(spec7)
     }
 
-    it("should be able to synthesize a complex swap program") {
+    it("should be able to synthesize a non-trivial swap program") {
       // Testing [read], [frame] and [write]
       synthesizeFromSpec(spec8)
+    }
+
+    it("should be able to synthesize a more complex swap program") {
+      // Testing [read], [frame] and [write]
+      synthesizeFromSpec(spec9)
     }
 
   }

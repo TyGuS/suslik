@@ -24,9 +24,47 @@ trait SpatialFormulas extends PureFormulas {
       collector(Set.empty)(this)
     }
 
-    def canonicalize(putFirst: (SFormula) => Boolean): SFormula = this
+    // Find subformula
+    def findSubFormula(p: (SFormula) => Boolean): Set[SFormula] = {
+      def collector(acc: Set[SFormula])(sigma: SFormula): Set[SFormula] =
+        sigma match {
+          case s@(Emp | STrue | SFalse | PointsTo(_, _, _)) if p(s) => acc + s
+          case s@Sep(left, right) =>
+            val acc1 = if (p(s)) acc + s else acc
+            collector(collector(acc)(left))(right)
+          case _ => acc
+        }
+      collector(Set.empty)(this)
+    }
 
-    def canon = this.canonicalize(_ => true)
+    // Find and replace sub-formula
+    def findReplace(p: (SFormula) => Boolean, target: SFormula): SFormula = {
+      def rep(sigma: SFormula): SFormula = sigma match {
+        case s@(Emp | STrue | SFalse | PointsTo(_, _, _)) => if (p(s)) target else s
+        case s@Sep(left, right) => if (p(s)) target else Sep(rep(left), rep(right))
+      }
+      rep(this)
+    }
+
+    def isEmp: Boolean = this == Emp
+
+    // simplify
+    def simpl: SFormula = {
+      def sim(sigma: SFormula): SFormula = sigma match {
+        case s@(Emp | STrue | SFalse | PointsTo(_, _, _)) => s
+        case s@Sep(left, right) =>
+          if (left.isEmp) sim(right)
+          else if (right.isEmp) sim(left)
+          else Sep(sim(left), sim(right))
+      }
+      sim(this)
+    }
+
+
+    // TODO: implement replacement of subformula by another one
+
+
+    def canonicalize: SFormula = this
 
     def getHeadHeaplet: Option[PointsTo] = this match {
       case Sep(left, _) => left.getHeadHeaplet
@@ -34,19 +72,18 @@ trait SpatialFormulas extends PureFormulas {
       case _ => None
     }
 
-    def replaceHeadHeaplet(hp2: PointsTo): SFormula = this match {
-      case Sep(left, right) => Sep(left.replaceHeadHeaplet(hp2), right)
-      case p@PointsTo(_, _, _) => hp2
-      case s => s
-    }
+    /*
+        private def replaceHeadHeaplet(hp2: PointsTo): SFormula = this match {
+          case Sep(left, right) => Sep(left.replaceHeadHeaplet(hp2), right)
+          case p@PointsTo(_, _, _) => hp2
+          case s => s
+        }
+    */
 
-    def removeHeaplet(g: PointsTo => Boolean): SFormula = {
-      val f = this match {
-        case Sep(left, right) => Sep(left.removeHeaplet(g), right.removeHeaplet(g))
-        case p@PointsTo(_, _, _) if g(p) => Emp
-        case s => s
-      }
-      f.canonicalize(_ => true)
+    def removeSubformula(g: SFormula => Boolean): SFormula = this match {
+      case s@Sep(left, right) =>
+        if (g(s)) Emp else Sep(left.removeSubformula(g), right.removeSubformula(g)).simpl
+      case s => if (g(s)) Emp else s
     }
 
     // TODO: This is why we need fancy SL-based tools
@@ -104,21 +141,18 @@ trait SpatialFormulas extends PureFormulas {
 
     // Bring to a canonical form
     // TODO: discuss what a canonical form should be
-    override def canonicalize(putFirst: SFormula => Boolean): SFormula = {
+    override def canonicalize: SFormula = {
       val lst = this.unroll
       // Bring first all sorted points-to assertions
       val ptsSorted = lst.filter(_.isInstanceOf[PointsTo]).sortBy(p => p.asInstanceOf[PointsTo].id)
       val nonpts = lst.filterNot(_.isInstanceOf[PointsTo])
 
-      // TODO: this is hacky, please, refactor
-      val first = ptsSorted.filter(putFirst)
-      val second = ptsSorted.filterNot(putFirst)
-      val chunks = first ++ second ++ nonpts
+      val chunks = ptsSorted ++ nonpts
       assert(chunks.nonEmpty)
       if (chunks.size == 1) return chunks.head
 
       val rchs = chunks.reverse
-      rchs.tail.foldLeft(rchs.head)((a, b) => Sep(b, a))
+      rchs.tail.foldLeft(rchs.head)((a, b) => Sep(b, a)).simpl
     }
 
   }
