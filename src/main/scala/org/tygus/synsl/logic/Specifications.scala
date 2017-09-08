@@ -8,7 +8,7 @@ object Specifications extends SpatialFormulas {
 
   type Gamma = Seq[(SynslType, Var)]
 
-  case class Assertion(phi: PureFormula, sigma: SFormula) extends Substitutable[Assertion] {
+  case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion] {
 
     def pp: String = s"{${phi.pp} ; ${sigma.simpl.canonicalize.pp}}"
 

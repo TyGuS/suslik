@@ -16,8 +16,10 @@ class SynslParser extends StandardTokenParsers {
         "bool" ^^^ BoolType |||
         "void" ^^^ VoidType
 
-  def tpeParser : Parser[SynslType] =
-    primitiveType <~ "*" ^^ {PtrType(_)} ||| primitiveType
+  def tpeParser: Parser[SynslType] =
+    primitiveType <~ "*" ^^ {
+      PtrType(_)
+    } ||| primitiveType
 
   def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
@@ -47,9 +49,9 @@ class SynslParser extends StandardTokenParsers {
 
   // Formulas
 
-  def parenPhi: Parser[PureFormula] = "(" ~> phi <~ ")"
+  def parenPhi: Parser[PFormula] = "(" ~> phi <~ ")"
 
-  def phi: Parser[PureFormula] = (
+  def phi: Parser[PFormula] = (
       "true" ^^^ PTrue
           ||| "false" ^^^ PFalse
           ||| (literal <~ "<=") ~ literal ^^ { case a ~ b => PLeq(a, b) }

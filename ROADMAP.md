@@ -7,9 +7,9 @@
 ## More expressive SL
 
 * Inductive predicates
-    - Syntax for the predicates
+    - Syntax for the predicate definitions
     - Parser
-    - Synthesis rules
+    - Synthesis rules for list-like stuff
 
 ## Synthesis machinery
 
