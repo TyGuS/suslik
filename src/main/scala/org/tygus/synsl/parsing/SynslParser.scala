@@ -3,6 +3,7 @@ package org.tygus.synsl.parsing
 import org.tygus.synsl.language._
 import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.logic.Specifications
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
@@ -62,16 +63,37 @@ class SynslParser extends StandardTokenParsers {
           ||| "not" ~> parenPhi ^^ PNeg
       )
 
+  def identWithOffset: Parser[(Ident, Int)] = {
+    val ov = ident ~ opt("+" ~> numericLit)
+    ("(" ~> ov <~ ")" | ov) ^^ { case i ~ o =>
+      val off = Math.max(Integer.parseInt(o.getOrElse("0")), 0)
+      (i, off)
+    }
+  }
+
   def simpleSigma: Parser[SFormula] = (
       "emp" ^^^ Emp
           ||| "true" ^^^ STrue
           ||| "false" ^^^ SFalse
-          ||| (ident <~ ":->") ~ expr ^^ { case a ~ b => PointsTo(a, 0, b) }
+          ||| (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(a, o, b) }
       )
 
   def sigma: Parser[SFormula] =
     simpleSigma |||
         rep1sep(simpleSigma, "**") ^^ { ss => ss.tail.foldLeft(ss.head)((x, y) => Sep(x, y)) }
+
+  def indClause: Parser[InductiveClause] =
+    phi ~ ("=>" ~> sigma) ^^ { case p ~ s => InductiveClause(p, s) }
+
+  def indPredicate: Parser[InductiveDef] =
+    ident ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~
+        (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
+      case name ~ params ~ clauses => InductiveDef(name, params, clauses)
+    }
+
+  type Defs = Seq[InductiveDef]
+//  def preamble: Parser[Defs] = rep(indPredicate)
+def preamble = indPredicate
 
   def assertion: Parser[Assertion] = "{" ~> (opt(phi <~ ";") ~ sigma) <~ "}" ^^ {
     case Some(p) ~ s => Assertion(p, s)
@@ -82,10 +104,14 @@ class SynslParser extends StandardTokenParsers {
     case pre ~ tpe ~ name ~ gamma ~ post => FullSpec(Spec(pre, post, gamma), tpe, Some(name))
   }
 
-  def parse(input: String): ParseResult[FullSpec] = spec(new lexical.Scanner(input)) match {
+  def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {
     case e: Error => Failure(e.msg, e.next)
-    case Success(_, in) if !in.atEnd => Failure("Non fully parsed", in)
+    case Success(_, in) if !in.atEnd => Failure("Not fully parsed", in)
     case s => s
   }
+
+  def parseSpec: (String) => ParseResult[FullSpec] = parse(spec)
+
+  def parsePreamble(input : String) = parse(preamble)(input)
 
 }

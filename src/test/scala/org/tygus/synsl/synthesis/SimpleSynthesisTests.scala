@@ -26,12 +26,14 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
               "void swap (int* x, int* z, int* y, int* t) " +
               "{ true; x :-> q ** z :-> c ** t :-> a ** y :-> b }"
 
+  val spec10 = "{true; x :-> a ** x + 1 :-> b} void swap(int* x, int* y) {true ; x :-> b ** x + 1 :-> a}"
+
 
   import Synthesis._
 
   private def synthesizeFromSpec(text: String) {
     val parser = new SynslParser
-    val fullSpec = parser.parse(text)
+    val fullSpec = parser.parseSpec(text)
     assert(fullSpec.successful, fullSpec)
 
     val spec = fullSpec.get
@@ -95,6 +97,11 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
     it("should be able to synthesize a more complex swap program") {
       // Testing [read], [frame] and [write]
       synthesizeFromSpec(spec9)
+    }
+
+    it("should be able to work with pointer offsets") {
+      // Testing [read], [frame] and [write]
+      synthesizeFromSpec(spec10)
     }
 
   }

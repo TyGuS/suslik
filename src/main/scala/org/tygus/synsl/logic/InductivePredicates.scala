@@ -20,8 +20,8 @@ trait InductivePredicates {
     * For instance, a linked list can be encoded as follows:
     *
     * lseg(x, y) {
-    *   x == y  =>  emp
-    *   x != y  => x -> (V, Z) * lseg(Z, y)
+    *    x == y  =>  emp
+    *  | x != y  => x -> (V, Z) * lseg(Z, y)
     * }
     *
     * Each clause condition does not contain free variables, only the parameters,

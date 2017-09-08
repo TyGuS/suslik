@@ -24,11 +24,13 @@ object Statements {
               case Some(value) => builder.append(s"return ${value.toString};")
               case None => builder.append("return;")
             }
-          case Store(to, e, rest) =>
-            builder.append(s"*${to.pp} = ${e.pp};\n")
+          case Store(to, off, e, rest) =>
+            val t = if (off <= 0) to.pp else s"(${to.pp} + $off)"
+            builder.append(s"*$t = ${e.pp};\n")
             build(rest)
-          case Load(to, tpe, from, rest) =>
-            builder.append(s"${tpe.pp} ${to.pp} = *${from.pp};\n")
+          case Load(to, tpe, from, off, rest) =>
+            val f = if (off <= 0) from.pp else s"(${from.pp} + $off)"
+            builder.append(s"${tpe.pp} ${to.pp} = *$f;\n")
             build(rest)
           case Call(to, tpe, fun, args, rest) =>
             builder.append(s"${tpe.pp} ${to.pp} = " +
@@ -52,9 +54,9 @@ object Statements {
 
       def collector(acc: Set[R])(st: Statement): Set[R] = st match {
         case Return(r) => acc ++ r.map(_.collect(p)).getOrElse(Set.empty)
-        case Store(to, e, rest) =>
+        case Store(to, off, e, rest) =>
           collector(acc ++ to.collect(p) ++ e.collect(p))(rest)
-        case Load(to, tpe, from, rest) =>
+        case Load(to, tpe, from, off, rest) =>
           collector(acc ++ from.collect(p))(rest)
         case Call(to, tpe, fun, args, rest) =>
           val acc1: Set[R] = acc ++ to.collect(p) ++
@@ -76,10 +78,11 @@ object Statements {
   case class Return(r: Option[Expr]) extends Statement
 
   // *to = e; rest
-  case class Store(to: Var, e: Expr, rest: Statement) extends Statement
+  case class Store(to: Var, offset: Int, e: Expr, rest: Statement) extends Statement
 
   // tpe to = *from; rest
-  case class Load(to: Var, tpe: SynslType, from: Var, rest: Statement) extends Statement
+  case class Load(to: Var, tpe: SynslType, from: Var,
+                  offset: Int = 0, rest: Statement) extends Statement
 
   // tpe to = f(args); rest
   case class Call(to: Var, tpe: SynslType, fun: Var, args: Seq[Expr], rest: Statement) extends Statement

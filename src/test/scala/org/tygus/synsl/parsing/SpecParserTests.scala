@@ -15,12 +15,13 @@ class SpecParserTests extends FunSpec with Matchers {
   val spec5 = "{true; x :-> 41 } void swap(int x, bool y) {42 < a ; y :-> a}"
   val spec6 = "{true; x :-> 41 } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
   val spec7 = "{(42 < b) \\/ (b < 40); x :-> b } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
+  val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(int* x, int* y) {true ; x :-> b ** (x + 1) :-> a}"
 
 
 
   def parseSimpleSpec(text: String) {
     val parser = new SynslParser
-    val result = parser.parse(text)
+    val result = parser.parseSpec(text)
     // So far, just assert that the result is a success
     assert(result.successful, result)
     println(result.get.pp)
@@ -53,6 +54,10 @@ class SpecParserTests extends FunSpec with Matchers {
 
     it("should parse complex pure formulas - 2") {
       parseSimpleSpec(spec7)
+    }
+
+    it("should parse pointer offsets") {
+      parseSimpleSpec(spec8)
     }
   }
 

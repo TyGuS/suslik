@@ -97,7 +97,7 @@ trait Rules {
     def isApplicable(spec: Spec): Boolean = {
       val hs = spec.pre.sigma.findSubFormula(isGhostHeaplet(spec))
       if (hs.isEmpty) return false
-      val PointsTo(x, _, a@(Var(_))) = hs.head
+      val PointsTo(_, _, a@(Var(_))) = hs.head
       val tpy = spec.getType(a)
       tpy.nonEmpty
     }
@@ -108,7 +108,7 @@ trait Rules {
       val Spec(pre, post, gamma: Gamma) = spec
       val ghostHeaplets = spec.pre.sigma.findSubFormula(isGhostHeaplet(spec)).toList
       assert(ghostHeaplets.nonEmpty)
-      val PointsTo(x, _, a@(Var(_))) = ghostHeaplets.head
+      val PointsTo(x, offset, a@(Var(_))) = ghostHeaplets.head
       val y = generateFreshVar(spec)
 
       assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
@@ -119,7 +119,7 @@ trait Rules {
         assert(smts.nonEmpty, s"The rest of the program is empty")
         val rest = smts.head
         // Do not generate read for unused variables
-        if (rest.usedVars.contains(y)) Load(y, tpy, Var(x), rest) else rest
+        if (rest.usedVars.contains(y)) Load(y, tpy, Var(x), offset, rest) else rest
       }
 
       MoreGoals(Seq(subGoalSpec), kont)
@@ -137,9 +137,9 @@ trait Rules {
 
     override def toString: Ident = "[write]"
 
-    def findHeapletFor(x: Ident, spec: Spec): SFormula => Boolean = {
-      case PointsTo(y, _, e2) =>
-        x == y && spec.isConcrete(Var(x)) &&
+    def findHeapletFor(x: Ident, off: Int, spec: Spec): SFormula => Boolean = {
+      case PointsTo(y, off1, e2) =>
+        x == y && off == off1 && spec.isConcrete(Var(x)) &&
             e2.vars.forall(v => spec.isConcrete(v))
       case _ => false
     }
@@ -148,8 +148,8 @@ trait Rules {
       // Pre-heaplet from a canonical form
       val hs1 = spec.pre.sigma.findSubFormula(_.isInstanceOf[PointsTo])
       if (hs1.isEmpty) return false
-      val PointsTo(x, _, _) = hs1.head.asInstanceOf[PointsTo]
-      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, spec))
+      val PointsTo(x, o, _) = hs1.head.asInstanceOf[PointsTo]
+      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, o, spec))
 
       assert(hs2.size <= 1, s"Post-condition is inconsistent:\n${spec.pp}")
       hs2.nonEmpty
@@ -160,9 +160,9 @@ trait Rules {
       val Spec(pre, post, gamma: Gamma) = spec
 
       val hs1 = spec.pre.sigma.findSubFormula(_.isInstanceOf[PointsTo])
-      val h1@PointsTo(x, _, _) = hs1.head.asInstanceOf[PointsTo]
-      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, spec))
-      val h2@PointsTo(_, offset, e2: Expr) = hs2.head
+      val h1@PointsTo(x, ox, _) = hs1.head.asInstanceOf[PointsTo]
+      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, ox, spec))
+      val h2@PointsTo(_, _, e2: Expr) = hs2.head
 
       assert(e2.vars.forall(v => spec.isConcrete(v)),
         s"Expression ${e2.pp} contains uninstantiated ghost variables in the spec ${spec.pp}.")
@@ -171,7 +171,7 @@ trait Rules {
       val kont: StmtProducer = smts => {
         assert(smts.nonEmpty, s"The rest of the program is empty")
         val rest = smts.head
-        Store(Var(x), e2, rest)
+        Store(Var(x), ox, e2, rest)
       }
 
       MoreGoals(Seq(subGoalSpec), kont)

@@ -4,7 +4,7 @@ import org.tygus.synsl.{PrettyPrinting, Substitutable}
 import org.tygus.synsl.language.{IntType, PtrType, SynslType}
 import org.tygus.synsl.language.Expressions._
 
-object Specifications extends SpatialFormulas {
+object Specifications extends SpatialFormulas with InductivePredicates {
 
   type Gamma = Seq[(SynslType, Var)]
 
@@ -96,7 +96,7 @@ object Specifications extends SpatialFormulas {
     override def pp: String = {
       val Spec(pre, post, gamma) = spec
       s"${pre.pp}\n${tpe.pp} " +
-          s"$name(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
+          s"${name.getOrElse("foo")}(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
           s"${post.pp}"
     }
 

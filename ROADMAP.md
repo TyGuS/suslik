@@ -2,14 +2,18 @@
 
 ## Immediate fixes and extensions
 
+* Treatment for points-to assertions with offsets
 * Interpreter for imperative programs
 
 ## More expressive SL
 
 * Inductive predicates
-    - Syntax for the predicate definitions
-    - Parser
+    - [DONE] Syntax for the predicate definitions
+    - Parser for definitions
+    - Predicate occurrences in spatial formulas
+    - Enhance parser for spatial formulas
     - Synthesis rules for list-like stuff
+    - Higher-order predicates
 
 ## Synthesis machinery
 

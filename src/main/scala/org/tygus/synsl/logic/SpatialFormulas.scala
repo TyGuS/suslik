@@ -109,7 +109,11 @@ trait SpatialFormulas extends PureFormulas {
 
   // Should we support pointer arithmetics here
   case class PointsTo(id: String, offset: Int = 0, value: Expr) extends SFormula {
-    override def pp: Ident = s"$id :-> ${value.pp}"
+    override def pp: Ident = {
+      val head = if (offset <= 0) id else s"($id + $offset)"
+      s"$head :-> ${value.pp}"
+    }
+
 
     def subst(x: Var, by: Expr): SFormula = {
       // TODO: Allow substitutions into the points-to sources
