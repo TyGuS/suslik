@@ -73,6 +73,7 @@ class SynslParser extends StandardTokenParsers {
 
   def simpleSigma: Parser[SFormula] = (
       "emp" ^^^ Emp
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(Var(name), args) }
           ||| "true" ^^^ STrue
           ||| "false" ^^^ SFalse
           ||| (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(a, o, b) }
@@ -92,8 +93,8 @@ class SynslParser extends StandardTokenParsers {
     }
 
   type Defs = Seq[InductiveDef]
-//  def preamble: Parser[Defs] = rep(indPredicate)
-def preamble = indPredicate
+  //  def preamble: Parser[Defs] = rep(indPredicate)
+  def preamble = indPredicate
 
   def assertion: Parser[Assertion] = "{" ~> (opt(phi <~ ";") ~ sigma) <~ "}" ^^ {
     case Some(p) ~ s => Assertion(p, s)
@@ -112,6 +113,6 @@ def preamble = indPredicate
 
   def parseSpec: (String) => ParseResult[FullSpec] = parse(spec)
 
-  def parsePreamble(input : String) = parse(preamble)(input)
+  def parsePreamble(input: String) = parse(preamble)(input)
 
 }

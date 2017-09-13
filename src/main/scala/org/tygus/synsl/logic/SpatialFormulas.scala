@@ -12,6 +12,7 @@ trait SpatialFormulas extends PureFormulas {
     // Collect certain sub-expressions
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
       def collector(acc: Set[R])(sigma: SFormula): Set[R] = sigma match {
+        case SApp(_, args) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
         case STrue => acc
         case SFalse => acc
         case Emp => acc
@@ -40,7 +41,11 @@ trait SpatialFormulas extends PureFormulas {
     // Find and replace sub-formula
     def findReplace(p: (SFormula) => Boolean, target: SFormula): SFormula = {
       def rep(sigma: SFormula): SFormula = sigma match {
-        case s@(Emp | STrue | SFalse | PointsTo(_, _, _)) => if (p(s)) target else s
+        case s@(Emp
+                | STrue
+                | SFalse
+                | PointsTo(_, _, _)
+                | SApp(_, _)) => if (p(s)) target else s
         case s@Sep(left, right) => if (p(s)) target else Sep(rep(left), rep(right))
       }
       rep(this)
@@ -51,7 +56,11 @@ trait SpatialFormulas extends PureFormulas {
     // simplify
     def simpl: SFormula = {
       def sim(sigma: SFormula): SFormula = sigma match {
-        case s@(Emp | STrue | SFalse | PointsTo(_, _, _)) => s
+        case s@(Emp
+                | STrue
+                | SFalse
+                | PointsTo(_, _, _)
+                | SApp(_, _)) => s
         case s@Sep(left, right) =>
           if (left.isEmp) sim(right)
           else if (right.isEmp) sim(left)
@@ -100,6 +109,14 @@ trait SpatialFormulas extends PureFormulas {
   case object STrue extends SFormula {
     override def pp: Ident = "true"
     def subst(x: Var, by: Expr): SFormula = this
+  }
+
+  /**
+    * Predicate application
+    */
+  case class SApp(pred: Var, args: Seq[Expr]) extends SFormula {
+    override def pp: String = s"${pred.pp}(${args.map(_.pp).mkString(", ")})"
+    def subst(x: Var, by: Expr): SFormula = SApp(pred, args.map(_.subst(x, by)))
   }
 
   case object SFalse extends SFormula {

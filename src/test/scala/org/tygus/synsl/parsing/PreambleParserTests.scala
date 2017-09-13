@@ -23,7 +23,7 @@ class PreambleParserTests extends FunSpec with Matchers {
     val res = result.get
 //    assert(res.nonEmpty)
 //    println(res.head)
-    println(res)
+    println(res.pp)
   }
 
   describe("Parser for SynSL definitions") {

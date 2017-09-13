@@ -54,7 +54,7 @@ trait PureFormulas {
   }
 
   case class PEq(left: Expr, right: Expr) extends PFormula {
-    override def pp: Ident = s"${left.pp} = ${right.pp}"
+    override def pp: Ident = s"${left.pp} == ${right.pp}"
     def subst(x: Var, by: Expr): PFormula = PEq(left.subst(x, by), right.subst(x, by))
   }
 
@@ -70,7 +70,7 @@ trait PureFormulas {
   }
 
   case class PNeg(arg: PFormula) extends PFormula {
-    override def pp: Ident = s"~~${arg.pp}"
+    override def pp: Ident = s"not (${arg.pp})"
     def subst(x: Var, by: Expr): PFormula = PNeg(arg.subst(x, by))
   }
 
