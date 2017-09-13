@@ -134,9 +134,8 @@ trait SpatialFormulas extends PureFormulas {
 
     def subst(x: Var, by: Expr): SFormula = {
       // TODO: Allow substitutions into the points-to sources
-      val newId = if (x.name == id) x.name else id
-      val newValue = value.subst(x, by)
-      PointsTo(newId, offset, newValue)
+      val newId = if (x.name == id && by.isInstanceOf[Var]) by.asInstanceOf[Var].name else id
+      PointsTo(newId, offset, value.subst(x, by))
     }
   }
 

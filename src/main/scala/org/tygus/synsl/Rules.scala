@@ -39,12 +39,13 @@ trait Rules {
   /**
     * A generic class for a deductive rule to be applied
     */
-  abstract sealed class Rule {
+  abstract sealed class Rule extends RuleUtils {
     // Is this rule applicable at all?
     def isApplicable(spec: Spec): Boolean
 
     // Apply the rule and get the subgoals
     def apply(spec: Spec): RuleResult
+
   }
 
   ///////////////////////////////////////////////////////////////////
@@ -109,7 +110,7 @@ trait Rules {
       val ghostHeaplets = spec.pre.sigma.findSubFormula(isGhostHeaplet(spec)).toList
       assert(ghostHeaplets.nonEmpty)
       val PointsTo(x, offset, a@(Var(_))) = ghostHeaplets.head
-      val y = generateFreshVar(spec)
+      val y = generateFreshVar(spec, a.name)
 
       assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
       val tpy = spec.getType(a).get
@@ -137,32 +138,16 @@ trait Rules {
 
     override def toString: Ident = "[write]"
 
-    def findHeapletFor(x: Ident, off: Int, spec: Spec): SFormula => Boolean = {
-      case PointsTo(y, off1, e2) =>
-        x == y && off == off1 && spec.isConcrete(Var(x)) &&
-            e2.vars.forall(v => spec.isConcrete(v))
-      case _ => false
-    }
-
     def isApplicable(spec: Spec): Boolean = {
       // Pre-heaplet from a canonical form
-      val hs1 = spec.pre.sigma.findSubFormula(_.isInstanceOf[PointsTo])
-      if (hs1.isEmpty) return false
-      val PointsTo(x, o, _) = hs1.head.asInstanceOf[PointsTo]
-      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, o, spec))
-
-      assert(hs2.size <= 1, s"Post-condition is inconsistent:\n${spec.pp}")
-      hs2.nonEmpty
+      heapletsForWrite(spec).nonEmpty
     }
 
     def apply(spec: Spec): RuleResult = {
       assert(isApplicable(spec), s"The rule [write] is not applicable for the spec ${spec.pp}.")
       val Spec(pre, post, gamma: Gamma) = spec
 
-      val hs1 = spec.pre.sigma.findSubFormula(_.isInstanceOf[PointsTo])
-      val h1@PointsTo(x, ox, _) = hs1.head.asInstanceOf[PointsTo]
-      val hs2 = spec.post.sigma.findSubFormula(findHeapletFor(x, ox, spec))
-      val h2@PointsTo(_, _, e2: Expr) = hs2.head
+      val (h1@PointsTo(x, ox, _), h2@PointsTo(_, _, e2: Expr)) = heapletsForWrite(spec).head
 
       assert(e2.vars.forall(v => spec.isConcrete(v)),
         s"Expression ${e2.pp} contains uninstantiated ghost variables in the spec ${spec.pp}.")
@@ -195,22 +180,15 @@ trait Rules {
 
     def isApplicable(spec: Spec): Boolean = {
       // Pre-heaplet from a canonical form
-      val h1 = spec.pre.sigma.simpl.canonicalize.getHeadHeaplet
-      // Post-heaplet from a canonical form
-      val h2 = spec.post.sigma.simpl.canonicalize.getHeadHeaplet
-      (h1, h2) match {
-        case (Some(p1@PointsTo(x, o1, e1)), Some(p2@PointsTo(y, o2, e2)))
-          if p1 == p2 => true
-        case _ => false
-      }
+      heapletsForFrame(spec).nonEmpty
     }
 
     def apply(spec: Spec): RuleResult = {
       assert(isApplicable(spec), s"The rule [frame] is not applicable for the spec ${spec.pp}.")
 
+
+      val (p1, p2) = heapletsForFrame(spec).head
       val Spec(pre, post, gamma: Gamma) = spec
-      val Some(p1) = pre.sigma.simpl.canonicalize.getHeadHeaplet
-      val Some(p2) = post.sigma.simpl.canonicalize.getHeadHeaplet
 
       assert(p1 == p2,
         s"Pre/posts have different head heaplets in the spec ${spec.pp}.")
@@ -228,3 +206,4 @@ trait Rules {
 
 
 }
+

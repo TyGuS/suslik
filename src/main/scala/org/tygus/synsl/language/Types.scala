@@ -22,5 +22,5 @@ case object VoidType extends PrimitiveType {
 }
 
 case class PtrType(inner: SynslType) extends SynslType {
-  override def pp: String = s"${inner.pp}*"
+  override def pp: String = s"${inner.pp} *"
 }

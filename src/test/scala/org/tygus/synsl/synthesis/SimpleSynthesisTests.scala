@@ -34,6 +34,20 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
 
   val spec10 = "{true; x :-> a ** x + 1 :-> b} void swap(int* x, int* y) {true ; x :-> b ** x + 1 :-> a}"
 
+  val spec11 = "{true; x :-> v ** y :-> b ** z :-> v ** v :-> d} " +
+      "void kareem1(int * * x, int* y, int* z) " +
+      "{true ; x :-> y ** y :-> z ** z :-> x ** v :-> x}"
+
+  val spec12 = "{true; x :-> v ** v :-> d} " +
+      "void kareem2(int * * x) " +
+      "{true ; x :-> v ** v :-> x}"
+
+  val spec13 = "{true; x :-> a ** a :-> b ** b :-> c ** c :-> 42} " +
+      "void kareem3(int * * * * x) " +
+      "{true ; x :-> 42 ** b :-> a ** a :-> c ** c :-> b}"
+
+
+
 
   import Synthesis._
 
@@ -108,6 +122,18 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
     it("should be able to work with pointer offsets") {
       // Testing [read], [frame] and [write]
       synthesizeFromSpec(spec10)
+    }
+
+    it("should be able to work with Kareem's example") {
+      synthesizeFromSpec(spec11)
+    }
+
+    it("should be able to work with a simple version of Kareem's example") {
+      synthesizeFromSpec(spec12)
+    }
+
+    it("should be able to work with crazy indirection") {
+      synthesizeFromSpec(spec13)
     }
 
   }

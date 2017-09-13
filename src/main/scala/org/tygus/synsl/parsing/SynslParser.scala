@@ -1,9 +1,8 @@
 package org.tygus.synsl.parsing
 
+import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.logic.Specifications._
-import org.tygus.synsl.language.Expressions._
-import org.tygus.synsl.logic.Specifications
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
@@ -18,8 +17,8 @@ class SynslParser extends StandardTokenParsers {
         "void" ^^^ VoidType
 
   def tpeParser: Parser[SynslType] =
-    primitiveType <~ "*" ^^ {
-      PtrType(_)
+    primitiveType ~ rep1("*") ^^ { case tp ~ ptrs =>
+      ptrs.foldLeft(tp : SynslType)((t, _) => PtrType(t))
     } ||| primitiveType
 
   def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }

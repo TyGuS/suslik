@@ -2,7 +2,7 @@
 
 ## Immediate fixes and extensions
 
-* Treatment for points-to assertions with offsets
+* Fix the parser for pointers to pointer
 * Interpreter for imperative programs
 
 ## More expressive SL
@@ -41,3 +41,4 @@
 * [DONE] Support for pointer types
 * [DONE] Make rule querying uniform (no more canonicalize fiddling)
 * [DONE] Type inference for ghosts (right now it's a dummy int)
+* [DONE] Treatment for points-to assertions with offsets

@@ -19,9 +19,7 @@ trait Substitutable[A] {
 
 object LanguageUtils {
 
-  val tmpName = "tmp"
-
-  def generateFreshVar(s: Spec): Var = {
+  def generateFreshVar(s: Spec, tmpName: String = "tmp"): Var = {
     var counter = 1
     var candidate = Var(s"$tmpName")
     val existing = s.vars
