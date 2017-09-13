@@ -9,11 +9,14 @@
 
 * Inductive predicates
     - [DONE] Syntax for the predicate definitions
-    - Parser for definitions
-    - Predicate occurrences in spatial formulas
-    - Enhance parser for spatial formulas
+    - [DONE] Parser for definitions
+    - [DONE] Predicate occurrences in spatial formulas
+    - [DONE] Enhance parser for spatial formulas
     - Synthesis rules for list-like stuff
-    - Higher-order predicates
+      - What are the simples examples?
+      - Perhaps, the simplest is deallocation, 
+        so we need implementation for `free()`
+    - Higher-order list predicates
 
 ## Synthesis machinery
 
