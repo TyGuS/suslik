@@ -24,6 +24,7 @@ trait InductivePredicates {
     *  | x != y  => x -> (V, Z) * lseg(Z, y)
     * }
     *
+    *
     * Each clause condition does not contain free variables, only the parameters,
     * while all free variables in the spatial part (body) is existentially quantified.
     *

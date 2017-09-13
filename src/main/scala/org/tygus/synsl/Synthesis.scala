@@ -31,7 +31,7 @@ object Synthesis extends Rules {
 
     def tryRules(rules: List[Rule]): Option[Statement] = rules match {
       case r :: rs =>
-        // println(s"Rule $r is ${if (r.isApplicable(spec)) "" else "NOT"} applicable for spec ${spec.pp}\n")
+        println(s"Rule $r is ${if (r.isApplicable(spec)) "" else "NOT"} applicable for spec ${spec.pp}\n")
         if (!r.isApplicable(spec)) tryRules(rs)
         else {
           // rule is applicable
