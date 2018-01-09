@@ -67,7 +67,7 @@ object Specifications extends SpatialFormulas with InductivePredicates {
         if (candidates.isEmpty) return None
         val PointsTo(y, _, _) = candidates.head
 
-        val assocType: Option[(SynslType, Var)] = gamma.find(pv => pv._2.name == y)
+        val assocType: Option[(SynslType, Var)] = gamma.find(pv => pv._2.name == y.name)
         if (assocType.isEmpty) return None
         return assocType.get._1 match {
           case PtrType(inner) => Some(inner)

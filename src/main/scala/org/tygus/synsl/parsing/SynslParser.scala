@@ -36,7 +36,7 @@ class SynslParser extends StandardTokenParsers {
   def literal: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser ||| parenExpr
 
   def expr: Parser[Expr] = (
-      literal ~ ("+" ~> literal) ^^ { case a ~ b => EPlus(a, b) }
+      literal ~ ("+" ~> literal) ^^ { case ~(a, b) => EPlus(a, b) }
           ||| literal ~ ("-" ~> literal) ^^ { case a ~ b => EMinus(a, b) }
           ||| literal ~ ("<=" ~> literal) ^^ { case a ~ b => ELeq(a, b) }
           ||| literal ~ ("<" ~> literal) ^^ { case a ~ b => ELtn(a, b) }
@@ -75,7 +75,7 @@ class SynslParser extends StandardTokenParsers {
           ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(Var(name), args) }
           ||| "true" ^^^ STrue
           ||| "false" ^^^ SFalse
-          ||| (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(a, o, b) }
+          ||| (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
       )
 
   def sigma: Parser[SFormula] =

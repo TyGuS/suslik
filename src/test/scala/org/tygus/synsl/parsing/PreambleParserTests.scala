@@ -9,7 +9,7 @@ import org.scalatest.{FunSpec, Matchers}
 class PreambleParserTests extends FunSpec with Matchers {
 
   val pred1 =
-    """lseg(x, y) {
+    """lseg (x, y) {
       | x == y  =>  emp
       | not (x == y)  => x :-> v ** x + 1 :-> z ** lseg(z, y)
       }

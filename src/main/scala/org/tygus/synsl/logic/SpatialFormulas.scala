@@ -17,8 +17,7 @@ trait SpatialFormulas extends PureFormulas {
         case SFalse => acc
         case Emp => acc
         case PointsTo(id, offset, value) =>
-          val v = Var(id)
-          val acc1 = if (p(v)) acc + v.asInstanceOf[R] else acc
+          val acc1 = if (p(id)) acc + id.asInstanceOf[R] else acc
           acc1 ++ value.collect(p)
         case Sep(left, right) => collector(collector(acc)(left))(right)
       }
@@ -125,7 +124,10 @@ trait SpatialFormulas extends PureFormulas {
   }
 
   // Should we support pointer arithmetics here
-  case class PointsTo(id: String, offset: Int = 0, value: Expr) extends SFormula {
+  /**
+    * (id | ret) + offset :-> value
+    */
+  case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends SFormula {
     override def pp: Ident = {
       val head = if (offset <= 0) id else s"($id + $offset)"
       s"$head :-> ${value.pp}"
@@ -134,7 +136,7 @@ trait SpatialFormulas extends PureFormulas {
 
     def subst(x: Var, by: Expr): SFormula = {
       // TODO: Allow substitutions into the points-to sources
-      val newId = if (x.name == id && by.isInstanceOf[Var]) by.asInstanceOf[Var].name else id
+      val newId = if (x == id && by.isInstanceOf[Var]) by.asInstanceOf[Var] else id
       PointsTo(newId, offset, value.subst(x, by))
     }
   }
@@ -164,7 +166,7 @@ trait SpatialFormulas extends PureFormulas {
     override def canonicalize: SFormula = {
       val lst = this.unroll
       // Bring first all sorted points-to assertions
-      val ptsSorted = lst.filter(_.isInstanceOf[PointsTo]).sortBy(p => p.asInstanceOf[PointsTo].id)
+      val ptsSorted = lst.filter(_.isInstanceOf[PointsTo]).sortBy(p => p.asInstanceOf[PointsTo].id.name)
       val nonpts = lst.filterNot(_.isInstanceOf[PointsTo])
 
       val chunks = ptsSorted ++ nonpts

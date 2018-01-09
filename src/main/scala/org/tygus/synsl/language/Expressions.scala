@@ -36,8 +36,10 @@ object Expressions {
   // Program-level variable: program-level or ghost
   case class Var(name: String) extends Expr {
     override def pp: String = name
+
     def subst(x: Var, by: Expr): Expr =
       if (x.name == this.name) by else this
+
   }
 
   // Program-level constant
