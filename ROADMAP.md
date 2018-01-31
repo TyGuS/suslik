@@ -2,6 +2,8 @@
 
 ## Immediate fixes and extensions
 
+* Get rid of types (for now)? Maybe two types: loc and int?
+* Proper syntax for declarations (function signatures, inductive predicates, etc) 
 * Fix the parser for pointers to pointer
 * Interpreter for imperative programs
 
