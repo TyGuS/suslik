@@ -32,6 +32,12 @@ object Statements {
             val f = if (off <= 0) from.pp else s"(${from.pp} + $off)"
             builder.append(s"${tpe.pp} ${to.pp} = *$f;\n")
             build(rest)
+          case Alloc(to, tpe, sz, rest) =>
+            builder.append(s"${tpe.pp} ${to.pp} = malloc($sz);\n")
+            build(rest)
+          case Free(v, rest) =>
+            builder.append(s"free($v);\n")
+            build(rest)
           case Call(to, tpe, fun, args, rest) =>
             builder.append(s"${tpe.pp} ${to.pp} = " +
                 s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n")
@@ -58,6 +64,10 @@ object Statements {
           collector(acc ++ to.collect(p) ++ e.collect(p))(rest)
         case Load(to, tpe, from, off, rest) =>
           collector(acc ++ from.collect(p))(rest)
+        case Alloc(_, _, _, rest) =>
+          collector(acc)(rest)
+        case Free(_, rest) =>
+          collector(acc)(rest)
         case Call(to, tpe, fun, args, rest) =>
           val acc1: Set[R] = acc ++ to.collect(p) ++
               fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
@@ -77,20 +87,25 @@ object Statements {
   // return [r];
   case class Return(r: Option[Expr]) extends Statement
 
-  // *to = e; rest
+  // *to.offset = e; rest
   case class Store(to: Var, offset: Int, e: Expr, rest: Statement) extends Statement
 
   // tpe to = *from; rest
   case class Load(to: Var, tpe: SynslType, from: Var,
                   offset: Int = 0, rest: Statement) extends Statement
 
+  // tpe to = malloc(n); rest
+  case class Alloc(to: Var, tpe: SynslType, sz: Int = 1,
+                  rest: Statement) extends Statement
+
+  // free(v); rest
+  case class Free(v: Var, rest: Statement) extends Statement
+
   // tpe to = f(args); rest
   case class Call(to: Var, tpe: SynslType, fun: Var, args: Seq[Expr], rest: Statement) extends Statement
 
   // if (cond) { tb } else { eb }
   case class If(cond: Expr, tb: Statement, eb: Statement) extends Statement
-
-  // TODO: add allocation/deallocation
 
   // A procedure
   case class Procedure(name: String, tp: SynslType, formals: Seq[(SynslType, Var)], body: Statement) {
