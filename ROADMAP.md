@@ -2,7 +2,7 @@
 
 ## Immediate fixes and extensions
 
-* Get rid of isApplicable and make apply return maybe
+* Add a flag to control logging output? [Ilya]
 * Change representation of SFormula to a list of chunks
 * Get rid of types (for now)? Maybe two types: loc and int?
 * Pick logic for locations and implement proper subsumption of spatial formulas

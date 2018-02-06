@@ -30,30 +30,28 @@ object Synthesis extends Rules {
     if (depth > maxDepth) return None
 
     def tryRules(rules: List[Rule]): Option[Statement] = rules match {
-      case r :: rs =>
-        println(s"Rule $r is ${if (r.isApplicable(spec)) "" else "NOT"} applicable for spec ${spec.pp}\n")
-        if (!r.isApplicable(spec)) tryRules(rs)
-        else {
-          // rule is applicable
-          val result: RuleResult = r(spec)
-          result match {
-            case LastStatement(st) => Some(st)
-            case MoreGoals(goals, kont) =>
-              // Synthesize the rest lazily
-              val stmts = (for (subgoal <- goals) yield synthesize(subgoal, depth + 1)).toStream
-              // Some of sub-goals have failed
-              if (stmts.exists(_.isEmpty)) {
-                // That was a bad rule, backtrack and try the rest of the rules
-                tryRules(rs)
-              } else {
-                val subGoalResults = stmts.map(_.get)
-                val withKont = kont(subGoalResults)
-                Some(withKont)
-              }
-
-          }
-        }
       case Nil => None
+      case r :: rs =>
+        val result: RuleResult = r(spec)
+        print(s"Trying rule $r for spec ${spec.pp}:")
+        result match {
+          case Fail() =>
+            println(s"FAIL\n")
+            tryRules(rs) // rule not applicable: try the rest
+          case MoreGoals(goals, kont) =>
+            println(s"SUCCESS\n")
+            // Synthesize subgoals
+            val subGoalResults = (for (subgoal <- goals) yield synthesize(subgoal, depth + 1)).toStream
+            if (subGoalResults.exists(_.isEmpty)) {
+              // Some of the subgoals have failed: backtrack
+              tryRules(rs)
+            } else {
+              // All subgoals succeeded: assemble the statement
+              val stmts = subGoalResults.map(_.get)
+              Some(kont(stmts))
+            }
+
+        }
     }
     tryRules(rulesToApply)
   }
