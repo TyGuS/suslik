@@ -2,9 +2,12 @@
 
 ## Immediate fixes and extensions
 
+* Get rid of isApplicable and make apply return maybe
+* Change representation of SFormula to a list of chunks
 * Get rid of types (for now)? Maybe two types: loc and int?
-* Proper syntax for declarations (function signatures, inductive predicates, etc) 
-* Fix the parser for pointers to pointer
+* Pick logic for locations and implement proper subsumption of spatial formulas
+* Proper syntax for declarations (function signatures, inductive predicates, etc)
+* (Fix the parser for pointers to pointer)
 * Interpreter for imperative programs
 
 ## More expressive SL
@@ -22,9 +25,11 @@
 
 ## Synthesis machinery
 
-* Support for inductive predicates
-* Support for conditionals
-* Third-party functions
+* Alloc and free rules
+* Connect to pure synthesizer
+* Rule for inductive predicates
+* Rule for recursive calls
+* Rule for calls
 
 ## Infrastructure
 
@@ -35,6 +40,14 @@
     - CVC4 (Tinelli et al.)
     - Grasshopper (Wies et al.)
     - Cyclist (Brotherston et al.) 
+    
+## Benchmarks
+
+* Destructors
+* Examples from natural synthesis paper
+* Persistent memory examples (?)
+* Something with a complex data structure (snaphottable tree?)
+* Something with concurrency
     
 ## Completed
 
