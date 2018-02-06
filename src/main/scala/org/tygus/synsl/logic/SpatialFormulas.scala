@@ -17,6 +17,8 @@ trait SpatialFormulas extends PureFormulas {
         case PointsTo(id, offset, value) =>
           val acc1 = if (p(id)) acc + id.asInstanceOf[R] else acc
           acc1 ++ value.collect(p)
+        case Block(id, sz) =>
+          if (p(id)) acc + id.asInstanceOf[R] else acc
         case Sep(left, right) => collector(collector(acc)(left))(right)
       }
       collector(Set.empty)(this)
@@ -40,6 +42,7 @@ trait SpatialFormulas extends PureFormulas {
       def rep(sigma: SFormula): SFormula = sigma match {
         case s@(Emp
                 | PointsTo(_, _, _)
+                | Block(_, _)
                 | SApp(_, _)) => if (p(s)) target else s
         case s@Sep(left, right) => if (p(s)) target else Sep(rep(left), rep(right))
       }
@@ -53,6 +56,7 @@ trait SpatialFormulas extends PureFormulas {
       def sim(sigma: SFormula): SFormula = sigma match {
         case s@(Emp
                 | PointsTo(_, _, _)
+                | Block(_, _)
                 | SApp(_, _)) => s
         case s@Sep(left, right) =>
           if (left.isEmp) sim(right)
@@ -107,23 +111,38 @@ trait SpatialFormulas extends PureFormulas {
     def subst(x: Var, by: Expr): SFormula = SApp(pred, args.map(_.subst(x, by)))
   }
 
-  // Should we support pointer arithmetics here
   /**
-    * (id | ret) + offset :-> value
+    * var + offset :-> value
     */
   case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends SFormula {
     override def pp: Ident = {
-      val head = if (offset <= 0) id else s"($id + $offset)"
+      val head = if (offset <= 0) id.pp else s"(${id.pp} + $offset)"
       s"$head :-> ${value.pp}"
     }
 
 
     def subst(x: Var, by: Expr): SFormula = {
-      // TODO: Allow substitutions into the points-to sources
-      val newId = if (x == id && by.isInstanceOf[Var]) by.asInstanceOf[Var] else id
+      assert(x != id || by.isInstanceOf[Var], s"Substitution into non-variable [${by.pp} / ${x.pp}] in points-to $pp")
+      val newId = if (x == id) by.asInstanceOf[Var] else id
       PointsTo(newId, offset, value.subst(x, by))
     }
   }
+
+  /**
+    * block(var, size)
+    */
+  case class Block(id: Var, sz: Int) extends SFormula {
+    override def pp: Ident = {
+      s"[${id.pp}, $sz]"
+    }
+
+    def subst(x: Var, by: Expr): SFormula = {
+      assert(x != id || by.isInstanceOf[Var], s"Substitution into non-variable [$by / $x] in block $pp")
+      val newId = if (x == id) by.asInstanceOf[Var] else id
+      Block(newId, sz)
+    }
+  }
+
 
   case class Sep(left: SFormula, right: SFormula) extends SFormula {
     override def pp: Ident = s"${left.pp} ** ${right.pp}"
