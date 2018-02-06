@@ -13,8 +13,6 @@ trait SpatialFormulas extends PureFormulas {
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
       def collector(acc: Set[R])(sigma: SFormula): Set[R] = sigma match {
         case SApp(_, args) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
-        case STrue => acc
-        case SFalse => acc
         case Emp => acc
         case PointsTo(id, offset, value) =>
           val acc1 = if (p(id)) acc + id.asInstanceOf[R] else acc
@@ -28,7 +26,7 @@ trait SpatialFormulas extends PureFormulas {
     def findSubFormula(p: (SFormula) => Boolean): Set[SFormula] = {
       def collector(acc: Set[SFormula])(sigma: SFormula): Set[SFormula] =
         sigma match {
-          case s@(Emp | STrue | SFalse | PointsTo(_, _, _)) if p(s) => acc + s
+          case s@(Emp | PointsTo(_, _, _)) if p(s) => acc + s
           case s@Sep(left, right) =>
             val acc1 = if (p(s)) acc + s else acc
             collector(collector(acc)(left))(right)
@@ -41,8 +39,6 @@ trait SpatialFormulas extends PureFormulas {
     def findReplace(p: (SFormula) => Boolean, target: SFormula): SFormula = {
       def rep(sigma: SFormula): SFormula = sigma match {
         case s@(Emp
-                | STrue
-                | SFalse
                 | PointsTo(_, _, _)
                 | SApp(_, _)) => if (p(s)) target else s
         case s@Sep(left, right) => if (p(s)) target else Sep(rep(left), rep(right))
@@ -56,8 +52,6 @@ trait SpatialFormulas extends PureFormulas {
     def simpl: SFormula = {
       def sim(sigma: SFormula): SFormula = sigma match {
         case s@(Emp
-                | STrue
-                | SFalse
                 | PointsTo(_, _, _)
                 | SApp(_, _)) => s
         case s@Sep(left, right) =>
@@ -105,22 +99,12 @@ trait SpatialFormulas extends PureFormulas {
     def subst(x: Var, by: Expr): SFormula = this
   }
 
-  case object STrue extends SFormula {
-    override def pp: Ident = "true"
-    def subst(x: Var, by: Expr): SFormula = this
-  }
-
   /**
     * Predicate application
     */
   case class SApp(pred: Var, args: Seq[Expr]) extends SFormula {
     override def pp: String = s"${pred.pp}(${args.map(_.pp).mkString(", ")})"
     def subst(x: Var, by: Expr): SFormula = SApp(pred, args.map(_.subst(x, by)))
-  }
-
-  case object SFalse extends SFormula {
-    override def pp: Ident = "false"
-    def subst(x: Var, by: Expr): SFormula = this
   }
 
   // Should we support pointer arithmetics here

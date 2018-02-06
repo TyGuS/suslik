@@ -73,8 +73,6 @@ class SynslParser extends StandardTokenParsers {
   def simpleSigma: Parser[SFormula] = (
       "emp" ^^^ Emp
           ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(Var(name), args) }
-          ||| "true" ^^^ STrue
-          ||| "false" ^^^ SFalse
           ||| (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
       )
 
