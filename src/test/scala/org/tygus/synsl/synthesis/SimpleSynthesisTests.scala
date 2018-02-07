@@ -46,6 +46,14 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       "void kareem3(int * * * * x) " +
       "{true ; x :-> 42 ** b :-> a ** a :-> c ** c :-> b}"
 
+  val spec14 = "{true; x :-> 0} " +
+    "void create(int * * x) " +
+    "{true ; x :-> y ** y :-> 42 ** [y, 1]}"
+
+  val spec15 = "{true; x :-> 0} " +
+    "void create(int * * x) " +
+    "{true ; x :-> y ** [y, 3] ** y :-> 1 ** (y + 1) :-> 2 ** (y + 2) :-> x}"
+
 
 
 
@@ -134,6 +142,14 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
 
     it("should be able to work with crazy indirection") {
       synthesizeFromSpec(spec13)
+    }
+
+    it("should be able to allocate memory") {
+      synthesizeFromSpec(spec14)
+    }
+
+    it("should be able to allocate records") {
+      synthesizeFromSpec(spec15)
     }
 
   }

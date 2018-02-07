@@ -54,6 +54,8 @@ object Specifications extends SpatialFormulas with InductivePredicates {
     // Determine whether x is in the context
     def isConcrete(x: Var): Boolean = gamma.map(_._2).contains(x)
 
+    def isExistential(x: Var): Boolean = existentials.contains(x)
+
     def getType(x: Var): Option[SynslType] = {
       Some(IntType)
 /*

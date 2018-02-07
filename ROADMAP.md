@@ -2,6 +2,7 @@
 
 ## Immediate fixes and extensions
 
+* Parse and handle blanks
 * Replace types with loc and int, add ghosts to the environment
 * Add a flag to control logging output? [Ilya]
 * Pick logic for locations and implement proper subsumption of spatial formulas
@@ -24,7 +25,7 @@
 
 ## Synthesis machinery
 
-* Alloc and free rules
+* Free rule
 * Connect to pure synthesizer
 * Rule for inductive predicates
 * Rule for recursive calls
@@ -50,6 +51,7 @@
     
 ## Completed
 
+* [DONE] Alloc rule
 * [DONE] Change representation of SFormula to a list of chunks
 * [DONE] Do not generate spurious loads, which are later unused
     - [DONE] Implement visitor for statements

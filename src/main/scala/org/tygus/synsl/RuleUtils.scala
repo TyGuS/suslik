@@ -25,17 +25,6 @@ trait RuleUtils {
     matches.find(_.isDefined).flatten
   }
 
-
-  def isGhostHeaplet(spec: Spec): Heaplet => Boolean = {
-    case PointsTo(_, _, a@(Var(_))) => spec.isGhost(a)
-    case _ => false
-  }
-
-  def isConcreteHeaplet(spec: Spec): Heaplet => Boolean = {
-    case PointsTo(_, _, e) => e.vars.forall(v => spec.isConcrete(v))
-    case _ => false
-  }
-
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
