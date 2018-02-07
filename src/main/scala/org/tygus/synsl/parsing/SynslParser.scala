@@ -70,16 +70,16 @@ class SynslParser extends StandardTokenParsers {
     }
   }
 
-  def simpleSigma: Parser[SFormula] = (
-      "emp" ^^^ Emp
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(Var(name), args) }
-          ||| (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
+  def heaplet: Parser[Heaplet] = (
+    (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
           ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(Var(name), args) }
       )
 
-  def sigma: Parser[SFormula] =
-    simpleSigma |||
-        rep1sep(simpleSigma, "**") ^^ { ss => ss.tail.foldLeft(ss.head)((x, y) => Sep(x, y)) }
+  def sigma: Parser[SFormula] = (
+    "emp" ^^^ SFormula(Nil)
+      ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
+    )
 
   def indClause: Parser[InductiveClause] =
     phi ~ ("=>" ~> sigma) ^^ { case p ~ s => InductiveClause(p, s) }

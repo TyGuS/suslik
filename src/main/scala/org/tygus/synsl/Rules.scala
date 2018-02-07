@@ -64,8 +64,8 @@ trait Rules {
 
     def apply(spec: Spec): RuleResult = {
       // TODO: add value-returning statements
-      if (spec.pre.sigma |- spec.post.sigma)
-        MoreGoals(Seq.empty[Spec], _ => {Return(None)})
+      if (spec.pre.sigma.isEmp && spec.post.sigma.isEmp)
+        MoreGoals(Nil, _ => {Return(None)})
       else Fail()
     }
   }
@@ -80,33 +80,30 @@ trait Rules {
   */
   object ReadRule extends Rule {
 
-    def isGhostHeaplet(spec: Spec): SFormula => Boolean = {
-      case PointsTo(id, offset, a@(Var(_))) => spec.isGhost(a)
-      case _ => false
-    }
-
     override def toString: Ident = "[read]"
 
     def apply(spec: Spec): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
-      val ghostHeaplets = spec.pre.sigma.findSubFormula(isGhostHeaplet(spec)).toList
-      if (ghostHeaplets.isEmpty) return Fail()
 
-      val PointsTo(x, offset, a@(Var(_))) = ghostHeaplets.head
-      val y = generateFreshVar(spec, a.name)
+      findHeaplet(isGhostHeaplet(spec))(spec.pre.sigma) match {
+        case None => Fail()
+        case Some(PointsTo(x, offset, a@(Var(_)))) => {
+          val y = generateFreshVar(spec, a.name)
 
-      assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
-      val tpy = spec.getType(a).get
+          assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
+          val tpy = spec.getType(a).get
 
-      val subGoalSpec = Spec(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
-      val kont: StmtProducer = stmts => {
-        assert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
-        val rest = stmts.head
-        // Do not generate read for unused variables
-        if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
+          val subGoalSpec = Spec(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
+          val kont: StmtProducer = stmts => {
+            assert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
+            val rest = stmts.head
+            // Do not generate read for unused variables
+            if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
+          }
+
+          MoreGoals(Seq(subGoalSpec), kont)
+        }
       }
-
-      MoreGoals(Seq(subGoalSpec), kont)
     }
   }
 
@@ -123,19 +120,23 @@ trait Rules {
 
     def apply(spec: Spec): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
-      val heaplets = heapletsForWrite(spec)
-      if (heaplets.isEmpty) return Fail()
 
-      val (h1@PointsTo(x, ox, _), h2@PointsTo(_, _, e2: Expr)) = heaplets.head
+      def isMatch(hl: Heaplet)(hr: Heaplet) = sameLhs(hl)(hr) && isConcreteHeaplet(spec)(hr)
 
-      val subGoalSpec = Spec(pre.removeSubformula(_ == h1), post.removeSubformula(_ == h2), gamma)
-      val kont: StmtProducer = stmts => {
-        assert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
-        val rest = stmts.head
-        Store(x, ox, e2, rest)
+      findMatchingHeaplets(isConcreteHeaplet(spec), isMatch)(spec.pre.sigma, spec.post.sigma) match {
+        case None => Fail()
+        case Some((hl@(PointsTo(x, offset, e1)), hr@(PointsTo(_, _, e2)))) =>
+          val preRest = spec.pre.sigma.remove(hl)
+          val postRest = spec.post.sigma.remove(hr)
+          val subGoalSpec = Spec(Assertion(pre.phi, preRest), Assertion(post.phi, postRest), gamma)
+          val kont: StmtProducer = stmts => {
+            assert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
+            val rest = stmts.head
+            Store(x, offset, e2, rest)
+          }
+
+          MoreGoals(Seq(subGoalSpec), kont)
       }
-
-      MoreGoals(Seq(subGoalSpec), kont)
     }
 
   }
@@ -155,19 +156,23 @@ trait Rules {
     override def toString: Ident = "[frame]"
 
     def apply(spec: Spec): RuleResult = {
-      val heaplets = heapletsForFrame(spec)
-      if (heaplets.isEmpty) return Fail()
-
-      val (p1, p2) = heaplets.head
       val Spec(pre, post, gamma: Gamma) = spec
 
-      val subGoalSpec = Spec(pre.removeSubformula(_ == p1), post.removeSubformula(_ == p2), gamma)
-      val kont: StmtProducer = stmts => {
-        assert(stmts.lengthCompare(1) == 0, s"Frame rule expected 1 premise and got ${stmts.length}")
-        stmts.head
-      }
+      def isMatch(hl: Heaplet)(hr: Heaplet) = hl |- hr
 
-      MoreGoals(Seq(subGoalSpec), kont)
+      findMatchingHeaplets(Function.const(true), isMatch)(spec.pre.sigma, spec.post.sigma) match {
+        case None => Fail()
+        case Some((hl, hr)) =>
+          val preRest = spec.pre.sigma.remove(hl)
+          val postRest = spec.post.sigma.remove(hr)
+          val subGoalSpec = Spec(Assertion(pre.phi, preRest), Assertion(post.phi, postRest), gamma)
+          val kont: StmtProducer = stmts => {
+            assert(stmts.lengthCompare(1) == 0, s"Frame rule expected 1 premise and got ${stmts.length}")
+            stmts.head
+          }
+
+          MoreGoals(Seq(subGoalSpec), kont)
+      }
     }
 
   }

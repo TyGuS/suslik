@@ -33,13 +33,13 @@ object Synthesis extends Rules {
       case Nil => None
       case r :: rs =>
         val result: RuleResult = r(spec)
-        print(s"Trying rule $r for spec ${spec.pp}:")
+        print(s"Trying rule $r for spec ${spec.pp}: ")
         result match {
           case Fail() =>
             println(s"FAIL\n")
             tryRules(rs) // rule not applicable: try the rest
           case MoreGoals(goals, kont) =>
-            println(s"SUCCESS\n")
+            println(s"SUCCESS${goals.map(g => s"\n\t${g.pp}").mkString}\n")
             // Synthesize subgoals
             val subGoalResults = (for (subgoal <- goals) yield synthesize(subgoal, depth + 1)).toStream
             if (subGoalResults.exists(_.isEmpty)) {

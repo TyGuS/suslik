@@ -3,7 +3,6 @@
 ## Immediate fixes and extensions
 
 * Add a flag to control logging output? [Ilya]
-* Change representation of SFormula to a list of chunks
 * Get rid of types (for now)? Maybe two types: loc and int?
 * Pick logic for locations and implement proper subsumption of spatial formulas
 * Proper syntax for declarations (function signatures, inductive predicates, etc)
@@ -51,6 +50,7 @@
     
 ## Completed
 
+* [DONE] Change representation of SFormula to a list of chunks
 * [DONE] Do not generate spurious loads, which are later unused
     - [DONE] Implement visitor for statements
 * [DONE] Support for pointer types

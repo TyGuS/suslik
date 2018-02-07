@@ -10,7 +10,7 @@ object Specifications extends SpatialFormulas with InductivePredicates {
 
   case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion] {
 
-    def pp: String = s"{${phi.pp} ; ${sigma.simpl.canonicalize.pp}}"
+    def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
 
     // Get free variables
     def varsPhi: Set[Var] = phi.collectE(_.isInstanceOf[Var])
@@ -24,8 +24,6 @@ object Specifications extends SpatialFormulas with InductivePredicates {
       phi.collectE(p) ++ sigma.collectE(p)
 
     def subst(x: Var, by: Expr): Assertion = Assertion(phi.subst(x, by), sigma.subst(x, by))
-
-    def removeSubformula(f: SFormula => Boolean) = Assertion(phi, sigma.removeSubformula(f))
   }
 
 
@@ -50,13 +48,15 @@ object Specifications extends SpatialFormulas with InductivePredicates {
 
     def constantsInPost: Set[PConst] = post.collectE(_.isInstanceOf[PConst])
 
-    // Determine whether `x` is a ghost vriaable wrt. given spec and gamma
+    // Determine whether `x` is a ghost variable wrt. given spec and gamma
     def isGhost(x: Var): Boolean = ghosts.contains(x)
 
     // Determine whether x is in the context
     def isConcrete(x: Var): Boolean = gamma.map(_._2).contains(x)
 
     def getType(x: Var): Option[SynslType] = {
+      Some(IntType)
+/*
       // TODO: all ghosts are ints for now, until we descide how to infer it
       if (isGhost(x)) {
         // Deduce the type from the parameter types and the spec
@@ -80,6 +80,7 @@ object Specifications extends SpatialFormulas with InductivePredicates {
         case Some((t, _)) => Some(t)
         case None => None
       }
+*/
     }
   }
 
