@@ -158,13 +158,14 @@ trait Rules {
     def apply(spec: Spec): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
-      def isMatch(hl: Heaplet)(hr: Heaplet) = hl |- hr
+      def isMatch(hl: Heaplet)(hr: Heaplet) = hl.vars.forall(spec.isConcrete) && (hl |- hr)
 
       findMatchingHeaplets(Function.const(true), isMatch)(spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()
         case Some((hl, hr)) =>
           val preRest = spec.pre.sigma.remove(hl)
           val postRest = spec.post.sigma.remove(hr)
+
           val subGoalSpec = Spec(Assertion(pre.phi, preRest), Assertion(post.phi, postRest), gamma)
           val kont: StmtProducer = stmts => {
             assert(stmts.lengthCompare(1) == 0, s"Frame rule expected 1 premise and got ${stmts.length}")

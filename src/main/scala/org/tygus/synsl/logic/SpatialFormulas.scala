@@ -21,7 +21,9 @@ trait SpatialFormulas extends PureFormulas {
       }
       collector(Set.empty)(this)
     }
-    
+
+    def vars: Set[Var] = collectE(_.isInstanceOf[Var])
+
     // TODO: We probably need more fancy entailment at some point
     def |-(other: Heaplet): Boolean = this == other
   }
