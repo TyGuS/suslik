@@ -108,6 +108,10 @@ trait Rules {
 
           MoreGoals(Seq(subGoalSpec), kont)
         }
+        case Some(h) => {
+          assert(false, s"Read rule matched unexpected heaplet ${h.pp}")
+          Fail()
+        }
       }
     }
   }
@@ -135,7 +139,7 @@ trait Rules {
 
       findMatchingHeaplets(isConcretePoints(spec), isMatch)(spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()
-        case Some((hl@(PointsTo(x, offset, e1)), hr@(PointsTo(_, _, e2)))) =>
+        case Some((hl@(PointsTo(x, offset, e1)), hr@(PointsTo(_, _, e2)))) => {
           val newPre = Assertion(pre.phi, spec.pre.sigma.remove(hl))
           val newPost = Assertion(post.phi, spec.post.sigma.remove(hr))
           val subGoalSpec = Spec(newPre, newPost, gamma)
@@ -146,6 +150,11 @@ trait Rules {
           }
 
           MoreGoals(Seq(subGoalSpec), kont)
+        }
+        case Some((hl, hr)) => {
+          assert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
+          Fail()
+        }
       }
     }
 
@@ -173,7 +182,7 @@ trait Rules {
 
       findHeaplet(isExistBlock(spec))(spec.post.sigma) match {
         case None => Fail()
-        case Some(h@(Block(x, sz))) =>
+        case Some(h@(Block(x, sz))) => {
           val newPost = Assertion(spec.post.phi, spec.post.sigma.remove(h))
           val y = generateFreshVar(spec, x.name)
 
@@ -190,6 +199,12 @@ trait Rules {
           }
 
           MoreGoals(Seq(subGoalSpec), kont)
+        }
+        case Some(h) => {
+          assert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
+          Fail()
+        }
+
       }
     }
 
