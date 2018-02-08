@@ -9,7 +9,7 @@ import scala.util.parsing.input.CharArrayReader.EofCh
 class SynslLexical extends StdLexical {
 
   // Add keywords
-  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return")
+  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate")
 
   // Types
   reserved += ("int", "bool", "void")

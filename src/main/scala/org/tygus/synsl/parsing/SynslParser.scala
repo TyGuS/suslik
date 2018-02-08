@@ -3,6 +3,7 @@ package org.tygus.synsl.parsing
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.logic.Specifications._
+import org.tygus.synsl.logic.Declarations._
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
@@ -36,7 +37,7 @@ class SynslParser extends StandardTokenParsers {
   def literal: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser ||| parenExpr
 
   def expr: Parser[Expr] = (
-      literal ~ ("+" ~> literal) ^^ { case ~(a, b) => EPlus(a, b) }
+      literal ~ ("+" ~> literal) ^^ { case a ~ b => EPlus(a, b) }
           ||| literal ~ ("-" ~> literal) ^^ { case a ~ b => EMinus(a, b) }
           ||| literal ~ ("<=" ~> literal) ^^ { case a ~ b => ELeq(a, b) }
           ||| literal ~ ("<" ~> literal) ^^ { case a ~ b => ELtn(a, b) }
@@ -81,27 +82,25 @@ class SynslParser extends StandardTokenParsers {
       ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
     )
 
-  def indClause: Parser[InductiveClause] =
-    phi ~ ("=>" ~> sigma) ^^ { case p ~ s => InductiveClause(p, s) }
-
-  def indPredicate: Parser[InductiveDef] =
-    ident ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~
-        (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ params ~ clauses => InductiveDef(name, params, clauses)
-    }
-
-  type Defs = Seq[InductiveDef]
-  //  def preamble: Parser[Defs] = rep(indPredicate)
-  def preamble = indPredicate
-
   def assertion: Parser[Assertion] = "{" ~> (opt(phi <~ ";") ~ sigma) <~ "}" ^^ {
     case Some(p) ~ s => Assertion(p, s)
     case None ~ s => Assertion(PTrue, s)
   }
 
-  def spec: Parser[FullSpec] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ gamma ~ post => FullSpec(Spec(pre, post, gamma), tpe, Some(name))
+  def indClause: Parser[InductiveClause] =
+    phi ~ ("=>" ~> sigma) ^^ { case p ~ s => InductiveClause(p, s) }
+
+  def indPredicate: Parser[InductiveDef] =
+    ("predicate" ~> ident) ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~
+        (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
+      case name ~ params ~ clauses => InductiveDef(name, params, clauses)
+    }
+
+  def goalFunction: Parser[GoalFunction] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+    case pre ~ tpe ~ name ~ gamma ~ post => GoalFunction(name, Spec(pre, post, gamma), tpe)
   }
+
+  def program: Parser[Program] = rep(indPredicate ||| goalFunction) ^^ Program
 
   def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {
     case e: Error => Failure(e.msg, e.next)
@@ -109,8 +108,5 @@ class SynslParser extends StandardTokenParsers {
     case s => s
   }
 
-  def parseSpec: (String) => ParseResult[FullSpec] = parse(spec)
-
-  def parsePreamble(input: String) = parse(preamble)(input)
-
+  def parseProgram(input: String) = parse(program)(input)
 }

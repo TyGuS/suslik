@@ -2,13 +2,38 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.PrettyPrinting
 import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.language.SynslType
+import org.tygus.synsl.logic.Specifications._
 
 /**
   * @author Ilya Sergey
   */
 
-trait InductivePredicates {
-  this: SpatialFormulas =>
+object Declarations {
+
+  /**
+    * A top-level declaration in a program
+    */
+  sealed abstract class Declaration extends PrettyPrinting {
+
+  }
+
+  /**
+    * Function to synthesize
+    *
+    * @param name function name
+    * @param spec pre/postconditions and variable context
+    * @param tpe  function return type
+    */
+  case class GoalFunction(name: Ident, spec: Spec, tpe: SynslType) extends Declaration {
+    override def pp: String = {
+      val Spec(pre, post, gamma) = spec
+      s"${pre.pp}\n${tpe.pp} " +
+        s"$name(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
+        s"${post.pp}"
+    }
+
+  }
 
   /*
   A selector is of the form (phi, sigma)
@@ -23,7 +48,7 @@ trait InductivePredicates {
     *
     * For instance, a linked list can be encoded as follows:
     *
-    * lseg(x, y) {
+    * predicate lseg(x, y) {
     *    x == y  =>  emp
     *  | x != y  => x -> (V, Z) * lseg(Z, y)
     * }
@@ -37,10 +62,10 @@ trait InductivePredicates {
     * TODO: add higher-order predicates, e.g., a list parameterised by a predicate
     *
     */
-  case class InductiveDef(name: Ident, params: Seq[Var], clauses: Seq[InductiveClause]) extends PrettyPrinting {
+  case class InductiveDef(name: Ident, params: Seq[Var], clauses: Seq[InductiveClause]) extends Declaration {
 
     override def pp : String = {
-      val prelude = s"$name (${params.map(_.pp).mkString(", ")}) { \n  "
+      val prelude = s"predicate $name (${params.map(_.pp).mkString(", ")}) { \n  "
       val cls = clauses.map(_.pp).mkString("\n| ")
       prelude + cls + "\n}"
     }
@@ -49,4 +74,9 @@ trait InductivePredicates {
     def existentials: Set[Var] = ???
 
   }
+
+  case class Program(decls: Seq[Declaration]) extends PrettyPrinting {
+    override def pp: String = decls.map(_.pp).mkString("\n\n")
+  }
+
 }

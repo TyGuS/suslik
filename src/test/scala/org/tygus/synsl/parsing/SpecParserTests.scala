@@ -22,7 +22,7 @@ class SpecParserTests extends FunSpec with Matchers {
 
   def parseSimpleSpec(text: String) {
     val parser = new SynslParser
-    val result = parser.parseSpec(text)
+    val result = parser.parseProgram(text)
     // So far, just assert that the result is a success
     assert(result.successful, result)
     println(result.get.pp)

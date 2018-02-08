@@ -1,6 +1,7 @@
 package org.tygus.synsl
 
 import org.tygus.synsl.language.Statements._
+import org.tygus.synsl.logic.Declarations.GoalFunction
 import org.tygus.synsl.logic.Specifications._
 
 /**
@@ -14,10 +15,10 @@ object Synthesis extends Rules {
   val maxDepth = 25
 
 
-  def synthesizeProc(fullSpec: FullSpec): Option[Procedure] = {
-    val FullSpec(spec, tp, name) = fullSpec
+  def synthesizeProc(fullSpec: GoalFunction): Option[Procedure] = {
+    val GoalFunction(name, spec, tp) = fullSpec
     synthesize(spec, 0) match {
-      case Some(body) => Some(Procedure(name.getOrElse(defaultName), tp, spec.gamma, body))
+      case Some(body) => Some(Procedure(name, tp, spec.gamma, body))
       case None =>
         println(s"Deductive synthesis failed for the spec\n ${spec.pp},\n depth = $maxDepth.")
         None

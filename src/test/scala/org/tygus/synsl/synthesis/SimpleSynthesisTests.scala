@@ -2,6 +2,7 @@ package org.tygus.synsl.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.synsl.Synthesis
+import org.tygus.synsl.logic.Declarations.GoalFunction
 import org.tygus.synsl.parsing.SynslParser
 
 /**
@@ -68,17 +69,19 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
 
   private def synthesizeFromSpec(text: String) {
     val parser = new SynslParser
-    val fullSpec = parser.parseSpec(text)
-    assert(fullSpec.successful, fullSpec)
+    val res = parser.parseProgram(text)
+    assert(res.successful, res)
 
-    val spec = fullSpec.get
+    val prog = res.get
+    assert(prog.decls.nonEmpty)
+    val goal = prog.decls.last.asInstanceOf[GoalFunction]
 
-    val sresult = synthesizeProc(spec)
+    val sresult = synthesizeProc(goal)
 
     sresult match {
       case Some(res) =>
         println("Specification:\n")
-        println(s"${spec.pp}\n")
+        println(s"${goal.pp}\n")
         println("Successfully synthesised:")
         println(s"${res.pp}")
         println("-----------------------------------------------------\n")

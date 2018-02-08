@@ -4,7 +4,7 @@ import org.tygus.synsl.{PrettyPrinting, Substitutable}
 import org.tygus.synsl.language.{IntType, PtrType, SynslType}
 import org.tygus.synsl.language.Expressions._
 
-object Specifications extends SpatialFormulas with InductivePredicates {
+object Specifications extends SpatialFormulas {
 
   type Gamma = Seq[(SynslType, Var)]
 
@@ -85,25 +85,4 @@ object Specifications extends SpatialFormulas with InductivePredicates {
 */
     }
   }
-
-  /**
-    * Hoare-style SL specification
-    *
-    * @param spec pre/postconditions and variable context
-    * @param name Procedure name (optional)
-    * @param tpe  Procedure return type
-    */
-  case class FullSpec(spec: Spec, tpe: SynslType, name: Option[Ident])
-      extends PrettyPrinting {
-
-    override def pp: String = {
-      val Spec(pre, post, gamma) = spec
-      s"${pre.pp}\n${tpe.pp} " +
-          s"${name.getOrElse("foo")}(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
-          s"${post.pp}"
-    }
-
-  }
-
-
 }
