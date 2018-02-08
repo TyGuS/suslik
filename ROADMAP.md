@@ -25,7 +25,6 @@
 
 ## Synthesis machinery
 
-* Free rule
 * Connect to pure synthesizer
 * Rule for inductive predicates
 * Rule for recursive calls
@@ -51,7 +50,7 @@
     
 ## Completed
 
-* [DONE] Alloc rule
+* [DONE] Alloc and free rule
 * [DONE] Change representation of SFormula to a list of chunks
 * [DONE] Do not generate spurious loads, which are later unused
     - [DONE] Implement visitor for statements
