@@ -90,7 +90,7 @@ trait Rules {
         case _ => false
       }
 
-      findHeaplet(isGhostPoints(spec))(spec.pre.sigma) match {
+      findHeaplet(isGhostPoints(spec), spec.pre.sigma) match {
         case None => Fail()
         case Some(PointsTo(x, offset, a@(Var(_)))) => {
           val y = generateFreshVar(spec, a.name)
@@ -135,9 +135,9 @@ trait Rules {
         case _ => false
       }
 
-      def isMatch(hl: Heaplet)(hr: Heaplet) = sameLhs(hl)(hr) && isConcretePoints(spec)(hr)
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && isConcretePoints(spec)(hr)
 
-      findMatchingHeaplets(isConcretePoints(spec), isMatch)(spec.pre.sigma, spec.post.sigma) match {
+      findMatchingHeaplets(isConcretePoints(spec), isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()
         case Some((hl@(PointsTo(x, offset, e1)), hr@(PointsTo(_, _, e2)))) => {
           val newPre = Assertion(pre.phi, spec.pre.sigma.remove(hl))
@@ -180,7 +180,7 @@ trait Rules {
         case _ => false
       }
 
-      findHeaplet(isExistBlock(spec))(spec.post.sigma) match {
+      findHeaplet(isExistBlock(spec), spec.post.sigma) match {
         case None => Fail()
         case Some(h@(Block(x, sz))) => {
           val newPost = Assertion(spec.post.phi, spec.post.sigma.remove(h))
@@ -229,9 +229,9 @@ trait Rules {
       val Spec(pre, post, gamma: Gamma) = spec
 
       // TODO: better side condition: it's okay to remove heaplets with ghosts as long as it doesn't make things unreachable
-      def isMatch(hl: Heaplet)(hr: Heaplet) = hl.vars.forall(spec.isConcrete) && (hl |- hr)
+      def isMatch(hl: Heaplet, hr: Heaplet) = hl.vars.forall(spec.isConcrete) && (hl |- hr)
 
-      findMatchingHeaplets(Function.const(true), isMatch)(spec.pre.sigma, spec.post.sigma) match {
+      findMatchingHeaplets(Function.const(true), isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()
         case Some((hl, hr)) =>
           val newPre = Assertion(pre.phi, spec.pre.sigma.remove(hl))

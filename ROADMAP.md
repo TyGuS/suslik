@@ -43,9 +43,9 @@
     
 ## Benchmarks
 
-* Destructors
+* Destructors and copy constructors (including structs with both stored-length and null-terminated arrays)
 * Examples from natural synthesis paper
-* Persistent memory examples (?)
+* Persistent memory examples: bidirectional transformations between data structures with added/removed fields (e.g. B-trees)
 * Something with a complex data structure (snaphottable tree?)
 * Something with concurrency
     

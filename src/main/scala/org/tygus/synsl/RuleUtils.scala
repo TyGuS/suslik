@@ -10,22 +10,23 @@ trait RuleUtils {
 
   import Specifications._
 
-  def findHeaplet(p: (Heaplet) => Boolean): SFormula => Option[Heaplet] = sigma => {
+  def findHeaplet(p: (Heaplet) => Boolean,
+                  sigma: SFormula): Option[Heaplet] = {
     sigma.chunks.find(p)
   }
 
-  def findMatchingHeaplets(pl: Heaplet => Boolean, pr: Heaplet => (Heaplet => Boolean)): (SFormula, SFormula) => Option[(Heaplet, Heaplet)]
-    = (pre, post) => {
-    val matches = for (hl <- pre.chunks.filter(pl)) yield {
-      post.chunks.find(pr(hl)) match {
-        case None => None
-        case Some(hr) => Some(hl, hr)
-      }
-    }
-    matches.find(_.isDefined).flatten
+  def findMatchingHeaplets(pl: Heaplet => Boolean,
+                           pr: (Heaplet, Heaplet) => Boolean,
+                           pre: SFormula,
+                           post: SFormula): Option[(Heaplet, Heaplet)]
+    =  {
+    // TODO: how to do I make this lazy?
+    (for (hl <- pre.chunks if pl(hl);
+          hr <- post.chunks if pr(hl, hr)) yield (hl, hr)).headOption
   }
 
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
+    assert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
       case PointsTo(y, off, _) => pt.id == y && pt.offset == off
