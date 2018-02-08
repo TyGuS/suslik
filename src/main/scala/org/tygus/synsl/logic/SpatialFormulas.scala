@@ -83,6 +83,8 @@ trait SpatialFormulas extends PureFormulas {
 
     def remove(h: Heaplet): SFormula = SFormula(chunks.filterNot(elm => elm == h))
 
+    def remove(h: Set[Heaplet]): SFormula = SFormula(chunks.filterNot(elm => h.contains(elm)))
+
     // TODO: implement replacement of subformula by another one
   }
 

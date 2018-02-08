@@ -54,6 +54,13 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
     "void create(int * * x) " +
     "{true ; x :-> y ** [y, 3] ** y :-> 1 ** (y + 1) :-> 2 ** (y + 2) :-> x}"
 
+  val spec16 = "{true; x :-> y ** [y, 1] ** y :-> 42} " +
+    "void delete(int * * x) " +
+    "{true ; x :-> y }"
+
+  val spec17 = "{true; x :-> y ** y :-> 42 ** (y + 1) :-> 43 ** (y + 2) :-> 44 ** [y, 3]} " +
+    "void delete(int * * x) " +
+    "{true ; x :-> y }"
 
 
 
@@ -152,6 +159,13 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       synthesizeFromSpec(spec15)
     }
 
+    it("should be able to deallocate memory") {
+      synthesizeFromSpec(spec16)
+    }
+
+    it("should be able to deallocate records") {
+      synthesizeFromSpec(spec17)
+    }
   }
 
 }

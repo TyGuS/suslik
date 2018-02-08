@@ -85,12 +85,12 @@ trait Rules {
     def apply(spec: Spec): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
-      def isGhostPoints(spec: Spec): Heaplet => Boolean = {
+      def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(_, _, a@(Var(_))) => spec.isGhost(a)
         case _ => false
       }
 
-      findHeaplet(isGhostPoints(spec), spec.pre.sigma) match {
+      findHeaplet(isGhostPoints, spec.pre.sigma) match {
         case None => Fail()
         case Some(PointsTo(x, offset, a@(Var(_)))) => {
           val y = generateFreshVar(spec, a.name)
@@ -130,14 +130,14 @@ trait Rules {
     def apply(spec: Spec): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
-      def isConcretePoints(spec: Spec): Heaplet => Boolean = {
+      def isConcretePoints: Heaplet => Boolean = {
         case PointsTo(_, _, e) => e.vars.forall(v => spec.isConcrete(v))
         case _ => false
       }
 
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && isConcretePoints(spec)(hr)
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && isConcretePoints(hr)
 
-      findMatchingHeaplets(isConcretePoints(spec), isMatch, spec.pre.sigma, spec.post.sigma) match {
+      findMatchingHeaplets(isConcretePoints, isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()
         case Some((hl@(PointsTo(x, offset, e1)), hr@(PointsTo(_, _, e2)))) => {
           val newPre = Assertion(pre.phi, spec.pre.sigma.remove(hl))
@@ -190,7 +190,7 @@ trait Rules {
           val tpy = spec.getType(x).get
 
           // TODO: replace 0 with blank
-          val freshChunks = (0 until sz).map(off => PointsTo(y, off, PConst(0)))
+          val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, PConst(0))
           val newPre = Assertion(spec.pre.phi, SFormula(spec.pre.sigma.chunks ++ freshChunks))
           val subGoalSpec = Spec(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
@@ -200,12 +200,57 @@ trait Rules {
 
           MoreGoals(Seq(subGoalSpec), kont)
         }
-        case Some(h) => {
+        case Some(h) =>
           assert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
           Fail()
-        }
-
       }
+    }
+
+  }
+
+  /*
+  Free rule: free a block from the pre-state if the post-state is emp
+
+                        Γ ; { φ ; P } ; { ψ ; emp } ---> S
+  ------------------------------------------------------------------------------- [free]
+   Γ ; { φ ; block(x, n + 1) * x -> (e0 .. en) * P } ; { ψ ; emp } ---> free(x); S
+*/
+  object FreeRule extends Rule {
+
+    override def toString: Ident = "[free]"
+
+    def apply(spec: Spec): RuleResult = {
+      val Spec(pre, post, gamma: Gamma) = spec
+
+      def isConcreteBlock: Heaplet => Boolean = {
+        case Block(v, _) => spec.isConcrete(v)
+        case _ => false
+      }
+
+      if (post.sigma.isEmp) {
+        findHeaplet(isConcreteBlock, spec.pre.sigma) match {
+          case None => Fail()
+          case Some(h@Block(x, sz)) => {
+            val pts = for (off <- 0 until sz) yield {
+              findHeaplet(sameLhs(PointsTo(x, off, PConst(0))), spec.pre.sigma) match {
+                case Some(pt) => pt
+                case None => return Fail()
+              }
+            }
+            val newPre = Assertion(spec.pre.phi, spec.pre.sigma.remove(h).remove(pts.toSet))
+            val subGoalSpec = Spec(newPre, post, gamma)
+            val kont: StmtProducer = stmts => {
+              assert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
+              Free(x, stmts.head)
+            }
+
+            MoreGoals(Seq(subGoalSpec), kont)
+          }
+          case Some(h) =>
+            assert(false, s"Free rule matched unexpected heaplet ${h.pp}")
+            Fail()
+        }
+      } else Fail()
     }
 
   }

@@ -36,7 +36,7 @@ object Statements {
             builder.append(s"${tpe.pp} ${to.pp} = malloc($sz);\n")
             build(rest)
           case Free(v, rest) =>
-            builder.append(s"free($v);\n")
+            builder.append(s"free(${v.pp});\n")
             build(rest)
           case Call(to, tpe, fun, args, rest) =>
             builder.append(s"${tpe.pp} ${to.pp} = " +
@@ -66,8 +66,8 @@ object Statements {
           collector(acc ++ from.collect(p))(rest)
         case Alloc(_, _, _, rest) =>
           collector(acc)(rest)
-        case Free(_, rest) =>
-          collector(acc)(rest)
+        case Free(x, rest) =>
+          collector(acc ++ x.collect(p))(rest)
         case Call(to, tpe, fun, args, rest) =>
           val acc1: Set[R] = acc ++ to.collect(p) ++
               fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
