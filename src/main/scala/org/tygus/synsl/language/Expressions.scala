@@ -8,6 +8,8 @@ import org.tygus.synsl.{PrettyPrinting, Substitutable}
 
 object Expressions {
 
+  type Ident = String
+
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
 
     // Type-coercing visitor (yikes!)

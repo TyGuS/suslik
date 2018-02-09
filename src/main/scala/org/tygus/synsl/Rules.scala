@@ -1,9 +1,10 @@
 package org.tygus.synsl
 
 import org.tygus.synsl.LanguageUtils.generateFreshVar
-import org.tygus.synsl.language.Expressions.{Expr, PConst, Var}
+import org.tygus.synsl.language.Expressions.{PConst, Var, Ident}
 import org.tygus.synsl.language.Statements
 import org.tygus.synsl.logic.Specifications
+import org.tygus.synsl.logic.Declarations.Environment
 
 /**
   * An implementation of a rule for synthesis
@@ -42,7 +43,7 @@ trait Rules {
     */
   abstract sealed class Rule extends RuleUtils {
     // Apply the rule and get the subgoals
-    def apply(spec: Spec): RuleResult
+    def apply(spec: Spec, env: Environment): RuleResult
 
   }
 
@@ -62,7 +63,7 @@ trait Rules {
 
     override def toString: Ident = "[emp]"
 
-    def apply(spec: Spec): RuleResult = {
+    def apply(spec: Spec, env: Environment): RuleResult = {
       // TODO: add value-returning statements
       if (spec.pre.sigma.isEmp && spec.post.sigma.isEmp)
         MoreGoals(Nil, _ => {Return(None)})
@@ -82,7 +83,7 @@ trait Rules {
 
     override def toString: Ident = "[read]"
 
-    def apply(spec: Spec): RuleResult = {
+    def apply(spec: Spec, env: Environment): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isGhostPoints: Heaplet => Boolean = {
@@ -127,7 +128,7 @@ trait Rules {
 
     override def toString: Ident = "[write]"
 
-    def apply(spec: Spec): RuleResult = {
+    def apply(spec: Spec, env: Environment): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isConcretePoints: Heaplet => Boolean = {
@@ -172,7 +173,7 @@ trait Rules {
 
     override def toString: Ident = "[alloc]"
 
-    def apply(spec: Spec): RuleResult = {
+    def apply(spec: Spec, env: Environment): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isExistBlock(spec: Spec): Heaplet => Boolean = {
@@ -219,7 +220,7 @@ trait Rules {
 
     override def toString: Ident = "[free]"
 
-    def apply(spec: Spec): RuleResult = {
+    def apply(spec: Spec, env: Environment): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isConcreteBlock: Heaplet => Boolean = {
@@ -270,7 +271,7 @@ trait Rules {
 
     override def toString: Ident = "[frame]"
 
-    def apply(spec: Spec): RuleResult = {
+    def apply(spec: Spec, env: Environment): RuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       // TODO: better side condition: it's okay to remove heaplets with ghosts as long as it doesn't make things unreachable

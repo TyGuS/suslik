@@ -1,8 +1,8 @@
 package org.tygus.synsl.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
+import org.tygus.synsl.Resolver._
 import org.tygus.synsl.Synthesis
-import org.tygus.synsl.logic.Declarations.GoalFunction
 import org.tygus.synsl.parsing.SynslParser
 
 /**
@@ -74,9 +74,12 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
 
     val prog = res.get
     assert(prog.decls.nonEmpty)
-    val goal = prog.decls.last.asInstanceOf[GoalFunction]
+    val (goals, env) = resolveProgram(prog)
 
-    val sresult = synthesizeProc(goal)
+    assert(goals.lengthCompare(1) == 0, "Expected a single synthesis goal")
+
+    val goal = goals.head
+    val sresult = synthesizeProc(goal, env)
 
     sresult match {
       case Some(res) =>
@@ -88,7 +91,6 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       case None =>
         assert(false, s"Failed to synthesise:\n$sresult")
     }
-
   }
 
   describe("SL-based synthesizer") {

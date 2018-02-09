@@ -1,14 +1,12 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.language.Expressions.{Expr, Var, Ident}
 import org.tygus.synsl.{PrettyPrinting, Substitutable}
 
 /**
   * Pure fragment of the logic
   */
 trait PureFormulas {
-
-  type Ident = String
 
   sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormula] {
 

@@ -75,8 +75,20 @@ object Declarations {
 
   }
 
+  /**
+    * Program: for now just a sequence of declarations
+    */
   case class Program(decls: Seq[Declaration]) extends PrettyPrinting {
     override def pp: String = decls.map(_.pp).mkString("\n\n")
+  }
+
+  type PredIndex = Map[Ident, InductiveDef]
+
+  /**
+    * Environment: stores module-level declarations that might be needed during synthesis
+    * (predicates, component functions, etc)
+    */
+  case class Environment(predicates: PredIndex) {
   }
 
 }
