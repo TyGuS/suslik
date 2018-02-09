@@ -39,15 +39,14 @@ object Expressions {
   case class Var(name: String) extends Expr {
     override def pp: String = name
 
-    def subst(x: Var, by: Expr): Expr =
-      if (x.name == this.name) by else this
-
+    def subst(sigma: Map[Var,Expr]): Expr =
+      sigma.getOrElse(this, this)
   }
 
   // Program-level constant
   case class PConst(value: Any) extends Expr {
     override def pp: String = value.toString
-    def subst(x: Var, by: Expr): Expr = this
+    def subst(sigma: Map[Var,Expr]): Expr = this
   }
 
   sealed abstract class BinaryExpr(val left: Expr, val right: Expr) extends Expr {
@@ -56,35 +55,35 @@ object Expressions {
   // Binary expressions
   // TODO: Figure out how to use Scala's generic programming to solve this annoying instance of the expression problem
   case class EPlus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(x: Var, by: Expr): Expr = EPlus(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = EPlus(left.subst(sigma), right.subst(sigma))
   }
 
   case class EMinus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(x: Var, by: Expr): Expr = EMinus(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = EMinus(left.subst(sigma), right.subst(sigma))
   }
 
   case class ELeq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(x: Var, by: Expr): Expr = ELeq(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = ELeq(left.subst(sigma), right.subst(sigma))
   }
 
   case class ELtn(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(x: Var, by: Expr): Expr = ELtn(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = ELtn(left.subst(sigma), right.subst(sigma))
   }
 
   case class EEq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(x: Var, by: Expr): Expr = EEq(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = EEq(left.subst(sigma), right.subst(sigma))
   }
 
   case class EAnd(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(x: Var, by: Expr): Expr = EAnd(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = EAnd(left.subst(sigma), right.subst(sigma))
   }
 
   case class EOr(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(x: Var, by: Expr): Expr = EOr(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = EOr(left.subst(sigma), right.subst(sigma))
   }
 
   case class ENeg(arg: Expr) extends Expr {
-    def subst(x: Var, by: Expr): Expr = ENeg(arg.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Expr = ENeg(arg.subst(sigma))
   }
 
 

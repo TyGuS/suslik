@@ -1,10 +1,10 @@
 package org.tygus.synsl
 
 import org.tygus.synsl.LanguageUtils.generateFreshVar
-import org.tygus.synsl.language.Expressions.{PConst, Var, Ident}
+import org.tygus.synsl.language.Expressions.{Ident, PConst, Var, Expr}
 import org.tygus.synsl.language.Statements
 import org.tygus.synsl.logic.Specifications
-import org.tygus.synsl.logic.Declarations.Environment
+import org.tygus.synsl.logic.Declarations._
 
 /**
   * An implementation of a rule for synthesis
@@ -141,8 +141,8 @@ trait Rules {
       findMatchingHeaplets(isConcretePoints, isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()
         case Some((hl@(PointsTo(x, offset, e1)), hr@(PointsTo(_, _, e2)))) => {
-          val newPre = Assertion(pre.phi, spec.pre.sigma.remove(hl))
-          val newPost = Assertion(post.phi, spec.post.sigma.remove(hr))
+          val newPre = Assertion(pre.phi, spec.pre.sigma - hl)
+          val newPost = Assertion(post.phi, spec.post.sigma - hr)
           val subGoalSpec = Spec(newPre, newPost, gamma)
           val kont: StmtProducer = stmts => {
             assert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
@@ -184,7 +184,7 @@ trait Rules {
       findHeaplet(isExistBlock(spec), spec.post.sigma) match {
         case None => Fail()
         case Some(h@(Block(x, sz))) => {
-          val newPost = Assertion(spec.post.phi, spec.post.sigma.remove(h))
+          val newPost = Assertion(spec.post.phi, spec.post.sigma - h)
           val y = generateFreshVar(spec, x.name)
 
           assert(spec.getType(x).nonEmpty, s"Cannot derive a type for the ghost variable $x in spec ${spec.pp}")
@@ -238,7 +238,7 @@ trait Rules {
                 case None => return Fail()
               }
             }
-            val newPre = Assertion(spec.pre.phi, spec.pre.sigma.remove(h).remove(pts.toSet))
+            val newPre = Assertion(spec.pre.phi, spec.pre.sigma - h - pts)
             val subGoalSpec = Spec(newPre, post, gamma)
             val kont: StmtProducer = stmts => {
               assert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
@@ -280,8 +280,8 @@ trait Rules {
       findMatchingHeaplets(Function.const(true), isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()
         case Some((hl, hr)) =>
-          val newPre = Assertion(pre.phi, spec.pre.sigma.remove(hl))
-          val newPost = Assertion(post.phi, spec.post.sigma.remove(hr))
+          val newPre = Assertion(pre.phi, spec.pre.sigma - hl)
+          val newPost = Assertion(post.phi, spec.post.sigma - hr)
 
           val subGoalSpec = Spec(newPre, newPost, gamma)
           val kont: StmtProducer = stmts => {
@@ -295,6 +295,51 @@ trait Rules {
 
   }
 
+  /*
+  Open rule: unroll a predicate in the pre-state
+  TODO: generalize to multiple clauses
+
+              p(params) := { true ? b }
+    Γ ; { φ ; b[args/params] * P } ; { ψ ; Q } ---> S
+    ---------------------------------------------------- [open]
+        Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> S
+
+   */
+  object OpenRule extends Rule {
+
+    override def toString: Ident = "[open]"
+
+    def apply(spec: Spec, env: Environment): RuleResult = {
+      val Spec(pre, post, gamma: Gamma) = spec
+
+      findHeaplet(_.isInstanceOf[SApp], spec.pre.sigma) match {
+        case None => Fail()
+        case Some(h@SApp(pred,args)) => {
+          assert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
+          val InductiveDef(_, params, clauses) = env.predicates (pred)
+          assert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
+          val InductiveClause(_, body) = clauses.head
+          val actualBody = body.subst((params zip args).toMap)
+
+
+          val newPre = Assertion(pre.phi, spec.pre.sigma ** actualBody - h)
+
+          val subGoalSpec = Spec(newPre, post, gamma)
+          val kont: StmtProducer = stmts => {
+            assert(stmts.lengthCompare(1) == 0, s"Open rule expected 1 premise and got ${stmts.length}")
+            stmts.head
+          }
+
+          MoreGoals(Seq(subGoalSpec), kont)
+        }
+        case Some(h) =>
+          assert(false, s"Open rule matched unexpected heaplet ${h.pp}")
+          Fail()
+      }
+
+    }
+
+  }
 
 }
 

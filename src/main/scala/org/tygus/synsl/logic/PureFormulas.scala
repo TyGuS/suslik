@@ -32,44 +32,44 @@ trait PureFormulas {
 
   object PTrue extends PFormula {
     override def pp: Ident = "true"
-    def subst(x: Var, by: Expr): PFormula = this
+    def subst(sigma: Map[Var,Expr]): PFormula = this
   }
 
   object PFalse extends PFormula {
     override def pp: Ident = "false"
-    def subst(x: Var, by: Expr): PFormula = this
+    def subst(sigma: Map[Var,Expr]): PFormula = this
   }
 
   // Ф <= Ф', Ф < Ф', Ф == Ф'
   case class PLeq(left: Expr, right: Expr) extends PFormula {
     override def pp: Ident = s"${left.pp} <= ${right.pp}"
-    def subst(x: Var, by: Expr): PFormula = PLeq(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): PFormula = PLeq(left.subst(sigma), right.subst(sigma))
   }
 
   case class PLtn(left: Expr, right: Expr) extends PFormula {
     override def pp: Ident = s"${left.pp} < ${right.pp}"
-    def subst(x: Var, by: Expr): PFormula = PLtn(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): PFormula = PLtn(left.subst(sigma), right.subst(sigma))
   }
 
   case class PEq(left: Expr, right: Expr) extends PFormula {
     override def pp: Ident = s"${left.pp} == ${right.pp}"
-    def subst(x: Var, by: Expr): PFormula = PEq(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): PFormula = PEq(left.subst(sigma), right.subst(sigma))
   }
 
   // Connectives
   case class PAnd(left: PFormula, right: PFormula) extends PFormula {
     override def pp: Ident = s"(${left.pp} /\\ ${right.pp})"
-    def subst(x: Var, by: Expr): PFormula = PAnd(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): PFormula = PAnd(left.subst(sigma), right.subst(sigma))
   }
 
   case class POr(left: PFormula, right: PFormula) extends PFormula {
     override def pp: Ident = s"(${left.pp} \\/ ${right.pp})"
-    def subst(x: Var, by: Expr): PFormula = POr(left.subst(x, by), right.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): PFormula = POr(left.subst(sigma), right.subst(sigma))
   }
 
   case class PNeg(arg: PFormula) extends PFormula {
     override def pp: Ident = s"not (${arg.pp})"
-    def subst(x: Var, by: Expr): PFormula = PNeg(arg.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): PFormula = PNeg(arg.subst(sigma))
   }
 
 }

@@ -37,11 +37,10 @@ trait SpatialFormulas extends PureFormulas {
       s"$head :-> ${value.pp}"
     }
 
-
-    def subst(x: Var, by: Expr): Heaplet = {
-      assert(x != id || by.isInstanceOf[Var], s"Substitution into non-variable [${by.pp} / ${x.pp}] in points-to $pp")
-      val newId = if (x == id) by.asInstanceOf[Var] else id
-      PointsTo(newId, offset, value.subst(x, by))
+    def subst(sigma: Map[Var,Expr]): Heaplet = {
+      val e = sigma.getOrElse(id, id)
+      assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
+      PointsTo(e.asInstanceOf[Var], offset, value.subst(sigma))
     }
   }
 
@@ -53,26 +52,26 @@ trait SpatialFormulas extends PureFormulas {
       s"[${id.pp}, $sz]"
     }
 
-    def subst(x: Var, by: Expr): Heaplet = {
-      assert(x != id || by.isInstanceOf[Var], s"Substitution into non-variable [$by / $x] in block $pp")
-      val newId = if (x == id) by.asInstanceOf[Var] else id
-      Block(newId, sz)
+    def subst(sigma: Map[Var,Expr]): Heaplet = {
+      val e = sigma.getOrElse(id, id)
+      assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
+      Block(e.asInstanceOf[Var], sz)
     }
   }
 
   /**
     * Predicate application
     */
-  case class SApp(pred: Var, args: Seq[Expr]) extends Heaplet {
-    override def pp: String = s"${pred.pp}(${args.map(_.pp).mkString(", ")})"
-    def subst(x: Var, by: Expr): Heaplet = SApp(pred, args.map(_.subst(x, by)))
+  case class SApp(pred: Ident, args: Seq[Expr]) extends Heaplet {
+    override def pp: String = s"$pred(${args.map(_.pp).mkString(", ")})"
+    def subst(sigma: Map[Var,Expr]): Heaplet = SApp(pred, args.map(_.subst(sigma)))
   }
 
 
   case class SFormula(chunks: List [Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
     override def pp: Ident = if (chunks.isEmpty) "emp" else chunks.map(_.pp).mkString(" ** ")
 
-    def subst(x: Var, by: Expr): SFormula = SFormula(chunks.map(_.subst(x, by)))
+    def subst(sigma: Map[Var,Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
 
     // Collect certain sub-expressions
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
@@ -81,9 +80,14 @@ trait SpatialFormulas extends PureFormulas {
 
     def isEmp: Boolean = chunks.isEmpty
 
-    def remove(h: Heaplet): SFormula = SFormula(chunks.filterNot(elm => elm == h))
+    def **(other: SFormula): SFormula = SFormula(chunks ++ other.chunks)
 
-    def remove(h: Set[Heaplet]): SFormula = SFormula(chunks.filterNot(elm => h.contains(elm)))
+    def -(h: Heaplet): SFormula = SFormula(chunks.filterNot(elm => elm == h))
+
+    def -(hs: Seq[Heaplet]): SFormula = {
+      val hSet = hs.toSet
+      SFormula(chunks.filterNot(elm => hSet.contains(elm)))
+    }
 
     // TODO: implement replacement of subformula by another one
   }

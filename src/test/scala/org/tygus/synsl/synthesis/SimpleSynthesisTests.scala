@@ -63,6 +63,16 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
     "void delete(int * * x) " +
     "{true ; x :-> y }"
 
+  val spec18 =
+  """
+    predicate account(x, amount, limit) {
+      | true  =>  x :-> amount ** (x + 1) :-> limit ** [x, 2]
+    }
+
+    {true; x :-> y ** account(y, 5, 10)}
+      void deleteAccount(int *x)
+    {true ; x :-> y }
+  """
 
 
   import Synthesis._
@@ -160,7 +170,7 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       synthesizeFromSpec(spec14)
     }
 
-    it("should be able to allocate records") {
+    it("should be able to allocate blocks") {
       synthesizeFromSpec(spec15)
     }
 
@@ -168,8 +178,12 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       synthesizeFromSpec(spec16)
     }
 
-    it("should be able to deallocate records") {
+    it("should be able to deallocate blocks") {
       synthesizeFromSpec(spec17)
+    }
+
+    it("should be able to deallocate structs") {
+      synthesizeFromSpec(spec18)
     }
   }
 

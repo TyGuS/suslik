@@ -23,7 +23,7 @@ object Specifications extends SpatialFormulas {
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
       phi.collectE(p) ++ sigma.collectE(p)
 
-    def subst(x: Var, by: Expr): Assertion = Assertion(phi.subst(x, by), sigma.subst(x, by))
+    def subst(s: Map[Var,Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
   }
 
 

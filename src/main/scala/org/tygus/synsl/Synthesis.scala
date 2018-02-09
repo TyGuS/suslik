@@ -10,7 +10,7 @@ import org.tygus.synsl.logic.Specifications._
 
 object Synthesis extends Rules {
 
-  val rulesToApply: List[Rule] = List(EmpRule, FrameRule, ReadRule, WriteRule, FreeRule, AllocRule)
+  val rulesToApply: List[Rule] = List(EmpRule, FrameRule, ReadRule, WriteRule, FreeRule, AllocRule, OpenRule)
   val maxDepth = 25
 
 
