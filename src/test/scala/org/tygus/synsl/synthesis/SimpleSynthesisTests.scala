@@ -63,27 +63,34 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
     "void delete(int * * x) " +
     "{true ; x :-> y }"
 
-  val spec18 =
-  """
-    predicate account(x, amount, limit) {
-      | true  =>  x :-> amount ** (x + 1) :-> limit ** [x, 2]
-    }
-
-    {true; x :-> y ** account(y, 5, 10)}
-      void deleteAccount(int *x)
-    {true ; x :-> y }
-  """
-
-  val spec19 =
+  val accountPred =
     """
     predicate account(x, amount, limit) {
       | true  =>  x :-> amount ** (x + 1) :-> limit ** [x, 2]
     }
 
+    """
+
+  val spec18 = accountPred ++
+    """
+      {true; x :-> y ** account(y, 5, 10)}
+        void deleteAccount(int *x)
+      {true ; x :-> y }
+    """
+
+  val spec19 = accountPred ++
+   """
     {true; x :-> 0}
       void createAccount(int *x, int bal, int lim)
     {true ; x :-> y ** account(y, bal, lim) }
-  """
+   """
+
+  val spec20 = accountPred ++
+    """
+    {true; x :-> y ** account(y, bal, lim)}
+      void deposit(int *x, int amount)
+    {true ; x :-> y ** account(y, bal + amount, lim) }
+   """
 
 
 
@@ -200,6 +207,10 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
 
     it("should be able to allocate structs") {
       synthesizeFromSpec(spec19)
+    }
+
+    it("should be able to update structs") {
+      synthesizeFromSpec(spec20)
     }
   }
 
