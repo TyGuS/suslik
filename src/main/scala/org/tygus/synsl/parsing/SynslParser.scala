@@ -37,14 +37,14 @@ class SynslParser extends StandardTokenParsers {
   def literal: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser ||| parenExpr
 
   def expr: Parser[Expr] = (
-      literal ~ ("+" ~> literal) ^^ { case a ~ b => EPlus(a, b) }
-          ||| literal ~ ("-" ~> literal) ^^ { case a ~ b => EMinus(a, b) }
-          ||| literal ~ ("<=" ~> literal) ^^ { case a ~ b => ELeq(a, b) }
-          ||| literal ~ ("<" ~> literal) ^^ { case a ~ b => ELtn(a, b) }
-          ||| literal ~ ("==" ~> literal) ^^ { case a ~ b => EEq(a, b) }
-          ||| literal ~ ("||" ~> literal) ^^ { case a ~ b => EOr(a, b) }
-          ||| literal ~ ("&&" ~> literal) ^^ { case a ~ b => EAnd(a, b) }
-          ||| "not" ~> literal ^^ ENeg
+      literal ~ ("+" ~> literal) ^^ { case a ~ b => BinaryExpr(OpPlus, a, b) }
+          ||| literal ~ ("-" ~> literal) ^^ { case a ~ b => BinaryExpr(OpMinus, a, b) }
+          ||| literal ~ ("<=" ~> literal) ^^ { case a ~ b => BinaryExpr(OpLeq, a, b) }
+          ||| literal ~ ("<" ~> literal) ^^ { case a ~ b => BinaryExpr(OpLt, a, b) }
+          ||| literal ~ ("==" ~> literal) ^^ { case a ~ b => BinaryExpr(OpEq, a, b) }
+          ||| literal ~ ("||" ~> literal) ^^ { case a ~ b => BinaryExpr(OpOr, a, b) }
+          ||| literal ~ ("&&" ~> literal) ^^ { case a ~ b => BinaryExpr(OpAnd, a, b) }
+          ||| "not" ~> literal ^^ (a => UnaryExpr(OpNot, a))
           ||| literal
       )
 

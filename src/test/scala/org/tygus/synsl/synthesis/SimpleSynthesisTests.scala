@@ -66,7 +66,7 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
   val accountPred =
     """
     predicate account(x, amount, limit) {
-      | true  =>  x :-> amount ** (x + 1) :-> limit ** [x, 2]
+      | true  =>  x :-> limit ** (x + 1) :-> amount ** [x, 2]
     }
 
     """

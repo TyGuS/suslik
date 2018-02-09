@@ -10,20 +10,32 @@ object Expressions {
 
   type Ident = String
 
+  sealed abstract class UnOp extends PrettyPrinting {}
+  object OpNot extends  UnOp { override def pp: String = "not"}
+
+  sealed abstract class BinOp extends PrettyPrinting {}
+  object OpPlus extends  BinOp { override def pp: String = "+" }
+  object OpMinus extends  BinOp { override def pp: String = "-" }
+  object OpEq extends  BinOp { override def pp: String = "==" }
+  object OpLeq extends  BinOp { override def pp: String = "<=" }
+  object OpLt extends  BinOp { override def pp: String = "<" }
+  object OpAnd extends  BinOp { override def pp: String = "&&" }
+  object OpOr extends  BinOp { override def pp: String = "||" }
+
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
 
     // Type-coercing visitor (yikes!)
     def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
 
       def collector(acc: Set[R])(exp: Expr): Set[R] = exp match {
-        case v@Var(name) if p(v) => acc + v.asInstanceOf[R]
-        case c@PConst(value) if p(c) => acc + c.asInstanceOf[R]
-        case b: BinaryExpr =>
+        case v@Var(_) if p(v) => acc + v.asInstanceOf[R]
+        case c@PConst(_) if p(c) => acc + c.asInstanceOf[R]
+        case b@BinaryExpr(_, l, r) =>
           val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
-          val acc2 = collector(acc1)(b.left)
-          collector(acc2)(b.right)
-        case n@ENeg(arg) =>
-          val acc1 = if (p(n)) acc + n.asInstanceOf[R] else acc
+          val acc2 = collector(acc1)(l)
+          collector(acc2)(r)
+        case u@UnaryExpr(_, arg) =>
+          val acc1 = if (p(u)) acc + u.asInstanceOf[R] else acc
           collector(acc1)(arg)
         case _ => acc
       }
@@ -49,41 +61,16 @@ object Expressions {
     def subst(sigma: Map[Var,Expr]): Expr = this
   }
 
-  sealed abstract class BinaryExpr(val left: Expr, val right: Expr) extends Expr {
+  case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
+    def subst(sigma: Map[Var,Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+
+    override def pp: String = s"${left.pp} ${op.pp} ${right.pp}"
   }
 
-  // Binary expressions
-  // TODO: Figure out how to use Scala's generic programming to solve this annoying instance of the expression problem
-  case class EPlus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(sigma: Map[Var,Expr]): Expr = EPlus(left.subst(sigma), right.subst(sigma))
-  }
+  case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
+    def subst(sigma: Map[Var,Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
 
-  case class EMinus(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(sigma: Map[Var,Expr]): Expr = EMinus(left.subst(sigma), right.subst(sigma))
-  }
-
-  case class ELeq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(sigma: Map[Var,Expr]): Expr = ELeq(left.subst(sigma), right.subst(sigma))
-  }
-
-  case class ELtn(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(sigma: Map[Var,Expr]): Expr = ELtn(left.subst(sigma), right.subst(sigma))
-  }
-
-  case class EEq(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(sigma: Map[Var,Expr]): Expr = EEq(left.subst(sigma), right.subst(sigma))
-  }
-
-  case class EAnd(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(sigma: Map[Var,Expr]): Expr = EAnd(left.subst(sigma), right.subst(sigma))
-  }
-
-  case class EOr(override val left: Expr, override val right: Expr) extends BinaryExpr(left, right) {
-    def subst(sigma: Map[Var,Expr]): Expr = EOr(left.subst(sigma), right.subst(sigma))
-  }
-
-  case class ENeg(arg: Expr) extends Expr {
-    def subst(sigma: Map[Var,Expr]): Expr = ENeg(arg.subst(sigma))
+    override def pp: String = s"${op.pp} ${arg.pp}"
   }
 
 
