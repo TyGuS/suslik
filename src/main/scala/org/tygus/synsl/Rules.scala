@@ -336,9 +336,50 @@ trait Rules {
           assert(false, s"Open rule matched unexpected heaplet ${h.pp}")
           Fail()
       }
-
     }
+  }
 
+  /*
+  Close rule: unroll a predicate in the post-state
+  TODO: generalize to multiple clauses
+
+              p(params) := { true ? b }
+    Γ ; { φ ; P } ; { ψ ; b[args/params] * Q } ---> S
+    ---------------------------------------------------- [close]
+        Γ ; { φ ; P } ; { ψ ; p(args) * Q } ---> S
+
+   */
+  object CloseRule extends Rule {
+
+    override def toString: Ident = "[close]"
+
+    def apply(spec: Spec, env: Environment): RuleResult = {
+      val Spec(pre, post, gamma: Gamma) = spec
+
+      findHeaplet(_.isInstanceOf[SApp], spec.post.sigma) match {
+        case None => Fail()
+        case Some(h@SApp(pred, args)) => {
+          assert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
+          val InductiveDef(_, params, clauses) = env.predicates(pred)
+          assert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
+          val InductiveClause(_, body) = clauses.head
+          val actualBody = body.subst((params zip args).toMap)
+
+          val newPost = Assertion(post.phi, spec.post.sigma ** actualBody - h)
+
+          val subGoalSpec = Spec(pre, newPost, gamma)
+          val kont: StmtProducer = stmts => {
+            assert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
+            stmts.head
+          }
+
+          MoreGoals(Seq(subGoalSpec), kont)
+        }
+        case Some(h) =>
+          assert(false, s"Close rule matched unexpected heaplet ${h.pp}")
+          Fail()
+      }
+    }
   }
 
 }

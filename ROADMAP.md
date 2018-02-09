@@ -3,7 +3,8 @@
 ## Immediate fixes and extensions
 
 * Parse and handle blanks
-* Replace types with loc and int, add ghosts to the environment
+* Replace types with loc and int, add ghosts to gamma
+* Type-check declarations in the resolver
 * Add a flag to control logging output? [Ilya]
 * Pick logic for locations and implement proper subsumption of spatial formulas
 * Proper syntax for declarations (function signatures, inductive predicates, etc)
