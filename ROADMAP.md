@@ -2,6 +2,7 @@
 
 ## Immediate fixes and extensions
 
+* Unify expressions and pure formulas?
 * Parse and handle blanks
 * Replace types with loc and int, add ghosts to gamma
 * Type-check declarations in the resolver
