@@ -2,8 +2,7 @@ package org.tygus.synsl.parsing
 
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
-import org.tygus.synsl.logic.Specifications._
-import org.tygus.synsl.logic.Declarations._
+import org.tygus.synsl.logic._
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 

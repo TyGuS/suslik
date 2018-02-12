@@ -3,13 +3,10 @@ package org.tygus.synsl.logic
 import org.tygus.synsl.PrettyPrinting
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.SynslType
-import org.tygus.synsl.logic.Specifications._
 
 /**
   * @author Ilya Sergey
   */
-
-object Declarations {
 
   /**
     * A top-level declaration in a program
@@ -82,7 +79,7 @@ object Declarations {
     override def pp: String = decls.map(_.pp).mkString("\n\n")
   }
 
-  type PredIndex = Map[Ident, InductiveDef]
+
 
   /**
     * Environment: stores module-level declarations that might be needed during synthesis
@@ -91,4 +88,3 @@ object Declarations {
   case class Environment(predicates: PredIndex) {
   }
 
-}

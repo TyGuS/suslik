@@ -1,10 +1,9 @@
 package org.tygus.synsl
 
 import org.tygus.synsl.LanguageUtils.generateFreshVar
-import org.tygus.synsl.language.Expressions.{Ident, PConst, Var, Expr}
+import org.tygus.synsl.language.Expressions.{Ident, PConst, Var}
 import org.tygus.synsl.language.Statements
-import org.tygus.synsl.logic.Specifications
-import org.tygus.synsl.logic.Declarations._
+import org.tygus.synsl.logic._
 
 /**
   * An implementation of a rule for synthesis
@@ -14,7 +13,6 @@ import org.tygus.synsl.logic.Declarations._
 
 trait Rules {
 
-  import Specifications._
   import Statements._
 
   type Pre = Assertion
@@ -275,7 +273,10 @@ trait Rules {
       val Spec(pre, post, gamma: Gamma) = spec
 
       // TODO: better side condition: it's okay to remove heaplets with ghosts as long as it doesn't make things unreachable
-      def isMatch(hl: Heaplet, hr: Heaplet) = hl.vars.forall(spec.isConcrete) && (hl |- hr)
+      // TODO: This is suboptimal: we don't want to check entailment on heaplets, but rather on pre/posts with
+      // suitable quantified ghosts/existentials
+      def isMatch(hl: Heaplet, hr: Heaplet) = hl.vars.forall(spec.isConcrete) && (hl == hr)
+      Fail()
 
       findMatchingHeaplets(Function.const(true), isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => Fail()

@@ -2,7 +2,7 @@ package org.tygus.synsl
 
 
 import org.tygus.synsl.language.Expressions.Ident
-import org.tygus.synsl.logic.Declarations._
+import org.tygus.synsl.logic._
 
 object Resolver {
 

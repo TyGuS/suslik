@@ -1,8 +1,7 @@
 package org.tygus.synsl
 
 import org.tygus.synsl.language.Statements._
-import org.tygus.synsl.logic.Declarations.{GoalFunction, Environment}
-import org.tygus.synsl.logic.Specifications._
+import org.tygus.synsl.logic._
 
 /**
   * @author Ilya Sergey

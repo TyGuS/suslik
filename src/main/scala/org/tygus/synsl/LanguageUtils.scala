@@ -1,7 +1,7 @@
 package org.tygus.synsl
 
 import org.tygus.synsl.language.Expressions.{Expr, Var}
-import org.tygus.synsl.logic.Specifications.Spec
+import org.tygus.synsl.logic._
 
 /**
   * @author Ilya Sergey
