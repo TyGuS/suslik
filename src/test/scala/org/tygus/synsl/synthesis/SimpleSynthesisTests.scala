@@ -1,15 +1,17 @@
 package org.tygus.synsl.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.synsl.Resolver._
-import org.tygus.synsl.Synthesis
+import org.tygus.synsl.logic.Resolver._
 import org.tygus.synsl.parsing.SynslParser
 
 /**
-  * @author Ilya Sergey
+  * @author Nadia Polikarpova, Ilya Sergey
   */
 
-class SimpleSynthesisTests extends FunSpec with Matchers {
+abstract class SimpleSynthesisTests extends FunSpec with Matchers {
+
+  val synthesis : Synthesis
+  import synthesis._
 
   val spec1 = "{true; emp} void foo(int* x) {true ; emp}"
 
@@ -91,10 +93,6 @@ class SimpleSynthesisTests extends FunSpec with Matchers {
       void deposit(int *x, int amount)
     {true ; x :-> y ** account(y, bal + amount, lim) }
    """
-
-
-
-  import Synthesis._
 
   private def synthesizeFromSpec(text: String) {
     val parser = new SynslParser

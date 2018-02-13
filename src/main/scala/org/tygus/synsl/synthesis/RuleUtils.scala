@@ -1,9 +1,9 @@
-package org.tygus.synsl
+package org.tygus.synsl.synthesis
 
 import org.tygus.synsl.logic._
 
 /**
-  * @author Ilya Sergey
+  * @author Nadia Polikarpova, Ilya Sergey
   */
 trait RuleUtils {
 

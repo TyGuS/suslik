@@ -1,16 +1,16 @@
-package org.tygus.synsl
+package org.tygus.synsl.synthesis
 
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 
 /**
-  * @author Ilya Sergey
+  * @author Nadia Polikarpova, Ilya Sergey
   */
 
-object Synthesis extends Rules {
+trait Synthesis { this: Rules =>
 
-  val rulesToApply: List[Rule] = List(EmpRule, FrameRule, ReadRule, WriteRule, FreeRule, AllocRule, OpenRule, CloseRule)
-  val maxDepth = 25
+  val rulesToApply: List[Rule]
+  val maxDepth: Int
 
 
   def synthesizeProc(goal: GoalFunction, env: Environment): Option[Procedure] = {

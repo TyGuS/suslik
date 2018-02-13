@@ -1,49 +1,20 @@
-package org.tygus.synsl
+package org.tygus.synsl.synthesis.eager
 
 import org.tygus.synsl.LanguageUtils.generateFreshVar
 import org.tygus.synsl.language.Expressions.{Ident, PConst, Var}
 import org.tygus.synsl.language.Statements
 import org.tygus.synsl.logic._
+import org.tygus.synsl.synthesis.Rules
 
 /**
   * An implementation of a rule for synthesis
   *
-  * @author Ilya Sergey
+  * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Rules {
+trait EagerRules extends Rules {
 
   import Statements._
-
-  type Pre = Assertion
-  type Post = Assertion
-
-  // A continuation for synthesizing the "larger" statement from substatement
-  type StmtProducer = Seq[Statement] => Statement
-
-  abstract sealed class RuleResult
-
-  /**
-    * Rule is not applicable
-    */
-  case class Fail() extends RuleResult
-
-  /**
-    * Rule is applicable and produces:
-    * - a sequence of subgoals (premises fo the rule)
-    * - a producer: continuation that combines the results of the subgoals into the final statement
-    * An empty list of subgoals paired with an constant producer denotes a leaf in the synthesis derivation
-    */
-  case class MoreGoals(goals: Seq[Spec], kont: StmtProducer) extends RuleResult
-
-  /**
-    * A generic class for a deductive rule to be applied
-    */
-  abstract sealed class Rule extends RuleUtils {
-    // Apply the rule and get the subgoals
-    def apply(spec: Spec, env: Environment): RuleResult
-
-  }
 
   ///////////////////////////////////////////////////////////////////
   ///////////              Specific rules                     ///////
@@ -107,10 +78,9 @@ trait Rules {
 
           MoreGoals(Seq(subGoalSpec), kont)
         }
-        case Some(h) => {
-          assert(false, s"Read rule matched unexpected heaplet ${h.pp}")
+        case Some(h) =>
+          assert(assertion = false, s"Read rule matched unexpected heaplet ${h.pp}")
           Fail()
-        }
       }
     }
   }
@@ -150,10 +120,9 @@ trait Rules {
 
           MoreGoals(Seq(subGoalSpec), kont)
         }
-        case Some((hl, hr)) => {
-          assert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
+        case Some((hl, hr)) =>
+          assert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Fail()
-        }
       }
     }
 
