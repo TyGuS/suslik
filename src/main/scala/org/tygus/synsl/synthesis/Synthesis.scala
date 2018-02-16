@@ -7,9 +7,9 @@ import org.tygus.synsl.logic._
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis { this: Rules =>
+trait Synthesis { this: SynthesisRules =>
 
-  val rulesToApply: List[Rule]
+  val rulesToApply: List[SynthesisRule]
   val maxDepth: Int
 
 
@@ -28,17 +28,17 @@ trait Synthesis { this: Rules =>
 
     if (depth < 0) return None
 
-    def tryRules(rules: List[Rule]): Option[Statement] = rules match {
+    def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
       case Nil => None
       case r :: rs =>
-        val result: RuleResult = r(spec, env)
+        val result: SynthesisRuleResult = r(spec, env)
         print(s"Trying rule $r for spec ${spec.pp}: ")
         result match {
-          case Fail() =>
-            println(s"FAIL\n")
+          case SynFail =>
+            println(s"[Synthesis] FAIL\n")
             tryRules(rs) // rule not applicable: try the rest
-          case MoreGoals(goals, kont) =>
-            println(s"SUCCESS${goals.map(g => s"\n\t${g.pp}").mkString}\n")
+          case SynMoreGoals(goals, kont) =>
+            println(s"[Synthesis] SUCCESS${goals.map(g => s"\n\t${g.pp}").mkString}\n")
             // Synthesize subgoals
             val subGoalResults = (for (subgoal <- goals) yield synthesize(subgoal, env, depth - 1)).toStream
             if (subGoalResults.exists(_.isEmpty)) {

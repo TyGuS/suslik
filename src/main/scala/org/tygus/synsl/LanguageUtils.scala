@@ -1,25 +1,11 @@
 package org.tygus.synsl
 
-import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.logic._
 
 /**
   * @author Ilya Sergey
   */
-
-trait PrettyPrinting {
-  def pp : String = toString
-}
-
-
-trait Substitutable[A] {
-  // Variable substitution
-  def subst(x: Var, by: Expr) : A = {
-    this.subst(Map.empty[Var,Expr] + (x -> by))
-  }
-
-  def subst(sigma: Map[Var,Expr]) : A
-}
 
 object LanguageUtils {
 

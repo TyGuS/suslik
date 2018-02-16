@@ -1,6 +1,6 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.Expressions.Ident
+import org.tygus.synsl.language._
 
 object Resolver {
 

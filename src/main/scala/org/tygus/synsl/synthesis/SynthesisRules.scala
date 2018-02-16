@@ -7,7 +7,7 @@ import org.tygus.synsl.logic.{Assertion, Environment, Spec}
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Rules {
+trait SynthesisRules {
 
   import Statements._
 
@@ -17,12 +17,12 @@ trait Rules {
   // A continuation for synthesizing the "larger" statement from substatement
   type StmtProducer = Seq[Statement] => Statement
 
-  abstract sealed class RuleResult
+  abstract sealed class SynthesisRuleResult
 
   /**
     * Rule is not applicable
     */
-  case class Fail() extends RuleResult
+  case object SynFail extends SynthesisRuleResult
 
   /**
     * Rule is applicable and produces:
@@ -30,14 +30,14 @@ trait Rules {
     * - a producer: continuation that combines the results of the subgoals into the final statement
     * An empty list of subgoals paired with an constant producer denotes a leaf in the synthesis derivation
     */
-  case class MoreGoals(goals: Seq[Spec], kont: StmtProducer) extends RuleResult
+  case class SynMoreGoals(goals: Seq[Spec], kont: StmtProducer) extends SynthesisRuleResult
 
   /**
     * A generic class for a deductive rule to be applied
     */
-  abstract class Rule extends RuleUtils {
+  abstract class SynthesisRule extends RuleUtils {
     // Apply the rule and get the subgoals
-    def apply(spec: Spec, env: Environment): RuleResult
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult
 
   }
 

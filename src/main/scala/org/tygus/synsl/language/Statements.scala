@@ -1,5 +1,6 @@
 package org.tygus.synsl.language
 
+import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.util.StringUtil._
 
 /**

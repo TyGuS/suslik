@@ -1,6 +1,6 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.PrettyPrinting
+import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.SynslType
 

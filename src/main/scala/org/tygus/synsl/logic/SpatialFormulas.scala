@@ -1,7 +1,7 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.{PrettyPrinting, Substitutable}
-import org.tygus.synsl.language.Expressions.{Expr, Var, Ident}
+import org.tygus.synsl.language._
+import org.tygus.synsl.language.Expressions._
 
 /**
   * Separation logic fragment

@@ -1,26 +1,38 @@
 package org.tygus.synsl.language
 
-import org.tygus.synsl.{PrettyPrinting, Substitutable}
-
 /**
   * @author Ilya Sergey
   */
 
 object Expressions {
 
-  type Ident = String
-
   sealed abstract class UnOp extends PrettyPrinting {}
-  object OpNot extends  UnOp { override def pp: String = "not"}
+  object OpNot extends UnOp {
+    override def pp: String = "not"
+  }
 
   sealed abstract class BinOp extends PrettyPrinting {}
-  object OpPlus extends  BinOp { override def pp: String = "+" }
-  object OpMinus extends  BinOp { override def pp: String = "-" }
-  object OpEq extends  BinOp { override def pp: String = "==" }
-  object OpLeq extends  BinOp { override def pp: String = "<=" }
-  object OpLt extends  BinOp { override def pp: String = "<" }
-  object OpAnd extends  BinOp { override def pp: String = "&&" }
-  object OpOr extends  BinOp { override def pp: String = "||" }
+  object OpPlus extends BinOp {
+    override def pp: String = "+"
+  }
+  object OpMinus extends BinOp {
+    override def pp: String = "-"
+  }
+  object OpEq extends BinOp {
+    override def pp: String = "=="
+  }
+  object OpLeq extends BinOp {
+    override def pp: String = "<="
+  }
+  object OpLt extends BinOp {
+    override def pp: String = "<"
+  }
+  object OpAnd extends BinOp {
+    override def pp: String = "&&"
+  }
+  object OpOr extends BinOp {
+    override def pp: String = "||"
+  }
 
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
 
@@ -51,31 +63,29 @@ object Expressions {
   case class Var(name: String) extends Expr {
     override def pp: String = name
 
-    def subst(sigma: Map[Var,Expr]): Expr =
+    def subst(sigma: Map[Var, Expr]): Expr =
       sigma.getOrElse(this, this)
   }
 
   // Program-level constant
   case class PConst(value: Any) extends Expr {
     override def pp: String = value.toString
-    def subst(sigma: Map[Var,Expr]): Expr = this
+    def subst(sigma: Map[Var, Expr]): Expr = this
   }
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
-    def subst(sigma: Map[Var,Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+    def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
 
     override def pp: String = s"${left.pp} ${op.pp} ${right.pp}"
   }
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
-    def subst(sigma: Map[Var,Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
+    def subst(sigma: Map[Var, Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
 
     override def pp: String = s"${op.pp} ${arg.pp}"
   }
 
-
 }
-
 
 
 

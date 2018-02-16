@@ -1,7 +1,5 @@
 package org.tygus.synsl.language
 
-import org.tygus.synsl.PrettyPrinting
-
 /**
   * @author Ilya Sergey
   */

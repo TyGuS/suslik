@@ -1,10 +1,10 @@
 package org.tygus.synsl.synthesis.eager
 
 import org.tygus.synsl.LanguageUtils.generateFreshVar
-import org.tygus.synsl.language.Expressions.{Ident, PConst, Var}
-import org.tygus.synsl.language.Statements
+import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.language.{Statements, _}
 import org.tygus.synsl.logic._
-import org.tygus.synsl.synthesis.Rules
+import org.tygus.synsl.synthesis.SynthesisRules
 
 /**
   * An implementation of a rule for synthesis
@@ -12,7 +12,7 @@ import org.tygus.synsl.synthesis.Rules
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait EagerRules extends Rules {
+trait EagerRules extends SynthesisRules {
 
   import Statements._
 
@@ -28,15 +28,15 @@ trait EagerRules extends Rules {
       Γ ; { true; P } ; { true; Q } ---> return;
   */
 
-  object EmpRule extends Rule {
+  object EmpRule extends SynthesisRule {
 
     override def toString: Ident = "[emp]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       // TODO: add value-returning statements
       if (spec.pre.sigma.isEmp && spec.post.sigma.isEmp)
-        MoreGoals(Nil, _ => {Return(None)})
-      else Fail()
+        SynMoreGoals(Nil, _ => {Return(None)})
+      else SynFail
     }
   }
 
@@ -48,11 +48,11 @@ trait EagerRules extends Rules {
       ---------------------------------------------------------------------- [read]
               Γ ; { φ ; x -> A * P } ; { ψ ; Q } ---> let y := *x ; S
   */
-  object ReadRule extends Rule {
+  object ReadRule extends SynthesisRule {
 
     override def toString: Ident = "[read]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isGhostPoints: Heaplet => Boolean = {
@@ -61,7 +61,7 @@ trait EagerRules extends Rules {
       }
 
       findHeaplet(isGhostPoints, spec.pre.sigma) match {
-        case None => Fail()
+        case None => SynFail
         case Some(PointsTo(x, offset, a@(Var(_)))) => {
           val y = generateFreshVar(spec, a.name)
 
@@ -76,11 +76,11 @@ trait EagerRules extends Rules {
             if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
           }
 
-          MoreGoals(Seq(subGoalSpec), kont)
+          SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
           assert(assertion = false, s"Read rule matched unexpected heaplet ${h.pp}")
-          Fail()
+          SynFail
       }
     }
   }
@@ -92,11 +92,11 @@ trait EagerRules extends Rules {
       -------------------------------------------------------------- [write]
        Γ ; { φ ; x -> e1 * P } ; { ψ ; x -> e2 * Q } ---> *x := e2 ; S
    */
-  object WriteRule extends Rule {
+  object WriteRule extends SynthesisRule {
 
     override def toString: Ident = "[write]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isConcretePoints: Heaplet => Boolean = {
@@ -107,7 +107,7 @@ trait EagerRules extends Rules {
       def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && isConcretePoints(hr)
 
       findMatchingHeaplets(isConcretePoints, isMatch, spec.pre.sigma, spec.post.sigma) match {
-        case None => Fail()
+        case None => SynFail
         case Some((hl@(PointsTo(x, offset, e1)), hr@(PointsTo(_, _, e2)))) => {
           val newPre = Assertion(pre.phi, spec.pre.sigma - hl)
           val newPost = Assertion(post.phi, spec.post.sigma - hr)
@@ -118,11 +118,11 @@ trait EagerRules extends Rules {
             Store(x, offset, e2, rest)
           }
 
-          MoreGoals(Seq(subGoalSpec), kont)
+          SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some((hl, hr)) =>
           assert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
-          Fail()
+          SynFail
       }
     }
 
@@ -136,11 +136,11 @@ trait EagerRules extends Rules {
   ------------------------------------------------------------------ [alloc]
   Γ ; { φ ; P } ; { ψ ; block(X, n) * Q } ---> let y = malloc(n); S
   */
-  object AllocRule extends Rule {
+  object AllocRule extends SynthesisRule {
 
     override def toString: Ident = "[alloc]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isExistBlock(spec: Spec): Heaplet => Boolean = {
@@ -149,7 +149,7 @@ trait EagerRules extends Rules {
       }
 
       findHeaplet(isExistBlock(spec), spec.post.sigma) match {
-        case None => Fail()
+        case None => SynFail
         case Some(h@(Block(x, sz))) => {
           val newPost = Assertion(spec.post.phi, spec.post.sigma - h)
           val y = generateFreshVar(spec, x.name)
@@ -166,11 +166,11 @@ trait EagerRules extends Rules {
             Alloc(y, tpy, sz, stmts.head)
           }
 
-          MoreGoals(Seq(subGoalSpec), kont)
+          SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
           assert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
-          Fail()
+          SynFail
       }
     }
 
@@ -183,11 +183,11 @@ trait EagerRules extends Rules {
   ------------------------------------------------------------------------------- [free]
    Γ ; { φ ; block(x, n + 1) * x -> (e0 .. en) * P } ; { ψ ; emp } ---> free(x); S
 */
-  object FreeRule extends Rule {
+  object FreeRule extends SynthesisRule {
 
     override def toString: Ident = "[free]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isConcreteBlock: Heaplet => Boolean = {
@@ -197,12 +197,12 @@ trait EagerRules extends Rules {
 
       if (post.sigma.isEmp) {
         findHeaplet(isConcreteBlock, spec.pre.sigma) match {
-          case None => Fail()
+          case None => SynFail
           case Some(h@Block(x, sz)) => {
             val pts = for (off <- 0 until sz) yield {
               findHeaplet(sameLhs(PointsTo(x, off, PConst(0))), spec.pre.sigma) match {
                 case Some(pt) => pt
-                case None => return Fail()
+                case None => return SynFail
               }
             }
             val newPre = Assertion(spec.pre.phi, spec.pre.sigma - h - pts)
@@ -212,13 +212,13 @@ trait EagerRules extends Rules {
               Free(x, stmts.head)
             }
 
-            MoreGoals(Seq(subGoalSpec), kont)
+            SynMoreGoals(Seq(subGoalSpec), kont)
           }
           case Some(h) =>
             assert(false, s"Free rule matched unexpected heaplet ${h.pp}")
-            Fail()
+            SynFail
         }
-      } else Fail()
+      } else SynFail
     }
 
   }
@@ -234,21 +234,21 @@ trait EagerRules extends Rules {
     Γ ; { φ ; P * R } ; { ψ ; Q * R } ---> S
 
    */
-  object FrameRule extends Rule {
+  object FrameRule extends SynthesisRule {
 
     override def toString: Ident = "[frame]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       // TODO: better side condition: it's okay to remove heaplets with ghosts as long as it doesn't make things unreachable
       // TODO: This is suboptimal: we don't want to check entailment on heaplets, but rather on pre/posts with
       // suitable quantified ghosts/existentials
       def isMatch(hl: Heaplet, hr: Heaplet) = hl.vars.forall(spec.isConcrete) && (hl == hr)
-      Fail()
+      SynFail
 
       findMatchingHeaplets(Function.const(true), isMatch, spec.pre.sigma, spec.post.sigma) match {
-        case None => Fail()
+        case None => SynFail
         case Some((hl, hr)) =>
           val newPre = Assertion(pre.phi, spec.pre.sigma - hl)
           val newPost = Assertion(post.phi, spec.post.sigma - hr)
@@ -259,7 +259,7 @@ trait EagerRules extends Rules {
             stmts.head
           }
 
-          MoreGoals(Seq(subGoalSpec), kont)
+          SynMoreGoals(Seq(subGoalSpec), kont)
       }
     }
 
@@ -275,15 +275,15 @@ trait EagerRules extends Rules {
         Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> S
 
    */
-  object OpenRule extends Rule {
+  object OpenRule extends SynthesisRule {
 
     override def toString: Ident = "[open]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       findHeaplet(_.isInstanceOf[SApp], spec.pre.sigma) match {
-        case None => Fail()
+        case None => SynFail
         case Some(h@SApp(pred,args)) => {
           assert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductiveDef(_, params, clauses) = env.predicates (pred)
@@ -300,11 +300,11 @@ trait EagerRules extends Rules {
             stmts.head
           }
 
-          MoreGoals(Seq(subGoalSpec), kont)
+          SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
           assert(false, s"Open rule matched unexpected heaplet ${h.pp}")
-          Fail()
+          SynFail
       }
     }
   }
@@ -319,15 +319,15 @@ trait EagerRules extends Rules {
         Γ ; { φ ; P } ; { ψ ; p(args) * Q } ---> S
 
    */
-  object CloseRule extends Rule {
+  object CloseRule extends SynthesisRule {
 
     override def toString: Ident = "[close]"
 
-    def apply(spec: Spec, env: Environment): RuleResult = {
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
       findHeaplet(_.isInstanceOf[SApp], spec.post.sigma) match {
-        case None => Fail()
+        case None => SynFail
         case Some(h@SApp(pred, args)) => {
           assert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
           val InductiveDef(_, params, clauses) = env.predicates(pred)
@@ -343,11 +343,11 @@ trait EagerRules extends Rules {
             stmts.head
           }
 
-          MoreGoals(Seq(subGoalSpec), kont)
+          SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
           assert(false, s"Close rule matched unexpected heaplet ${h.pp}")
-          Fail()
+          SynFail
       }
     }
   }

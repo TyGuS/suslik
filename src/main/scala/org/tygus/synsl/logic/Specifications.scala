@@ -1,9 +1,8 @@
 package org.tygus.synsl.logic
 
 import org.tygus.synsl.language.Expressions._
-import org.tygus.synsl.language.{IntType, SynslType}
+import org.tygus.synsl.language._
 import org.tygus.synsl.logic.entailment.EntailmentSolver
-import org.tygus.synsl.{PrettyPrinting, Substitutable}
 
 case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion] {
 
@@ -23,7 +22,7 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
   def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
-  def |-(other: Assertion): Boolean = EntailmentSolver.entails(this, other)
+  // def |-(other: Assertion): Boolean = EntailmentSolver.entails(this, other)
 
 }
 
