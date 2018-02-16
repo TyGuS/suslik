@@ -17,8 +17,10 @@ trait LogicUtils {
     case p@(PTrue | PFalse) => p
     case p@PLeq(left, right) => p // TODO: Improve this
     case p@PLtn(left, right) => p // TODO: Improve this
-    case p@PEq(left, right) => // sort arguments lexicographically
-      if (left.toString <= right.toString) PEq(left, right) else PEq(right, left)
+    case p@PEq(e, v@Var(_)) if !e.isInstanceOf[Var] => PEq(v, e)
+    case p@PEq(v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
+      if (n1.toString <= n2.toString) PEq(v1, v2) else PEq(v2, v1)
+    case p@PEq(_, _) => p
 
     //  Truth table for PAnd
     case PAnd(PFalse, right) => PFalse
@@ -104,7 +106,7 @@ trait LogicUtils {
     })
 
   def mkConjunction(ps: List[PFormula]): PFormula = ps match {
-    case h :: t => ps.foldLeft(h)((z, p) => PAnd(z, p))
+    case h :: t => t.foldLeft(h)((z, p) => PAnd(z, p))
     case Nil => PTrue
   }
 

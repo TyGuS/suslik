@@ -10,13 +10,19 @@ class SimpleEntailmentSolver extends EntailmentSolver {
   val rulesToApply: List[EntailmentRule] = List(
     // Normalization Rules
 
-    // TODO: add remaining rules
+    // TODO: add *-Partial
+    // TODO: add ExcludedMiddle
+
+    StripEqPre,
+    Inconsistency,
+    Substitution,
 
     // Subtraction Rules
+    Axiom,
     StarIntro,
     Hypothesis,
-    RemoveEq,
-    Axiom
+    StripEqPost
+
   )
 
   /**

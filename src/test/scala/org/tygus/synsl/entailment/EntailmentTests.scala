@@ -14,8 +14,17 @@ class EntailmentTests extends FunSpec with Matchers with LogicUtils {
   val espec1 = "{(x == x) /\\ (y == x) ; emp} {true ; emp}"
   val espec2 = "{(x == x) /\\ (y == x) ; emp} { (x == x) /\\ ((y == y) /\\ true) ; emp}"
   val espec3 = "{(x == x) /\\ (y == x) ; emp} { (x == x) /\\ ((x == y) /\\ true) ; emp}"
-  val espec4 = "{(x == x) /\\ (y == x) ; x :-> y ** y :-> z} " +
-      "{ (x == x) /\\ ((x == y) /\\ true) ; y :-> z ** x :-> y}"
+  val espec4 = "{(x == x) /\\ (y == a) ; x :-> y ** y :-> z} " +
+      "{ (x == x) /\\ ((a == y) /\\ true) ; y :-> z ** x :-> y}"
+
+  val espec5 = "{(z == 5) /\\ (y == a)    ; x :-> y ** y :-> z} " +
+      "{ (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}"
+
+  val espec6 = "{(z == y) /\\ (not (y == z))    ; x :-> y ** y :-> z} " +
+      "{ (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}"
+
+  val espec7 = "{(z == 5) /\\ (x == x)    ; x :-> y ** y :-> z} " +
+      "{ true ; y :-> 5 ** x :-> y}"
 
   private def checkEntailment(text: String) {
     val parser = new SynslParser
@@ -39,23 +48,38 @@ class EntailmentTests extends FunSpec with Matchers with LogicUtils {
 
   describe("Simple entailment checker") {
     it("should be able to check trivial entailment with emp") {
-      // Testing [emp]
+      // Testing [Axiom]
       checkEntailment(espec1)
     }
 
-    it("should be able to discharge trivial equalities") {
-      // Testing [emp]
+    it("should be able to discharge trivial equalities in the postcondition") {
+      // Testing [=-R]
       checkEntailment(espec2)
     }
 
     it("should be able to remove duplicating hypotheses") {
-      // Testing [emp]
+      // Testing [Hypothesis]
       checkEntailment(espec3)
     }
 
     it("should be able to prove heap entailment by subtracting heaplets") {
-      // Testing [emp]
+      // Testing [*-Introduction]
       checkEntailment(espec4)
+    }
+
+    it("should be able to substitute equalities") {
+      // Testing [Substitution]
+      checkEntailment(espec5)
+    }
+
+    it("should be able to use the inconsistencies") {
+      // Testing [Inconsistency]
+      checkEntailment(espec6)
+    }
+
+    it("should be able to discharge trivial equalities in the precondition") {
+      // Testing [=-L]
+      checkEntailment(espec7)
     }
 
   }
