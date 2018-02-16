@@ -7,7 +7,7 @@ abstract class EntailmentSolver extends EntailmentRules {
   val rulesToApply: List[EntailmentRule]
 
   /**
-    * Determintes whether the spec is from the class that can be validated
+    * Determines whether the spec is from the class that can be validated
     */
   def validate(spec: Spec, env: Environment) : Boolean
 
@@ -21,13 +21,13 @@ abstract class EntailmentSolver extends EntailmentRules {
       case Nil => false
       case r :: rs =>
         val result = r(spec, env)
-        print(s"Trying rule $r for spec ${spec.pp}: ")
+        print(s"Trying  enrailment rule $r for ${spec.pp}: ")
         result match {
           case EntFail =>
-            println(s"[Entailment] FAIL\n")
+            println(s"FAIL\n")
             tryRules(rs) // rule not applicable: try the rest
           case EntMoreGoals(goals) =>
-            println(s"[Entailment] SUCCESS${goals.map(g => s"\n\t${g.pp}").mkString}\n")
+            println(s" SUCCESS\n${goals.map(g => s"New goal: ${g.pp}\n").mkString}")
             // Proceed with сруслштп subgoals
             val subGoalResults = goals.toStream.forall(subgoal => entails(subgoal, env))
             if (!subGoalResults) {

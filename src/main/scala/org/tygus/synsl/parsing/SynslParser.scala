@@ -18,7 +18,7 @@ class SynslParser extends StandardTokenParsers {
 
   def tpeParser: Parser[SynslType] =
     primitiveType ~ rep1("*") ^^ { case tp ~ ptrs =>
-      ptrs.foldLeft(tp : SynslType)((t, _) => PtrType(t))
+      ptrs.foldLeft(tp: SynslType)((t, _) => PtrType(t))
     } ||| primitiveType
 
   def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
@@ -33,30 +33,31 @@ class SynslParser extends StandardTokenParsers {
 
   def parenExpr: Parser[Expr] = "(" ~> expr <~ ")"
 
-  def literal: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser ||| parenExpr
+  def expLiteral: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser
 
   def expr: Parser[Expr] = (
-      literal ~ ("+" ~> literal) ^^ { case a ~ b => BinaryExpr(OpPlus, a, b) }
-          ||| literal ~ ("-" ~> literal) ^^ { case a ~ b => BinaryExpr(OpMinus, a, b) }
-          ||| literal ~ ("<=" ~> literal) ^^ { case a ~ b => BinaryExpr(OpLeq, a, b) }
-          ||| literal ~ ("<" ~> literal) ^^ { case a ~ b => BinaryExpr(OpLt, a, b) }
-          ||| literal ~ ("==" ~> literal) ^^ { case a ~ b => BinaryExpr(OpEq, a, b) }
-          ||| literal ~ ("||" ~> literal) ^^ { case a ~ b => BinaryExpr(OpOr, a, b) }
-          ||| literal ~ ("&&" ~> literal) ^^ { case a ~ b => BinaryExpr(OpAnd, a, b) }
-          ||| "not" ~> literal ^^ (a => UnaryExpr(OpNot, a))
-          ||| literal
+      expLiteral ~ ("+" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpPlus, a, b) }
+          ||| expLiteral ~ ("-" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpMinus, a, b) }
+          ||| expLiteral ~ ("<=" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpLeq, a, b) }
+          ||| expLiteral ~ ("<" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpLt, a, b) }
+          ||| expLiteral ~ ("==" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpEq, a, b) }
+          ||| expLiteral ~ ("||" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpOr, a, b) }
+          ||| expLiteral ~ ("&&" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpAnd, a, b) }
+          ||| "not" ~> expLiteral ^^ (a => UnaryExpr(OpNot, a))
+          ||| expLiteral
       )
 
   // Formulas
 
-  def parenPhi: Parser[PFormula] = "(" ~> phi <~ ")"
+  def logLiteral: Parser[PFormula] = "true" ^^^ PTrue ||| "false" ^^^ PFalse
+
+  def parenPhi: Parser[PFormula] = logLiteral ||| "(" ~> phi <~ ")"
 
   def phi: Parser[PFormula] = (
-      "true" ^^^ PTrue
-          ||| "false" ^^^ PFalse
-          ||| (literal <~ "<=") ~ literal ^^ { case a ~ b => PLeq(a, b) }
-          ||| (literal <~ "<") ~ literal ^^ { case a ~ b => PLtn(a, b) }
-          ||| (literal <~ "==") ~ literal ^^ { case a ~ b => PEq(a, b) }
+      logLiteral
+          ||| (expLiteral <~ "<=") ~ expLiteral ^^ { case a ~ b => PLeq(a, b) }
+          ||| (expLiteral <~ "<") ~ expLiteral ^^ { case a ~ b => PLtn(a, b) }
+          ||| (expLiteral <~ "==") ~ expLiteral ^^ { case a ~ b => PEq(a, b) }
           ||| (parenPhi <~ "/\\") ~ parenPhi ^^ { case a ~ b => PAnd(a, b) }
           ||| (parenPhi <~ "\\/") ~ parenPhi ^^ { case a ~ b => POr(a, b) }
           ||| "not" ~> parenPhi ^^ PNeg
@@ -71,15 +72,15 @@ class SynslParser extends StandardTokenParsers {
   }
 
   def heaplet: Parser[Heaplet] = (
-    (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
+      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
           ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
           ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args) }
       )
 
   def sigma: Parser[SFormula] = (
-    "emp" ^^^ SFormula(Nil)
-      ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
-    )
+      "emp" ^^^ SFormula(Nil)
+          ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
+      )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(phi <~ ";") ~ sigma) <~ "}" ^^ {
     case Some(p) ~ s => Assertion(p, s)
@@ -95,6 +96,10 @@ class SynslParser extends StandardTokenParsers {
       case name ~ params ~ clauses => InductiveDef(name, params, clauses)
     }
 
+  def spec: Parser[Spec] = assertion ~ assertion ~ repsep(formal, ",") ^^ {
+    case pre ~ post ~ gamma => Spec(pre, post, gamma)
+  }
+
   def goalFunction: Parser[GoalFunction] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
     case pre ~ tpe ~ name ~ gamma ~ post => GoalFunction(name, Spec(pre, post, gamma), tpe)
   }
@@ -107,5 +112,7 @@ class SynslParser extends StandardTokenParsers {
     case s => s
   }
 
-  def parseProgram(input: String) = parse(program)(input)
+  def parseSpec(input: String): ParseResult[Spec] = parse(spec)(input)
+
+  def parseGoal(input: String): ParseResult[Program] = parse(program)(input)
 }

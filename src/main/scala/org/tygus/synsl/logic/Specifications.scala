@@ -2,7 +2,6 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
-import org.tygus.synsl.logic.entailment.EntailmentSolver
 
 case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion] {
 
@@ -30,11 +29,16 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 /**
   * Main class for contextual Hoare-style specifications
   */
-case class Spec(pre: Assertion, post: Assertion, gamma: Gamma) extends PrettyPrinting {
+case class Spec(pre: Assertion, post: Assertion, gamma: Gamma)
+    extends PrettyPrinting with LogicUtils {
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |- " +
-      s"${pre.pp} ${post.pp}"
+        s"${pre.pp} ${post.pp}"
+
+  def simpl = Spec(Assertion(simplify(pre.phi), pre.sigma),
+    Assertion(simplify(post.phi), post.sigma),
+    this.gamma)
 
   def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
 

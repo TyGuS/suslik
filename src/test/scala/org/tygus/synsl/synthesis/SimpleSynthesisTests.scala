@@ -96,7 +96,7 @@ abstract class SimpleSynthesisTests extends FunSpec with Matchers {
 
   private def synthesizeFromSpec(text: String) {
     val parser = new SynslParser
-    val res = parser.parseProgram(text)
+    val res = parser.parseGoal(text)
     assert(res.successful, res)
 
     val prog = res.get

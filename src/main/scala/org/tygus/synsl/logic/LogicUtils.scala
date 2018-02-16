@@ -1,13 +1,13 @@
-package org.tygus.synsl.synthesis
+package org.tygus.synsl.logic
 
 import org.tygus.synsl.language.Expressions._
-import org.tygus.synsl.logic._
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
-trait RuleUtils {
+trait LogicUtils {
 
+  case class LogicException(msg: String) extends Exception(msg)
 
   ////////////////////////////////////////////////////////////////
   //          Utilities for pure formulae
@@ -17,7 +17,20 @@ trait RuleUtils {
     case p@(PTrue | PFalse) => p
     case p@PLeq(left, right) => p // TODO: Improve this
     case p@PLtn(left, right) => p // TODO: Improve this
-    case p@PEq(left, right) => p // TODO: Improve this
+    case p@PEq(left, right) => // sort arguments lexicographically
+      if (left.toString <= right.toString) PEq(left, right) else PEq(right, left)
+
+    //  Truth table for PAnd
+    case PAnd(PFalse, right) => PFalse
+    case PAnd(left, PFalse) => PFalse
+    case PAnd(PTrue, right) => right
+    case PAnd(left, PTrue) => left
+
+    //  Truth table for POr
+    case POr(PFalse, right) => right
+    case POr(left, PFalse) => left
+    case POr(PTrue, right) => PTrue
+    case POr(left, PTrue) => PTrue
 
     //  The recursive cases
     case PAnd(left, right) => PAnd(simplify(left), simplify(right))
@@ -32,28 +45,67 @@ trait RuleUtils {
     case PNeg(arg) => PNeg(simplify(arg))
   }
 
-  def isAtomicExpr(e: Expr): Boolean = e match {
+  private def isAtomicExpr(e: Expr): Boolean = e match {
     case Var(name) => true
     case PConst(value) => true
     case _ => false
   }
 
-  def isAtomicPFormula(phi: PFormula): Boolean = phi match {
+  val isAtomicPFormula: (PFormula) => Boolean = {
     case PTrue | PFalse => true
     case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case PNeg(PEq(e1, e2)) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case _ => false
   }
 
-  def isSimpleConjunction(atom: PFormula => Boolean)(pf: PFormula): Boolean = {
-
+  def isSimpleConjunction(isAtom: PFormula => Boolean)(pf: PFormula): Boolean = {
     def check(phi: PFormula): Boolean = phi match {
       case PLeq(_, _) | PLtn(_, _) | POr(_, _) => false
       case PAnd(left, right) => check(left) && check(right)
-      case p => isAtomicPFormula(p)
+      case p => isAtom(p)
     }
 
     check(simplify(pf))
+  }
+
+  def conjuncts(phi: PFormula): Option[List[PFormula]] = {
+    val pf = simplify(phi)
+    if (!isSimpleConjunction(isAtomicPFormula)(pf)) return None
+
+    def _conjuncts(p: PFormula): List[PFormula] = p match {
+      case atom if isAtomicPFormula(atom) => List(atom)
+      case PAnd(left, right) => _conjuncts(left) ++ _conjuncts(right)
+      case x => throw LogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
+    }
+
+    Some(_conjuncts(pf))
+  }
+
+  def findCommon[T](cond: T => Boolean, ps1: List[T], ps2: List[T]): Option[(T, List[T], List[T])] = {
+    for (p <- ps1 if cond(p)) {
+      if (ps2.contains(p)) {
+        return Some((p, ps1.filter(_ != p), ps2.filter(_ != p)))
+      }
+    }
+    None
+  }
+
+
+  def isEquiv(p1: PFormula, p2: PFormula): Boolean = (p1, p2) match {
+    case (PEq(e1, e2), PEq(e3, e4)) => e1 == e4 && e2 == e3
+    case (PNeg(z1), PNeg(z2)) => isEquiv(z1, z2)
+    case _ => p1 == p2
+  }
+
+  def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[(PFormula)])] =
+    conjuncts(phi).flatMap(cs => cs.find(p) match {
+      case Some(c) => Some((c, cs.filter(e => e != c)))
+      case None => None
+    })
+
+  def mkConjunction(ps: List[PFormula]): PFormula = ps match {
+    case h :: t => ps.foldLeft(h)((z, p) => PAnd(z, p))
+    case Nil => PTrue
   }
 
 

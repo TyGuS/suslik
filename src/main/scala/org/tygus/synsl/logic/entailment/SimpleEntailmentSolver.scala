@@ -8,7 +8,15 @@ import org.tygus.synsl.logic.{Environment, PFormula, Spec}
 class SimpleEntailmentSolver extends EntailmentSolver {
 
   val rulesToApply: List[EntailmentRule] = List(
-    // TODO: Add more rules, as they are implemented
+    // Normalization Rules
+
+    // TODO: add remaining rules
+
+    // Subtraction Rules
+    StarIntro,
+    Hypothesis,
+    RemoveEq,
+    Axiom
   )
 
   /**

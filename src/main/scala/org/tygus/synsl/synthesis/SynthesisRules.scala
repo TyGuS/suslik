@@ -1,7 +1,7 @@
 package org.tygus.synsl.synthesis
 
 import org.tygus.synsl.language.Statements
-import org.tygus.synsl.logic.{Assertion, Environment, Spec}
+import org.tygus.synsl.logic.{Assertion, Environment, LogicUtils, Spec}
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -35,7 +35,7 @@ trait SynthesisRules {
   /**
     * A generic class for a deductive rule to be applied
     */
-  abstract class SynthesisRule extends RuleUtils {
+  abstract class SynthesisRule extends LogicUtils {
     // Apply the rule and get the subgoals
     def apply(spec: Spec, env: Environment): SynthesisRuleResult
 

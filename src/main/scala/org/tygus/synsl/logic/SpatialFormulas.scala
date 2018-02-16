@@ -23,6 +23,8 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def vars: Set[Var] = collectE(_.isInstanceOf[Var])
 
+  def |- (other: Heaplet): Boolean
+
 }
 
 /**
@@ -39,6 +41,11 @@ case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends Heaplet {
     assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
     PointsTo(e.asInstanceOf[Var], offset, value.subst(sigma))
   }
+
+  def |-(other: Heaplet): Boolean = other match {
+    case PointsTo(id, offset, value) => this.id == id && this.offset == offset && this.value == value
+    case _ => false
+  }
 }
 
 /**
@@ -54,6 +61,8 @@ case class Block(id: Var, sz: Int) extends Heaplet {
     assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
     Block(e.asInstanceOf[Var], sz)
   }
+
+  def |-(other: Heaplet): Boolean = false
 }
 
 /**
@@ -63,6 +72,8 @@ case class SApp(pred: Ident, args: Seq[Expr]) extends Heaplet {
   override def pp: String = s"$pred(${args.map(_.pp).mkString(", ")})"
 
   def subst(sigma: Map[Var, Expr]): Heaplet = SApp(pred, args.map(_.subst(sigma)))
+
+  def |-(other: Heaplet): Boolean = false
 }
 
 

@@ -17,7 +17,7 @@ class PreambleParserTests extends FunSpec with Matchers {
 
   def parseSimpleSpec(text: String) {
     val parser = new SynslParser
-    val result = parser.parseProgram(text)
+    val result = parser.parseGoal(text)
     // So far, just assert that the result is a success
     assert(result.successful, result)
     val res = result.get
