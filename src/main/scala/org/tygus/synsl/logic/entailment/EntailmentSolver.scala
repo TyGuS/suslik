@@ -21,7 +21,7 @@ abstract class EntailmentSolver extends EntailmentRules {
       case Nil => false
       case r :: rs =>
         val result = r(spec, env)
-        print(s"Trying  enrailment rule $r for ${spec.pp}: ")
+        print(s"Trying entailment rule $r for ${spec.pp}: ")
         result match {
           case EntFail =>
             println(s"FAIL\n")
