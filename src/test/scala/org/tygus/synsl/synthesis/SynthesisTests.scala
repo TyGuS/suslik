@@ -95,6 +95,11 @@ abstract class SynthesisTests extends FunSpec with Matchers {
     {true ; x :-> y ** account(y, bal + amount, lim) }
    """
 
+  // Incorporating entailment checking (borrowing from another testsuite):
+
+  val spec21 =  "{(x == x) /\\ (y == x) ; x :-> 3} void bar(int *x, int y) { (x == x) /\\ ((x == y) /\\ true) ; x :-> 3}"
+
+
   private def synthesizeFromSpec(text: String, out: String = "nope") {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
@@ -339,5 +344,13 @@ abstract class SynthesisTests extends FunSpec with Matchers {
       synthesizeFromSpec(spec20)
     }
   }
+
+  describe("SL-based synthesizer with entailment") {
+    it("should be able to synthesize an empty program for a non-trivial pure part") {
+      // Testing [emp]
+      synthesizeFromSpec(spec21)
+    }
+  }
+
 
 }

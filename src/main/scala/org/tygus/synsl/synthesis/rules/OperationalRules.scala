@@ -27,7 +27,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   */
   object WriteRule extends SynthesisRule {
 
-    override def toString: Ident = "[write]"
+    override def toString: Ident = "[Op: write]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
@@ -71,7 +71,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   */
   object ReadRule extends SynthesisRule {
 
-    override def toString: Ident = "[read]"
+    override def toString: Ident = "[Op: read]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
@@ -115,7 +115,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   */
   object AllocRule extends SynthesisRule {
 
-    override def toString: Ident = "[alloc]"
+    override def toString: Ident = "[Op: alloc]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
@@ -161,7 +161,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 */
   object FreeRule extends SynthesisRule {
 
-    override def toString: Ident = "[free]"
+    override def toString: Ident = "[Op: free]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(_, post, gamma: Gamma) = spec

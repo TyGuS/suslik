@@ -3,6 +3,7 @@ package org.tygus.synsl.synthesis.rules
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.NormalizationRules.pureKont
 
 /**
   * @author Ilya Sergey
@@ -68,12 +69,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(spec.pre.phi, SFormula(p))
           val newPost = Assertion(spec.post.phi, SFormula(q))
           val newSpec = Spec(newPre, newPost, spec.gamma)
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"*-intro rule expected 1 premise and got ${stmts.length}")
-            stmts.head
-          }
-
-          SynMoreGoals(List(newSpec), kont)
+          SynMoreGoals(List(newSpec), pureKont(toString))
         case _ => SynFail
       }
     }

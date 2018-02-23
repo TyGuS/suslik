@@ -1,9 +1,8 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.{Ident, Statements}
+import org.tygus.synsl.language.Ident
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.OperationalRules.{findHeaplet, ruleAssert}
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -12,8 +11,6 @@ import org.tygus.synsl.synthesis.rules.OperationalRules.{findHeaplet, ruleAssert
 object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-unfolding"
-
-  import Statements._
 
   /*
   Open rule: unroll a predicate in the pre-state

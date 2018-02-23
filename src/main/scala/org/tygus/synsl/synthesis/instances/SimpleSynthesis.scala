@@ -1,7 +1,7 @@
 package org.tygus.synsl.synthesis.instances
 
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.{OperationalRules, _}
+import org.tygus.synsl.synthesis.rules.{OperationalRules, SubtractionRules, _}
 
 /**
   * @author Ilya Sergey
@@ -27,7 +27,12 @@ class SimpleSynthesis extends Synthesis {
 
     //Unfolding rules
     UnfoldingRules.OpenRule,
-    UnfoldingRules.CloseRule
+    UnfoldingRules.CloseRule,
+
+
+    // Normalization rules
+    // TODO: This rule slows everything down, unless put at the end!
+    NormalizationRules.Hypothesis
 
   )
 
