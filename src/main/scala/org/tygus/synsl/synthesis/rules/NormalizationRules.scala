@@ -1,7 +1,6 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.logic._
-import org.tygus.synsl.synthesis.rules.SubtractionRules.pureKont
 import org.tygus.synsl.synthesis.{SynFail, SynMoreGoals, SynthesisRule, SynthesisRuleResult}
 
 /**
