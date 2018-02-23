@@ -3,15 +3,16 @@ package org.tygus.synsl.synthesis
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.synsl.logic.Resolver._
 import org.tygus.synsl.parsing.SynslParser
+import org.tygus.synsl.synthesis.instances.SimpleSynthesis
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-abstract class SynthesisTests extends FunSpec with Matchers {
+class SynthesisTests extends FunSpec with Matchers {
 
-  val synthesis: Synthesis
-
+  val synthesis: Synthesis = new SimpleSynthesis
+                           
   import synthesis._
 
   val spec1 = "{true; emp} void foo(int* x) {true ; emp}"
@@ -350,7 +351,7 @@ abstract class SynthesisTests extends FunSpec with Matchers {
       val out = """void bar (int * x, int y) {
                   |  skip;
                   |}"""
-      synthesizeFromSpec(spec21)
+      synthesizeFromSpec(spec21, out)
     }
 
     val spec22 =  "{ y == x ; x :-> a} void bar(int *x, int y) { (x == x) /\\ (x == y) ; x :-> 4}"
@@ -361,7 +362,14 @@ abstract class SynthesisTests extends FunSpec with Matchers {
                   |  *x = 4;
                   |  skip;
                   |}"""
-      synthesizeFromSpec(spec22)
+      synthesizeFromSpec(spec22, out)
+    }
+
+    val spec23 =  "{ true; x :-> a ** [x,1] } void duplicate(int *x) { true ; z :-> a ** z + 1 :-> 0 ** [z,2]}"
+
+    it("should be able to synthesize a duplicator") {
+      // Testing [=-R]
+      synthesizeFromSpec(spec23)
     }
   }
 
