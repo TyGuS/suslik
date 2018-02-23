@@ -97,11 +97,6 @@ abstract class SynthesisTests extends FunSpec with Matchers {
 
   // Incorporating entailment checking (borrowing from another testsuite):
 
-  val spec21 =  "{(x == x) /\\ (y == x) ; x :-> 3} void bar(int *x, int y) { (x == x) /\\ ((x == y) /\\ true) ; x :-> 3}"
-
-  val spec22 =  "{ y == x ; x :-> a} void bar(int *x, int y) { (x == x) /\\ (x == y) ; x :-> 4}"
-
-
   private def synthesizeFromSpec(text: String, out: String = "nope") {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
@@ -347,6 +342,8 @@ abstract class SynthesisTests extends FunSpec with Matchers {
     }
   }
 
+  val spec21 =  "{(x == x) /\\ (y == x) ; x :-> y} void bar(int *x, int y) { (x == x) /\\ ((x == y) /\\ true) ; x :-> y}"
+
   describe("SL-based synthesizer with entailment") {
     it("should be able to synthesize an empty program for a non-trivial pure part") {
       // Testing [Hypothesis]
@@ -355,6 +352,8 @@ abstract class SynthesisTests extends FunSpec with Matchers {
                   |}"""
       synthesizeFromSpec(spec21)
     }
+
+    val spec22 =  "{ y == x ; x :-> a} void bar(int *x, int y) { (x == x) /\\ (x == y) ; x :-> 4}"
 
     it("should be able to get rid of tautologies in the post") {
       // Testing [=-R]

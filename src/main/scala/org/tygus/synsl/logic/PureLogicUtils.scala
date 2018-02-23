@@ -71,12 +71,14 @@ trait PureLogicUtils {
   }
 
   def conjuncts(phi: PFormula): Option[List[PFormula]] = {
+
     val pf = simplify(phi)
     if (!isCNF(isAtomicPFormula)(pf)) {
       throw PureLogicException(s"The formula ${phi.pp} is not in CNF")
     }
 
     def _conjuncts(p: PFormula): List[PFormula] = p match {
+      case PTrue => Nil
       case atom if isAtomicPFormula(atom) => List(atom)
       case PAnd(left, right) => _conjuncts(left) ++ _conjuncts(right)
       case x => throw PureLogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
