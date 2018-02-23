@@ -6,7 +6,7 @@ import org.tygus.synsl.language.Expressions._
 /**
   * Pure fragment of the logic
   */
-sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormula] {
+sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormula] with PureLogicUtils {
 
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
@@ -26,6 +26,8 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
 
     collector(Set.empty)(this)
   }
+
+  def isTrue: Boolean = simplify(this) == PTrue
 
 }
 

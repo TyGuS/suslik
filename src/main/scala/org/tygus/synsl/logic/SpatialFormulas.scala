@@ -39,7 +39,7 @@ case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends Heaplet {
 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
     val e = sigma.getOrElse(id, id)
-    _assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
+    slAssert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
     PointsTo(e.asInstanceOf[Var], offset, value.subst(sigma))
   }
 
@@ -59,7 +59,7 @@ case class Block(id: Var, sz: Int) extends Heaplet {
 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
     val e = sigma.getOrElse(id, id)
-    _assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
+    slAssert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
     Block(e.asInstanceOf[Var], sz)
   }
 
@@ -98,6 +98,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     val hSet = hs.toSet
     SFormula(chunks.filterNot(elm => hSet.contains(elm)))
   }
+
+  def vars: List[Var] = chunks.flatMap(_.vars)
 
 }
 

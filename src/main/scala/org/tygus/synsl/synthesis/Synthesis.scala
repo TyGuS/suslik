@@ -1,5 +1,6 @@
 package org.tygus.synsl.synthesis
 
+import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 
@@ -7,11 +8,17 @@ import org.tygus.synsl.logic._
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis { this: SynthesisRules =>
+trait Synthesis {
+
+  val synQualifier : String = "synthesis"
+
+  case class SynthesisException(msg: String) extends SynSLException(synQualifier, msg)
+
+  def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
+
 
   val rulesToApply: List[SynthesisRule]
   val maxDepth: Int
-
 
   def synthesizeProc(goal: GoalFunction, env: Environment): Option[Procedure] = {
     val GoalFunction(name, spec, tp) = goal
@@ -52,6 +59,7 @@ trait Synthesis { this: SynthesisRules =>
 
         }
     }
+
     tryRules(rulesToApply)
   }
 

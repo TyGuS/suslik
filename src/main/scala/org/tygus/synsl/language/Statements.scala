@@ -118,7 +118,7 @@ object Statements {
     def pp: String =
       s"""
          |${tp.pp} $name (${formals.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) {
-         |${body.pp} }
+         |${body.pp}}
     """.stripMargin
 
   }

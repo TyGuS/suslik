@@ -12,7 +12,7 @@ trait SepLogicUtils {
 
   case class SepLogicException(msg: String) extends SynSLException("seplog", msg)
 
-  def _assert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
+  protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
 
   /**
     * Get the heaplet satisfying the predicate
@@ -29,7 +29,7 @@ trait SepLogicUtils {
   }
 
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
-    _assert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
+    slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
       case PointsTo(y, off, _) => pt.id == y && pt.offset == off

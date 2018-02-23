@@ -42,11 +42,13 @@ case class Spec(pre: Assertion, post: Assertion, gamma: Gamma)
 
   def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
 
-  def ghosts: Set[Var] = pre.vars -- formals
-
   def formals: Set[Var] = gamma.map(_._2).toSet
 
-  def existentials: Set[Var] = (post.vars -- ghosts) -- formals
+  def ghosts: Set[Var] = pre.vars ++ post.vars -- formals
+
+  def universals: Set[Var] = pre.vars ++ formals
+
+  def existentials: Set[Var] = post.vars -- universals
 
   def givenConstants: Set[PConst] = pre.collectE(_.isInstanceOf[PConst])
 
