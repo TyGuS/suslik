@@ -1,13 +1,20 @@
 package org.tygus.synsl.synthesis
 
+import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements
-import org.tygus.synsl.logic.{Assertion, Environment, LogicUtils, Spec}
+import org.tygus.synsl.logic._
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait SynthesisRules {
+trait SynthesisRules extends SepLogicUtils {
+
+  val synQualifier : String
+
+  case class SynthesisException(msg: String) extends SynSLException(synQualifier, msg)
+
+  override def _assert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   import Statements._
 
@@ -35,7 +42,7 @@ trait SynthesisRules {
   /**
     * A generic class for a deductive rule to be applied
     */
-  abstract class SynthesisRule extends LogicUtils {
+  abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get the subgoals
     def apply(spec: Spec, env: Environment): SynthesisRuleResult
 

@@ -29,7 +29,7 @@ class SimpleEntailmentSolver extends EntailmentSolver {
     * Determines whether the spec is from the class that can be validated
     */
   def validate(spec: Spec, env: Environment): Boolean = {
-    val checker = (f : PFormula) => isSimpleConjunction(isAtomicPFormula)(f)
+    val checker = (f : PFormula) => isCNF(isAtomicPFormula)(f)
     checker(spec.pre.phi) && checker(spec.post.phi)
   }
 

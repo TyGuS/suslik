@@ -14,6 +14,8 @@ import org.tygus.synsl.synthesis.SynthesisRules
 
 trait EagerRules extends SynthesisRules {
 
+  val synQualifier: String = "synt-eager"
+
   import Statements._
 
   ///////////////////////////////////////////////////////////////////
@@ -35,7 +37,7 @@ trait EagerRules extends SynthesisRules {
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       // TODO: add value-returning statements
       if (spec.pre.sigma.isEmp && spec.post.sigma.isEmp)
-        SynMoreGoals(Nil, _ => {Return(None)})
+        SynMoreGoals(Nil, _ => Skip)
       else SynFail
     }
   }
@@ -65,21 +67,21 @@ trait EagerRules extends SynthesisRules {
         case Some(PointsTo(x, offset, a@(Var(_)))) => {
           val y = generateFreshVar(spec, a.name)
 
-          assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
+          _assert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
           val tpy = spec.getType(a).get
 
           val subGoalSpec = Spec(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
-            assert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
+            _assert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
             // Do not generate read for unused variables
-            if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
+            if (rest.usedVars.contains(y)) Load(y, Some(tpy), x, offset, rest) else rest
           }
 
           SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
-          assert(assertion = false, s"Read rule matched unexpected heaplet ${h.pp}")
+          _assert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           SynFail
       }
     }
@@ -113,7 +115,7 @@ trait EagerRules extends SynthesisRules {
           val newPost = Assertion(post.phi, spec.post.sigma - hr)
           val subGoalSpec = Spec(newPre, newPost, gamma)
           val kont: StmtProducer = stmts => {
-            assert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
+            _assert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
             Store(x, offset, e2, rest)
           }
@@ -121,7 +123,7 @@ trait EagerRules extends SynthesisRules {
           SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some((hl, hr)) =>
-          assert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
+          _assert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           SynFail
       }
     }
@@ -154,22 +156,22 @@ trait EagerRules extends SynthesisRules {
           val newPost = Assertion(spec.post.phi, spec.post.sigma - h)
           val y = generateFreshVar(spec, x.name)
 
-          assert(spec.getType(x).nonEmpty, s"Cannot derive a type for the ghost variable $x in spec ${spec.pp}")
+          _assert(spec.getType(x).nonEmpty, s"Cannot derive a type for the ghost variable $x in spec ${spec.pp}")
           val tpy = spec.getType(x).get
 
           // TODO: replace 0 with blank
-          val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, PConst(0))
+          val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, IntConst(0))
           val newPre = Assertion(spec.pre.phi, SFormula(spec.pre.sigma.chunks ++ freshChunks))
           val subGoalSpec = Spec(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
-            assert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
-            Alloc(y, tpy, sz, stmts.head)
+            _assert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
+            Malloc(y, Some(tpy), sz, stmts.head)
           }
 
           SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
-          assert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
+          _assert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
           SynFail
       }
     }
@@ -198,9 +200,9 @@ trait EagerRules extends SynthesisRules {
       if (post.sigma.isEmp) {
         findHeaplet(isConcreteBlock, spec.pre.sigma) match {
           case None => SynFail
-          case Some(h@Block(x, sz)) => {
+          case Some(h@Block(x, sz)) =>
             val pts = for (off <- 0 until sz) yield {
-              findHeaplet(sameLhs(PointsTo(x, off, PConst(0))), spec.pre.sigma) match {
+              findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), spec.pre.sigma) match {
                 case Some(pt) => pt
                 case None => return SynFail
               }
@@ -208,14 +210,13 @@ trait EagerRules extends SynthesisRules {
             val newPre = Assertion(spec.pre.phi, spec.pre.sigma - h - pts)
             val subGoalSpec = Spec(newPre, post, gamma)
             val kont: StmtProducer = stmts => {
-              assert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
+              _assert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
               Free(x, stmts.head)
             }
 
             SynMoreGoals(Seq(subGoalSpec), kont)
-          }
           case Some(h) =>
-            assert(false, s"Free rule matched unexpected heaplet ${h.pp}")
+            _assert(false, s"Free rule matched unexpected heaplet ${h.pp}")
             SynFail
         }
       } else SynFail
@@ -255,7 +256,7 @@ trait EagerRules extends SynthesisRules {
 
           val subGoalSpec = Spec(newPre, newPost, gamma)
           val kont: StmtProducer = stmts => {
-            assert(stmts.lengthCompare(1) == 0, s"Frame rule expected 1 premise and got ${stmts.length}")
+            _assert(stmts.lengthCompare(1) == 0, s"Frame rule expected 1 premise and got ${stmts.length}")
             stmts.head
           }
 
@@ -285,9 +286,9 @@ trait EagerRules extends SynthesisRules {
       findHeaplet(_.isInstanceOf[SApp], spec.pre.sigma) match {
         case None => SynFail
         case Some(h@SApp(pred,args)) => {
-          assert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
-          val InductiveDef(_, params, clauses) = env.predicates (pred)
-          assert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
+          _assert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
+          val InductivePredicate(_, params, clauses) = env.predicates (pred)
+          _assert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val InductiveClause(_, body) = clauses.head
           val actualBody = body.subst((params zip args).toMap)
 
@@ -296,14 +297,14 @@ trait EagerRules extends SynthesisRules {
 
           val subGoalSpec = Spec(newPre, post, gamma)
           val kont: StmtProducer = stmts => {
-            assert(stmts.lengthCompare(1) == 0, s"Open rule expected 1 premise and got ${stmts.length}")
+            _assert(stmts.lengthCompare(1) == 0, s"Open rule expected 1 premise and got ${stmts.length}")
             stmts.head
           }
 
           SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
-          assert(false, s"Open rule matched unexpected heaplet ${h.pp}")
+          _assert(false, s"Open rule matched unexpected heaplet ${h.pp}")
           SynFail
       }
     }
@@ -329,9 +330,9 @@ trait EagerRules extends SynthesisRules {
       findHeaplet(_.isInstanceOf[SApp], spec.post.sigma) match {
         case None => SynFail
         case Some(h@SApp(pred, args)) => {
-          assert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
-          val InductiveDef(_, params, clauses) = env.predicates(pred)
-          assert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
+          _assert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
+          val InductivePredicate(_, params, clauses) = env.predicates(pred)
+          _assert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val InductiveClause(_, body) = clauses.head
           val actualBody = body.subst((params zip args).toMap)
 
@@ -339,14 +340,14 @@ trait EagerRules extends SynthesisRules {
 
           val subGoalSpec = Spec(pre, newPost, gamma)
           val kont: StmtProducer = stmts => {
-            assert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
+            _assert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
             stmts.head
           }
 
           SynMoreGoals(Seq(subGoalSpec), kont)
         }
         case Some(h) =>
-          assert(false, s"Close rule matched unexpected heaplet ${h.pp}")
+          _assert(false, s"Close rule matched unexpected heaplet ${h.pp}")
           SynFail
       }
     }

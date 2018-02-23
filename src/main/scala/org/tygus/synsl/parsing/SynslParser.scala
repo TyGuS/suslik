@@ -24,10 +24,10 @@ class SynslParser extends StandardTokenParsers {
   def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
   def intLiteral: Parser[PConst] =
-    numericLit ^^ (x => PConst(Integer.parseInt(x)))
+    numericLit ^^ (x => IntConst(Integer.parseInt(x)))
 
   def boolLiteral: Parser[PConst] =
-    ("true" | "false") ^^ (b => PConst(java.lang.Boolean.parseBoolean(b)))
+    ("true" | "false") ^^ (b => BoolConst(java.lang.Boolean.parseBoolean(b)))
 
   def varParser: Parser[Var] = ident ^^ Var
 
@@ -90,10 +90,10 @@ class SynslParser extends StandardTokenParsers {
   def indClause: Parser[InductiveClause] =
     phi ~ ("=>" ~> sigma) ^^ { case p ~ s => InductiveClause(p, s) }
 
-  def indPredicate: Parser[InductiveDef] =
+  def indPredicate: Parser[InductivePredicate] =
     ("predicate" ~> ident) ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~
         (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ params ~ clauses => InductiveDef(name, params, clauses)
+      case name ~ params ~ clauses => InductivePredicate(name, params, clauses)
     }
 
   def spec: Parser[Spec] = assertion ~ assertion ~ repsep(formal, ",") ^^ {

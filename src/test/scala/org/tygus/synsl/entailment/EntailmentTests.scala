@@ -2,14 +2,14 @@ package org.tygus.synsl.entailment
 
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.synsl.logic.entailment.SimpleEntailmentSolver
-import org.tygus.synsl.logic.{Environment, LogicUtils}
+import org.tygus.synsl.logic.{Environment, PureLogicUtils}
 import org.tygus.synsl.parsing.SynslParser
 
 /**
   * @author Ilya Sergey
   */
 
-class EntailmentTests extends FunSpec with Matchers with LogicUtils {
+class EntailmentTests extends FunSpec with Matchers with PureLogicUtils {
 
   val espec1 = "{(x == x) /\\ (y == x) ; emp} {true ; emp}"
   val espec2 = "{(x == x) /\\ (y == x) ; emp} { (x == x) /\\ ((y == y) /\\ true) ; emp}"
@@ -34,8 +34,8 @@ class EntailmentTests extends FunSpec with Matchers with LogicUtils {
     val spec = res.get.simpl
 
     // Assert that these are conjunctions
-    assert(isSimpleConjunction(isAtomicPFormula)(spec.pre.phi))
-    assert(isSimpleConjunction(isAtomicPFormula)(spec.post.phi))
+    assert(isCNF(isAtomicPFormula)(spec.pre.phi))
+    assert(isCNF(isAtomicPFormula)(spec.post.phi))
 
     val checker = new SimpleEntailmentSolver
 

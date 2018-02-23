@@ -41,7 +41,8 @@ object Expressions {
 
       def collector(acc: Set[R])(exp: Expr): Set[R] = exp match {
         case v@Var(_) if p(v) => acc + v.asInstanceOf[R]
-        case c@PConst(_) if p(c) => acc + c.asInstanceOf[R]
+        case c@IntConst(_) if p(c) => acc + c.asInstanceOf[R]
+        case c@BoolConst(_) if p(c) => acc + c.asInstanceOf[R]
         case b@BinaryExpr(_, l, r) =>
           val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(l)
@@ -68,10 +69,19 @@ object Expressions {
   }
 
   // Program-level constant
-  case class PConst(value: Any) extends Expr {
+  abstract class PConst(value: Any) extends Expr {
     override def pp: String = value.toString
     def subst(sigma: Map[Var, Expr]): Expr = this
   }
+
+  case class IntConst(value: Integer) extends PConst(value) {
+    /**
+      * Let's have this instead of the dedicated Nil constructor
+      */
+    def isNull: Boolean = value == 0
+  }
+
+  case class BoolConst(value: Boolean) extends PConst(value)
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))

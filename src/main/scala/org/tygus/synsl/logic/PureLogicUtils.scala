@@ -1,17 +1,16 @@
 package org.tygus.synsl.logic
 
+import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Expressions._
 
 /**
+  * Utilities for pure formulae
+  *
   * @author Nadia Polikarpova, Ilya Sergey
   */
-trait LogicUtils {
+trait PureLogicUtils {
 
-  case class LogicException(msg: String) extends Exception(msg)
-
-  ////////////////////////////////////////////////////////////////
-  //          Utilities for pure formulae
-  ////////////////////////////////////////////////////////////////
+  case class PureLogicException(msg: String) extends SynSLException("pure", msg)
 
   def simplify(phi: PFormula): PFormula = phi match {
     case p@(PTrue | PFalse) => p
@@ -49,7 +48,8 @@ trait LogicUtils {
 
   private def isAtomicExpr(e: Expr): Boolean = e match {
     case Var(name) => true
-    case PConst(value) => true
+    //  For now we only allow integers here
+    case IntConst(_) => true
     case _ => false
   }
 
@@ -60,7 +60,7 @@ trait LogicUtils {
     case _ => false
   }
 
-  def isSimpleConjunction(isAtom: PFormula => Boolean)(pf: PFormula): Boolean = {
+  def isCNF(isAtom: PFormula => Boolean)(pf: PFormula): Boolean = {
     def check(phi: PFormula): Boolean = phi match {
       case PLeq(_, _) | PLtn(_, _) | POr(_, _) => false
       case PAnd(left, right) => check(left) && check(right)
@@ -72,12 +72,14 @@ trait LogicUtils {
 
   def conjuncts(phi: PFormula): Option[List[PFormula]] = {
     val pf = simplify(phi)
-    if (!isSimpleConjunction(isAtomicPFormula)(pf)) return None
+    if (!isCNF(isAtomicPFormula)(pf)) {
+      throw PureLogicException(s"The formula ${phi.pp} is not in CNF")
+    }
 
     def _conjuncts(p: PFormula): List[PFormula] = p match {
       case atom if isAtomicPFormula(atom) => List(atom)
       case PAnd(left, right) => _conjuncts(left) ++ _conjuncts(right)
-      case x => throw LogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
+      case x => throw PureLogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
     }
 
     Some(_conjuncts(pf))
@@ -110,34 +112,4 @@ trait LogicUtils {
     case Nil => PTrue
   }
 
-
-  ////////////////////////////////////////////////////////////////
-  //          Utilities for spatial formulae
-  ////////////////////////////////////////////////////////////////
-
-  /**
-    * Get the heaplet satisfying the predicate
-    */
-  def findHeaplet(p: (Heaplet) => Boolean,
-                  sigma: SFormula): Option[Heaplet] = {
-    sigma.chunks.find(p)
-  }
-
-  def findMatchingHeaplets(pl: Heaplet => Boolean,
-                           pr: (Heaplet, Heaplet) => Boolean,
-                           pre: SFormula,
-                           post: SFormula): Option[(Heaplet, Heaplet)]
-  = {
-    (for {hl <- pre.chunks.toStream if pl(hl)
-          hr <- post.chunks.toStream if pr(hl, hr)} yield (hl, hr)).headOption
-  }
-
-  def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
-    assert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
-    val pt = hl.asInstanceOf[PointsTo]
-    hr match {
-      case PointsTo(y, off, _) => pt.id == y && pt.offset == off
-      case _ => false
-    }
-  }
 }

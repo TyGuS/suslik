@@ -9,10 +9,10 @@ object Resolver {
     * TODO: type checking
     */
   def resolveProgram(prog: Program): (Seq [GoalFunction], Environment) = {
-    val (goals, preds) = prog.decls.foldLeft((Nil : List[GoalFunction], Map.empty[Ident, InductiveDef]))((arg, decl) => {
+    val (goals, preds) = prog.decls.foldLeft((Nil : List[GoalFunction], Map.empty[Ident, InductivePredicate]))((arg, decl) => {
       val (gs, ps) = arg
       decl match {
-        case p@InductiveDef(name, _, _) => (gs, ps + (name -> p))
+        case p@InductivePredicate(name, _, _) => (gs, ps + (name -> p))
         case g@GoalFunction(_, _, _) => (g :: gs, ps)
       }
     }

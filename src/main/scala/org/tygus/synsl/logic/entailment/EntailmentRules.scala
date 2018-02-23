@@ -7,7 +7,7 @@ import org.tygus.synsl.logic._
   * @author Ilya Sergey
   */
 
-trait EntailmentRules extends LogicUtils {
+trait EntailmentRules extends PureLogicUtils {
 
   /*
     TODO: Unify the definitions below with synthesis machinery,

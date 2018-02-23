@@ -6,7 +6,8 @@ import org.tygus.synsl.language.Expressions._
 /**
   * Separation logic fragment
   */
-sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] {
+sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
+
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
     def collector(acc: Set[R])(h: Heaplet): Set[R] = h match {
@@ -23,7 +24,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def vars: Set[Var] = collectE(_.isInstanceOf[Var])
 
-  def |- (other: Heaplet): Boolean
+  def |-(other: Heaplet): Boolean
 
 }
 
@@ -38,12 +39,12 @@ case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends Heaplet {
 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
     val e = sigma.getOrElse(id, id)
-    assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
+    _assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
     PointsTo(e.asInstanceOf[Var], offset, value.subst(sigma))
   }
 
   def |-(other: Heaplet): Boolean = other match {
-    case PointsTo(id, offset, value) => this.id == id && this.offset == offset && this.value == value
+    case PointsTo(_id, _offset, _value) => this.id == _id && this.offset == _offset && this.value == _value
     case _ => false
   }
 }
@@ -58,7 +59,7 @@ case class Block(id: Var, sz: Int) extends Heaplet {
 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
     val e = sigma.getOrElse(id, id)
-    assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
+    _assert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
     Block(e.asInstanceOf[Var], sz)
   }
 
@@ -98,7 +99,5 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     SFormula(chunks.filterNot(elm => hSet.contains(elm)))
   }
 
-  // TODO: implement replacement of subformula by another one
 }
 
-// TODO: extend with inductive predicates
