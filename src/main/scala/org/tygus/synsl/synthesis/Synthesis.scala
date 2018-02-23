@@ -39,13 +39,13 @@ trait Synthesis {
       case Nil => None
       case r :: rs =>
         val result: SynthesisRuleResult = r(spec, env)
-        print(s"Trying rule $r for spec ${spec.pp}: ")
+        print(s"[Synt] Trying $r for spec ${spec.pp}: ")
         result match {
           case SynFail =>
-            println(s"[Synthesis] FAIL\n")
+            println(s"FAIL\n")
             tryRules(rs) // rule not applicable: try the rest
           case SynMoreGoals(goals, kont) =>
-            println(s"[Synthesis] SUCCESS${goals.map(g => s"\n\t${g.pp}").mkString}\n")
+            println(s"SUCCESS${goals.map(g => s"\n\t${g.pp}").mkString}\n")
             // Synthesize subgoals
             val subGoalResults = (for (subgoal <- goals) yield synthesize(subgoal, env, depth - 1)).toStream
             if (subGoalResults.exists(_.isEmpty)) {

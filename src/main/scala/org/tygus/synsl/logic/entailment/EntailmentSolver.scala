@@ -21,13 +21,13 @@ abstract class EntailmentSolver extends EntailmentRules {
       case Nil => false
       case r :: rs =>
         val result = r(spec, env)
-        print(s"Trying entailment rule $r for ${spec.pp}: ")
+        print(s"[Entl] Trying entailment rule $r for ${spec.pp}: ")
         result match {
           case EntFail =>
-            println(s"FAIL\n")
+            println(s"\nFAIL\n")
             tryRules(rs) // rule not applicable: try the rest
           case EntMoreGoals(goals) =>
-            println(s" SUCCESS\n${goals.map(g => s"New goal: ${g.pp}\n").mkString}")
+            println(s"\nSUCCESS\n${goals.map(g => s"New goal: ${g.pp}\n").mkString}")
             // Proceed with сруслштп subgoals
             val subGoalResults = goals.toStream.forall(subgoal => entails(subgoal, env))
             if (!subGoalResults) {

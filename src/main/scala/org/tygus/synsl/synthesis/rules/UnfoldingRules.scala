@@ -24,7 +24,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    */
   object OpenRule extends SynthesisRule {
 
-    override def toString: Ident = "[open]"
+    override def toString: Ident = "[Unfold: open]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
@@ -67,7 +67,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    */
   object CloseRule extends SynthesisRule {
 
-    override def toString: Ident = "[close]"
+    override def toString: Ident = "[Unfold: close]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec

@@ -12,7 +12,6 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
   val exceptionQualifier: String = "rule-normalization"
 
-  // TODO: Implement [=-R]
   // TODO: Implement [subst-R]
   // TODO: Implement [subst-L]
   // TODO: Implement [=-L]
@@ -44,5 +43,31 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       }
     }
   }
+
+
+  /*
+
+  Γ ; {φ ; P} ; {ψ ; Q} ---> S
+  ------------------------------------- [=-R]
+  Γ ; {φ ; P} ; {ψ ∧ l = l ; Q} ---> S
+
+   */
+  object StripEqPost extends SynthesisRule {
+    override def toString: String = "[Sub: =-R]"
+
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+      findConjunctAndRest({
+        case PEq(x, y) => x == y
+        case _ => false
+      }, simplify(spec.post.phi)) match {
+        case None => SynFail
+        case Some((_, rest)) =>
+          val newPost = Assertion(mkConjunction(rest), spec.post.sigma)
+          val newSpec = Spec(spec.pre, newPost, spec.gamma)
+          SynMoreGoals(List(newSpec), pureKont(toString))
+      }
+    }
+  }
+
 
 }

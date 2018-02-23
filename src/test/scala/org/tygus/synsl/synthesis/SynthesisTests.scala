@@ -99,6 +99,8 @@ abstract class SynthesisTests extends FunSpec with Matchers {
 
   val spec21 =  "{(x == x) /\\ (y == x) ; x :-> 3} void bar(int *x, int y) { (x == x) /\\ ((x == y) /\\ true) ; x :-> 3}"
 
+  val spec22 =  "{ y == x ; x :-> a} void bar(int *x, int y) { (x == x) /\\ (x == y) ; x :-> 4}"
+
 
   private def synthesizeFromSpec(text: String, out: String = "nope") {
     val parser = new SynslParser
@@ -347,8 +349,20 @@ abstract class SynthesisTests extends FunSpec with Matchers {
 
   describe("SL-based synthesizer with entailment") {
     it("should be able to synthesize an empty program for a non-trivial pure part") {
-      // Testing [emp]
+      // Testing [Hypothesis]
+      val out = """void bar (int * x, int y) {
+                  |  skip;
+                  |}"""
       synthesizeFromSpec(spec21)
+    }
+
+    it("should be able to get rid of tautologies in the post") {
+      // Testing [=-R]
+      val out = """void bar (int * x, int y) {
+                  |  *x = 4;
+                  |  skip;
+                  |}"""
+      synthesizeFromSpec(spec22)
     }
   }
 

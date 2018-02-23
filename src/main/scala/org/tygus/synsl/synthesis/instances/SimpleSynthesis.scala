@@ -32,7 +32,8 @@ class SimpleSynthesis extends Synthesis {
 
     // Normalization rules
     // TODO: This rule slows everything down, unless put at the end!
-    NormalizationRules.Hypothesis
+    NormalizationRules.Hypothesis,
+    NormalizationRules.StripEqPost
 
   )
 
