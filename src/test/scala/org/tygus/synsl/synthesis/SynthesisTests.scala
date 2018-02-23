@@ -365,11 +365,19 @@ class SynthesisTests extends FunSpec with Matchers {
       synthesizeFromSpec(spec22, out)
     }
 
-    val spec23 =  "{ true; x :-> a ** [x,1] } void duplicate(int *x) { true ; z :-> a ** z + 1 :-> 0 ** [z,2]}"
+    val duplicate = "{ [x,1] ** x :-> a ** r :-> b } void duplicate(int *x, int * r) { r :-> z ** z :-> a ** z + 1 :-> a ** [z,2] }"
 
     it("should be able to synthesize a duplicator") {
-      // Testing [=-R]
-      synthesizeFromSpec(spec23)
+      val out = """void duplicate (int * x, int * r) {
+                  |  let a2 = *x;
+                  |  let z2 = malloc(2);
+                  |  *r = z2;
+                  |  *z2 = a2;
+                  |  *(z2 + 1) = a2;
+                  |  free(x);
+                  |  skip;
+                  |}"""
+      synthesizeFromSpec(duplicate, out)
     }
   }
 
