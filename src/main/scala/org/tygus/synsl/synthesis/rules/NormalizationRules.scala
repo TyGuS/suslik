@@ -13,8 +13,6 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
   val exceptionQualifier: String = "rule-normalization"
 
-  // TODO: Implement [subst-R]
-
   // TODO: Implement [nil-not-lval]
   // TODO: Implement [*-partial]
 
@@ -24,7 +22,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
   object SubstLeft extends SynthesisRule {
-    override def toString: String = "[Norm: Substitution]"
+    override def toString: String = "[Norm: subst-L]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(Assertion(p1, s1), Assertion(p2, s2), g) = spec
@@ -47,6 +45,33 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       }
     }
   }
+
+  /*
+    X ∈ GV(post) / GV (pre)
+    Γ ; {φ ; P} ; {[l/X]ψ ; [l/X]Q} ---> S
+    --------------------------------------- [subst-R]
+    Γ ; {φ ; P} ; {ψ ∧ X = l; Q} ---> S
+  */
+  object SubstRight extends SynthesisRule {
+    override def toString: String = "[Norm: subst-R]"
+
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+      val Spec(pre, Assertion(p2, s2), g) = spec
+
+      findConjunctAndRest({
+        case PEq(x@Var(_), _) => spec.existentials.contains(x)
+        case _ => false
+      }, simplify(p2)) match {
+        case Some((PEq(x@Var(_), l), rest2)) =>
+          val _p2 = mkConjunction(rest2).subst(x, l)
+          val _s2 = s2.subst(x, l)
+          val newSpec = Spec(pre, Assertion(_p2, _s2), g)
+          SynMoreGoals(List(newSpec), pureKont(toString))
+        case _ => SynFail
+      }
+    }
+  }
+
 
   /*
   Γ ; {φ ; P} ; {ψ ; Q} ---> S

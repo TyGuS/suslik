@@ -20,6 +20,7 @@ class SimpleSynthesis extends Synthesis {
     NormalizationRules.StripEqPost,
     NormalizationRules.StripEqPre,
     NormalizationRules.SubstLeft,
+    NormalizationRules.SubstRight,
     NormalizationRules.Inconsistency,
 
     // Subtraction rules
