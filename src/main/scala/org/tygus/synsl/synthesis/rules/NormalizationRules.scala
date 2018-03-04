@@ -5,6 +5,8 @@ import org.tygus.synsl.language.Statements.Skip
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
 
+import scala.collection.Set
+
 /**
   * @author Ilya Sergey
   */
@@ -14,7 +16,42 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   val exceptionQualifier: String = "rule-normalization"
 
   // TODO: Implement [nil-not-lval]
-  // TODO: Implement [*-partial]
+
+  /*
+  x ≠ y ∉ φ
+  Γ ; {φ ∧ x ≠ y ; x.f -> l * y.f -> l' * P} ; {ψ ; Q} ---> S
+  ------------------------------------------------------------ [*-partial]
+  Γ ; {φ ; x.f -> l * y.f -> l' * P} ; {ψ ; Q} ---> S
+   */
+  object StarPartial extends SynthesisRule {
+    override def toString: String = "[Norm: *-partial]"
+
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+      val Spec(Assertion(p1, s1), post, g) = spec
+      conjuncts(p1) match {
+        case None => SynFail
+        case Some(cs) =>
+          val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
+          // All pairs of pointers
+          val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
+              map { s =>
+                val elems = s.toList
+                ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
+                (elems.head, elems.tail.head)
+              }.toList
+          val newPairs = pairs.filter {
+            case (x, y) => !cs.contains(PNeg(PEq(x, y))) && !cs.contains(PNeg(PEq(y, x)))
+          }
+          if (newPairs.isEmpty) return SynFail
+
+          // The implementation immediately adds _all_ inequalities
+          val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
+          val newSpec = Spec(Assertion(_p1, s1), post, g)
+          SynMoreGoals(List(newSpec), pureKont(toString))
+      }
+    }
+  }
+
 
   /*
   Γ ; {[l/x]φ ; [l/x]P} ; {[l/x]ψ ; [l/x]Q} ---> S

@@ -16,6 +16,7 @@ class SimpleSynthesis extends Synthesis {
   val rulesToApply: List[SynthesisRule] = List(
 
     // Normalization rules
+    NormalizationRules.StarPartial,
     NormalizationRules.Hypothesis,
     NormalizationRules.StripEqPost,
     NormalizationRules.StripEqPre,
