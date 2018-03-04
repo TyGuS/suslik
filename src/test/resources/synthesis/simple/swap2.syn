@@ -1,0 +1,17 @@
+should be able to synthesize a more complex swap program
+###
+{true; x :-> a ** y :-> c ** z :-> b ** t :-> q }
+void swap (int* x, int* z, int* y, int* t)
+{ true; x :-> q ** z :-> c ** t :-> a ** y :-> b }
+###
+void swap (int * x, int * z, int * y, int * t) {
+  let a2 = *x;
+  let c2 = *y;
+  let b2 = *z;
+  let q2 = *t;
+  *x = q2;
+  *y = b2;
+  *z = c2;
+  *t = a2;
+  skip;
+}

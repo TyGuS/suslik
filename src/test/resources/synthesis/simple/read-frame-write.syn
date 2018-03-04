@@ -1,0 +1,9 @@
+should be able to synthesize a program with read
+###
+{true; x :-> a ** y :-> 2} void bar(int* x, int* y) {true ; x :-> a ** y :-> a}
+###
+void bar (int * x, int * y) {
+  let a2 = *x;
+  *y = a2;
+  skip;
+}

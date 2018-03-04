@@ -1,0 +1,8 @@
+should be able to get rid of tautologies in the post
+###
+{ y == x ; x :-> a} void bar(int *x, int y) { (x == x) /\ (x == y) ; x :-> 4}
+###
+void bar (int * x, int y) {
+  *x = 4;
+  skip;
+}

@@ -1,0 +1,7 @@
+should be able to synthesize an empty program
+###
+{true; emp} void foo(int* x) {true ; emp}
+###
+void foo (int * x) {
+  skip;
+}

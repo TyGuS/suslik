@@ -1,0 +1,14 @@
+should be able to work with Kareem's example
+###
+{true; x :-> v ** y :-> b ** z :-> v ** v :-> d}
+void kareem1(int * * x, int* y, int* z)
+{true ; x :-> y ** y :-> z ** z :-> x ** v :-> x}
+###
+void kareem1 (int * * x, int * y, int * z) {
+  let v2 = *x;
+  *x = y;
+  *y = z;
+  *z = x;
+  *v2 = x;
+  skip;
+}

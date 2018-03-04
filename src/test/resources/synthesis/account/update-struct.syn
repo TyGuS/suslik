@@ -1,0 +1,16 @@
+should be able to update structs
+
+###
+
+{true; x :-> y ** account(y, bal, lim)}
+      void deposit(int *x, int amount)
+    {true ; x :-> y ** account(y, bal + amount, lim) }
+
+###
+
+void deposit (int * x, int amount) {
+  let y2 = *x;
+  let bal2 = *(y2 + 1);
+  *(y2 + 1) = bal2 + amount;
+  skip;
+}

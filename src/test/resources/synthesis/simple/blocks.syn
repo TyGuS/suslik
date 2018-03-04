@@ -1,0 +1,18 @@
+should be able to allocate blocks
+
+#####
+
+{true; x :-> 0}
+void create(int * * x)
+{true ; x :-> y ** [y, 3] ** y :-> 1 ** (y + 1) :-> 2 ** (y + 2) :-> x}
+
+####
+
+void create (int * * x) {
+  let y2 = malloc(3);
+  *x = y2;
+  *y2 = 1;
+  *(y2 + 1) = 2;
+  *(y2 + 2) = x;
+  skip;
+}

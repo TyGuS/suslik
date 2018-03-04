@@ -1,0 +1,9 @@
+should be able to synthesize a two-pointer constant-assigning procedure
+###
+{true; x :-> 1 ** y :-> 2} void bar(int* x, int* y) {true ; y :-> 239 ** x :-> 43}
+###
+void bar (int * x, int * y) {
+  *x = 43;
+  *y = 239;
+  skip;
+}

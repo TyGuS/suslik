@@ -1,0 +1,11 @@
+should be able to deallocate structures
+###
+{true; x :-> y ** account(y, 5, 10)}
+void deleteAccount(int *x)
+{true ; x :-> y }
+###
+void deleteAccount (int * x) {
+  let y2 = *x;
+  free(y2);
+  skip;
+}

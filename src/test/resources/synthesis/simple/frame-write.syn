@@ -1,0 +1,9 @@
+should be able to use [frame] and [write]
+###
+{true; x :-> a ** y :-> 2} void bar(int* x, int* y) {true ; x :-> a ** y :-> 12}
+###
+void bar (int * x, int * y) {
+  *y = 12;
+  skip;
+}
+

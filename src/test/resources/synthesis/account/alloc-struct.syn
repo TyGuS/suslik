@@ -1,0 +1,13 @@
+should be able to allocate structures
+###
+{true; x :-> 0}
+  void createAccount(int *x, int bal, int lim)
+{true ; x :-> y ** account(y, bal, lim) }
+###
+void createAccount (int * x, int bal, int lim) {
+  let y2 = malloc(2);
+  *x = y2;
+  *y2 = lim;
+  *(y2 + 1) = bal;
+  skip;
+}
