@@ -17,14 +17,11 @@ class EntailmentTests extends FunSpec with Matchers with PureLogicUtils {
   val espec4 = "{(x == x) /\\ (y == a) ; x :-> y ** y :-> z} " +
       "{ (x == x) /\\ ((a == y) /\\ true) ; y :-> z ** x :-> y}"
 
-  val espec5 = "{(z == 5) /\\ (y == a)    ; x :-> y ** y :-> z} " +
-      "{ (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}"
+  val espec5 = "{(z == 5) /\\ (y == a)    ; x :-> y ** y :-> z} { (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}".format()
 
-  val espec6 = "{(z == y) /\\ (not (y == z))    ; x :-> y ** y :-> z} " +
-      "{ (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}"
+  val espec6 = "{(z == y) /\\ (not (y == z))    ; x :-> y ** y :-> z} { (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}".format()
 
-  val espec7 = "{(z == 5) /\\ (x == x)    ; x :-> y ** y :-> z} " +
-      "{ true ; y :-> 5 ** x :-> y}"
+  val espec7 = "{(z == 5) /\\ (x == x)    ; x :-> y ** y :-> z} { true ; y :-> 5 ** x :-> y}".format()
 
   private def checkEntailment(text: String) {
     val parser = new SynslParser

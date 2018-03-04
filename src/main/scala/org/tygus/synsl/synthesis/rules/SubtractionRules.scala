@@ -3,7 +3,6 @@ package org.tygus.synsl.synthesis.rules
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.NormalizationRules.pureKont
 
 /**
   * @author Ilya Sergey

@@ -1,0 +1,9 @@
+should be able to handle inconsistent preconditions
+###
+{ (y == z) /\ (not (y == z)); x :-> y ** y :-> z}
+void foo(int* x, int* y)
+{ true; y :-> 5 ** x :-> y}
+###
+void foo (int * x, int * y) {
+  skip;
+}

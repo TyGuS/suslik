@@ -15,6 +15,13 @@ class SimpleSynthesis extends Synthesis {
   // TODO: apply dynamic heuristics for rule application
   val rulesToApply: List[SynthesisRule] = List(
 
+    // Normalization rules
+    NormalizationRules.Hypothesis,
+    NormalizationRules.StripEqPost,
+    NormalizationRules.StripEqPre,
+    NormalizationRules.SubstLeft,
+    NormalizationRules.Inconsistency,
+
     // Subtraction rules
     SubtractionRules.EmpRule,
     SubtractionRules.StarIntro,
@@ -27,13 +34,7 @@ class SimpleSynthesis extends Synthesis {
 
     //Unfolding rules
     UnfoldingRules.OpenRule,
-    UnfoldingRules.CloseRule,
-
-
-    // Normalization rules
-    // TODO: This rule slows everything down, unless put at the end!
-    NormalizationRules.Hypothesis,
-    NormalizationRules.StripEqPost
+    UnfoldingRules.CloseRule
 
   )
 

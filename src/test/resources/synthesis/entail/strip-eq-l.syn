@@ -1,0 +1,9 @@
+should be able to discharge trivial equalities in the precondition
+###
+{(z == 5) /\ (x == x) ; x :-> y ** y :-> z}
+void foo(int* x, int* y)
+{ true ; y :-> 5 ** x :-> y}
+###
+void foo (int * x, int * y) {
+  skip;
+}
