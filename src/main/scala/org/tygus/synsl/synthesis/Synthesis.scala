@@ -16,7 +16,6 @@ trait Synthesis {
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
-
   val rulesToApply: List[SynthesisRule]
   val maxDepth: Int
 

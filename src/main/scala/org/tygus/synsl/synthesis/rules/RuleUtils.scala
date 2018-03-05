@@ -2,7 +2,6 @@ package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.SynSLException
 import org.tygus.synsl.synthesis.StmtProducer
-import org.tygus.synsl.synthesis.rules.SubtractionRules.ruleAssert
 
 /**
   * @author Ilya Sergey

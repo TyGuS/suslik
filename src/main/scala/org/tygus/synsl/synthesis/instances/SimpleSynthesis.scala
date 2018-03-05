@@ -17,6 +17,7 @@ class SimpleSynthesis extends Synthesis {
 
     // Normalization rules
     NormalizationRules.StarPartial,
+    NormalizationRules.NilNotLval,
     NormalizationRules.Hypothesis,
     NormalizationRules.StripEqPost,
     NormalizationRules.StripEqPre,

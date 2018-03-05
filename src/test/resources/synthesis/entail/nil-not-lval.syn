@@ -1,0 +1,13 @@
+should handle nil-values in the pure part
+
+###
+
+{ (y == z) /\ (z == 0); x :-> y ** y :-> z}
+void foo(int* x, int* y)
+{ false; emp }
+
+###
+
+void foo (int * x, int * y) {
+  skip;
+}

@@ -81,6 +81,8 @@ object Expressions {
     def isNull: Boolean = value == 0
   }
 
+  val NilPtr = IntConst(0)
+
   case class BoolConst(value: Boolean) extends PConst(value)
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {

@@ -6,5 +6,5 @@ package org.tygus.synsl
   * @author Ilya Sergey
   */
 
-abstract class SynSLException(qualifier: String, private val msg: String)
-    extends Exception(s"[$qualifier] $msg")
+abstract class SynSLException(qualifier: String, val cause: String)
+    extends Exception(s"[$qualifier] $cause")

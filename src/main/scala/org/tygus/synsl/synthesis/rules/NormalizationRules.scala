@@ -1,6 +1,7 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.Expressions.Var
+import org.tygus.synsl.SynSLException
+import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements.Skip
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
@@ -15,7 +16,33 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
   val exceptionQualifier: String = "rule-normalization"
 
-  // TODO: Implement [nil-not-lval]
+  /*
+  x ≠ nil ∉ φ
+  Γ ; {φ ∧ x ≠ nil ; x.f -> l * P} ; {ψ ; Q} ---> S
+  -------------------------------------------------- [nil-not-lval]
+  Γ ; {φ ; x.f -> l * P} ; {ψ ; Q} ---> S
+  */
+
+  object NilNotLval extends SynthesisRule {
+    override def toString: String = "[Norm: nil-not-lval]"
+
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+      val Spec(Assertion(p1, s1), post, g) = spec
+      conjuncts(p1) match {
+        case None => SynFail
+        case Some(cs) =>
+          // All pointers
+          val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet.filter(
+            x => !cs.contains(PNeg(PEq(x, NilPtr))) && !cs.contains(PNeg(PEq(NilPtr, x)))
+          )
+          if (ptrs.isEmpty) return SynFail
+          // The implementation immediately adds _all_ inequalities
+          val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
+          val newSpec = Spec(Assertion(_p1, s1), post, g)
+          SynMoreGoals(List(newSpec), pureKont(toString))
+      }
+    }
+  }
 
   /*
   x ≠ y ∉ φ

@@ -10,8 +10,6 @@ import org.tygus.synsl.language.Expressions._
   */
 trait PureLogicUtils {
 
-  case class PureLogicException(msg: String) extends SynSLException("pure", msg)
-
   def simplify(phi: PFormula): PFormula = phi match {
     case p@(PTrue | PFalse) => p
     case p@PLeq(left, right) => p // TODO: Improve this
@@ -84,7 +82,7 @@ trait PureLogicUtils {
       case x => throw PureLogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
     }
 
-    Some(_conjuncts(pf))
+    Some(_conjuncts(pf).distinct)
   }
 
   def findCommon[T](cond: T => Boolean, ps1: List[T], ps2: List[T]): Option[(T, List[T], List[T])] = {
@@ -109,9 +107,11 @@ trait PureLogicUtils {
       case None => None
     })
 
-  def mkConjunction(ps: List[PFormula]): PFormula = ps match {
+  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct match {
     case h :: t => t.foldLeft(h)((z, p) => PAnd(z, p))
     case Nil => PTrue
   }
 
 }
+
+case class PureLogicException(msg: String) extends SynSLException("pure", msg)

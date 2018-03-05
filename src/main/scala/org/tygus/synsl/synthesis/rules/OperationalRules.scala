@@ -16,6 +16,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
   import Statements._
 
+  // TODO: Implement [cond]
+  // TODO: Implement [call]
+
 
   /*
   Write rule: create a new write from where it's possible
@@ -43,7 +46,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => SynFail
-        case Some((hl@(PointsTo(x, offset, _)), hr@(PointsTo(_, _, e2)))) =>
+        case Some((hl@(PointsTo(x@Var(_), offset, _)), hr@(PointsTo(_, _, e2)))) =>
           val newPre = Assertion(pre.phi, spec.pre.sigma - hl)
           val newPost = Assertion(post.phi, spec.post.sigma - hr)
           val subGoalSpec = Spec(newPre, newPost, gamma)
@@ -83,7 +86,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findHeaplet(isGhostPoints, spec.pre.sigma) match {
         case None => SynFail
-        case Some(PointsTo(x, offset, a@(Var(_)))) =>
+        case Some(PointsTo(x@Var(_), offset, a@(Var(_)))) =>
           val y = generateFreshVar(spec, a.name)
 
           ruleAssert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")

@@ -39,8 +39,11 @@ case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends Heaplet {
 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
     val e = sigma.getOrElse(id, id)
-    slAssert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
-    PointsTo(e.asInstanceOf[Var], offset, value.subst(sigma))
+    //    slAssert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
+    e match {
+      case v@Var(_) => PointsTo(v, offset, value.subst(sigma))
+      case _ => PointsTo(id, offset, value.subst(sigma))
+    }
   }
 
   def |-(other: Heaplet): Boolean = other match {

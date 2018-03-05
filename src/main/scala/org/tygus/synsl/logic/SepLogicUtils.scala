@@ -10,8 +10,6 @@ import org.tygus.synsl.SynSLException
 
 trait SepLogicUtils {
 
-  case class SepLogicException(msg: String) extends SynSLException("seplog", msg)
-
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
 
   /**
@@ -38,3 +36,6 @@ trait SepLogicUtils {
   }
 
 }
+
+case class SepLogicException(msg: String) extends SynSLException("seplog", msg)
+
