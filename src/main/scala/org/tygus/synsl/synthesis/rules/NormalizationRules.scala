@@ -1,6 +1,5 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements.Skip
 import org.tygus.synsl.logic._
