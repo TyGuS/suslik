@@ -75,8 +75,9 @@ trait SynthesisTestUtil {
         println(s"$result")
         println("-----------------------------------------------------")
         if (out != "nope") {
-          val tt = out.stripMargin.trim
-          assert(result.trim == tt, s"\nThe expected output\n$tt\ndoesn't match the result:\n${result.trim}")
+          val tt = out.trim.lines.toList
+          val res = result.trim.lines.toList
+          assert(res == tt, s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
         }
       case None =>
         assert(false, s"Failed to synthesise:\n$sresult")
