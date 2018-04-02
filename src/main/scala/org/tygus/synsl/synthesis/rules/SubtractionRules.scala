@@ -34,7 +34,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       if (pre.sigma.isEmp &&
           post.sigma.isEmp &&
           post.phi.isTrue)
-        SynMoreGoals(Nil, _ => Skip)
+        SynAndGoals(Nil, _ => Skip)
       else SynFail
     }
   }
@@ -68,7 +68,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(spec.pre.phi, SFormula(p))
           val newPost = Assertion(spec.post.phi, SFormula(q))
           val newSpec = Spec(newPre, newPost, spec.gamma)
-          SynMoreGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newSpec), pureKont(toString))
         case _ => SynFail
       }
     }

@@ -38,7 +38,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           // The implementation immediately adds _all_ inequalities
           val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
           val newSpec = Spec(Assertion(_p1, s1), post, g)
-          SynMoreGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newSpec), pureKont(toString))
       }
     }
   }
@@ -73,7 +73,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           // The implementation immediately adds _all_ inequalities
           val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
           val newSpec = Spec(Assertion(_p1, s1), post, g)
-          SynMoreGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newSpec), pureKont(toString))
       }
     }
   }
@@ -103,7 +103,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
             Assertion(_p1, _s1),
             Assertion(_p2, _s2),
             g.filter { case (t, w) => w != x })
-          SynMoreGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newSpec), pureKont(toString))
         case _ => SynFail
       }
     }
@@ -129,7 +129,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val _p2 = mkConjunction(rest2).subst(x, l)
           val _s2 = s2.subst(x, l)
           val newSpec = Spec(pre, Assertion(_p2, _s2), g)
-          SynMoreGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newSpec), pureKont(toString))
         case _ => SynFail
       }
     }
@@ -153,7 +153,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
         case Some((_, rest)) =>
           val newPre = Assertion(mkConjunction(rest), spec.pre.sigma)
           val newSpec = Spec(newPre, spec.post, spec.gamma)
-          SynMoreGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newSpec), pureKont(toString))
       }
     }
   }
@@ -173,7 +173,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       }, simplify(p1))
       res match {
         case Some((PNeg(PEq(x, y)), rest1)) if x == y =>
-          SynMoreGoals(Nil, _ => Skip)
+          SynAndGoals(Nil, _ => Skip)
         case _ => SynFail
       }
     }
@@ -194,7 +194,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
             case Some((p, ps1, ps2)) =>
               val newPost = Assertion(mkConjunction(ps2), spec.post.sigma)
               val newSpec = Spec(spec.pre, newPost, spec.gamma)
-              SynMoreGoals(List(newSpec), pureKont(toString))
+              SynAndGoals(List(newSpec), pureKont(toString))
             case None => SynFail
           }
         case _ => SynFail
@@ -222,7 +222,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
         case Some((_, rest)) =>
           val newPost = Assertion(mkConjunction(rest), spec.post.sigma)
           val newSpec = Spec(spec.pre, newPost, spec.gamma)
-          SynMoreGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newSpec), pureKont(toString))
       }
     }
   }

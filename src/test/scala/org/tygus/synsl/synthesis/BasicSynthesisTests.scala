@@ -7,7 +7,7 @@ import org.tygus.synsl.synthesis.instances.SimpleSynthesis
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-class SimpleSynthesisTests extends FunSpec with Matchers with SynthesisTestUtil {
+class BasicSynthesisTests extends FunSpec with Matchers with SynthesisTestUtil {
 
   val synthesis: Synthesis = new SimpleSynthesis
 
@@ -22,10 +22,6 @@ class SimpleSynthesisTests extends FunSpec with Matchers with SynthesisTestUtil 
 
   describe("SL-based synthesizer with entailment") {
     runAllTestsFromDir("entail")
-  }
-
-  describe("SL-based synthesizer with inductive definitions") {
-    runAllTestsFromDir("account")
   }
 
 }

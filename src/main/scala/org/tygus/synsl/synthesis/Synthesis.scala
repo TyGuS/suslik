@@ -10,7 +10,7 @@ import org.tygus.synsl.logic._
 
 trait Synthesis {
 
-  val synQualifier : String = "synthesis"
+  val synQualifier: String = "synthesis"
 
   case class SynthesisException(msg: String) extends SynSLException(synQualifier, msg)
 
@@ -43,8 +43,8 @@ trait Synthesis {
           case SynFail =>
             println(s"FAIL\n")
             tryRules(rs) // rule not applicable: try the rest
-          case SynMoreGoals(goals, kont) =>
-            println(s"SUCCESS${goals.map(g => s"\n\t${g.pp}").mkString}\n")
+          case SynAndGoals(goals, kont) =>
+            println(s"\nSUCCESS, ${goals.size} AND-goal(s):${goals.map(g => s"\n\t${g.pp}").mkString}\n")
             // Synthesize subgoals
             val subGoalResults = (for (subgoal <- goals) yield synthesize(subgoal, env, depth - 1)).toStream
             if (subGoalResults.exists(_.isEmpty)) {
@@ -55,10 +55,20 @@ trait Synthesis {
               val stmts = subGoalResults.map(_.get)
               Some(kont(stmts))
             }
-
+          case SynOrGoals(goals, kont) =>
+            println(s"\nSUCCESS, ${goals.size} OR-goal(s):${goals.map(g => s"\n\t${g.pp}").mkString}\n")
+            // Okay, I know this is ugly and the Gods of Haskell will punish me for this,
+            // but breaking from loops in FP is a pain...
+            val iter = goals.iterator
+            while (iter.hasNext) {
+              val subgoal = iter.next()
+              val res = synthesize(subgoal, env, depth - 1)
+              if (res.nonEmpty) return Some(kont(Seq(res.get)))
+              println(s"Backtracking after having tryed OR-goal\n\t${subgoal.pp}.\n")
+            }
+            tryRules(rs)
         }
     }
-
     tryRules(rulesToApply)
   }
 

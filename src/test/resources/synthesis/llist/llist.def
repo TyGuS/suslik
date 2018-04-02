@@ -1,0 +1,4 @@
+predicate lseg(x, y) {
+|  x == y        => emp
+|  not (x == y)  => [x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, y)
+}

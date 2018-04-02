@@ -26,6 +26,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: open]"
 
+    private val kont: StmtProducer = stmts => {
+      ruleAssert(stmts.lengthCompare(1) == 0, s"Open rule expected 1 premise and got ${stmts.length}")
+      stmts.head
+    }
+
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
@@ -37,17 +42,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val InductiveClause(_, body) = clauses.head
           val actualBody = body.subst((params zip args).toMap)
-
-
           val newPre = Assertion(pre.phi, spec.pre.sigma ** actualBody - h)
-
           val subGoalSpec = Spec(newPre, post, gamma)
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"Open rule expected 1 premise and got ${stmts.length}")
-            stmts.head
-          }
-
-          SynMoreGoals(Seq(subGoalSpec), kont)
+          SynAndGoals(Seq(subGoalSpec), kont)
         case Some(h) =>
           ruleAssert(false, s"Open rule matched unexpected heaplet ${h.pp}")
           SynFail
@@ -69,6 +66,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: close]"
 
+    private val kont: StmtProducer = stmts => {
+      ruleAssert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
+      stmts.head
+    }
+
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, post, gamma: Gamma) = spec
 
@@ -77,25 +79,22 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case Some(h@SApp(pred, args)) =>
           ruleAssert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred)
-          ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
-          val InductiveClause(_, body) = clauses.head
-          val actualBody = body.subst((params zip args).toMap)
 
-          val newPost = Assertion(post.phi, spec.post.sigma ** actualBody - h)
-
-          val subGoalSpec = Spec(pre, newPost, gamma)
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
-            stmts.head
+          //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
+          val substMap = params.zip(args).toMap
+          val subGoals = for (InductiveClause(selector, body) <- clauses) yield {
+            val actualBody = body.subst(substMap)
+            val actualSelector = selector.subst(substMap)
+            val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
+            val newPost = Assertion(newPhi, spec.post.sigma ** actualBody - h)
+            Spec(pre, newPost, gamma)
           }
-
-          SynMoreGoals(Seq(subGoalSpec), kont)
+          SynOrGoals(subGoals, kont)
         case Some(h) =>
           ruleAssert(false, s"Close rule matched unexpected heaplet ${h.pp}")
           SynFail
       }
     }
   }
-
 
 }

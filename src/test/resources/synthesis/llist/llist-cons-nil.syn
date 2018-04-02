@@ -1,0 +1,13 @@
+should be able to allocate a linked list
+###
+
+{(not (z == y)) /\ (y == a); [z, 2] ** z :-> 0 ** (z + 1) :-> a}
+  void create_llist(int* z, int* y)
+{true ; lseg(z, y) }
+
+###
+
+void create_llist (int * z, int * y) {
+  *z = 0;
+  skip;
+}
