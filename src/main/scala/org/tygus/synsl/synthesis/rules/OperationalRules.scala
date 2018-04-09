@@ -156,7 +156,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   }
 
   /*
-  Free rule: free a block from the pre-state if the post-state is emp
+  Free rule: free a non-ghost block from the pre-state
 
                      Γ ; {φ ; P} ; {ψ ; Q} ---> S     GV(li) = Ø
    ------------------------------------------------------------------------ [free]
