@@ -91,14 +91,14 @@ object Statements {
   case object Skip extends Statement
 
   // let to = malloc(n); rest
-  case class Malloc(to: Var, tpe: Option[SynslType], sz: Int = 1,
+  case class Malloc(to: Var, tpe: SynslType, sz: Int = 1,
                     rest: Statement) extends Statement
 
   // free(v); rest
   case class Free(v: Var, rest: Statement) extends Statement
 
   // let to = *from; rest
-  case class Load(to: Var, tpe: Option[SynslType], from: Var,
+  case class Load(to: Var, tpe: SynslType, from: Var,
                   offset: Int = 0, rest: Statement) extends Statement
 
   // *to.offset = e; rest

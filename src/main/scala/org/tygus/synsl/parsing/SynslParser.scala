@@ -11,15 +11,8 @@ class SynslParser extends StandardTokenParsers {
 
   override val lexical = new SynslLexical
 
-  def primitiveType: Parser[PrimitiveType] =
-    "int" ^^^ IntType |||
-        "bool" ^^^ BoolType |||
-        "void" ^^^ VoidType
-
   def tpeParser: Parser[SynslType] =
-    primitiveType ~ rep1("*") ^^ { case tp ~ ptrs =>
-      ptrs.foldLeft(tp: SynslType)((t, _) => PtrType(t))
-    } ||| primitiveType
+    "int" ^^^ IntType ||| "bool" ^^^ BoolType ||| "loc" ^^^ LocType ||| "void" ^^^ VoidType
 
   def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
@@ -97,11 +90,11 @@ class SynslParser extends StandardTokenParsers {
     }
 
   def spec: Parser[Spec] = assertion ~ assertion ~ repsep(formal, ",") ^^ {
-    case pre ~ post ~ gamma => Spec(pre, post, gamma)
+    case pre ~ post ~ formals => Spec(pre, post, formals)
   }
 
   def goalFunction: Parser[GoalFunction] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ gamma ~ post => GoalFunction(name, Spec(pre, post, gamma), tpe)
+    case pre ~ tpe ~ name ~ formals ~ post => GoalFunction(name, Spec(pre, post, formals), tpe)
   }
 
   def program: Parser[Program] = rep(indPredicate ||| goalFunction) ^^ Program

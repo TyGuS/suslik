@@ -15,8 +15,8 @@ class SpecParserTests extends FunSpec with Matchers {
   val spec5 = "{true; x :-> 41 } void swap(int x, bool y) {42 < a ; y :-> a}"
   val spec6 = "{true; x :-> 41 } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
   val spec7 = "{(42 < b) \\/ (b < 40); x :-> b } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
-  val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(int* x, int* y) {true ; x :-> b ** (x + 1) :-> a}"
-  val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(int* x) {true ; emp}"
+  val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(loc x, loc y) {true ; x :-> b ** (x + 1) :-> a}"
+  val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
 
 
 

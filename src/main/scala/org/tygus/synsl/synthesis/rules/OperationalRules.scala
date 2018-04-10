@@ -88,16 +88,14 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => SynFail
         case Some(PointsTo(x@Var(_), offset, a@(Var(_)))) =>
           val y = generateFreshVar(spec, a.name)
-
-          ruleAssert(spec.getType(a).nonEmpty, s"Cannot derive a type for the ghost variable $a in spec ${spec.pp}")
-          val tpy = spec.getType(a).get
+          val tpy = spec.getType(a)
 
           val subGoalSpec = Spec(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
             // Do not generate read for unused variables
-            if (rest.usedVars.contains(y)) Load(y, Some(tpy), x, offset, rest) else rest
+            if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
           }
 
           SynAndGoals(Seq(subGoalSpec), kont)
@@ -133,9 +131,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case Some(h@(Block(x, sz))) =>
           val newPost = Assertion(post.phi, post.sigma - h)
           val y = generateFreshVar(spec, x.name)
-
-          ruleAssert(spec.getType(x).nonEmpty, s"Cannot derive a type for the ghost variable $x in spec ${spec.pp}")
-          val tpy = spec.getType(x).get
+          val tpy = LocType
 
           // TODO: replace 0 with blank
           val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, IntConst(0))
@@ -143,7 +139,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoalSpec = Spec(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
-            Malloc(y, Some(tpy), sz, stmts.head)
+            Malloc(y, tpy, sz, stmts.head)
           }
 
           SynAndGoals(Seq(subGoalSpec), kont)

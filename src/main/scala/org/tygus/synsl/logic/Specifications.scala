@@ -62,32 +62,35 @@ case class Spec(pre: Assertion, post: Assertion, gamma: Gamma)
 
   def isExistential(x: Var): Boolean = existentials.contains(x)
 
-  def getType(x: Var): Option[SynslType] = {
-    Some(IntType)
+  def getType(x: Var): SynslType = {
+    // TODO: all ghosts are void for now; we treat void as the top type
+    gamma.find(_._2 == x) match {
+      case Some((t, _)) => t
+      case None => VoidType
+    }
     /*
-          // TODO: all ghosts are ints for now, until we descide how to infer it
-          if (isGhost(x)) {
-            // Deduce the type from the parameter types and the spec
-            val candidates = pre.sigma.findSubFormula {
-              case PointsTo(_, _, v) => v == x
-              case _ => false
-            }
-            if (candidates.isEmpty) return None
-            val PointsTo(y, _, _) = candidates.head
+    if (isGhost(x)) {
+      // Deduce the type from the parameter types and the spec
+      val candidates = pre.sigma.findSubFormula {
+        case PointsTo(_, _, v) => v == x
+        case _ => false
+      }
+      if (candidates.isEmpty) return None
+      val PointsTo(y, _, _) = candidates.head
 
-            val assocType: Option[(SynslType, Var)] = gamma.find(pv => pv._2.name == y.name)
-            if (assocType.isEmpty) return None
-            return assocType.get._1 match {
-              case PtrType(inner) => Some(inner)
-              case _ => None
-            }
-          }
-
-          // Typed variables get the type automatically
-          gamma.find(_._2 == x) match {
-            case Some((t, _)) => Some(t)
-            case None => None
-          }
+      val assocType: Option[(SynslType, Var)] = gamma.find(pv => pv._2.name == y.name)
+      if (assocType.isEmpty) return None
+      return assocType.get._1 match {
+        case PtrType(inner) => Some(inner)
+        case _ => None
+      }
+    } else {
+      // Typed variables get the type automatically
+      gamma.find(_._2 == x) match {
+        case Some((t, _)) => Some(t)
+        case None => None
+      }
+    }
     */
   }
 
