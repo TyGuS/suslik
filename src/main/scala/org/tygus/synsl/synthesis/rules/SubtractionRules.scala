@@ -1,8 +1,11 @@
 package org.tygus.synsl.synthesis.rules
 
+import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.OperationalRules.{findMatchingHeaplets, ruleAssert, sameLhs}
+import org.tygus.synsl.synthesis.rules.SubtractionRules.StarIntro.toString
 
 /**
   * @author Ilya Sergey
@@ -72,6 +75,44 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         case _ => SynFail
       }
     }
+  }
+
+
+  /*
+      Γ ; {φ ; x.f -> l * P} ; {ψ ∧ Y = l ; x.f -> Y * Q} ---> S
+      ---------------------------------------------------------- [pick]
+      Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> Y * Q} ---> S
+   */
+
+  object Pick extends SynthesisRule {
+    override def toString: String = "[Sub: pick]"
+
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+      val Spec(pre, post, gamma: Gamma) = spec
+
+      // Heaplet RHS has existentials
+      def hasExistential: Heaplet => Boolean = {
+        case PointsTo(_, _, e) => e.vars.exists(v => spec.isExistential(v))
+        case _ => false
+      }
+
+      // When do two heaplets match
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && hasExistential(hr)
+
+      findMatchingHeaplets(_ => true, isMatch, spec.pre.sigma, spec.post.sigma) match {
+        case None => SynFail
+        case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
+          val newPre = Assertion(pre.phi, spec.pre.sigma)
+          val newPost = Assertion(PAnd(post.phi, PEq(e1, e2)), spec.post.sigma)
+          val newSpec = Spec(newPre, newPost, gamma)
+
+          SynAndGoals(List(newSpec), pureKont(toString))
+        case Some((hl, hr)) =>
+          ruleAssert(assertion = false, s"Pick rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
+          SynFail
+      }
+    }
+
   }
 
 }

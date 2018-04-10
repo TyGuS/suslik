@@ -28,6 +28,7 @@ class SimpleSynthesis extends Synthesis {
     // Subtraction rules
     SubtractionRules.EmpRule,
     SubtractionRules.StarIntro,
+    SubtractionRules.Pick,
 
     // Operational rules
     OperationalRules.ReadRule,
