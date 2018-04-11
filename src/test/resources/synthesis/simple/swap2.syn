@@ -1,10 +1,10 @@
 should be able to synthesize a more complex swap program
 ###
 {true; x :-> a ** y :-> c ** z :-> b ** t :-> q }
-void swap (int* x, int* z, int* y, int* t)
+void swap (loc x, loc z, loc y, loc t)
 { true; x :-> q ** z :-> c ** t :-> a ** y :-> b }
 ###
-void swap (int * x, int * z, int * y, int * t) {
+void swap (loc x, loc z, loc y, loc t) {
   let a2 = *x;
   let c2 = *y;
   let b2 = *z;

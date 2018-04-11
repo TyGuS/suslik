@@ -1,10 +1,10 @@
 should be able to deallocate blocks
 ###
 {true; x :-> y ** y :-> 42 ** (y + 1) :-> 43 ** (y + 2) :-> 44 ** [y, 3]}
-void delete(int * * x)
+void delete(loc x)
 {true ; x :-> y }
 ###
-void delete (int * * x) {
+void delete (loc x) {
   let y2 = *x;
   free(y2);
   skip;

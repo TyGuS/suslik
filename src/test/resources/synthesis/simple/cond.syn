@@ -1,0 +1,12 @@
+should be able to synthesize a conditional
+
+###
+{true ; x :-> a ** y :-> b ** [a, 1] ** a :-> 0}
+void create(loc x)
+{true ; x :-> a ** y :-> c ** [c, 1] ** c :-> 0}
+
+###
+
+void test (loc x) {
+  skip;
+}

@@ -1,8 +1,8 @@
 should be able to synthesize a simple constant-assigning procedure
 ###
-{true; x :-> 1} void foo(int* x) {true ; x :-> 43}
+{true; x :-> 1} void foo(loc x) {true ; x :-> 43}
 ###
-void foo (int * x) {
+void foo (loc x) {
   *x = 43;
   skip;
 }

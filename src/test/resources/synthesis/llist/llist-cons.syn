@@ -2,12 +2,12 @@ should be able to allocate a linked list
 ###
 
 {not (z == y); [z, 2] ** z :-> 0 ** (z + 1) :-> y}
-  void create_llist(int* z, int* y)
+  void create_llist(loc z, loc y)
 {true ; lseg(z, y) }
 
 ###
 
-void create_llist (int * z, int * y) {
+void create_llist (loc z, loc y) {
   *z = 0;
   skip;
 }

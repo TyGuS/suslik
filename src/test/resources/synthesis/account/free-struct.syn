@@ -1,10 +1,10 @@
 should be able to deallocate structures
 ###
 {true; x :-> y ** account(y, 5, 10)}
-void deleteAccount(int *x)
+void deleteAccount(loc x)
 {true ; x :-> y }
 ###
-void deleteAccount (int * x) {
+void deleteAccount (loc x) {
   let y2 = *x;
   free(y2);
   skip;

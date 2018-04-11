@@ -3,12 +3,12 @@ should be able to work with crazy indirection
 ###
 
 {true; x :-> a ** a :-> b ** b :-> c ** c :-> 42}
-void kareem3(int * * * * x)
+void kareem3(loc x)
 {true ; x :-> 42 ** b :-> a ** a :-> c ** c :-> b}
 
 ###
 
-void kareem3 (int * * * * x) {
+void kareem3 (loc x) {
   let a2 = *x;
   let b2 = *a2;
   let c2 = *b2;

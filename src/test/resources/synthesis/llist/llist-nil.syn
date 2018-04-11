@@ -2,12 +2,12 @@ should be able to allocate a linked list
 ###
 
 { true;  r :-> 0 }
-  void create_llist(int* z, int *r)
+  void create_llist(loc z, loc r)
 { true ; r :-> x ** x :-> 0 ** [x, 1] ** lseg(z, z) }
 
 ###
 
-void create_llist (int * z, int * r) {
+void create_llist (loc z, loc r) {
   let x2 = malloc(1);
   *r = x2;
   skip;

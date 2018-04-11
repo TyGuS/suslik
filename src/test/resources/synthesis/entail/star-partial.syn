@@ -1,9 +1,9 @@
 should be able to handle * partiality
 ###
 { (a == x) /\ (y == a) ; x :-> y ** y :-> z}
-void foo (int* x, int* y)
+void foo (loc x, loc y)
 { false ; y :-> a ** x :-> y}
 ###
-void foo (int * x, int * y) {
+void foo (loc x, loc y) {
   skip;
 }
