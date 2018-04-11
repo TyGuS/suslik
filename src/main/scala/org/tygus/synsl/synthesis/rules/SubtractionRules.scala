@@ -4,8 +4,6 @@ import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.OperationalRules.{findMatchingHeaplets, ruleAssert, sameLhs}
-import org.tygus.synsl.synthesis.rules.SubtractionRules.StarIntro.toString
 
 /**
   * @author Ilya Sergey
@@ -63,7 +61,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         val gvP = p.vars.filter(spec.isGhost).toSet
         val gvQ = q.vars.filter(spec.isGhost).toSet
         val gvR = r.vars.filter(spec.isGhost).toSet
-        ((gvQ -- gvP) ++ gvR).isEmpty
+
+        (gvP ++ gvQ).intersect(gvR).isEmpty
       }
 
       findCommon(Function.const(true), cs1, cs2) match {
@@ -99,14 +98,21 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       // When do two heaplets match
       def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && hasExistential(hr)
 
-      findMatchingHeaplets(_ => true, isMatch, spec.pre.sigma, spec.post.sigma) match {
+      findMatchingHeaplets(_.isInstanceOf[PointsTo], isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => SynFail
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
-          val newPre = Assertion(pre.phi, spec.pre.sigma)
-          val newPost = Assertion(PAnd(post.phi, PEq(e1, e2)), spec.post.sigma)
-          val newSpec = Spec(newPre, newPost, gamma)
-
-          SynAndGoals(List(newSpec), pureKont(toString))
+          conjuncts(post.phi) match {
+            case None => SynFail
+            case Some(cs) =>
+              if (cs.contains(PEq(e1, e2)) || cs.contains(PEq(e2, e1)))
+                SynFail
+              else {
+                val newPre = Assertion(pre.phi, spec.pre.sigma)
+                val newPost = Assertion(mkConjunction(PEq(e1, e2) :: cs), spec.post.sigma)
+                val newSpec = Spec(newPre, newPost, gamma)
+                SynAndGoals(List(newSpec), pureKont(toString))
+              }
+          }
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Pick rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           SynFail

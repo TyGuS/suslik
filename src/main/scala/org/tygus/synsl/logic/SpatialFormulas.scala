@@ -31,23 +31,17 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 /**
   * var + offset :-> value
   */
-case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends Heaplet {
+case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   override def pp: Ident = {
-    val head = if (offset <= 0) id.pp else s"(${id.pp} + $offset)"
+    val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
     s"$head :-> ${value.pp}"
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = {
-    val e = sigma.getOrElse(id, id)
-    //    slAssert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
-    e match {
-      case v@Var(_) => PointsTo(v, offset, value.subst(sigma))
-      case _ => PointsTo(id, offset, value.subst(sigma))
-    }
-  }
+  def subst(sigma: Map[Var, Expr]): Heaplet =
+    PointsTo(loc.subst(sigma), offset, value.subst(sigma))
 
   def |-(other: Heaplet): Boolean = other match {
-    case PointsTo(_id, _offset, _value) => this.id == _id && this.offset == _offset && this.value == _value
+    case PointsTo(_loc, _offset, _value) => this.loc == _loc && this.offset == _offset && this.value == _value
     case _ => false
   }
 }
@@ -55,15 +49,13 @@ case class PointsTo(id: Var, offset: Int = 0, value: Expr) extends Heaplet {
 /**
   * block(var, size)
   */
-case class Block(id: Var, sz: Int) extends Heaplet {
+case class Block(loc: Expr, sz: Int) extends Heaplet {
   override def pp: Ident = {
-    s"[${id.pp}, $sz]"
+    s"[${loc.pp}, $sz]"
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
-    val e = sigma.getOrElse(id, id)
-    slAssert(e.isInstanceOf[Var], s"Substitution into non-variable [${e.pp} / ${id.pp}] in points-to $pp")
-    Block(e.asInstanceOf[Var], sz)
+    Block(loc.subst(sigma), sz)
   }
 
   def |-(other: Heaplet): Boolean = false

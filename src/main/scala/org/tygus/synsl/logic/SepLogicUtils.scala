@@ -30,7 +30,7 @@ trait SepLogicUtils {
     slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
-      case PointsTo(y, off, _) => pt.id == y && pt.offset == off
+      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
       case _ => false
     }
   }

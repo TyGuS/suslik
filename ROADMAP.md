@@ -3,9 +3,9 @@
 ## Immediate fixes and extensions
 
 * Unify expressions and pure formulas?
+* Keep pure formulas in canonical form
 * Parse and handle blanks
-* Replace types with loc and int, add ghosts to gamma
-* Type-check declarations in the resolver
+* Type-check declarations in the resolver, add ghosts to gamma
 * Add a flag to control logging output? [Ilya]
 * Pick logic for locations and implement proper subsumption of spatial formulas
 * Proper syntax for declarations (function signatures, inductive predicates, etc)

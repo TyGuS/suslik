@@ -122,13 +122,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val Spec(pre, post, gamma: Gamma) = spec
 
       def isExistBlock(spec: Spec): Heaplet => Boolean = {
-        case Block(v, _) => spec.isExistential(v)
+        case Block(x@Var(_), _) => spec.isExistential(x)
         case _ => false
       }
 
       findHeaplet(isExistBlock(spec), post.sigma) match {
         case None => SynFail
-        case Some(h@(Block(x, sz))) =>
+        case Some(h@(Block(x@Var(_), sz))) =>
           val newPost = Assertion(post.phi, post.sigma - h)
           val y = generateFreshVar(spec, x.name)
           val tpy = LocType
@@ -166,13 +166,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val Spec(_, post, gamma: Gamma) = spec
 
       def isConcreteBlock: Heaplet => Boolean = {
-        case Block(v, _) => spec.isConcrete(v)
+        case Block(v@(Var(_)), _) => spec.isConcrete(v)
         case _ => false
       }
 
       findHeaplet(isConcreteBlock, spec.pre.sigma) match {
         case None => SynFail
-        case Some(h@Block(x, sz)) =>
+        case Some(h@Block(x@(Var(_)), sz)) =>
           // Okay, found the block, now looking for the points-to chunks
           val pts = for (off <- 0 until sz) yield {
             findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), spec.pre.sigma) match {
