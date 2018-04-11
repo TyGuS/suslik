@@ -28,18 +28,18 @@ class SynslParser extends StandardTokenParsers {
 
   def expLiteral: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser
 
-  def expr: Parser[Expr] = (
-      expLiteral ~ ("+" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpPlus, a, b) }
-          ||| expLiteral ~ ("-" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpMinus, a, b) }
-          ||| expLiteral ~ ("<=" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpLeq, a, b) }
-          ||| expLiteral ~ ("<" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpLt, a, b) }
-          ||| expLiteral ~ ("==" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpEq, a, b) }
-          ||| expLiteral ~ ("||" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpOr, a, b) }
-          ||| expLiteral ~ ("&&" ~> expLiteral) ^^ { case a ~ b => BinaryExpr(OpAnd, a, b) }
-          ||| "not" ~> expLiteral ^^ (a => UnaryExpr(OpNot, a))
-          ||| expLiteral
-      )
+  def unOpParser: Parser[UnOp] =
+    "not" ^^^ OpNot
 
+  def binOpParser: Parser[BinOp] =
+    "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "<=" ^^^ OpLeq ||| "<" ^^^ OpLt |||
+      "==" ^^^ OpEq ||| "||" ^^^ OpOr ||| "&&" ^^^ OpAnd
+
+  def expr: Parser[Expr] = (
+    (expLiteral ~ binOpParser ~ expLiteral) ^^ { case a ~ op ~ b => BinaryExpr(op, a, b) }
+      ||| unOpParser ~ expLiteral ^^ { case op ~ a =>  UnaryExpr(op, a) }
+      ||| expLiteral
+    )
   // Formulas
 
   def logLiteral: Parser[PFormula] = "true" ^^^ PTrue ||| "false" ^^^ PFalse
