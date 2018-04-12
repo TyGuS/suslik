@@ -7,6 +7,10 @@ void create(loc x)
 
 ###
 
-void test (loc x) {
+void create (loc x) {
+  let a2 = *x;
+  let c2 = malloc(1);
+  *y = c2;
+  free(a2);
   skip;
 }

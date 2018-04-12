@@ -46,7 +46,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, spec.pre.sigma, spec.post.sigma) match {
         case None => SynFail
-        case Some((hl@(PointsTo(x@Var(_), offset, _)), hr@(PointsTo(_, _, e2)))) =>
+        case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
+          if (e1 == e2) { return SynFail } // Do not write if RHSs are the same
+
           val newPre = Assertion(pre.phi, spec.pre.sigma - hl)
           val newPost = Assertion(post.phi, spec.post.sigma - hr)
           val subGoalSpec = Spec(newPre, newPost, gamma)

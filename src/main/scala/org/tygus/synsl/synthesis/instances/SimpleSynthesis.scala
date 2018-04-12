@@ -15,6 +15,9 @@ class SimpleSynthesis extends Synthesis {
   // TODO: apply dynamic heuristics for rule application
   val rulesToApply: List[SynthesisRule] = List(
 
+    // Terminal
+    SubtractionRules.EmpRule,
+
     // Normalization rules
     NormalizationRules.StarPartial,
     NormalizationRules.NilNotLval,
@@ -26,15 +29,15 @@ class SimpleSynthesis extends Synthesis {
     NormalizationRules.Inconsistency,
 
     // Subtraction rules
-    SubtractionRules.EmpRule,
     SubtractionRules.StarIntro,
-    SubtractionRules.Pick,
 
     // Operational rules
     OperationalRules.ReadRule,
     OperationalRules.WriteRule,
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
+
+    SubtractionRules.Pick,
 
     //Unfolding rules
     UnfoldingRules.OpenRule,

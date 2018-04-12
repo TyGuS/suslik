@@ -121,13 +121,16 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       val Spec(pre, Assertion(p2, s2), g) = spec
 
+      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && spec.existentials.contains(e.asInstanceOf[Var])
+
       findConjunctAndRest({
-        case PEq(x@Var(_), _) => spec.existentials.contains(x)
+        case PEq(l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false
       }, simplify(p2)) match {
-        case Some((PEq(x@Var(_), l), rest2)) =>
-          val _p2 = mkConjunction(rest2).subst(x, l)
-          val _s2 = s2.subst(x, l)
+        case Some((PEq(l, r), rest2)) =>
+          val (x, e) = if (isExsistVar(l)) {(l.asInstanceOf[Var], r)} else {(r.asInstanceOf[Var], l)}
+          val _p2 = mkConjunction(rest2).subst(x, e)
+          val _s2 = s2.subst(x, e)
           val newSpec = Spec(pre, Assertion(_p2, _s2), g)
           SynAndGoals(List(newSpec), pureKont(toString))
         case _ => SynFail
