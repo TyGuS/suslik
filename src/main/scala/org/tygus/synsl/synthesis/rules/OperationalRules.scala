@@ -74,7 +74,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       ---------------------------------------------------------------- [read]
              Γ ; {φ ; x.f -> A * P} ; {ψ ; Q} ---> let y := *x.f ; S
   */
-  object ReadRule extends SynthesisRule {
+  object ReadRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "[Op: read]"
 

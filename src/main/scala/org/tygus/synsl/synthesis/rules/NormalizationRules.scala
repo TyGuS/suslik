@@ -8,7 +8,7 @@ import org.tygus.synsl.synthesis._
 import scala.collection.Set
 
 /**
-  * @author Ilya Sergey
+  * @author Nadia Polikarpova, Ilya Sergey
   */
 
 object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
@@ -22,7 +22,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   Γ ; {φ ; x.f -> l * P} ; {ψ ; Q} ---> S
   */
 
-  object NilNotLval extends SynthesisRule {
+  object NilNotLval extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: nil-not-lval]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
@@ -49,7 +49,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   ------------------------------------------------------------ [*-partial]
   Γ ; {φ ; x.f -> l * y.f -> l' * P} ; {ψ ; Q} ---> S
    */
-  object StarPartial extends SynthesisRule {
+  object StarPartial extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: *-partial]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
@@ -60,11 +60,11 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
           // All pairs of pointers
           val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
-              map { s =>
-                val elems = s.toList
-                ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
-                (elems.head, elems.tail.head)
-              }.toList
+            map { s =>
+              val elems = s.toList
+              ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
+              (elems.head, elems.tail.head)
+            }.toList
           val newPairs = pairs.filter {
             case (x, y) => !cs.contains(PNeg(PEq(x, y))) && !cs.contains(PNeg(PEq(y, x)))
           }
@@ -84,7 +84,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   ------------------------------------------------ [subst-L]
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
-  object SubstLeft extends SynthesisRule {
+  object SubstLeft extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: subst-L]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
@@ -115,7 +115,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     --------------------------------------- [subst-R]
     Γ ; {φ ; P} ; {ψ ∧ X = l; Q} ---> S
   */
-  object SubstRight extends SynthesisRule {
+  object SubstRight extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: subst-R]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
@@ -128,7 +128,11 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
         case _ => false
       }, simplify(p2)) match {
         case Some((PEq(l, r), rest2)) =>
-          val (x, e) = if (isExsistVar(l)) {(l.asInstanceOf[Var], r)} else {(r.asInstanceOf[Var], l)}
+          val (x, e) = if (isExsistVar(l)) {
+            (l.asInstanceOf[Var], r)
+          } else {
+            (r.asInstanceOf[Var], l)
+          }
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
           val newSpec = Spec(pre, Assertion(_p2, _s2), g)
@@ -144,7 +148,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   -------------------------------------- [=-L]
   Γ ; {φ ∧ l = l ; P} ; {ψ ; Q} ---> S
   */
-  object StripEqPre extends SynthesisRule {
+  object StripEqPre extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: =-L]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
@@ -165,7 +169,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   --------------------------------------- [inconsistency]
   Γ ; {φ ∧ l ≠ l ; P} ; {ψ ; Q} ---> emp
   */
-  object Inconsistency extends SynthesisRule {
+  object Inconsistency extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: Inconsistency]"
 
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
@@ -188,8 +192,9 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   --------------------------------------- [Hypothesis]
   Γ ; {φ ∧ φ' ; P} ; {ψ ∧ φ' ; Q} ---> S
   */
-  object Hypothesis extends SynthesisRule {
+  object Hypothesis extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: Hypothesis]"
+
     def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
       (conjuncts(spec.pre.phi), conjuncts(spec.post.phi)) match {
         case (Some(cs1), Some(cs2)) =>

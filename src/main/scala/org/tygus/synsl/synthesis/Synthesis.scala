@@ -3,6 +3,7 @@ package org.tygus.synsl.synthesis
 import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
+import org.tygus.synsl.synthesis.rules.InvertibleRule
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -31,7 +32,7 @@ trait Synthesis {
   }
 
   private def synthesize(spec: Spec, env: Environment, maxDepth: Int = 25)
-                        (implicit ind: Int = 0, printFails : Boolean): Option[Statement] = {
+                        (implicit ind: Int = 0, printFails: Boolean): Option[Statement] = {
 
     if (maxDepth < 0) return None
     import Console._
@@ -54,7 +55,12 @@ trait Synthesis {
               yield synthesize(subgoal, env, maxDepth - 1)(ind + 1, printFails)).toStream
             if (subGoalResults.exists(_.isEmpty)) {
               // Some of the subgoals have failed: backtrack
-              tryRules(rs)
+              if (r.isInstanceOf[InvertibleRule]) {
+                printC(s"FAIL (no need to backtrack)", RED, isFail = true)
+                None
+              } else {
+                tryRules(rs)
+              }
             } else {
               // All subgoals succeeded: assemble the statement
               val stmts = subGoalResults.map(_.get)
@@ -79,15 +85,13 @@ trait Synthesis {
     tryRules(rulesToApply)
   }
 
-  private implicit def withIndent(s: String)(implicit i: Int): String = {
-    val ind = if (i <= 0) "" else " " * (i * 2)
-    s"$ind$s"
-  }
+  private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
 
-  private def printC(s: String, color: String = Console.BLACK, isFail : Boolean = false)
-                    (implicit i: Int, printFails : Boolean = true): Unit = {
+  private def printC(s: String, color: String = Console.BLACK, isFail: Boolean = false)
+                    (implicit i: Int, printFails: Boolean = true): Unit = {
     if (!isFail || printFails) {
-      println(s"$color${withIndent(s.replaceAll("\n", withIndent("") ++ "\n"))}")
+      print(s"${Console.BLACK}$getIndent")
+      println(s"$color${s.replaceAll("\n", getIndent ++ "\n")}")
       print(s"${Console.BLACK}")
     }
   }

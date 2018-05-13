@@ -1,6 +1,10 @@
 package org.tygus.synsl.synthesis.instances
 
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.NormalizationRules._
+import org.tygus.synsl.synthesis.rules.OperationalRules.{AllocRule, FreeRule, ReadRule, WriteRule}
+import org.tygus.synsl.synthesis.rules.SubtractionRules.{EmpRule, Pick, StarIntro}
+import org.tygus.synsl.synthesis.rules.UnfoldingRules.{CloseRule, OpenRule}
 import org.tygus.synsl.synthesis.rules.{OperationalRules, SubtractionRules, _}
 
 /**
@@ -15,6 +19,9 @@ class SimpleSynthesis extends Synthesis {
   // TODO: apply dynamic heuristics for rule application
   val rulesToApply: List[SynthesisRule] = List(
 
+    // For experimentation
+    SubtractionRules.Pick,
+
     // Terminal
     SubtractionRules.EmpRule,
 
@@ -25,11 +32,10 @@ class SimpleSynthesis extends Synthesis {
     NormalizationRules.StripEqPost,
     NormalizationRules.StripEqPre,
     NormalizationRules.SubstLeft,
-    NormalizationRules.SubstRight,
     NormalizationRules.Inconsistency,
+    NormalizationRules.SubstRight,
 
     // Subtraction rules
-    SubtractionRules.Pick,
     SubtractionRules.StarIntro,
 
     // Operational rules
@@ -38,10 +44,10 @@ class SimpleSynthesis extends Synthesis {
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
 
+
     //Unfolding rules
     UnfoldingRules.OpenRule,
     UnfoldingRules.CloseRule
-
-  )
+    )
 
 }
