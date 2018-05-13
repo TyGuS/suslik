@@ -56,7 +56,7 @@ trait Synthesis {
             if (subGoalResults.exists(_.isEmpty)) {
               // Some of the subgoals have failed: backtrack
               if (r.isInstanceOf[InvertibleRule]) {
-                printC(s"FAIL (no need to backtrack)", RED, isFail = true)
+                // printC(s"FAIL (no need to backtrack)", RED, isFail = true)
                 None
               } else {
                 tryRules(rs)
