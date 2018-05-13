@@ -72,6 +72,7 @@ trait SynthesisTestUtil {
 
     sresult match {
       case Some(rr) =>
+        println()
         println("Specification:\n")
         println(s"${goal.pp}\n")
         println("Successfully synthesised:")

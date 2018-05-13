@@ -22,6 +22,7 @@ trait Synthesis {
 
   def synthesizeProc(goal: GoalFunction, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
     val GoalFunction(name, spec, tp) = goal
+    printLog(List(("Initial specification:", Console.BLACK), (s"${spec.pp}\n", Console.BLUE)))(0)
     synthesize(spec, env, maxDepth)(printFails = _printFails) match {
       case Some(body) => Some(Procedure(name, tp, spec.gamma, body))
       case None =>
@@ -41,42 +42,47 @@ trait Synthesis {
       case Nil => None
       case r :: rs =>
         val result: SynthesisRuleResult = r(spec, env)
-        val goal = s"[Synt] Trying $r for spec ${spec.pp}: "
+        val goal = s"$r: "
         result match {
           case SynFail =>
-            printC(goal, isFail = true)
-            printC(s"FAIL", RED, isFail = true)
+            printLog(List((s"$goal${RED}FAIL", BLACK)), isFail = true)
             tryRules(rs) // rule not applicable: try the rest
           case SynAndGoals(goals, kont) =>
-            printC(goal)
-            printC(s"SUCCESS at depth $ind, ${goals.size} AND-goal(s):${goals.map(g => g.pp).mkString("\n")}", GREEN)
+            val succ = s"SUCCESS at depth $ind, ${goals.size} AND-goal(s):"
+            val gls = s"${goals.map(g => g.pp).mkString("\n")}"
+            printLog(List((s"$goal${GREEN}$succ", BLACK), (gls, BLUE)))
             // Synthesize subgoals
             val subGoalResults = (for (subgoal <- goals)
               yield synthesize(subgoal, env, maxDepth - 1)(ind + 1, printFails)).toStream
             if (subGoalResults.exists(_.isEmpty)) {
-              // Some of the subgoals have failed: backtrack
+              // Some of the subgoals have failed
               if (r.isInstanceOf[InvertibleRule]) {
-                // printC(s"FAIL (no need to backtrack)", RED, isFail = true)
+                // Inversible rule couldn't be the problem, do not try other rules
+                printLog(List((s"No need to keep trying after ${r.toString}'s sub-goals have failed, return.", MAGENTA)))
                 None
               } else {
+                // Try other rules
                 tryRules(rs)
               }
             } else {
-              // All subgoals succeeded: assemble the statement
+              // All sub-goals succeeded: assemble the statement
               val stmts = subGoalResults.map(_.get)
               Some(kont(stmts))
             }
           case SynOrGoals(goals, kont) =>
-            printC(goal)
-            printC(s"SUCCESS, ${goals.size} OR-goal(s):${goals.map(g => s"\n\t${g.pp}").mkString}", GREEN)
+            val succ = s"SUCCESS, ${goals.size} OR-goal(s)"
+            printLog(List((s"$goal${GREEN}$succ", BLACK)))
             // Okay, I know this is ugly and the Gods of Haskell will punish me for this,
             // but breaking from loops in FP is a pain...
             val iter = goals.iterator
+            var gCount = 1
             while (iter.hasNext) {
               val subgoal = iter.next()
+              printLog(List((s"Trying sub-goal $gCount:", CYAN), (subgoal.pp, BLUE)))
               val res = synthesize(subgoal, env, maxDepth - 1)(ind + 1, printFails)
               if (res.nonEmpty) return Some(kont(Seq(res.get)))
-              printC(s"Backtracking after having tryed OR-goal\n\t${subgoal.pp}.\n", YELLOW)
+              printLog(List((s"Backtracking after having tried OR-goal $gCount", YELLOW)))
+              gCount = gCount + 1
             }
             tryRules(rs)
         }
@@ -87,13 +93,16 @@ trait Synthesis {
 
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
 
-  private def printC(s: String, color: String = Console.BLACK, isFail: Boolean = false)
+  private def printLog(sc: List[(String, String)], isFail: Boolean = false)
                     (implicit i: Int, printFails: Boolean = true): Unit = {
+    import Console._
     if (!isFail || printFails) {
-      print(s"${Console.BLACK}$getIndent")
-      println(s"$color${s.replaceAll("\n", getIndent ++ "\n")}")
-      print(s"${Console.BLACK}")
+      for ((s, c) <- sc if s.trim.length > 0) {
+        print(s"${BLACK}$getIndent")
+        println(s"$c${s.replaceAll("\n", s"\n${BLACK}$getIndent${c}")}")
+      }
     }
+    print(s"${BLACK}")
   }
 
 
