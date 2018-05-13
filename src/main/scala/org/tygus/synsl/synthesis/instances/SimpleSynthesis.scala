@@ -29,6 +29,7 @@ class SimpleSynthesis extends Synthesis {
     NormalizationRules.Inconsistency,
 
     // Subtraction rules
+    SubtractionRules.Pick,
     SubtractionRules.StarIntro,
 
     // Operational rules
@@ -36,8 +37,6 @@ class SimpleSynthesis extends Synthesis {
     OperationalRules.WriteRule,
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
-
-    SubtractionRules.Pick,
 
     //Unfolding rules
     UnfoldingRules.OpenRule,

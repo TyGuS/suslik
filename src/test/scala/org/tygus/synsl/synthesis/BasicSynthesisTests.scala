@@ -11,7 +11,7 @@ class BasicSynthesisTests extends FunSpec with Matchers with SynthesisTestUtil {
 
   val synthesis: Synthesis = new SimpleSynthesis
 
-  def doTest(desc: String, in: String, out: String): Unit =
+  def doTest(desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit =
     it(desc) {
       synthesizeFromSpec(in, out)
     }

@@ -17,12 +17,16 @@ trait SynthesisTestUtil {
   val testExtension = "syn"
   val defExtension = "def"
 
+  case class TestParams(printFails: Boolean = true)
+  val defaultTestParams : TestParams = new TestParams
+
+
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
 
   val synthesis: Synthesis
 
-  def doTest(desc: String, in: String, out: String): Unit
+  def doTest(desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit
 
   import synthesis._
 
@@ -52,7 +56,7 @@ trait SynthesisTestUtil {
     synthesizeFromSpec(in, out)
   }
 
-  def synthesizeFromSpec(text: String, out: String = "nope") {
+  def synthesizeFromSpec(text: String, out: String = "nope", params: TestParams = defaultTestParams) {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
     assert(res.successful, res)
@@ -64,7 +68,7 @@ trait SynthesisTestUtil {
     assert(goals.lengthCompare(1) == 0, "Expected a single synthesis goal")
 
     val goal = goals.head
-    val sresult = synthesizeProc(goal, env)
+    val sresult = synthesizeProc(goal, env, params.printFails)
 
     sresult match {
       case Some(rr) =>
@@ -109,7 +113,7 @@ trait SynthesisTestUtil {
     }
   }
 
-  def runSingleTestFromDir(dir: String, fname: String) {
+  def runSingleTestFromDir(dir: String, fname: String, params: TestParams = defaultTestParams) {
     val path = List(rootDir, dir).mkString(File.separator)
     val testDir = new File(path)
     if (testDir.exists() && testDir.isDirectory) {
@@ -121,7 +125,7 @@ trait SynthesisTestUtil {
         case Some(f) =>
           val (desc, in, out) = getDescInputOutput(f.getAbsolutePath)
           val fullInput = List(defs, in).mkString("\n")
-          doTest(desc, fullInput, out)
+          doTest(desc, fullInput, out, params)
         case None =>
           assert(false, s"No file with the name $fname found in the directory $dir.")
       }

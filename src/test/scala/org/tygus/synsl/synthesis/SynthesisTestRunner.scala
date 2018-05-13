@@ -1,5 +1,7 @@
 package org.tygus.synsl.synthesis
 
+import java.lang.Boolean.parseBoolean
+
 import org.tygus.synsl.synthesis.instances.SimpleSynthesis
 
 /**
@@ -26,12 +28,15 @@ object SynthesisTestRunner extends SynthesisTestUtil {
     assert(args.length > 0)
     val dirName = args(0)
     val fileName = args(1)
-    runSingleTestFromDir(dirName, fileName)
+    val printFails = if (args.length > 2) parseBoolean(args(2)) else true
+    // TODO: refactor to pass more parameters as implicits
+    val params = TestParams(printFails)
+    runSingleTestFromDir(dirName, fileName, params)
   }
 
-  def doTest(desc: String, in: String, out: String): Unit = {
+  def doTest(desc: String, in: String, out: String, params: TestParams): Unit = {
     println(desc)
     println
-    synthesizeFromSpec(in, out)
+    synthesizeFromSpec(in, out, params)
   }
 }
