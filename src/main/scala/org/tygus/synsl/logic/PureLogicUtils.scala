@@ -112,6 +112,23 @@ trait PureLogicUtils {
     case Nil => PTrue
   }
 
+  /**
+    * @param vs a list of variables to refresh
+    * @param rotten taken identifiers
+    * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
+    */
+  def refreshVars(vs: List[Var], rotten : Set[Var]) : Map[Var, Var] = {
+    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]) : Map[Var, Var] = vsToRefresh match {
+      case Nil => acc
+      case x :: xs  =>
+        val newAcc = acc + (x -> x.refresh(taken))
+        val newTaken = taken + x
+        go(xs, newTaken, newAcc)
+    }
+    go(vs, rotten, Map.empty)
+  }
+
+
 }
 
 case class PureLogicException(msg: String) extends SynSLException("pure", msg)

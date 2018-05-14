@@ -1,14 +1,15 @@
 package org.tygus.synsl.logic
 
 import org.tygus.synsl.SynSLException
+import org.tygus.synsl.language.Expressions.Var
 
 /**
   * Utilities for spatial formulae
-  * 
+  *
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait SepLogicUtils {
+trait SepLogicUtils extends PureLogicUtils {
 
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
 
