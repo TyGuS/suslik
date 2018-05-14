@@ -68,7 +68,7 @@ trait PureLogicUtils {
     check(simplify(pf))
   }
 
-  def conjuncts(phi: PFormula): Option[List[PFormula]] = {
+  def conjuncts(phi: PFormula): List[PFormula] = {
 
     val pf = simplify(phi)
     if (!isCNF(isAtomicPFormula)(pf)) {
@@ -82,7 +82,7 @@ trait PureLogicUtils {
       case x => throw PureLogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
     }
 
-    Some(_conjuncts(pf).distinct)
+    _conjuncts(pf).distinct
   }
 
   def findCommon[T](cond: T => Boolean, ps1: List[T], ps2: List[T]): Option[(T, List[T], List[T])] = {
@@ -101,7 +101,7 @@ trait PureLogicUtils {
   }
 
   def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[(PFormula)])] =
-    conjuncts(phi).flatMap(cs => cs.find(p) match {
+    Some(conjuncts(phi)).flatMap(cs => cs.find(p) match {
       case Some(c) => Some((c, cs.filter(e => e != c)))
       case None => None
     })

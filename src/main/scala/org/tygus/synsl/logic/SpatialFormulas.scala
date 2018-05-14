@@ -16,7 +16,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
         acc1 ++ value.collect(p)
       case Block(v, sz) =>
         if (p(v)) acc + v.asInstanceOf[R] else acc
-      case SApp(_, args) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
+      case SApp(_, args, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
     }
 
     collector(Set.empty)(this)
@@ -64,8 +64,8 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr]) extends Heaplet {
-  override def pp: String = s"$pred(${args.map(_.pp).mkString(", ")})"
+case class SApp(pred: Ident, args: Seq[Expr], tag: Int = 0) extends Heaplet {
+  override def pp: String = s"$pred(${args.map(_.pp).mkString(", ")})[$tag]"
 
   def subst(sigma: Map[Var, Expr]): Heaplet = SApp(pred, args.map(_.subst(sigma)))
 
@@ -82,6 +82,14 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
     chunks.foldLeft(Set.empty[R])((a, h) => a ++ h.collectE(p))
   }
+
+  /**
+    * Change tags for applications, to avoind re-applying the rule
+    */
+  def bumpUpSAppTag: SFormula = SFormula(chunks.map {
+    case a@SApp(_, _, l) => a.copy(tag = l + 1)
+    case x => x
+  })
 
   def isEmp: Boolean = chunks.isEmpty
 

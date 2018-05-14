@@ -103,6 +103,7 @@ trait EntailmentRules extends PureLogicUtils {
   // [AXIOM]
   object Axiom extends EntailmentRule {
     override def toString: String = "[Sub: Axiom]"
+
     def apply(goal: Goal, env: Environment): EntRuleResult = {
       val p = simplify(goal.post.phi)
       val s1 = goal.pre.sigma
@@ -132,17 +133,16 @@ trait EntailmentRules extends PureLogicUtils {
   // [HYPOTHESIS]
   object Hypothesis extends EntailmentRule {
     override def toString: String = "[Sub: Hypothesis]"
+
     def apply(goal: Goal, env: Environment): EntRuleResult = {
-      (conjuncts(goal.pre.phi), conjuncts(goal.post.phi)) match {
-        case (Some(cs1), Some(cs2)) =>
-          findCommon((p: PFormula) => true, cs1, cs2) match {
-            case Some((p, ps1, ps2)) =>
-              val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
-              val newGoal = Goal(goal.pre, newPost, goal.gamma)
-              EntMoreGoals(List(newGoal))
-            case None => EntFail
-          }
-        case _ => EntFail
+      val cs1 = conjuncts(goal.pre.phi)
+      val cs2 = conjuncts(goal.post.phi)
+      findCommon((p: PFormula) => true, cs1, cs2) match {
+        case Some((p, ps1, ps2)) =>
+          val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
+          val newGoal = Goal(goal.pre, newPost, goal.gamma)
+          EntMoreGoals(List(newGoal))
+        case None => EntFail
       }
     }
   }
@@ -150,6 +150,7 @@ trait EntailmentRules extends PureLogicUtils {
   // [*-INTRODUCTION]
   object StarIntro extends EntailmentRule {
     override def toString: String = "[Sub: *-Introduction]"
+
     def apply(goal: Goal, env: Environment): EntRuleResult = {
       val cs1 = goal.pre.sigma.chunks
       val cs2 = goal.pre.sigma.chunks

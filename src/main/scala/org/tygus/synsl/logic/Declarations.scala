@@ -21,10 +21,17 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting
   */
 case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
-  override def pp: String = {
+  override def pp(): String = {
     s"${pre.pp}\n${rType.pp} " +
       s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
       s"${post.pp}"
+  }
+
+
+  def ppInline: String = {
+    s"${rType.pp} " +
+      s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})" +
+      s" ${pre.pp} ${post.pp}"
   }
 
 }
@@ -62,9 +69,9 @@ case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[Induct
   extends TopLevelDeclaration {
 
   override def pp: String = {
-    val prelude = s"Predicate $name (${params.map(_.pp).mkString(", ")}) { \n  "
-    val cls = clauses.map(_.pp).mkString("\n| ")
-    prelude + cls + "\n}"
+    val prelude = s"$name (${params.map(_.pp).mkString(", ")}) {"
+    val cls = clauses.map(_.pp).mkString(" | ")
+    prelude + cls + "}"
   }
 
   def valid: Boolean = clauses.forall(_.valid)
@@ -86,5 +93,14 @@ case class Program(decls: Seq[TopLevelDeclaration]) extends PrettyPrinting {
   * Environment: stores module-level declarations that might be needed during synthesis
   * (predicates, component functions, etc)
   */
-case class Environment(predicates: PredicateEnv, functions: FunctionEnv)
+case class Environment(predicates: PredicateEnv, functions: FunctionEnv) {
+  def pp: String = {
+    val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
+    val psStr = if (ps.nonEmpty) s"[Predicates: $ps]" else ""
+    val fs = functions.values.toSet.toList.map((x: FunSpec) => x.ppInline).mkString("; ")
+    val fsStr = if (functions.nonEmpty) s"\n[Functions:  $fs]" else ""
+    val post = if (ps.nonEmpty || fs.nonEmpty) "\n" else ""
+    s"$psStr$fsStr$post"
+  }
+}
 

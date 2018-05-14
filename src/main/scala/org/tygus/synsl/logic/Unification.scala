@@ -1,9 +1,9 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.language.Expressions.{Expr, Var}
 
 object Unification extends SepLogicUtils with PureLogicUtils {
-
+  
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
 
@@ -57,7 +57,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource)
         }
-      case (SApp(p1, es1), SApp(p2, es2))
+      case (SApp(p1, es1, _), SApp(p2, es2, _))
         // Only unify predicates with variables as arguments
         if es1.forall(_.isInstanceOf[Var]) && es2.forall(_.isInstanceOf[Var]) =>
         if (p1 != p2 || es1.size != es2.size) None else {
@@ -105,8 +105,8 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     // Check matching blocks
     val checkMatchingApps = (as1: List[Heaplet], as2: List[Heaplet]) =>
       as1.forall {
-        case SApp(x1, xs1) =>
-          as2.exists { case SApp(x2, xs2) => x1 == x2 && xs1.size == xs2.size; case _ => false }
+        case SApp(x1, xs1, _) =>
+          as2.exists { case SApp(x2, xs2, _) => x1 == x2 && xs1.size == xs2.size; case _ => false }
         case _ => false
       }
     if (!checkMatchingApps(as1, as2) || !checkMatchingApps(as2, as1)) return false
@@ -211,7 +211,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   }
 
   def ppSubst(m: Subst): String = {
-    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
+    s"{${m.map{case (k, v) => s"${k.pp} -> ${v.pp}"}.mkString("; ")}}"
   }
 }
 

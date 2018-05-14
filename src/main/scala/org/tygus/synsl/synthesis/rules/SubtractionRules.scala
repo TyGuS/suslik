@@ -34,8 +34,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val Goal(pre, post, _) = goal
 
       if (pre.sigma.isEmp &&
-          post.sigma.isEmp &&
-          post.phi.isTrue)
+        post.sigma.isEmp &&
+        post.phi.isTrue)
         SynAndGoals(Nil, _ => Skip)
       else SynFail
     }
@@ -117,17 +117,14 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       findMatchingHeaplets(_.isInstanceOf[PointsTo], isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => SynFail
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
-          conjuncts(post.phi) match {
-            case None => SynFail
-            case Some(cs) =>
-              if (cs.contains(PEq(e1, e2)) || cs.contains(PEq(e2, e1)))
-                SynFail
-              else {
-                val newPre = Assertion(pre.phi, goal.pre.sigma)
-                val newPost = Assertion(mkConjunction(PEq(e1, e2) :: cs), goal.post.sigma)
-                val newGoal = Goal(newPre, newPost, gamma)
-                SynAndGoals(List((newGoal, env)), pureKont(toString))
-              }
+          val cs = conjuncts(post.phi)
+          if (cs.contains(PEq(e1, e2)) || cs.contains(PEq(e2, e1)))
+            SynFail
+          else {
+            val newPre = Assertion(pre.phi, goal.pre.sigma)
+            val newPost = Assertion(mkConjunction(PEq(e1, e2) :: cs), goal.post.sigma)
+            val newGoal = Goal(newPre, newPost, gamma)
+            SynAndGoals(List((newGoal, env)), pureKont(toString))
           }
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Pick rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
