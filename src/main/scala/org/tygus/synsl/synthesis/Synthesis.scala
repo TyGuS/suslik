@@ -27,19 +27,19 @@ trait Synthesis {
   val rulesToApply: List[SynthesisRule]
   val maxDepth: Int
 
-  def synthesizeProc(goal: GoalFunction, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
-    val GoalFunction(name, spec, tp) = goal
-    printLog(List(("Initial specification:", Console.BLACK), (s"${spec.pp}\n", Console.BLUE)))(0)
-    synthesize(spec, env, maxDepth)(printFails = _printFails) match {
-      case Some(body) => Some(Procedure(name, tp, spec.gamma, body))
+  def synthesizeProc(funGoal: GoalFunction, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
+    val GoalFunction(name, goal, tp) = funGoal
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
+    synthesize(goal, env, maxDepth)(printFails = _printFails) match {
+      case Some(body) => Some(Procedure(name, tp, goal.gamma, body))
       case None =>
-        printlnErr(s"Deductive synthesis failed for the spec\n ${spec.pp},\n depth = $maxDepth.")
+        printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $maxDepth.")
         None
     }
 
   }
 
-  private def synthesize(spec: Spec, env: Environment, maxDepth: Int = 25)
+  private def synthesize(goal: Goal, env: Environment, maxDepth: Int = 25)
                         (implicit ind: Int = 0, printFails: Boolean): Option[Statement] = {
 
     if (maxDepth < 0) return None
@@ -47,16 +47,16 @@ trait Synthesis {
     def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
       case Nil => None
       case r :: rs =>
-        val result: SynthesisRuleResult = r(spec, env)
-        val goal = s"$r: "
+        val result: SynthesisRuleResult = r(goal, env)
+        val goalStr = s"$r: "
         result match {
           case SynFail =>
-            printLog(List((s"$goal${RED}FAIL", BLACK)), isFail = true)
+            printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)
             tryRules(rs) // rule not applicable: try the rest
           case SynAndGoals(goals, kont) =>
             val succ = s"SUCCESS at depth $ind, ${goals.size} AND-goal(s):"
             val gls = s"${goals.map(g => g.pp).mkString("\n")}"
-            printLog(List((s"$goal${GREEN}$succ", BLACK), (gls, BLUE)))
+            printLog(List((s"$goalStr${GREEN}$succ", BLACK), (gls, BLUE)))
             // Synthesize subgoals
             val subGoalResults = (for (subgoal <- goals)
               yield synthesize(subgoal, env, maxDepth - 1)(ind + 1, printFails)).toStream
@@ -77,7 +77,7 @@ trait Synthesis {
             }
           case SynOrGoals(goals, kont) =>
             val succ = s"SUCCESS, ${goals.size} OR-goal(s)"
-            printLog(List((s"$goal${GREEN}$succ", BLACK)))
+            printLog(List((s"$goalStr${GREEN}$succ", BLACK)))
             // Okay, I know this is ugly and the Gods of Haskell will punish me for this,
             // but breaking from loops in FP is a pain...
             val iter = goals.iterator
@@ -104,7 +104,7 @@ trait Synthesis {
     if (!isFail || printFails) {
       for ((s, c) <- sc if s.trim.length > 0) {
         print(s"$BLACK$getIndent")
-        println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent${c}")}")
+        println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent$c")}")
       }
     }
     print(s"$BLACK")

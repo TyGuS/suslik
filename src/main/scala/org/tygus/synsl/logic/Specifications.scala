@@ -35,14 +35,14 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 /**
   * Main class for contextual Hoare-style specifications
   */
-case class Spec(pre: Assertion, post: Assertion, gamma: Gamma)
+case class Goal(pre: Assertion, post: Assertion, gamma: Gamma)
   extends PrettyPrinting with PureLogicUtils {
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
       s"${pre.pp}\n${post.pp}"
 
-  def simpl = Spec(Assertion(simplify(pre.phi), pre.sigma),
+  def simpl = Goal(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma),
     this.gamma)
 

@@ -17,12 +17,12 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting
   * Function to synthesize
   *
   * @param name function name
-  * @param spec pre/postconditions and variable context
+  * @param goal pre/postconditions and variable context
   * @param tpe  function return type
   */
-case class GoalFunction(name: Ident, spec: Spec, tpe: SynslType) extends TopLevelDeclaration {
+case class GoalFunction(name: Ident, goal: Goal, tpe: SynslType) extends TopLevelDeclaration {
   override def pp: String = {
-    val Spec(pre, post, gamma) = spec
+    val Goal(pre, post, gamma) = goal
     s"${pre.pp}\n${tpe.pp} " +
         s"$name(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
         s"${post.pp}"

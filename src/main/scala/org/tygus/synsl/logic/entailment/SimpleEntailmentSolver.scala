@@ -1,5 +1,5 @@
 package org.tygus.synsl.logic.entailment
-import org.tygus.synsl.logic.{Environment, PFormula, Spec}
+import org.tygus.synsl.logic.{Environment, PFormula, Goal}
 import org.tygus.synsl.util.SynLogging
 
 /**
@@ -27,11 +27,11 @@ class SimpleEntailmentSolver(override implicit val log: SynLogging) extends Enta
   )
 
   /**
-    * Determines whether the spec is from the class that can be validated
+    * Determines whether the goal is from the class that can be validated
     */
-  def validate(spec: Spec, env: Environment): Boolean = {
+  def validate(goal: Goal, env: Environment): Boolean = {
     val checker = (f : PFormula) => isCNF(isAtomicPFormula)(f)
-    checker(spec.pre.phi) && checker(spec.post.phi)
+    checker(goal.pre.phi) && checker(goal.post.phi)
   }
 
 }

@@ -32,33 +32,33 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(pre, post, gamma: Gamma) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(pre, post, gamma: Gamma) = goal
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(_, _, e) => e.vars.forall(v => !spec.isGhost(v))
+        case PointsTo(_, _, e) => e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
       // When do two heaplets match
       def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && noGhosts(hr)
 
-      findMatchingHeaplets(noGhosts, isMatch, spec.pre.sigma, spec.post.sigma) match {
+      findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => SynFail
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
           if (e1 == e2) { return SynFail } // Do not write if RHSs are the same
 
-          val newPre = Assertion(pre.phi, spec.pre.sigma - hl)
-          val newPost = Assertion(post.phi, spec.post.sigma - hr)
-          val subGoalSpec = Spec(newPre, newPost, gamma)
+          val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
+          val newPost = Assertion(post.phi, goal.post.sigma - hr)
+          val subGoal = Goal(newPre, newPost, gamma)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
             Store(x, offset, e2, rest)
           }
 
-          SynAndGoals(Seq(subGoalSpec), kont)
+          SynAndGoals(Seq(subGoal), kont)
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           SynFail
@@ -78,21 +78,21 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: read]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(pre, post, gamma: Gamma) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(pre, post, gamma: Gamma) = goal
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(_, _, a@(Var(_))) => spec.isGhost(a)
+        case PointsTo(_, _, a@(Var(_))) => goal.isGhost(a)
         case _ => false
       }
 
-      findHeaplet(isGhostPoints, spec.pre.sigma) match {
+      findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => SynFail
         case Some(PointsTo(x@Var(_), offset, a@(Var(_)))) =>
-          val y = generateFreshVar(spec, a.name)
-          val tpy = spec.getType(a)
+          val y = generateFreshVar(goal, a.name)
+          val tpy = goal.getType(a)
 
-          val subGoalSpec = Spec(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
+          val subGoal = Goal(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
@@ -100,7 +100,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
           }
 
-          SynAndGoals(Seq(subGoalSpec), kont)
+          SynAndGoals(Seq(subGoal), kont)
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           SynFail
@@ -120,31 +120,31 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: alloc]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(pre, post, gamma: Gamma) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(pre, post, gamma: Gamma) = goal
 
-      def isExistBlock(spec: Spec): Heaplet => Boolean = {
-        case Block(x@Var(_), _) => spec.isExistential(x)
+      def isExistBlock(goal: Goal): Heaplet => Boolean = {
+        case Block(x@Var(_), _) => goal.isExistential(x)
         case _ => false
       }
 
-      findHeaplet(isExistBlock(spec), post.sigma) match {
+      findHeaplet(isExistBlock(goal), post.sigma) match {
         case None => SynFail
         case Some(h@(Block(x@Var(_), sz))) =>
           val newPost = Assertion(post.phi, post.sigma - h)
-          val y = generateFreshVar(spec, x.name)
+          val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
           // TODO: replace 0 with blank
           val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, IntConst(0))
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks))
-          val subGoalSpec = Spec(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
+          val subGoal = Goal(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
             Malloc(y, tpy, sz, stmts.head)
           }
 
-          SynAndGoals(Seq(subGoalSpec), kont)
+          SynAndGoals(Seq(subGoal), kont)
         case Some(h) =>
           ruleAssert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
           SynFail
@@ -164,32 +164,32 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: free]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(_, post, gamma: Gamma) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(_, post, gamma: Gamma) = goal
 
       def isConcreteBlock: Heaplet => Boolean = {
-        case Block(v@(Var(_)), _) => spec.isConcrete(v)
+        case Block(v@(Var(_)), _) => goal.isConcrete(v)
         case _ => false
       }
 
-      findHeaplet(isConcreteBlock, spec.pre.sigma) match {
+      findHeaplet(isConcreteBlock, goal.pre.sigma) match {
         case None => SynFail
         case Some(h@Block(x@(Var(_)), sz)) =>
           // Okay, found the block, now looking for the points-to chunks
           val pts = for (off <- 0 until sz) yield {
-            findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), spec.pre.sigma) match {
-              case Some(pt) if pt.vars.forall(!spec.isGhost(_)) => pt
+            findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), goal.pre.sigma) match {
+              case Some(pt) if pt.vars.forall(!goal.isGhost(_)) => pt
               case _ => return SynFail
             }
           }
-          val newPre = Assertion(spec.pre.phi, spec.pre.sigma - h - pts)
-          val subGoalSpec = Spec(newPre, post, gamma)
+          val newPre = Assertion(goal.pre.phi, goal.pre.sigma - h - pts)
+          val subGoal = Goal(newPre, post, gamma)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
             Free(x, stmts.head)
           }
 
-          SynAndGoals(Seq(subGoalSpec), kont)
+          SynAndGoals(Seq(subGoal), kont)
         case Some(h) =>
           ruleAssert(false, s"Free rule matched unexpected heaplet ${h.pp}")
           SynFail

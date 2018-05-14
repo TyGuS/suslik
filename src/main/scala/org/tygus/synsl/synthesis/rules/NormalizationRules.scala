@@ -25,8 +25,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object NilNotLval extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: nil-not-lval]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(Assertion(p1, s1), post, g) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(Assertion(p1, s1), post, g) = goal
       conjuncts(p1) match {
         case None => SynFail
         case Some(cs) =>
@@ -37,8 +37,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           if (ptrs.isEmpty) return SynFail
           // The implementation immediately adds _all_ inequalities
           val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
-          val newSpec = Spec(Assertion(_p1, s1), post, g)
-          SynAndGoals(List(newSpec), pureKont(toString))
+          val newGoal = Goal(Assertion(_p1, s1), post, g)
+          SynAndGoals(List(newGoal), pureKont(toString))
       }
     }
   }
@@ -52,8 +52,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object StarPartial extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: *-partial]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(Assertion(p1, s1), post, g) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(Assertion(p1, s1), post, g) = goal
       conjuncts(p1) match {
         case None => SynFail
         case Some(cs) =>
@@ -72,8 +72,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
           // The implementation immediately adds _all_ inequalities
           val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
-          val newSpec = Spec(Assertion(_p1, s1), post, g)
-          SynAndGoals(List(newSpec), pureKont(toString))
+          val newGoal = Goal(Assertion(_p1, s1), post, g)
+          SynAndGoals(List(newGoal), pureKont(toString))
       }
     }
   }
@@ -87,8 +87,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object SubstLeft extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: subst-L]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(Assertion(p1, s1), Assertion(p2, s2), g) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(Assertion(p1, s1), Assertion(p2, s2), g) = goal
 
       findConjunctAndRest({
         case PEq(v1@Var(_), v2) => v1 != v2
@@ -99,11 +99,11 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val _s1 = s1.subst(x, l)
           val _p2 = p2.subst(x, l)
           val _s2 = s2.subst(x, l)
-          val newSpec = Spec(
+          val newGoal = Goal(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2),
             g.filter { case (t, w) => w != x })
-          SynAndGoals(List(newSpec), pureKont(toString))
+          SynAndGoals(List(newGoal), pureKont(toString))
         case _ => SynFail
       }
     }
@@ -118,10 +118,10 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object SubstRight extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: subst-R]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(pre, Assertion(p2, s2), g) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(pre, Assertion(p2, s2), g) = goal
 
-      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && spec.existentials.contains(e.asInstanceOf[Var])
+      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.existentials.contains(e.asInstanceOf[Var])
 
       findConjunctAndRest({
         case PEq(l, r) => isExsistVar(l) || isExsistVar(r)
@@ -135,8 +135,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           }
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
-          val newSpec = Spec(pre, Assertion(_p2, _s2), g)
-          SynAndGoals(List(newSpec), pureKont(toString))
+          val newGoal = Goal(pre, Assertion(_p2, _s2), g)
+          SynAndGoals(List(newGoal), pureKont(toString))
         case _ => SynFail
       }
     }
@@ -151,16 +151,16 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object StripEqPre extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: =-L]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
       findConjunctAndRest({
         case PEq(x, y) => x == y
         case _ => false
-      }, simplify(spec.pre.phi)) match {
+      }, simplify(goal.pre.phi)) match {
         case None => SynFail
         case Some((_, rest)) =>
-          val newPre = Assertion(mkConjunction(rest), spec.pre.sigma)
-          val newSpec = Spec(newPre, spec.post, spec.gamma)
-          SynAndGoals(List(newSpec), pureKont(toString))
+          val newPre = Assertion(mkConjunction(rest), goal.pre.sigma)
+          val newGoal = Goal(newPre, goal.post, goal.gamma)
+          SynAndGoals(List(newGoal), pureKont(toString))
       }
     }
   }
@@ -172,8 +172,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object Inconsistency extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: Inconsistency]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(Assertion(p1, _), _, g) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(Assertion(p1, _), _, g) = goal
       val res = findConjunctAndRest({
         case PNeg(PEq(x, y)) => x == y
         case _ => false
@@ -195,14 +195,14 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object Hypothesis extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: Hypothesis]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      (conjuncts(spec.pre.phi), conjuncts(spec.post.phi)) match {
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      (conjuncts(goal.pre.phi), conjuncts(goal.post.phi)) match {
         case (Some(cs1), Some(cs2)) =>
           findCommon((p: PFormula) => true, cs1, cs2) match {
             case Some((p, ps1, ps2)) =>
-              val newPost = Assertion(mkConjunction(ps2), spec.post.sigma)
-              val newSpec = Spec(spec.pre, newPost, spec.gamma)
-              SynAndGoals(List(newSpec), pureKont(toString))
+              val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
+              val newGoal = Goal(goal.pre, newPost, goal.gamma)
+              SynAndGoals(List(newGoal), pureKont(toString))
             case None => SynFail
           }
         case _ => SynFail
@@ -221,16 +221,16 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object StripEqPost extends SynthesisRule {
     override def toString: String = "[Sub: =-R]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
       findConjunctAndRest({
         case PEq(x, y) => x == y
         case _ => false
-      }, simplify(spec.post.phi)) match {
+      }, simplify(goal.post.phi)) match {
         case None => SynFail
         case Some((_, rest)) =>
-          val newPost = Assertion(mkConjunction(rest), spec.post.sigma)
-          val newSpec = Spec(spec.pre, newPost, spec.gamma)
-          SynAndGoals(List(newSpec), pureKont(toString))
+          val newPost = Assertion(mkConjunction(rest), goal.post.sigma)
+          val newGoal = Goal(goal.pre, newPost, goal.gamma)
+          SynAndGoals(List(newGoal), pureKont(toString))
       }
     }
   }

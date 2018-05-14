@@ -9,7 +9,7 @@ import org.tygus.synsl.logic._
 
 object LanguageUtils {
 
-  def generateFreshVar(s: Spec, tmpName: String = "tmp"): Var = {
+  def generateFreshVar(s: Goal, tmpName: String = "tmp"): Var = {
     var counter = 1
     var candidate = Var(s"$tmpName")
     val existing = s.vars

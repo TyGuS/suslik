@@ -7,7 +7,7 @@ import org.tygus.synsl.util.SynLogLevels
   * @author Ilya Sergey
   */
 
-class SpecParserTests extends FunSpec with Matchers {
+class GoalParserTests extends FunSpec with Matchers {
 
   val spec1 = "{true; emp} void foo(int x) {true ; emp}"
   val spec2 = "{true; emp} void foo(int x, bool y, int z) {true ; emp}"

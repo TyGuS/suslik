@@ -90,8 +90,8 @@ class SynslParser extends StandardTokenParsers {
       case name ~ params ~ clauses => InductivePredicate(name, params, clauses)
     }
 
-  def spec: Parser[Spec] = assertion ~ assertion ~ repsep(formal, ",") ^^ {
-    case pre ~ post ~ formals => Spec(pre, post, formals)
+  def spec: Parser[Goal] = assertion ~ assertion ~ repsep(formal, ",") ^^ {
+    case pre ~ post ~ formals => Goal(pre, post, formals)
   }
 
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
@@ -99,7 +99,7 @@ class SynslParser extends StandardTokenParsers {
   }
 
   def goalFunction: Parser[GoalFunction] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ formals ~ post => GoalFunction(name, Spec(pre, post, formals), tpe)
+    case pre ~ tpe ~ name ~ formals ~ post => GoalFunction(name, Goal(pre, post, formals), tpe)
   }
 
   def program: Parser[Program] = rep(indPredicate ||| goalFunction) ^^ Program
@@ -110,7 +110,7 @@ class SynslParser extends StandardTokenParsers {
     case s => s
   }
 
-  def parseSpec(input: String): ParseResult[Spec] = parse(spec)(input)
+  def parseSpec(input: String): ParseResult[Goal] = parse(spec)(input)
 
   def parseUnificationGoal(input: String): ParseResult[UnificationGoal] = parse(uGoal)(input)
 

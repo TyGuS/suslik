@@ -10,21 +10,21 @@ abstract class EntailmentSolver(implicit val log: SynLogging) extends Entailment
   import log._
 
   /**
-    * Determines whether the spec is from the class that can be validated
+    * Determines whether the goal is from the class that can be validated
     */
-  def validate(spec: Spec, env: Environment) : Boolean
+  def validate(goal: Goal, env: Environment) : Boolean
 
-  def entails(spec: Spec, env: Environment): Boolean = {
-    if (!validate(spec, env)) {
-      printlnErr(s"Cannot validate the spec: $spec in the environment $env.")
+  def entails(goal: Goal, env: Environment): Boolean = {
+    if (!validate(goal, env)) {
+      printlnErr(s"Cannot validate the goal: $goal in the environment $env.")
       return false
     }
 
     def tryRules(rules: List[EntailmentRule]): Boolean = rules match {
       case Nil => false
       case r :: rs =>
-        val result = r(spec, env)
-        print(s"[Entl] Trying entailment rule $r for ${spec.pp}: ")
+        val result = r(goal, env)
+        print(s"[Entl] Trying entailment rule $r for ${goal.pp}: ")
         result match {
           case EntFail =>
             println(s"\nFAIL\n")

@@ -31,10 +31,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       stmts.head
     }
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(pre, post, gamma: Gamma) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(pre, post, gamma: Gamma) = goal
 
-      findHeaplet(_.isInstanceOf[SApp], spec.pre.sigma) match {
+      findHeaplet(_.isInstanceOf[SApp], goal.pre.sigma) match {
         case None => SynFail
         case Some(h@SApp(pred, args)) =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
@@ -42,9 +42,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val InductiveClause(_, body) = clauses.head
           val actualBody = body.subst((params zip args).toMap)
-          val newPre = Assertion(pre.phi, spec.pre.sigma ** actualBody - h)
-          val subGoalSpec = Spec(newPre, post, gamma)
-          SynAndGoals(Seq(subGoalSpec), kont)
+          val newPre = Assertion(pre.phi, goal.pre.sigma ** actualBody - h)
+          val subGoal = Goal(newPre, post, gamma)
+          SynAndGoals(Seq(subGoal), kont)
         case Some(h) =>
           ruleAssert(false, s"Open rule matched unexpected heaplet ${h.pp}")
           SynFail
@@ -71,10 +71,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       stmts.head
     }
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(pre, post, gamma: Gamma) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(pre, post, gamma: Gamma) = goal
 
-      findHeaplet(_.isInstanceOf[SApp], spec.post.sigma) match {
+      findHeaplet(_.isInstanceOf[SApp], goal.post.sigma) match {
         case None => SynFail
         case Some(h@SApp(pred, args)) =>
           ruleAssert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
@@ -86,8 +86,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val actualBody = body.subst(substMap)
             val actualSelector = selector.subst(substMap)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
-            val newPost = Assertion(newPhi, spec.post.sigma ** actualBody - h)
-            Spec(pre, newPost, gamma)
+            val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
+            Goal(pre, newPost, gamma)
           }
           SynOrGoals(subGoals, kont)
         case Some(h) =>

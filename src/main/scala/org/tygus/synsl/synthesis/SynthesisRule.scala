@@ -1,6 +1,6 @@
 package org.tygus.synsl.synthesis
 
-import org.tygus.synsl.logic.{Environment, PureLogicUtils, Spec}
+import org.tygus.synsl.logic.{Environment, PureLogicUtils, Goal}
 
 /**
   * A generic class for a deductive rule to be applied
@@ -9,7 +9,7 @@ import org.tygus.synsl.logic.{Environment, PureLogicUtils, Spec}
   */
 abstract class SynthesisRule extends PureLogicUtils {
   // Apply the rule and get the subgoals
-  def apply(spec: Spec, env: Environment): SynthesisRuleResult
+  def apply(goal: Goal, env: Environment): SynthesisRuleResult
 
 }
 
@@ -26,14 +26,14 @@ case object SynFail extends SynthesisRuleResult
   * - a producer: continuation that combines the results of the subgoals into the final statement
   * An empty list of subgoals paired with an constant producer denotes a leaf in the synthesis derivation
   */
-case class SynAndGoals(goals: Seq[Spec], kont: StmtProducer) extends SynthesisRuleResult
+case class SynAndGoals(goals: Seq[Goal], kont: StmtProducer) extends SynthesisRuleResult
 
 /**
   * Rule is applicable and produces:
   * - a sequence of subgoals (premises fo the rule), _one_ of which have to be satisfied
   * - a producer: continuation that combines the results of the subgoals into the final statement
   */
-case class SynOrGoals(goals: Seq[Spec], kont: StmtProducer) extends SynthesisRuleResult
+case class SynOrGoals(goals: Seq[Goal], kont: StmtProducer) extends SynthesisRuleResult
 
 
 
