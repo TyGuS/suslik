@@ -96,9 +96,9 @@ case class Program(decls: Seq[TopLevelDeclaration]) extends PrettyPrinting {
 case class Environment(predicates: PredicateEnv, functions: FunctionEnv) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
-    val psStr = if (ps.nonEmpty) s"[Predicates: $ps]" else ""
+    val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""
     val fs = functions.values.toSet.toList.map((x: FunSpec) => x.ppInline).mkString("; ")
-    val fsStr = if (functions.nonEmpty) s"\n[Functions:  $fs]" else ""
+    val fsStr = if (functions.nonEmpty) s"\n[Functions  (${functions.size}): $fs]" else ""
     val post = if (ps.nonEmpty || fs.nonEmpty) "\n" else ""
     s"$psStr$fsStr$post"
   }
