@@ -79,29 +79,29 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write]"
 
-    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
-      val Spec(pre, post, gamma: Gamma) = spec
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      val Goal(pre, post, gamma: Gamma) = goal
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(_, _, e) => e.vars.forall(v => !spec.isGhost(v))
+        case PointsTo(_, _, e) => e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
       findHeaplet(noGhosts, post.sigma) match {
         case None => SynFail
         case Some(h@(PointsTo(x@Var(_), offset, l))) =>
-          val y = generateFreshVar(spec)
+          val y = generateFreshVar(goal)
 
           val newPost = Assertion (post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
-          val subGoalSpec = Spec(pre, newPost, gamma)
+          val subGoal = Goal(pre, newPost, gamma)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
             SeqComp(rest, Store(x, offset, l))
           }
 
-          SynAndGoals(Seq(subGoalSpec), kont)
+          SynAndGoals(Seq(subGoal), kont)
         case Some(h) =>
           ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
           SynFail
