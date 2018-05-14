@@ -37,7 +37,7 @@ class EntailmentTests extends FunSpec with Matchers with PureLogicUtils {
     val checker = new SimpleEntailmentSolver
 
     // TODO: add environments
-    val env = Environment(Map.empty)
+    val env = Environment(Map.empty, Map.empty)
     assert(checker.entails(spec, env), s"Entailment for spec ${spec.pp} doesn't hold!")
   }
 

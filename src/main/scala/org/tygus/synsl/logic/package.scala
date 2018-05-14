@@ -7,5 +7,6 @@ import org.tygus.synsl.language.SynslType
 package object logic {
 
   type Gamma = Seq[(SynslType, Var)]
-  type PredIndex = Map[Ident, InductivePredicate]
+  type PredicateEnv = Map[Ident, InductivePredicate]
+  type FunctionEnv = Map[Ident, FunSpec]
 }
