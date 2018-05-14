@@ -27,19 +27,16 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
     def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
       val Goal(Assertion(p1, s1), post, g) = goal
-      conjuncts(p1) match {
-        case None => SynFail
-        case Some(cs) =>
-          // All pointers
-          val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet.filter(
-            x => !cs.contains(PNeg(PEq(x, NilPtr))) && !cs.contains(PNeg(PEq(NilPtr, x)))
-          )
-          if (ptrs.isEmpty) return SynFail
-          // The implementation immediately adds _all_ inequalities
-          val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
-          val newGoal = Goal(Assertion(_p1, s1), post, g)
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
-      }
+      val cs = conjuncts(p1)
+      // All pointers
+      val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet.filter(
+        x => !cs.contains(PNeg(PEq(x, NilPtr))) && !cs.contains(PNeg(PEq(NilPtr, x)))
+      )
+      if (ptrs.isEmpty) return SynFail
+      // The implementation immediately adds _all_ inequalities
+      val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
+      val newGoal = Goal(Assertion(_p1, s1), post, g)
+      SynAndGoals(List((newGoal, env)), pureKont(toString))
     }
   }
 
@@ -54,27 +51,24 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
     def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
       val Goal(Assertion(p1, s1), post, g) = goal
-      conjuncts(p1) match {
-        case None => SynFail
-        case Some(cs) =>
-          val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
-          // All pairs of pointers
-          val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
-            map { s =>
-              val elems = s.toList
-              ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
-              (elems.head, elems.tail.head)
-            }.toList
-          val newPairs = pairs.filter {
-            case (x, y) => !cs.contains(PNeg(PEq(x, y))) && !cs.contains(PNeg(PEq(y, x)))
-          }
-          if (newPairs.isEmpty) return SynFail
-
-          // The implementation immediately adds _all_ inequalities
-          val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
-          val newGoal = Goal(Assertion(_p1, s1), post, g)
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
+      val cs = conjuncts(p1)
+      val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
+      // All pairs of pointers
+      val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
+        map { s =>
+          val elems = s.toList
+          ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
+          (elems.head, elems.tail.head)
+        }.toList
+      val newPairs = pairs.filter {
+        case (x, y) => !cs.contains(PNeg(PEq(x, y))) && !cs.contains(PNeg(PEq(y, x)))
       }
+      if (newPairs.isEmpty) return SynFail
+
+      // The implementation immediately adds _all_ inequalities
+      val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
+      val newGoal = Goal(Assertion(_p1, s1), post, g)
+      SynAndGoals(List((newGoal, env)), pureKont(toString))
     }
   }
 
@@ -196,16 +190,14 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: Hypothesis]"
 
     def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
-      (conjuncts(goal.pre.phi), conjuncts(goal.post.phi)) match {
-        case (Some(cs1), Some(cs2)) =>
-          findCommon((p: PFormula) => true, cs1, cs2) match {
-            case Some((p, ps1, ps2)) =>
-              val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
-              val newGoal = Goal(goal.pre, newPost, goal.gamma)
-              SynAndGoals(List((newGoal, env)), pureKont(toString))
-            case None => SynFail
-          }
-        case _ => SynFail
+      val cs1 = conjuncts(goal.pre.phi)
+      val cs2 = conjuncts(goal.post.phi)
+      findCommon((p: PFormula) => true, cs1, cs2) match {
+        case Some((p, ps1, ps2)) =>
+          val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
+          val newGoal = Goal(goal.pre, newPost, goal.gamma)
+          SynAndGoals(List((newGoal, env)), pureKont(toString))
+        case None => SynFail
       }
     }
   }

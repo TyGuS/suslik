@@ -56,8 +56,8 @@ trait Synthesis {
             tryRules(rs) // rule not applicable: try the rest
           case SynAndGoals(goals, kont) =>
             val succ = s"SUCCESS at depth $ind, ${goals.size} AND-goal(s):"
-            val gls = s"${goals.map{case (g, e) => g.pp}.mkString("\n")}"
-            printLog(List((s"$goalStr${GREEN}$succ", BLACK), (gls, BLUE)))
+            val gls = s"${goals.map { case (g, e) => s"${e.pp}${g.pp}" }.mkString("\n")}"
+            printLog(List((s"$goalStr$GREEN$succ", BLACK), (gls, BLUE)))
             // Synthesize subgoals
             val subGoalResults = (for ((subgoal, subenv) <- goals)
               yield synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails)).toStream
@@ -101,7 +101,7 @@ trait Synthesis {
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
 
   private def printLog(sc: List[(String, String)], isFail: Boolean = false)
-                    (implicit i: Int, printFails: Boolean = true): Unit = {
+                      (implicit i: Int, printFails: Boolean = true): Unit = {
     if (!isFail || printFails) {
       for ((s, c) <- sc if s.trim.length > 0) {
         print(s"$BLACK$getIndent")

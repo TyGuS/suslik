@@ -15,6 +15,8 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
   // Right now the rule is fixed statically
   // TODO: apply dynamic heuristics for rule application
   val rulesToApply: List[SynthesisRule] = List(
+    // Top-level induction
+    UnfoldingRules.InductionRule,
 
     // Terminal
     SubtractionRules.EmpRule,
@@ -42,8 +44,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     SubtractionRules.Pick,
 
     //Unfolding rules
-    UnfoldingRules.OpenRule,
-    UnfoldingRules.CloseRule
-    )
+    UnfoldingRules.CloseRule,
+  )
 
 }
