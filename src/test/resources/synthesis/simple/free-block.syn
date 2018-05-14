@@ -7,5 +7,4 @@ void delete(loc x)
 void delete (loc x) {
   let y2 = *x;
   free(y2);
-  skip;
 }

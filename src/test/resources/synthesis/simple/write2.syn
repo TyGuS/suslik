@@ -5,5 +5,4 @@ should be able to synthesize a two-pointer constant-assigning procedure
 void bar (loc x, loc y) {
   *x = 43;
   *y = 239;
-  skip;
 }

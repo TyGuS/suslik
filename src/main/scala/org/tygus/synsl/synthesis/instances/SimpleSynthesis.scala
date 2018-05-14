@@ -29,12 +29,13 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.Inconsistency,
     NormalizationRules.SubstRight,
     OperationalRules.ReadRule,
-    OperationalRules.WriteRule,
+    // OperationalRules.WriteRule,
 
     // Subtraction rules
     SubtractionRules.StarIntro,
 
     // Operational rules
+    OperationalRules.WriteRuleOld,
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
 
@@ -44,6 +45,6 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     //Unfolding rules
     UnfoldingRules.OpenRule,
     UnfoldingRules.CloseRule
-    )
+  )
 
 }

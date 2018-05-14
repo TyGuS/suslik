@@ -8,5 +8,4 @@ void swap (loc x, loc z, loc y, loc t) {
   let c2 = *y;
   *x = c2;
   *y = 41;
-  skip;
 }

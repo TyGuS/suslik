@@ -5,5 +5,4 @@ void foo (loc x)
 { true ; x :-> a}
 ###
 void foo (loc x) {
-  skip;
 }

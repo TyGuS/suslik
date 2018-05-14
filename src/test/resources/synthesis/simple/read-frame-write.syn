@@ -5,5 +5,4 @@ should be able to synthesize a program with read
 void bar (loc x, loc y) {
   let a2 = *x;
   *y = a2;
-  skip;
 }

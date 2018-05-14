@@ -12,5 +12,4 @@ void deposit (loc x, int amount) {
   let y2 = *x;
   let bal2 = *(y2 + 1);
   *(y2 + 1) = bal2 + amount;
-  skip;
 }

@@ -10,5 +10,4 @@ void kareem1 (loc x, loc y, loc z) {
   *y = z;
   *z = x;
   *v2 = x;
-  skip;
 }

@@ -7,5 +7,4 @@ void deleteAccount(loc x)
 void deleteAccount (loc x) {
   let y2 = *x;
   free(y2);
-  skip;
 }

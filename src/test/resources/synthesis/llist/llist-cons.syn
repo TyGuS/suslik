@@ -8,5 +8,4 @@ should be able to allocate a linked list
 ###
 
 void create_llist (loc z, loc y) {
-  skip;
 }

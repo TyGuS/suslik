@@ -12,5 +12,4 @@ void create (loc x) {
   let c2 = malloc(1);
   *y = c2;
   free(a2);
-  skip;
 }

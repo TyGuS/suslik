@@ -4,6 +4,5 @@ should be able to use [frame] and [write]
 ###
 void bar (loc x, loc y) {
   *y = 12;
-  skip;
 }
 

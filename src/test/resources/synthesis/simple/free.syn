@@ -5,5 +5,4 @@ should be able to deallocate memory
 void delete (loc x) {
   let y2 = *x;
   free(y2);
-  skip;
 }

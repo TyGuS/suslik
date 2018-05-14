@@ -14,5 +14,4 @@ void create (loc x) {
   *y2 = 1;
   *(y2 + 1) = 2;
   *(y2 + 2) = x;
-  skip;
 }
