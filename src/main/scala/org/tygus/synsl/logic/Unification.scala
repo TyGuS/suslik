@@ -24,20 +24,22 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   }
 
   /**
-    * Tries to unify two heaplets h1 and h2, assuming h2 has variables that are either free or in taken.
-    * If successful, returns a substitution from h2's fresh variables to h1's variables
+    * Tries to unify two heaplets `target` and `source`, assuming `source` has
+    * variables that are either free or in `nonFreeInSource`.
+    *
+    * If successful, returns a substitution from `source`'s fresh variables to `target`'s variables
     */
-  private def tryUnify(h1: Heaplet, h2: Heaplet, taken: Set[Var]): Option[Map[Var, Var]] = {
-    assert(h1.vars.forall(taken.contains), s"Not all variables of ${h1.pp} are in $taken")
-    (h1, h2) match {
-      case (PointsTo(x1@Var(_), o1, v1@Var(_)), PointsTo(x2@Var(_), o2, v2@Var(_))) =>
+  def tryUnify(target: Heaplet, source: Heaplet, nonFreeInSource: Set[Var]): Option[Map[Var, Var]] = {
+    assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
+    (target, source) match {
+      case (PointsTo(x@Var(_), o1, y@Var(_)), PointsTo(a@Var(_), o2, b@Var(_))) =>
         if (o1 != o2) None else {
-          assert(taken.contains(x1))
-          assert(taken.contains(v1))
+          assert(nonFreeInSource.contains(x))
+          assert(nonFreeInSource.contains(y))
           for {
-            m1 <- genSubst(x1, x2, taken)
-            _v2 = v2.subst(m1).asInstanceOf[Var]
-            m2 <- genSubst(v1, _v2, taken)
+            m1 <- genSubst(x, a, nonFreeInSource)
+            _v2 = b.subst(m1).asInstanceOf[Var]
+            m2 <- genSubst(y, _v2, nonFreeInSource)
           } yield {
             assertNoOverlap(m1, m2)
             m1 ++ m2
@@ -45,8 +47,8 @@ object Unification extends SepLogicUtils with PureLogicUtils {
         }
       case (Block(x1@Var(_), s1), Block(x2@Var(_), s2)) =>
         if (s1 != s2) None else {
-          assert(taken.contains(x1))
-          genSubst(x1, x2, taken)
+          assert(nonFreeInSource.contains(x1))
+          genSubst(x1, x2, nonFreeInSource)
         }
       case (SApp(p1, es1), SApp(p2, es2))
         // Only unify predicates with variables as arguments
@@ -57,7 +59,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
           pairs.foldLeft(Some(Map.empty): Option[Map[Var, Var]]) {
             case (opt, (x1, x2)) => opt match {
               case None => None
-              case Some(acc) => genSubst(x1, x2, taken) match {
+              case Some(acc) => genSubst(x1, x2, nonFreeInSource) match {
                 case Some(sbst) =>
                   assertNoOverlap(acc, sbst)
                   Some(acc ++ sbst)
