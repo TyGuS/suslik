@@ -1,12 +1,16 @@
 package org.tygus.synsl.parsing
 
 import org.scalatest.{FunSpec, Matchers}
+import org.tygus.synsl.util.SynLogLevels
 
 /**
   * @author Ilya Sergey
   */
 
 class PreambleParserTests extends FunSpec with Matchers {
+
+  val log = SynLogLevels.Test
+  import log._
 
   val pred1 =
     """predicate lseg (x, y) {

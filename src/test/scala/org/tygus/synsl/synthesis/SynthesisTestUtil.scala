@@ -4,6 +4,7 @@ import java.io.File
 
 import org.tygus.synsl.logic.Resolver._
 import org.tygus.synsl.parsing.SynslParser
+import org.tygus.synsl.util.{SynLogging, SynLogLevels}
 
 import scala.io.Source
 
@@ -12,6 +13,9 @@ import scala.io.Source
   */
 
 trait SynthesisTestUtil {
+
+  implicit val log : SynLogging = SynLogLevels.Test
+  import log._
 
   val testSeparator = "###"
   val testExtension = "syn"
@@ -26,11 +30,11 @@ trait SynthesisTestUtil {
 
   val synthesis: Synthesis
 
-  def doTest(desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit
+  def doTest(testName: String, desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit
 
   import synthesis._
 
-  def getDescInputOutput(testFilePath: String): (String, String, String) = {
+  def getDescInputOutput(testFilePath: String): (String, String, String, String) = {
     val file = new File(testFilePath)
     // The path is counted from the rout
     val lines = Source.fromFile(file).getLines.toList
@@ -40,7 +44,8 @@ trait SynthesisTestUtil {
     val dirName = file.getParentFile.getName
     val description = if (l1.isEmpty) "Testing synthesis" else l1.mkString("\n").trim
     // The first part is the description
-    val desc = s"[$dirName/$fname] $description"
+    val testName = s"$dirName/$fname"
+    val desc = s"[$testName] $description"
 
     val remainder = l2.tail
     // The remainder is the input and output
@@ -48,15 +53,15 @@ trait SynthesisTestUtil {
     val (l3, l4) = remainder.splitAt(j)
     val input = l3.mkString(" ").trim
     val output = l4.tail.mkString("\n").trim
-    (desc, input, output)
+    (testName, desc, input, output)
   }
 
   def synthesizeFromFile(dir: String, testName: String): Unit = {
-    val (desc, in, out) = getDescInputOutput(testName)
+    val (_, desc, in, out) = getDescInputOutput(testName)
     synthesizeFromSpec(in, out)
   }
 
-  def synthesizeFromSpec(text: String, out: String = "nope", params: TestParams = defaultTestParams) {
+  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: TestParams = defaultTestParams) {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
     assert(res.successful, res)
@@ -72,13 +77,12 @@ trait SynthesisTestUtil {
 
     sresult match {
       case Some(rr) =>
-        println()
-        println("Specification:\n")
-        println(s"${goal.pp}\n")
-        println("Successfully synthesised:")
+        testPrintln(s"\n[$testName]:", Console.MAGENTA)
+        testPrintln(s"${goal.pp}\n", Console.BLUE)
+        testPrintln("Successfully synthesised:", Console.GREEN)
         val result = rr.pp
-        println(s"$result")
-        println("-----------------------------------------------------")
+        testPrintln(s"$result")
+        testPrintln("-----------------------------------------------------")
         if (out != "nope") {
           val tt = out.trim.lines.toList
           val res = result.trim.lines.toList
@@ -107,9 +111,9 @@ trait SynthesisTestUtil {
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
       for (f <- tests) {
-        val (desc, in, out) = getDescInputOutput(f.getAbsolutePath)
+        val (testName, desc, in, out) = getDescInputOutput(f.getAbsolutePath)
         val fullInput = List(defs, in).mkString("\n")
-        doTest(desc, fullInput, out)
+        doTest(testName, desc, fullInput, out)
       }
     }
   }
@@ -124,9 +128,9 @@ trait SynthesisTestUtil {
       val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
       tests.find(f => removeSuffix(f.getName, s".$testExtension") == fname) match {
         case Some(f) =>
-          val (desc, in, out) = getDescInputOutput(f.getAbsolutePath)
+          val (testName, desc, in, out) = getDescInputOutput(f.getAbsolutePath)
           val fullInput = List(defs, in).mkString("\n")
-          doTest(desc, fullInput, out, params)
+          doTest(testName, desc, fullInput, out, params)
         case None =>
           assert(false, s"No file with the name $fname found in the directory $dir.")
       }

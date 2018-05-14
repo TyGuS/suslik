@@ -201,7 +201,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
   }
 
-  def printSubst(m: Map[Var, Var]): String = {
+  def ppSubst(m: Map[Var, Var]): String = {
     s"{${m.map{case (k, v) => s"${k.pp} -> ${v.pp}"}.mkString("; ")}}"
   }
 }

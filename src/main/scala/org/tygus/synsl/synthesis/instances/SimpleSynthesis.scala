@@ -2,12 +2,13 @@ package org.tygus.synsl.synthesis.instances
 
 import org.tygus.synsl.synthesis._
 import org.tygus.synsl.synthesis.rules.{OperationalRules, SubtractionRules, _}
+import org.tygus.synsl.util.SynLogging
 
 /**
   * @author Ilya Sergey
   */
 
-class SimpleSynthesis extends Synthesis {
+class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val maxDepth = 25
 

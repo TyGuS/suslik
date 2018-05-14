@@ -4,6 +4,7 @@ import org.scalatest.{FunSpec, Matchers}
 import org.tygus.synsl.logic.entailment.SimpleEntailmentSolver
 import org.tygus.synsl.logic.{Environment, PureLogicUtils}
 import org.tygus.synsl.parsing.SynslParser
+import org.tygus.synsl.util.{SynLogLevels, SynLogging}
 
 /**
   * @author Ilya Sergey
@@ -16,12 +17,11 @@ class EntailmentTests extends FunSpec with Matchers with PureLogicUtils {
   val espec3 = "{(x == x) /\\ (y == x) ; emp} { (x == x) /\\ ((x == y) /\\ true) ; emp}"
   val espec4 = "{(x == x) /\\ (y == a) ; x :-> y ** y :-> z} " +
       "{ (x == x) /\\ ((a == y) /\\ true) ; y :-> z ** x :-> y}"
-
   val espec5 = "{(z == 5) /\\ (y == a)    ; x :-> y ** y :-> z} { (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}".format()
-
   val espec6 = "{(z == y) /\\ (not (y == z))    ; x :-> y ** y :-> z} { (x == x) /\\ ((a == y) /\\ true) ; y :-> 5 ** x :-> y}".format()
-
   val espec7 = "{(z == 5) /\\ (x == x)    ; x :-> y ** y :-> z} { true ; y :-> 5 ** x :-> y}".format()
+
+  implicit val log : SynLogging = SynLogLevels.Test
 
   private def checkEntailment(text: String) {
     val parser = new SynslParser

@@ -4,12 +4,19 @@ import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis.rules.InvertibleRule
+import org.tygus.synsl.util.SynLogging
+
+import scala.Console.{BLUE, CYAN, GREEN, RED, BLACK, MAGENTA, YELLOW}
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
 trait Synthesis {
+
+  val log: SynLogging
+
+  import log._
 
   val synQualifier: String = "synthesis"
 
@@ -26,7 +33,7 @@ trait Synthesis {
     synthesize(spec, env, maxDepth)(printFails = _printFails) match {
       case Some(body) => Some(Procedure(name, tp, spec.gamma, body))
       case None =>
-        println(s"Deductive synthesis failed for the spec\n ${spec.pp},\n depth = $maxDepth.")
+        printlnErr(s"Deductive synthesis failed for the spec\n ${spec.pp},\n depth = $maxDepth.")
         None
     }
 
@@ -36,7 +43,6 @@ trait Synthesis {
                         (implicit ind: Int = 0, printFails: Boolean): Option[Statement] = {
 
     if (maxDepth < 0) return None
-    import Console._
 
     def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
       case Nil => None
@@ -95,14 +101,13 @@ trait Synthesis {
 
   private def printLog(sc: List[(String, String)], isFail: Boolean = false)
                     (implicit i: Int, printFails: Boolean = true): Unit = {
-    import Console._
     if (!isFail || printFails) {
       for ((s, c) <- sc if s.trim.length > 0) {
-        print(s"${BLACK}$getIndent")
-        println(s"$c${s.replaceAll("\n", s"\n${BLACK}$getIndent${c}")}")
+        print(s"$BLACK$getIndent")
+        println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent${c}")}")
       }
     }
-    print(s"${BLACK}")
+    print(s"$BLACK")
   }
 
 

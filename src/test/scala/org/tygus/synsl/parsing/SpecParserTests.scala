@@ -1,6 +1,7 @@
 package org.tygus.synsl.parsing
 
 import org.scalatest.{FunSpec, Matchers}
+import org.tygus.synsl.util.SynLogLevels
 
 /**
   * @author Ilya Sergey
@@ -18,7 +19,8 @@ class SpecParserTests extends FunSpec with Matchers {
   val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(loc x, loc y) {true ; x :-> b ** (x + 1) :-> a}"
   val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
 
-
+  val log = SynLogLevels.Test
+  import log._
 
   def parseSimpleSpec(text: String) {
     val parser = new SynslParser
