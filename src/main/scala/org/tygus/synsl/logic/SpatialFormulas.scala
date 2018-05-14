@@ -85,6 +85,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def isEmp: Boolean = chunks.isEmpty
 
+  def **(h: Heaplet): SFormula = SFormula(h :: chunks)
+
   def **(other: SFormula): SFormula = SFormula(chunks ++ other.chunks)
 
   def -(h: Heaplet): SFormula = SFormula(chunks.filterNot(elm => elm == h))

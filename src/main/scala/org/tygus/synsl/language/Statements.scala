@@ -17,36 +17,38 @@ object Statements {
       val builder = new StringBuilder
 
       def build(s: Statement, offset: Int = 2): Unit = {
-        builder.append(mkSpaces(offset))
         s match {
-          case Skip => builder.append("skip;\n")
-          case Malloc(to, _, sz, rest) =>
+          case Skip =>
+          case Malloc(to, _, sz) =>
             // Ignore type
+            builder.append(mkSpaces(offset))
             builder.append(s"let ${to.pp} = malloc($sz);\n")
-            build(rest)
-          case Free(v, rest) =>
+          case Free(v) =>
+            builder.append(mkSpaces(offset))
             builder.append(s"free(${v.pp});\n")
-            build(rest)
-          case Store(to, off, e, rest) =>
+          case Store(to, off, e) =>
+            builder.append(mkSpaces(offset))
             val t = if (off <= 0) to.pp else s"(${to.pp} + $off)"
             builder.append(s"*$t = ${e.pp};\n")
-            build(rest)
-          case Load(to, _, from, off, rest) =>
+          case Load(to, _, from, off) =>
+            builder.append(mkSpaces(offset))
             val f = if (off <= 0) from.pp else s"(${from.pp} + $off)"
             // Do not print the type annotation
             builder.append(s"let ${to.pp} = *$f;\n")
-            build(rest)
-          case Call(tt, fun, args, rest) =>
+          case Call(tt, fun, args) =>
+            builder.append(mkSpaces(offset))
             tt match {
               case Some(tpe) =>
                 builder.append(s"${tpe._2.pp} ${tpe._1.pp} = " +
                     s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n")
-                build(rest)
               case None =>
                 builder.append(s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n")
-                build(rest)
             }
+          case SeqComp(s1,s2) =>
+            build(s1, offset)
+            build(s2, offset)
           case If(cond, tb, eb) =>
+            builder.append(mkSpaces(offset))
             builder.append(s"if (${cond.pp}) {\n")
             build(tb, offset + 2)
             builder.append(mkSpaces(offset)).append(s"} else {\n")
@@ -64,17 +66,19 @@ object Statements {
 
       def collector(acc: Set[R])(st: Statement): Set[R] = st match {
         case Skip => acc
-        case Store(to, off, e, rest) =>
-          collector(acc ++ to.collect(p) ++ e.collect(p))(rest)
-        case Load(_, _, from, off, rest) =>
-          collector(acc ++ from.collect(p))(rest)
-        case Malloc(_, _, _, rest) =>
-          collector(acc)(rest)
-        case Free(x, rest) =>
-          collector(acc ++ x.collect(p))(rest)
-        case Call(_, fun, args, rest) =>
-          val acc1: Set[R] = acc ++ fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
-          collector(acc1)(rest)
+        case Store(to, off, e) =>
+          acc ++ to.collect(p) ++ e.collect(p)
+        case Load(_, _, from, off) =>
+          acc ++ from.collect(p)
+        case Malloc(_, _, _) =>
+          acc
+        case Free(x) =>
+          acc ++ x.collect(p)
+        case Call(_, fun, args) =>
+          acc ++ fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
+        case SeqComp(s1,s2) =>
+          val acc1 = collector(acc)(s1)
+          collector(acc1)(s2)
         case If(cond, tb, eb) =>
           val acc1 = collector(acc ++ cond.collect(p))(tb)
           collector(acc1)(eb)
@@ -91,23 +95,24 @@ object Statements {
   case object Skip extends Statement
 
   // let to = malloc(n); rest
-  case class Malloc(to: Var, tpe: SynslType, sz: Int = 1,
-                    rest: Statement) extends Statement
+  case class Malloc(to: Var, tpe: SynslType, sz: Int = 1) extends Statement
 
   // free(v); rest
-  case class Free(v: Var, rest: Statement) extends Statement
+  case class Free(v: Var) extends Statement
 
   // let to = *from; rest
   case class Load(to: Var, tpe: SynslType, from: Var,
-                  offset: Int = 0, rest: Statement) extends Statement
+                  offset: Int = 0) extends Statement
 
   // *to.offset = e; rest
-  case class Store(to: Var, offset: Int, e: Expr, rest: Statement) extends Statement
+  case class Store(to: Var, offset: Int, e: Expr) extends Statement
 
   // f(args); rest
   // or
   // let to = f(args); rest
-  case class Call(to: Option[(Var, SynslType)], fun: Var, args: Seq[Expr], rest: Statement) extends Statement
+  case class Call(to: Option[(Var, SynslType)], fun: Var, args: Seq[Expr]) extends Statement
+
+  case class SeqComp(s1: Statement, s2: Statement) extends Statement
 
   // if (cond) { tb } else { eb }
   case class If(cond: Expr, tb: Statement, eb: Statement) extends Statement

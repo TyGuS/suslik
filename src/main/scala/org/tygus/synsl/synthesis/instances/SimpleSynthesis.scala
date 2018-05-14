@@ -18,7 +18,7 @@ class SimpleSynthesis extends Synthesis {
     // Terminal
     SubtractionRules.EmpRule,
 
-    // Normalization rules
+    // Invertible rules
     NormalizationRules.StarPartial,
     NormalizationRules.NilNotLval,
     NormalizationRules.Hypothesis,
@@ -27,13 +27,13 @@ class SimpleSynthesis extends Synthesis {
     NormalizationRules.SubstLeft,
     NormalizationRules.Inconsistency,
     NormalizationRules.SubstRight,
+    OperationalRules.ReadRule,
+    OperationalRules.WriteRule,
 
     // Subtraction rules
     SubtractionRules.StarIntro,
 
     // Operational rules
-    OperationalRules.ReadRule,
-    OperationalRules.WriteRule,
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
 
