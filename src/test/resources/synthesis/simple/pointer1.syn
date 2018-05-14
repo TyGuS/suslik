@@ -7,5 +7,4 @@ void swap (loc x, loc y) {
   let b2 = *(x + 1);
   *x = b2;
   *(x + 1) = a2;
-  skip;
 }

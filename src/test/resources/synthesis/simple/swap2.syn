@@ -13,5 +13,4 @@ void swap (loc x, loc z, loc y, loc t) {
   *y = b2;
   *z = c2;
   *t = a2;
-  skip;
 }

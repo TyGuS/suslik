@@ -9,5 +9,4 @@ void foo(loc x, loc y)
 ###
 
 void foo (loc x, loc y) {
-  skip;
 }

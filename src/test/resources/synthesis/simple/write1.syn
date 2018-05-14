@@ -4,5 +4,4 @@ should be able to synthesize a simple constant-assigning procedure
 ###
 void foo (loc x) {
   *x = 43;
-  skip;
 }

@@ -5,5 +5,4 @@ void foo (loc x, loc y)
 { (5 == a) /\ (x == x) ; y :-> a ** x :-> y}
 ###
 void foo (loc x, loc y) {
-  skip;
 }

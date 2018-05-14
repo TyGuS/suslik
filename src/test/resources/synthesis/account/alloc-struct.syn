@@ -9,5 +9,4 @@ void createAccount (loc x, int bal, int lim) {
   *x = y2;
   *y2 = lim;
   *(y2 + 1) = bal;
-  skip;
 }

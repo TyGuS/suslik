@@ -16,5 +16,4 @@ void kareem3 (loc x) {
   *a2 = c2;
   *b2 = a2;
   *c2 = b2;
-  skip;
 }

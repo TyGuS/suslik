@@ -15,5 +15,4 @@ void duplicate (loc x, loc r) {
   *z2 = a2;
   *(z2 + 1) = a2;
   free(x);
-  skip;
 }
