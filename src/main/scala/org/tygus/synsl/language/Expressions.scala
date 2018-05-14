@@ -66,6 +66,16 @@ object Expressions {
 
     def subst(sigma: Map[Var, Expr]): Expr =
       sigma.getOrElse(this, this)
+
+    def refresh(taken: Set[Var]): Var = {
+      var count = 1
+      val original = this.name
+      var tmpName = original
+      while (taken.exists(_.name == tmpName)) {
+        tmpName = original + count
+      }
+      Var(tmpName)
+    }
   }
 
   // Program-level constant

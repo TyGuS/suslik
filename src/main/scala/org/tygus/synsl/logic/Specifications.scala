@@ -3,7 +3,8 @@ package org.tygus.synsl.logic
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 
-case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion] {
+case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
+  with PureLogicUtils {
 
   def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
 
@@ -23,6 +24,11 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
   // def |-(other: Assertion): Boolean = EntailmentSolver.entails(this, other)
 
+  def refresh(rotten: Set[Var]): (Assertion, Map[Var, Var]) = {
+    val freshSubst = refreshVars(this.vars.toList, rotten)
+    (this.subst(freshSubst), freshSubst)
+  }
+
 }
 
 
@@ -30,11 +36,11 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
   * Main class for contextual Hoare-style specifications
   */
 case class Spec(pre: Assertion, post: Assertion, gamma: Gamma)
-    extends PrettyPrinting with PureLogicUtils {
+  extends PrettyPrinting with PureLogicUtils {
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
-        s"${pre.pp}\n${post.pp}"
+      s"${pre.pp}\n${post.pp}"
 
   def simpl = Spec(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma),
