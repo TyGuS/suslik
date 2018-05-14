@@ -1,25 +1,28 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.Expressions.Var
+import org.tygus.synsl.language.Expressions.{Expr, Var}
 
 object Unification extends SepLogicUtils with PureLogicUtils {
+
+  type Subst = Map[Var, Expr]
+  type SubstVar = Map[Var, Var]
 
   /**
     * Generate fresh names for variables in `source` that occur in `target`
     */
-  private def refreshSource(target: UnificationGoal, source: UnificationGoal): (UnificationGoal, Map[Var, Var]) = {
+  private def refreshSource(target: UnificationGoal, source: UnificationGoal): (UnificationGoal, SubstVar) = {
     val (freshSourceFormula, freshSubst) = source.formula.refresh(target.formula.vars)
     val freshParams = source.params.map(_.subst(freshSubst)).asInstanceOf[Set[Var]]
     (UnificationGoal(freshSourceFormula, freshParams), freshSubst)
   }
 
-  private def genSubst(to: Var, from: Var, taken: Set[Var]): Option[Map[Var, Var]] = {
+  private def genSubst(to: Expr, from: Var, taken: Set[Var]): Option[Subst] = {
     if (to == from) Some(Map.empty)
     else if (!taken.contains(from)) Some(Map(from -> to))
     else None
   }
 
-  private def assertNoOverlap(sbst1: Map[Var, Var], sbst2: Map[Var, Var]) {
+  private def assertNoOverlap(sbst1: Subst, sbst2: Subst) {
     assert(sbst1.keySet.intersect(sbst2.keySet).isEmpty, s"Two substitutions overlap:\n:$sbst1\n$sbst2")
   }
 
@@ -29,13 +32,13 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     *
     * If successful, returns a substitution from `source`'s fresh variables to `target`'s variables
     */
-  def tryUnify(target: Heaplet, source: Heaplet, nonFreeInSource: Set[Var]): Option[Map[Var, Var]] = {
+  def tryUnify(target: Heaplet, source: Heaplet, nonFreeInSource: Set[Var]): Option[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
-      case (PointsTo(x@Var(_), o1, y@Var(_)), PointsTo(a@Var(_), o2, b@Var(_))) =>
+      case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b@Var(_))) =>
         if (o1 != o2) None else {
           assert(nonFreeInSource.contains(x))
-          assert(nonFreeInSource.contains(y))
+          assert(y.vars.forall(nonFreeInSource.contains))
           for {
             m1 <- genSubst(x, a, nonFreeInSource)
             _v2 = b.subst(m1).asInstanceOf[Var]
@@ -56,7 +59,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
         if (p1 != p2 || es1.size != es2.size) None else {
           val pairs = es1.zip(es2).asInstanceOf[List[(Var, Var)]]
           // Collect the mapping from the predicate parameters
-          pairs.foldLeft(Some(Map.empty): Option[Map[Var, Var]]) {
+          pairs.foldLeft(Some(Map.empty): Option[Subst]) {
             case (opt, (x1, x2)) => opt match {
               case None => None
               case Some(acc) => genSubst(x1, x2, nonFreeInSource) match {
@@ -112,7 +115,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
     */
-  def unify(target: UnificationGoal, source: UnificationGoal): Option[(Assertion, Map[Var, Var])] = {
+  def unify(target: UnificationGoal, source: UnificationGoal): Option[(Assertion, Subst)] = {
     // Make sure that all variables in target are fresh wrt. source
     val (freshSource, freshSubst) = refreshSource(target, source)
 
@@ -127,7 +130,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     /**
       * Check that substitution does not substitutes ghosts for params
       */
-    def checkSubstWF(sbst: Map[Var, Var]) = {
+    def checkSubstWF(sbst: Subst) = {
       val tParams = target.params
       val tGhosts = target.ghosts
       assert(tParams.intersect(tGhosts).isEmpty, s"Non empty sets: $tParams, $tGhosts")
@@ -136,9 +139,9 @@ object Unification extends SepLogicUtils with PureLogicUtils {
       assert(sParams.intersect(sGhosts).isEmpty, s"Non empty sets: $sParams, $sGhosts")
       sbst.forall { case (from, to) =>
         // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
-        (!tGhosts.contains(to) || sGhosts.contains(from)) &&
+        (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
           // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
-          (!sParams.contains(from) || tParams.contains(to))
+          (!sParams.contains(from) || to.vars.forall(tParams.contains))
       }
     }
 
@@ -146,7 +149,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
       * Tries to find amoungst chunks a heaplet h', which can be unified with the heaplet h.
       * If successful, returns a substitution and a list of remaining heaplets
       */
-    def findChunkAndUnify(h: Heaplet, chunks: List[Heaplet]): Option[(Map[Var, Var], List[Heaplet])] = {
+    def findChunkAndUnify(h: Heaplet, chunks: List[Heaplet]): Option[(Subst, List[Heaplet])] = {
       val iter = chunks.iterator
       while (iter.hasNext) {
         val candidate = iter.next()
@@ -162,7 +165,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     }
 
     // Invariant: none of the keys in acc are present in sourceChunks
-    def unifyGo(targetChunks: List[Heaplet], sourceChunks: List[Heaplet], acc: Map[Var, Var]): Option[Map[Var, Var]] = targetChunks match {
+    def unifyGo(targetChunks: List[Heaplet], sourceChunks: List[Heaplet], acc: Subst): Option[Subst] = targetChunks match {
       case Nil =>
         // No more source chunks to unify
         if (sourceChunks.isEmpty) Some(acc) else None
@@ -199,11 +202,11 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     None
   }
 
-  def compose(subst1: Map[Var, Var], subst2: Map[Var, Var]) : Map[Var, Var] = {
+  def compose(subst1: SubstVar, subst2: Subst) : Subst = {
     subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
   }
 
-  def ppSubst(m: Map[Var, Var]): String = {
+  def ppSubst(m: Subst): String = {
     s"{${m.map{case (k, v) => s"${k.pp} -> ${v.pp}"}.mkString("; ")}}"
   }
 }
