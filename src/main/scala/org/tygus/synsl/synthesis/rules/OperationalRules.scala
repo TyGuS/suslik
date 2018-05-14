@@ -28,7 +28,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l' * Q} ---> *x.f := l' ; S
 
   */
-  object WriteRule extends SynthesisRule {
+  object WriteRuleOld extends SynthesisRule {
 
     override def toString: Ident = "[Op: write]"
 
@@ -55,7 +55,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
-            Store(x, offset, e2, rest)
+            SeqComp(Store(x, offset, e2), rest)
           }
 
           SynAndGoals(Seq(subGoal), kont)
@@ -65,6 +65,48 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
     }
 
+  }
+
+  /*
+  Write rule: create a new write from where it's possible
+
+  Γ ; {φ ; P} ; {ψ ; x.f -> Y * Q} ---> S   GV(l) = Ø  Y is fresh
+  ------------------------------------------------------------------------- [write]
+  Γ ; {φ ; P} ; {ψ ; x.f -> l * Q} ---> S; *x.f := l
+
+  */
+  object WriteRule extends SynthesisRule {
+
+    override def toString: Ident = "[Op: write]"
+
+    def apply(spec: Spec, env: Environment): SynthesisRuleResult = {
+      val Spec(pre, post, gamma: Gamma) = spec
+
+      // Heaplets have no ghosts
+      def noGhosts: Heaplet => Boolean = {
+        case PointsTo(_, _, e) => e.vars.forall(v => !spec.isGhost(v))
+        case _ => false
+      }
+
+      findHeaplet(noGhosts, post.sigma) match {
+        case None => SynFail
+        case Some(h@(PointsTo(x@Var(_), offset, l))) =>
+          val y = generateFreshVar(spec)
+
+          val newPost = Assertion (post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
+          val subGoalSpec = Spec(pre, newPost, gamma)
+          val kont: StmtProducer = stmts => {
+            ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
+            val rest = stmts.head
+            SeqComp(rest, Store(x, offset, l))
+          }
+
+          SynAndGoals(Seq(subGoalSpec), kont)
+        case Some(h) =>
+          ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
+          SynFail
+      }
+    }
   }
 
   /*
@@ -97,7 +139,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
             // Do not generate read for unused variables
-            if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
+            if (rest.usedVars.contains(y)) SeqComp (Load(y, tpy, x, offset), rest) else rest
           }
 
           SynAndGoals(Seq(subGoal), kont)
@@ -141,7 +183,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = Goal(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
-            Malloc(y, tpy, sz, stmts.head)
+            SeqComp(Malloc(y, tpy, sz), stmts.head)
           }
 
           SynAndGoals(Seq(subGoal), kont)
@@ -186,7 +228,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = Goal(newPre, post, gamma)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
-            Free(x, stmts.head)
+            SeqComp(Free(x), stmts.head)
           }
 
           SynAndGoals(Seq(subGoal), kont)
