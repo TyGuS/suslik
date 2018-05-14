@@ -61,7 +61,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             sel = _sel.subst(sbst)
             body = _body.subst(sbst)
             newPrePhi = mkConjunction(sel :: conjuncts(pre.phi))
-            newPreSigma = SFormula(body.chunks ++ remainingChunks)
+            newPreSigma = SFormula(body.chunks ++ remainingChunks).bumpUpSAppTag
           } yield (sel, goal.copy(pre = Assertion(newPrePhi, newPreSigma)))
           Some(newGoals)
         case _ => None
@@ -69,7 +69,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     private def mkIndHyp(goal: Goal, env: Environment): Environment = {
-      val fname = Var("f_rec").refresh(env.functions.keySet.map(Var)).name
+      val fname = Var("frec").refresh(env.functions.keySet.map(Var)).name
       // TODO: provide a proper type, not VOID
       val fspec = FunSpec(fname, VoidType, goal.gamma, goal.pre, goal.post)
       env.copy(functions = env.functions + (fname -> fspec))
