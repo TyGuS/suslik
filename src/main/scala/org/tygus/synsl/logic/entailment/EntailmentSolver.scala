@@ -1,10 +1,13 @@
 package org.tygus.synsl.logic.entailment
 
 import org.tygus.synsl.logic._
+import org.tygus.synsl.util.SynLogging
 
-abstract class EntailmentSolver extends EntailmentRules {
+abstract class EntailmentSolver(implicit val log: SynLogging) extends EntailmentRules {
 
   val rulesToApply: List[EntailmentRule]
+
+  import log._
 
   /**
     * Determines whether the spec is from the class that can be validated
@@ -13,7 +16,7 @@ abstract class EntailmentSolver extends EntailmentRules {
 
   def entails(spec: Spec, env: Environment): Boolean = {
     if (!validate(spec, env)) {
-      System.err.println(s"Cannot validate the spec: $spec in the environment $env.")
+      printlnErr(s"Cannot validate the spec: $spec in the environment $env.")
       return false
     }
 

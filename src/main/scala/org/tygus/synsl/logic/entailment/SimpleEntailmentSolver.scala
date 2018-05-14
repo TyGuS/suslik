@@ -1,11 +1,12 @@
 package org.tygus.synsl.logic.entailment
 import org.tygus.synsl.logic.{Environment, PFormula, Spec}
+import org.tygus.synsl.util.SynLogging
 
 /**
   * @author Ilya Sergey
   */
 
-class SimpleEntailmentSolver extends EntailmentSolver {
+class SimpleEntailmentSolver(override implicit val log: SynLogging) extends EntailmentSolver {
 
   val rulesToApply: List[EntailmentRule] = List(
     // Normalization Rules

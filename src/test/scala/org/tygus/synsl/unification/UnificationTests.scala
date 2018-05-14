@@ -3,6 +3,7 @@ package org.tygus.synsl.unification
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.synsl.logic.{PureLogicUtils, Unification, UnificationGoal}
 import org.tygus.synsl.parsing.SynslParser
+import org.tygus.synsl.util.SynLogLevels
 
 class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
 
@@ -17,6 +18,9 @@ class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
     val source = sourceRes.get
     (target, source)
   }
+
+  val log = SynLogLevels.Test
+  import log._
 
   /** ****************************************************
     * Success tests
@@ -45,8 +49,13 @@ class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
     // Assert that these are conjunctions
     Unification.unify(target, source) match {
       case Some((res, sbst)) =>
-        println(s"Success! Unified\nSource $source\nwith\nTarget $target\n" +
-          s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${Unification.printSubst(sbst)}\n")
+        testPrintln(s"Unified")
+        testPrintln(s"$source", Console.BLUE)
+        testPrintln("  with")
+        testPrintln(s"$target", Console.BLUE)
+        testPrintln("Adapted source and substitution:")
+        testPrintln(s"${res.pp}", Console.BLUE)
+        testPrintln(s"${Unification.ppSubst(sbst)}\n", Console.MAGENTA)
       case None =>
         assert(false, s"Failed to unify\n$source\nwith\n$target\n")
     }
@@ -100,11 +109,14 @@ class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
     // Assert that these are conjunctions
     Unification.unify(target, source) match {
       case Some((res, sbst)) =>
-        println(s"Weird! Unified\nSource $source\nwith\nTarget $target\n" +
-          s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${Unification.printSubst(sbst)}\n")
+        testPrintln(s"Weird! Unified\nSource $source\nwith\nTarget $target\n" +
+          s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${Unification.ppSubst(sbst)}\n")
         assert(false, "Unification shouldn't succeed")
       case None =>
-        println(s"Failed to unify\n$source\nwith\n$target\n")
+        testPrintln(s"As expected, failed to unify")
+        testPrintln(s"$source", Console.BLUE)
+        testPrintln("  with")
+        testPrintln(s"$target\n", Console.BLUE)
     }
   }
 

@@ -3,12 +3,19 @@ package org.tygus.synsl.synthesis
 import java.lang.Boolean.parseBoolean
 
 import org.tygus.synsl.synthesis.instances.SimpleSynthesis
+import org.tygus.synsl.util.{SynLogLevels, SynLogging}
 
 /**
   * @author Ilya Sergey
   */
 
 object SynthesisTestRunner extends SynthesisTestUtil {
+
+  // Enable verbose logging
+  override implicit val log: SynLogging = SynLogLevels.Verbose
+
+  import log._
+
   val synthesis: Synthesis = new SimpleSynthesis
 
   /**
@@ -34,9 +41,9 @@ object SynthesisTestRunner extends SynthesisTestUtil {
     runSingleTestFromDir(dirName, fileName, params)
   }
 
-  def doTest(desc: String, in: String, out: String, params: TestParams): Unit = {
+  def doTest(testName: String, desc: String, in: String, out: String, params: TestParams): Unit = {
     println(desc)
     println
-    synthesizeFromSpec(in, out, params)
+    synthesizeFromSpec(testName, in, out, params)
   }
 }
