@@ -100,7 +100,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             val rest = stmts.head
             SeqComp(rest, Store(x, offset, l))
           }
-
           SynAndGoals(Seq(subGoal), kont)
         case Some(h) =>
           ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
