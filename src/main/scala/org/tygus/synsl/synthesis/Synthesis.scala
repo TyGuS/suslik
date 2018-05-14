@@ -27,8 +27,9 @@ trait Synthesis {
   val rulesToApply: List[SynthesisRule]
   val maxDepth: Int
 
-  def synthesizeProc(funGoal: GoalFunction, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
-    val GoalFunction(name, goal, tp) = funGoal
+  def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
+    val FunSpec(name, tp, formals, pre, post) = funGoal
+    val goal = Goal(pre, post, formals)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     synthesize(goal, env, maxDepth)(printFails = _printFails) match {
       case Some(body) => Some(Procedure(name, tp, goal.gamma, body))

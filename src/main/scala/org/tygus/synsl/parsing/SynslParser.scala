@@ -98,8 +98,8 @@ class SynslParser extends StandardTokenParsers {
     case params ~ formula => UnificationGoal(formula, params.toSet)
   }
 
-  def goalFunction: Parser[GoalFunction] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ formals ~ post => GoalFunction(name, Goal(pre, post, formals), tpe)
+  def goalFunction: Parser[FunSpec] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+    case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
   }
 
   def program: Parser[Program] = rep(indPredicate ||| goalFunction) ^^ Program

@@ -16,16 +16,15 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting
 /**
   * Function to synthesize
   *
-  * @param name function name
-  * @param goal pre/postconditions and variable context
-  * @param tpe  function return type
+  * @param name  function name
+  * @param rType function return type
   */
-case class GoalFunction(name: Ident, goal: Goal, tpe: SynslType) extends TopLevelDeclaration {
+case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
+                   pre: Assertion, post: Assertion) extends TopLevelDeclaration {
   override def pp: String = {
-    val Goal(pre, post, gamma) = goal
-    s"${pre.pp}\n${tpe.pp} " +
-        s"$name(${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
-        s"${post.pp}"
+    s"${pre.pp}\n${rType.pp} " +
+      s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
+      s"${post.pp}"
   }
 
 }
@@ -59,7 +58,8 @@ case class InductiveClause(selector: PFormula, body: SFormula) extends PrettyPri
   * TODO: add higher-order predicates, e.g., a list parameterised by a predicate
   *
   */
-case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[InductiveClause]) extends TopLevelDeclaration {
+case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[InductiveClause])
+  extends TopLevelDeclaration {
 
   override def pp: String = {
     val prelude = s"predicate $name (${params.map(_.pp).mkString(", ")}) { \n  "
@@ -86,5 +86,5 @@ case class Program(decls: Seq[TopLevelDeclaration]) extends PrettyPrinting {
   * Environment: stores module-level declarations that might be needed during synthesis
   * (predicates, component functions, etc)
   */
-case class Environment(predicates: PredIndex)
+case class Environment(predicates: PredicateEnv, functions: FunctionEnv)
 
