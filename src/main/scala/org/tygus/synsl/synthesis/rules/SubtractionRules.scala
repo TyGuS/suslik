@@ -70,7 +70,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(goal.pre.phi, SFormula(p))
           val newPost = Assertion(goal.post.phi, SFormula(q))
           val newGoal = Goal(newPre, newPost, goal.gamma)
-          SynAndGoals(List(newGoal), pureKont(toString))
+          SynAndGoals(List((newGoal, env)), pureKont(toString))
         case _ => SynFail
       }
     }
@@ -110,7 +110,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
                 val newPre = Assertion(pre.phi, goal.pre.sigma)
                 val newPost = Assertion(mkConjunction(PEq(e1, e2) :: cs), goal.post.sigma)
                 val newGoal = Goal(newPre, newPost, gamma)
-                SynAndGoals(List(newGoal), pureKont(toString))
+                SynAndGoals(List((newGoal, env)), pureKont(toString))
               }
           }
         case Some((hl, hr)) =>

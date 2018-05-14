@@ -56,11 +56,11 @@ trait Synthesis {
             tryRules(rs) // rule not applicable: try the rest
           case SynAndGoals(goals, kont) =>
             val succ = s"SUCCESS at depth $ind, ${goals.size} AND-goal(s):"
-            val gls = s"${goals.map(g => g.pp).mkString("\n")}"
+            val gls = s"${goals.map{case (g, e) => g.pp}.mkString("\n")}"
             printLog(List((s"$goalStr${GREEN}$succ", BLACK), (gls, BLUE)))
             // Synthesize subgoals
-            val subGoalResults = (for (subgoal <- goals)
-              yield synthesize(subgoal, env, maxDepth - 1)(ind + 1, printFails)).toStream
+            val subGoalResults = (for ((subgoal, subenv) <- goals)
+              yield synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails)).toStream
             if (subGoalResults.exists(_.isEmpty)) {
               // Some of the subgoals have failed
               if (r.isInstanceOf[InvertibleRule]) {
@@ -84,9 +84,9 @@ trait Synthesis {
             val iter = goals.iterator
             var gCount = 1
             while (iter.hasNext) {
-              val subgoal = iter.next()
+              val (subgoal, subenv) = iter.next()
               printLog(List((s"Trying sub-goal $gCount:", CYAN), (subgoal.pp, BLUE)))
-              val res = synthesize(subgoal, env, maxDepth - 1)(ind + 1, printFails)
+              val res = synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails)
               if (res.nonEmpty) return Some(kont(Seq(res.get)))
               printLog(List((s"Backtracking after having tried OR-goal $gCount", YELLOW)))
               gCount = gCount + 1

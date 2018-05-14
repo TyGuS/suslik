@@ -26,14 +26,14 @@ case object SynFail extends SynthesisRuleResult
   * - a producer: continuation that combines the results of the subgoals into the final statement
   * An empty list of subgoals paired with an constant producer denotes a leaf in the synthesis derivation
   */
-case class SynAndGoals(goals: Seq[Goal], kont: StmtProducer) extends SynthesisRuleResult
+case class SynAndGoals(goals: Seq[(Goal, Environment)], kont: StmtProducer) extends SynthesisRuleResult
 
 /**
   * Rule is applicable and produces:
   * - a sequence of subgoals (premises fo the rule), _one_ of which have to be satisfied
   * - a producer: continuation that combines the results of the subgoals into the final statement
   */
-case class SynOrGoals(goals: Seq[Goal], kont: StmtProducer) extends SynthesisRuleResult
+case class SynOrGoals(goals: Seq[(Goal, Environment)], kont: StmtProducer) extends SynthesisRuleResult
 
 
 

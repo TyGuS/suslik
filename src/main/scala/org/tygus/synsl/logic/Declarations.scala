@@ -62,7 +62,7 @@ case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[Induct
   extends TopLevelDeclaration {
 
   override def pp: String = {
-    val prelude = s"predicate $name (${params.map(_.pp).mkString(", ")}) { \n  "
+    val prelude = s"Predicate $name (${params.map(_.pp).mkString(", ")}) { \n  "
     val cls = clauses.map(_.pp).mkString("\n| ")
     prelude + cls + "\n}"
   }

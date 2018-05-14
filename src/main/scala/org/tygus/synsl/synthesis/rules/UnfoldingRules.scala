@@ -44,7 +44,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val actualBody = body.subst((params zip args).toMap)
           val newPre = Assertion(pre.phi, goal.pre.sigma ** actualBody - h)
           val subGoal = Goal(newPre, post, gamma)
-          SynAndGoals(Seq(subGoal), kont)
+          SynAndGoals(Seq((subGoal, env)), kont)
         case Some(h) =>
           ruleAssert(false, s"Open rule matched unexpected heaplet ${h.pp}")
           SynFail
@@ -82,14 +82,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val substMap = params.zip(args).toMap
-          val subGoals = for (InductiveClause(selector, body) <- clauses) yield {
+          val subGoalEnvs = for (InductiveClause(selector, body) <- clauses) yield {
             val actualBody = body.subst(substMap)
             val actualSelector = selector.subst(substMap)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
-            Goal(pre, newPost, gamma)
+            (Goal(pre, newPost, gamma), env)
           }
-          SynOrGoals(subGoals, kont)
+          SynOrGoals(subGoalEnvs, kont)
         case Some(h) =>
           ruleAssert(false, s"Close rule matched unexpected heaplet ${h.pp}")
           SynFail

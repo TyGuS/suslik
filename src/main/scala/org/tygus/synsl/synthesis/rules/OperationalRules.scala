@@ -58,7 +58,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             Store(x, offset, e2, rest)
           }
 
-          SynAndGoals(Seq(subGoal), kont)
+          SynAndGoals(Seq((subGoal, env)), kont)
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           SynFail
@@ -100,7 +100,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             if (rest.usedVars.contains(y)) Load(y, tpy, x, offset, rest) else rest
           }
 
-          SynAndGoals(Seq(subGoal), kont)
+          SynAndGoals(Seq((subGoal, env)), kont)
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           SynFail
@@ -144,7 +144,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             Malloc(y, tpy, sz, stmts.head)
           }
 
-          SynAndGoals(Seq(subGoal), kont)
+          SynAndGoals(Seq((subGoal, env)), kont)
         case Some(h) =>
           ruleAssert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
           SynFail
@@ -189,7 +189,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             Free(x, stmts.head)
           }
 
-          SynAndGoals(Seq(subGoal), kont)
+          SynAndGoals(Seq((subGoal, env)), kont)
         case Some(h) =>
           ruleAssert(false, s"Free rule matched unexpected heaplet ${h.pp}")
           SynFail
