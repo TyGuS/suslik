@@ -15,13 +15,13 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
   // Right now the rule is fixed statically
   // TODO: apply dynamic heuristics for rule application
   val rulesToApply: List[SynthesisRule] = List(
-    // Top-level induction
-    UnfoldingRules.InductionRule,
-
     // Terminal
     SubtractionRules.EmpRule,
 
-    // Invertible rules
+    // Top-level induction
+    UnfoldingRules.InductionRule,
+
+    // Normalization rules
     NormalizationRules.StarPartial,
     NormalizationRules.NilNotLval,
     NormalizationRules.Hypothesis,
@@ -30,14 +30,16 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.SubstLeft,
     NormalizationRules.Inconsistency,
     NormalizationRules.SubstRight,
-    OperationalRules.ReadRule,
 
     // Subtraction rules
     SubtractionRules.StarIntro,
 
-    // Operational rules
-    // OperationalRules.WriteRuleOld,
+    // Invertible operational rules
+    OperationalRules.ReadRule,
     OperationalRules.WriteRule,
+
+    // Noninvertible operational rules
+    // OperationalRules.WriteRuleOld,
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
 
