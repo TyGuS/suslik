@@ -37,7 +37,7 @@ trait EntailmentRules extends PureLogicUtils {
     override def toString: String = "[Norm: Substitution]"
 
     def apply(goal: Goal, env: Environment): EntRuleResult = {
-      val Goal(Assertion(p1, s1), Assertion(p2, s2), g) = goal
+      val Goal(Assertion(p1, s1), Assertion(p2, s2), g, fname) = goal
 
       findConjunctAndRest({
         case PEq(a@Var(_), b) => a != b
@@ -51,7 +51,7 @@ trait EntailmentRules extends PureLogicUtils {
           val newGoal = Goal(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2),
-            g.filter { case (t, w) => w != v })
+            g.filter { case (t, w) => w != v }, fname)
           EntMoreGoals(List(newGoal))
         case _ => EntFail
       }
@@ -63,7 +63,7 @@ trait EntailmentRules extends PureLogicUtils {
     override def toString: String = "[Norm: Inconsistency]"
 
     def apply(goal: Goal, env: Environment): EntRuleResult = {
-      val Goal(Assertion(p1, s1), Assertion(p2, s2), g) = goal
+      val Goal(Assertion(p1, s1), Assertion(p2, s2), g, fname) = goal
       val res = findConjunctAndRest({
         case PNeg(PEq(x, y)) => x == y
         case _ => false
@@ -88,7 +88,7 @@ trait EntailmentRules extends PureLogicUtils {
         case None => EntFail
         case Some((_, rest)) =>
           val newPre = Assertion(mkConjunction(rest), goal.pre.sigma)
-          val newGoal = Goal(newPre, goal.post, goal.gamma)
+          val newGoal = Goal(newPre, goal.post, goal.gamma, goal.fname)
           EntMoreGoals(List(newGoal))
       }
     }
@@ -124,7 +124,7 @@ trait EntailmentRules extends PureLogicUtils {
         case None => EntFail
         case Some((_, rest)) =>
           val newPost = Assertion(mkConjunction(rest), goal.post.sigma)
-          val newGoal = Goal(goal.pre, newPost, goal.gamma)
+          val newGoal = Goal(goal.pre, newPost, goal.gamma, goal.fname)
           EntMoreGoals(List(newGoal))
       }
     }
@@ -140,7 +140,7 @@ trait EntailmentRules extends PureLogicUtils {
       findCommon((p: PFormula) => true, cs1, cs2) match {
         case Some((p, ps1, ps2)) =>
           val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
-          val newGoal = Goal(goal.pre, newPost, goal.gamma)
+          val newGoal = Goal(goal.pre, newPost, goal.gamma, goal.fname)
           EntMoreGoals(List(newGoal))
         case None => EntFail
       }
@@ -158,7 +158,7 @@ trait EntailmentRules extends PureLogicUtils {
         case Some((p, ps1, ps2)) =>
           val newPre = Assertion(goal.pre.phi, SFormula(ps1))
           val newPost = Assertion(goal.post.phi, SFormula(ps2))
-          val newGoal = Goal(newPre, newPost, goal.gamma)
+          val newGoal = Goal(newPre, newPost, goal.gamma, goal.fname)
           EntMoreGoals(List(newGoal))
         case None => EntFail
       }

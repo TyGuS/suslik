@@ -45,6 +45,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 //    SubtractionRules.Pick,
 
     //Unfolding rules
+//    UnfoldingRules.ApplyHypothesisRule,
     UnfoldingRules.CloseRule,
   )
 

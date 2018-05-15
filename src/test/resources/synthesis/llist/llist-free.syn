@@ -1,0 +1,9 @@
+should be able to deallocate a linked list
+###
+
+{true; lseg(x, y)}
+  void free_llist(loc x, loc y)
+{true ; emp }
+
+###
+

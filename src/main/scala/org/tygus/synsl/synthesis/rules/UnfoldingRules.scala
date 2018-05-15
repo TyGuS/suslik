@@ -1,10 +1,11 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.language.Expressions.Var
-import org.tygus.synsl.language.Statements.If
+import org.tygus.synsl.language.Statements.{Call, If, SeqComp, Store}
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.OperationalRules.ruleAssert
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -48,7 +49,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
       */
     private def mkInductiveSubGoals(goal: Goal, env: Environment): Option[Seq[(PFormula, Goal)]] = {
-      val Goal(pre, post, gamma) = goal
+      val Goal(pre, post, _, _) = goal
       findHeaplet(_.isInstanceOf[SApp], pre.sigma) match {
         case Some(h@SApp(pred, args, tag)) if tag == 0 =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
@@ -69,7 +70,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     private def mkIndHyp(goal: Goal, env: Environment): Environment = {
-      val fname = Var("frec").refresh(env.functions.keySet.map(Var)).name
+      val fname = Var(goal.fname).refresh(env.functions.keySet.map(Var)).name
       // TODO: provide a proper type, not VOID
       val fspec = FunSpec(fname, VoidType, goal.gamma, goal.pre, goal.post)
       env.copy(functions = env.functions + (fname -> fspec))
@@ -86,6 +87,43 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
   }
+
+  /*
+  Application rule: apply the inductive hypothesis
+
+  TODO: Make sure it works on non-trivial sub-heaps
+   */
+
+  object ApplyHypothesisRule extends SynthesisRule {
+
+    override def toString: Ident = "[Unfold: apply-hypothesis]"
+
+    /**
+      * TODO: Handle multiple predicate application occurrences, i.e., provide multiple sets of sub-goals
+      * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
+      */
+    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+      for ((_, f) <- env.functions) {
+        val source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
+        val target = UnificationGoal(goal.pre, goal.gamma.map(_._2).toSet)
+        Unification.unify(target, source) match {
+          case None => // Do nothing
+          case Some((newPre, sigma)) =>
+            val newGoal = Goal(newPre, f.post.subst(sigma), goal.gamma, goal.fname)
+            val args = f.params.map{case (_, x) => x.subst(sigma)}
+            val kont: StmtProducer = stmts => {
+              ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
+              val rest = stmts.head
+              SeqComp(rest, Call(None, Var(goal.fname), args))
+            }
+            return SynAndGoals(Seq((newGoal, env)), kont)
+        }
+      }
+      SynFail
+    }
+  }
+
+
 
   /*
   Close rule: unroll a predicate in the post-state
@@ -106,7 +144,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
-      val Goal(pre, post, gamma: Gamma) = goal
+      val Goal(pre, post, gamma: Gamma, fname) = goal
 
       findHeaplet(_.isInstanceOf[SApp], goal.post.sigma) match {
         case None => SynFail
@@ -121,7 +159,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val actualSelector = selector.subst(substMap)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
-            (Goal(pre, newPost, gamma), env)
+            (Goal(pre, newPost, gamma, fname), env)
           }
           SynOrGoals(subGoalEnvs, kont)
         case Some(h) =>
