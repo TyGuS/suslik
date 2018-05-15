@@ -1,9 +1,9 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.language.Expressions._
 
 object Unification extends SepLogicUtils with PureLogicUtils {
-  
+
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
 
@@ -17,8 +17,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   }
 
   private def genSubst(to: Expr, from: Expr, taken: Set[Var]): Option[Subst] = {
-    if (to == from) return Some(Map.empty)
-    else from match {
+    if (to == from) Some(Map.empty) else from match {
       case _from@Var(_) =>
         if (!taken.contains(_from)) Some(Map(_from -> to))
         else None
@@ -211,7 +210,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   }
 
   def ppSubst(m: Subst): String = {
-    s"{${m.map{case (k, v) => s"${k.pp} -> ${v.pp}"}.mkString("; ")}}"
+    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
   }
 }
 
