@@ -33,7 +33,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: write]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, post, gamma: Gamma) = goal
+      val Goal(pre, post, gamma: Gamma, fname) = goal
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
@@ -51,7 +51,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
-          val subGoal = Goal(newPre, newPost, gamma)
+          val subGoal = Goal(newPre, newPost, gamma, fname)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
@@ -80,7 +80,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: write]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, post, gamma: Gamma) = goal
+      val Goal(pre, post, gamma: Gamma, fname) = goal
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
@@ -94,7 +94,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val y = generateFreshVar(goal)
 
           val newPost = Assertion (post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
-          val subGoal = Goal(pre, newPost, gamma)
+          val subGoal = Goal(pre, newPost, gamma, fname)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
@@ -120,7 +120,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: read]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, post, gamma: Gamma) = goal
+      val Goal(pre, post, gamma: Gamma, fname) = goal
 
       def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(x@Var(_), _, a@(Var(_))) => goal.isGhost(a) && !goal.isGhost(x)
@@ -133,7 +133,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
 
-          val subGoal = Goal(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList)
+          val subGoal = Goal(pre.subst(a, y), post.subst(a, y), (tpy, y) :: gamma.toList, fname)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
@@ -162,7 +162,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: alloc]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, post, gamma: Gamma) = goal
+      val Goal(pre, post, gamma: Gamma, fname) = goal
 
       def isExistBlock(goal: Goal): Heaplet => Boolean = {
         case Block(x@Var(_), _) => goal.isExistential(x)
@@ -179,7 +179,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           // TODO: replace 0 with blank
           val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, IntConst(0))
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks))
-          val subGoal = Goal(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
+          val subGoal = Goal(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList, fname)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
             SeqComp(Malloc(y, tpy, sz), stmts.head)
@@ -206,7 +206,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: free]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(_, post, gamma: Gamma) = goal
+      val Goal(_, post, gamma: Gamma, fname) = goal
 
       def isConcreteBlock: Heaplet => Boolean = {
         case Block(v@(Var(_)), _) => goal.isConcrete(v)
@@ -224,7 +224,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             }
           }
           val newPre = Assertion(goal.pre.phi, goal.pre.sigma - h - pts)
-          val subGoal = Goal(newPre, post, gamma)
+          val subGoal = Goal(newPre, post, gamma, fname)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
             SeqComp(Free(x), stmts.head)
@@ -240,4 +240,3 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   }
 
 }
-

@@ -29,13 +29,15 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
     (this.subst(freshSubst), freshSubst)
   }
 
+  def bumpUpSAppTags: Assertion = this.copy(sigma = this.sigma.bumpUpSAppTags)
+
 }
 
 
 /**
   * Main class for contextual Hoare-style specifications
   */
-case class Goal(pre: Assertion, post: Assertion, gamma: Gamma)
+case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String)
   extends PrettyPrinting with PureLogicUtils {
 
   override def pp: String =
@@ -44,7 +46,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma)
 
   def simpl = Goal(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma),
-    this.gamma)
+    this.gamma, this.fname)
 
   def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
 

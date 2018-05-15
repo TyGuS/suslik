@@ -3,7 +3,7 @@ package org.tygus.synsl.logic
 import org.tygus.synsl.language.Expressions.{Expr, Var}
 
 object Unification extends SepLogicUtils with PureLogicUtils {
-  
+
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
 
@@ -56,10 +56,11 @@ object Unification extends SepLogicUtils with PureLogicUtils {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource)
         }
-      case (SApp(p1, es1, _), SApp(p2, es2, _))
+      case (SApp(p1, es1, t1), SApp(p2, es2, t2))
         // Only unify predicates with variables as arguments
         if es1.forall(_.isInstanceOf[Var]) && es2.forall(_.isInstanceOf[Var]) =>
-        if (p1 != p2 || es1.size != es2.size) None else {
+        if (p1 != p2 || es1.size != es2.size || t1 != t2) None
+        else {
           val pairs = es1.zip(es2).asInstanceOf[List[(Var, Var)]]
           // Collect the mapping from the predicate parameters
           pairs.foldLeft(Some(Map.empty): Option[Subst]) {
@@ -210,7 +211,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   }
 
   def ppSubst(m: Subst): String = {
-    s"{${m.map{case (k, v) => s"${k.pp} -> ${v.pp}"}.mkString("; ")}}"
+    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
   }
 }
 
