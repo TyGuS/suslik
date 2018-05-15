@@ -11,8 +11,8 @@ void duplicate(loc x, loc r)
 void duplicate (loc x, loc r) {
   let a2 = *x;
   let z2 = malloc(2);
-  *r = z2;
-  *z2 = a2;
-  *(z2 + 1) = a2;
   free(x);
+  *(z2 + 1) = a2;
+  *z2 = a2;
+  *r = z2;
 }
