@@ -36,7 +36,6 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       // The implementation immediately adds _all_ inequalities
       val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
       val newGoal = Goal(Assertion(_p1, s1), post, g, fname)
-
       List(Subderivation(List((newGoal, env)), pureKont(toString)))
     }
   }
