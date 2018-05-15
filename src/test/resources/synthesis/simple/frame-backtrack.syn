@@ -1,4 +1,4 @@
-should be able to synthesize a conditional
+should be able to unify c with a (and not with b as it first tries)
 
 ###
 {true ; x :-> a ** y :-> b ** [a, 1] ** a :-> 0}
