@@ -63,30 +63,20 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         gvQ.diff(gvP).intersect(gvR).isEmpty
       }
 
-      def findUnifyingHeaplets(pre: Assertion, post:Assertion): Option[(Assertion, Assertion)]  = {
-        for (t <- pre.sigma.chunks) {
-          for (s <- post.sigma.chunks) {
-            tryUnify(t, s, goal.universals) match {
-              case None =>
-              case Some(sub) => {
-                val newPreSigma = pre.sigma - t
-                val newPostSigma = (post.sigma - s).subst(sub)
-                val newPre = Assertion(pre.phi, newPreSigma)
-                val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-                if (sideCond(newPreSigma, newPostSigma, t))
-                  return Some((newPre, newPost))
-              }
-            }
-          }
-        }
-        None
-      }
+      val pre = goal.pre
+      val post = goal.post
 
-      findUnifyingHeaplets(goal.pre, goal.post) match {
-        case None => Nil
-        case Some((newPre, newPost)) =>
-          val newGoal = Goal(newPre, newPost, goal.gamma)
-          List(Subderivation(List((newGoal, env)), pureKont(toString)))
+      for {
+        t <- pre.sigma.chunks
+        s <- post.sigma.chunks
+        sub <- tryUnify(t, s, goal.universals)
+        newPreSigma = pre.sigma - t
+        newPostSigma = (post.sigma - s).subst(sub)
+        if sideCond(newPreSigma, newPostSigma, t)
+      } yield {
+        val newPre = Assertion(pre.phi, newPreSigma)
+        val newPost = Assertion(post.phi.subst(sub), newPostSigma)
+        Subderivation(List((Goal(newPre, newPost, goal.gamma), env)), pureKont(toString))
       }
     }
   }
