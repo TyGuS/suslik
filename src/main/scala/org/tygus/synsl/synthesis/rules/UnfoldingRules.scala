@@ -104,11 +104,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
       */
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val subDerivations = for {
+      (for {
         (_, f) <- env.functions
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(goal.pre, goal.gamma.map(_._2).toSet)
-        Some((_, sigma)) = Unification.unify(target, source)
+        (_, sigma) <- Unification.unify(target, source)
       } yield {
         val newGoal = Goal(f.post.subst(sigma), goal.post, goal.gamma, goal.fname)
         val args = f.params.map { case (_, x) => x.subst(sigma) }
@@ -118,8 +118,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           SeqComp(rest, Call(None, Var(goal.fname), args))
         }
         Subderivation(List((newGoal, env)), kont)
-      }
-      subDerivations.toSeq
+      }).toSeq
     }
   }
 
