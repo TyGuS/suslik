@@ -7,9 +7,6 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
 
-  type Subst = Map[Var, Expr]
-  type SubstVar = Map[Var, Var]
-
   /**
     * Generate fresh names for variables in `source` that occur in `target`
     */
