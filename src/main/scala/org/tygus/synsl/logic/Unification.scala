@@ -1,8 +1,11 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.language.Expressions.{Expr, Var}
 
 object Unification extends SepLogicUtils with PureLogicUtils {
+  
+  type Subst = Map[Var, Expr]
+  type SubstVar = Map[Var, Var]
 
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
@@ -210,7 +213,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   }
 
   def ppSubst(m: Subst): String = {
-    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
+    s"{${m.map{case (k, v) => s"${k.pp} -> ${v.pp}"}.mkString("; ")}}"
   }
 }
 
