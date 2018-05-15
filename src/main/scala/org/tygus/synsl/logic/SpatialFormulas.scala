@@ -64,7 +64,7 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Int = 0) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extends Heaplet {
   override def pp: String = s"$pred(${args.map(_.pp).mkString(", ")})[$tag]"
 
   def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
@@ -86,8 +86,13 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   /**
     * Change tags for applications, to avoind re-applying the rule
     */
-  def bumpUpSAppTags: SFormula = SFormula(chunks.map {
-    case a@SApp(_, _, l) => a.copy(tag = l + 1)
+  def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
+    case a@SApp(_, _, t) if cond(a) => a.copy(tag = t.map(_ + 1))
+    case x => x
+  })
+
+  def lockSAppTags(cond: Heaplet => Boolean = _ => true) : SFormula = SFormula(chunks.map {
+    case a@SApp(_, _, t) if cond(a) => a.copy(tag = None)
     case x => x
   })
 

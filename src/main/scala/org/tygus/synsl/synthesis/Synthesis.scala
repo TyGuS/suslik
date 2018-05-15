@@ -7,6 +7,7 @@ import org.tygus.synsl.synthesis.rules.InvertibleRule
 import org.tygus.synsl.util.SynLogging
 
 import scala.Console.{BLACK, BLUE, CYAN, GREEN, MAGENTA, RED, YELLOW}
+import scala.collection.mutable.ListBuffer
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -75,15 +76,27 @@ trait Synthesis {
 
         // Solve all sub-goals in a sub-derivation
         def solveSubgoals(s: Subderivation): Option[Statement] = {
-          val subGoalResults = (for ((subgoal, subenv) <- s.subgoals)
-            yield synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails)).toStream
-          if (subGoalResults.exists(_.isEmpty)) {
+
+          // Optimization: if one of the subgoals failed, to not try the rest!
+          // <ugly-imperative-code>
+          val results = new ListBuffer[Option[Statement]]
+          import util.control.Breaks._
+          breakable {
+            for {(subgoal, subenv) <- s.subgoals} {
+              synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails) match {
+                case s@Some(_) => results.append(s)
+                case _ => break
+              }
+            }
+          }
+          // </ugly-imperative-code>
+
+          val resultStmts = for (r <- results if r.isDefined) yield r.get
+          if (resultStmts.size < s.subgoals.size) {
             // One of the sub-goals failed: this sub-derivation fails
             None
           } else {
-            // All sub-goals succeeded: assemble the statement
-            val stmts = subGoalResults.map(_.get)
-            Some(s.kont(stmts))
+            Some(s.kont(resultStmts))
           }
         }
 

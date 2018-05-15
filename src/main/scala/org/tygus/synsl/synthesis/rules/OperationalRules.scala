@@ -19,7 +19,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   // TODO: Implement [cond]
   // TODO: Implement [call]
 
-
   /*
   Write rule: create a new write from where it's possible
 
