@@ -75,14 +75,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       env.copy(functions = env.functions + (fname -> fspec))
     }
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       mkInductiveSubGoals(goal, env) match {
-        case None => SynFail
+        case None => Nil
         case Some(selGoals) =>
           val (selectors, subGoals) = selGoals.unzip
           val newEnv = mkIndHyp(goal, env)
           val goalsWithNewEnv = subGoals.map(g => (g, newEnv))
-          SynAndGoals(goalsWithNewEnv, kont(selectors))
+          List(Subderivation(goalsWithNewEnv, kont(selectors)))
       }
     }
   }
@@ -105,11 +105,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       stmts.head
     }
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma) = goal
 
       findHeaplet(_.isInstanceOf[SApp], goal.post.sigma) match {
-        case None => SynFail
+        case None => Nil
         case Some(h@SApp(pred, args, _)) =>
           ruleAssert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred)
@@ -121,12 +121,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val actualSelector = selector.subst(substMap)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
-            (Goal(pre, newPost, gamma), env)
+            Subderivation(List((Goal(pre, newPost, gamma), env)), kont)
           }
-          SynOrGoals(subGoalEnvs, kont)
+          subGoalEnvs
         case Some(h) =>
           ruleAssert(false, s"Close rule matched unexpected heaplet ${h.pp}")
-          SynFail
+          Nil
       }
     }
   }

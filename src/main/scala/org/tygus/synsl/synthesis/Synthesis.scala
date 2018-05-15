@@ -6,7 +6,7 @@ import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis.rules.InvertibleRule
 import org.tygus.synsl.util.SynLogging
 
-import scala.Console.{BLUE, CYAN, GREEN, RED, BLACK, MAGENTA, YELLOW}
+import scala.Console.{BLACK, BLUE, CYAN, GREEN, MAGENTA, RED, YELLOW}
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -48,50 +48,53 @@ trait Synthesis {
     def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
       case Nil => None
       case r :: rs =>
-        val result: SynthesisRuleResult = r(goal, env)
-        val goalStr = s"$r: "
-        result match {
-          case SynFail =>
-            printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)
-            tryRules(rs) // rule not applicable: try the rest
-          case SynAndGoals(goals, kont) =>
-            val succ = s"SUCCESS at depth $ind, ${goals.size} AND-goal(s):"
-            val gls = s"${goals.map { case (g, e) => s"${e.pp}${g.pp}" }.mkString("\n")}"
-            printLog(List((s"$goalStr$GREEN$succ", BLACK), (gls, BLUE)))
-            // Synthesize subgoals
-            val subGoalResults = (for ((subgoal, subenv) <- goals)
-              yield synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails)).toStream
-            if (subGoalResults.exists(_.isEmpty)) {
-              // Some of the subgoals have failed
-              if (r.isInstanceOf[InvertibleRule]) {
-                // Inversible rule couldn't be the problem, do not try other rules
-                printLog(List((s"No need to keep trying after ${r.toString}'s sub-goals have failed, return.", MAGENTA)))
-                None
-              } else {
-                // Try other rules
-                tryRules(rs)
-              }
+
+        // Try alternative sub-derivations after applying `r`
+        def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
+          case (a :: as) =>
+            if (altIndex > 0) printLog(List((s"Trying alternative sub-derivation $altIndex:", CYAN)))
+            printLog(List((a.pp, BLUE)))
+            solveSubgoals(a) match {
+              case Some(res) => Some(res) // This alternative succeeded
+              case None => tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
+            }
+          case Nil =>
+            // All alternatives have failed
+            if (r.isInstanceOf[InvertibleRule]) {
+              // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
+              printLog(List((s"No need to keep trying after ${r.toString}'s sub-goals have failed, return.", MAGENTA)))
+              None
             } else {
-              // All sub-goals succeeded: assemble the statement
-              val stmts = subGoalResults.map(_.get)
-              Some(kont(stmts))
+              // Backtrack application of this rule
+              tryRules(rs)
             }
-          case SynOrGoals(goals, kont) =>
-            val succ = s"SUCCESS, ${goals.size} OR-goal(s)"
-            printLog(List((s"$goalStr${GREEN}$succ", BLACK)))
-            // Okay, I know this is ugly and the Gods of Haskell will punish me for this,
-            // but breaking from loops in FP is a pain...
-            val iter = goals.iterator
-            var gCount = 1
-            while (iter.hasNext) {
-              val (subgoal, subenv) = iter.next()
-              printLog(List((s"Trying sub-goal $gCount:", CYAN), (subgoal.pp, BLUE)))
-              val res = synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails)
-              if (res.nonEmpty) return Some(kont(Seq(res.get)))
-              printLog(List((s"Backtracking after having tried OR-goal $gCount", YELLOW)))
-              gCount = gCount + 1
-            }
-            tryRules(rs)
+        }
+
+        // Solve all sub-goals in a sub-derivation
+        def solveSubgoals(s: Subderivation): Option[Statement] = {
+          val subGoalResults = (for ((subgoal, subenv) <- s.subgoals)
+            yield synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails)).toStream
+          if (subGoalResults.exists(_.isEmpty)) {
+            // One of the sub-goals failed: this sub-derivation fails
+            None
+          } else {
+            // All sub-goals succeeded: assemble the statement
+            val stmts = subGoalResults.map(_.get)
+            Some(s.kont(stmts))
+          }
+        }
+
+        val subderivations = r(goal, env)
+        val goalStr = s"$r: "
+        if (subderivations.isEmpty) {
+          // Rule not applicable: try the rest
+          printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)
+          tryRules(rs)
+        } else {
+          // Rule applicable: try all possible sub-derivations
+          val succ = s"SUCCESS at depth $ind, ${subderivations.size} branches"
+          printLog(List((s"$goalStr$GREEN$succ", BLACK)))
+          tryAlternatives(subderivations, 0)
         }
     }
 

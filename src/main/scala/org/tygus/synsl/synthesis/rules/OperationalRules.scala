@@ -32,7 +32,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma) = goal
 
       // Heaplets have no ghosts
@@ -45,9 +45,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && noGhosts(hr)
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
-        case None => SynFail
+        case None => Nil
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
-          if (e1 == e2) { return SynFail } // Do not write if RHSs are the same
+          if (e1 == e2) { return Nil } // Do not write if RHSs are the same
 
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
@@ -58,10 +58,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             SeqComp(Store(x, offset, e2), rest)
           }
 
-          SynAndGoals(Seq((subGoal, env)), kont)
+          List(Subderivation(List((subGoal, env)), kont))
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
-          SynFail
+          Nil
       }
     }
 
@@ -79,7 +79,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma) = goal
 
       // Heaplets have no ghosts
@@ -89,7 +89,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       findHeaplet(noGhosts, post.sigma) match {
-        case None => SynFail
+        case None => Nil
         case Some(h@(PointsTo(x@Var(_), offset, l))) =>
           val y = generateFreshVar(goal)
 
@@ -100,10 +100,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             val rest = stmts.head
             SeqComp(rest, Store(x, offset, l))
           }
-          SynAndGoals(Seq((subGoal, env)), kont)
+          List(Subderivation(List((subGoal, env)), kont))
         case Some(h) =>
           ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
-          SynFail
+          Nil
       }
     }
   }
@@ -119,7 +119,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: read]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma) = goal
 
       def isGhostPoints: Heaplet => Boolean = {
@@ -128,7 +128,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
-        case None => SynFail
+        case None => Nil
         case Some(PointsTo(x@Var(_), offset, a@(Var(_)))) =>
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
@@ -141,10 +141,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             if (rest.usedVars.contains(y)) SeqComp (Load(y, tpy, x, offset), rest) else rest
           }
 
-          SynAndGoals(Seq((subGoal, env)), kont)
+          List(Subderivation(List((subGoal, env)), kont))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
-          SynFail
+          Nil
       }
     }
   }
@@ -161,7 +161,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: alloc]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma) = goal
 
       def isExistBlock(goal: Goal): Heaplet => Boolean = {
@@ -170,7 +170,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       findHeaplet(isExistBlock(goal), post.sigma) match {
-        case None => SynFail
+        case None => Nil
         case Some(h@(Block(x@Var(_), sz))) =>
           val newPost = Assertion(post.phi, post.sigma - h)
           val y = generateFreshVar(goal, x.name)
@@ -185,10 +185,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             SeqComp(Malloc(y, tpy, sz), stmts.head)
           }
 
-          SynAndGoals(Seq((subGoal, env)), kont)
+          List(Subderivation(List((subGoal, env)), kont))
         case Some(h) =>
           ruleAssert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
-          SynFail
+          Nil
       }
     }
 
@@ -205,7 +205,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: free]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(_, post, gamma: Gamma) = goal
 
       def isConcreteBlock: Heaplet => Boolean = {
@@ -214,13 +214,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       findHeaplet(isConcreteBlock, goal.pre.sigma) match {
-        case None => SynFail
+        case None => Nil
         case Some(h@Block(x@(Var(_)), sz)) =>
           // Okay, found the block, now looking for the points-to chunks
           val pts = for (off <- 0 until sz) yield {
             findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), goal.pre.sigma) match {
               case Some(pt) if pt.vars.forall(!goal.isGhost(_)) => pt
-              case _ => return SynFail
+              case _ => return Nil
             }
           }
           val newPre = Assertion(goal.pre.phi, goal.pre.sigma - h - pts)
@@ -230,10 +230,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             SeqComp(Free(x), stmts.head)
           }
 
-          SynAndGoals(Seq((subGoal, env)), kont)
+          List(Subderivation(List((subGoal, env)), kont))
         case Some(h) =>
           ruleAssert(false, s"Free rule matched unexpected heaplet ${h.pp}")
-          SynFail
+          Nil
       }
     }
 

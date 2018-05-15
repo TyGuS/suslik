@@ -29,15 +29,15 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Sub: emp]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       // TODO: add value-returning statements
       val Goal(pre, post, _) = goal
 
       if (pre.sigma.isEmp &&
         post.sigma.isEmp &&
         post.phi.isTrue)
-        SynAndGoals(Nil, _ => Skip)
-      else SynFail
+        List(Subderivation(Nil, _ => Skip))
+      else Nil
     }
   }
 
@@ -54,7 +54,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   object StarIntro extends SynthesisRule {
     override def toString: String = "[Sub: *-intro]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       def sideCond(p: SFormula, q: SFormula, r: Heaplet) = {
         val gvP = p.vars.filter(goal.isGhost).toSet
         val gvQ = q.vars.filter(goal.isGhost).toSet
@@ -83,11 +83,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       }
 
       findUnifyingHeaplets(goal.pre, goal.post) match {
-        case None => SynFail
+        case None => Nil
         case Some((newPre, newPost)) =>
           val newGoal = Goal(newPre, newPost, goal.gamma)
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
-        case _ => SynFail
+          List(Subderivation(List((newGoal, env)), pureKont(toString)))
       }
     }
   }
@@ -102,7 +101,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   object Pick extends SynthesisRule {
     override def toString: String = "[Sub: pick]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma) = goal
 
       // Heaplet RHS has existentials
@@ -115,20 +114,20 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && hasExistential(hr)
 
       findMatchingHeaplets(_.isInstanceOf[PointsTo], isMatch, goal.pre.sigma, goal.post.sigma) match {
-        case None => SynFail
+        case None => Nil
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
           val cs = conjuncts(post.phi)
           if (cs.contains(PEq(e1, e2)) || cs.contains(PEq(e2, e1)))
-            SynFail
+            Nil
           else {
             val newPre = Assertion(pre.phi, goal.pre.sigma)
             val newPost = Assertion(mkConjunction(PEq(e1, e2) :: cs), goal.post.sigma)
             val newGoal = Goal(newPre, newPost, gamma)
-            SynAndGoals(List((newGoal, env)), pureKont(toString))
+            List(Subderivation(List((newGoal, env)), pureKont(toString)))
           }
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Pick rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
-          SynFail
+          Nil
       }
     }
 

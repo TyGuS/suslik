@@ -1,6 +1,7 @@
 package org.tygus.synsl.synthesis
 
-import org.tygus.synsl.logic.{Environment, PureLogicUtils, Goal}
+import org.tygus.synsl.language.PrettyPrinting
+import org.tygus.synsl.logic.{Environment, Goal, PureLogicUtils}
 
 /**
   * A generic class for a deductive rule to be applied
@@ -8,32 +9,18 @@ import org.tygus.synsl.logic.{Environment, PureLogicUtils, Goal}
   * @author Ilya Sergey
   */
 abstract class SynthesisRule extends PureLogicUtils {
-  // Apply the rule and get the subgoals
-  def apply(goal: Goal, env: Environment): SynthesisRuleResult
-
+  // Apply the rule and get all possible sub-derivations
+  def apply(goal: Goal, env: Environment): Seq[Subderivation]
 }
 
-abstract sealed class SynthesisRuleResult
-
 /**
-  * Rule is not applicable
+  * A result of a rule application:
+  * consists of sub-goals (rule premises) and
+  * a statement producer that assembles the sub-goal results
   */
-case object SynFail extends SynthesisRuleResult
-
-/**
-  * Rule is applicable and produces:
-  * - a sequence of subgoals (premises fo the rule), all of which have to be satisfied
-  * - a producer: continuation that combines the results of the subgoals into the final statement
-  * An empty list of subgoals paired with an constant producer denotes a leaf in the synthesis derivation
-  */
-case class SynAndGoals(goals: Seq[(Goal, Environment)], kont: StmtProducer) extends SynthesisRuleResult
-
-/**
-  * Rule is applicable and produces:
-  * - a sequence of subgoals (premises fo the rule), _one_ of which have to be satisfied
-  * - a producer: continuation that combines the results of the subgoals into the final statement
-  */
-case class SynOrGoals(goals: Seq[(Goal, Environment)], kont: StmtProducer) extends SynthesisRuleResult
+case class Subderivation(subgoals: Seq[(Goal, Environment)], kont: StmtProducer) extends PrettyPrinting {
+  override def pp: String = s"${subgoals.size} subgoal(s):\n${subgoals.map { case (g, e) => s"${e.pp}${g.pp}" }.mkString("\n")}"
+}
 
 
 

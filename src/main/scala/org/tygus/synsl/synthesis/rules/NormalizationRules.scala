@@ -25,18 +25,19 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object NilNotLval extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: nil-not-lval]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(Assertion(p1, s1), post, g) = goal
       val cs = conjuncts(p1)
       // All pointers
       val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet.filter(
         x => !cs.contains(PNeg(PEq(x, NilPtr))) && !cs.contains(PNeg(PEq(NilPtr, x)))
       )
-      if (ptrs.isEmpty) return SynFail
+      if (ptrs.isEmpty) return Nil
       // The implementation immediately adds _all_ inequalities
       val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
       val newGoal = Goal(Assertion(_p1, s1), post, g)
-      SynAndGoals(List((newGoal, env)), pureKont(toString))
+
+      List(Subderivation(List((newGoal, env)),pureKont(toString)))
     }
   }
 
@@ -49,7 +50,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object StarPartial extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: *-partial]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(Assertion(p1, s1), post, g) = goal
       val cs = conjuncts(p1)
       val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
@@ -63,12 +64,12 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       val newPairs = pairs.filter {
         case (x, y) => !cs.contains(PNeg(PEq(x, y))) && !cs.contains(PNeg(PEq(y, x)))
       }
-      if (newPairs.isEmpty) return SynFail
+      if (newPairs.isEmpty) return Nil
 
       // The implementation immediately adds _all_ inequalities
       val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
       val newGoal = Goal(Assertion(_p1, s1), post, g)
-      SynAndGoals(List((newGoal, env)), pureKont(toString))
+     List(Subderivation(List((newGoal, env)), pureKont(toString)))
     }
   }
 
@@ -81,7 +82,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object SubstLeft extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: subst-L]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(Assertion(p1, s1), Assertion(p2, s2), g) = goal
 
       findConjunctAndRest({
@@ -97,8 +98,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
             Assertion(_p1, _s1),
             Assertion(_p2, _s2),
             g.filter { case (t, w) => w != x })
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
-        case _ => SynFail
+          List(Subderivation(List((newGoal, env)), pureKont(toString)))
+        case _ => Nil
       }
     }
   }
@@ -112,7 +113,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object SubstRight extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: subst-R]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, Assertion(p2, s2), g) = goal
 
       def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.existentials.contains(e.asInstanceOf[Var])
@@ -130,8 +131,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
           val newGoal = Goal(pre, Assertion(_p2, _s2), g)
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
-        case _ => SynFail
+          List(Subderivation(List((newGoal, env)), pureKont(toString)))
+        case _ => Nil
       }
     }
   }
@@ -145,16 +146,16 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object StripEqPre extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: =-L]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       findConjunctAndRest({
         case PEq(x, y) => x == y
         case _ => false
       }, simplify(goal.pre.phi)) match {
-        case None => SynFail
+        case None => Nil
         case Some((_, rest)) =>
           val newPre = Assertion(mkConjunction(rest), goal.pre.sigma)
           val newGoal = Goal(newPre, goal.post, goal.gamma)
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
+          List(Subderivation(List((newGoal, env)), pureKont(toString)))
       }
     }
   }
@@ -166,7 +167,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object Inconsistency extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: Inconsistency]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(Assertion(p1, _), _, g) = goal
       val res = findConjunctAndRest({
         case PNeg(PEq(x, y)) => x == y
@@ -174,8 +175,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       }, simplify(p1))
       res match {
         case Some((PNeg(PEq(x, y)), rest1)) if x == y =>
-          SynAndGoals(Nil, _ => Skip)
-        case _ => SynFail
+          List(Subderivation(Nil, _ => Skip))
+        case _ => Nil
       }
     }
   }
@@ -189,15 +190,15 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object Hypothesis extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: Hypothesis]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val cs1 = conjuncts(goal.pre.phi)
       val cs2 = conjuncts(goal.post.phi)
       findCommon((p: PFormula) => true, cs1, cs2) match {
         case Some((p, ps1, ps2)) =>
           val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
           val newGoal = Goal(goal.pre, newPost, goal.gamma)
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
-        case None => SynFail
+          List(Subderivation(List((newGoal, env)), pureKont(toString)))
+        case None => Nil
       }
     }
   }
@@ -213,16 +214,16 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object StripEqPost extends SynthesisRule {
     override def toString: String = "[Sub: =-R]"
 
-    def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       findConjunctAndRest({
         case PEq(x, y) => x == y
         case _ => false
       }, simplify(goal.post.phi)) match {
-        case None => SynFail
+        case None => Nil
         case Some((_, rest)) =>
           val newPost = Assertion(mkConjunction(rest), goal.post.sigma)
           val newGoal = Goal(goal.pre, newPost, goal.gamma)
-          SynAndGoals(List((newGoal, env)), pureKont(toString))
+          List(Subderivation(List((newGoal, env)), pureKont(toString)))
       }
     }
   }
