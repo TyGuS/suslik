@@ -74,7 +74,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; P} ; {ψ ; x.f -> l * Q} ---> S; *x.f := l
 
   */
-  object WriteRule extends SynthesisRule {
+  object WriteRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "[Op: write]"
 

@@ -31,13 +31,13 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.Inconsistency,
     NormalizationRules.SubstRight,
     OperationalRules.ReadRule,
-    OperationalRules.WriteRule,
 
     // Subtraction rules
     SubtractionRules.StarIntro,
 
     // Operational rules
     // OperationalRules.WriteRuleOld,
+    OperationalRules.WriteRule,
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
 
