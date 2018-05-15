@@ -29,6 +29,8 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
     (this.subst(freshSubst), freshSubst)
   }
 
+  def bumpUpSAppTags: Assertion = this.copy(sigma = this.sigma.bumpUpSAppTags)
+
 }
 
 

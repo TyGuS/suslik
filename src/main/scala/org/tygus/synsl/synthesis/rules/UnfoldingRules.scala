@@ -62,7 +62,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             sel = _sel.subst(sbst)
             body = _body.subst(sbst)
             newPrePhi = mkConjunction(sel :: conjuncts(pre.phi))
-            newPreSigma = SFormula(body.chunks ++ remainingChunks).bumpUpSAppTag
+            newPreSigma = SFormula(body.chunks ++ remainingChunks).bumpUpSAppTags
           } yield (sel, goal.copy(pre = Assertion(newPrePhi, newPreSigma)))
           Some(newGoals)
         case _ => None
@@ -72,7 +72,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     private def mkIndHyp(goal: Goal, env: Environment): Environment = {
       val fname = Var(goal.fname).refresh(env.functions.keySet.map(Var)).name
       // TODO: provide a proper type, not VOID
-      val fspec = FunSpec(fname, VoidType, goal.gamma, goal.pre, goal.post)
+      val fspec = FunSpec(fname, VoidType, goal.gamma,
+        goal.pre.bumpUpSAppTags, goal.post.bumpUpSAppTags)
       env.copy(functions = env.functions + (fname -> fspec))
     }
 
@@ -108,8 +109,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val target = UnificationGoal(goal.pre, goal.gamma.map(_._2).toSet)
         Unification.unify(target, source) match {
           case None => // Do nothing
-          case Some((newPre, sigma)) =>
-            val newGoal = Goal(newPre, f.post.subst(sigma), goal.gamma, goal.fname)
+          case Some((_, sigma)) =>
+            val newGoal = Goal(f.post.subst(sigma), goal.post, goal.gamma, goal.fname)
             val args = f.params.map{case (_, x) => x.subst(sigma)}
             val kont: StmtProducer = stmts => {
               ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
