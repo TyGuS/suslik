@@ -4,6 +4,7 @@ import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.logic.Unification._
 
 /**
   * @author Ilya Sergey
@@ -41,7 +42,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   }
 
   /*
-           (GV(Q) / GV(P)) ∪ GV(R) = Ø
+           (GV(Q) / GV(P)) * GV(R) = Ø
           Γ ; {φ ; P} ; {ψ ; Q} ---> S
     ---------------------------------------- [*-intro]
       Γ ; {φ ; P * R} ; {ψ ; Q * R} ---> S
@@ -54,24 +55,38 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: *-intro]"
 
     def apply(goal: Goal, env: Environment): SynthesisRuleResult = {
-      val cs1 = goal.pre.sigma.chunks
-      val cs2 = goal.post.sigma.chunks
-
-      def sideCond(p: SFormula, q: SFormula, r: SFormula) = {
+      def sideCond(p: SFormula, q: SFormula, r: Heaplet) = {
         val gvP = p.vars.filter(goal.isGhost).toSet
         val gvQ = q.vars.filter(goal.isGhost).toSet
-        val gvR = r.vars.filter(goal.isGhost).toSet
+        val gvR = r.vars.filter(goal.isGhost)
 
-        (gvP ++ gvQ).intersect(gvR).isEmpty
+        gvQ.diff(gvP).intersect(gvR).isEmpty
       }
 
-      findCommon(Function.const(true), cs1, cs2) match {
-        case Some((r, p, q)) if sideCond(SFormula(p), SFormula(q), SFormula(List(r))) =>
-          val newPre = Assertion(goal.pre.phi, SFormula(p))
-          val newPost = Assertion(goal.post.phi, SFormula(q))
+      def findUnifyingHeaplets(pre: Assertion, post:Assertion): Option[(Assertion, Assertion)]  = {
+        for (t <- pre.sigma.chunks) {
+          for (s <- post.sigma.chunks) {
+            tryUnify(t, s, goal.universals) match {
+              case None =>
+              case Some(sub) => {
+                val newPreSigma = pre.sigma - t
+                val newPostSigma = (post.sigma - s).subst(sub)
+                val newPre = Assertion(pre.phi, newPreSigma)
+                val newPost = Assertion(post.phi.subst(sub), newPostSigma)
+                if (sideCond(newPreSigma, newPostSigma, t))
+                  return Some((newPre, newPost))
+              }
+            }
+          }
+        }
+        None
+      }
+
+      findUnifyingHeaplets(goal.pre, goal.post) match {
+        case None => SynFail
+        case Some((newPre, newPost)) =>
           val newGoal = Goal(newPre, newPost, goal.gamma)
           SynAndGoals(List(newGoal), pureKont(toString))
-        case _ => SynFail
       }
     }
   }

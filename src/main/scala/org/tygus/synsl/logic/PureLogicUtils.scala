@@ -94,7 +94,6 @@ trait PureLogicUtils {
     None
   }
 
-
   def isEquiv(p1: PFormula, p2: PFormula): Boolean = (p1, p2) match {
     case (PEq(e1, e2), PEq(e3, e4)) => e1 == e4 && e2 == e3
     case (PNeg(z1), PNeg(z2)) => isEquiv(z1, z2)

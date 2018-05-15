@@ -1,6 +1,6 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.language.Expressions._
 
 object Unification extends SepLogicUtils with PureLogicUtils {
 
@@ -16,10 +16,14 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     (UnificationGoal(freshSourceFormula, freshParams), freshSubst)
   }
 
-  private def genSubst(to: Expr, from: Var, taken: Set[Var]): Option[Subst] = {
-    if (to == from) Some(Map.empty)
-    else if (!taken.contains(from)) Some(Map(from -> to))
-    else None
+  private def genSubst(to: Expr, from: Expr, taken: Set[Var]): Option[Subst] = {
+    if (to == from) return Some(Map.empty)
+    else from match {
+      case _from@Var(_) =>
+        if (!taken.contains(_from)) Some(Map(_from -> to))
+        else None
+      case _ => None
+    }
   }
 
   private def assertNoOverlap(sbst1: Subst, sbst2: Subst) {
@@ -35,13 +39,13 @@ object Unification extends SepLogicUtils with PureLogicUtils {
   def tryUnify(target: Heaplet, source: Heaplet, nonFreeInSource: Set[Var]): Option[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
-      case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b@Var(_))) =>
+      case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
         if (o1 != o2) None else {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
           for {
             m1 <- genSubst(x, a, nonFreeInSource)
-            _v2 = b.subst(m1).asInstanceOf[Var]
+            _v2 = b.subst(m1)
             m2 <- genSubst(y, _v2, nonFreeInSource)
           } yield {
             assertNoOverlap(m1, m2)
@@ -202,12 +206,12 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     None
   }
 
-  def compose(subst1: SubstVar, subst2: Subst) : Subst = {
+  def compose(subst1: SubstVar, subst2: Subst): Subst = {
     subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
   }
 
   def ppSubst(m: Subst): String = {
-    s"{${m.map{case (k, v) => s"${k.pp} -> ${v.pp}"}.mkString("; ")}}"
+    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
   }
 }
 
