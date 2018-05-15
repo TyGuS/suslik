@@ -37,7 +37,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(_, _, e) => e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(l, _, e) => (l.vars | e.vars).forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -84,7 +84,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(_, _, e) => e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(l, _, e) => (l.vars | e.vars).forall(v => !goal.isGhost(v))
         case _ => false
       }
 
