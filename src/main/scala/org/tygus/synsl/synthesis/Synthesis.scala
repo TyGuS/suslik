@@ -29,7 +29,8 @@ trait Synthesis {
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = Goal(pre, post, formals)
+    val goal = Goal(pre, post, formals, name)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     synthesize(goal, env, maxDepth)(printFails = _printFails) match {
       case Some(body) => Some(Procedure(name, tp, goal.gamma, body))
       case None =>
@@ -42,7 +43,8 @@ trait Synthesis {
   private def synthesize(goal: Goal, env: Environment, maxDepth: Int = 25)
                         (implicit ind: Int = 0, printFails: Boolean): Option[Statement] = {
 
-    printLog(List((s"${goal.pp}\n", Console.BLUE)))
+    printLog(List((s"${env.pp}", Console.MAGENTA)))
+    printLog(List((s"${goal.pp}", Console.BLUE)))
 
     if (maxDepth < 0) return None
 
