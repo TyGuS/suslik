@@ -48,10 +48,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * TODO: Handle multiple predicate application occurrences, i.e., provide multiple sets of sub-goals
       * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
       */
-    private def mkInductiveSubGoals(goal: Goal, env: Environment): Option[Seq[(PFormula, Goal)]] = {
+    private def mkInductiveSubGoals(goal: Goal, env: Environment): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
       val Goal(pre, post, _, _) = goal
       findHeaplet(_.isInstanceOf[SApp], pre.sigma) match {
-        case Some(h@SApp(pred, args, tag)) if tag == 0 =>
+        case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred)
@@ -62,27 +62,39 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             sel = _sel.subst(sbst)
             body = _body.subst(sbst)
             newPrePhi = mkConjunction(sel :: conjuncts(pre.phi))
-            newPreSigma = SFormula(body.chunks ++ remainingChunks).bumpUpSAppTags
+            _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
+            _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
+            newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
           } yield (sel, goal.copy(pre = Assertion(newPrePhi, newPreSigma)))
-          Some(newGoals)
+          Some((newGoals, h))
         case _ => None
       }
     }
 
-    private def mkIndHyp(goal: Goal, env: Environment): Environment = {
+    private def mkIndHyp(goal: Goal, env: Environment, h: Heaplet): Environment = {
       val fname = Var(goal.fname).refresh(env.functions.keySet.map(Var)).name
       // TODO: provide a proper type, not VOID
-      val fspec = FunSpec(fname, VoidType, goal.gamma,
-        goal.pre.bumpUpSAppTags, goal.post.bumpUpSAppTags)
+
+      // Re-tagging all predicate occurrences, so the inductive argument
+      // would be tagged with Some(1), and everyone else with None(1)
+      val SApp(pname, xs, t) = h
+      val matcher : Heaplet => Boolean = {
+        case SApp(x, ys, q) => x == pname && ys == xs
+        case _ => false
+      }
+      val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
+      val newPost = goal.post.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
+
+      val fspec = FunSpec(fname, VoidType, goal.gamma, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
     }
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       mkInductiveSubGoals(goal, env) match {
         case None => Nil
-        case Some(selGoals) =>
+        case Some((selGoals, h)) =>
           val (selectors, subGoals) = selGoals.unzip
-          val newEnv = mkIndHyp(goal, env)
+          val newEnv = mkIndHyp(goal, env, h)
           val goalsWithNewEnv = subGoals.map(g => (g, newEnv))
           List(Subderivation(goalsWithNewEnv, kont(selectors)))
       }

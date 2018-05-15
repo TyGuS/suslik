@@ -29,7 +29,11 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
     (this.subst(freshSubst), freshSubst)
   }
 
-  def bumpUpSAppTags: Assertion = this.copy(sigma = this.sigma.bumpUpSAppTags)
+  def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
+    this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
+
+  def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
+    this.copy(sigma = this.sigma.lockSAppTags(cond))
 
 }
 
