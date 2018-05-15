@@ -30,7 +30,6 @@ trait Synthesis {
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = Goal(pre, post, formals)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     synthesize(goal, env, maxDepth)(printFails = _printFails) match {
       case Some(body) => Some(Procedure(name, tp, goal.gamma, body))
       case None =>
@@ -43,6 +42,8 @@ trait Synthesis {
   private def synthesize(goal: Goal, env: Environment, maxDepth: Int = 25)
                         (implicit ind: Int = 0, printFails: Boolean): Option[Statement] = {
 
+    printLog(List((s"${goal.pp}\n", Console.BLUE)))
+
     if (maxDepth < 0) return None
 
     def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
@@ -53,7 +54,6 @@ trait Synthesis {
         def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
           case (a :: as) =>
             if (altIndex > 0) printLog(List((s"Trying alternative sub-derivation $altIndex:", CYAN)))
-            printLog(List((a.pp, BLUE)))
             solveSubgoals(a) match {
               case Some(res) => Some(res) // This alternative succeeded
               case None => tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
@@ -62,10 +62,11 @@ trait Synthesis {
             // All alternatives have failed
             if (r.isInstanceOf[InvertibleRule]) {
               // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
-              printLog(List((s"No need to keep trying after ${r.toString}'s sub-goals have failed, return.", MAGENTA)))
+              printLog(List((s"All sub-derivations of ${r.toString} failed: invertible rule, do not backtrack.", MAGENTA)))
               None
             } else {
               // Backtrack application of this rule
+              printLog(List((s"All sub-derivations of ${r.toString} failed: backtrack.", MAGENTA)))
               tryRules(rs)
             }
         }
@@ -92,7 +93,8 @@ trait Synthesis {
           tryRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
-          val succ = s"SUCCESS at depth $ind, ${subderivations.size} branches"
+          val subSizes = subderivations.map(s => s"${s.subgoals.size} sub-goal(s)").mkString(", ")
+          val succ = s"SUCCESS at depth $ind, ${subderivations.size} alternative(s) [$subSizes]"
           printLog(List((s"$goalStr$GREEN$succ", BLACK)))
           tryAlternatives(subderivations, 0)
         }
