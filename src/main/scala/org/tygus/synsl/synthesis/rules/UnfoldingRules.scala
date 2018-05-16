@@ -78,7 +78,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // Re-tagging all predicate occurrences, so the inductive argument
       // would be tagged with Some(1), and everyone else with None(1)
       val SApp(pname, xs, t) = h
-      val matcher : Heaplet => Boolean = {
+      val matcher: Heaplet => Boolean = {
         case SApp(x, ys, q) => x == pname && ys == xs
         case _ => false
       }
@@ -148,6 +148,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: close]"
 
+    // Do not unfold more than 3 times
+    val closeRuleUnfoldingDepth = 1
+
     private val kont: StmtProducer = stmts => {
       ruleAssert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
       stmts.head
@@ -156,17 +159,27 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma, fname) = goal
 
-      findHeaplet(_.isInstanceOf[SApp], goal.post.sigma) match {
+      findHeaplet({
+        case SApp(pred, args, Some(t)) => t <= closeRuleUnfoldingDepth
+        case _ => false
+      }, goal.post.sigma) match {
         case None => Nil
-        case Some(h@SApp(pred, args, _)) =>
-          ruleAssert(env.predicates.contains(pred), s"Close rule encountered undefined predicate: $pred")
+        case Some(h@SApp(pred, args, Some(t))) =>
+          ruleAssert(env.predicates.contains(pred) && t <= closeRuleUnfoldingDepth,
+            s"Close rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
-          val substMap = params.zip(args).toMap
+          val substArgs = params.zip(args).toMap
           val subDerivations = for (InductiveClause(selector, body) <- clauses) yield {
-            val actualBody = body.subst(substMap)
-            val actualSelector = selector.subst(substMap)
+
+            // Make sure that existential in the body are fresh
+            val bodyExistentials = body.vars.toSet -- params.toSet
+            val freshExistentialsSubst = refreshVars(bodyExistentials.toList, goal.vars)
+            // Make sure that can unfold only once
+            val actualBody = body.subst(freshExistentialsSubst).subst(substArgs).setUpSAppTags(t + 1, _ => true)
+
+            val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
             Subderivation(List((Goal(pre, newPost, gamma, fname), env)), kont)

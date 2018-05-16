@@ -91,6 +91,11 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     case x => x
   })
 
+  def setUpSAppTags(i : Int, cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
+    case a@SApp(_, _, t) if cond(a) => a.copy(tag = Some(i))
+    case x => x
+  })
+
   def lockSAppTags(cond: Heaplet => Boolean = _ => true) : SFormula = SFormula(chunks.map {
     case a@SApp(_, _, t) if cond(a) => a.copy(tag = None)
     case x => x

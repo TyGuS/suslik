@@ -4,7 +4,7 @@ import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis.rules.InvertibleRule
-import org.tygus.synsl.util.SynLogging
+import org.tygus.synsl.util.{SynLogging, SynStats}
 
 import scala.Console.{BLACK, BLUE, CYAN, GREEN, MAGENTA, RED, YELLOW}
 import scala.collection.mutable.ListBuffer
@@ -28,12 +28,16 @@ trait Synthesis {
   val rulesToApply: List[SynthesisRule]
   val maxDepth: Int
 
-  def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true): Option[Procedure] = {
+  def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
+  Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = Goal(pre, post, formals, name)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
-    synthesize(goal, env, maxDepth)(printFails = _printFails) match {
-      case Some(body) => Some(Procedure(name, tp, goal.gamma, body))
+    val stats = new SynStats()
+    synthesize(goal, env, maxDepth)(printFails = _printFails, stats = stats) match {
+      case Some(body) =>
+        val proc = Procedure(name, tp, goal.gamma, body)
+        Some((proc, stats))
       case None =>
         printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $maxDepth.")
         None
@@ -42,7 +46,9 @@ trait Synthesis {
   }
 
   private def synthesize(goal: Goal, env: Environment, maxDepth: Int = 25)
-                        (implicit ind: Int = 0, printFails: Boolean): Option[Statement] = {
+                        (implicit ind: Int = 0,
+                         stats: SynStats,
+                         printFails: Boolean): Option[Statement] = {
 
     printLog(List((s"${env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
@@ -56,10 +62,14 @@ trait Synthesis {
         // Try alternative sub-derivations after applying `r`
         def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
           case (a :: as) =>
-            if (altIndex > 0) printLog(List((s"Trying alternative sub-derivation $altIndex:", CYAN)))
+            if (altIndex > 0) printLog(List((s"Trying alternative sub-derivation ${altIndex + 1}:", CYAN)))
             solveSubgoals(a) match {
-              case Some(res) => Some(res) // This alternative succeeded
-              case None => tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
+              case Some(res) =>
+                stats.bumpUpLastingSuccess()
+                Some(res) // This alternative succeeded
+              case None =>
+                stats.bumpUpBacktracing()
+                tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
             }
           case Nil =>
             // All alternatives have failed
@@ -69,6 +79,7 @@ trait Synthesis {
               None
             } else {
               // Backtrack application of this rule
+              stats.bumpUpBacktracing()
               printLog(List((s"All sub-derivations of ${r.toString} failed: backtrack.", MAGENTA)))
               tryRules(rs)
             }
@@ -83,7 +94,7 @@ trait Synthesis {
           import util.control.Breaks._
           breakable {
             for {(subgoal, subenv) <- s.subgoals} {
-              synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, printFails) match {
+              synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, stats, printFails) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -111,6 +122,10 @@ trait Synthesis {
           val subSizes = subderivations.map(s => s"${s.subgoals.size} sub-goal(s)").mkString(", ")
           val succ = s"SUCCESS at depth $ind, ${subderivations.size} alternative(s) [$subSizes]"
           printLog(List((s"$goalStr$GREEN$succ", BLACK)))
+          stats.bumpUpSuccessfulRuleApp()
+          if (subderivations.size > 1)  {
+            printLog(List((s"Trying alternative sub-derivation 1:", CYAN)))
+          }
           tryAlternatives(subderivations, 0)
         }
     }

@@ -21,7 +21,7 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting
   */
 case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
-  override def pp(): String = {
+  override def pp: String = {
     s"${pre.pp}\n${rType.pp} " +
       s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
       s"${post.pp}"

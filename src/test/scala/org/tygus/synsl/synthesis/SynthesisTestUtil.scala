@@ -76,10 +76,13 @@ trait SynthesisTestUtil {
     val sresult = synthesizeProc(goal, env, params.printFails)
 
     sresult match {
-      case Some(rr) =>
+      case Some((rr, stats)) =>
         testPrintln(s"\n[$testName]:", Console.MAGENTA)
         testPrintln(s"${goal.pp}\n", Console.BLUE)
         testPrintln("Successfully synthesised:", Console.GREEN)
+        testPrintln(s"Number of backtrackings ${stats.numBack}")
+        testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
+        testPrintln(s"Total successful rule applications: ${stats.numSucc}")
         val result = rr.pp
         testPrintln(s"$result")
         testPrintln("-----------------------------------------------------")
