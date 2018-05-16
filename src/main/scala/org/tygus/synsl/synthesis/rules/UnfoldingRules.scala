@@ -83,7 +83,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
-      val newPost = goal.post.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
+      val newPost = goal.post.bumpUpSAppTags(_ => true) //.lockSAppTags(x => !matcher(x))
 
       val fspec = FunSpec(fname, VoidType, goal.gamma, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))

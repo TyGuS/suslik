@@ -1,0 +1,19 @@
+should be able to morhpa tree
+###
+
+{true; tree(x)}
+  void morhp_tree(loc x)
+{true ; tree1(x) }
+
+###
+
+void morhp_tree (loc x) {
+  if (x == 0) {
+  } else {
+    let l2 = *(x + 1);
+    let r2 = *(x + 2);
+    *x = 1;
+    morhp_tree(r2);
+    morhp_tree(l2);
+  }
+}

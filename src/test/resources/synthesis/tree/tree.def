@@ -1,0 +1,9 @@
+predicate tree(x) {
+|  x == 0        => emp
+|  not (x == 0)  => [x, 3] ** x :-> 0 ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l) ** tree(r)
+}
+
+predicate tree1(x) {
+|  x == 0        => emp
+|  not (x == 0)  => [x, 3] ** x :-> 1 ** (x + 1) :-> l ** (x + 2) :-> r ** tree1(l) ** tree1(r)
+}

@@ -73,13 +73,16 @@ trait SynthesisTestUtil {
     assert(goals.lengthCompare(1) == 0, "Expected a single synthesis goal")
 
     val goal = goals.head
+    val time1 = System.currentTimeMillis()
     val sresult = synthesizeProc(goal, env, params.printFails)
+    val time2 = System.currentTimeMillis()
+    val delta = time2 - time1
 
     sresult match {
       case Some((rr, stats)) =>
         testPrintln(s"\n[$testName]:", Console.MAGENTA)
         testPrintln(s"${goal.pp}\n", Console.BLUE)
-        testPrintln("Successfully synthesised:", Console.GREEN)
+        testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
         testPrintln(s"Number of backtrackings ${stats.numBack}")
         testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
         testPrintln(s"Total successful rule applications: ${stats.numSucc}")

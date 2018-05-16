@@ -70,10 +70,7 @@ trait SepLogicUtils extends PureLogicUtils {
         acc1 = acc.map(hs1 => h1 :: hs1)
         res <- goFind(hs, larg1, acc1)
       } yield res).toList
-      case Nil =>
-        if (larg.isEmpty)
-          acc
-        else Nil
+      case Nil => acc
     }
 
     goFind(small.chunks, large.chunks, List(Nil)).map(SFormula)
