@@ -118,11 +118,22 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       (for {
         (_, f) <- env.functions
+
+        // Find all subsets of the goal's pre that might be unified
+        lilHeap = f.pre.sigma
+        largHeap = goal.pre.sigma
+        largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+        targetPre = goal.pre.copy(sigma = largSubHeap)
+
+        // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(goal.pre, goal.gamma.map(_._2).toSet)
+        target = UnificationGoal(targetPre, goal.gamma.map(_._2).toSet)
         (_, sigma) <- Unification.unify(target, source)
       } yield {
-        val newGoal = Goal(f.post.subst(sigma), goal.post, goal.gamma, goal.fname)
+        val newPreChunks =
+          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
+        val newPre = Assertion(goal.pre.phi, SFormula(newPreChunks.toList))
+        val newGoal = Goal(newPre, goal.post, goal.gamma, goal.fname)
         val args = f.params.map { case (_, x) => x.subst(sigma) }
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
