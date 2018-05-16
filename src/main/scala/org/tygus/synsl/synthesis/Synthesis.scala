@@ -62,7 +62,7 @@ trait Synthesis {
         // Try alternative sub-derivations after applying `r`
         def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
           case (a :: as) =>
-            if (altIndex > 0) printLog(List((s"Trying alternative sub-derivation ${altIndex + 1}:", CYAN)))
+            if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
             solveSubgoals(a) match {
               case Some(res) =>
                 stats.bumpUpLastingSuccess()
@@ -75,12 +75,12 @@ trait Synthesis {
             // All alternatives have failed
             if (r.isInstanceOf[InvertibleRule]) {
               // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
-              printLog(List((s"All sub-derivations of ${r.toString} failed: invertible rule, do not backtrack.", MAGENTA)))
+              printLog(List((s"${r.toString} All sub-derivations failed: invertible rule, do not backtrack.", MAGENTA)))
               None
             } else {
               // Backtrack application of this rule
               stats.bumpUpBacktracing()
-              printLog(List((s"All sub-derivations of ${r.toString} failed: backtrack.", MAGENTA)))
+              printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
               tryRules(rs)
             }
         }

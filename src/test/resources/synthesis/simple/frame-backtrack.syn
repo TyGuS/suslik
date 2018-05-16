@@ -1,4 +1,4 @@
-should be able to synthesize a conditional
+should be able to unify c with a (and not with b as it first tries)
 
 ###
 {true ; x :-> a ** y :-> b ** [a, 1] ** a :-> 0}
@@ -9,7 +9,5 @@ void create(loc x, loc y)
 
 void create (loc x, loc y) {
   let a2 = *x;
-  let c2 = malloc(1);
-  *y = c2;
-  free(a2);
+  *y = a2;
 }

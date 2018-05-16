@@ -9,8 +9,8 @@ void swap (loc x, loc z, loc y, loc t) {
   let c2 = *y;
   let b2 = *z;
   let q2 = *t;
-  *x = q2;
   *y = b2;
-  *z = c2;
   *t = a2;
+  *z = c2;
+  *x = q2;
 }

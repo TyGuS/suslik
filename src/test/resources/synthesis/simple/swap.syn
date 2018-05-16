@@ -5,6 +5,6 @@ should be able to synthesize a swap program
 void swap (loc x, loc y) {
   let a2 = *x;
   let b2 = *y;
-  *x = b2;
   *y = a2;
+  *x = b2;
 }
