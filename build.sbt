@@ -15,8 +15,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %%  "akka-testkit"     % akkaVersion    % "test",
   "org.scalatest"     %%  "scalatest"        % "3.0.1"        % "test",
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
-  "org.scalaz" %% "scalaz-core" % "7.2.11"
+  "org.scalaz" %% "scalaz-core" % "7.2.11",
+  "com.regblanc" %% "scala-smtlib" % "0.2.2"
 )
 
-scalacOptions ++= Seq(
-)
+scalacOptions ++= Seq()
