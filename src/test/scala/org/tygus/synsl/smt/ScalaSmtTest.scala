@@ -40,50 +40,52 @@ import scala.util.{Failure, Success, Try}
 class ScalaSmtTest extends FunSuite with TableDrivenPropertyChecks with Matchers
     with Core with IntegerArithmetics with Commands with Resources {
 
+  disableLogging()
+
   val x = Ints("x")
   val y = Ints("y")
   val z = Ints("z")
 
-  test( """| Z3 example
-           | (set-option :produce-models true)
-           | (set-logic QF_LIA)
-           | (declare-fun x () Int)
-           | (declare-fun y () Int)
-           | (assert (<= (+ x 1) y))
-           | (assert (and (= (mod y 4) 3) (>= y 2)))
-           | ;; Check SAT
-           | (check-sat)
-           | ;; returns sat
-           | ;; Get values for x and y
-           | (get-value (x y))
-           | ;; returns ((x 2) (y 3))
-           | """.stripMargin ) {
-      //  ScalaSMT version
-      val result : Try[ Model ] =
-          using( new SMTSolver( "Z3", new SMTInit( QF_LIA, List( MODELS ) ) ) ) {
-              implicit withSolver ⇒
-                  isSat(
-                      x + 1 <= y,
-                      y % 4 === 3 & y >= 2 ) match {
-                          case Success( Sat() ) ⇒ getModel()
-                          case _                ⇒ Failure( new Exception( "failed" ) )
-                      }
+  test(
+    """| Z3 example
+       | (set-option :produce-models true)
+       | (set-logic QF_LIA)
+       | (declare-fun x () Int)
+       | (declare-fun y () Int)
+       | (assert (<= (+ x 1) y))
+       | (assert (and (= (mod y 4) 3) (>= y 2)))
+       | ;; Check SAT
+       | (check-sat)
+       | ;; returns sat
+       | ;; Get values for x and y
+       | (get-value (x y))
+       | ;; returns ((x 2) (y 3))
+       | """.stripMargin) {
+    //  ScalaSMT version
+    val result: Try[Model] =
+      using(new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))) {
+        implicit withSolver ⇒
+          isSat(
+            x + 1 <= y,
+            y % 4 === 3 & y >= 2) match {
+            case Success(Sat()) ⇒ getModel()
+            case _ ⇒ Failure(new Exception("failed"))
           }
-
-      result match {
-          case Success( m ) ⇒
-              ( m.valueOf( x ), m.valueOf( y ) ) match {
-                  case ( Some( valx ), Some( valy ) ) ⇒
-                      val v = Map( x -> valx.show.toInt, y -> valy.show.toInt )
-                      assert( v( x ) + 1 == v( y ) && v( y ) % 4 == 3 & v( y ) >= 2 )
-
-                  case _ ⇒ fail( new Exception( s"Could not get value from model for Example 1. $m" ) )
-              }
-
-          case Failure( f ) ⇒ fail( new Exception( s"Could not get model for Example 1. ${f.getMessage}" ) )
       }
 
-  }
+    result match {
+      case Success(m) ⇒
+        (m.valueOf(x), m.valueOf(y)) match {
+          case (Some(valx), Some(valy)) ⇒
+            val v = Map(x -> valx.show.toInt, y -> valy.show.toInt)
+            assert(v(x) + 1 == v(y) && v(y) % 4 == 3 & v(y) >= 2)
 
+          case _ ⇒ fail(new Exception(s"Could not get value from model for Example 1. $m"))
+        }
+
+      case Failure(f) ⇒ fail(new Exception(s"Could not get model for Example 1. ${f.getMessage}"))
+    }
+
+  }
 
 }

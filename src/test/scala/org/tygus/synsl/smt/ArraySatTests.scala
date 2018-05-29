@@ -23,10 +23,9 @@ package org.tygus.synsl.smt
 
 import org.bitbucket.franck44.scalasmt.interpreters.Resources
 import org.bitbucket.franck44.scalasmt.theories._
-import org.bitbucket.franck44.scalasmt.typedterms.{Commands, TypedTerm, VarTerm}
+import org.bitbucket.franck44.scalasmt.typedterms.{Commands, TypedTerm}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
-import org.slf4j.LoggerFactory
 
 /**
   * Check sat for array terms
@@ -45,6 +44,8 @@ class ArraySatTests
         with ArrayExOperators
         with Commands
         with Resources {
+
+  disableLogging()
 
   import org.slf4j.LoggerFactory
 
@@ -102,90 +103,3 @@ class ArraySatTests
   }
 }
 
-/**
-  * Check sat for array terms: if sat get a value for the arrays
-  */
-class ArrayValueTests
-    extends FunSuite
-        with TableDrivenPropertyChecks
-        with Matchers
-        with Core
-        with IntegerArithmetics
-        with ArrayExInt
-        with ArrayExBool
-        with ArrayExReal
-        with ArrayExOperators
-        with Commands
-        with Resources {
-
-
-  override def suiteName = s"Check sat for simple assertions with arrays"
-
-  import org.bitbucket.franck44.scalasmt.configurations.AppConfig.config
-  import org.bitbucket.franck44.scalasmt.configurations.SMTInit
-  import org.bitbucket.franck44.scalasmt.configurations.SMTLogics.QF_AUFLIA
-  import org.bitbucket.franck44.scalasmt.configurations.SMTOptions.MODELS
-  import org.bitbucket.franck44.scalasmt.interpreters.SMTSolver
-  import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.{Sat, Term}
-
-  import scala.util.{Failure, Success}
-
-  //  Solvers to be included in the tests
-  val theSolvers = Table(
-    "Solver",
-    config.filter(
-      n ⇒ !(n.name contains "nonIncr") && n.enabled &&
-          n.supportedLogics.contains(QF_AUFLIA)): _*)
-  //  dimension 1 arrays
-  val a1 = ArrayInt1("a1")
-  val a1i1 = ArrayInt1("a1") indexed 0
-  val b1 = ArrayInt1("b1")
-  //  dimension 2 arrays
-  val a2 = ArrayInt2("a2")
-  val b2 = ArrayInt2("b2")
-  val a2i9 = ArrayInt2("a2") indexed 9
-
-  //  format: OFF
-  val theTerms1 = Table[String, TypedTerm[BoolTerm, Term], List[VarTerm[ArrayTerm[IntTerm]]]](
-    ("expression", "TypedTerm", "Values"),
-    ("a[0] == 1", a1(0) === 1, List(a1)),
-    ("a_0[0] == 1", a1i1(0) === 1, List(a1i1)),
-    ("a[0] == b[1] & b[0] <= 1", a1(0) === b1(1) & b1(0) <= 2, List(a1, b1))
-  )
-
-  val theTerms2 = Table[String, TypedTerm[BoolTerm, Term], List[VarTerm[ArrayTerm[ArrayTerm[IntTerm]]]]](
-    ("expression", "TypedTerm", "Values"),
-    ("a_9[0] == b & b[0] <= 1", a2i9(0) === b1 & b1(0) <= 2, List(a2i9)),
-    ("a[0] == b & b[0] <= 2", a2(0) === b2(1) & b2(1)(0) <= 2, List(a2, b2))
-  )
-  //  format: ON
-
-  //  initialise sequence
-  val initSeq = new SMTInit(QF_AUFLIA, List(MODELS))
-
-  for (s ← theSolvers; (txt, t, xr) ← theTerms1 ++ theTerms2) {
-
-    test(s"[${s.name}] configured with ${initSeq.show} to check sat for $txt ") {
-      using(new SMTSolver(s, initSeq)) {
-        implicit solver ⇒ {
-          //  smtlib package eval is used
-          val result = isSat(t)
-          //  dump values if debug mode
-          for (v ← xr) {
-            val model = getModel()
-            //            println(s"Model: $model")
-            val witness = getValue(v)
-            //            println(s"[${s.name}] Value of {$v.symbol} is: ${
-            //              witness match {
-            //                case Success(x) ⇒ x.show;
-            //                case Failure(f) ⇒ "Failure: f.getMessage"
-            //              }
-            //            }")
-          }
-          result
-        }
-      } shouldBe Success(Sat())
-      //  get a value for each variables in list xr
-    }
-  }
-}
