@@ -1,0 +1,61 @@
+l;
+
+xll_traverse(f,b) [xlseg(f,NULL,NULL,b)] {
+  local x, y, t;
+  x = f;
+  y = NULL;
+  while(x != NULL) [xlseg(f,x,NULL,y) * xlseg(x,NULL,y,b)] {
+    /* do something with x */
+    t = y;
+    y = x;        /* xlseg(f,y,NULL,t) * y|->t ^ x' * xlseg(x',NULL,y,b) */
+    x = y->l;
+    x = t ^ x;  /* xlseg(f,y,NULL,t) * y|->t ^ x * xlseg(x,NULL,y,b) */
+  }
+} [xlseg(f,NULL,NULL,b)]
+
+xll_esrevart(f,b) [xlseg(f,NULL,NULL,b)] {
+  xll_traverse(b,f);
+} [xlseg(b,NULL,NULL,f)]
+
+xll_esrevart(l) [xlseg(gf,NULL,NULL,l)] {
+  local x, y, t;
+  x = l;
+  y = NULL;
+  while(x != NULL) [xlseg(gf,y,NULL,x) * xlseg(y,NULL,x,l)] {
+    t = y;
+    y = x;
+    x = y->l;
+    x = t ^ x;
+  }
+} [xlseg(gf,NULL,NULL,l)]
+
+xll_cons(f,b;) [xlseg(f,NULL,NULL,b)] {
+  local t, u, w;
+  t = new();
+  t->l = NULL ^ f; /* t|->nil ^ f * xlseg(f,nil,nil,b) */
+  if(f != NULL) {    /* t|->nil ^ f * f|->nil ^ z * xlseg(z,nil,f,b) */
+    u = f->l;
+    w = u ^ NULL;
+    f->l = t ^ w;  /* t|->nil ^ f * f|->t ^ z * xlseg(z,nil,f,b) */
+  } else {           /* f==nil ; t|->nil ^ f * xlseg(f,nil,nil,b) */
+    b = t;           /* f==nil /| b==t ; t|->nil ^ f */
+                     /* f==nil /| b==t ; t|->nil ^ f * xlseg(f,nil,t,b) */
+  }                  /* t|->nil ^ f * xlseg(f,nil,t,b) */
+  f = t;             /* f|->nil ^ f' * xlseg(f',nil,f,b) */
+} [xlseg(f,NULL,NULL,b)]
+
+xll_snoc(f,b;) [xlseg(f,NULL,NULL,b)] {
+  local z, t, u;
+  t = new();
+  t->l = b ^ NULL; /* xlseg(f,nil,nil,b) * t|->b ^ nil */
+  if(f != NULL) {    /* b!=nil | xlseg(f,nil,nil,b) * t|->b ^ nil */
+                     /* xlseg(f,b,nil,z) * b|->z ^ nil * t|->b ^ nil */
+    u = b->l;
+    z = u ^ NULL;
+    b->l = t ^ z;  /* xlseg(f,b,nil,z) * b|->z ^ t * t|->b ^ nil */
+  } else {           /* f=nil | xlseg(f,nil,nil,b) * t|->b ^ nil */
+    f = t;           /* f'=nil /| f=t | t|->b ^ nil */
+                     /* f'=nil /| f=t | xlseg(f,t,nil,b) * t|->b ^ nil */
+  }                  /* xlseg(f,t,nil,b) * t|->b ^ nil */
+  b = t;             /* xlseg(f,b,nil,b') * b|->b' ^ nil */
+} [xlseg(f,NULL,NULL,b)]

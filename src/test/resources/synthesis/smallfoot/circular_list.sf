@@ -1,0 +1,37 @@
+/* implements a stack and a queue simultaneously using a circular list:
+ *
+ *   rear |-> top_front * lseg(top_front, back)
+ *
+ * - the rear of the queue is the node pointed to by rear
+ * - the top of the stack and the front of the queue
+ *   are both the node pointed to by the tl of x
+ * - we keep a pointer r to the rear, and existentially quantify top_front
+ */
+
+push(r) [r|->_tf * lseg(_tf,r)] {
+  local t, u;
+  t = new();
+  u = r->tl;
+  t->tl = u;
+  r->tl = t;
+} [r|->_b * _b|->_tf * lseg(_tf,r)]
+
+enqueue(r;) [r|->_tf * lseg(_tf,r)] {
+  push(r);
+  r = r->tl;
+} [r|->_tf * lseg(_tf,_b) * _b|->r]
+
+pop_dequeue(r) [r!=_tf * r|->_tf * lseg(_tf,r)] {
+  local t, u;
+  t = r->tl;
+  u = t->tl;
+  r->tl = u;
+  dispose t;
+} [r|->_b * lseg(_b,r)]
+
+test(r) [r|->_tf * lseg(_tf,r)] {
+  push(r);
+  pop_dequeue(r);
+  enqueue(r;);
+  pop_dequeue(r);
+} [r|->_a * lseg(_a,r)]
