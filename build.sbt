@@ -9,19 +9,23 @@ scalaVersion := "2.12.5"
 
 val akkaVersion = "2.5.3"
 
+resolvers in ThisBuild ++= Seq(
+    Resolver.sonatypeRepo("releases"),
+    Resolver.sonatypeRepo("snapshots")
+)
+
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % "test",
+  // "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  // "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % "test",
+  // "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
+  // "com.regblanc" %% "scala-smtlib" % "0.2.2",
+  "org.slf4j" % "slf4j-api" % "1.6.4",
   "ch.qos.logback" % "logback-classic" % "1.1.3" % "test",
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
   "org.scalatest" %% "scalatest" % "3.0.1" % "test",
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
   "org.scalaz" %% "scalaz-core" % "7.2.11",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
-  "org.slf4j" % "slf4j-api" % "1.6.4",
-  "ch.qos.logback" % "logback-classic" % "1.0.7",
-  "org.bitbucket.franck44.scalasmt" %% "scalasmt" % "2.1.0"
-  //   "com.regblanc" %% "scala-smtlib" % "0.2.2",
+  "org.bitbucket.franck44.scalasmt" %% "scalasmt" % "2.1.1-SNAPSHOT"
 )
 
 scalacOptions ++= Seq()
