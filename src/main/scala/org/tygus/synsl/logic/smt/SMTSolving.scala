@@ -19,6 +19,11 @@ import scala.util.{Failure, Success, Try}
 object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Resources with Commands
     with PureLogicUtils {
 
+  {
+    disableLogging()
+    // new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))
+  }
+
   case class SMTUnsupportedFormula(phi: PFormula)
       extends Exception(s"Cannot convert formula ${phi.pp} to an equivalent SMT representation.")
 
@@ -27,8 +32,6 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
 
   implicit def _phi2Exn(phi: PFormula): Throwable = SMTUnsupportedFormula(phi)
   implicit def _expr2Exn(e: Expr): Throwable = SMTUnsupportedExpr(e)
-
-  disableLogging()
 
   type SMTBoolTerm = TypedTerm[BoolTerm, Term]
   type SMTIntTerm = TypedTerm[IntTerm, Term]
