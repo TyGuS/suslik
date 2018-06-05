@@ -2,7 +2,7 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.language.Expressions.{Expr, Var}
 
-object Unification extends SepLogicUtils with PureLogicUtils {
+object SpatialUnification extends SepLogicUtils with PureLogicUtils {
 
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
@@ -35,7 +35,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     *
     * If successful, returns a substitution from `source`'s fresh variables to `target`'s variables
     */
-  def tryUnify(target: Heaplet, source: Heaplet, nonFreeInSource: Set[Var]): Option[Subst] = {
+  def tryUnifyHeaplets(target: Heaplet, source: Heaplet, nonFreeInSource: Set[Var]): Option[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
@@ -119,7 +119,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
     */
-  def unify(target: UnificationGoal, source: UnificationGoal): Option[(Assertion, Subst)] = {
+  def unifyViaSpatialParts(target: UnificationGoal, source: UnificationGoal): Option[(Assertion, Subst)] = {
     // Make sure that all variables in target are fresh wrt. source
     val (freshSource, freshSubst) = refreshSource(target, source)
 
@@ -157,7 +157,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
       val iter = chunks.iterator
       while (iter.hasNext) {
         val candidate = iter.next()
-        tryUnify(h, candidate, takenVars) match {
+        tryUnifyHeaplets(h, candidate, takenVars) match {
           case Some(sbst) if checkSubstWF(sbst) => // found a good substitution
             // Return it and remaining chunks with the applied substitution
             val remainingHeapletsAdapted = chunks.filter(_ != candidate).map(_.subst(sbst))
@@ -192,7 +192,7 @@ object Unification extends SepLogicUtils with PureLogicUtils {
           // Found unification, see if it captures all variables in the pure part
           val newAssertion = sFormula.subst(newSubst)
           if (newAssertion.vars.forall(tFormula.vars.contains(_))) {
-            // No free variables after substitution => successful unification
+            // No free variables in the "source" after substitution => successful unification
             /*
             TODO: Check via external prover that the new target pure part is implied by the source pure part, i.e.,
              sFormula.phi implies newAssertion.phi

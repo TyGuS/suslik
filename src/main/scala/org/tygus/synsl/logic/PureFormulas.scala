@@ -45,26 +45,6 @@ object PFalse extends PFormula {
   override def toExpr: Expr = BoolConst(false)
 }
 
-// Ф <= Ф', Ф < Ф', Ф == Ф'
-case class PLeq(left: Expr, right: Expr) extends PFormula {
-  override def toExpr: Expr = BinaryExpr(OpLeq, left, right)
-  override def pp: Ident = s"${left.pp} <= ${right.pp}"
-  def subst(sigma: Map[Var, Expr]): PFormula = PLeq(left.subst(sigma), right.subst(sigma))
-}
-
-case class PLtn(left: Expr, right: Expr) extends PFormula {
-  override def toExpr: Expr = BinaryExpr(OpLt, left, right)
-  override def pp: Ident = s"${left.pp} < ${right.pp}"
-  def subst(sigma: Map[Var, Expr]): PFormula = PLtn(left.subst(sigma), right.subst(sigma))
-}
-
-case class PEq(left: Expr, right: Expr) extends PFormula {
-  override def toExpr: Expr = BinaryExpr(OpEq, left, right)
-  override def pp: Ident = s"${left.pp} == ${right.pp}"
-
-  def subst(sigma: Map[Var, Expr]): PFormula = PEq(left.subst(sigma), right.subst(sigma))
-}
-
 // Connectives
 case class PAnd(left: PFormula, right: PFormula) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpAnd, left.toExpr, right.toExpr)
@@ -83,3 +63,31 @@ case class PNeg(arg: PFormula) extends PFormula {
   override def pp: Ident = s"not (${arg.pp})"
   def subst(sigma: Map[Var, Expr]): PFormula = PNeg(arg.subst(sigma))
 }
+
+/*
+  Arithmetic epxressions
+ */
+// Ф <= Ф', Ф < Ф'
+case class PLeq(left: Expr, right: Expr) extends PFormula {
+  override def toExpr: Expr = BinaryExpr(OpLeq, left, right)
+  override def pp: Ident = s"${left.pp} <= ${right.pp}"
+  def subst(sigma: Map[Var, Expr]): PFormula = PLeq(left.subst(sigma), right.subst(sigma))
+}
+
+case class PLtn(left: Expr, right: Expr) extends PFormula {
+  override def toExpr: Expr = BinaryExpr(OpLt, left, right)
+  override def pp: Ident = s"${left.pp} < ${right.pp}"
+  def subst(sigma: Map[Var, Expr]): PFormula = PLtn(left.subst(sigma), right.subst(sigma))
+}
+
+/*
+  Equality
+ */
+// Ф == Ф'
+case class PEq(left: Expr, right: Expr) extends PFormula {
+  override def toExpr: Expr = BinaryExpr(OpEq, left, right)
+  override def pp: Ident = s"${left.pp} == ${right.pp}"
+
+  def subst(sigma: Map[Var, Expr]): PFormula = PEq(left.subst(sigma), right.subst(sigma))
+}
+

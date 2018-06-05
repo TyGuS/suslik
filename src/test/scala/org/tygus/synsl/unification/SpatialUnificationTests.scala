@@ -1,11 +1,11 @@
 package org.tygus.synsl.unification
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.synsl.logic.{PureLogicUtils, Unification, UnificationGoal}
+import org.tygus.synsl.logic.{PureLogicUtils, SpatialUnification, UnificationGoal}
 import org.tygus.synsl.parsing.SynslParser
 import org.tygus.synsl.util.SynLogLevels
 
-class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
+class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils {
 
   private def getSourceTarget(sourceText: String, targetText: String) = {
     val parser = new SynslParser
@@ -47,7 +47,7 @@ class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
     val (target: UnificationGoal, source: UnificationGoal) = getSourceTarget(sourceText, targetText)
 
     // Assert that these are conjunctions
-    Unification.unify(target, source) match {
+    SpatialUnification.unifyViaSpatialParts(target, source) match {
       case Some((res, sbst)) =>
         testPrintln(s"Unified")
         testPrintln(s"$source", Console.BLUE)
@@ -55,7 +55,7 @@ class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
         testPrintln(s"$target", Console.BLUE)
         testPrintln("Adapted source and substitution:")
         testPrintln(s"${res.pp}", Console.BLUE)
-        testPrintln(s"${Unification.ppSubst(sbst)}\n", Console.MAGENTA)
+        testPrintln(s"${SpatialUnification.ppSubst(sbst)}\n", Console.MAGENTA)
       case None =>
         assert(false, s"Failed to unify\n$source\nwith\n$target\n")
     }
@@ -107,10 +107,10 @@ class UnificationTests extends FunSpec with Matchers with PureLogicUtils {
     val (target: UnificationGoal, source: UnificationGoal) = getSourceTarget(sourceText, targetText)
 
     // Assert that these are conjunctions
-    Unification.unify(target, source) match {
+    SpatialUnification.unifyViaSpatialParts(target, source) match {
       case Some((res, sbst)) =>
         testPrintln(s"Weird! Unified\nSource $source\nwith\nTarget $target\n" +
-          s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${Unification.ppSubst(sbst)}\n")
+          s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${SpatialUnification.ppSubst(sbst)}\n")
         assert(false, "Unification shouldn't succeed")
       case None =>
         testPrintln(s"As expected, failed to unify")

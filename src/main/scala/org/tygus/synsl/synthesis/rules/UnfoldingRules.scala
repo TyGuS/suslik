@@ -128,7 +128,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(targetPre, goal.gamma.map(_._2).toSet)
-        (_, sigma) <- Unification.unify(target, source)
+        (_, sigma) <- SpatialUnification.unifyViaSpatialParts(target, source)
       } yield {
         val newPreChunks =
           (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
