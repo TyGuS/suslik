@@ -1,0 +1,15 @@
+should be able to handle simple assertions about integers
+
+###
+
+{ (x < y) /\ (y <= z) ; r :-> a }
+
+void foo(int x, int y, int z, loc r)
+
+{ ((x <= m) /\ (y <= m)) /\ (z <= m) ; r :-> m }
+
+###
+
+void foo (int x, int y, int z, loc r) {
+  *r = z;
+}

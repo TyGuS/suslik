@@ -5,6 +5,7 @@ import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
 import org.tygus.synsl.logic.SpatialUnification._
+import org.tygus.synsl.logic.smt.SMTSolving
 
 /**
   * @author Ilya Sergey
@@ -34,9 +35,11 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val Goal(pre, post, _, _) = goal
 
       if (pre.sigma.isEmp &&
-        post.sigma.isEmp &&
-        post.phi.isTrue)
-        // TODO: Generalise so that a solver is used for the pure part 
+          post.sigma.isEmp &&
+          {
+            SMTSolving.implies(pre.phi, post.phi)
+          })
+      // TODO: Generalise so that a solver is used for the pure part
         List(Subderivation(Nil, _ => Skip))
       else Nil
     }

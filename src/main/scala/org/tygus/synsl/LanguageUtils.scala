@@ -9,7 +9,9 @@ import org.tygus.synsl.logic._
 
 object LanguageUtils {
 
-  def generateFreshVar(s: Goal, tmpName: String = "tmp"): Var = {
+  val tmpPrefix = "$tmp"
+
+  def generateFreshVar(s: Goal, tmpName: String = "$tmp"): Var = {
     var counter = 1
     var candidate = Var(s"$tmpName")
     val existing = s.vars
@@ -19,5 +21,7 @@ object LanguageUtils {
     }
     candidate
   }
+
+  def isNotDefaultFreshVar(v: Var): Boolean = !v.name.startsWith(tmpPrefix)
 
 }

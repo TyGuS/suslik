@@ -50,7 +50,9 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     OperationalRules.FreeRule,
 
     // For experimentation
-//    SubtractionRules.Pick,
+    // SubtractionRules.Pick,
+
+    OperationalRules.PickFromEnvRule,
 
   )
 

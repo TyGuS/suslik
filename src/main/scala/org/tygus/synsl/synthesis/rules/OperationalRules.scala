@@ -1,5 +1,6 @@
 package org.tygus.synsl.synthesis.rules
 
+import org.tygus.synsl.LanguageUtils
 import org.tygus.synsl.LanguageUtils.generateFreshVar
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.{Statements, _}
@@ -29,7 +30,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   */
   object WriteRuleOld extends SynthesisRule {
 
-    override def toString: Ident = "[Op: write]"
+    override def toString: Ident = "[Op: write-old]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma, fname) = goal
@@ -46,7 +47,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
-          if (e1 == e2) { return Nil } // Do not write if RHSs are the same
+          if (e1 == e2) {
+            return Nil
+          } // Do not write if RHSs are the same
 
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
@@ -63,8 +66,59 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           Nil
       }
     }
-
   }
+
+
+  /*
+    Γ, l ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l * Q}[l/m] ---> S   m is existential
+  --------------------------------------------------------------------------------[pick-from-env]
+     Γ ; {φ ; x.f -> - * P} ; {ψ ; x.f -> m * Q} ---> *x.f := l ; S
+   */
+  object PickFromEnvRule extends SynthesisRule with InvertibleRule {
+
+    override def toString: Ident = "[Op: write-from-env]"
+
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      val Goal(pre, post, gamma: Gamma, fname) = goal
+
+      def isSuitable: Heaplet => Boolean = {
+        case PointsTo(x@(Var(_)), _, v@Var(_)) =>
+          !goal.isGhost(x) && goal.isExistential(v) && LanguageUtils.isNotDefaultFreshVar(v)
+        case _ => false
+      }
+
+      def noGhosts: Heaplet => Boolean = {
+        case PointsTo(x@(Var(_)), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case _ => false
+      }
+
+      // When do two heaplets match
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && isSuitable(hr)
+
+      if (post.sigma.chunks.size > 1) return Nil
+
+      findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
+        case None => Nil
+        case Some((hl@(PointsTo(x@Var(_), offset, _)), hr@(PointsTo(_, _, m@Var(_))))) =>
+          for {
+          // Try variables from the context
+            (_, l) <- goal.gamma.toList
+            newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
+            subGoal = Goal(newPre, post.subst(m, l), gamma, fname)
+            kont = (stmts: Seq[Statement]) => {
+              ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
+              val rest = stmts.head
+              SeqComp(Store(x, offset, l), rest)
+            }
+          } yield Subderivation(List((subGoal, env)), kont)
+        case Some((hl, hr)) =>
+          ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
+          Nil
+      }
+    }
+  }
+
+
 
   /*
   Write rule: create a new write from where it's possible
@@ -92,7 +146,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case Some(h@(PointsTo(x@Var(_), offset, l))) =>
           val y = generateFreshVar(goal)
 
-          val newPost = Assertion (post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
+          val newPost = Assertion(post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
           val subGoal = Goal(pre, newPost, gamma, fname)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
@@ -106,7 +160,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
     }
   }
-
   /*
   Read rule: create a fresh typed read
 
@@ -137,7 +190,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
             // Do not generate read for unused variables
-            if (rest.usedVars.contains(y)) SeqComp (Load(y, tpy, x, offset), rest) else rest
+            if (rest.usedVars.contains(y)) SeqComp(Load(y, tpy, x, offset), rest) else rest
           }
 
           List(Subderivation(List((subGoal, env)), kont))

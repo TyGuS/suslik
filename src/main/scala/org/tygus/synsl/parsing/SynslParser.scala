@@ -16,10 +16,10 @@ class SynslParser extends StandardTokenParsers {
 
   def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
-  def intLiteral: Parser[PConst] =
+  def intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))
 
-  def boolLiteral: Parser[PConst] =
+  def boolLiteral: Parser[Const] =
     ("true" | "false") ^^ (b => BoolConst(java.lang.Boolean.parseBoolean(b)))
 
   def varParser: Parser[Var] = ident ^^ Var

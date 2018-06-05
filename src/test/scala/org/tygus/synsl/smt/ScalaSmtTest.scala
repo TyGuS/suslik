@@ -30,6 +30,7 @@ import org.bitbucket.franck44.scalasmt.theories.{Core, IntegerArithmetics}
 import org.bitbucket.franck44.scalasmt.typedterms.{Commands, Model}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import org.tygus.synsl.logic
 
 import scala.util.{Failure, Success, Try}
 
@@ -40,7 +41,7 @@ import scala.util.{Failure, Success, Try}
 class ScalaSmtTest extends FunSuite with TableDrivenPropertyChecks with Matchers
     with Core with IntegerArithmetics with Commands with Resources {
 
-  disableLogging()
+  logic.smt.disableLogging()
 
   val x = Ints("x")
   val y = Ints("y")

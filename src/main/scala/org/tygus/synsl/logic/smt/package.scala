@@ -1,4 +1,9 @@
-package org.tygus.synsl
+package org.tygus.synsl.logic
+
+import org.bitbucket.franck44.scalasmt.configurations.SMTInit
+import org.bitbucket.franck44.scalasmt.configurations.SMTLogics.QF_LIA
+import org.bitbucket.franck44.scalasmt.configurations.SMTOptions.MODELS
+import org.bitbucket.franck44.scalasmt.interpreters.SMTSolver
 
 /**
   * @author Ilya Sergey

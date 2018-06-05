@@ -26,6 +26,7 @@ import org.bitbucket.franck44.scalasmt.theories._
 import org.bitbucket.franck44.scalasmt.typedterms.{Commands, TypedTerm, VarTerm}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import org.tygus.synsl.logic
 
 import scala.util.Failure
 
@@ -45,7 +46,7 @@ class ArrayValueTests
         with Commands
         with Resources {
 
-  disableLogging()
+  logic.smt.disableLogging()
 
 
   override def suiteName = s"Check sat for simple assertions with arrays"

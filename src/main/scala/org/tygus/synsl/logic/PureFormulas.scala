@@ -14,9 +14,9 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
     def collector(acc: Set[R])(phi: PFormula): Set[R] = phi match {
       case PTrue => acc
       case PFalse => acc
-      case PLeq(left, right) => left.collect(p) ++ right.collect(p)
-      case PLtn(left, right) => left.collect(p) ++ right.collect(p)
-      case PEq(left, right) => left.collect(p) ++ right.collect(p)
+      case PLeq(left, right) => acc ++ left.collect(p) ++ right.collect(p)
+      case PLtn(left, right) => acc ++ left.collect(p) ++ right.collect(p)
+      case PEq(left, right) => acc ++ left.collect(p) ++ right.collect(p)
       case PAnd(left, right) => collector(collector(acc)(left))(right)
       case POr(left, right) => collector(collector(acc)(left))(right)
       case PNeg(arg) => collector(acc)(arg)
@@ -30,6 +30,8 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
   def isTrue: Boolean = simplify(this) == PTrue
 
   def toExpr : Expr
+
+  def vars: Set[Var] = this.collectE(_.isInstanceOf[Var])
 
 }
 

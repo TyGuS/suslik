@@ -26,6 +26,7 @@ import org.bitbucket.franck44.scalasmt.theories._
 import org.bitbucket.franck44.scalasmt.typedterms.{Commands, TypedTerm}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import org.tygus.synsl.logic
 
 /**
   * Check sat for array terms
@@ -45,7 +46,7 @@ class ArraySatTests
         with Commands
         with Resources {
 
-  disableLogging()
+  logic.smt.disableLogging()
 
   import org.slf4j.LoggerFactory
 

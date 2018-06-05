@@ -43,7 +43,7 @@ object SynthesisTestRunner extends SynthesisTestUtil {
 
   def doTest(testName: String, desc: String, in: String, out: String, params: TestParams): Unit = {
     println(desc)
-    println
+    println()
     synthesizeFromSpec(testName, in, out, params)
   }
 }
