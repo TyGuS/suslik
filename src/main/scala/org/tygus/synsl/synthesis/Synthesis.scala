@@ -62,30 +62,31 @@ trait Synthesis {
       case r :: rs =>
 
         // Try alternative sub-derivations after applying `r`
-        def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
-          case (a :: as) =>
-            if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
-            solveSubgoals(a) match {
-              case Some(res) =>
-                stats.bumpUpLastingSuccess()
-                Some(res) // This alternative succeeded
-              case None =>
+        def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] =
+          alts.filter(_.makesSense) match {
+            case (a :: as) =>
+              if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
+              solveSubgoals(a) match {
+                case Some(res) =>
+                  stats.bumpUpLastingSuccess()
+                  Some(res) // This alternative succeeded
+                case None =>
+                  stats.bumpUpBacktracing()
+                  tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
+              }
+            case Nil =>
+              // All alternatives have failed
+              if (r.isInstanceOf[InvertibleRule]) {
+                // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
+                printLog(List((s"${r.toString} All sub-derivations failed: invertible rule, do not backtrack.", MAGENTA)))
+                None
+              } else {
+                // Backtrack application of this rule
                 stats.bumpUpBacktracing()
-                tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
-            }
-          case Nil =>
-            // All alternatives have failed
-            if (r.isInstanceOf[InvertibleRule]) {
-              // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
-              printLog(List((s"${r.toString} All sub-derivations failed: invertible rule, do not backtrack.", MAGENTA)))
-              None
-            } else {
-              // Backtrack application of this rule
-              stats.bumpUpBacktracing()
-              printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
-              tryRules(rs)
-            }
-        }
+                printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
+                tryRules(rs)
+              }
+          }
 
         // Solve all sub-goals in a sub-derivation
         def solveSubgoals(s: Subderivation): Option[Statement] = {
@@ -126,7 +127,7 @@ trait Synthesis {
           val succ = s"SUCCESS at depth $ind, ${subderivations.size} alternative(s) [$subSizes]"
           printLog(List((s"$goalStr$GREEN$succ", BLACK)))
           stats.bumpUpSuccessfulRuleApp()
-          if (subderivations.size > 1)  {
+          if (subderivations.size > 1) {
             printLog(List((s"Trying alternative sub-derivation 1:", CYAN)))
           }
           tryAlternatives(subderivations, 0)
@@ -148,6 +149,5 @@ trait Synthesis {
     }
     print(s"$BLACK")
   }
-
 
 }

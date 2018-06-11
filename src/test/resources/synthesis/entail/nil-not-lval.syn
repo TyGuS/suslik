@@ -4,7 +4,7 @@ should handle nil-values in the pure part
 
 { (y == z) /\ (z == 0); x :-> y ** y :-> z}
 void foo(loc x, loc y)
-{ false; emp }
+{ x == 55 ; emp }
 
 ###
 
