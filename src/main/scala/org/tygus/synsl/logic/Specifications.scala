@@ -52,6 +52,8 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String)
     Assertion(simplify(post.phi), post.sigma),
     this.gamma, this.fname)
 
+  def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
+
   def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
 
   def formals: Set[Var] = gamma.map(_._2).toSet

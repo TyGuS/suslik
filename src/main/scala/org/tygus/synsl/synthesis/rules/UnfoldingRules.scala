@@ -102,6 +102,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      // TODO: this is a hack to avoind invoking induction where it has no chance to succeed
+      if (goal.hasAllocatedBlocks) return Nil
+
       mkInductiveSubGoals(goal, env) match {
         case None => Nil
         case Some((selGoals, h)) =>
