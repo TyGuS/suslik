@@ -12,7 +12,11 @@ class SynslParser extends StandardTokenParsers {
   override val lexical = new SynslLexical
 
   val tpeParser: Parser[SynslType] =
-    "int" ^^^ IntType ||| "bool" ^^^ BoolType ||| "loc" ^^^ LocType ||| "void" ^^^ VoidType
+    ("int" ^^^ IntType
+        ||| "bool" ^^^ BoolType
+        ||| "loc" ^^^ LocType
+        ||| "intset" ^^^ IntSetType
+        ||| "void" ^^^ VoidType)
 
   val formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
@@ -89,7 +93,7 @@ class SynslParser extends StandardTokenParsers {
   }
 
   def indClause: Parser[InductiveClause] =
-    phi ~ ("=>" ~> sigma) ^^ { case p ~ s => InductiveClause(p, s) }
+    phi ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(p, a) }
 
   def indPredicate: Parser[InductivePredicate] =
     ("predicate" ~> ident) ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~

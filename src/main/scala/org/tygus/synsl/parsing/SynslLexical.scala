@@ -12,7 +12,7 @@ class SynslLexical extends StdLexical {
   reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate")
 
   // Types
-  reserved += ("int", "bool", "loc", "void", "Empty", "Union")
+  reserved += ("int", "bool", "loc", "intset", "void", "Empty", "Union")
 
   delimiters += ("(", ")", "=", ";", "**", "*", ":->", "=i",
       "||", "&&", "{", "}", "/\\", "\\/", "\n", "\r", "=>",

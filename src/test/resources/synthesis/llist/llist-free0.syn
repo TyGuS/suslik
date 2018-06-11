@@ -1,0 +1,17 @@
+should be able to deallocate a null-terminating linked list
+###
+
+{true; lseg(x, 0)}
+  void free_llist(loc x)
+{true ; emp }
+
+###
+
+void free_llist (loc x) {
+  if (x == 0) {
+  } else {
+    let nxt2 = *(x + 1);
+    free(x);
+    free_llist(nxt2);
+  }
+}

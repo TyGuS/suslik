@@ -3,8 +3,8 @@ should be able to update structs
 ###
 
 {true; x :-> y ** account(y, bal, lim)}
-      void deposit(loc x, int amount)
-    {true ; x :-> y ** account(y, bal + amount, lim) }
+void deposit(loc x, int amount)
+{true ; x :-> y ** account(y, bal + amount, lim) }
 
 ###
 

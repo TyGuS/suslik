@@ -39,9 +39,9 @@ case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
 /**
   * A selector is of the form (phi, sigma)
   */
-case class InductiveClause(selector: PFormula, body: SFormula) extends PrettyPrinting with PureLogicUtils {
+case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPrinting with PureLogicUtils {
   override def pp: String =
-    s"${selector.pp} => ${body.pp}"
+    s"${selector.pp} => ${asn.pp}"
 
   def valid: Boolean = isAtomicPFormula(selector)
 }

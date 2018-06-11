@@ -58,10 +58,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val sbst = params.zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
           val newGoals = for {
-            InductiveClause(_sel, _body) <- clauses
+            InductiveClause(_sel, _asn) <- clauses
             sel = _sel.subst(sbst)
-            body = _body.subst(sbst)
-            newPrePhi = mkConjunction(sel :: conjuncts(pre.phi))
+            asn = _asn.subst(sbst)
+            constraints = asn.phi
+            body = asn.sigma
+            newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
@@ -128,7 +130,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(targetPre, goal.gamma.map(_._2).toSet)
-        (_, sigma) <- SpatialUnification.unifyViaSpatialParts(target, source)
+        sigma <- SpatialUnification.unifyViaSpatialParts(target, source)
       } yield {
         val newPreChunks =
           (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
@@ -182,16 +184,18 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val substArgs = params.zip(args).toMap
-          val subDerivations = for (InductiveClause(selector, body) <- clauses) yield {
+          val subDerivations = for (InductiveClause(selector, asn) <- clauses) yield {
 
             // Make sure that existential in the body are fresh
-            val bodyExistentials = body.vars.toSet -- params.toSet
-            val freshExistentialsSubst = refreshVars(bodyExistentials.toList, goal.vars)
+            val asnExistentials = asn.vars -- params.toSet
+            val freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars)
             // Make sure that can unfold only once
-            val actualBody = body.subst(freshExistentialsSubst).subst(substArgs).setUpSAppTags(t + 1, _ => true)
+            val actualAssertion = asn.subst(freshExistentialsSubst).subst(substArgs)
+            val actualConstraints = actualAssertion.phi
+            val actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
 
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
-            val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
+            val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
             Subderivation(List((Goal(pre, newPost, gamma, fname), env)), kont)
           }

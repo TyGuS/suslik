@@ -20,6 +20,7 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
   }
 
   val log = SynLogLevels.Test
+
   import log._
 
   /** ****************************************************
@@ -48,7 +49,8 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
 
     // Assert that these are conjunctions
     SpatialUnification.unifyViaSpatialParts(target, source) match {
-      case Some((res, sbst)) =>
+      case Some(sbst) =>
+        val res = source.formula.subst(sbst)
         testPrintln(s"Unified")
         testPrintln(s"$source", Console.BLUE)
         testPrintln("  with")
@@ -108,9 +110,10 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
 
     // Assert that these are conjunctions
     SpatialUnification.unifyViaSpatialParts(target, source) match {
-      case Some((res, sbst)) =>
+      case Some(sbst) =>
+        val res = source.formula.subst(sbst)
         testPrintln(s"Weird! Unified\nSource $source\nwith\nTarget $target\n" +
-          s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${SpatialUnification.ppSubst(sbst)}\n")
+            s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${SpatialUnification.ppSubst(sbst)}\n")
         assert(false, "Unification shouldn't succeed")
       case None =>
         testPrintln(s"As expected, failed to unify")
@@ -129,10 +132,9 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
       checkUnificationFailure(uSource2_fail, uTarget2_fail)
     }
 
-    it("trying to unify assertions with unaccounted variables") {
-      checkUnificationFailure(uSource3_fail, uTarget3_fail)
-    }
+    //    it("trying to unify assertions with unaccounted variables") {
+    //      checkUnificationFailure(uSource3_fail, uTarget3_fail)
+    //    }
   }
-
 
 }

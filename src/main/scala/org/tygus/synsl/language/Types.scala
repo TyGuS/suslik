@@ -19,7 +19,7 @@ case object LocType extends SynslType {
 }
 
 case object IntSetType extends SynslType {
-  override def pp: String = "set"
+  override def pp: String = "intset"
 }
 
 case object VoidType extends SynslType {

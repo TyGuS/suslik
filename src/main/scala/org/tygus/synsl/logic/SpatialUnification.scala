@@ -1,6 +1,7 @@
 package org.tygus.synsl.logic
 
 import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.logic.smt.SMTSolving
 
 object SpatialUnification extends SepLogicUtils with PureLogicUtils {
 
@@ -17,10 +18,9 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
   }
 
   private def genSubst(to: Expr, from: Expr, taken: Set[Var]): Option[Subst] = {
-    if (to == from) Some(Map.empty) else from match {
-      case _from@Var(_) =>
-        if (!taken.contains(_from)) Some(Map(_from -> to))
-        else None
+    if (to == from) Some(Map.empty) // Handling constants etc
+    else from match {
+      case _from@Var(_) if !taken.contains(_from) => Some(Map(_from -> to))
       case _ => None
     }
   }
@@ -56,22 +56,23 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource)
         }
-      case (SApp(p1, es1, t1), SApp(p2, es2, t2))
+      case (SApp(p1, es1, t1), SApp(p2, es2, t2)) =>
         // Only unify predicates with variables as arguments
-        if es1.forall(_.isInstanceOf[Var]) && es2.forall(_.isInstanceOf[Var]) =>
+        // if es2.forall(_.isInstanceOf[Var])
         if (p1 != p2 || es1.size != es2.size || t1 != t2) None
         else {
-          val pairs = es1.zip(es2).asInstanceOf[List[(Var, Var)]]
+          val pairs = es1.zip(es2)
           // Collect the mapping from the predicate parameters
           pairs.foldLeft(Some(Map.empty): Option[Subst]) {
             case (opt, (x1, x2)) => opt match {
               case None => None
-              case Some(acc) => genSubst(x1, x2, nonFreeInSource) match {
-                case Some(sbst) =>
-                  assertNoOverlap(acc, sbst)
-                  Some(acc ++ sbst)
-                case None => None
-              }
+              case Some(acc) =>
+                genSubst(x1, x2, nonFreeInSource) match {
+                  case Some(sbst) =>
+                    assertNoOverlap(acc, sbst)
+                    Some(acc ++ sbst)
+                  case None => None
+                }
             }
           }
         }
@@ -115,11 +116,13 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
   }
 
   /**
-    * The result is a mapping of variables in the `source` to the variables in the `target`,
+    * Unification of two formulae based on their spatial parts
+    *
+    * The result is a substitution of variables in the `source` to the variables in the `target`,
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
     */
-  def unifyViaSpatialParts(target: UnificationGoal, source: UnificationGoal): Option[(Assertion, Subst)] = {
+  def unifyViaSpatialParts(target: UnificationGoal, source: UnificationGoal): Option[Subst] = {
     // Make sure that all variables in target are fresh wrt. source
     val (freshSource, freshSubst) = refreshSource(target, source)
 
@@ -144,8 +147,8 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
       sbst.forall { case (from, to) =>
         // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
         (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
-          // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
-          (!sParams.contains(from) || to.vars.forall(tParams.contains))
+            // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
+            (!sParams.contains(from) || to.vars.forall(tParams.contains))
       }
     }
 
@@ -189,16 +192,18 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
       val tChunks = iter.next()
       unifyGo(tChunks, sourceChunks, Map.empty) match {
         case Some(newSubst) =>
-          // Found unification, see if it captures all variables in the pure part
-          val newAssertion = sFormula.subst(newSubst)
-          if (newAssertion.vars.forall(tFormula.vars.contains(_))) {
-            // No free variables in the "source" after substitution => successful unification
-            /*
-            TODO: Check via external prover that the new target pure part is implied by the source pure part, i.e.,
-             sFormula.phi implies newAssertion.phi
-             */
-            return Some((newAssertion, compose(freshSubst, newSubst)))
-          }
+          // Found unification, see if it captures all variables in the pure part (do we need it?)
+          //          val newAssertion = sFormula.subst(newSubst)
+          //          // newAssertion.vars.forall(tFormula.vars.contains(_))
+          //          if (SMTSolving.implies(newAssertion.phi, tFormula.phi)) {
+          //            // No free variables in the "source" after substitution => successful unification
+          //            /*
+          //            TODO: Check via external prover that the new target pure part is implied by the source pure part, i.e.,
+          //             sFormula.phi implies newAssertion.phi
+          //             */
+          //            return Some(compose(freshSubst, newSubst))
+          //          }
+          return Some(compose(freshSubst, newSubst))
         // Otherwise, continue
         case None =>
       }
