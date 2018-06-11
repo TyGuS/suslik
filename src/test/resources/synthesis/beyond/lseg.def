@@ -1,15 +1,4 @@
-predicate lseg(x, y, S) {
-|  x == y        => { S =i Empty ; emp }
-|  not (x == y)  => { S =i Union({v}, S1) ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, S1) }
-}
-
-predicate lseg1(x, y) {
-|  x == y        => { emp }
-|  not (x == y)  => { [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg1(nxt, y) }
-}
-
-
-predicate tree(x) {
-|  x == 0        => {emp}
-|  not (x == 0)  => {[x, 3] ** x :-> 0 ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l) ** tree(r)}
+predicate lseg(x, y, Z) {
+|  x == y        => { Z =i Empty ; emp }
+|  not (x == y)  => { Z =i Union({v}, Z1) ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, Z1) }
 }
