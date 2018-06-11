@@ -61,6 +61,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
 
           // Get predicate from the environment
+          // TODO: Here's a potential bug, due to variable captures
+          // (existnentials in predicate clauses are captured by goal variables)
           // TODO: refresh its existentials!
           val InductivePredicate(_, params, clauses) = env.predicates(pred)
           val sbst = params.zip(args).toMap
