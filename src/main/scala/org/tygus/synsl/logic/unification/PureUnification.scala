@@ -19,8 +19,7 @@ object PureUnification extends UnificationBase {
 
   protected def checkShapesMatch(cs1: List[PFormula], cs2: List[PFormula]): Boolean = {
     val (seqs1, seqs2) = (cs1.filter(_.isInstanceOf[SEq]), cs2.filter(_.isInstanceOf[SEq]))
-    if (seqs1.isEmpty || seqs2.isEmpty) return false
-    seqs1.size == seqs2.size
+    !(seqs1.isEmpty || seqs2.isEmpty)
   }
 
   def tryUnify(target: PFormula, source: PFormula, nonFreeInSource: Set[Var]): Seq[Subst] = {

@@ -93,7 +93,7 @@ case class Program(decls: Seq[TopLevelDeclaration]) extends PrettyPrinting {
   * Environment: stores module-level declarations that might be needed during synthesis
   * (predicates, component functions, etc)
   */
-case class Environment(predicates: PredicateEnv, functions: FunctionEnv) {
+case class Environment(predicates: PredicateEnv, functions: FunctionEnv, unfoldingsLeft: Int) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

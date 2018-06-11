@@ -54,6 +54,14 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String)
 
   def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 
+  /**
+    * How many unfoldings can we tolerate
+    */
+  def closeCredit: Int = post.sigma.chunks.map{
+    case SApp(_, _, Some(i)) => i
+    case _ => 0
+  }.sum
+
   def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
 
   def formals: Set[Var] = gamma.map(_._2).toSet

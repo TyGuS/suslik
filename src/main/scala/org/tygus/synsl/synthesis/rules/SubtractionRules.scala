@@ -74,7 +74,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       for {
         t <- pre.sigma.chunks
         s <- post.sigma.chunks
-        sub <- tryUnify(t, s, goal.universals, false)
+        sub <- tryUnify(t, s, goal.universals ++ goal.formals, false)
         newPreSigma = pre.sigma - t
         newPostSigma = (post.sigma - s).subst(sub)
         if sideCond(newPreSigma, newPostSigma, t)
@@ -101,13 +101,14 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
       val params = goal.gamma.map(_._2).toSet
-      PureUnification.unify(UnificationGoal(pre, params), UnificationGoal(post, params), false) match {
+      PureUnification.unify(
+        UnificationGoal(pre, params), UnificationGoal(post, params), needRefreshing = false, precise = false) match {
         case None => Nil
         case Some(sbst) =>
           val postSubst = post.subst(sbst)
           removeEquivalent(pre.phi, postSubst.phi) match {
             case Some(cs) =>
-              val newPost = Assertion(cs, post.sigma)
+              val newPost = Assertion(cs, postSubst.sigma)
               val newGoal = Goal(pre, newPost, goal.gamma, goal.fname)
               List(Subderivation(List((newGoal, env)), pureKont(toString)))
             case None => Nil

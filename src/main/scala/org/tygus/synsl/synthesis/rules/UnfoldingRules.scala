@@ -174,9 +174,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: close]"
 
-    // Do not unfold more than 3 times
-    val closeRuleUnfoldingDepth = 1
-
     private val kont: StmtProducer = stmts => {
       ruleAssert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
       stmts.head
@@ -184,14 +181,17 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(pre, post, gamma: Gamma, fname) = goal
+      // TODO: super-mega-dirty hack!
+      // Avoiding exponential blow-up by looking at the number of allowed environments left
+      val leftUnfoldings = env.unfoldingsLeft
 
       findHeaplet({
-        case SApp(pred, args, Some(t)) => t <= closeRuleUnfoldingDepth
+        case SApp(pred, args, Some(t)) => t <= leftUnfoldings
         case _ => false
       }, goal.post.sigma) match {
         case None => Nil
         case Some(h@SApp(pred, args, Some(t))) =>
-          ruleAssert(env.predicates.contains(pred) && t <= closeRuleUnfoldingDepth,
+          ruleAssert(env.predicates.contains(pred) && t <= leftUnfoldings,
             s"Close rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred)
 
@@ -210,7 +210,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
-            Subderivation(List((Goal(pre, newPost, gamma, fname), env)), kont)
+            Subderivation(List((Goal(pre, newPost, gamma, fname),
+                env.copy(unfoldingsLeft = leftUnfoldings - 1))), kont)
           }
           subDerivations
         case Some(h) =>

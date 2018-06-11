@@ -49,7 +49,7 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
     val (target: UnificationGoal, source: UnificationGoal) = getSourceTarget(sourceText, targetText)
 
     // Assert that these are conjunctions
-    SpatialUnification.unify(target, source) match {
+    SpatialUnification.unify(target, source, precise = false) match {
       case Some(sbst) =>
         val res = source.formula.subst(sbst)
         testPrintln(s"Unified")

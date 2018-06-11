@@ -30,12 +30,19 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     * The result is a substitution of variables in the `source` to the variables in the `target`,
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
+    *
+    * @param needRefreshing whether the source need to be given all fresh names or not
+    * @param precise        match all target chunks (no leftovers) -- true for spatial case
     */
-  def unify(target: UnificationGoal, source: UnificationGoal, needRefreshing: Boolean = true): Option[Subst] = {
+  def unify(target: UnificationGoal, source: UnificationGoal,
+            needRefreshing: Boolean = true, precise: Boolean = true): Option[Subst] = {
     // Make sure that all variables in target are fresh wrt. source
     val (freshSource, freshSubst) =
       if (needRefreshing) refreshSource(target, source)
-      else (source, {val vs = source.formula.vars; vs.zip(vs).toMap })
+      else (source, {
+        val vs = source.formula.vars;
+        vs.zip(vs).toMap
+      })
 
     val targetChunks = extractChunks(target)
     val sourceChunks = extractChunks(freshSource)
@@ -82,13 +89,16 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       case Nil =>
         // No more source chunks to unify
         if (sourceChunks.isEmpty) Some(acc) else None
-      case tc :: tcss => findChunkAndUnify(tc, sourceChunks) match {
-        case None => None
-        // Could not find a matching heaplet
-        case Some((sbst, scsUpdated)) =>
-          assertNoOverlap(acc, sbst)
-          unifyGo(tcss, scsUpdated, acc ++ sbst)
-      }
+      case tc :: _ if sourceChunks.isEmpty && !precise =>
+        Some(acc)
+      case tc :: tcss =>
+        findChunkAndUnify(tc, sourceChunks) match {
+          case None => None
+          // Could not find a matching heaplet
+          case Some((sbst, scsUpdated)) =>
+            assertNoOverlap(acc, sbst)
+            unifyGo(tcss, scsUpdated, acc ++ sbst)
+        }
     }
 
     // Lazily try all permutations of source chunks

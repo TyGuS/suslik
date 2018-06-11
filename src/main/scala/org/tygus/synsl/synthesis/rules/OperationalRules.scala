@@ -225,13 +225,14 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findHeaplet(isExistBlock(goal), post.sigma) match {
         case None => Nil
         case Some(h@(Block(x@Var(_), sz))) =>
-          val newPost = Assertion(post.phi, post.sigma - h)
+          val newPost = Assertion(post.phi, post.sigma)
           val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
           // TODO: replace 0 with blank
           val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, IntConst(0))
-          val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks))
+          val freshBlock = Block(x, sz).subst(x, y)
+          val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
           val subGoal = Goal(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList, fname)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
