@@ -35,7 +35,8 @@ trait Synthesis {
     val goal = Goal(pre, post, formals, name)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
-    synthesize(goal, env, startingDepth)(stats = stats, printFails = _printFails, rules = topLevelRules ++ everyDayRules) match {
+    synthesize(goal, env, startingDepth)(stats = stats, printFails = _printFails,
+      rules = topLevelRules ++ everyDayRules) match {
       case Some(body) =>
         val proc = Procedure(name, tp, goal.gamma, body)
         Some((proc, stats))

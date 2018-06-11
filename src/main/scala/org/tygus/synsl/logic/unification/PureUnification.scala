@@ -53,7 +53,8 @@ object PureUnification extends UnificationBase {
       m1 ++ m2
     case (SingletonSet(es), SingletonSet(et)) =>
       unifyAsSetExpr(es, et, nonFreeInSource)
-    case _ => Nil
+    case (EmptySet, EmptySet) => List(Map.empty)
+    case _ => List(Map.empty)
   }
 
 }

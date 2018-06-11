@@ -24,4 +24,8 @@ class SynthesisWithTheories extends FunSpec with Matchers with SynthesisTestUtil
     runAllTestsFromDir("sets")
   }
 
+  describe("SL-based synthesizer for copying lists") {
+    runAllTestsFromDir("copy")
+  }
+
 }

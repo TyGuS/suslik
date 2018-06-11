@@ -49,13 +49,13 @@ object PFalse extends PFormula {
 // Connectives
 case class PAnd(left: PFormula, right: PFormula) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpAnd, left.toExpr, right.toExpr)
-  override def pp: Ident = s"(${left.pp} /\\ ${right.pp})"
+  override def pp: Ident = s"(${left.pp}) /\\ (${right.pp})"
   def subst(sigma: Map[Var, Expr]): PFormula = PAnd(left.subst(sigma), right.subst(sigma))
 }
 
 case class POr(left: PFormula, right: PFormula) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpOr, left.toExpr, right.toExpr)
-  override def pp: Ident = s"(${left.pp} \\/ ${right.pp})"
+  override def pp: Ident = s"(${left.pp}) \\/ (${right.pp})"
   def subst(sigma: Map[Var, Expr]): PFormula = POr(left.subst(sigma), right.subst(sigma))
 }
 

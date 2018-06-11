@@ -1,7 +1,7 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.language.Expressions.Var
-import org.tygus.synsl.language.Statements.{Call, If, SeqComp, Store}
+import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
@@ -41,7 +41,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val cond_branches = conds.zip(stmts).reverse
         val ctail = cond_branches.tail
         val finalBranch = cond_branches.head._2
-        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb) }
+        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => (tb, eb) match {
+          case (Skip, Skip) => Skip
+          case _ => If(c, tb, eb)
+        }
+        }
       }
     }
 
@@ -55,6 +59,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
+
+          // Get predicate from the environment
+          // TODO: refresh its existentials!
           val InductivePredicate(_, params, clauses) = env.predicates(pred)
           val sbst = params.zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)

@@ -1,4 +1,4 @@
-should be able to synthesize list copy
+Nil
 
 #####
 
@@ -9,4 +9,7 @@ void list_copy(loc r)
 #####
 
 void list_copy (loc r) {
+  if (x == 0) {
+  } else {
+  }
 }

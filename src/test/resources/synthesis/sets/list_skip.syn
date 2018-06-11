@@ -9,7 +9,4 @@ should be able to synthesize programs with non-trivial lists
 ###
 
 void list_skip (loc x, loc r) {
-  if (x == 0) {
-  } else {
-  }
 }

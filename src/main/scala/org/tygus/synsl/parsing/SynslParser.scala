@@ -67,6 +67,7 @@ class SynslParser extends StandardTokenParsers {
           ||| (parenPhi <~ "/\\") ~ parenPhi ^^ { case a ~ b => PAnd(a, b) }
           ||| (parenPhi <~ "\\/") ~ parenPhi ^^ { case a ~ b => POr(a, b) }
           ||| "not" ~> parenPhi ^^ PNeg
+          ||| parenPhi
       )
 
   def identWithOffset: Parser[(Ident, Int)] = {

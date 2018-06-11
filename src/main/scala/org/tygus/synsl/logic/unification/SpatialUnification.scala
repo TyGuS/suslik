@@ -10,13 +10,20 @@ object SpatialUnification extends UnificationBase {
 
   type UAtom = Heaplet
 
+  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst] =
+    tryUnify(target, source, nonFreeInSource, tagsMatter = true)
+
   /**
     * Tries to unify two heaplets `target` and `source`, assuming `source` has
     * variables that are either free or in `nonFreeInSource`.
     *
     * If successful, returns a substitution from `source`'s fresh variables to `target`'s variables
     */
-  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst] = {
+  def tryUnify(target: UAtom, source: UAtom,
+               nonFreeInSource: Set[Var],
+               // Take the application level tags into the account
+               // should be ignored when used from the *-intro rule
+               tagsMatter: Boolean = true): Seq[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
@@ -41,7 +48,8 @@ object SpatialUnification extends UnificationBase {
       case (SApp(p1, es1, t1), SApp(p2, es2, t2)) =>
         // Only unify predicates with variables as arguments
         // if es2.forall(_.isInstanceOf[Var])
-        if (p1 != p2 || es1.size != es2.size || t1 != t2) Nil
+        if (p1 != p2 || es1.size != es2.size ||
+            (t1 != t2 && tagsMatter)) Nil
         else {
           val pairs = es1.zip(es2)
           // Collect the mapping from the predicate parameters

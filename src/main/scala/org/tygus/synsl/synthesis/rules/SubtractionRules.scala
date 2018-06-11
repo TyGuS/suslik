@@ -74,7 +74,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       for {
         t <- pre.sigma.chunks
         s <- post.sigma.chunks
-        sub <- tryUnify(t, s, goal.universals)
+        sub <- tryUnify(t, s, goal.universals, false)
         newPreSigma = pre.sigma - t
         newPostSigma = (post.sigma - s).subst(sub)
         if sideCond(newPreSigma, newPostSigma, t)
