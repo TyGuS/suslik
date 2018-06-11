@@ -1,0 +1,14 @@
+Add a head to a list
+
+#####
+
+{ not (x == 0) ; lseg(nxt, 0, S1)}
+
+void list_copy(loc x, loc nxt, int v)
+
+{S =i Union({v}, S1) ; lseg(x, 0, S)}
+
+#####
+
+void list_copy (loc r) {
+}
