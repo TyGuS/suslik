@@ -1,7 +1,8 @@
 package org.tygus.synsl.unification
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.synsl.logic.{PureLogicUtils, SpatialUnification, UnificationGoal}
+import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
+import org.tygus.synsl.logic.PureLogicUtils
 import org.tygus.synsl.parsing.SynslParser
 import org.tygus.synsl.util.SynLogLevels
 
@@ -48,7 +49,7 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
     val (target: UnificationGoal, source: UnificationGoal) = getSourceTarget(sourceText, targetText)
 
     // Assert that these are conjunctions
-    SpatialUnification.unifyViaSpatialParts(target, source) match {
+    SpatialUnification.unify(target, source) match {
       case Some(sbst) =>
         val res = source.formula.subst(sbst)
         testPrintln(s"Unified")
@@ -109,7 +110,7 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
     val (target: UnificationGoal, source: UnificationGoal) = getSourceTarget(sourceText, targetText)
 
     // Assert that these are conjunctions
-    SpatialUnification.unifyViaSpatialParts(target, source) match {
+    SpatialUnification.unify(target, source) match {
       case Some(sbst) =>
         val res = source.formula.subst(sbst)
         testPrintln(s"Weird! Unified\nSource $source\nwith\nTarget $target\n" +

@@ -48,6 +48,11 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
     res == Success(UnSat())
   }
 
+  private def checkSat(p: SMTBoolTerm): Boolean = {
+    val res = using(new SMTSolver("Z3", new SMTInit(QF_AUFLIA, List(MODELS)))) { implicit solver => isSat(p) }
+    res == Success(Sat())
+  }
+
   private def convertFormula(phi: PFormula): Try[SMTBoolTerm] = phi match {
     case PTrue => Try(True())
     case PFalse => Try(False())
@@ -110,6 +115,13 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
     }
     case UnaryExpr(op, arg) => Failure(e)
     case _ => Failure(e)
+  }
+
+  def isSat(phi: PFormula): Boolean = {
+    val res = for {
+      p <- convertFormula(phi)
+    } yield checkSat(p)
+    res.getOrElse(false)
   }
 
   def implies(phi1: PFormula, phi2: PFormula): Boolean = {

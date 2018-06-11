@@ -3,6 +3,7 @@ package org.tygus.synsl.parsing
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.unification.UnificationGoal
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 

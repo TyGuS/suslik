@@ -4,7 +4,7 @@ import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.logic.SpatialUnification._
+import org.tygus.synsl.logic.unification.SpatialUnification._
 import org.tygus.synsl.logic.smt.SMTSolving
 
 /**
@@ -73,7 +73,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       for {
         t <- pre.sigma.chunks
         s <- post.sigma.chunks
-        sub <- tryUnifyHeaplets(t, s, goal.universals)
+        sub <- tryUnify(t, s, goal.universals)
         newPreSigma = pre.sigma - t
         newPostSigma = (post.sigma - s).subst(sub)
         if sideCond(newPreSigma, newPostSigma, t)
@@ -83,6 +83,20 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         Subderivation(List((Goal(newPre, newPost, goal.gamma, goal.fname), env)), pureKont(toString))
       }
     }
+  }
+
+  /*
+    Γ ; {φ ∧ φ1 ; P} ; {ψ' ; Q'} ---> S
+            s = unify(φ1, φ2)
+      {ψ' ; Q'} = subst({ψ ; Q}, s)
+  --------------------------------------- [Hypothesis-Unify]
+  Γ ; {φ ∧ φ1 ; P} ; {ψ ∧ φ2 ; Q} ---> S
+
+   */
+
+  object HypothesisUnify extends SynthesisRule {
+    override def toString: String = "[Sub: hypothesis-unify]"
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = Nil
   }
 
 

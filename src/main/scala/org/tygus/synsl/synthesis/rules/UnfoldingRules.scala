@@ -4,6 +4,7 @@ import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.Statements.{Call, If, SeqComp, Store}
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
 import org.tygus.synsl.synthesis.rules.OperationalRules.ruleAssert
 
@@ -95,8 +96,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       mkInductiveSubGoals(goal, env) match {
         case None => Nil
         case Some((selGoals, h)) =>
-          val (selectors, subGoals) = selGoals.unzip
           val newEnv = mkIndHyp(goal, env, h)
+          val (selectors, subGoals) = selGoals.unzip
           val goalsWithNewEnv = subGoals.map(g => (g, newEnv))
           List(Subderivation(goalsWithNewEnv, kont(selectors)))
       }
@@ -130,7 +131,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(targetPre, goal.gamma.map(_._2).toSet)
-        sigma <- SpatialUnification.unifyViaSpatialParts(target, source)
+        sigma <- SpatialUnification.unify(target, source)
       } yield {
         val newPreChunks =
           (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks

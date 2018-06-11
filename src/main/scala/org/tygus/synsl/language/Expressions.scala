@@ -81,6 +81,7 @@ object Expressions {
       var tmpName = original
       while (taken.exists(_.name == tmpName)) {
         tmpName = original + count
+        count = count + 1
       }
       Var(tmpName)
     }
