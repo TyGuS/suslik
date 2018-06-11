@@ -16,8 +16,12 @@ class SynthesisWithTheories extends FunSpec with Matchers with SynthesisTestUtil
       synthesizeFromSpec(testName, in, out)
     }
 
-  describe("SL-based synthesizer with custom theories") {
-    runAllTestsFromDir("theories")
+  describe("SL-based synthesizer with theory of integers") {
+    runAllTestsFromDir("ints")
+  }
+
+  describe("SL-based synthesizer with theory of finite sets") {
+    runAllTestsFromDir("sets")
   }
 
 }

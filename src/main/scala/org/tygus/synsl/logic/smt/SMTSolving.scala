@@ -1,7 +1,7 @@
 package org.tygus.synsl.logic.smt
 
 import org.bitbucket.franck44.scalasmt.configurations.SMTInit
-import org.bitbucket.franck44.scalasmt.configurations.SMTLogics.QF_LIA
+import org.bitbucket.franck44.scalasmt.configurations.SMTLogics.{QF_AUFLIA, QF_LIA}
 import org.bitbucket.franck44.scalasmt.configurations.SMTOptions.MODELS
 import org.bitbucket.franck44.scalasmt.interpreters.{Resources, SMTSolver}
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
@@ -16,8 +16,8 @@ import scala.util.{Failure, Success, Try}
   * @author Ilya Sergey
   */
 
-object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Resources with Commands
-    with PureLogicUtils {
+object SMTSolving extends Core with IntegerArithmetics with Resources with Commands
+    with PureLogicUtils with ArrayExBool {
 
   {
     disableLogging()
@@ -35,6 +35,7 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
 
   type SMTBoolTerm = TypedTerm[BoolTerm, Term]
   type SMTIntTerm = TypedTerm[IntTerm, Term]
+  type SMTSetTerm = TypedTerm[ArrayTerm[BoolTerm], Term]
 
   /*
   TODO:
@@ -43,7 +44,7 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
 
   private def checkImplication(ant: SMTBoolTerm, succ: SMTBoolTerm): Boolean = {
     val conjecture = ant imply succ
-    val res = using(new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))) { implicit solver => isSat(!conjecture) }
+    val res = using(new SMTSolver("Z3", new SMTInit(QF_AUFLIA, List(MODELS)))) { implicit solver => isSat(!conjecture) }
     res == Success(UnSat())
   }
 
@@ -77,8 +78,22 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
       r <- convertIntExpr(right)
     } yield l < r
 
-    // TODO: Convert finite set expressions to SMT formulae
+    case SEq(SingletonSet(s1), SingletonSet(s2)) => for {
+      l <- convertIntExpr(s1)
+      r <- convertIntExpr(s2)
+    } yield l === r
+    // TODO: support other cases
+
     case _ => Failure(phi)
+  }
+
+  private def convertIntSetExpr(e: Expr): Try[(SMTSetTerm, SMTBoolTerm)] = e match {
+    case Var(name) => Try((ArrayBool1(name), True()))
+    case SingletonSet(elem) => Failure(e)
+    //  TODO: support the rest
+    case EmptySet => Failure(e)
+    case SetUnion(l, r) => Failure(e)
+    case _ => Failure(e)
   }
 
   // So far only ints are supported
@@ -101,7 +116,8 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
     // Check that all variables in Ф2 are bound by those in Ф1
     val phi2vars = phi2.vars
     val phi1vars = phi1.vars
-    if (!phi2vars.forall(phi1vars.contains)) return false
+
+    // if (!phi2vars.forall(phi1vars.contains)) return false
 
     // Check satisfiability via SMT
     val res = for {

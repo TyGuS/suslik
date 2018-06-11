@@ -1,12 +1,15 @@
-should be able to add an element into a set
+should be able to reason with singleton sets
 
 #####
 
-
-{ true ; x :-> S }
+{ true ; x :-> a }
 
 void add(loc x, int e)
 
-{ S1 =i Union({e}, S) ; x :-> e }
+{ {e} =i {r} ; x :-> r }
 
 ######
+
+void add (loc x, int e) {
+  *x = e;
+}

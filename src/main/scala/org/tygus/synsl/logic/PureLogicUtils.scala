@@ -46,6 +46,7 @@ trait PureLogicUtils {
     case PNeg(PFalse) => PTrue
     case PNeg(arg) => PNeg(simplify(arg))
 
+    // Set equality
     case s@SEq(_, _) => s
   }
 
