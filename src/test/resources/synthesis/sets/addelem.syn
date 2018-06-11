@@ -1,0 +1,12 @@
+should be able to add an element into a set
+
+#####
+
+
+{ true ; x :-> S }
+
+void add(loc x, int e)
+
+{ S1 =i Union({e}, S) ; x :-> e }
+
+######

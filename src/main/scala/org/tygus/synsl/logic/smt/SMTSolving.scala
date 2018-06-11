@@ -77,6 +77,7 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
       r <- convertIntExpr(right)
     } yield l < r
 
+    // TODO: Convert finite set expressions to SMT formulae
     case _ => Failure(phi)
   }
 

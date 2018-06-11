@@ -10,10 +10,13 @@ import org.tygus.synsl.language.Expressions._
   */
 trait PureLogicUtils {
 
+  /**
+    * Basic simlifier for logical formulae
+    */
   def simplify(phi: PFormula): PFormula = phi match {
     case p@(PTrue | PFalse) => p
-    case p@PLeq(left, right) => p // TODO: Improve this
-    case p@PLtn(left, right) => p // TODO: Improve this
+    case p@PLeq(left, right) => p
+    case p@PLtn(left, right) => p
     case p@PEq(e, v@Var(_)) if !e.isInstanceOf[Var] => PEq(v, e)
     case p@PEq(v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
       if (n1.toString <= n2.toString) PEq(v1, v2) else PEq(v2, v1)
@@ -42,16 +45,20 @@ trait PureLogicUtils {
     case PNeg(PTrue) => PFalse
     case PNeg(PFalse) => PTrue
     case PNeg(arg) => PNeg(simplify(arg))
+
+    case s@SEq(_, _) => s
   }
 
   private def isAtomicExpr(e: Expr): Boolean = e match {
     case Var(name) => true
     //  For now we only allow integers here
     case IntConst(_) => true
+    // Do not simplify set expressions
+    case _: SetExpr => true
     case _ => false
   }
 
-  val isRelationPFormula : (PFormula) => Boolean = {
+  val isRelationPFormula: (PFormula) => Boolean = {
     case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case PLeq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case PLtn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
@@ -61,6 +68,7 @@ trait PureLogicUtils {
   val isAtomicPFormula: (PFormula) => Boolean = {
     case PTrue | PFalse => true
     case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case SEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case PNeg(p) => isRelationPFormula(p)
     case p => isRelationPFormula(p)
   }
@@ -75,6 +83,9 @@ trait PureLogicUtils {
     check(simplify(pf))
   }
 
+  /**
+    * Return the formula as a list of conjuncts
+    */
   def conjuncts(phi: PFormula): List[PFormula] = {
 
     val pf = simplify(phi)
@@ -101,6 +112,9 @@ trait PureLogicUtils {
     None
   }
 
+  /**
+    * Check if two formulas are equivalent
+    */
   def isEquiv(p1: PFormula, p2: PFormula): Boolean = (p1, p2) match {
     case (PEq(e1, e2), PEq(e3, e4)) => e1 == e4 && e2 == e3
     case (PNeg(z1), PNeg(z2)) => isEquiv(z1, z2)
@@ -113,27 +127,31 @@ trait PureLogicUtils {
       case None => None
     })
 
+
+  /**
+    * Assemble a formula from a list of conjunctions
+    */
   def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct match {
     case h :: t => t.foldLeft(h)((z, p) => PAnd(z, p))
     case Nil => PTrue
   }
 
   /**
-    * @param vs a list of variables to refresh
+    * @param vs     a list of variables to refresh
     * @param rotten taken identifiers
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
-  def refreshVars(vs: List[Var], rotten : Set[Var]) : Map[Var, Var] = {
-    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]) : Map[Var, Var] = vsToRefresh match {
+  def refreshVars(vs: List[Var], rotten: Set[Var]): Map[Var, Var] = {
+    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] = vsToRefresh match {
       case Nil => acc
-      case x :: xs  =>
+      case x :: xs =>
         val newAcc = acc + (x -> x.refresh(taken))
         val newTaken = taken + x
         go(xs, newTaken, newAcc)
     }
+
     go(vs, rotten, Map.empty)
   }
-
 
 }
 

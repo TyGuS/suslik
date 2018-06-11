@@ -175,7 +175,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val Goal(pre, post, gamma: Gamma, fname) = goal
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, a@(Var(_))) => goal.isGhost(a) && !goal.isGhost(x)
+        case PointsTo(x@Var(_), _, a@(Var(_))) =>
+          goal.isGhost(a) && !goal.isGhost(x)
         case _ => false
       }
 
