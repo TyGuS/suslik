@@ -21,7 +21,7 @@ class SimpleEntailmentSolver(override implicit val log: SynLogging) extends Enta
     // Subtraction Rules
     Axiom,
     StarIntro,
-    Hypothesis,
+    Hyp,
     StripEqPost
 
   )

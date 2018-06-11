@@ -117,9 +117,20 @@ trait PureLogicUtils {
     * Check if two formulas are equivalent
     */
   def isEquiv(p1: PFormula, p2: PFormula): Boolean = (p1, p2) match {
-    case (PEq(e1, e2), PEq(e3, e4)) => e1 == e4 && e2 == e3
+    case (PEq(e1, e2), PEq(e3, e4)) => e1 == e3 && e2 == e4 || e1 == e4 && e2 == e3
+    case (SEq(e1, e2), SEq(e3, e4)) => e1 == e3 && e2 == e4 || e1 == e4 && e2 == e3
     case (PNeg(z1), PNeg(z2)) => isEquiv(z1, z2)
     case _ => p1 == p2
+  }
+
+  /**
+    * Removes the conjuncts from `sparsen` that have equivalent ones in base
+    */
+  def removeEquivalent(base: PFormula, sparsen: PFormula) : Option[PFormula] = {
+    val scs = conjuncts(sparsen)
+    val bcs = conjuncts(base)
+    val res = scs.filterNot(p => bcs.exists(c => isEquiv(p, c)))
+    if (res.size < scs.size) Some(mkConjunction(res)) else None
   }
 
   def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[(PFormula)])] =

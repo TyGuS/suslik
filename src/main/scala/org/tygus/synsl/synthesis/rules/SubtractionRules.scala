@@ -3,9 +3,10 @@ package org.tygus.synsl.synthesis.rules
 import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
-import org.tygus.synsl.synthesis._
-import org.tygus.synsl.logic.unification.SpatialUnification._
 import org.tygus.synsl.logic.smt.SMTSolving
+import org.tygus.synsl.logic.unification.SpatialUnification._
+import org.tygus.synsl.logic.unification.{PureUnification, UnificationGoal}
+import org.tygus.synsl.synthesis._
 
 /**
   * @author Ilya Sergey
@@ -35,10 +36,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val Goal(pre, post, _, _) = goal
 
       if (pre.sigma.isEmp &&
-          post.sigma.isEmp &&
-          {
+          post.sigma.isEmp && {
+        SMTSolving.implies(PTrue, post.phi) ||
             SMTSolving.implies(pre.phi, post.phi)
-          })
+      })
       // TODO: Generalise so that a solver is used for the pure part
         List(Subderivation(Nil, _ => Skip))
       else Nil
@@ -96,7 +97,23 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
   object HypothesisUnify extends SynthesisRule {
     override def toString: String = "[Sub: hypothesis-unify]"
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = Nil
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      val pre = goal.pre
+      val post = goal.post
+      val params = goal.gamma.map(_._2).toSet
+      PureUnification.unify(UnificationGoal(pre, params), UnificationGoal(post, params), false) match {
+        case None => Nil
+        case Some(sbst) =>
+          val postSubst = post.subst(sbst)
+          removeEquivalent(pre.phi, postSubst.phi) match {
+            case Some(cs) =>
+              val newPost = Assertion(cs, post.sigma)
+              val newGoal = Goal(pre, newPost, goal.gamma, goal.fname)
+              List(Subderivation(List((newGoal, env)), pureKont(toString)))
+            case None => Nil
+          }
+      }
+    }
   }
 
 

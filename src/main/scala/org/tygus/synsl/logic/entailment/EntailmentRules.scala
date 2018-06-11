@@ -136,7 +136,7 @@ trait EntailmentRules extends PureLogicUtils {
         --------------------------------------- [Hypothesis]
         Γ ; {φ ∧ φ' ; P} ; {ψ ∧ φ' ; Q} ---> S
    */
-  object Hypothesis extends EntailmentRule {
+  object Hyp extends EntailmentRule {
     override def toString: String = "[Sub: Hypothesis]"
 
     def apply(goal: Goal, env: Environment): EntRuleResult = {

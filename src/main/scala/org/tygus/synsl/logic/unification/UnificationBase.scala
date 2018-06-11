@@ -2,6 +2,7 @@ package org.tygus.synsl.logic.unification
 
 import org.tygus.synsl.language.Expressions.{Expr, Var}
 import org.tygus.synsl.language.Substitutable
+import org.tygus.synsl.logic.unification.PureUnification.Subst
 import org.tygus.synsl.logic.{Assertion, PureLogicUtils, SepLogicUtils}
 
 /**
@@ -16,7 +17,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
   type UAtom <: Substitutable[UAtom]
 
 
-  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Option[Subst]
+  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst]
 
   protected def extractChunks(goal: UnificationGoal): List[UAtom]
 
@@ -30,9 +31,11 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
     */
-  def unify(target: UnificationGoal, source: UnificationGoal): Option[Subst] = {
+  def unify(target: UnificationGoal, source: UnificationGoal, needRefreshing: Boolean = true): Option[Subst] = {
     // Make sure that all variables in target are fresh wrt. source
-    val (freshSource, freshSubst) = refreshSource(target, source)
+    val (freshSource, freshSubst) =
+      if (needRefreshing) refreshSource(target, source)
+      else (source, {val vs = source.formula.vars; vs.zip(vs).toMap })
 
     val targetChunks = extractChunks(target)
     val sourceChunks = extractChunks(freshSource)
@@ -66,12 +69,9 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       val iter = chunks.iterator
       while (iter.hasNext) {
         val candidate = iter.next()
-        tryUnify(h, candidate, takenVars) match {
-          case Some(sbst) if checkSubstWF(sbst) => // found a good substitution
-            // Return it and remaining chunks with the applied substitution
-            val remainingAtomsAdapted = chunks.filter(_ != candidate).map(_.subst(sbst))
-            return Some(sbst, remainingAtomsAdapted)
-          case _ => // Do nothing
+        for (sbst <- tryUnify(h, candidate, takenVars) if checkSubstWF(sbst)) {
+          val remainingAtomsAdapted = chunks.filter(_ != candidate).map(_.subst(sbst))
+          return Some(sbst, remainingAtomsAdapted)
         }
       }
       None
@@ -98,6 +98,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       val tChunks = iter.next()
       unifyGo(tChunks, sourceChunks, Map.empty) match {
         case Some(newSubst) =>
+          // Returns the first good substitution, doesn't try all of them!
           return Some(compose(freshSubst, newSubst))
 
         //          // Found unification, see if it captures all variables in the pure part (do we need it?)
@@ -145,6 +146,11 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 
   def ppSubst(m: Subst): String = {
     s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
+  }
+
+  def agreeOnSameKeys(m1: Subst, m2: Subst): Boolean = {
+    val common = m1.keySet.intersect(m2.keySet)
+    common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
   }
 
 }

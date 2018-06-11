@@ -16,14 +16,14 @@ object SpatialUnification extends UnificationBase {
     *
     * If successful, returns a substitution from `source`'s fresh variables to `target`'s variables
     */
-  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Option[Subst] = {
+  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
-        if (o1 != o2) None else {
+        if (o1 != o2) Nil else {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
-          for {
+          val sbst = for {
             m1 <- genSubst(x, a, nonFreeInSource)
             _v2 = b.subst(m1)
             m2 <- genSubst(y, _v2, nonFreeInSource)
@@ -31,16 +31,17 @@ object SpatialUnification extends UnificationBase {
             assertNoOverlap(m1, m2)
             m1 ++ m2
           }
+          sbst.toList
         }
       case (Block(x1@Var(_), s1), Block(x2@Var(_), s2)) =>
-        if (s1 != s2) None else {
+        if (s1 != s2) Nil else {
           assert(nonFreeInSource.contains(x1))
-          genSubst(x1, x2, nonFreeInSource)
+          genSubst(x1, x2, nonFreeInSource).toList
         }
       case (SApp(p1, es1, t1), SApp(p2, es2, t2)) =>
         // Only unify predicates with variables as arguments
         // if es2.forall(_.isInstanceOf[Var])
-        if (p1 != p2 || es1.size != es2.size || t1 != t2) None
+        if (p1 != p2 || es1.size != es2.size || t1 != t2) Nil
         else {
           val pairs = es1.zip(es2)
           // Collect the mapping from the predicate parameters
@@ -55,9 +56,9 @@ object SpatialUnification extends UnificationBase {
                   case None => None
                 }
             }
-          }
+          }.toList
         }
-      case _ => None
+      case _ => Nil
     }
   }
 

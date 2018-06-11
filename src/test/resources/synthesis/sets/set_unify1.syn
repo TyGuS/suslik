@@ -6,9 +6,9 @@ Should be able to unify simple facts about sets via *-hypothesis
 
 void foo (loc x)
 
-{S =i Union({v1}, S11) ; emp}
+{Union({v1}, S11) =i S ; emp}
 
 #####
 
-void foo (loc x, loc r) {
+void foo (loc x) {
 }

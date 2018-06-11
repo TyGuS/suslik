@@ -35,6 +35,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
     // Subtraction rules
     SubtractionRules.StarIntro,
+    SubtractionRules.HypothesisUnify,
 
     // Invertible operational rules
     OperationalRules.ReadRule,
