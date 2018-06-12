@@ -34,8 +34,8 @@ case class Subderivation(subgoals: Seq[(Goal, Environment)], kont: StmtProducer)
       case PNeg(PEq(left, right)) => left == right
       case PLtn(left, right) => left == right
       case PEq(IntConst(i1), IntConst(i2)) => i1 != i2
-      case SEq(Var(x), SetUnion(SingletonSet(_), Var(y))) => y == x
-      case SEq(SetUnion(SingletonSet(_), Var(y)), Var(x)) => y == x
+      // case SEq(Var(x), SetUnion(SingletonSet(_), Var(y))) => y == x
+      // case SEq(SetUnion(SingletonSet(_), Var(y)), Var(x)) => y == x
       case _ => false
     }
 

@@ -44,6 +44,7 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
     s"${selector.pp} => ${asn.pp}"
 
   def valid: Boolean = isAtomicPFormula(selector)
+
 }
 
 /**
@@ -66,7 +67,7 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
   *
   */
 case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[InductiveClause])
-  extends TopLevelDeclaration {
+  extends TopLevelDeclaration with PureLogicUtils {
 
   override def pp: String = {
     val prelude = s"$name (${params.map(_.pp).mkString(", ")}) {"
@@ -76,8 +77,21 @@ case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[Induct
 
   def valid: Boolean = clauses.forall(_.valid)
 
-  // TODO: implement me
-  def existentials: Set[Var] = ???
+  /**
+    * Renames existentials so they wouldn't capture the parameters and `vars`
+    *
+    * @param vars additional contextual variables that can be captures
+    * @return inductive predicate
+    */
+  def refreshExistentials(vars: Set[Var]): InductivePredicate = {
+    val bound = vars ++ params.toSet
+    val sbst = refreshVars(existentials.toList, bound)
+    this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
+  }
+
+  def vars: Set[Var] = clauses.flatMap(c => c.selector.vars ++ c.asn.vars).toSet
+
+  def existentials: Set[Var] = vars -- params.toSet
 
 }
 
@@ -93,7 +107,7 @@ case class Program(decls: Seq[TopLevelDeclaration]) extends PrettyPrinting {
   * Environment: stores module-level declarations that might be needed during synthesis
   * (predicates, component functions, etc)
   */
-case class Environment(predicates: PredicateEnv, functions: FunctionEnv, unfoldingsLeft: Int) {
+case class Environment(predicates: PredicateEnv, functions: FunctionEnv, unfoldingsLeft: Int = 1) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

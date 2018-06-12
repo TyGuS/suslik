@@ -24,8 +24,8 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
   // def |-(other: Assertion): Boolean = EntailmentSolver.entails(this, other)
 
-  def refresh(rotten: Set[Var]): (Assertion, Map[Var, Var]) = {
-    val freshSubst = refreshVars(this.vars.toList, rotten)
+  def refresh(bound: Set[Var]): (Assertion, Map[Var, Var]) = {
+    val freshSubst = refreshVars(this.vars.toList, bound)
     (this.subst(freshSubst), freshSubst)
   }
 

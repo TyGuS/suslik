@@ -150,10 +150,10 @@ trait PureLogicUtils {
 
   /**
     * @param vs     a list of variables to refresh
-    * @param rotten taken identifiers
+    * @param bound bound identifiers
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
-  def refreshVars(vs: List[Var], rotten: Set[Var]): Map[Var, Var] = {
+  def refreshVars(vs: List[Var], bound: Set[Var]): Map[Var, Var] = {
     def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] = vsToRefresh match {
       case Nil => acc
       case x :: xs =>
@@ -162,7 +162,7 @@ trait PureLogicUtils {
         go(xs, newTaken, newAcc)
     }
 
-    go(vs, rotten, Map.empty)
+    go(vs, bound, Map.empty)
   }
 
 }

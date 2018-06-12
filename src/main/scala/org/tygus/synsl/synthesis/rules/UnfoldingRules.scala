@@ -64,7 +64,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           // TODO: Here's a potential bug, due to variable captures
           // (existnentials in predicate clauses are captured by goal variables)
           // TODO: refresh its existentials!
-          val InductivePredicate(_, params, clauses) = env.predicates(pred)
+          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
           val newGoals = for {
@@ -184,6 +184,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // TODO: super-mega-dirty hack!
       // Avoiding exponential blow-up by looking at the number of allowed environments left
       val leftUnfoldings = env.unfoldingsLeft
+      if (leftUnfoldings <= 0) return Nil
 
       findHeaplet({
         case SApp(pred, args, Some(t)) => t <= leftUnfoldings
@@ -193,7 +194,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case Some(h@SApp(pred, args, Some(t))) =>
           ruleAssert(env.predicates.contains(pred) && t <= leftUnfoldings,
             s"Close rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred)
+          // TODO: Here's a potential bug, due to variable captures
+          // (existnentials in predicate clauses are captured by goal variables)
+          // TODO: refresh its existentials!
+          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val substArgs = params.zip(args).toMap
