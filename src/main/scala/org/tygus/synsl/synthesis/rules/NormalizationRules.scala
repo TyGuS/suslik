@@ -26,17 +26,37 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: nil-not-lval]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(Assertion(p1, s1), post, g, fname) = goal
-      val cs = conjuncts(p1)
-      // All pointers
-      val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet.filter(
-        x => !cs.contains(PNeg(PEq(x, NilPtr))) && !cs.contains(PNeg(PEq(NilPtr, x)))
-      )
-      if (ptrs.isEmpty) return Nil
-      // The implementation immediately adds _all_ inequalities
-      val _p1 = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
-      val newGoal = Goal(Assertion(_p1, s1), post, g, fname)
-      List(Subderivation(List((newGoal, env)), pureKont(toString)))
+
+      // Find pointers in `a` that are not yet known to be non-null
+      def findPointers(a: Assertion): Set[Expr] = {
+        val cs = conjuncts(a.phi)
+        // All pointers
+        val allPointers = (for (PointsTo(l, _, _) <- a.sigma.chunks) yield l).toSet
+        allPointers.filter(
+          x => !cs.contains(PNeg(PEq(x, NilPtr))) && !cs.contains(PNeg(PEq(NilPtr, x)))
+        )
+      }
+
+
+      def addToAssertion(a: Assertion, ptrs: Set[Expr]): Assertion = {
+        val cs = conjuncts(a.phi)
+        val newPhi = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
+        Assertion(newPhi, a.sigma)
+      }
+
+      val Goal(pre, post, g, fname) = goal
+
+      val prePointers = findPointers(pre)
+      val postPointers = findPointers(post).filter(_.vars.forall(v => goal.isExistential(v)))
+
+      if (prePointers.isEmpty && postPointers.isEmpty)
+        Nil // no pointers to insert
+      else {
+        val newPre = addToAssertion(pre, prePointers)
+        val newPost = addToAssertion(post, postPointers)
+        val newGoal = Goal(newPre, newPost, g, fname)
+        List(Subderivation(List((newGoal, env)), pureKont(toString)))
+      }
     }
   }
 
