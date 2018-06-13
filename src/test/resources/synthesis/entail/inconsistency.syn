@@ -5,4 +5,5 @@ void foo(loc x, loc y)
 { true; y :-> 5 ** x :-> y}
 ###
 void foo (loc x, loc y) {
+  error;
 }

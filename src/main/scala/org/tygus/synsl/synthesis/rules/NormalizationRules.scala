@@ -1,7 +1,7 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.language.Expressions._
-import org.tygus.synsl.language.Statements.Skip
+import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
 
@@ -166,18 +166,23 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: inconsistency]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(Assertion(p1, _), _, g, _) = goal
-      val res = findConjunctAndRest({
-        case PNeg(PEq(x, y)) => x == y
-        case _ => false
-      }, simplify(p1))
-      res match {
-        case Some((PNeg(PEq(x, y)), rest1)) if x == y =>
-          List(Subderivation(Nil, _ => Skip))
-        case _ => Nil
-      }
+      val Goal(Assertion(pre, _), Assertion(post, _), g, _) = goal
+
+      def hasInconsistentConjunct(p:PFormula): Boolean =
+        findConjunctAndRest({
+          case PNeg(PEq(x, y)) => x == y
+          case _ => false
+        }, simplify(p)).isDefined
+
+      if (hasInconsistentConjunct(pre))
+        List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
+      else if (hasInconsistentConjunct(post))
+        List(Subderivation(Nil, _ => Magic))  // post inconsistent: only magic can save us
+      else
+        Nil
     }
   }
+
 
 
   /*

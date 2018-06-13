@@ -64,6 +64,9 @@ trait Synthesis {
           case (a :: as) =>
             if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
             solveSubgoals(a) match {
+              case Some(Magic) =>
+                stats.bumpUpBacktracing()
+                tryAlternatives(as, altIndex + 1) // This alternative is inconsistent: try other alternatives
               case Some(res) =>
                 stats.bumpUpLastingSuccess()
                 Some(res) // This alternative succeeded

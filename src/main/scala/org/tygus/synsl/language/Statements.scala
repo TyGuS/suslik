@@ -19,6 +19,12 @@ object Statements {
       def build(s: Statement, offset: Int = 2): Unit = {
         s match {
           case Skip =>
+          case Error =>
+            builder.append(mkSpaces(offset))
+            builder.append(s"error;\n")
+          case Magic =>
+            builder.append(mkSpaces(offset))
+            builder.append(s"magic;\n")
           case Malloc(to, _, sz) =>
             // Ignore type
             builder.append(mkSpaces(offset))
@@ -66,6 +72,8 @@ object Statements {
 
       def collector(acc: Set[R])(st: Statement): Set[R] = st match {
         case Skip => acc
+        case Error => acc
+        case Magic => acc
         case Store(to, off, e) =>
           acc ++ to.collect(p) ++ e.collect(p)
         case Load(_, _, from, off) =>
@@ -93,6 +101,12 @@ object Statements {
 
   // skip;
   case object Skip extends Statement
+
+  // assert false;
+  case object Error extends Statement
+
+  // assume false;
+  case object Magic extends Statement
 
   // let to = malloc(n); rest
   case class Malloc(to: Var, tpe: SynslType, sz: Int = 1) extends Statement
