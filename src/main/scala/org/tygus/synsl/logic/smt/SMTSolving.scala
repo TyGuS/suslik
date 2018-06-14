@@ -96,12 +96,8 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
     case _ => Failure(e)
   }
 
+  // Check phi1 => phi2; all vars assumed to be universally quantified
   def implies(phi1: PFormula, phi2: PFormula): Boolean = {
-    // Check that all variables in Ф2 are bound by those in Ф1
-    val phi2vars = phi2.vars
-    val phi1vars = phi1.vars
-    if (!phi2vars.forall(phi1vars.contains)) return false
-
     // Check satisfiability via SMT
     val res = for {
       p1 <- convertFormula(phi1)

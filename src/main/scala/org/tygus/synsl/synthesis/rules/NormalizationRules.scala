@@ -3,6 +3,7 @@ package org.tygus.synsl.synthesis.rules
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis._
 
 import scala.collection.Set
@@ -188,15 +189,15 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(Assertion(pre, _), Assertion(post, _), g, _) = goal
 
-      def hasInconsistentConjunct(p:PFormula): Boolean =
-        findConjunctAndRest({
-          case PNeg(PEq(x, y)) => x == y
-          case _ => false
-        }, simplify(p)).isDefined
+//      def hasInconsistentConjunct(p:PFormula): Boolean =
+//        findConjunctAndRest({
+//          case PNeg(PEq(x, y)) => x == y
+//          case _ => false
+//        }, simplify(p)).isDefined
 
-      if (hasInconsistentConjunct(pre))
+      if (SMTSolving.implies(pre, PFalse))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
-      else if (hasInconsistentConjunct(post))
+      else if (SMTSolving.implies(post, PFalse))
         List(Subderivation(Nil, _ => Magic))  // post inconsistent: only magic can save us
       else
         Nil

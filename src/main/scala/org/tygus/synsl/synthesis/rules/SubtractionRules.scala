@@ -31,15 +31,14 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Sub: emp]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      // TODO: add value-returning statements
       val Goal(pre, post, _, _) = goal
 
       if (pre.sigma.isEmp &&
           post.sigma.isEmp &&
+          goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
           {
             SMTSolving.implies(pre.phi, post.phi)
           })
-      // TODO: Generalise so that a solver is used for the pure part
         List(Subderivation(Nil, _ => Skip))
       else Nil
     }
