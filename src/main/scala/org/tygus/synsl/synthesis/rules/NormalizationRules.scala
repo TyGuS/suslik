@@ -156,29 +156,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     }
   }
 
-
-  /*
-  Γ ; {φ ; P} ; {ψ ; Q} ---> S
-  -------------------------------------- [=-L]
-  Γ ; {φ ∧ l = l ; P} ; {ψ ; Q} ---> S
-  */
-  object StripEqPre extends SynthesisRule with InvertibleRule {
-    override def toString: String = "[Norm: =-L]"
-
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      findConjunctAndRest({
-        case PEq(x, y) => x == y
-        case _ => false
-      }, simplify(goal.pre.phi)) match {
-        case None => Nil
-        case Some((_, rest)) =>
-          val newPre = Assertion(mkConjunction(rest), goal.pre.sigma)
-          val newGoal = Goal(newPre, goal.post, goal.gamma, goal.fname)
-          List(Subderivation(List((newGoal, env)), pureKont(toString)))
-      }
-    }
-  }
-
+  
   /*
   --------------------------------------- [inconsistency]
   Γ ; {φ ∧ l ≠ l ; P} ; {ψ ; Q} ---> emp
@@ -189,68 +167,19 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val Goal(Assertion(pre, _), Assertion(post, _), g, _) = goal
 
-//      def hasInconsistentConjunct(p:PFormula): Boolean =
-//        findConjunctAndRest({
-//          case PNeg(PEq(x, y)) => x == y
-//          case _ => false
-//        }, simplify(p)).isDefined
+      //      def hasInconsistentConjunct(p:PFormula): Boolean =
+      //        findConjunctAndRest({
+      //          case PNeg(PEq(x, y)) => x == y
+      //          case _ => false
+      //        }, simplify(p)).isDefined
 
       if (!SMTSolving.sat(pre))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
       else if (!SMTSolving.sat(post))
-        List(Subderivation(Nil, _ => Magic))  // post inconsistent: only magic can save us
+        List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
       else
         Nil
     }
   }
-
-
-
-  /*
-  Γ ; {φ ∧ φ' ; P} ; {ψ ; Q} ---> S
-  --------------------------------------- [Hypothesis]
-  Γ ; {φ ∧ φ' ; P} ; {ψ ∧ φ' ; Q} ---> S
-  */
-  object Hypothesis extends SynthesisRule with InvertibleRule {
-    override def toString: String = "[Norm: hypothesis]"
-
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val cs1 = conjuncts(goal.pre.phi)
-      val cs2 = conjuncts(goal.post.phi)
-      findCommon((p: PFormula) => true, cs1, cs2) match {
-        case Some((p, ps1, ps2)) =>
-          val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
-          val newGoal = Goal(goal.pre, newPost, goal.gamma, goal.fname)
-          List(Subderivation(List((newGoal, env)), pureKont(toString)))
-        case None => Nil
-      }
-    }
-  }
-
-
-  /*
-
-  Γ ; {φ ; P} ; {ψ ; Q} ---> S
-  ------------------------------------- [=-R]
-  Γ ; {φ ; P} ; {ψ ∧ l = l ; Q} ---> S
-
-   */
-  object StripEqPost extends SynthesisRule {
-    override def toString: String = "[Sub: =-R]"
-
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      findConjunctAndRest({
-        case PEq(x, y) => x == y
-        case _ => false
-      }, simplify(goal.post.phi)) match {
-        case None => Nil
-        case Some((_, rest)) =>
-          val newPost = Assertion(mkConjunction(rest), goal.post.sigma)
-          val newGoal = Goal(goal.pre, newPost, goal.gamma, goal.fname)
-          List(Subderivation(List((newGoal, env)), pureKont(toString)))
-      }
-    }
-  }
-
 
 }
