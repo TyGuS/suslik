@@ -1,9 +1,9 @@
-should be able to flatten a tree
+should be able to flatten a tree (this is actually just tree-free again)
 ###
 
 {true; tree(x)}
   void flatten_tree(loc x)
-{true ; lseg(x, y) }
+{true ; lseg(x, x) }
 
 ###
 
