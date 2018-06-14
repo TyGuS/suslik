@@ -33,6 +33,8 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
 
   def vars: Set[Var] = this.collectE(_.isInstanceOf[Var])
 
+  def implies(other: PFormula): PFormula = POr(PNeg(this), other)
+
 }
 
 object PTrue extends PFormula {

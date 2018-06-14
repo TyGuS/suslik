@@ -195,9 +195,9 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 //          case _ => false
 //        }, simplify(p)).isDefined
 
-      if (SMTSolving.implies(pre, PFalse))
+      if (!SMTSolving.sat(pre))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
-      else if (SMTSolving.implies(post, PFalse))
+      else if (!SMTSolving.sat(post))
         List(Subderivation(Nil, _ => Magic))  // post inconsistent: only magic can save us
       else
         Nil

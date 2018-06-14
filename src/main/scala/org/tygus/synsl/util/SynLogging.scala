@@ -1,6 +1,7 @@
 package org.tygus.synsl.util
 
 import org.tygus.synsl.logic.Goal
+import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.SynthesisRule
 
 /**
@@ -75,6 +76,7 @@ class SynStats {
   def numBack: Int = backracking
   def numSucc : Int = successful
   def numLasting : Int = lasting
+  def smtCacheSize: Int = SMTSolving.cacheSize
 }
 
 abstract sealed class SynCertificate

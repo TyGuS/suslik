@@ -37,7 +37,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
           post.sigma.isEmp &&
           goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
           {
-            SMTSolving.implies(pre.phi, post.phi)
+            SMTSolving.valid(pre.phi.implies(post.phi))
           })
         List(Subderivation(Nil, _ => Skip))
       else Nil

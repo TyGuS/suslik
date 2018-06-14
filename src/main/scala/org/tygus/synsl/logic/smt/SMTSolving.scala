@@ -24,6 +24,11 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
     // new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))
   }
 
+  // Call this before synthesizing a new function
+  def init(): Unit = {
+    cache.clear()
+  }
+
   case class SMTUnsupportedFormula(phi: PFormula)
       extends Exception(s"Cannot convert formula ${phi.pp} to an equivalent SMT representation.")
 
@@ -41,10 +46,9 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
   1. Implement conversion not only for integers based on the type (guess type)
    */
 
-  private def checkImplication(ant: SMTBoolTerm, succ: SMTBoolTerm): Boolean = {
-    val conjecture = ant imply succ
-    val res = using(new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))) { implicit solver => isSat(!conjecture) }
-    res == Success(UnSat())
+  private def checkSat(term: SMTBoolTerm): Boolean = {
+    val res = using(new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))) { implicit solver => isSat(term) }
+    res == Success(Sat())
   }
 
   private def convertFormula(phi: PFormula): Try[SMTBoolTerm] = phi match {
@@ -96,14 +100,23 @@ object SMTSolving extends Core with IntegerArithmetics with ArrayExInt with Reso
     case _ => Failure(e)
   }
 
-  // Check phi1 => phi2; all vars assumed to be universally quantified
-  def implies(phi1: PFormula, phi2: PFormula): Boolean = {
-    // Check satisfiability via SMT
-    val res = for {
-      p1 <- convertFormula(phi1)
-      p2 <- convertFormula(phi2)
-    } yield checkImplication(p1, p2)
-    res.getOrElse(false)
+  private val cache = collection.mutable.Map[PFormula, Boolean]()
+  def cacheSize: Int = cache.size
+
+  // Check if phi is satisfiable; all vars are implicitly existentially quantified
+  def sat(phi: PFormula): Boolean = {
+    def check(phi: PFormula): Boolean = {
+        val res: Try[Boolean] = for {
+          p <- convertFormula(phi)
+        } yield checkSat(p)
+        res.getOrElse(true)
+    }
+    cache.getOrElseUpdate(phi, check(phi))
+  }
+
+  // Check if phi is valid; all vars are implicitly universally quantified
+  def valid(phi: PFormula): Boolean = {
+    !sat(PNeg(phi))
   }
 
 }

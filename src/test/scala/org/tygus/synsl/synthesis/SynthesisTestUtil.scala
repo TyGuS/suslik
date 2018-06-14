@@ -86,6 +86,7 @@ trait SynthesisTestUtil {
         testPrintln(s"Number of backtrackings ${stats.numBack}")
         testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
         testPrintln(s"Total successful rule applications: ${stats.numSucc}")
+        testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
         val result = rr.pp
         testPrintln(s"$result")
         testPrintln("-----------------------------------------------------")

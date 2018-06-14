@@ -3,6 +3,7 @@ package org.tygus.synsl.synthesis
 import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.rules.InvertibleRule
 import org.tygus.synsl.util.{SynLogging, SynStats}
 
@@ -34,6 +35,7 @@ trait Synthesis {
     val goal = Goal(pre, post, formals, name)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
+    SMTSolving.init()
     synthesize(goal, env, maxDepth)(printFails = _printFails, stats = stats) match {
       case Some(body) =>
         val proc = Procedure(name, tp, goal.gamma, body)
