@@ -7,7 +7,7 @@ import org.tygus.synsl.synthesis.instances.SimpleSynthesis
   * @author Ilya Sergey
   */
 
-class LinkedListTests extends FunSpec with Matchers with SynthesisTestUtil {
+class LinkedStructuresTests extends FunSpec with Matchers with SynthesisTestUtil {
 
   val synthesis: Synthesis = new SimpleSynthesis
 
@@ -18,6 +18,10 @@ class LinkedListTests extends FunSpec with Matchers with SynthesisTestUtil {
 
   describe("SL-based synthesizer with linked lists") {
     runAllTestsFromDir("llist")
+  }
+
+  describe("SL-based synthesizer with mutable trees") {
+    runAllTestsFromDir("tree")
   }
 
 }

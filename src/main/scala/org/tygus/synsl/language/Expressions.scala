@@ -79,12 +79,12 @@ object Expressions {
   }
 
   // Program-level constant
-  abstract class PConst(value: Any) extends Expr {
+  abstract class Const(value: Any) extends Expr {
     override def pp: String = value.toString
     def subst(sigma: Map[Var, Expr]): Expr = this
   }
 
-  case class IntConst(value: Integer) extends PConst(value) {
+  case class IntConst(value: Integer) extends Const(value) {
     /**
       * Let's have this instead of the dedicated Nil constructor
       */
@@ -93,7 +93,7 @@ object Expressions {
 
   val NilPtr = IntConst(0)
 
-  case class BoolConst(value: Boolean) extends PConst(value)
+  case class BoolConst(value: Boolean) extends Const(value)
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))

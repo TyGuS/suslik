@@ -2,16 +2,19 @@
 
 Synthesis of heap-manipulating programs from Separation Logic specs
 
-## Build instruction
+## Setup and Build
 
-Requirements: sbt (version >0.13.0), JDK 1.8.
+### Requirements 
 
-To compile and test, execute from the root folder of the project
+* JDK 1.8
+* `sbt` (version >=1.1.6)
+* `Z3` SMT solver, available [here](https://github.com/Z3Prover/z3)
+
+### Building the project
+
+To compile and run the test suitetest, execute from the root folder of the project:
 
 ```
 sbt test
 ```
 
-## Project Structure Description
-
-Coming soon!

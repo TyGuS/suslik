@@ -14,9 +14,9 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
     def collector(acc: Set[R])(phi: PFormula): Set[R] = phi match {
       case PTrue => acc
       case PFalse => acc
-      case PLeq(left, right) => left.collect(p) ++ right.collect(p)
-      case PLtn(left, right) => left.collect(p) ++ right.collect(p)
-      case PEq(left, right) => left.collect(p) ++ right.collect(p)
+      case PLeq(left, right) => acc ++ left.collect(p) ++ right.collect(p)
+      case PLtn(left, right) => acc ++ left.collect(p) ++ right.collect(p)
+      case PEq(left, right) => acc ++ left.collect(p) ++ right.collect(p)
       case PAnd(left, right) => collector(collector(acc)(left))(right)
       case POr(left, right) => collector(collector(acc)(left))(right)
       case PNeg(arg) => collector(acc)(arg)
@@ -31,6 +31,8 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
 
   def toExpr : Expr
 
+  def vars: Set[Var] = this.collectE(_.isInstanceOf[Var])
+
 }
 
 object PTrue extends PFormula {
@@ -43,26 +45,6 @@ object PFalse extends PFormula {
   override def pp: Ident = "false"
   def subst(sigma: Map[Var, Expr]): PFormula = this
   override def toExpr: Expr = BoolConst(false)
-}
-
-// Ф <= Ф', Ф < Ф', Ф == Ф'
-case class PLeq(left: Expr, right: Expr) extends PFormula {
-  override def toExpr: Expr = BinaryExpr(OpLeq, left, right)
-  override def pp: Ident = s"${left.pp} <= ${right.pp}"
-  def subst(sigma: Map[Var, Expr]): PFormula = PLeq(left.subst(sigma), right.subst(sigma))
-}
-
-case class PLtn(left: Expr, right: Expr) extends PFormula {
-  override def toExpr: Expr = BinaryExpr(OpLt, left, right)
-  override def pp: Ident = s"${left.pp} < ${right.pp}"
-  def subst(sigma: Map[Var, Expr]): PFormula = PLtn(left.subst(sigma), right.subst(sigma))
-}
-
-case class PEq(left: Expr, right: Expr) extends PFormula {
-  override def toExpr: Expr = BinaryExpr(OpEq, left, right)
-  override def pp: Ident = s"${left.pp} == ${right.pp}"
-
-  def subst(sigma: Map[Var, Expr]): PFormula = PEq(left.subst(sigma), right.subst(sigma))
 }
 
 // Connectives
@@ -83,3 +65,31 @@ case class PNeg(arg: PFormula) extends PFormula {
   override def pp: Ident = s"not (${arg.pp})"
   def subst(sigma: Map[Var, Expr]): PFormula = PNeg(arg.subst(sigma))
 }
+
+/*
+  Arithmetic epxressions
+ */
+// Ф <= Ф', Ф < Ф'
+case class PLeq(left: Expr, right: Expr) extends PFormula {
+  override def toExpr: Expr = BinaryExpr(OpLeq, left, right)
+  override def pp: Ident = s"${left.pp} <= ${right.pp}"
+  def subst(sigma: Map[Var, Expr]): PFormula = PLeq(left.subst(sigma), right.subst(sigma))
+}
+
+case class PLtn(left: Expr, right: Expr) extends PFormula {
+  override def toExpr: Expr = BinaryExpr(OpLt, left, right)
+  override def pp: Ident = s"${left.pp} < ${right.pp}"
+  def subst(sigma: Map[Var, Expr]): PFormula = PLtn(left.subst(sigma), right.subst(sigma))
+}
+
+/*
+  Equality
+ */
+// Ф == Ф'
+case class PEq(left: Expr, right: Expr) extends PFormula {
+  override def toExpr: Expr = BinaryExpr(OpEq, left, right)
+  override def pp: Ident = s"${left.pp} == ${right.pp}"
+
+  def subst(sigma: Map[Var, Expr]): PFormula = PEq(left.subst(sigma), right.subst(sigma))
+}
+

@@ -51,16 +51,23 @@ trait PureLogicUtils {
     case _ => false
   }
 
+  val isRelationPFormula : (PFormula) => Boolean = {
+    case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case PLeq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case PLtn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case _ => false
+  }
+
   val isAtomicPFormula: (PFormula) => Boolean = {
     case PTrue | PFalse => true
     case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case PNeg(PEq(e1, e2)) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case _ => false
+    case PNeg(p) => isRelationPFormula(p)
+    case p => isRelationPFormula(p)
   }
 
   def isCNF(isAtom: PFormula => Boolean)(pf: PFormula): Boolean = {
     def check(phi: PFormula): Boolean = phi match {
-      case PLeq(_, _) | PLtn(_, _) | POr(_, _) => false
+      case POr(_, _) => false
       case PAnd(left, right) => check(left) && check(right)
       case p => isAtom(p)
     }

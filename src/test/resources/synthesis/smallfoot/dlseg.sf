@@ -1,0 +1,50 @@
+r,l;
+
+dll_traverse(f) [dlseg(f,NULL,NULL,gb)] {
+  local x, y;
+  x = f;
+  y = NULL;
+  while(x != NULL) [dlseg(f,x,NULL,y) * dlseg(x,NULL,y,gb)] {
+    /* do something with x */
+    y = x;     /* y==x ; dlseg(f,x,NULL,y') * x|->[l:y',r:z] * dlseg(z,NULL,x,gb) */
+    x = x->r;
+  }
+} [dlseg(f,NULL,NULL,gb)]
+
+dll_esrevart(b) [dlseg(gf,NULL,NULL,b)] {
+  local x, y;
+  x = b;
+  y = NULL;
+  while(x != NULL) [dlseg(gf,y,NULL,x) * dlseg(y,NULL,x,b)] {
+    /* do something with x */
+    y = x;     /* y==x ; dlseg(gf,x,NULL,z) * x|->[l:z,r:y'] * dlseg(y',NULL,x,b) */
+    x = x->l;
+  }
+} [dlseg(gf,NULL,NULL,b)]
+
+dll_cons(f,b;) [dlseg(f,NULL,NULL,b)] {
+  t = new();
+  t->l = NULL;
+  t->r = f;        /* t|->-,nil,f * dlseg(f,nil,nil,b) */
+  if(f != NULL) {  /* t|->-,nil,f * f|->nil,z * dlseg(z,nil,f,b) */
+    f->l = t;      /* t|->-,nil,f * f|->t,z * dlseg(z,nil,f,b) */
+  } else {         /* f=nil | t|->-,nil,f * dlseg(f,nil,nil,b) */
+    b = t;         /* f=nil /| b=t | t|->-,nil,f */
+                   /* f=nil /| b=t | t|->-,nil,f * dlseg(f,nil,t,b) */
+  }                /* t|->-,nil,f * dlseg(f,nil,t,b) */
+  f = t;           /* f|->-,nil,f' * dlseg(f',nil,f,b) */
+} [dlseg(f,NULL,NULL,b)]
+
+dll_snoc(f,b;) [dlseg(f,NULL,NULL,b)] {
+  t = new();
+  t->l = b;
+  t->r = NULL;     /* dlseg(f,nil,nil,b) * t|->-,b,nil */
+  if(f != NULL) {  /* f|->nil,z * dlseg(z,nil,f,b) * t|->-,b,nil */
+                   /* dlseg(f,b,nil,w) * b|->w,nil * t|->-,b,nil */
+    b->r = t;      /* dlseg(f,b,nil,w) * b|->w,t * t|->-,b,nil */
+  } else {         /* f=nil | dlseg(f,nil,nil,b) * t|->-,b,nil */
+    f = t;         /* f'=nil /| f=t | t|->-,b,nil */
+                   /* f'=nil /| f=t | dlseg(f,t,nil,b) * t|->-,b,nil */
+  }                /* dlseg(f,t,nil,b) * t|->-,b,nil */
+  b = t;           /* dlseg(f,b,nil,b') * b|->-,b',nil */
+} [dlseg(f,NULL,NULL,b)]

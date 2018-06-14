@@ -9,7 +9,7 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
   def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
 
   // Get free variables
-  def varsPhi: Set[Var] = phi.collectE(_.isInstanceOf[Var])
+  def varsPhi: Set[Var] = phi.vars
 
   def varsSigma: Set[Var] = sigma.collectE(_.isInstanceOf[Var])
 
@@ -62,9 +62,9 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String)
 
   def existentials: Set[Var] = post.vars -- universals
 
-  def givenConstants: Set[PConst] = pre.collectE(_.isInstanceOf[PConst])
+  def givenConstants: Set[Const] = pre.collectE(_.isInstanceOf[Const])
 
-  def constantsInPost: Set[PConst] = post.collectE(_.isInstanceOf[PConst])
+  def constantsInPost: Set[Const] = post.collectE(_.isInstanceOf[Const])
 
   // Determine whether `x` is a ghost variable wrt. given spec and gamma
   def isGhost(x: Var): Boolean = ghosts.contains(x)
