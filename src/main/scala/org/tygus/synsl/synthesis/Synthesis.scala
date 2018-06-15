@@ -65,7 +65,7 @@ trait Synthesis {
 
         // Try alternative sub-derivations after applying `r`
         def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
-          case (a :: as) =>
+          case a :: as =>
             if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
             solveSubgoals(a) match {
               case Some(Magic) =>
@@ -76,8 +76,10 @@ trait Synthesis {
                 Some(res) // This alternative succeeded
               case None =>
                 stats.bumpUpBacktracing()
-                printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
-                tryRules(rs)
+                // TODO: There was a bug here -- we give up too soon! Check the example llist/llist-cons.
+                //printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
+                //tryRules(rs)
+                tryAlternatives(as, altIndex + 1)
             }
           case Nil =>
             // All alternatives have failed

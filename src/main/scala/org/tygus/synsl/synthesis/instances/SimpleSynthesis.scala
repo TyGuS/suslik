@@ -29,6 +29,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.SubstLeft,
     NormalizationRules.Inconsistency,
     NormalizationRules.SubstRight,
+    NormalizationRules.Hypothesis,
 
     // Subtraction rules
     SubtractionRules.StarIntro,

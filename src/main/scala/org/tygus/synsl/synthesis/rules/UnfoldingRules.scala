@@ -102,7 +102,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      // TODO: this is a hack to avoind invoking induction where it has no chance to succeed
+      // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
       if (goal.hasAllocatedBlocks) return Nil
 
       mkInductiveSubGoals(goal, env) match {
@@ -184,7 +184,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // TODO: super-mega-dirty hack!
       // Avoiding exponential blow-up by looking at the number of allowed environments left
       val leftUnfoldings = env.unfoldingsLeft
-      if (leftUnfoldings <= 0) return Nil
+      //if (leftUnfoldings <= 0) return Nil
 
       findHeaplet({
         case SApp(pred, args, Some(t)) => t <= leftUnfoldings

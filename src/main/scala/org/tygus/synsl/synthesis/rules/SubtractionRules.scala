@@ -39,7 +39,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         post.sigma.isEmp &&
         goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
         {
-          SMTSolving.valid(pre.phi.implies(post.phi))
+          SMTSolving.implies(PTrue, post.phi) ||
+            SMTSolving.implies(pre.phi, post.phi) ||
+          // TODO: remove the first two when sets are supported via SMT
+            SMTSolving.valid(pre.phi.implies(post.phi))
         })
         List(Subderivation(Nil, _ => Skip))
       else Nil
@@ -110,7 +113,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
           removeEquivalent(pre.phi, postSubst.phi) match {
             case Some(cs) =>
               val newPost = Assertion(cs, postSubst.sigma)
-              val newGoal = Goal(pre, newPost, goal.gamma, goal.fname)
+              val newGoal = goal.copy(post = newPost)
               List(Subderivation(List((newGoal, env)), pureKont(toString)))
             case None => Nil
           }
