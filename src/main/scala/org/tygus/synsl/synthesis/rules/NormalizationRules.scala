@@ -45,7 +45,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
         Assertion(newPhi, a.sigma)
       }
 
-      val Goal(pre, post, g, fname) = goal
+      val pre = goal.pre
+      val post = goal.post
 
       val prePointers = findPointers(pre)
       val postPointers = findPointers(post).filter(_.vars.forall(v => goal.isExistential(v)))
@@ -55,7 +56,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       else {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
-        val newGoal = Goal(newPre, newPost, g, fname)
+        val newGoal = goal.copy(newPre, newPost)
         List(Subderivation(List((newGoal, env)), pureKont(toString)))
       }
     }
@@ -71,7 +72,9 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: *-partial]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(Assertion(p1, s1), post, g, fname) = goal
+      val p1 = goal.pre.phi
+      val s1 = goal.pre.sigma
+
       val cs = conjuncts(p1)
       val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
       // All pairs of pointers
@@ -88,7 +91,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       // The implementation immediately adds _all_ inequalities
       val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
-      val newGoal = Goal(Assertion(_p1, s1), post, g, fname)
+      val newGoal = goal.copy(Assertion(_p1, s1))
       List(Subderivation(List((newGoal, env)), pureKont(toString)))
     }
   }
@@ -103,7 +106,11 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: subst-L]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(Assertion(p1, s1), Assertion(p2, s2), g, fname) = goal
+      val p1 = goal.pre.phi
+      val s1 = goal.pre.sigma
+      val p2 = goal.post.phi
+      val s2 = goal.post.sigma
+
       findConjunctAndRest({
         case PEq(v1@Var(_), v2) => v1 != v2
         case _ => false
@@ -113,10 +120,10 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val _s1 = s1.subst(x, l)
           val _p2 = p2.subst(x, l)
           val _s2 = s2.subst(x, l)
-          val newGoal = Goal(
+          val newGoal = goal.copy(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2),
-            g.filter { case (t, w) => w != x }, fname)
+            goal.gamma.filter { case (t, w) => w != x })
           List(Subderivation(List((newGoal, env)), pureKont(toString)))
         case _ => Nil
       }
@@ -133,7 +140,9 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: subst-R]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, Assertion(p2, s2), g, fname) = goal
+      val p2 = goal.post.phi
+      val s2 = goal.post.sigma
+
 
       def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.existentials.contains(e.asInstanceOf[Var])
 
@@ -149,7 +158,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           }
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
-          val newGoal = Goal(pre, Assertion(_p2, _s2), g, fname)
+          val newGoal = goal.copy(post = Assertion(_p2, _s2))
           List(Subderivation(List((newGoal, env)), pureKont(toString)))
         case _ => Nil
       }
@@ -165,7 +174,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: inconsistency]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(Assertion(pre, _), Assertion(post, _), g, _) = goal
+      val pre = goal.pre.phi
+      val post = goal.post.phi
 
       //      def hasInconsistentConjunct(p:PFormula): Boolean =
       //        findConjunctAndRest({

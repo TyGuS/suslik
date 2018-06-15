@@ -91,7 +91,7 @@ class SynslParser extends StandardTokenParsers {
     }
 
   def spec: Parser[Goal] = assertion ~ assertion ~ repsep(formal, ",") ^^ {
-    case pre ~ post ~ formals => Goal(pre, post, formals, "foo")
+    case pre ~ post ~ formals => Goal(pre, post, formals, "foo", Derivation(pre.sigma.chunks, post.sigma.chunks))
   }
 
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {

@@ -31,7 +31,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Sub: emp]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, post, _, _) = goal
+      val pre = goal.pre
+      val post = goal.post
 
       if (pre.sigma.isEmp &&
           post.sigma.isEmp &&
@@ -79,7 +80,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       } yield {
         val newPre = Assertion(pre.phi, newPreSigma)
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        Subderivation(List((Goal(newPre, newPost, goal.gamma, goal.fname), env)), pureKont(toString))
+        Subderivation(List((goal.copy(newPre, newPost), env)), pureKont(toString))
       }
     }
   }
@@ -95,7 +96,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: pick]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, post, gamma: Gamma, fname) = goal
+      val pre = goal.pre
+      val post = goal.post
 
       // Heaplet RHS has existentials
       def hasExistential: Heaplet => Boolean = {
@@ -115,7 +117,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
           else {
             val newPre = Assertion(pre.phi, goal.pre.sigma)
             val newPost = Assertion(mkConjunction(PEq(e1, e2) :: cs), goal.post.sigma)
-            val newGoal = Goal(newPre, newPost, gamma, fname)
+            val newGoal = goal.copy(newPre, newPost)
             List(Subderivation(List((newGoal, env)), pureKont(toString)))
           }
         case Some((hl, hr)) =>

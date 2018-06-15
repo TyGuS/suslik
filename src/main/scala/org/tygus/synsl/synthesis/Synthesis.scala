@@ -32,7 +32,7 @@ trait Synthesis {
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
   Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = Goal(pre, post, formals, name)
+    val goal = Goal(pre, post, formals, name, Derivation(pre.sigma.chunks, post.sigma.chunks))
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()

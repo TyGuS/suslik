@@ -37,21 +37,24 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
 }
 
+case class RuleAppMetadata(rule: String, timestamp: (Int, Int), footprint: (Set[Int], Set[Int]))
+
+case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleAppMetadata] = Nil) {
+}
 
 /**
   * Main class for contextual Hoare-style specifications
   */
-case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String)
+case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, deriv: Derivation)
   extends PrettyPrinting with PureLogicUtils {
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
       s"${pre.pp}\n${post.pp}"
 
-  def simpl = Goal(Assertion(simplify(pre.phi), pre.sigma),
-    Assertion(simplify(post.phi), post.sigma),
-    this.gamma, this.fname)
-
+  def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
+    Assertion(simplify(post.phi), post.sigma))
+  
   def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
 
   def formals: Set[Var] = gamma.map(_._2).toSet

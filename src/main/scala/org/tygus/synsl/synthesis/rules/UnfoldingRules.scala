@@ -49,7 +49,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
       */
     private def mkInductiveSubGoals(goal: Goal, env: Environment): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
-      val Goal(pre, post, _, _) = goal
+      val pre = goal.pre
       findHeaplet(_.isInstanceOf[SApp], pre.sigma) match {
         case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
@@ -65,7 +65,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
-          } yield (sel, goal.copy(pre = Assertion(newPrePhi, newPreSigma)))
+          } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)))
           Some((newGoals, h))
         case _ => None
       }
@@ -133,7 +133,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val newPreChunks =
           (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
         val newPre = Assertion(goal.pre.phi, SFormula(newPreChunks.toList))
-        val newGoal = Goal(newPre, goal.post, goal.gamma, goal.fname)
+        val newGoal = goal.copy(newPre)
         val args = f.params.map { case (_, x) => x.subst(sigma) }
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
@@ -168,7 +168,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val Goal(pre, post, gamma: Gamma, fname) = goal
+      val post = goal.post
 
       findHeaplet({
         case SApp(pred, args, Some(t)) => t <= closeRuleUnfoldingDepth
@@ -193,7 +193,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
-            Subderivation(List((Goal(pre, newPost, gamma, fname), env)), kont)
+            Subderivation(List((goal.copy(post = newPost), env)), kont)
           }
           subDerivations
         case Some(h) =>
