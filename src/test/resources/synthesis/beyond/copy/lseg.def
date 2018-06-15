@@ -1,0 +1,4 @@
+predicate lseg(x, y, Z) {
+|  x == y        => { Z =i Empty ; emp }
+|  not (x == y)  => { Z =i Union({v}, S) ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, S) }
+}

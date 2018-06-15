@@ -91,12 +91,12 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     case x => x
   })
 
-  def setUpSAppTags(i : Int, cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
+  def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
     case a@SApp(_, _, t) if cond(a) => a.copy(tag = Some(i))
     case x => x
   })
 
-  def lockSAppTags(cond: Heaplet => Boolean = _ => true) : SFormula = SFormula(chunks.map {
+  def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
     case a@SApp(_, _, t) if cond(a) => a.copy(tag = None)
     case x => x
   })
@@ -107,7 +107,11 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def **(other: SFormula): SFormula = SFormula(chunks ++ other.chunks)
 
-  def -(h: Heaplet): SFormula = SFormula(chunks.filterNot(elm => elm == h))
+  def -(h: Heaplet): SFormula = {
+    val cnt = chunks.count(_ == h)
+    // Remove just once!
+    SFormula(chunks.filterNot(elm => elm == h) ++ (for (i <- 0 to (cnt - 2)) yield h))
+  }
 
   def -(hs: Seq[Heaplet]): SFormula = {
     val hSet = hs.toSet

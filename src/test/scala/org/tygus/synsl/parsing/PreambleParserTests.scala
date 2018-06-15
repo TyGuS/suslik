@@ -14,8 +14,8 @@ class PreambleParserTests extends FunSpec with Matchers {
 
   val pred1 =
     """predicate lseg (x, y) {
-      | x == y  =>  emp
-      | not (x == y)  => x :-> v ** x + 1 :-> z ** lseg(z, y)
+      | x == y  =>  {emp}
+      | not (x == y)  => {x :-> v ** x + 1 :-> z ** lseg(z, y)}
       }
     """
 

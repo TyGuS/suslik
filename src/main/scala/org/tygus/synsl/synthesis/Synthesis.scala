@@ -26,8 +26,9 @@ trait Synthesis {
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
-  val rulesToApply: List[SynthesisRule]
-  val maxDepth: Int
+  val topLevelRules: List[SynthesisRule]
+  val everyDayRules: List[SynthesisRule]
+  val startingDepth: Int
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
   Option[(Procedure, SynStats)] = {
@@ -36,26 +37,27 @@ trait Synthesis {
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()
-    synthesize(goal, env, maxDepth)(printFails = _printFails, stats = stats) match {
+    synthesize(goal, env, startingDepth)(stats = stats, printFails = _printFails, rules = topLevelRules ++ everyDayRules) match {
       case Some(body) =>
         val proc = Procedure(name, tp, goal.gamma, body)
         Some((proc, stats))
       case None =>
-        printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $maxDepth.")
+        printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $startingDepth.")
         None
     }
 
   }
 
-  private def synthesize(goal: Goal, env: Environment, maxDepth: Int = 25)
-                        (implicit ind: Int = 0,
-                         stats: SynStats,
-                         printFails: Boolean): Option[Statement] = {
+  private def synthesize(goal: Goal, env: Environment, depth: Int = startingDepth)
+                        (stats: SynStats,
+                         printFails: Boolean,
+                         rules: List[SynthesisRule])
+                        (implicit ind: Int = 0): Option[Statement] = {
 
     printLog(List((s"${env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
 
-    if (maxDepth < 0) return None
+    if (depth < 0) return None
 
     def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
       case Nil => None
@@ -74,7 +76,8 @@ trait Synthesis {
                 Some(res) // This alternative succeeded
               case None =>
                 stats.bumpUpBacktracing()
-                tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
+                printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
+                tryRules(rs)
             }
           case Nil =>
             // All alternatives have failed
@@ -99,7 +102,8 @@ trait Synthesis {
           import util.control.Breaks._
           breakable {
             for {(subgoal, subenv) <- s.subgoals} {
-              synthesize(subgoal, subenv, maxDepth - 1)(ind + 1, stats, printFails) match {
+              val nextRules = if (depth < startingDepth) everyDayRules else topLevelRules ++ everyDayRules
+              synthesize(subgoal, subenv, depth - 1)(stats, printFails, nextRules)(ind + 1) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -128,14 +132,14 @@ trait Synthesis {
           val succ = s"SUCCESS at depth $ind, ${subderivations.size} alternative(s) [$subSizes]"
           printLog(List((s"$goalStr$GREEN$succ", BLACK)))
           stats.bumpUpSuccessfulRuleApp()
-          if (subderivations.size > 1)  {
+          if (subderivations.size > 1) {
             printLog(List((s"Trying alternative sub-derivation 1:", CYAN)))
           }
           tryAlternatives(subderivations, 0)
         }
     }
 
-    tryRules(rulesToApply)
+    tryRules(rules)
   }
 
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
@@ -150,6 +154,5 @@ trait Synthesis {
     }
     print(s"$BLACK")
   }
-
 
 }

@@ -1,0 +1,31 @@
+Step 6:
+Add a head to a list
+
+Produces a seemingly right result, but takes sooper-long.
+Serves as an example of a problem with closing.
+
+#####
+
+{S =i Union({v}, S1) ; r :-> t3 ** lseg(t3, 0, S1) }
+
+void list_copy(loc r, int v, loc t3)
+
+{true; r :-> Y ** lseg(Y, 0, S)}
+
+#####
+
+void list_copy (loc r, int v, loc t3) {
+  if (t3 == 0) {
+    let Y2 = malloc(2);
+    *Y2 = v;
+    *r = Y2;
+  } else {
+    let v12 = *t3;
+    let nxt2 = *(t3 + 1);
+    let nxt3 = malloc(2);
+    *(nxt3 + 1) = nxt2;
+    *nxt3 = v12;
+    *(t3 + 1) = nxt3;
+    *t3 = v;
+  }
+}

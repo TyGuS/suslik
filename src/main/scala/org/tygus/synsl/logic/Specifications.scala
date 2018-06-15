@@ -24,8 +24,8 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
   // def |-(other: Assertion): Boolean = EntailmentSolver.entails(this, other)
 
-  def refresh(rotten: Set[Var]): (Assertion, Map[Var, Var]) = {
-    val freshSubst = refreshVars(this.vars.toList, rotten)
+  def refresh(bound: Set[Var]): (Assertion, Map[Var, Var]) = {
+    val freshSubst = refreshVars(this.vars.toList, bound)
     (this.subst(freshSubst), freshSubst)
   }
 
@@ -55,6 +55,17 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
   def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma))
   
+
+  def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
+
+  /**
+    * How many unfoldings can we tolerate
+    */
+  def closeCredit: Int = post.sigma.chunks.map{
+    case SApp(_, _, Some(i)) => i
+    case _ => 0
+  }.sum
+
   def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
 
   def formals: Set[Var] = gamma.map(_._2).toSet

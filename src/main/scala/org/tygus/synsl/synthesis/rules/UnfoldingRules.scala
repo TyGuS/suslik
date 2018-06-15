@@ -1,9 +1,10 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.language.Expressions.Var
-import org.tygus.synsl.language.Statements.{Call, If, SeqComp, Store}
+import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
 import org.tygus.synsl.synthesis.rules.OperationalRules.ruleAssert
 
@@ -40,7 +41,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val cond_branches = conds.zip(stmts).reverse
         val ctail = cond_branches.tail
         val finalBranch = cond_branches.head._2
-        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb) }
+        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => (tb, eb) match {
+          case (Skip, Skip) => Skip
+          case _ => If(c, tb, eb)
+        }
+        }
       }
     }
 
@@ -54,14 +59,21 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred)
+
+          // Get predicate from the environment
+          // TODO: Here's a potential bug, due to variable captures
+          // (existnentials in predicate clauses are captured by goal variables)
+          // TODO: refresh its existentials!
+          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
           val newGoals = for {
-            InductiveClause(_sel, _body) <- clauses
+            InductiveClause(_sel, _asn) <- clauses
             sel = _sel.subst(sbst)
-            body = _body.subst(sbst)
-            newPrePhi = mkConjunction(sel :: conjuncts(pre.phi))
+            asn = _asn.subst(sbst)
+            constraints = asn.phi
+            body = asn.sigma
+            newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
@@ -90,11 +102,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      // TODO: this is a hack to avoind invoking induction where it has no chance to succeed
+      if (goal.hasAllocatedBlocks) return Nil
+
       mkInductiveSubGoals(goal, env) match {
         case None => Nil
         case Some((selGoals, h)) =>
-          val (selectors, subGoals) = selGoals.unzip
           val newEnv = mkIndHyp(goal, env, h)
+          val (selectors, subGoals) = selGoals.unzip
           val goalsWithNewEnv = subGoals.map(g => (g, newEnv))
           List(Subderivation(goalsWithNewEnv, kont(selectors)))
       }
@@ -128,7 +143,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(targetPre, goal.gamma.map(_._2).toSet)
-        (_, sigma) <- SpatialUnification.unifyViaSpatialParts(target, source)
+        sigma <- SpatialUnification.unify(target, source)
       } yield {
         val newPreChunks =
           (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
@@ -159,9 +174,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: close]"
 
-    // Do not unfold more than 3 times
-    val closeRuleUnfoldingDepth = 1
-
     private val kont: StmtProducer = stmts => {
       ruleAssert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
       stmts.head
@@ -169,31 +181,40 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val post = goal.post
+      // TODO: super-mega-dirty hack!
+      // Avoiding exponential blow-up by looking at the number of allowed environments left
+      val leftUnfoldings = env.unfoldingsLeft
+      if (leftUnfoldings <= 0) return Nil
 
       findHeaplet({
-        case SApp(pred, args, Some(t)) => t <= closeRuleUnfoldingDepth
+        case SApp(pred, args, Some(t)) => t <= leftUnfoldings
         case _ => false
       }, goal.post.sigma) match {
         case None => Nil
         case Some(h@SApp(pred, args, Some(t))) =>
-          ruleAssert(env.predicates.contains(pred) && t <= closeRuleUnfoldingDepth,
+          ruleAssert(env.predicates.contains(pred) && t <= leftUnfoldings,
             s"Close rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred)
+          // TODO: Here's a potential bug, due to variable captures
+          // (existnentials in predicate clauses are captured by goal variables)
+          // TODO: refresh its existentials!
+          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val substArgs = params.zip(args).toMap
-          val subDerivations = for (InductiveClause(selector, body) <- clauses) yield {
+          val subDerivations = for (InductiveClause(selector, asn) <- clauses) yield {
 
             // Make sure that existential in the body are fresh
-            val bodyExistentials = body.vars.toSet -- params.toSet
-            val freshExistentialsSubst = refreshVars(bodyExistentials.toList, goal.vars)
+            val asnExistentials = asn.vars -- params.toSet
+            val freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars)
             // Make sure that can unfold only once
-            val actualBody = body.subst(freshExistentialsSubst).subst(substArgs).setUpSAppTags(t + 1, _ => true)
+            val actualAssertion = asn.subst(freshExistentialsSubst).subst(substArgs)
+            val actualConstraints = actualAssertion.phi
+            val actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
 
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
-            val newPhi = simplify(mkConjunction(List(actualSelector, post.phi)))
+            val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
-            Subderivation(List((goal.copy(post = newPost), env)), kont)
+            Subderivation(List((goal.copy(post = newPost), env.copy(unfoldingsLeft = leftUnfoldings - 1))), kont)
           }
           subDerivations
         case Some(h) =>

@@ -3,9 +3,10 @@ package org.tygus.synsl.synthesis.rules
 import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
-import org.tygus.synsl.synthesis._
-import org.tygus.synsl.logic.SpatialUnification._
 import org.tygus.synsl.logic.smt.SMTSolving
+import org.tygus.synsl.logic.unification.SpatialUnification._
+import org.tygus.synsl.logic.unification.{PureUnification, UnificationGoal}
+import org.tygus.synsl.synthesis._
 
 /**
   * @author Ilya Sergey
@@ -35,11 +36,11 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
 
       if (pre.sigma.isEmp &&
-          post.sigma.isEmp &&
-          goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
-          {
-            SMTSolving.valid(pre.phi.implies(post.phi))
-          })
+        post.sigma.isEmp &&
+        goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
+        {
+          SMTSolving.valid(pre.phi.implies(post.phi))
+        })
         List(Subderivation(Nil, _ => Skip))
       else Nil
     }
@@ -73,7 +74,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       for {
         t <- pre.sigma.chunks
         s <- post.sigma.chunks
-        sub <- tryUnifyHeaplets(t, s, goal.universals)
+        sub <- tryUnify(t, s, goal.universals ++ goal.formals, false)
         newPreSigma = pre.sigma - t
         newPostSigma = (post.sigma - s).subst(sub)
         if sideCond(newPreSigma, newPostSigma, t)
@@ -81,6 +82,38 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         val newPre = Assertion(pre.phi, newPreSigma)
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
         Subderivation(List((goal.copy(newPre, newPost), env)), pureKont(toString))
+      }
+    }
+  }
+
+  /*
+    Γ ; {φ ∧ φ1 ; P} ; {ψ' ; Q'} ---> S
+            s = unify(φ1, φ2)
+      {ψ' ; Q'} = subst({ψ ; Q}, s)
+  --------------------------------------- [Hypothesis-Unify]
+  Γ ; {φ ∧ φ1 ; P} ; {ψ ∧ φ2 ; Q} ---> S
+
+   */
+
+  object HypothesisUnify extends SynthesisRule {
+    override def toString: String = "[Sub: hypothesis-unify]"
+
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      val pre = goal.pre
+      val post = goal.post
+      val params = goal.gamma.map(_._2).toSet
+      PureUnification.unify(
+        UnificationGoal(pre, params), UnificationGoal(post, params), needRefreshing = false, precise = false) match {
+        case None => Nil
+        case Some(sbst) =>
+          val postSubst = post.subst(sbst)
+          removeEquivalent(pre.phi, postSubst.phi) match {
+            case Some(cs) =>
+              val newPost = Assertion(cs, postSubst.sigma)
+              val newGoal = Goal(pre, newPost, goal.gamma, goal.fname)
+              List(Subderivation(List((newGoal, env)), pureKont(toString)))
+            case None => Nil
+          }
       }
     }
   }

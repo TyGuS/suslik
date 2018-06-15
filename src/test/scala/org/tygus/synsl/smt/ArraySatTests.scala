@@ -74,9 +74,12 @@ class ArraySatTests
   val bv1 = ArrayBV1("bv1", 2, 4)
   val bv2 = ArrayBV1("bv2", 6, 4)
 
+  val x = Ints("x")
+
   //  format: OFF
   val theTerms = Table[String, TypedTerm[BoolTerm, Term], SatResponses, SMTLogics.Value](
     ("expression", "TypedTerm", "Expected status", "logic"),
+    ("a == b", a1 === b1, Sat(), QF_AUFLIA),
     ("a[0] == 1", a1(0) === 1, Sat(), QF_AUFLIA),
     ("a_0[0] == 1", a1i1(0) === 1, Sat(), QF_AUFLIA),
     ("a[0] == 1 & a[0] > 2", a1(0) === 1 & a1(0) > 2, UnSat(), QF_AUFLIA),
@@ -99,7 +102,9 @@ class ArraySatTests
           //  smtlib package eval is used
           isSat(t)
         }
-      } shouldBe Success(r)
+      } shouldBe {
+        Success(r)
+      }
     }
   }
 }

@@ -10,16 +10,18 @@ import org.tygus.synsl.util.SynLogging
 
 class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
-  val maxDepth = 25
+  val startingDepth = 25
+
+  val topLevelRules: List[SynthesisRule] = List(
+    // Top-level induction
+    UnfoldingRules.InductionRule,
+  )
 
   // Right now the rule is fixed statically
   // TODO: apply dynamic heuristics for rule application
-  val rulesToApply: List[SynthesisRule] = List(
+  val everyDayRules: List[SynthesisRule] = List(
     // Terminal
     SubtractionRules.EmpRule,
-
-    // Top-level induction
-    UnfoldingRules.InductionRule,
 
     // Normalization rules
     NormalizationRules.StarPartial,
@@ -30,6 +32,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
     // Subtraction rules
     SubtractionRules.StarIntro,
+    SubtractionRules.HypothesisUnify,
 
     // Invertible operational rules
     OperationalRules.ReadRule,

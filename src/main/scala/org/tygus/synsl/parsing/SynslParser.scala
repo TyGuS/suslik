@@ -3,6 +3,7 @@ package org.tygus.synsl.parsing
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.unification.UnificationGoal
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
@@ -11,51 +12,63 @@ class SynslParser extends StandardTokenParsers {
 
   override val lexical = new SynslLexical
 
-  def tpeParser: Parser[SynslType] =
-    "int" ^^^ IntType ||| "bool" ^^^ BoolType ||| "loc" ^^^ LocType ||| "void" ^^^ VoidType
+  val tpeParser: Parser[SynslType] =
+    ("int" ^^^ IntType
+        ||| "bool" ^^^ BoolType
+        ||| "loc" ^^^ LocType
+        ||| "intset" ^^^ IntSetType
+        ||| "void" ^^^ VoidType)
 
-  def formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
+  val formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
-  def intLiteral: Parser[Const] =
+  val intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))
 
-  def boolLiteral: Parser[Const] =
+  val boolLiteral: Parser[Const] =
     ("true" | "false") ^^ (b => BoolConst(java.lang.Boolean.parseBoolean(b)))
 
-  def varParser: Parser[Var] = ident ^^ Var
+  val varParser: Parser[Var] = ident ^^ Var
 
-  def parenExpr: Parser[Expr] = "(" ~> expr <~ ")"
+  val parenExpr: Parser[Expr] = "(" ~> expr <~ ")"
 
-  def expLiteral: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser
+  val expLiteral: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser
 
-  def unOpParser: Parser[UnOp] =
+  val unOpParser: Parser[UnOp] =
     "not" ^^^ OpNot
 
-  def binOpParser: Parser[BinOp] =
+  val binOpParser: Parser[BinOp] =
     "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "<=" ^^^ OpLeq ||| "<" ^^^ OpLt |||
-      "==" ^^^ OpEq ||| "||" ^^^ OpOr ||| "&&" ^^^ OpAnd
+        "==" ^^^ OpEq ||| "||" ^^^ OpOr ||| "&&" ^^^ OpAnd
 
-  def expr: Parser[Expr] = (
-    (expLiteral ~ binOpParser ~ expLiteral) ^^ { case a ~ op ~ b => BinaryExpr(op, a, b) }
-      ||| unOpParser ~ expLiteral ^^ { case op ~ a => UnaryExpr(op, a) }
-      ||| expLiteral
-    )
+  val expr: Parser[Expr] = (
+      (expLiteral ~ binOpParser ~ expLiteral) ^^ { case a ~ op ~ b => BinaryExpr(op, a, b) }
+          ||| unOpParser ~ expLiteral ^^ { case op ~ a => UnaryExpr(op, a) }
+          ||| expLiteral
+      )
+
+  val setExpr: Parser[Expr] =
+    ("Empty" ^^^ EmptySet
+        ||| "{" ~> expr <~ "}" ^^ SingletonSet
+        ||| "Union" ~> ("(" ~> (setExpr ~ ("," ~> setExpr)) <~ ")") ^^ { case l ~ r => SetUnion(l, r) }
+        ||| varParser)
 
   // Formulas
 
-  def logLiteral: Parser[PFormula] = "true" ^^^ PTrue ||| "false" ^^^ PFalse
+  val logLiteral: Parser[PFormula] = "true" ^^^ PTrue ||| "false" ^^^ PFalse
 
-  def parenPhi: Parser[PFormula] = logLiteral ||| "(" ~> phi <~ ")"
+  val parenPhi: Parser[PFormula] = logLiteral ||| "(" ~> phi <~ ")"
 
-  def phi: Parser[PFormula] = (
-    logLiteral
-      ||| (expLiteral <~ "<=") ~ expLiteral ^^ { case a ~ b => PLeq(a, b) }
-      ||| (expLiteral <~ "<") ~ expLiteral ^^ { case a ~ b => PLtn(a, b) }
-      ||| (expLiteral <~ "==") ~ expLiteral ^^ { case a ~ b => PEq(a, b) }
-      ||| (parenPhi <~ "/\\") ~ parenPhi ^^ { case a ~ b => PAnd(a, b) }
-      ||| (parenPhi <~ "\\/") ~ parenPhi ^^ { case a ~ b => POr(a, b) }
-      ||| "not" ~> parenPhi ^^ PNeg
-    )
+  val phi: Parser[PFormula] = (
+      logLiteral
+          ||| (expLiteral <~ "<=") ~ expLiteral ^^ { case a ~ b => PLeq(a, b) }
+          ||| (expLiteral <~ "<") ~ expLiteral ^^ { case a ~ b => PLtn(a, b) }
+          ||| (setExpr <~ "=i") ~ setExpr ^^ { case a ~ b => SEq(a, b) }
+          ||| (expLiteral <~ "==") ~ expLiteral ^^ { case a ~ b => PEq(a, b) }
+          ||| (parenPhi <~ "/\\") ~ parenPhi ^^ { case a ~ b => PAnd(a, b) }
+          ||| (parenPhi <~ "\\/") ~ parenPhi ^^ { case a ~ b => POr(a, b) }
+          ||| "not" ~> parenPhi ^^ PNeg
+          ||| parenPhi
+      )
 
   def identWithOffset: Parser[(Ident, Int)] = {
     val ov = ident ~ opt("+" ~> numericLit)
@@ -66,15 +79,15 @@ class SynslParser extends StandardTokenParsers {
   }
 
   def heaplet: Parser[Heaplet] = (
-    (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
-      ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
-      ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args) }
-    )
+      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
+          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args) }
+      )
 
   def sigma: Parser[SFormula] = (
-    "emp" ^^^ SFormula(Nil)
-      ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
-    )
+      "emp" ^^^ SFormula(Nil)
+          ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
+      )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(phi <~ ";") ~ sigma) <~ "}" ^^ {
     case Some(p) ~ s => Assertion(p, s)
@@ -82,11 +95,11 @@ class SynslParser extends StandardTokenParsers {
   }
 
   def indClause: Parser[InductiveClause] =
-    phi ~ ("=>" ~> sigma) ^^ { case p ~ s => InductiveClause(p, s) }
+    phi ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(p, a) }
 
   def indPredicate: Parser[InductivePredicate] =
     ("predicate" ~> ident) ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~
-      (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
+        (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
       case name ~ params ~ clauses => InductivePredicate(name, params, clauses)
     }
 
