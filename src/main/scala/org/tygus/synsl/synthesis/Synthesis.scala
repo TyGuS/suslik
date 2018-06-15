@@ -76,10 +76,7 @@ trait Synthesis {
                 Some(res) // This alternative succeeded
               case None =>
                 stats.bumpUpBacktracing()
-                // TODO: There was a bug here -- we give up too soon! Check the example llist/llist-cons.
-                //printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
-                //tryRules(rs)
-                tryAlternatives(as, altIndex + 1)
+                tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
             }
           case Nil =>
             // All alternatives have failed

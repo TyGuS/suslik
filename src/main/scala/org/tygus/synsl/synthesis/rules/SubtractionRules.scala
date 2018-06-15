@@ -39,8 +39,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         post.sigma.isEmp &&
         goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
         {
-          SMTSolving.implies(PTrue, post.phi) ||
-            SMTSolving.implies(pre.phi, post.phi) ||
+          // SMTSolving.implies(PTrue, post.phi) ||
+          // SMTSolving.implies(pre.phi, post.phi) ||
           // TODO: remove the first two when sets are supported via SMT
             SMTSolving.valid(pre.phi.implies(post.phi))
         })

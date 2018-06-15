@@ -20,12 +20,12 @@ class SynthesisWithTheories extends FunSpec with Matchers with SynthesisTestUtil
     runAllTestsFromDir("ints")
   }
 
-  describe("SL-based synthesizer with theory of finite sets") {
-    runAllTestsFromDir("sets")
-  }
-
-  describe("SL-based synthesizer for copying lists") {
-    runAllTestsFromDir("copy")
-  }
+//  describe("SL-based synthesizer with theory of finite sets") {
+//    runAllTestsFromDir("sets")
+//  }
+//
+//  describe("SL-based synthesizer for copying lists") {
+//    runAllTestsFromDir("copy")
+//  }
 
 }
