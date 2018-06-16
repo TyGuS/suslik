@@ -52,27 +52,6 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
     res == Success(Sat())
   }
 
-  private def checkImplication(ant: SMTBoolTerm, succ: SMTBoolTerm): Boolean = {
-    val conjecture = ant imply succ
-    val res = using(new SMTSolver("Z3", new SMTInit(QF_AUFLIA, List(MODELS)))) { implicit solver => isSat(!conjecture) }
-    res == Success(UnSat())
-  }
-
-  def implies(phi1: PFormula, phi2: PFormula): Boolean = {
-    // Check that all variables in Ф2 are bound by those in Ф1
-    val phi2vars = phi2.vars
-    val phi1vars = phi1.vars
-
-    // if (!phi2vars.forall(phi1vars.contains)) return false
-
-    // Check satisfiability via SMT
-    val res = for {
-      p1 <- convertFormula(phi1)
-      p2 <- convertFormula(phi2)
-    } yield checkImplication(p1, p2)
-    res.getOrElse(false)
-  }
-
   private def convertFormula(phi: PFormula): Try[SMTBoolTerm] = phi match {
     case PTrue => Try(True())
     case PFalse => Try(False())

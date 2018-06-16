@@ -60,10 +60,10 @@ class SynslParser extends StandardTokenParsers {
 
   val phi: Parser[PFormula] = (
       logLiteral
-          ||| (expLiteral <~ "<=") ~ expLiteral ^^ { case a ~ b => PLeq(a, b) }
-          ||| (expLiteral <~ "<") ~ expLiteral ^^ { case a ~ b => PLtn(a, b) }
+          ||| (expLiteral <~ "<=") ~ expr ^^ { case a ~ b => PLeq(a, b) }
+          ||| (expLiteral <~ "<") ~ expr ^^ { case a ~ b => PLtn(a, b) }
           ||| (setExpr <~ "=i") ~ setExpr ^^ { case a ~ b => SEq(a, b) }
-          ||| (expLiteral <~ "==") ~ expLiteral ^^ { case a ~ b => PEq(a, b) }
+          ||| (expLiteral <~ "==") ~ expr ^^ { case a ~ b => PEq(a, b) }
           ||| (parenPhi <~ "/\\") ~ parenPhi ^^ { case a ~ b => PAnd(a, b) }
           ||| (parenPhi <~ "\\/") ~ parenPhi ^^ { case a ~ b => POr(a, b) }
           ||| "not" ~> parenPhi ^^ PNeg

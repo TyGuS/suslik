@@ -51,12 +51,18 @@ trait PureLogicUtils {
   }
 
   private def isAtomicExpr(e: Expr): Boolean = e match {
-    case Var(name) => true
-    //  For now we only allow integers here
-    case IntConst(_) => true
-    // Do not simplify set expressions
-    case _: SetExpr => true
-    case _ => false
+    case BinaryExpr(OpAnd, _, _) => false
+    case BinaryExpr(OpOr, _, _) => false
+    case BinaryExpr(OpEq, _, _) => false
+    case BinaryExpr(OpLeq, _, _) => false
+    case BinaryExpr(OpLt, _, _) => false
+    case _ => true
+//    case Var(name) => true
+//    //  For now we only allow integers here
+//    case IntConst(_) => true
+//    // Do not simplify set expressions
+//    case _: SetExpr => true
+//    case _ => false
   }
 
   val isRelationPFormula: (PFormula) => Boolean = {

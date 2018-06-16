@@ -129,7 +129,18 @@ object Statements {
   case class SeqComp(s1: Statement, s2: Statement) extends Statement
 
   // if (cond) { tb } else { eb }
-  case class If(cond: Expr, tb: Statement, eb: Statement) extends Statement
+  case class If(cond: Expr, tb: Statement, eb: Statement) extends Statement {
+    def simplify: Statement = {
+      (tb, eb) match {
+        case (Skip, Skip) => Skip
+        case (Error, _) => eb
+        case (_, Error) => tb
+        case _ => this
+      }
+    }
+  }
+
+
 
   // A procedure
   case class Procedure(name: String, tp: SynslType, formals: Seq[(SynslType, Var)], body: Statement) {

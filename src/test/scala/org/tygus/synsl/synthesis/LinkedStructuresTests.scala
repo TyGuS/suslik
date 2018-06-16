@@ -24,4 +24,8 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisTestUtil
     runAllTestsFromDir("tree")
   }
 
+  describe("SL-based synthesizer for linked lists parametrized by length") {
+    runAllTestsFromDir("copy-len")
+  }
+
 }
