@@ -133,7 +133,7 @@ trait PureLogicUtils {
     if (res.size < scs.size) Some(mkConjunction(res)) else None
   }
 
-  def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[(PFormula)])] =
+  def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[PFormula])] =
     Some(conjuncts(phi)).flatMap(cs => cs.find(p) match {
       case Some(c) => Some((c, cs.filter(e => e != c)))
       case None => None

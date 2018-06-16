@@ -13,14 +13,15 @@ import org.tygus.synsl.logic.{PFormula, SEq}
 object PureUnification extends UnificationBase {
   type UAtom = PFormula
 
+  val needRefreshing: Boolean = false
+  val precise: Boolean = false
+
+
   protected def extractChunks(goal: UnificationGoal): List[PFormula] = {
     conjuncts(goal.formula.phi).distinct.filter(_.isInstanceOf[SEq])
   }
 
-  protected def checkShapesMatch(cs1: List[PFormula], cs2: List[PFormula]): Boolean = {
-    val (seqs1, seqs2) = (cs1.filter(_.isInstanceOf[SEq]), cs2.filter(_.isInstanceOf[SEq]))
-    !(seqs1.isEmpty || seqs2.isEmpty)
-  }
+  protected def checkShapesMatch(cs1: List[PFormula], cs2: List[PFormula]): Boolean = true
 
   def tryUnify(target: PFormula, source: PFormula, nonFreeInSource: Set[Var]): Seq[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")

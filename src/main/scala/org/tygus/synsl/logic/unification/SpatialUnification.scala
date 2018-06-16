@@ -10,6 +10,10 @@ object SpatialUnification extends UnificationBase {
 
   type UAtom = Heaplet
 
+  val needRefreshing: Boolean = true
+  val precise: Boolean = true
+
+
   def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst] =
     tryUnify(target, source, nonFreeInSource, tagsMatter = true)
 
