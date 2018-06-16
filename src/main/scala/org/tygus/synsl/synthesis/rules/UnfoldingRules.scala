@@ -41,11 +41,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val cond_branches = conds.zip(stmts).reverse
         val ctail = cond_branches.tail
         val finalBranch = cond_branches.head._2
-        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => (tb, eb) match {
-          case (Skip, Skip) => Skip
-          case _ => If(c, tb, eb)
-        }
-        }
+        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
       }
     }
 
