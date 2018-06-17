@@ -14,6 +14,7 @@ void list_copy(loc r, int v, loc t3)
 void list_copy (loc r, int v, loc t3) {
   if (t3 == 0) {
     let Y2 = malloc(2);
+    *(Y2 + 1) = 0;
     *r = Y2;
   } else {
     let nxt2 = *(t3 + 1);

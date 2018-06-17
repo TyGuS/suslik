@@ -236,8 +236,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
-          // TODO: replace 0 with blank
-          val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, IntConst(0))
+          val freshChunks = for {
+            off <- 0 until sz
+            z = generateFreshVar(goal)
+          } yield PointsTo(y, off, z)
           val freshBlock = Block(x, sz).subst(x, y)
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
           val subGoal = goal.copy(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
