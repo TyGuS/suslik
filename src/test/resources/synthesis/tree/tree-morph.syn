@@ -12,6 +12,8 @@ void morhp_tree (loc x, int i) {
   } else {
     let l2 = *(x + 1);
     let r2 = *(x + 2);
+    *(x + 2) = l2;
+    *(x + 1) = r2;
     *x = i;
     morhp_tree(r2, i);
     morhp_tree(l2, i);

@@ -62,24 +62,21 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: *-intro]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      def sideCond(p: SFormula, q: SFormula, r: Heaplet) = {
+      def sideCond(p: SFormula, q: SFormula, r: SFormula) = {
         val gvP = p.vars.filter(goal.isGhost).toSet
         val gvQ = q.vars.filter(goal.isGhost).toSet
-        val gvR = r.vars.filter(goal.isGhost)
+        val gvR = r.vars.filter(goal.isGhost).toSet
 
         gvQ.diff(gvP).intersect(gvR).isEmpty
       }
 
       val pre = goal.pre
       val post = goal.post
+      val boundVars = goal.universals ++ goal.formals
 
       for {
-        t <- pre.sigma.chunks
-        s <- post.sigma.chunks
-        sub <- tryUnify(t, s, goal.universals ++ goal.formals, false)
-        newPreSigma = pre.sigma - t
-        newPostSigma = (post.sigma - s).subst(sub)
-        if sideCond(newPreSigma, newPostSigma, t)
+        (newPreSigma, newPostSigma, f, sub) <- tryRemoveCommonFrame(pre.sigma, post.sigma, boundVars)
+        if sideCond(newPreSigma, newPostSigma, f)
       } yield {
         val newPre = Assertion(pre.phi, newPreSigma)
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
