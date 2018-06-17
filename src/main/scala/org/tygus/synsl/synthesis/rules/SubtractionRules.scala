@@ -4,8 +4,7 @@ import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
-import org.tygus.synsl.logic.unification.SpatialUnification._
-import org.tygus.synsl.logic.unification.{PureUnification, UnificationGoal}
+import org.tygus.synsl.logic.unification.{PureUnification, SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
 
 /**
@@ -75,7 +74,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val boundVars = goal.universals ++ goal.formals
 
       for {
-        (newPreSigma, newPostSigma, f, sub) <- tryRemoveCommonFrame(pre.sigma, post.sigma, boundVars)
+        (newPreSigma, newPostSigma, f, sub) <-
+            SpatialUnification.removeCommonFrame(pre.sigma, post.sigma, boundVars)
         if sideCond(newPreSigma, newPostSigma, f)
       } yield {
         val newPre = Assertion(pre.phi, newPreSigma)
@@ -102,7 +102,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val params = goal.gamma.map(_._2).toSet
       PureUnification.unify(
-        UnificationGoal(pre, params), UnificationGoal(post, params)) match {
+        UnificationGoal(pre, params), UnificationGoal(post, params), needRefreshing = false) match {
         case None => Nil
         case Some(sbst) =>
           val postSubst = post.subst(sbst)

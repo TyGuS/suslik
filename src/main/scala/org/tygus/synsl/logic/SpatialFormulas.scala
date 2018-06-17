@@ -76,13 +76,11 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
 case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
   override def pp: Ident = if (chunks.isEmpty) "emp" else chunks.map(_.pp).mkString(" ** ")
 
-  def blocks: List[Heaplet] = chunks.filter(_.isInstanceOf[Block])
+  def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b
 
-  def apps: List[Heaplet] = chunks.filter(_.isInstanceOf[SApp])
+  def apps: List[SApp] = for (b@SApp(_, _, _) <- chunks) yield b
 
-  def ptss: List[Heaplet] = chunks.filter(_.isInstanceOf[PointsTo])
-
-  def chunksForUnifying: List[Heaplet] = blocks ++ apps ++ ptss
+  def ptss: List[PointsTo] = for (b@PointsTo(_, _, _) <- chunks) yield b
 
   def subst(sigma: Map[Var, Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
 

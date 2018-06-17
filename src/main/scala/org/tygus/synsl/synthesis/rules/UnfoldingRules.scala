@@ -6,7 +6,6 @@ import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.OperationalRules.ruleAssert
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey

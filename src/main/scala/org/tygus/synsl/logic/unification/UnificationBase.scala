@@ -16,8 +16,6 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
   type SubstVar = Map[Var, Var]
   type UAtom <: Substitutable[UAtom]
 
-  // whether the source need to be given all fresh names or not
-  val needRefreshing: Boolean
   // match all target chunks (no leftovers) -- true for spatial case
   val precise: Boolean
 
@@ -35,7 +33,9 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
     */
-  def unify(target: UnificationGoal, source: UnificationGoal): Option[Subst] = {
+  def unify(target: UnificationGoal, source: UnificationGoal,
+            boundInBoth: Set[Var] = Set.empty,
+            needRefreshing: Boolean = true): Option[Subst] = {
     // Make sure that all variables in target are fresh wrt. source
     val (freshSource, freshSubst) =
       if (needRefreshing) refreshSource(target, source)
@@ -46,7 +46,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 
     val targetChunks = extractChunks(target)
     val sourceChunks = extractChunks(freshSource)
-    val takenVars = target.formula.vars
+    val takenVars = target.formula.vars ++ boundInBoth
 
     if (!checkShapesMatch(targetChunks, sourceChunks)) return None
 

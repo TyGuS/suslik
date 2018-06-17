@@ -1,6 +1,6 @@
 package org.tygus.synsl.logic.unification
 
-import org.tygus.synsl.language.Expressions.Var
+import org.tygus.synsl.language.Expressions.{Expr, Var}
 import org.tygus.synsl.logic._
 
 /**
@@ -10,7 +10,6 @@ object SpatialUnification extends UnificationBase {
 
   type UAtom = Heaplet
 
-  val needRefreshing: Boolean = true
   val precise: Boolean = true
 
 
@@ -111,5 +110,85 @@ object SpatialUnification extends UnificationBase {
 
 
   protected def extractChunks(goal: UnificationGoal): List[UAtom] = goal.formula.sigma.chunks
+
+  ///////////////////////////////////////////////////////////////////
+  // Supporting Star-Frame
+  ///////////////////////////////////////////////////////////////////
+
+  private def removeSingleChunk(sf1: SFormula, sf2: SFormula, p: Heaplet) = {
+    val _sf1 = sf1 - p
+    val _sf2 = sf2 - p
+    if (_sf1.chunks.length == sf1.chunks.length - 1 &&
+        _sf2.chunks.length == sf2.chunks.length - 1) Some((_sf1, _sf2, SFormula(List(p))))
+    else None
+  }
+
+  private def removeSAppIgnoringTag(sf: SFormula, h: SApp) = h match {
+    case SApp(p, args, _) =>
+      val newChunks = sf.chunks.filterNot {
+        case SApp(p1, args1, _) => p1 == p && args1 == args
+        case _ => false
+      }
+      sf.copy(chunks = newChunks)
+  }
+
+  private def removeSAppChunk(sf1: SFormula, sf2: SFormula, s: SApp) = {
+    val _sf1 = removeSAppIgnoringTag(sf1, s)
+    val _sf2 = removeSAppIgnoringTag(sf2, s)
+    if (_sf1.chunks.length == sf1.chunks.length - 1 &&
+        _sf2.chunks.length == sf2.chunks.length - 1) Some((_sf1, _sf2, SFormula(List(s))))
+    else None
+  }
+
+  private def frameFromCommonBlock(ft: SFormula, fs: SFormula,
+                                   b: Block, boundVars: Set[Var]): Option[(SFormula, SFormula, SFormula, Subst)] = {
+    if (!ft.chunks.contains(b) || !fs.chunks.contains(b)) return None
+    // Assuming b.loc is Var, as otherwise the previous method would return None
+    val newBoundVars = boundVars + b.loc.asInstanceOf[Var]
+    for {
+      subHeapT <- findBlockRootedSubHeap(b, ft)
+      subHeapS <- findBlockRootedSubHeap(b, fs)
+      ugt = UnificationGoal(Assertion(PTrue, subHeapT), Set.empty)
+      ugs = UnificationGoal(Assertion(PTrue, subHeapS), Set.empty)
+      sub <- {
+        unify(ugt, ugs, boundInBoth = newBoundVars, needRefreshing = false)
+      }
+    } yield {
+      val _ft = ft - subHeapT.chunks
+      val _fs = (fs - subHeapS.chunks).subst(sub)
+      (_ft, _fs, subHeapT, sub)
+    }
+  }
+
+
+  /**
+    * Removes the largest common frame from two spatial formula.
+    * Simultaneously unifies the corresponding part in `fs` with `ft`, modulo `boundVars`.
+    *
+    * The third component of the result is the  common chopped-off sub-formula.
+    * The last component is the resulting substitution (from the unification).
+    */
+  def removeCommonFrame(ft: SFormula, fs: SFormula,
+                        boundVars: Set[Var]): Seq[(SFormula, SFormula, SFormula, Subst)] = {
+
+    // Strip as much from the two formulas as possible,
+    // and unify in the process, delivering the new substitution
+    def stripper(sub: Subst, h: Heaplet) = h match {
+      case p@PointsTo(_, _, _) => removeSingleChunk(ft, fs.subst(sub), p).map(x => (x, sub))
+      case s@SApp(_, _, _) => removeSAppChunk(ft, fs.subst(sub), s).map(x => (x, sub))
+      case b@Block(_, _) => frameFromCommonBlock(ft, fs.subst(sub), b, boundVars).map {
+        case (_ft, _fs, f, _sub) => ((_ft, _fs, f), sub ++ _sub)
+      }
+    }
+
+    for {
+      t <- chunksForUnifying(ft)
+      s <- chunksForUnifying(fs)
+      sub <- tryUnify(t, s, boundVars, false)
+      ((_ft, _fs, f), newSub) <- stripper(sub, t)
+    } yield {
+      (_ft, _fs, f, newSub)
+    }
+  }
 
 }
