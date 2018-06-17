@@ -68,9 +68,12 @@ case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applica
         s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
         s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
 
-  // Find a previous rule application that is out of order with this one
-  def outOfOrder(app: RuleApplication): Option[RuleApplication] = {
-    applications.find(prev => app.commutesWith(prev) && app < prev)
+  // Find a previous rule application that is out of order with the latest one
+  def outOfOrder: Option[RuleApplication] = {
+    applications match {
+      case Nil => None
+      case latest :: prevs => prevs.find(prev => latest.commutesWith(prev) && latest < prev)
+    }
   }
 }
 
@@ -100,10 +103,10 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
     val d = this.deriv
     val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
       postIndex = appendNewChunks(this.post, post, d.postIndex),
-      applications = d.applications ++ newRuleApp.toList)
+      applications = newRuleApp.toList ++ d.applications)
     Goal(pre,post,gamma,this.fname,newDeriv)
   }
-  
+
 
   def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 

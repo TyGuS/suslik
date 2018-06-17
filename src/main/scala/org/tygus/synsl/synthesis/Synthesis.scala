@@ -119,8 +119,21 @@ trait Synthesis {
           }
         }
 
-        val subderivations = r(goal, env)
+        // Invoke the rule
+        val allSubderivations = r(goal, env)
         val goalStr = s"$r: "
+
+        // Filter out subderivations that violate rule ordering
+        def goalInOrder(g: Goal): Boolean = {
+          g.deriv.outOfOrder match {
+            case None => true
+            case Some(app) =>
+              printLog(List((s"$goalStr${RED}Alternative commutes with earlier ${app.rule}", BLACK)), isFail = true)
+              false
+          }
+        }
+        val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
+
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest
           printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)

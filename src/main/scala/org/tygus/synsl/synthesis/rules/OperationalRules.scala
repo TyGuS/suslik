@@ -294,7 +294,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           // Collecting the footprint
           val preFootprint = pts.map(p => deriv.preIndex.indexOf(p)).toSet + deriv.preIndex.indexOf(h)
           val ruleApp = makeRuleApp(this.toString, (preFootprint, Set.empty), deriv)
-          if (deriv.outOfOrder(ruleApp).isDefined) { return Nil } // Out of order: not applicable
 
           val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
           val kont: StmtProducer = stmts => {
