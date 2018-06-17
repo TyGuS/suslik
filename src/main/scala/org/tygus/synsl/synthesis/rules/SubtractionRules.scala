@@ -48,7 +48,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   }
 
   /*
-           (GV(Q) / GV(P)) * GV(R) = Ø
+           (GV(Post) / GV(Pre)) * GV(R) = Ø
           Γ ; {φ ; P} ; {ψ ; Q} ---> S
     ---------------------------------------- [*-intro]
       Γ ; {φ ; P * R} ; {ψ ; Q * R} ---> S
@@ -61,7 +61,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: *-intro]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      def sideCond(p: SFormula, q: SFormula, r: SFormula) = {
+      def sideCond(p: Assertion, q: Assertion, r: SFormula) = {
         val gvP = p.vars.filter(goal.isGhost).toSet
         val gvQ = q.vars.filter(goal.isGhost).toSet
         val gvR = r.vars.filter(goal.isGhost).toSet
@@ -76,10 +76,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       for {
         (newPreSigma, newPostSigma, f, sub) <-
             SpatialUnification.removeCommonFrame(pre.sigma, post.sigma, boundVars)
-        if sideCond(newPreSigma, newPostSigma, f)
+        newPre = Assertion(pre.phi, newPreSigma)
+        newPost = Assertion(post.phi.subst(sub), newPostSigma)
+        if sideCond(newPre, newPost, f)
       } yield {
-        val newPre = Assertion(pre.phi, newPreSigma)
-        val newPost = Assertion(post.phi.subst(sub), newPostSigma)
         Subderivation(List((goal.copy(newPre, newPost), env)), pureKont(toString))
       }
     }
