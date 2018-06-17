@@ -6,6 +6,7 @@ import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.{Statements, _}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.SubtractionRules.makeRuleApp
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -240,6 +241,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             off <- 0 until sz
             z = generateFreshVar(goal)
           } yield PointsTo(y, off, z)
+          // yield PointsTo(y, off, IntConst(0))
           val freshBlock = Block(x, sz).subst(x, y)
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
           val subGoal = goal.copy(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
@@ -274,6 +276,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
 
+      val pre = goal.pre
+      val deriv = goal.deriv
+
       findHeaplet(isConcreteBlock, goal.pre.sigma) match {
         case None => Nil
         case Some(h@Block(x@(Var(_)), sz)) =>
@@ -284,8 +289,14 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
               case _ => return Nil
             }
           }
-          val newPre = Assertion(goal.pre.phi, goal.pre.sigma - h - pts)
-          val subGoal = goal.copy(newPre)
+          val newPre = Assertion(pre.phi, pre.sigma - h - pts)
+
+          // Collecting the footprint
+          val preFootprint = pts.map(p => deriv.preIndex.indexOf(p)).toSet + deriv.preIndex.indexOf(h)
+          val ruleApp = makeRuleApp(this.toString, (preFootprint, Set.empty), deriv)
+          if (deriv.outOfOrder(ruleApp).isDefined) { return Nil } // Out of order: not applicable
+
+          val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
             SeqComp(Free(x), stmts.head)

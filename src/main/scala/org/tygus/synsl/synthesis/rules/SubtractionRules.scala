@@ -83,7 +83,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         preFootprint = Set(deriv.preIndex.indexOf(t))
         postFootprint = Set(deriv.postIndex.indexOf(s))
         ruleApp = makeRuleApp(this.toString, (preFootprint, postFootprint), deriv)
-        if !deriv.outOfOrder(ruleApp)
+        if deriv.outOfOrder(ruleApp).isEmpty
 
       } yield {
         val newPre = Assertion(pre.phi, newPreSigma)

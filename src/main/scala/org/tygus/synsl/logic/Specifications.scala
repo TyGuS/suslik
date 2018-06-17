@@ -53,7 +53,9 @@ case class RuleApplication(rule: String, footprint: (Set[Int], Set[Int]), timest
   // Rule applications are ordered by their footprint
   // (the actual order doesn't really matter, as long as not all rules are equal)
   override def compare(that: RuleApplication): Int = {
-    this.footprint._1.min.compare(that.footprint._1.min)
+    val min1 = this.footprint._1.union(this.footprint._2).min
+    val min2 = that.footprint._1.union(that.footprint._2).min
+    min1.compare(min2)
   }
 }
 
@@ -66,10 +68,9 @@ case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applica
         s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
         s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
 
-  // Does appending app to this derivation violate the rule ordering?
-  // Yes if there exists a previous rule application that app commutes with and is less than
-  def outOfOrder(app: RuleApplication): Boolean = {
-    applications.exists(prev => app.commutesWith(prev) && app < prev)
+  // Find a previous rule application that is out of order with this one
+  def outOfOrder(app: RuleApplication): Option[RuleApplication] = {
+    applications.find(prev => app.commutesWith(prev) && app < prev)
   }
 }
 
