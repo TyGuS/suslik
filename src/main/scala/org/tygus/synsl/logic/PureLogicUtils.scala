@@ -15,12 +15,12 @@ trait PureLogicUtils {
     */
   def simplify(phi: PFormula): PFormula = phi match {
     case p@(PTrue | PFalse) => p
-    case p@PLeq(left, right) => p
-    case p@PLtn(left, right) => p
-    case p@PEq(e, v@Var(_)) if !e.isInstanceOf[Var] => PEq(v, e)
+    case p@PLeq(left, right) => PLeq(simplifyExpr(left), simplifyExpr(right))
+    case p@PLtn(left, right) => PLtn(simplifyExpr(left), simplifyExpr(right))
     case p@PEq(v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
       if (n1.toString <= n2.toString) PEq(v1, v2) else PEq(v2, v1)
-    case p@PEq(_, _) => p
+    case p@PEq(e, v@Var(_)) if !e.isInstanceOf[Var] => PEq(v, simplifyExpr(e))
+    case p@PEq(left, right) => PEq(simplifyExpr(left), simplifyExpr(right))
 
     //  Truth table for PAnd
     case PAnd(PFalse, right) => PFalse
@@ -47,7 +47,14 @@ trait PureLogicUtils {
     case PNeg(arg) => PNeg(simplify(arg))
 
     // Set equality
-    case s@SEq(_, _) => s
+    case s@SEq(left, right) => SEq(simplifyExpr(left), simplifyExpr(right))
+  }
+
+  def simplifyExpr(e: Expr): Expr = e match {
+    case BinaryExpr(OpPlus, left, IntConst(i)) if i.toInt == 0 => simplifyExpr(left)
+    case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplifyExpr(right)
+    case BinaryExpr(OpMinus, left, IntConst(i)) if i.toInt == 0 => simplifyExpr(left)
+    case _ => e
   }
 
   private def isAtomicExpr(e: Expr): Boolean = e match {
@@ -57,12 +64,12 @@ trait PureLogicUtils {
     case BinaryExpr(OpLeq, _, _) => false
     case BinaryExpr(OpLt, _, _) => false
     case _ => true
-//    case Var(name) => true
-//    //  For now we only allow integers here
-//    case IntConst(_) => true
-//    // Do not simplify set expressions
-//    case _: SetExpr => true
-//    case _ => false
+    //    case Var(name) => true
+    //    //  For now we only allow integers here
+    //    case IntConst(_) => true
+    //    // Do not simplify set expressions
+    //    case _: SetExpr => true
+    //    case _ => false
   }
 
   val isRelationPFormula: (PFormula) => Boolean = {
