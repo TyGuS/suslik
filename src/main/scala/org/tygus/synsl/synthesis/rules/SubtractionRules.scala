@@ -70,6 +70,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
       val pre = goal.pre
       val post = goal.post
+      val deriv = goal.deriv
 
       for {
         t <- pre.sigma.chunks
@@ -78,10 +79,18 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         newPreSigma = pre.sigma - t
         newPostSigma = (post.sigma - s).subst(sub)
         if sideCond(newPreSigma, newPostSigma, t)
+
+        preFootprint = Set(deriv.preIndex.indexOf(t))
+        postFootprint = Set(deriv.postIndex.indexOf(s))
+        ruleApp = makeRuleApp(this.toString, (preFootprint, postFootprint), deriv)
+        if !deriv.outOfOrder(ruleApp)
+
       } yield {
         val newPre = Assertion(pre.phi, newPreSigma)
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        Subderivation(List((goal.copy(newPre, newPost), env)), pureKont(toString))
+
+        val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
+        Subderivation(List((newGoal, env)), pureKont(toString))
       }
     }
   }
