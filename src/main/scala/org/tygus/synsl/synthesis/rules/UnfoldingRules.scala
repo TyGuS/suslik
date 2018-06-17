@@ -150,7 +150,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
           val rest = stmts.head
-          SeqComp(rest, Call(None, Var(goal.fname), args))
+          SeqComp(Call(None, Var(goal.fname), args), rest)
         }
         Subderivation(List((newGoal, env)), kont)
       }).toSeq
