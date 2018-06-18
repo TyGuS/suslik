@@ -192,26 +192,26 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     }
   }
 
-//  // TODO: remove me once full SMT support in Emp is provided
-//  /*
-//  Γ ; {φ ∧ φ' ; P} ; {ψ ; Q} ---> S
-//  --------------------------------------- [Hypothesis]
-//  Γ ; {φ ∧ φ' ; P} ; {ψ ∧ φ' ; Q} ---> S
-//  */
-//  object Hypothesis extends SynthesisRule with InvertibleRule {
-//    override def toString: String = "[Norm: hypothesis]"
-//
-//    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-//      val cs1 = conjuncts(goal.pre.phi)
-//      val cs2 = conjuncts(goal.post.phi)
-//      findCommon((p: PFormula) => true, cs1, cs2) match {
-//        case Some((p, ps1, ps2)) =>
-//          val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
-//          val newGoal = goal.copy(post = newPost)
-//          List(Subderivation(List((newGoal, env)), pureKont(toString)))
-//        case None => Nil
-//      }
-//    }
-//  }
+  // TODO: remove me once full SMT support in Emp is provided
+  /*
+  Γ ; {φ ∧ φ' ; P} ; {ψ ; Q} ---> S
+  --------------------------------------- [Hypothesis]
+  Γ ; {φ ∧ φ' ; P} ; {ψ ∧ φ' ; Q} ---> S
+  */
+  object Hypothesis extends SynthesisRule with InvertibleRule {
+    override def toString: String = "[Norm: hypothesis]"
+
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      val cs1 = conjuncts(goal.pre.phi)
+      val cs2 = conjuncts(goal.post.phi)
+      findCommon((p: PFormula) => true, cs1, cs2) match {
+        case Some((p, ps1, ps2)) =>
+          val newPost = Assertion(mkConjunction(ps2), goal.post.sigma)
+          val newGoal = goal.copy(post = newPost)
+          List(Subderivation(List((newGoal, env)), pureKont(toString)))
+        case None => Nil
+      }
+    }
+  }
 
 }

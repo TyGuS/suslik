@@ -25,9 +25,8 @@ libraryDependencies ++= Seq(
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6" withSources(),
   "org.scalaz" %% "scalaz-core" % "7.2.11",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
-  "org.bitbucket.franck44.scalasmt" %% "scalasmt" % "2.1.0" withSources()
+  "org.bitbucket.franck44.scalasmt" %% "scalasmt" % "2.1.1-SNAPSHOT" withSources()
 )
-
 
 scalacOptions ++= Seq()
 
@@ -42,4 +41,3 @@ initialCommands in console :=
        | import ch.qos.logback.classic.Level
        | root.setLevel(Level.OFF)
        | """.stripMargin
-
