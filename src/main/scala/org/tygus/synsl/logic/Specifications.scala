@@ -85,8 +85,8 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
-      s"${pre.pp}\n${post.pp}" +
-      s"\n${deriv.pp}"
+      s"${pre.pp}\n${post.pp}"
+      // + s"\n${deriv.pp}"
 
   def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma))
