@@ -60,7 +60,7 @@ case class RuleApplication(rule: String, footprint: (Set[Int], Set[Int]), timest
 }
 
 
-case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
+case class Derivation(preIndex: List[SFormula], postIndex: List[SFormula], applications: List[RuleApplication] = Nil)
   extends PrettyPrinting
 {
   override def pp: String =
@@ -96,13 +96,15 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
            gamma: Gamma = this.gamma,
            newRuleApp: Option[RuleApplication] = None): Goal = {
 
-    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index:List[Heaplet]): List[Heaplet] = {
+    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index:List[SFormula]): List[SFormula] = {
       index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
     }
 
+    val mapper = (hs: List[Heaplet]) => hs.map(h => SFormula(List(h)))
+
     val d = this.deriv
-    val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
-      postIndex = appendNewChunks(this.post, post, d.postIndex),
+    val newDeriv = d.copy(preIndex = mapper(appendNewChunks(this.pre, pre, d.preIndex)),
+      postIndex = mapper(appendNewChunks(this.post, post, d.postIndex)),
       applications = newRuleApp.toList ++ d.applications)
     Goal(pre,post,gamma,this.fname,newDeriv)
   }

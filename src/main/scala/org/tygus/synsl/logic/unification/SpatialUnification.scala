@@ -1,7 +1,8 @@
 package org.tygus.synsl.logic.unification
 
 import org.tygus.synsl.language.Expressions.{Expr, Var}
-import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.{SFormula, _}
+import org.tygus.synsl.logic.unification.SpatialUnification.Subst
 
 /**
   * @author Ilya Sergey
@@ -160,16 +161,20 @@ object SpatialUnification extends UnificationBase {
     }
   }
 
+  sealed case class FrameChoppingResult(ft: SFormula, sf: SFormula,
+                                        t: List[Heaplet], s: List[Heaplet],
+                                        sub: Subst)
 
   /**
     * Removes the largest common frame from two spatial formula.
     * Simultaneously unifies the corresponding part in `fs` with `ft`, modulo `boundVars`.
     *
-    * The third component of the result is the  common chopped-off sub-formula.
+    * The third component of the result is the common chopped-off sub-formula (as in ft).
+    * The four component of the result is the common chopped-off sub-formula (as in fs before unification).
     * The last component is the resulting substitution (from the unification).
     */
   def removeCommonFrame(ft: SFormula, fs: SFormula,
-                        boundVars: Set[Var]): Seq[(SFormula, SFormula, SFormula, Subst)] = {
+                        boundVars: Set[Var]): Seq[FrameChoppingResult] = {
 
     // Strip as much from the two formulas as possible,
     // and unify in the process, delivering the new substitution
