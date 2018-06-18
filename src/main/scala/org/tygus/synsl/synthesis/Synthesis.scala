@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis {
+trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
 
@@ -33,7 +33,7 @@ trait Synthesis {
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
   Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = Goal(pre, post, formals, name, Derivation(pre.sigma.chunks, post.sigma.chunks))
+    val goal = Goal(pre, post, formals, name, Derivation(getSubFormulae(pre.sigma), getSubFormulae(pre.sigma)))
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()

@@ -81,7 +81,7 @@ case class Derivation(preIndex: List[SFormula], postIndex: List[SFormula], appli
   * Main class for contextual Hoare-style specifications
   */
 case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, deriv: Derivation)
-  extends PrettyPrinting with PureLogicUtils {
+  extends PrettyPrinting with SepLogicUtils {
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
@@ -97,14 +97,14 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
            newRuleApp: Option[RuleApplication] = None): Goal = {
 
     def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index:List[SFormula]): List[SFormula] = {
-      index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
+      val newParts = getSubFormulae(newAsn.sigma)
+      val oldParts = getSubFormulae(oldAsn.sigma)
+      index ++ newParts.diff(oldParts)
     }
 
-    val mapper = (hs: List[Heaplet]) => hs.map(h => SFormula(List(h)))
-
     val d = this.deriv
-    val newDeriv = d.copy(preIndex = mapper(appendNewChunks(this.pre, pre, d.preIndex)),
-      postIndex = mapper(appendNewChunks(this.post, post, d.postIndex)),
+    val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
+      postIndex = appendNewChunks(this.post, post, d.postIndex),
       applications = newRuleApp.toList ++ d.applications)
     Goal(pre,post,gamma,this.fname,newDeriv)
   }
