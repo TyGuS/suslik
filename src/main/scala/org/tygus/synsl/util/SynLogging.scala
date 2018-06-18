@@ -106,7 +106,7 @@ object SynStatUtil {
   def log(name: String, time: Long, stats: Option[(Procedure, SynStats)]): Unit = {
     val statRow = (stats match {
       case Some((_, st)) => List(st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
-      case None => DList.replicate(4, "").toList
+      case None => DList.replicate(4, "FAIL").toList
     }).mkString(", ")
 
     val data = s"$name, $time, $statRow\n"
