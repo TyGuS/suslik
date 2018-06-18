@@ -96,6 +96,7 @@ object SynStatUtil {
     List("Name", "Time", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n "
 
   {
+    if (myFile.exists()) myFile.delete()
     myFile.createNewFile()
     using(new FileWriter(myFile, true))(_.write(initRow))
   }
