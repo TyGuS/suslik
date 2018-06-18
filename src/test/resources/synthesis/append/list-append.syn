@@ -1,0 +1,12 @@
+should be able to synthesize trivial list append
+
+#####
+
+{ n == 0 ; lseg(x, 0, n) ** lseg(y, 0, m)}
+void list_append(loc x, loc y)
+{ k == n + m ; lseg(z, 0, k)}
+
+#####
+
+void list_append (loc x, loc y) {
+}
