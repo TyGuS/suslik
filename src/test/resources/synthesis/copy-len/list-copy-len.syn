@@ -2,7 +2,7 @@ should be able to synthesize list copy
 
 #####
 
-{true ; r :-> 0 ** lseg(x, 0, n)}
+{0 <= n ; r :-> 0 ** lseg(x, 0, n)}
 void list_copy(loc r, loc x)
 {true ; r :-> y ** lseg(x, 0, n) ** lseg(y, 0, n) }
 
