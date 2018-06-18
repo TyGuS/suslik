@@ -90,7 +90,7 @@ object SynStatUtil {
 
   import java.io.{File, FileWriter}
 
-  val myStats = "syn_stats.csv"
+  val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
     List("Name", "Time", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n "
