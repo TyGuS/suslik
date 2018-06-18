@@ -4,7 +4,7 @@ import java.io.File
 
 import org.tygus.synsl.logic.Resolver._
 import org.tygus.synsl.parsing.SynslParser
-import org.tygus.synsl.util.{SynLogging, SynLogLevels}
+import org.tygus.synsl.util.{SynLogLevels, SynLogging, SynStatUtil}
 
 import scala.io.Source
 
@@ -77,6 +77,8 @@ trait SynthesisTestUtil {
     val sresult = synthesizeProc(goal, env, params.printFails)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
+
+    SynStatUtil.log(testName, delta, sresult)
 
     sresult match {
       case Some((rr, stats)) =>

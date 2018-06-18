@@ -1,8 +1,10 @@
 package org.tygus.synsl.util
 
+import org.tygus.synsl.language.Statements.Procedure
 import org.tygus.synsl.logic.Goal
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.SynthesisRule
+import scalaz.DList
 
 /**
   * @author Ilya Sergey
@@ -82,3 +84,33 @@ class SynStats {
 abstract sealed class SynCertificate
 case class SynAxiom(goal: Goal, rule: SynthesisRule) extends SynCertificate
 case class SynTree(subgoals: Seq[SynCertificate]) extends SynCertificate
+
+// TODO: refactor me to make more customizable
+object SynStatUtil {
+
+  import java.io.{File, FileWriter}
+
+  val myStats = "stats.csv"
+  val myFile = new File(myStats)
+  val initRow: String =
+    List("Name", "Time", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n "
+
+  {
+    myFile.createNewFile()
+    using(new FileWriter(myFile, true))(_.write(initRow))
+  }
+
+  def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
+      try f(resource) finally resource.close()
+
+  def log(name: String, time: Long, stats: Option[(Procedure, SynStats)]): Unit = {
+    val statRow = (stats match {
+      case Some((_, st)) => List(st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
+      case None => DList.replicate(4, "").toList
+    }).mkString(", ")
+
+    val data = s"$name, $time, $statRow\n"
+    using(new FileWriter(myFile, true))(_.write(data))
+  }
+
+}
