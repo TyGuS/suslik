@@ -1,0 +1,22 @@
+should be able to synthesize list copy
+
+#####
+
+{true ; r :-> blank ** lseg(x, 0, len)}
+void list_copy(loc r, loc x)
+{true ; r :-> y ** lseg(x, 0, len) ** lseg(y, 0, len) }
+
+#####
+
+void list_copy (loc r, loc x) {
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let nxt2 = *(x + 1);
+    list_copy(r, nxt2);
+    let nxt3 = *r;
+    let nxt4 = malloc(2);
+    *(nxt4 + 1) = nxt3;
+    *r = next4;
+  }
+}

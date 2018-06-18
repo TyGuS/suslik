@@ -132,7 +132,9 @@ trait Synthesis {
               false
           }
         }
+        // Toggle this comment to enable and disable commute optimization
         val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
+        // val subderivations = allSubderivations
 
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest
