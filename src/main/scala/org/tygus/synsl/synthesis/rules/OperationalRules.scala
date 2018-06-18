@@ -6,7 +6,6 @@ import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.{Statements, _}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.SubtractionRules.makeRuleApp
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
