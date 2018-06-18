@@ -11,7 +11,7 @@ void free_llist (loc r) {
   if (r == 0) {
   } else {
     let nxt2 = *(r + 1);
-    free(r);
     free_llist(nxt2);
+    free(r);
   }
 }

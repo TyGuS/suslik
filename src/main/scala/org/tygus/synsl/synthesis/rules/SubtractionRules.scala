@@ -4,8 +4,7 @@ import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
-import org.tygus.synsl.logic.unification.SpatialUnification._
-import org.tygus.synsl.logic.unification.{PureUnification, UnificationGoal}
+import org.tygus.synsl.logic.unification.{PureUnification, SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
 
 /**
@@ -36,18 +35,20 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
 
       if (pre.sigma.isEmp &&
-        post.sigma.isEmp &&
-        goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
-        {
+          post.sigma.isEmp &&
+          goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
+          {
+            //            SMTSolving.implies(pre.phi, post.phi) ||
+            //            SMTSolving.valid(post.phi) ||
             SMTSolving.valid(pre.phi.implies(post.phi))
-        })
+          })
         List(Subderivation(Nil, _ => Skip))
       else Nil
     }
   }
 
   /*
-           (GV(Q) / GV(P)) * GV(R) = Ø
+           (GV(Post) / GV(Pre)) * GV(R) = Ø
           Γ ; {φ ; P} ; {ψ ; Q} ---> S
     ---------------------------------------- [*-intro]
       Γ ; {φ ; P * R} ; {ψ ; Q * R} ---> S
@@ -60,10 +61,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: *-intro]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      def sideCond(p: SFormula, q: SFormula, r: Heaplet) = {
+      def sideCond(p: Assertion, q: Assertion, r: SFormula) = {
         val gvP = p.vars.filter(goal.isGhost).toSet
         val gvQ = q.vars.filter(goal.isGhost).toSet
-        val gvR = r.vars.filter(goal.isGhost)
+        val gvR = r.vars.filter(goal.isGhost).toSet
 
         gvQ.diff(gvP).intersect(gvR).isEmpty
       }
@@ -71,24 +72,25 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
       val deriv = goal.deriv
+      val boundVars = goal.universals ++ goal.formals
 
       for {
-        t <- pre.sigma.chunks
-        s <- post.sigma.chunks
-        sub <- tryUnify(t, s, goal.universals ++ goal.formals, false)
-        newPreSigma = pre.sigma - t
-        newPostSigma = (post.sigma - s).subst(sub)
-        if sideCond(newPreSigma, newPostSigma, t)
+        (newPreSigma, newPostSigma, f, sub) <-
+            SpatialUnification.removeCommonFrame(pre.sigma, post.sigma, boundVars)
+        newPre = Assertion(pre.phi, newPreSigma)
+        newPost = Assertion(post.phi.subst(sub), newPostSigma)
+        if sideCond(newPre, newPost, f)
       } yield {
-        val newPre = Assertion(pre.phi, newPreSigma)
-        val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-
-        val preFootprint = Set(deriv.preIndex.indexOf(t))
-        val postFootprint = Set(deriv.postIndex.indexOf(s))
-        val ruleApp = makeRuleApp(this.toString, (preFootprint, postFootprint), deriv)
-
-        val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-        Subderivation(List((newGoal, env)), pureKont(toString))
+//        val newPre = Assertion(pre.phi, newPreSigma)
+//        val newPost = Assertion(post.phi.subst(sub), newPostSigma)
+//
+//        val preFootprint = Set(deriv.preIndex.indexOf(t))
+//        val postFootprint = Set(deriv.postIndex.indexOf(s))
+//        val ruleApp = makeRuleApp(this.toString, (preFootprint, postFootprint), deriv)
+//
+//        val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
+//        Subderivation(List((newGoal, env)), pureKont(toString))
+        Subderivation(List((goal.copy(newPre, newPost), env)), pureKont(toString))
       }
     }
   }
@@ -110,7 +112,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val params = goal.gamma.map(_._2).toSet
       PureUnification.unify(
-        UnificationGoal(pre, params), UnificationGoal(post, params), needRefreshing = false, precise = false) match {
+        UnificationGoal(pre, params), UnificationGoal(post, params), needRefreshing = false) match {
         case None => Nil
         case Some(sbst) =>
           val postSubst = post.subst(sbst)

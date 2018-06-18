@@ -2,6 +2,7 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.logic.unification.SpatialUnification.tryUnify
 
 /**
   * Utilities for spatial formulae
@@ -74,6 +75,31 @@ trait SepLogicUtils extends PureLogicUtils {
     }
 
     goFind(small.chunks, large.chunks, List(Nil)).map(SFormula)
+  }
+
+  def findBlockRootedSubHeap(b: Block, sf: SFormula): Option[SFormula] = {
+    if (!sf.chunks.contains(b)) return None
+    val Block(x, sz) = b
+    if (!x.isInstanceOf[Var]) return None
+    val ps = for {p@PointsTo(y, o, _) <- sf.chunks if x == y} yield p
+    val offsets = ps.map { case PointsTo(_, o, _) => o }.sorted
+    val goodChunks = offsets.size == sz && // All offsets are present
+        offsets.distinct.size == offsets.size && // No repetitions
+        offsets.forall(o => o < sz) // all smaller than sz
+    if (goodChunks) Some(SFormula(b :: ps)) else None
+  }
+
+  def chunksForUnifying(f: SFormula): List[Heaplet] = {
+    val blocks = f.blocks
+    val apps = f.apps
+    val ptss = f.ptss
+    // Now remove block-dependent chunks
+    val chunksToRemove = (for {
+      b <- blocks
+      sf <- findBlockRootedSubHeap(b, f).toList
+      c <- sf.chunks
+    } yield c).toSet
+    blocks ++ apps ++ ptss.filterNot(p => chunksToRemove.contains(p))
   }
 
 }

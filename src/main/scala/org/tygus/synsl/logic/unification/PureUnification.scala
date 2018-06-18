@@ -13,6 +13,10 @@ import org.tygus.synsl.logic.{PFormula, SEq}
 object PureUnification extends UnificationBase {
   type UAtom = PFormula
 
+  val needRefreshing: Boolean = false
+  val precise: Boolean = false
+
+
   protected def extractChunks(goal: UnificationGoal): List[PFormula] = {
     conjuncts(goal.formula.phi).distinct.filter(_.isInstanceOf[SEq])
   }

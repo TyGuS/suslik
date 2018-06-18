@@ -6,8 +6,6 @@ import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.OperationalRules.ruleAssert
-import org.tygus.synsl.synthesis.rules.SubtractionRules.makeRuleApp
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -140,7 +138,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(targetPre, goal.gamma.map(_._2).toSet)
-        sigma <- SpatialUnification.unify(target, source)
+        sigma <- {
+          SpatialUnification.unify(target, source)
+        }
       } yield {
         val newPreChunks =
           (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
@@ -155,7 +155,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
           val rest = stmts.head
-          SeqComp(rest, Call(None, Var(goal.fname), args))
+          SeqComp(Call(None, Var(goal.fname), args), rest)
         }
         Subderivation(List((newGoal, env)), kont)
       }).toSeq

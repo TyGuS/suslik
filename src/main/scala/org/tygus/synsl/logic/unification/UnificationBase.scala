@@ -16,6 +16,8 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
   type SubstVar = Map[Var, Var]
   type UAtom <: Substitutable[UAtom]
 
+  // match all target chunks (no leftovers) -- true for spatial case
+  val precise: Boolean
 
   def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst]
 
@@ -30,23 +32,21 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     * The result is a substitution of variables in the `source` to the variables in the `target`,
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
-    *
-    * @param needRefreshing whether the source need to be given all fresh names or not
-    * @param precise        match all target chunks (no leftovers) -- true for spatial case
     */
   def unify(target: UnificationGoal, source: UnificationGoal,
-            needRefreshing: Boolean = true, precise: Boolean = true): Option[Subst] = {
+            boundInBoth: Set[Var] = Set.empty,
+            needRefreshing: Boolean = true): Option[Subst] = {
     // Make sure that all variables in target are fresh wrt. source
     val (freshSource, freshSubst) =
       if (needRefreshing) refreshSource(target, source)
       else (source, {
-        val vs = source.formula.vars;
+        val vs = source.formula.vars
         vs.zip(vs).toMap
       })
 
     val targetChunks = extractChunks(target)
     val sourceChunks = extractChunks(freshSource)
-    val takenVars = target.formula.vars
+    val takenVars = target.formula.vars ++ boundInBoth
 
     if (!checkShapesMatch(targetChunks, sourceChunks)) return None
 

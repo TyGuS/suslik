@@ -132,14 +132,14 @@ trait PureLogicUtils {
   /**
     * Removes the conjuncts from `sparsen` that have equivalent ones in base
     */
-  def removeEquivalent(base: PFormula, sparsen: PFormula) : Option[PFormula] = {
+  def removeEquivalent(base: PFormula, sparsen: PFormula): Option[PFormula] = {
     val scs = conjuncts(sparsen)
     val bcs = conjuncts(base)
     val res = scs.filterNot(p => bcs.exists(c => isEquiv(p, c)))
     if (res.size < scs.size) Some(mkConjunction(res)) else None
   }
 
-  def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[(PFormula)])] =
+  def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[PFormula])] =
     Some(conjuncts(phi)).flatMap(cs => cs.find(p) match {
       case Some(c) => Some((c, cs.filter(e => e != c)))
       case None => None
@@ -155,18 +155,21 @@ trait PureLogicUtils {
   }
 
   /**
-    * @param vs     a list of variables to refresh
+    * @param vs    a list of variables to refresh
     * @param bound bound identifiers
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
   def refreshVars(vs: List[Var], bound: Set[Var]): Map[Var, Var] = {
-    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] = vsToRefresh match {
-      case Nil => acc
-      case x :: xs =>
-        val newAcc = acc + (x -> x.refresh(taken))
-        val newTaken = taken + x
-        go(xs, newTaken, newAcc)
-    }
+
+    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] =
+      vsToRefresh match {
+        case Nil => acc
+        case x :: xs =>
+          val y = x.refresh(taken)
+          val newAcc = acc + (x -> y)
+          val newTaken = taken + x + y
+          go(xs, newTaken, newAcc)
+      }
 
     go(vs, bound, Map.empty)
   }
