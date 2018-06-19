@@ -2,6 +2,8 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
+import org.tygus.synsl.synthesis.SynthesisRule
+import scala.math.Ordering.Implicits._
 
 case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
   with PureLogicUtils {
@@ -37,7 +39,7 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
 }
 
-case class RuleApplication(rule: String, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
+case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
   extends PrettyPrinting with Ordered[RuleApplication]
 {
   override def pp: String =
@@ -69,10 +71,20 @@ case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applica
         s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
 
   // Find a previous rule application that is out of order with the latest one
-  def outOfOrder: Option[RuleApplication] = {
+  def outOfOrder(ruleOrder: Seq[SynthesisRule]): Option[RuleApplication] = {
+
+    // app1 is ordered before app2
+    // if its rule comes earlier in the rule order,
+    // or the rules are the same and the footprint comes earlier
+    def before(app1: RuleApplication, app2: RuleApplication): Boolean = {
+      val i1 = ruleOrder.indexOf(app1.rule)
+      val i2 = ruleOrder.indexOf(app2.rule)
+      (i1, app1) < (i2, app2)
+    }
+
     applications match {
       case Nil => None
-      case latest :: prevs => prevs.find(prev => latest.commutesWith(prev) && latest < prev)
+      case latest :: prevs => prevs.find(prev => latest.commutesWith(prev) && before(latest, prev))
     }
   }
 }
@@ -85,8 +97,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
-      s"${pre.pp}\n${post.pp}"
-      // + s"\n${deriv.pp}"
+      s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
 
   def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma))

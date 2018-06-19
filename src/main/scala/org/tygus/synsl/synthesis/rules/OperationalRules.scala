@@ -252,7 +252,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             }
           }
           val postFootprint = pts.map(p => deriv.postIndex.indexOf(p)).toSet + deriv.postIndex.indexOf(h)
-          val ruleApp = makeRuleApp(this.toString, (Set.empty, postFootprint), deriv)
+          val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
           val subGoal = goal.copy(newPre, post.subst(x, y), (tpy, y) :: gamma.toList, newRuleApp = Some(ruleApp))
           val kont: StmtProducer = stmts => {
@@ -303,7 +303,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
           // Collecting the footprint
           val preFootprint = pts.map(p => deriv.preIndex.indexOf(p)).toSet + deriv.preIndex.indexOf(h)
-          val ruleApp = makeRuleApp(this.toString, (preFootprint, Set.empty), deriv)
+          val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
 
           val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
           val kont: StmtProducer = stmts => {

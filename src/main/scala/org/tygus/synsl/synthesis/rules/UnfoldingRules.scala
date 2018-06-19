@@ -148,7 +148,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         val deriv = goal.deriv
         val preFootprint = targetPre.sigma.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
-        val ruleApp = makeRuleApp(this.toString, (preFootprint, Set.empty), deriv)
+        val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
 
         val newGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
         val args = f.params.map { case (_, x) => x.subst(sigma) }
@@ -219,7 +219,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
             val postFootprint = Set(deriv.postIndex.indexOf(h))
-            val ruleApp = makeRuleApp(this.toString, (Set.empty, postFootprint), deriv)
+            val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
             Subderivation(List((goal.copy(post = newPost, newRuleApp = Some(ruleApp)), env.copy(unfoldingsLeft = leftUnfoldings - 1))), kont)
           }

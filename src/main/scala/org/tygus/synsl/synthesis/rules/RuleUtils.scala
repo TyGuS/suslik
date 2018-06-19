@@ -2,7 +2,7 @@ package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.SynSLException
 import org.tygus.synsl.logic.{Derivation, RuleApplication}
-import org.tygus.synsl.synthesis.StmtProducer
+import org.tygus.synsl.synthesis.{StmtProducer, Subderivation, SynthesisRule}
 
 /**
   * @author Ilya Sergey
@@ -22,7 +22,10 @@ trait RuleUtils {
       stmts.head
     }
 
-  def makeRuleApp(rulename: String, footprint: (Set[Int], Set[Int]), currentDeriv: Derivation): RuleApplication =
-    RuleApplication(rulename, footprint, (currentDeriv.preIndex.length, currentDeriv.postIndex.length))
-
+  // Sort a sequence of alternative subderivations (where every subderivation contains a single goal)
+  // by the footprint of their latest rule application,
+  // so that sequential applications of the rule are unlikely to cause out-of-order derivations
+  def sortAlternativesByFootprint(alts: Seq[Subderivation]): Seq[Subderivation] = {
+    alts.sortBy(_.subgoals.head._1.deriv.applications.head)
+  }
 }

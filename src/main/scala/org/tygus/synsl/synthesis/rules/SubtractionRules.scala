@@ -75,7 +75,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val boundVars = goal.universals ++ goal.formals
       val deriv = goal.deriv
       val foundFrames = SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
-      for {
+      val alternatives = for {
         FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <- foundFrames
         newPre = Assertion(pre.phi, newPreSigma)
         newPost = Assertion(post.phi.subst(sub), newPostSigma)
@@ -83,10 +83,11 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       } yield {
         val preFootprint = preFrame.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
         val postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
-        val ruleApp = makeRuleApp(this.toString, (preFootprint, postFootprint), deriv)
+        val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
         val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
         Subderivation(List((newGoal, env)), pureKont(toString))
       }
+      sortAlternativesByFootprint(alternatives)
     }
   }
 
@@ -107,7 +108,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val deriv = goal.deriv
 
-      for {
+      val alternatives = for {
         t <- pre.sigma.chunks
         s <- post.sigma.chunks
         sub <- tryUnify(t, s, goal.universals ++ goal.formals, false)
@@ -120,11 +121,12 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
         val preFootprint = Set(deriv.preIndex.indexOf(t))
         val postFootprint = Set(deriv.postIndex.indexOf(s))
-        val ruleApp = makeRuleApp(this.toString, (preFootprint, postFootprint), deriv)
+        val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
 
         val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
         Subderivation(List((newGoal, env)), pureKont(toString))
       }
+      sortAlternativesByFootprint(alternatives)
     }
   }
 
