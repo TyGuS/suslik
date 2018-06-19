@@ -74,9 +74,9 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val boundVars = goal.universals ++ goal.formals
       val deriv = goal.deriv
+      val foundFrames = SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
       for {
-        FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <-
-          SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
+        FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <- foundFrames
         newPre = Assertion(pre.phi, newPreSigma)
         newPost = Assertion(post.phi.subst(sub), newPostSigma)
         if sideCond(newPre, newPost, preFrame)

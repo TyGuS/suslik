@@ -147,12 +147,13 @@ object SpatialUnification extends UnificationBase {
 
   private def frameFromCommonBlock(source: SFormula, target: SFormula,
                                    b: Block, boundVars: Set[Var], sub: Subst): Option[(SFormula, SFormula, SFormula, Subst)] = {
-    if (!target.chunks.contains(b) || !source.chunks.contains(b.subst(sub))) return None
+    val sourceSubst = source.subst(sub)
+    if (!target.chunks.contains(b) || !sourceSubst.chunks.contains(b)) return None
     // Assuming b.loc is Var, as otherwise the previous method would return None
     val newBoundVars = boundVars + b.loc.asInstanceOf[Var]
     for {
       subHeapT <- findBlockRootedSubHeap(b, target)
-      subHeapS <- findBlockRootedSubHeap(b, source.subst(sub))
+      subHeapS <- findBlockRootedSubHeap(b, sourceSubst)
       ugt = UnificationGoal(Assertion(PTrue, subHeapT), Set.empty)
       ugs = UnificationGoal(Assertion(PTrue, subHeapS), Set.empty)
       sub1 <- {
@@ -160,7 +161,7 @@ object SpatialUnification extends UnificationBase {
       }
     } yield {
       val _tr = target - subHeapT.chunks
-      val _sr = (source - subHeapS.chunks).subst(sub1)
+      val _sr = (sourceSubst - subHeapS.chunks).subst(sub1)
       (_sr, _tr, subHeapT, sub1)
     }
   }
@@ -179,12 +180,13 @@ object SpatialUnification extends UnificationBase {
         case (sr, tr) => FrameChoppingResult(sr, SFormula(List(sf)), tr, SFormula(List(tf)), sub)
       }
 
-      case b@Block(_, _) => frameFromCommonBlock(source, target, b, boundVars, sub).flatMap {
-        case (sr, tr, tfsub, _sub) =>
-          assert(sf.isInstanceOf[Block], s"Matching source-frame should be block: ${sf.pp}")
-          val sourceSegment = findBlockRootedSubHeap(sf.asInstanceOf[Block], source)
-          sourceSegment.map(sfsub => FrameChoppingResult(sr, sfsub, tr, tfsub, sub ++ _sub))
-      }
+      case b@Block(_, _) =>
+        frameFromCommonBlock(source, target, b, boundVars, sub).flatMap {
+          case (sr, tr, tfsub, _sub) =>
+            assert(sf.isInstanceOf[Block], s"Matching source-frame should be block: ${sf.pp}")
+            val sourceSegment = findBlockRootedSubHeap(sf.asInstanceOf[Block], source)
+            sourceSegment.map(sfsub => FrameChoppingResult(sr, sfsub, tr, tfsub, sub ++ _sub))
+        }
     }
 
     for {
