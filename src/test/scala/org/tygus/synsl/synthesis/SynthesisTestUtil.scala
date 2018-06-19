@@ -152,3 +152,4 @@ trait SynthesisTestUtil {
   }
 
 }
+
