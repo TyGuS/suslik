@@ -2,6 +2,8 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
+import org.tygus.synsl.synthesis.SynthesisRule
+import scala.math.Ordering.Implicits._
 
 case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
   with PureLogicUtils {
@@ -37,9 +39,54 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
 }
 
-case class RuleAppMetadata(rule: String, timestamp: (Int, Int), footprint: (Set[Int], Set[Int]))
+case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
+  extends PrettyPrinting with Ordered[RuleApplication]
+{
+  override def pp: String =
+      s"${this.rule} ${this.timestamp} ${this.footprint}"
 
-case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleAppMetadata] = Nil) {
+  // Does this rule application commute with a previous application prev?
+  // Yes if my footprint only includes chunks that existed before prev was applied
+  def commutesWith(prev: RuleApplication): Boolean = {
+    this.footprint._1.forall(i => i < prev.timestamp._1) &&
+      this.footprint._2.forall(i => i < prev.timestamp._2)
+  }
+
+  // Rule applications are ordered by their footprint
+  // (the actual order doesn't really matter, as long as not all rules are equal)
+  override def compare(that: RuleApplication): Int = {
+    val min1 = this.footprint._1.union(this.footprint._2).min
+    val min2 = that.footprint._1.union(that.footprint._2).min
+    min1.compare(min2)
+  }
+}
+
+
+case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
+  extends PrettyPrinting
+{
+  override def pp: String =
+      s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
+        s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
+        s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
+
+  // Find a previous rule application that is out of order with the latest one
+  def outOfOrder(ruleOrder: Seq[SynthesisRule]): Option[RuleApplication] = {
+
+    // app1 is ordered before app2
+    // if its rule comes earlier in the rule order,
+    // or the rules are the same and the footprint comes earlier
+    def before(app1: RuleApplication, app2: RuleApplication): Boolean = {
+      val i1 = ruleOrder.indexOf(app1.rule)
+      val i2 = ruleOrder.indexOf(app2.rule)
+      (i1, app1) < (i2, app2)
+    }
+
+    applications match {
+      case Nil => None
+      case latest :: prevs => prevs.find(prev => latest.commutesWith(prev) && before(latest, prev))
+    }
+  }
 }
 
 /**
@@ -50,11 +97,27 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
-      s"${pre.pp}\n${post.pp}"
+      s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
 
   def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma))
-  
+
+  def copy(pre: Assertion = this.pre,
+           post: Assertion = this.post,
+           gamma: Gamma = this.gamma,
+           newRuleApp: Option[RuleApplication] = None): Goal = {
+
+    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index:List[Heaplet]): List[Heaplet] = {
+      index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
+    }
+
+    val d = this.deriv
+    val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
+      postIndex = appendNewChunks(this.post, post, d.postIndex),
+      applications = newRuleApp.toList ++ d.applications)
+    Goal(pre,post,gamma,this.fname,newDeriv)
+  }
+
 
   def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 
@@ -66,7 +129,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
     case _ => 0
   }.sum
 
-  def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
+  def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ gamma.map(_._2)
 
   def formals: Set[Var] = gamma.map(_._2).toSet
 

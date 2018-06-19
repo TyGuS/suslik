@@ -12,6 +12,9 @@ import org.tygus.synsl.logic._
 abstract class SynthesisRule extends PureLogicUtils {
   // Apply the rule and get all possible sub-derivations
   def apply(goal: Goal, env: Environment): Seq[Subderivation]
+
+  def saveApplication(footprint: (Set[Int], Set[Int]), currentDeriv: Derivation): RuleApplication =
+    RuleApplication(this, footprint, (currentDeriv.preIndex.length, currentDeriv.postIndex.length))
 }
 
 /**

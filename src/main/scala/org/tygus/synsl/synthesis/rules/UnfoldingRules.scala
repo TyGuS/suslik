@@ -142,10 +142,22 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           SpatialUnification.unify(target, source)
         }
       } yield {
+        // Make sure that existential in the post are fresh
+        val fExistentials = (f.post.vars -- f.pre.vars) -- f.params.map(_._2).toSet
+        val freshExistentialsSubst = refreshVars(fExistentials.toList, goal.vars)
+        // Make sure that can unfold only once
+        val actualPost = f.post.subst(freshExistentialsSubst).subst(sigma)
+
+
         val newPreChunks =
-          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
-        val newPre = Assertion(goal.pre.phi, SFormula(newPreChunks.toList))
-        val newGoal = goal.copy(newPre)
+          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ actualPost.subst(sigma).sigma.chunks
+        val newPre = Assertion(PAnd(goal.pre.phi, actualPost.phi), SFormula(newPreChunks.toList))
+
+        val deriv = goal.deriv
+        val preFootprint = targetPre.sigma.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
+        val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
+
+        val newGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
         val args = f.params.map { case (_, x) => x.subst(sigma) }
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
@@ -178,6 +190,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val post = goal.post
+      val deriv = goal.deriv
       // TODO: super-mega-dirty hack!
       // Avoiding exponential blow-up by looking at the number of allowed environments left
       val leftUnfoldings = env.unfoldingsLeft
@@ -211,7 +224,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
-            Subderivation(List((goal.copy(post = newPost), env.copy(unfoldingsLeft = leftUnfoldings - 1))), kont)
+
+            val postFootprint = Set(deriv.postIndex.indexOf(h))
+            val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
+
+            Subderivation(List((goal.copy(post = newPost, newRuleApp = Some(ruleApp)), env.copy(unfoldingsLeft = leftUnfoldings - 1))), kont)
           }
           subDerivations
         case Some(h) =>

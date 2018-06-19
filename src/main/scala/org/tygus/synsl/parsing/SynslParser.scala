@@ -8,7 +8,7 @@ import org.tygus.synsl.logic.unification.UnificationGoal
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
 
-class SynslParser extends StandardTokenParsers {
+class SynslParser extends StandardTokenParsers with SepLogicUtils {
 
   override val lexical = new SynslLexical
 
@@ -104,7 +104,8 @@ class SynslParser extends StandardTokenParsers {
     }
 
   def spec: Parser[Goal] = assertion ~ assertion ~ repsep(formal, ",") ^^ {
-    case pre ~ post ~ formals => Goal(pre, post, formals, "foo", Derivation(pre.sigma.chunks, post.sigma.chunks))
+    case pre ~ post ~ formals => Goal(pre, post, formals, "foo",
+      Derivation(pre.sigma.chunks, post.sigma.chunks))
   }
 
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {

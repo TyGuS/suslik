@@ -2,20 +2,21 @@ should be able to synthesize list copy
 
 #####
 
-{0 <= n ; r :-> 0 ** lseg(x, 0, n)}
+{true ; r :-> blank ** lseg(x, 0, len)}
 void list_copy(loc r, loc x)
-{true ; r :-> y ** lseg(x, 0, n) ** lseg(y, 0, n) }
+{true ; r :-> y ** lseg(x, 0, len) ** lseg(y, 0, len) }
 
 #####
 
 void list_copy (loc r, loc x) {
   if (x == 0) {
+    *r = 0;
   } else {
     let nxt2 = *(x + 1);
     list_copy(r, nxt2);
-    let y12 = *r;
-    let y2 = malloc(2);
-    *(y2 + 1) = y12;
-    *r = y2;
+    let nxt3 = *r;
+    let nxt4 = malloc(2);
+    *(nxt4 + 1) = nxt3;
+    *r = next4;
   }
 }

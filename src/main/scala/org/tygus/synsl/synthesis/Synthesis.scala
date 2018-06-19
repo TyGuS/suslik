@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis {
+trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
 
@@ -119,8 +119,23 @@ trait Synthesis {
           }
         }
 
-        val subderivations = r(goal, env)
+        // Invoke the rule
+        val allSubderivations = r(goal, env)
         val goalStr = s"$r: "
+
+        // Filter out subderivations that violate rule ordering
+        def goalInOrder(g: Goal): Boolean = {
+          g.deriv.outOfOrder(rules) match {
+            case None => true
+            case Some(app) =>
+              printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)), isFail = true)
+              false
+          }
+        }
+        // Toggle this comment to enable and disable commute optimization
+        val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
+        //val subderivations = allSubderivations
+
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest
           printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)

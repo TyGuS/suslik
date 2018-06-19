@@ -223,6 +223,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
+      val deriv = goal.deriv
 
       def isExistBlock(goal: Goal): Heaplet => Boolean = {
         case Block(x@Var(_), _) => goal.isExistential(x)
@@ -232,15 +233,28 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findHeaplet(isExistBlock(goal), post.sigma) match {
         case None => Nil
         case Some(h@(Block(x@Var(_), sz))) =>
-          val newPost = Assertion(post.phi, post.sigma)
           val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
-          // TODO: replace 0 with blank
-          val freshChunks = for (off <- 0 until sz) yield PointsTo(y, off, IntConst(0))
+          val freshChunks = for {
+            off <- 0 until sz
+            z = generateFreshVar(goal)
+          } yield PointsTo(y, off, z)
+          // yield PointsTo(y, off, IntConst(0))
           val freshBlock = Block(x, sz).subst(x, y)
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
-          val subGoal = goal.copy(newPre, newPost.subst(x, y), (tpy, y) :: gamma.toList)
+
+          // Collecting the points-to chunks from post for footprint
+          val pts = for (off <- 0 until sz) yield {
+            findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), post.sigma) match {
+              case Some(pt) => pt
+              case _ => return Nil
+            }
+          }
+          val postFootprint = pts.map(p => deriv.postIndex.indexOf(p)).toSet + deriv.postIndex.indexOf(h)
+          val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
+
+          val subGoal = goal.copy(newPre, post.subst(x, y), (tpy, y) :: gamma.toList, newRuleApp = Some(ruleApp))
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
             SeqComp(Malloc(y, tpy, sz), stmts.head)
@@ -272,6 +286,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
 
+      val pre = goal.pre
+      val deriv = goal.deriv
+
       findHeaplet(isConcreteBlock, goal.pre.sigma) match {
         case None => Nil
         case Some(h@Block(x@(Var(_)), sz)) =>
@@ -282,8 +299,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
               case _ => return Nil
             }
           }
-          val newPre = Assertion(goal.pre.phi, goal.pre.sigma - h - pts)
-          val subGoal = goal.copy(newPre)
+          val newPre = Assertion(pre.phi, pre.sigma - h - pts)
+
+          // Collecting the footprint
+          val preFootprint = pts.map(p => deriv.preIndex.indexOf(p)).toSet + deriv.preIndex.indexOf(h)
+          val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
+
+          val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
             SeqComp(Free(x), stmts.head)
