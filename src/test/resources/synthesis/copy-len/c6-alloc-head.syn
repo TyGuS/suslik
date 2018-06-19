@@ -18,8 +18,8 @@ void list_copy (loc r, int v, loc t3) {
     *r = Y2;
   } else {
     let nxt2 = *(t3 + 1);
-    let nxt3 = malloc(2);
-    *(nxt3 + 1) = nxt2;
-    *(t3 + 1) = nxt3;
+    let nxt12 = malloc(2);
+    *(nxt12 + 1) = nxt2;
+    *(t3 + 1) = nxt12;
   }
 }

@@ -129,7 +129,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
     case _ => 0
   }.sum
 
-  def vars: Set[Var] = pre.vars ++ post.vars ++ gamma.map(_._2)
+  def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ gamma.map(_._2)
 
   def formals: Set[Var] = gamma.map(_._2).toSet
 

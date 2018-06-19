@@ -142,9 +142,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           SpatialUnification.unify(target, source)
         }
       } yield {
+        // Make sure that existential in the post are fresh
+        val fExistentials = (f.post.vars -- f.pre.vars) -- f.params.map(_._2).toSet
+        val freshExistentialsSubst = refreshVars(fExistentials.toList, goal.vars)
+        // Make sure that can unfold only once
+        val actualPost = f.post.subst(freshExistentialsSubst).subst(sigma)
+
+
         val newPreChunks =
-          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ f.post.subst(sigma).sigma.chunks
-        val newPre = Assertion(goal.pre.phi, SFormula(newPreChunks.toList))
+          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ actualPost.subst(sigma).sigma.chunks
+        val newPre = Assertion(PAnd(goal.pre.phi, actualPost.phi), SFormula(newPreChunks.toList))
 
         val deriv = goal.deriv
         val preFootprint = targetPre.sigma.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
