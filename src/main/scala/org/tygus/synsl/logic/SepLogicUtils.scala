@@ -89,27 +89,6 @@ trait SepLogicUtils extends PureLogicUtils {
     if (goodChunks) Some(SFormula(b :: ps)) else None
   }
 
-  /**
-    * Collect subformulae, bundling block-rooted heaplets together
-    */
-  def getSubFormulae(sf: SFormula): List[SFormula] = {
-    // Block-rooted subformulae, heaplets are sorted for canonicity
-    val bffs = for {
-      b <- sf.blocks
-      bf <- findBlockRootedSubHeap(b, sf)
-    } yield SFormula(bf.chunks.sortBy {
-      case PointsTo(_, off, _) => off
-      case _ => -1
-    })
-    // All other chunks
-    val cs = for {
-      c <- sf.chunks
-      if !bffs.exists(bf => bf.chunks.contains(c))
-    } yield SFormula(List(c))
-
-    bffs ++ cs
-  }
-
   def chunksForUnifying(f: SFormula): List[Heaplet] = {
     val blocks = f.blocks
     val apps = f.apps

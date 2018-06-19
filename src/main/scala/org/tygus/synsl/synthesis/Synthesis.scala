@@ -33,7 +33,7 @@ trait Synthesis extends SepLogicUtils {
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
   Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = Goal(pre, post, formals, name, Derivation(getSubFormulae(pre.sigma), getSubFormulae(pre.sigma)))
+    val goal = Goal(pre, post, formals, name, Derivation(pre.sigma.chunks, post.sigma.chunks))
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()
@@ -133,8 +133,8 @@ trait Synthesis extends SepLogicUtils {
           }
         }
         // Toggle this comment to enable and disable commute optimization
-        val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
-        // val subderivations = allSubderivations
+        // val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
+        val subderivations = allSubderivations
 
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest

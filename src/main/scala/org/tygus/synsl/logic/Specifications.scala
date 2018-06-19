@@ -60,7 +60,7 @@ case class RuleApplication(rule: String, footprint: (Set[Int], Set[Int]), timest
 }
 
 
-case class Derivation(preIndex: List[SFormula], postIndex: List[SFormula], applications: List[RuleApplication] = Nil)
+case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
   extends PrettyPrinting
 {
   override def pp: String =
@@ -81,7 +81,7 @@ case class Derivation(preIndex: List[SFormula], postIndex: List[SFormula], appli
   * Main class for contextual Hoare-style specifications
   */
 case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, deriv: Derivation)
-  extends PrettyPrinting with SepLogicUtils {
+  extends PrettyPrinting with PureLogicUtils {
 
   override def pp: String =
     s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
@@ -96,10 +96,8 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
            gamma: Gamma = this.gamma,
            newRuleApp: Option[RuleApplication] = None): Goal = {
 
-    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index:List[SFormula]): List[SFormula] = {
-      val newParts = getSubFormulae(newAsn.sigma)
-      val oldParts = getSubFormulae(oldAsn.sigma)
-      index ++ newParts.diff(oldParts)
+    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index:List[Heaplet]): List[Heaplet] = {
+      index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
     }
 
     val d = this.deriv

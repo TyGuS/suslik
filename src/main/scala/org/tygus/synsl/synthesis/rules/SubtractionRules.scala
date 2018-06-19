@@ -75,15 +75,14 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val boundVars = goal.universals ++ goal.formals
       val deriv = goal.deriv
       for {
-        FrameChoppingResult(newPreSigma, preFrame, newPostSigma, postFrame, sub) <-
+        FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <-
             SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
         newPre = Assertion(pre.phi, newPreSigma)
         newPost = Assertion(post.phi.subst(sub), newPostSigma)
         if sideCond(newPre, newPost, postFrame)
-        // TODO: should they really be in this order wrt. pre/post?
-        preFootprint = Set(deriv.preIndex.indexOf(postFrame))
-        postFootprint = Set(deriv.postIndex.indexOf(preFrame))
       } yield {
+        val preFootprint = preFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
+        val postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
         val ruleApp = makeRuleApp(this.toString, (preFootprint, postFootprint), deriv)
         val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
         Subderivation(List((newGoal, env)), pureKont(toString))
