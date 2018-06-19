@@ -36,13 +36,13 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
 
       if (pre.sigma.isEmp &&
-          post.sigma.isEmp &&
-          goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
-          {
-            //            SMTSolving.implies(pre.phi, post.phi) ||
-            //            SMTSolving.valid(post.phi) ||
-            SMTSolving.valid(pre.phi.implies(post.phi))
-          })
+        post.sigma.isEmp &&
+        goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
+        {
+          //            SMTSolving.implies(pre.phi, post.phi) ||
+          //            SMTSolving.valid(post.phi) ||
+          SMTSolving.valid(pre.phi.implies(post.phi))
+        })
         List(Subderivation(Nil, _ => Skip))
       else Nil
     }
@@ -76,7 +76,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val deriv = goal.deriv
       for {
         FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <-
-            SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
+          SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
         newPre = Assertion(pre.phi, newPreSigma)
         newPost = Assertion(post.phi.subst(sub), newPostSigma)
         if sideCond(newPre, newPost, preFrame)

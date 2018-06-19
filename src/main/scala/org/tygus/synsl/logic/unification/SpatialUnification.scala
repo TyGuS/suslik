@@ -192,7 +192,9 @@ object SpatialUnification extends UnificationBase {
       t <- chunksForUnifying(target)
       sub <- tryUnify(t, s, boundVars, false)
       fcr <- stripper(s, t, sub)
-    } yield fcr
+    } yield {
+      fcr
+    }
   }
 
 }

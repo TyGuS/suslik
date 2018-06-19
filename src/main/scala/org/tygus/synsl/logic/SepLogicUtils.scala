@@ -99,7 +99,8 @@ trait SepLogicUtils extends PureLogicUtils {
       sf <- findBlockRootedSubHeap(b, f).toList
       c <- sf.chunks
     } yield c).toSet
-    blocks ++ apps ++ ptss.filterNot(p => chunksToRemove.contains(p))
+    val res = blocks ++ apps ++ ptss.filterNot(p => chunksToRemove.contains(p))
+    res
   }
 
 }
