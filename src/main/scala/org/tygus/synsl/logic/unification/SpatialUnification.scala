@@ -185,13 +185,6 @@ object SpatialUnification extends UnificationBase {
           val sourceSegment = findBlockRootedSubHeap(sf.asInstanceOf[Block], source)
           sourceSegment.map(sfsub => FrameChoppingResult(sr, sfsub, tr, tfsub, sub ++ _sub))
       }
-
-
-      //      case b@Block(_, _) =>
-      //        removeSingleChunk(source, target, b, sub).map {
-      //          case (sr, tr) => FrameChoppingResult(sr, SFormula(List(sf)), tr, SFormula(List(tf)), sub)
-      //        }
-
     }
 
     for {
