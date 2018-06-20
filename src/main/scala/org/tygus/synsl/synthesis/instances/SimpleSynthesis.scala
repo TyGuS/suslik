@@ -10,7 +10,7 @@ import org.tygus.synsl.util.SynLogging
 
 class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
-  val startingDepth = 25
+  val startingDepth = 27
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction

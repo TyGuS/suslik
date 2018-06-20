@@ -1,6 +1,6 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.Expressions.Var
+import org.tygus.synsl.language.Expressions.{IntConst, Var}
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
@@ -62,13 +62,9 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: *-intro]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      def sideCond(p: Assertion, q: Assertion, r: SFormula) = {
-        val gvP = p.vars.filter(goal.isGhost).toSet
-        val gvQ = q.vars.filter(goal.isGhost).toSet
-        val gvR = r.vars.filter(goal.isGhost).toSet
 
-        gvQ.diff(gvP).intersect(gvR).isEmpty
-      }
+      def noNewExistentials(newGoal: Goal) =
+        newGoal.existentials.subsetOf(goal.existentials)
 
       val pre = goal.pre
       val post = goal.post
@@ -79,16 +75,15 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <- foundFrames
         newPre = Assertion(pre.phi, newPreSigma)
         newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        if sideCond(newPre, newPost, preFrame)
+        preFootprint = preFrame.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
+        postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
+        ruleApp = saveApplication((preFootprint, postFootprint), deriv)
+        newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
+        if noNewExistentials(newGoal)
       } yield {
-        val preFootprint = preFrame.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
-        val postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
-        val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-        val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
         Subderivation(List((newGoal, env)), pureKont(toString))
       }
-      sortAlternativesByFootprint(alternatives)
-    }
+      sortAlternativesByFootprint(alternatives)    }
   }
 
 
