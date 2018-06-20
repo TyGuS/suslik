@@ -1,0 +1,10 @@
+should be able to synthesize a tree copy from a pointer to the head
+
+#####
+
+{0 <= n ; r :-> 0 ** treeN(x, n)}
+void tree_copy(loc x, loc r)
+{true ; r :-> y ** treeN(x, n) ** treeN(y, n) }
+
+#####
+
