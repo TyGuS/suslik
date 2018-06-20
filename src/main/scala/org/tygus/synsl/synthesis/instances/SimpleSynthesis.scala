@@ -42,6 +42,9 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     // TODO: Only with this order of rules tree-morph succeeds!
     // If these come last, it goes to an eternal alloc/free spiral. :(
     UnfoldingRules.ApplyHypothesisRule,
+
+    UnfoldingRules.ApplyHypothesisFrameAbduceRule, // Experimental
+
     // Also, moving UnfoldingRules.ApplyHypothesisRule up makes things worse...
     UnfoldingRules.CloseRule,
 

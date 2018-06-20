@@ -124,6 +124,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Unfold: apply-hypothesis]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      if (env.abductionsLeft <= 0) return Nil
+
       (for {
         (_, _f) <- env.functions
         f = _f.refreshExistentials(goal.vars)
@@ -148,7 +150,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val rest = stmts.head
           SeqComp(Call(None, Var(goal.fname), args), rest)
         }
-        Subderivation(List((callGoal, env)), kont)
+        val env1 = env.copy(abductionsLeft = env.abductionsLeft - 1)
+        Subderivation(List((callGoal, env1)), kont)
       }).toSeq
     }
 
@@ -160,7 +163,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
       val restPreChunks =
-        (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.chunks
+        // Do not forget to bump up tags, to avoind explosion!
+        (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
       val restPre = Assertion(PAnd(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
       val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
       callGoal
@@ -175,27 +179,37 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    */
   object ApplyHypothesisFrameAbduceRule extends SynthesisRule {
 
-    override def toString: Ident = "[Unfold: apply-hypothesis]"
+    override def toString: Ident = "[Unfold: apply-hypothesis-abduct]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      /* TODO [Ilya]: This is a hack, but without it funny things start happening
+         For instance, a "copy" function starts "tweaking" the pre, so it could apply itself more times,
+         eventually flooding the entire universe with copies of the very same list! Since this clearly
+         perturbs the laws of existence, we prohibit such an obscenity...
+
+         Also, for the reasons of avoid sucking our galaxy into a block hole, after this rule affects
+         applicability of the ordinary ApplyHypothesis
+         */
+      if (env.abductionsLeft <= 0) return Nil
+
       (for {
         (_, _funSpec) <- env.functions
 
         // Make a "relaxed" substitution for the spec and for with it
         (f, exSub) = _funSpec.refreshExistentials(goal.vars).relaxFunSpec
+
         lilHeap = f.pre.sigma
         largHeap = goal.pre.sigma
-        largPreSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+        matchingHeaps = findLargestMatchingHeap(lilHeap, largHeap)
+        // if willNotExplode(matchingHeaps)
+        largPreSubHeap <- matchingHeaps
         callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
 
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.gamma.map(_._2).toSet)
         relaxedSub <- SpatialUnification.unify(target, source)
-        actualSub = compose1(exSub, relaxedSub) // map most of fresh existentials back to what they were
-        // TODO: Stopped here
-        // Based on relaxedSub, actualSub and f.pre.subst(actualSub).sigma, figure out what needs to be fixed in the footprint!
-        // also might need f.
-
+        // Preserve regular variables and fresh existentials back to what they were, if applicable
+        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
       } yield {
         val callGoal = ApplyHypothesisRule.mkCallGoal(f, actualSub, callSubPre, goal)
         val writeGoals = generateWriteGoals(actualSub, relaxedSub, f, goal)
@@ -211,9 +225,18 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val writesCallRest = writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
           writesCallRest
         }
-        val subGoals = writeGoals.map(wg => (wg, env)) ++ List((callGoal, env))
+        val env1 = env.copy(abductionsLeft = env.abductionsLeft - 1)
+        val subGoals = writeGoals.map(wg => (wg, env1)) ++ List((callGoal, env1))
         Subderivation(subGoals, kont)
       }).toSeq
+    }
+
+    /**
+      * Make sure that recursive calls do not multiply like freaking rabbits.
+      */
+    private def willNotExplode(heaps: Seq[SFormula]): Boolean = {
+      val sapps = for {h <- heaps} yield h.apps
+      sapps.forall(seq => seq.size <= 1)
     }
 
     private def generateWriteGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): List[Goal] = {
