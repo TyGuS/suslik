@@ -3,7 +3,7 @@ package org.tygus.synsl.logic
 import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.SynslType
-import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisFrameAbduceRule.refreshVars
+import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisAbduceFrameRule.refreshVars
 
 /**
   * @author Ilya Sergey
