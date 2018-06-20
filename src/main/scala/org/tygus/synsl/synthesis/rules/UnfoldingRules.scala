@@ -124,8 +124,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Unfold: apply-hypothesis]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      if (env.abductionsLeft <= 0) return Nil
-
       (for {
         (_, _f) <- env.functions
         f = _f.refreshExistentials(goal.vars)
@@ -150,8 +148,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val rest = stmts.head
           SeqComp(Call(None, Var(goal.fname), args), rest)
         }
-        val env1 = env.copy(abductionsLeft = env.abductionsLeft - 1)
-        Subderivation(List((callGoal, env1)), kont)
+        Subderivation(List((callGoal, env)), kont)
       }).toSeq
     }
 
@@ -163,7 +160,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
       val restPreChunks =
-        // Do not forget to bump up tags, to avoind explosion!
+      /*
+       If we don't increase tags, bad things might happen.
+
+       For instance, a "list_copy" function starts "tweaking" the pre, so it could apply itself more times,
+       eventually flooding the entire universe with copies of the very same list! Since this clearly
+       perturbs the laws of existence, we prohibit such an obscenity...
+
+       So, for the reasons of avoid sucking our galaxy into a block hole, we bump up the tags.
+       */
         (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
       val restPre = Assertion(PAnd(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
       val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
@@ -182,16 +187,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Unfold: apply-hypothesis-abduct]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      /* TODO [Ilya]: This is a hack, but without it funny things start happening
-         For instance, a "copy" function starts "tweaking" the pre, so it could apply itself more times,
-         eventually flooding the entire universe with copies of the very same list! Since this clearly
-         perturbs the laws of existence, we prohibit such an obscenity...
-
-         Also, for the reasons of avoid sucking our galaxy into a block hole, after this rule affects
-         applicability of the ordinary ApplyHypothesis
-         */
-      if (env.abductionsLeft <= 0) return Nil
-
       (for {
         (_, _funSpec) <- env.functions
 
@@ -225,8 +220,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val writesCallRest = writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
           writesCallRest
         }
-        val env1 = env.copy(abductionsLeft = env.abductionsLeft - 1)
-        val subGoals = writeGoals.map(wg => (wg, env1)) ++ List((callGoal, env1))
+        val subGoals = writeGoals.map(wg => (wg, env)) ++ List((callGoal, env))
         Subderivation(subGoals, kont)
       }).toSeq
     }
