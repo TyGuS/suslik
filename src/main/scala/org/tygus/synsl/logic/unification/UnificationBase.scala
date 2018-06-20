@@ -12,8 +12,6 @@ import org.tygus.synsl.logic.{Assertion, PureLogicUtils, SepLogicUtils}
   */
 trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 
-  type Subst = Map[Var, Expr]
-  type SubstVar = Map[Var, Var]
   type UAtom <: Substitutable[UAtom]
 
   // match all target chunks (no leftovers) -- true for spatial case
@@ -137,23 +135,6 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       case _from@Var(_) if !taken.contains(_from) => Some(Map(_from -> to))
       case _ => None
     }
-  }
-
-  protected def assertNoOverlap(sbst1: Subst, sbst2: Subst) {
-    assert(sbst1.keySet.intersect(sbst2.keySet).isEmpty, s"Two substitutions overlap:\n:$sbst1\n$sbst2")
-  }
-
-  def compose(subst1: SubstVar, subst2: Subst): Subst = {
-    subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
-  }
-
-  def ppSubst(m: Subst): String = {
-    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
-  }
-
-  def agreeOnSameKeys(m1: Subst, m2: Subst): Boolean = {
-    val common = m1.keySet.intersect(m2.keySet)
-    common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
   }
 
 }

@@ -3,6 +3,7 @@ package org.tygus.synsl.logic
 import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.SynslType
+import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisFrameAbduceRule.refreshVars
 
 /**
   * @author Ilya Sergey
@@ -40,6 +41,14 @@ case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
     val relaxedPost = post.subst(reversedSub)
     (this.copy(pre = relaxedPre, post = relaxedPost), sub)
   }
+
+  def refreshExistentials(taken: Set[Var]): FunSpec = {
+    val sub = refreshVars(((post.vars -- pre.vars) -- params.map(_._2).toSet).toList, taken)
+    val newPre = pre.subst(sub)
+    val newPost = post.subst(sub)
+    this.copy(pre = newPre, post = newPost)
+  }
+
 
 }
 

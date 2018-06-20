@@ -8,13 +8,10 @@ import org.tygus.synsl.language.Expressions._
 
 trait Substitutable[+A] {
 
-  type Subst = Map[Var,Expr]
-  type SubstVar = Map[Var, Var]
-
   // Variable substitution
   def subst(x: Var, by: Expr) : A = {
     this.subst(Map.empty[Var,Expr] + (x -> by))
   }
 
-  def subst(sigma: Subst) : A
+  def subst(sigma: Map[Var, Expr]) : A
 }
