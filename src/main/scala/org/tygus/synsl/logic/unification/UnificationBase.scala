@@ -109,19 +109,12 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       unifyGo(tChunks, sourceChunks, Map.empty) match {
         case Some(newSubst) =>
           // Returns the first good substitution, doesn't try all of them!
-          return Some(compose(freshSubst, newSubst))
-
-        //          // Found unification, see if it captures all variables in the pure part (do we need it?)
-        //          val newAssertion = source.formula.subst(newSubst)
-        //          if (newAssertion.vars.forall(target.formula.vars.contains(_))) {
-        //            // No free variables in the "source" after substitution => successful unification
-        //            /*
-        //            TODO: Check via external prover that the new target pure part is implied by the source pure part, i.e.,
-        //             sFormula.phi implies newAssertion.phi
-        //             */
-        //            return Some(compose(freshSubst, newSubst))
-        //          }
-
+          val newAssertion = source.formula.subst(newSubst)
+          val allVarsCaptured = true //newAssertion.vars.forall(target.formula.vars.contains(_))
+          // TODO: Once SMT is there, also check implications
+          if (allVarsCaptured) {
+            return Some(compose(freshSubst, newSubst))
+          }
         // Otherwise, continue
         case None =>
       }

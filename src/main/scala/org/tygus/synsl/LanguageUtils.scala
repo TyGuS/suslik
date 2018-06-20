@@ -22,6 +22,16 @@ object LanguageUtils {
     candidate
   }
 
+  def generateFreshExistential(existing: Set[Var], tmpName: String = "$ex"): Var = {
+    var counter = 1
+    var candidate = Var(s"$tmpName")
+    while (existing.contains(candidate)) {
+      counter = counter + 1
+      candidate = Var(s"$tmpName$counter")
+    }
+    candidate
+  }
+
   def isNotDefaultFreshVar(v: Var): Boolean = !v.name.startsWith(tmpPrefix)
 
 }

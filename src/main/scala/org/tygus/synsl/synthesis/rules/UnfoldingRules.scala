@@ -6,6 +6,7 @@ import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisRule.refreshVars
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -121,13 +122,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: apply-hypothesis]"
 
-    /**
-      * TODO: Handle multiple predicate application occurrences, i.e., provide multiple sets of sub-goals
-      * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
-      */
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       (for {
         (_, f) <- env.functions
+        // Forming the postcondition
+        fExistentials = (f.post.vars -- f.pre.vars) -- f.params.map(_._2).toSet
+        fPost = f.post.subst(refreshVars(fExistentials.toList, goal.vars))
 
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
@@ -143,28 +143,75 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         }
       } yield {
         // Make sure that existential in the post are fresh
-        val fExistentials = (f.post.vars -- f.pre.vars) -- f.params.map(_._2).toSet
-        val freshExistentialsSubst = refreshVars(fExistentials.toList, goal.vars)
         // Make sure that can unfold only once
-        val actualPost = f.post.subst(freshExistentialsSubst).subst(sigma)
-
-
-        val newPreChunks =
-          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ actualPost.subst(sigma).sigma.chunks
-        val newPre = Assertion(PAnd(goal.pre.phi, actualPost.phi), SFormula(newPreChunks.toList))
+        val callPost = fPost.subst(sigma)
+        val callPreChunks =
+          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ callPost.subst(sigma).sigma.chunks
+        val callPre = Assertion(PAnd(goal.pre.phi, callPost.phi), SFormula(callPreChunks.toList))
 
         val deriv = goal.deriv
         val preFootprint = targetPre.sigma.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
         val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
 
-        val newGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
+        val callGoal = goal.copy(callPre, newRuleApp = Some(ruleApp))
         val args = f.params.map { case (_, x) => x.subst(sigma) }
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
           val rest = stmts.head
           SeqComp(Call(None, Var(goal.fname), args), rest)
         }
-        Subderivation(List((newGoal, env)), kont)
+        Subderivation(List((callGoal, env)), kont)
+      }).toSeq
+    }
+  }
+
+
+  object ApplyHypothesisFrameAbduceRule extends SynthesisRule {
+
+    override def toString: Ident = "[Unfold: apply-hypothesis]"
+
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      (for {
+        (_, _funSpec) <- env.functions
+
+        // Make a "relaxed" substitution for the spec and for with it
+        (f, exSub) = _funSpec.relaxFunSpec
+        lilHeap = f.pre.sigma
+        largHeap = goal.pre.sigma
+        largPreSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+        callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
+
+        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
+        target = UnificationGoal(callSubPre, goal.gamma.map(_._2).toSet)
+        relaxedSub <- SpatialUnification.unify(target, source)
+
+        nonExSub = relaxedSub.filterKeys(k => !exSub.keySet.contains(k)) // Exclude the relaxed variables
+        // TODO: Stopped here
+        // Based on relaxedSub, nonExSub and exSub, figure out what needs to be fixed in the footprint!
+
+      } yield {
+        val deriv = goal.deriv
+        val preFootprint = callSubPre.sigma.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
+        val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
+
+
+
+        val fPost = f.post.subst(refreshVars(((f.post.vars -- f.pre.vars) -- f.params.map(_._2).toSet).toList, goal.vars))
+        val callPost = fPost.subst(relaxedSub)
+        val callPreChunks =
+          (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.subst(relaxedSub).sigma.chunks
+        val callPre = Assertion(PAnd(goal.pre.phi, callPost.phi), SFormula(callPreChunks.toList))
+        val callGoal = goal.copy(callPre, newRuleApp = Some(ruleApp))
+
+        val args = f.params.map { case (_, x) => x.subst(relaxedSub) }
+
+        val kont: StmtProducer = stmts => {
+          ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
+          val rest = stmts.head
+          SeqComp(Call(None, Var(goal.fname), args), rest)
+        }
+
+        Subderivation(List((callGoal, env)), kont)
       }).toSeq
     }
   }

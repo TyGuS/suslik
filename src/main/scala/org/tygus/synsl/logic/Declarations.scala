@@ -34,6 +34,13 @@ case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
       s" ${pre.pp} ${post.pp}"
   }
 
+  def relaxFunSpec = {
+    val (relaxedPre, sub) = pre.relaxPTSImages
+    val reversedSub = for ((k, v@Var(_)) <- sub) yield v -> k
+    val relaxedPost = post.subst(reversedSub)
+    (this.copy(pre = relaxedPre, post = relaxedPost), sub)
+  }
+
 }
 
 /**
