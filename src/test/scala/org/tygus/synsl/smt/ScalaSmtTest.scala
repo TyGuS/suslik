@@ -47,6 +47,7 @@ class ScalaSmtTest extends FunSuite with TableDrivenPropertyChecks with Matchers
   val y = Ints("y")
   val z = Ints("z")
 
+/*
   test(
     """| Z3 example
        | (set-option :produce-models true)
@@ -88,5 +89,6 @@ class ScalaSmtTest extends FunSuite with TableDrivenPropertyChecks with Matchers
     }
 
   }
+*/
 
 }

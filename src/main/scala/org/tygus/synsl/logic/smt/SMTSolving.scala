@@ -19,6 +19,9 @@ import scala.util.{Failure, Success, Try}
 object SMTSolving extends Core with IntegerArithmetics with Resources with Commands
     with PureLogicUtils with ArrayExBool {
 
+  val defaultSolver = "CVC4"
+  // val defaultSolver = "Z3"
+
   {
     disableLogging()
     // new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))
@@ -42,13 +45,8 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
   type SMTIntTerm = TypedTerm[IntTerm, Term]
   type SMTSetTerm = TypedTerm[ArrayTerm[BoolTerm], Term]
 
-  /*
-  TODO:
-  1. Implement conversion not only for integers based on the type (guess type)
-   */
-
-  private def checkSat(term: SMTBoolTerm): Boolean = {
-    val res = using(new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))) { implicit solver => isSat(term) }
+  private def checkSat(term: SMTBoolTerm, solver: String = defaultSolver): Boolean = {
+    val res = using(new SMTSolver(solver, new SMTInit(QF_LIA, List(MODELS)))) { implicit solver => isSat(term) }
     res == Success(Sat())
   }
 
@@ -120,7 +118,7 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
   def cacheSize: Int = cache.size
 
   // Check if phi is satisfiable; all vars are implicitly existentially quantified
-  def sat(phi: PFormula): Boolean = {
+  def sat(phi: PFormula, solver: String = defaultSolver): Boolean = {
     def check(phi: PFormula): Boolean = {
         val res: Try[Boolean] = for {
           p <- convertFormula(phi)
