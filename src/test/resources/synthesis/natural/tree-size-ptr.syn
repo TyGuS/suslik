@@ -21,6 +21,6 @@ void tree_size (loc r) {
     *r = r12;
     tree_size(r);
     let n22 = *r;
-    *r = n12 + n22;
+    *r = 1 + n12 + n22;
   }
 }
