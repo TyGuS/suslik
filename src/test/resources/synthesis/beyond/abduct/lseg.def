@@ -1,6 +1,6 @@
 predicate lseg(x, y, len) {
 |  x == y        => { len == 0 ; emp }
-|  not (x == y)  => { (len == 1 + len1) /\ (0 <= len1) ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, len1) }
+|  not (x == y)  => { len == 1 + len1  /\  0 <= len1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, len1) }
 }
 
 predicate tree0(x) {
@@ -10,6 +10,6 @@ predicate tree0(x) {
 
 predicate treeN(x, n) {
 |  x == 0        => {n == 0 ; emp}
-|  not (x == 0)  => {(n == n1 + n2) /\ ((0 <= n1) /\ (0 <= n2)) ;
+|  not (x == 0)  => {n == n1 + n2  /\  0 <= n1  /\  0 <= n2 ;
                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
 }

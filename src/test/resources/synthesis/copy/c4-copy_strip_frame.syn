@@ -2,14 +2,14 @@ Step 4: strip the fram
 
 #####
 
-{ S =i Union({v}, S1) ;
+{ S =i {v} ++ S1 ;
   [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, S1) **
   r :-> t3 **
   lseg(t3, 0, S1) }
 
 void list_copy(loc r, loc x, loc t3, loc nxt, int v)
 
-{S =i Union({w}, S3) ;
+{S =i {w} ++ S3 ;
  [x, 2] ** x :-> w ** (x + 1) :-> nxt1 ** lseg(nxt1, 0, S3) **
  r :-> Y **
  lseg(Y, 0, S1) }

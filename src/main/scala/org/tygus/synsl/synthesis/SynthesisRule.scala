@@ -1,6 +1,6 @@
 package org.tygus.synsl.synthesis
 
-import org.tygus.synsl.language.Expressions.{IntConst, SetUnion, SingletonSet, Var}
+import org.tygus.synsl.language.Expressions.{IntConst}
 import org.tygus.synsl.language.PrettyPrinting
 import org.tygus.synsl.logic._
 

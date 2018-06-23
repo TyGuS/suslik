@@ -2,11 +2,11 @@ Should be able to unify simple facts about sets via *-hypothesis
 
 #####
 
-{ S =i Union({v}, S1) ; emp}
+{ S =i {v} ++ S1 ; emp}
 
 void foo (loc x)
 
-{Union({v1}, S11) =i S ; emp}
+{{v1} ++ S11 =i S ; emp}
 
 #####
 

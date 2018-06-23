@@ -2,11 +2,11 @@ should be able to handle simple assertions about integers
 
 ###
 
-{ (x < y) /\ (y <= z) ; r :-> a }
+{ x < y  /\  y <= z ; r :-> a }
 
 void foo(loc r, int y, int x, int z)
 
-{ ((x <= m) /\ (m <= y)) /\ (m < z) ; r :-> m }
+{ x <= m  /\  m <= y  /\  m < z ; r :-> m }
 
 ###
 

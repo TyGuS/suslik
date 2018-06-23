@@ -82,23 +82,23 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
       r <- convertIntExpr(right)
     } yield l < r
 
-    case SEq(SingletonSet(s1), SingletonSet(s2)) => for {
-      l <- convertIntExpr(s1)
-      r <- convertIntExpr(s2)
-    } yield l === r
+//    case SEq(SingletonSet(s1), SingletonSet(s2)) => for {
+//      l <- convertIntExpr(s1)
+//      r <- convertIntExpr(s2)
+//    } yield l === r
     // TODO: support other cases
 
     case _ => Failure(phi)
   }
 
-  private def convertIntSetExpr(e: Expr): Try[(SMTSetTerm, SMTBoolTerm)] = e match {
-    case Var(name) => Try((ArrayBool1(name), True()))
-    case SingletonSet(elem) => Failure(e)
-    //  TODO: support the rest
-    case EmptySet => Failure(e)
-    case SetUnion(l, r) => Failure(e)
-    case _ => Failure(e)
-  }
+//  private def convertIntSetExpr(e: Expr): Try[(SMTSetTerm, SMTBoolTerm)] = e match {
+//    case Var(name) => Try((ArrayBool1(name), True()))
+//    case SingletonSet(elem) => Failure(e)
+//    //  TODO: support the rest
+//    case EmptySet => Failure(e)
+//    case SetUnion(l, r) => Failure(e)
+//    case _ => Failure(e)
+//  }
 
   // So far only ints are supported
   private def convertIntExpr(e: Expr): Try[SMTIntTerm] = e match {
