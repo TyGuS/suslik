@@ -26,9 +26,13 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
     collector(Set.empty)(this)
   }
 
+  override def pp: Ident = this.toExpr.pp
+
+  def subst(sigma: Map[Var, Expr]): PFormula = fromExpr(this.toExpr.subst(sigma)).head
+
   def isTrue: Boolean = simplify(this) == PTrue
 
-  def toExpr : Expr
+  def toExpr: Expr
 
   def vars: Set[Var] = this.collectE(_.isInstanceOf[Var])
 
@@ -37,50 +41,36 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
 }
 
 object PTrue extends PFormula {
-  override def pp: Ident = "true"
-  def subst(sigma: Map[Var, Expr]): PFormula = this
   override def toExpr: Expr = BoolConst(true)
 }
 
 object PFalse extends PFormula {
-  override def pp: Ident = "false"
-  def subst(sigma: Map[Var, Expr]): PFormula = this
   override def toExpr: Expr = BoolConst(false)
 }
 
 // Connectives
 case class PAnd(left: PFormula, right: PFormula) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpAnd, left.toExpr, right.toExpr)
-  override def pp: Ident = s"(${left.pp}) /\\ (${right.pp})"
-  def subst(sigma: Map[Var, Expr]): PFormula = PAnd(left.subst(sigma), right.subst(sigma))
 }
 
 case class POr(left: PFormula, right: PFormula) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpOr, left.toExpr, right.toExpr)
-  override def pp: Ident = s"(${left.pp}) \\/ (${right.pp})"
-  def subst(sigma: Map[Var, Expr]): PFormula = POr(left.subst(sigma), right.subst(sigma))
 }
 
 case class PNeg(arg: PFormula) extends PFormula {
   override def toExpr: Expr = UnaryExpr(OpNot, arg.toExpr)
-  override def pp: Ident = s"not (${arg.pp})"
-  def subst(sigma: Map[Var, Expr]): PFormula = PNeg(arg.subst(sigma))
 }
 
 /*
-  Arithmetic epxressions
+  Arithmetic expressions
  */
 // Ф <= Ф', Ф < Ф'
 case class PLeq(left: Expr, right: Expr) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpLeq, left, right)
-  override def pp: Ident = s"${left.pp} <= ${right.pp}"
-  def subst(sigma: Map[Var, Expr]): PFormula = PLeq(left.subst(sigma), right.subst(sigma))
 }
 
 case class PLtn(left: Expr, right: Expr) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpLt, left, right)
-  override def pp: Ident = s"${left.pp} < ${right.pp}"
-  def subst(sigma: Map[Var, Expr]): PFormula = PLtn(left.subst(sigma), right.subst(sigma))
 }
 
 /*
@@ -89,9 +79,6 @@ case class PLtn(left: Expr, right: Expr) extends PFormula {
  */
 case class PEq(left: Expr, right: Expr) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpEq, left, right)
-  override def pp: Ident = s"${left.pp} == ${right.pp}"
-
-  def subst(sigma: Map[Var, Expr]): PFormula = PEq(left.subst(sigma), right.subst(sigma))
 }
 
 /*
@@ -99,7 +86,4 @@ case class PEq(left: Expr, right: Expr) extends PFormula {
  */
 case class SEq(left: Expr, right: Expr) extends PFormula {
   override def toExpr: Expr = BinaryExpr(OpEq, left, right)
-  override def pp: Ident = s"${left.pp} =i ${right.pp}"
-  def subst(sigma: Map[Var, Expr]): PFormula = SEq(left.subst(sigma), right.subst(sigma))
-
 }

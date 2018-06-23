@@ -219,12 +219,13 @@ trait PureLogicUtils {
     case UnaryExpr(OpNot, e1) => for (p1 <- fromExpr(e1)) yield PNeg(p1)
     case BinaryExpr(OpAnd, e1, e2) => for (p1 <- fromExpr(e1); p2 <- fromExpr(e2)) yield PAnd(p1, p2)
     case BinaryExpr(OpOr, e1, e2) => for (p1 <- fromExpr(e1); p2 <- fromExpr(e2)) yield POr(p1, p2)
+    case BinaryExpr(OpEq, e1, e2) => Some(PEq(e1, e2))
     case BinaryExpr(OpLt, e1, e2) => Some(PLtn(e1, e2))
     case BinaryExpr(OpLeq, e1, e2) => Some(PLeq(e1, e2))
-    case BinaryExpr(OpEq, e1, e2) => Some(PEq(e1, e2))
+    case BinaryExpr(OpSetEq, e1, e2) => Some(SEq(e1, e2))
     case _ => None
   }
-
+  
 }
 
 case class PureLogicException(msg: String) extends SynSLException("pure", msg)

@@ -62,6 +62,11 @@ object Expressions {
           val acc1 = if (p(s)) acc + s.asInstanceOf[R] else acc
           elems.foldLeft(acc1)((a,e) => collector(a)(e))
         case c@IntConst(i) => if (p(c)) acc + c.asInstanceOf[R] else acc
+        case i@IfThenElse(cond, l, r) =>
+          val acc1 = if (p(i)) acc + i.asInstanceOf[R] else acc
+          val acc2 = collector(acc1)(cond)
+          val acc3 = collector(acc2)(l)
+          collector(acc3)(r)
       }
 
       collector(Set.empty)(this)
@@ -122,6 +127,12 @@ object Expressions {
   case class SetLiteral(elems: List[Expr]) extends Expr {
     override def pp: String = s"{${elems.map(_.pp)}}"
     override def subst(sigma: Map[Var, Expr]): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
+  }
+
+  case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
+    override def pp: String = s"${cond.pp} ? ${left.pp} : ${right.pp}"
+    override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
+
   }
 
 }

@@ -59,7 +59,10 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
       case a ~ None => a
       case a ~ Some(op ~ b) => BinaryExpr(op, a, b) }
 
-  def expr: Parser[Expr] = chainl1(relExpr, binOpParser (logOpParser))
+  def expr: Parser[Expr] =
+    chainl1(relExpr, binOpParser (logOpParser)) ~ opt(("?" ~> expr <~ ":") ~ expr) ^^ {
+      case a ~ None => a
+      case a ~ Some(l ~ r) => IfThenElse(a, l, r) }
 
   // Formulas
 
