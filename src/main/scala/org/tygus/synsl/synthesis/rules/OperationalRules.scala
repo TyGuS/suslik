@@ -84,13 +84,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
 
       def isSuitable: Heaplet => Boolean = {
-        case PointsTo(x@(Var(_)), _, v@Var(_)) =>
+        case PointsTo(x@Var(_), _, v@Var(_)) =>
           !goal.isGhost(x) && goal.isExistential(v) && LanguageUtils.isNotDefaultFreshVar(v)
         case _ => false
       }
 
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@(Var(_)), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -101,7 +101,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@(PointsTo(x@Var(_), offset, _)), hr@(PointsTo(_, _, m@Var(_))))) =>
+        case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
           for {
           // Try variables from the context
             (_, l) <- goal.gamma.toList
@@ -139,13 +139,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@(Var(_)), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
       findHeaplet(noGhosts, post.sigma) match {
         case None => Nil
-        case Some(h@(PointsTo(x@Var(_), offset, l))) =>
+        case Some(h@PointsTo(x@Var(_), offset, l)) =>
           val y = generateFreshVar(goal)
 
           val newPost = Assertion(post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
@@ -179,14 +179,14 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val gamma = goal.gamma
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, a@(Var(_))) =>
+        case PointsTo(x@Var(_), _, a@Var(_)) =>
           goal.isGhost(a) && !goal.isGhost(x)
         case _ => false
       }
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
-        case Some(PointsTo(x@Var(_), offset, a@(Var(_)))) =>
+        case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
 
@@ -232,7 +232,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findHeaplet(isExistBlock(goal), post.sigma) match {
         case None => Nil
-        case Some(h@(Block(x@Var(_), sz))) =>
+        case Some(h@Block(x@Var(_), sz)) =>
           val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
@@ -282,7 +282,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       def isConcreteBlock: Heaplet => Boolean = {
-        case Block(v@(Var(_)), _) => goal.isConcrete(v)
+        case Block(v@Var(_), _) => goal.isConcrete(v)
         case _ => false
       }
 
@@ -291,7 +291,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findHeaplet(isConcreteBlock, goal.pre.sigma) match {
         case None => Nil
-        case Some(h@Block(x@(Var(_)), sz)) =>
+        case Some(h@Block(x@Var(_), sz)) =>
           // Okay, found the block, now looking for the points-to chunks
           val pts = for (off <- 0 until sz) yield {
             findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), goal.pre.sigma) match {

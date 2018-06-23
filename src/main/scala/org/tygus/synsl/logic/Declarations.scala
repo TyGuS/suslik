@@ -3,6 +3,7 @@ package org.tygus.synsl.logic
 import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.SynslType
+import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisAbduceFrameRule.refreshVars
 
 /**
   * @author Ilya Sergey
@@ -33,6 +34,21 @@ case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
       s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})" +
       s" ${pre.pp} ${post.pp}"
   }
+
+  def relaxFunSpec = {
+    val (relaxedPre, sub) = pre.relaxPTSImages
+    val reversedSub = for ((k, v@Var(_)) <- sub) yield v -> k
+    val relaxedPost = post.subst(reversedSub)
+    (this.copy(pre = relaxedPre, post = relaxedPost), sub)
+  }
+
+  def refreshExistentials(taken: Set[Var]): FunSpec = {
+    val sub = refreshVars(((post.vars -- pre.vars) -- params.map(_._2).toSet).toList, taken)
+    val newPre = pre.subst(sub)
+    val newPost = post.subst(sub)
+    this.copy(pre = newPre, post = newPost)
+  }
+
 
 }
 
@@ -107,7 +123,8 @@ case class Program(decls: Seq[TopLevelDeclaration]) extends PrettyPrinting {
   * Environment: stores module-level declarations that might be needed during synthesis
   * (predicates, component functions, etc)
   */
-case class Environment(predicates: PredicateEnv, functions: FunctionEnv, maxUnfoldingDepth: Int = 1) {
+case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
+                       maxUnfoldingDepth: Int = 1) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

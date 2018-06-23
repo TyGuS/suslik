@@ -1,11 +1,13 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.Expressions.Var
+import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.FunDecl
+import org.tygus.synsl.language.Expressions.{Expr, Var}
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisRule.{refreshVars, saveApplication}
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -123,51 +125,128 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: apply-hypothesis]"
 
-    /**
-      * TODO: Handle multiple predicate application occurrences, i.e., provide multiple sets of sub-goals
-      * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
-      */
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       (for {
-        (_, f) <- env.functions
+        (_, _f) <- env.functions
+        f = _f.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
         largHeap = goal.pre.sigma
         largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
-        targetPre = goal.pre.copy(sigma = largSubHeap)
+        callSubPre = goal.pre.copy(sigma = largSubHeap)
 
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(targetPre, goal.gamma.map(_._2).toSet)
-        sigma <- {
+        target = UnificationGoal(callSubPre, goal.gamma.map(_._2).toSet)
+        sub <- {
           SpatialUnification.unify(target, source)
         }
       } yield {
-        // Make sure that existential in the post are fresh
-        val fExistentials = (f.post.vars -- f.pre.vars) -- f.params.map(_._2).toSet
-        val freshExistentialsSubst = refreshVars(fExistentials.toList, goal.vars)
-        // Make sure that can unfold only once
-        val actualPost = f.post.subst(freshExistentialsSubst).subst(sigma)
-
-
-        val newPreChunks =
-          (goal.pre.sigma.chunks.toSet -- targetPre.sigma.chunks.toSet) ++ actualPost.subst(sigma).sigma.chunks
-        val newPre = Assertion(PAnd(goal.pre.phi, actualPost.phi), SFormula(newPreChunks.toList))
-
-        val deriv = goal.deriv
-        val preFootprint = targetPre.sigma.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
-        val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
-
-        val newGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
-        val args = f.params.map { case (_, x) => x.subst(sigma) }
+        val callGoal = mkCallGoal(f, sub, callSubPre, goal)
+        val args = f.params.map { case (_, x) => x.subst(sub) }
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
           val rest = stmts.head
           SeqComp(Call(None, Var(goal.fname), args), rest)
         }
-        Subderivation(List((newGoal, env)), kont)
+        Subderivation(List((callGoal, env)), kont)
       }).toSeq
+    }
+
+    /**
+      * Make a call goal for `f` with a given precondition
+      */
+    protected[UnfoldingRules] def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): Goal = {
+      val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.indexOf(p)).toSet
+      val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
+      val callPost = f.post.subst(sub)
+      val restPreChunks =
+      /*
+       If we don't increase tags, bad things might happen.
+
+       For instance, a "list_copy" function starts "tweaking" the pre, so it could apply itself more times,
+       eventually flooding the entire universe with copies of the very same list! Since this clearly
+       perturbs the laws of existence, we prohibit such an obscenity...
+
+       So, for the reasons of avoid sucking our galaxy into a block hole, we bump up the tags.
+       */
+        (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
+      val restPre = Assertion(PAnd(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
+      val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
+      callGoal
+    }
+  }
+
+  /*
+   Hypothesis rule with some abduction embedded in it:
+   * Relaxes the function by replacing some of the points-to values by ghosts to allow for more unifications
+   * Infers the discrepancies and emits new write-goals
+   * Uses multiple-sub-derivation mechanism to enable several writes, followed by a call
+   */
+  object ApplyHypothesisAbduceFrameRule extends SynthesisRule {
+
+    override def toString: Ident = "[Unfold: apply-hypothesis-abduct]"
+
+    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+      (for {
+        (_, _funSpec) <- env.functions
+
+        // Make a "relaxed" substitution for the spec and for with it
+        (f, exSub) = _funSpec.refreshExistentials(goal.vars).relaxFunSpec
+
+        lilHeap = f.pre.sigma
+        largHeap = goal.pre.sigma
+        matchingHeaps = findLargestMatchingHeap(lilHeap, largHeap)
+        // if willNotExplode(matchingHeaps)
+        largPreSubHeap <- matchingHeaps
+        callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
+
+        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
+        target = UnificationGoal(callSubPre, goal.gamma.map(_._2).toSet)
+        relaxedSub <- SpatialUnification.unify(target, source)
+        // Preserve regular variables and fresh existentials back to what they were, if applicable
+        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+      } yield {
+        val callGoal = ApplyHypothesisRule.mkCallGoal(f, actualSub, callSubPre, goal)
+        val writeGoals = generateWriteGoals(actualSub, relaxedSub, f, goal)
+        val n = writeGoals.length
+
+        val kont: StmtProducer = stmts => {
+          ruleAssert(stmts.length == n + 1, s"Apply-hypotheses rule expected ${n + 1} premise and got ${stmts.length}")
+          val writes = stmts.take(n)
+          val rest = stmts.drop(n).head
+          val args = f.params.map { case (_, x) => x.subst(actualSub) }
+          // The call goes last
+          val k = SeqComp(Call(None, Var(goal.fname), args), rest)
+          val writesCallRest = writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
+          writesCallRest
+        }
+        val subGoals = writeGoals.map(wg => (wg, env)) ++ List((callGoal, env))
+        Subderivation(subGoals, kont)
+      }).toSeq
+    }
+
+    /**
+      * Make sure that recursive calls do not multiply like freaking rabbits.
+      */
+    private def willNotExplode(heaps: Seq[SFormula]): Boolean = {
+      val sapps = for {h <- heaps} yield h.apps
+      sapps.forall(seq => seq.size <= 1)
+    }
+
+    private def generateWriteGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): List[Goal] = {
+      val ptss = f.pre.sigma.ptss // raw points-to assertions
+      for {
+        p@PointsTo(x@Var(_), o, e) <- ptss
+        if e.subst(relaxedSub) != e.subst(actualSub) // here is a discrepancy
+      } yield {
+        val wPre = Assertion(PTrue, SFormula(List(PointsTo(x, o, e.subst(relaxedSub)))))
+        val wPost = Assertion(PTrue, SFormula(List(PointsTo(x, o, e.subst(actualSub)))))
+        val stmt = Store(x, o, e.subst(actualSub))
+        val wGoal = goal.copy(pre = wPre, post = wPost)
+        wGoal
+      }
     }
   }
 

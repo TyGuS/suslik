@@ -1,0 +1,23 @@
+should be able to deallocate a tree from a pointer to the head
+###
+
+{true; r :-> x ** tree0(x)}
+  void free_tree(loc r)
+{true ; r :-> 0 }
+
+###
+
+void free_tree (loc r) {
+  if (x == 0) {
+  } else {
+    let x2 = *r;
+    let l2 = *(x2 + 1);
+    let r12 = *(x2 + 2);
+    *r = l2;
+    free_tree(r);
+    *r = r12;
+    free_tree(r);
+    free(x2);
+    *r = 0;
+  }
+}

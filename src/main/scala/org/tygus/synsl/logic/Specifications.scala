@@ -1,8 +1,10 @@
 package org.tygus.synsl.logic
 
+import org.tygus.synsl.LanguageUtils
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.synthesis.SynthesisRule
+
 import scala.math.Ordering.Implicits._
 
 case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
@@ -26,9 +28,30 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
   // def |-(other: Assertion): Boolean = EntailmentSolver.entails(this, other)
 
-  def refresh(bound: Set[Var]): (Assertion, Map[Var, Var]) = {
+  def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
     val freshSubst = refreshVars(this.vars.toList, bound)
     (this.subst(freshSubst), freshSubst)
+  }
+
+  /**
+    * For all pointers x :-> v, changes v to a fresh variable $ex.
+    * Returns a substitution from $ex to v.
+    */
+  def relaxPTSImages: (Assertion, Subst) = {
+    val ptss = sigma.ptss
+    val (_, sub, newPtss) =
+      ptss.foldRight((Set.empty: Set[Var], Map.empty: Subst, Nil: List[PointsTo])) {
+        case (p@PointsTo(x, off, e), z@(taken, sbst, acc)) =>
+          // Only relax if the pure part is not affected!
+          if (e.vars.intersect(phi.vars).isEmpty) {
+            val freshName = LanguageUtils.generateFreshExistential(taken)
+            val taken1 = taken + freshName
+            val sub1 = sbst + (freshName -> e)
+            (taken1, sub1, PointsTo(x, off, freshName) :: acc)
+          } else (taken, sbst, p :: acc)
+      }
+    val newSigma = SFormula(sigma.chunks.filter(!ptss.contains(_)) ++ newPtss)
+    (this.copy(sigma = newSigma), sub)
   }
 
   def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
@@ -40,10 +63,9 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 }
 
 case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
-  extends PrettyPrinting with Ordered[RuleApplication]
-{
+  extends PrettyPrinting with Ordered[RuleApplication] {
   override def pp: String =
-      s"${this.rule} ${this.timestamp} ${this.footprint}"
+    s"${this.rule} ${this.timestamp} ${this.footprint}"
 
   // Does this rule application commute with a previous application prev?
   // Yes if my footprint only includes chunks that existed before prev was applied
@@ -63,12 +85,11 @@ case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]),
 
 
 case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
-  extends PrettyPrinting
-{
+  extends PrettyPrinting {
   override def pp: String =
-      s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
-        s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
-        s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
+    s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
+      s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
+      s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
 
   // Find a previous rule application that is out of order with the latest one
   def outOfOrder(ruleOrder: Seq[SynthesisRule]): Option[RuleApplication] = {
@@ -107,7 +128,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
            gamma: Gamma = this.gamma,
            newRuleApp: Option[RuleApplication] = None): Goal = {
 
-    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index:List[Heaplet]): List[Heaplet] = {
+    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
       index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
     }
 
@@ -115,7 +136,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
     val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
       postIndex = appendNewChunks(this.post, post, d.postIndex),
       applications = newRuleApp.toList ++ d.applications)
-    Goal(pre,post,gamma,this.fname,newDeriv)
+    Goal(pre, post, gamma, this.fname, newDeriv)
   }
 
 
@@ -124,7 +145,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
   /**
     * How many unfoldings can we tolerate
     */
-  def closeCredit: Int = post.sigma.chunks.map{
+  def closeCredit: Int = post.sigma.chunks.map {
     case SApp(_, _, Some(i)) => i
     case _ => 0
   }.sum

@@ -10,7 +10,7 @@ import org.tygus.synsl.util.SynLogging
 
 class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
-  val startingDepth = 25
+  val startingDepth = 27
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction
@@ -42,7 +42,10 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
     // TODO: Only with this order of rules tree-morph succeeds!
     // If these come last, it goes to an eternal alloc/free spiral. :(
-    UnfoldingRules.ApplyHypothesisRule,
+    // UnfoldingRules.ApplyHypothesisRule,
+
+    UnfoldingRules.ApplyHypothesisAbduceFrameRule, // Experimental
+
     // Also, moving UnfoldingRules.ApplyHypothesisRule up makes things worse...
     UnfoldingRules.CloseRule,
 

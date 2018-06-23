@@ -1,0 +1,26 @@
+should be able to synthesize tree size from the root pointer
+
+#####
+
+
+{0 <= n ; r :-> x ** treeN(x, n) }
+void tree_size(loc r)
+{true ; r :-> n ** treeN(x, n) }
+
+#####
+
+void tree_size (loc r) {
+  if (x == 0) {
+  } else {
+    let x2 = *r;
+    let l2 = *(x2 + 1);
+    let r12 = *(x2 + 2);
+    *r = l2;
+    tree_size(r);
+    let n12 = *r;
+    *r = r12;
+    tree_size(r);
+    let n22 = *r;
+    *r = n12 + n22;
+  }
+}

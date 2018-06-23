@@ -1,4 +1,4 @@
-predicate lseg(x, y, len) {
+predicate lseg(x, yz) {
 |  x == y        => { len == 0 ; emp }
 |  not (x == y)  => { (len == 1 + len1) /\ (0 <= len1) ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, len1) }
 }
