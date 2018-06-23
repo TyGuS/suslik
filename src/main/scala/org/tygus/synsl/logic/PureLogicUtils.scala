@@ -10,6 +10,38 @@ import org.tygus.synsl.language.Expressions._
   */
 trait PureLogicUtils {
 
+  /*
+  Substitutions
+   */
+  type Subst = Map[Var, Expr]
+  type SubstVar = Map[Var, Var]
+
+  protected def assertNoOverlap(sbst1: Subst, sbst2: Subst) {
+    assert(sbst1.keySet.intersect(sbst2.keySet).isEmpty, s"Two substitutions overlap:\n:$sbst1\n$sbst2")
+  }
+
+  def compose(subst1: SubstVar, subst2: Subst): Subst = {
+    subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
+  }
+
+  def compose1(subst1: Subst, subst2: Subst): Subst =
+    subst1.map {
+      case (k, v) => k -> (v match {
+        case w@Var(_) => subst2.getOrElse(w, v)
+        case _ => v
+      })
+    }
+
+
+  def ppSubst(m: Subst): String = {
+    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
+  }
+
+  def agreeOnSameKeys(m1: Subst, m2: Subst): Boolean = {
+    val common = m1.keySet.intersect(m2.keySet)
+    common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
+  }
+
   /**
     * Basic simlifier for logical formulae
     */

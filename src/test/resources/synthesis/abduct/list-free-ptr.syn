@@ -1,0 +1,20 @@
+should be able to deallocate a list from the pointer to a head
+###
+
+{true; r :-> x ** lseg(x, 0, n)}
+  void list_free(loc r)
+{true ; r :-> 0}
+
+###
+
+void list_free (loc r) {
+  if (x == 0) {
+  } else {
+    let x2 = *r;
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    list_free(r);
+    free(x2);
+    *r = 0;
+  }
+}
