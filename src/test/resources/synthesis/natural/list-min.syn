@@ -1,0 +1,21 @@
+should be able to synthesize list min
+
+#####
+
+{true ; r :-> blank ** list_bounds(x, lo, hi) }
+void list_min(loc x, loc r)
+{true ; r :-> lo ** list_bounds(x, lo, hi) }
+
+#####
+
+void list_min (loc x, loc r) {
+  if (x == 0) {
+    *r = 7;
+  } else {
+    let v2 = *x;
+    let nxt2 = *(x + 1);
+    list_min(nxt2, r);
+    let lo12 = *r;
+    *r = v2 <= lo12 ? v2 : lo12;
+  }
+}

@@ -3,7 +3,7 @@ Add a head to a list
 
 #####
 
-{(len == 1 + len1) /\ (0 <= len1) ; r :-> t3 ** lseg(t3, 0, len1) }
+{ len == 1 + len1  /\  0 <= len1 ; r :-> t3 ** lseg(t3, 0, len1) }
 
 void list_copy(loc r, int v, loc t3)
 
@@ -12,14 +12,7 @@ void list_copy(loc r, int v, loc t3)
 #####
 
 void list_copy (loc r, int v, loc t3) {
-  if (t3 == 0) {
-    let Y2 = malloc(2);
-    *(Y2 + 1) = 0;
-    *r = Y2;
-  } else {
-    let nxt2 = *(t3 + 1);
-    let nxt12 = malloc(2);
-    *(nxt12 + 1) = nxt2;
-    *(t3 + 1) = nxt12;
-  }
+  let Y2 = malloc(2);
+  *(Y2 + 1) = t3;
+  *r = Y2;
 }

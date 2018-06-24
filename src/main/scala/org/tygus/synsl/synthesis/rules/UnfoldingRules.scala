@@ -92,7 +92,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
-      val newPost = goal.post.bumpUpSAppTags(_ => true) //.lockSAppTags(x => !matcher(x))
+      // Bump up twice in the post so that we can't apply IH to its results;
+      // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
+      val newPost = goal.post.bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
 
       val fspec = FunSpec(fname, VoidType, goal.gamma, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
@@ -170,7 +172,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
        So, for the reasons of avoid sucking our galaxy into a block hole, we bump up the tags.
        */
         (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
-      val restPre = Assertion(PAnd(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
+      val restPre = Assertion(goal.pre.phi.andClean(callPost.phi), SFormula(restPreChunks.toList))
       val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
       callGoal
     }
@@ -270,36 +272,35 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val post = goal.post
       val deriv = goal.deriv
-      // TODO: super-mega-dirty hack!
-      // Avoiding exponential blow-up by looking at the number of allowed environments left
-      val leftUnfoldings = env.unfoldingsLeft
-      //if (leftUnfoldings <= 0) return Nil
 
-      findHeaplet({
-        case SApp(pred, args, Some(t)) => t <= leftUnfoldings
-        case _ => false
-      }, goal.post.sigma) match {
-        case None => Nil
-        case Some(h@SApp(pred, args, Some(t))) =>
-          ruleAssert(env.predicates.contains(pred) && t <= leftUnfoldings,
+      // Does h have a tag that exceeds the maximum allowed unfolding depth?
+      def exceedsMaxDepth(h: Heaplet): Boolean = {
+        h match {
+          case SApp(_,_,Some(t)) => t > env.maxUnfoldingDepth
+          case _ => false
+        }
+      }
+
+      def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
+        case SApp(pred, args, Some(t)) =>
+          ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
-          // TODO: Here's a potential bug, due to variable captures
-          // (existnentials in predicate clauses are captured by goal variables)
-          // TODO: refresh its existentials!
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val substArgs = params.zip(args).toMap
-          val subDerivations = for (InductiveClause(selector, asn) <- clauses) yield {
-
+          val subDerivations = for {
+            InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
-            val asnExistentials = asn.vars -- params.toSet
-            val freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars)
+            asnExistentials = asn.vars -- params.toSet
+            freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars)
             // Make sure that can unfold only once
-            val actualAssertion = asn.subst(freshExistentialsSubst).subst(substArgs)
-            val actualConstraints = actualAssertion.phi
-            val actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
-
+            actualAssertion = asn.subst(freshExistentialsSubst).subst(substArgs)
+            actualConstraints = actualAssertion.phi
+            actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
+            // If we unfolded too much: back out
+            if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+          } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
@@ -307,13 +308,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val postFootprint = Set(deriv.postIndex.indexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-            Subderivation(List((goal.copy(post = newPost, newRuleApp = Some(ruleApp)), env.copy(unfoldingsLeft = leftUnfoldings - 1))), kont)
+            Subderivation(List((goal.copy(post = newPost, newRuleApp = Some(ruleApp)), env)), kont)
           }
           subDerivations
-        case Some(h) =>
-          ruleAssert(false, s"Close rule matched unexpected heaplet ${h.pp}")
-          Nil
+        case _ => Nil
       }
+
+      for {
+        h <- goal.post.sigma.chunks
+        s <- heapletResults(h)
+      } yield s
     }
   }
 

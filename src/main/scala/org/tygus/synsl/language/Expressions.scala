@@ -11,27 +11,45 @@ object Expressions {
     override def pp: String = "not"
   }
 
-  sealed abstract class BinOp extends PrettyPrinting {}
+  sealed abstract class BinOp extends PrettyPrinting {
+    def level: Int
+  }
+
   object OpPlus extends BinOp {
+    def level: Int = 4
     override def pp: String = "+"
   }
   object OpMinus extends BinOp {
+    def level: Int = 4
     override def pp: String = "-"
   }
   object OpEq extends BinOp {
+    def level: Int = 3
     override def pp: String = "=="
   }
   object OpLeq extends BinOp {
+    def level: Int = 3
     override def pp: String = "<="
   }
   object OpLt extends BinOp {
+    def level: Int = 3
     override def pp: String = "<"
   }
   object OpAnd extends BinOp {
-    override def pp: String = "&&"
+    def level: Int = 2
+    override def pp: String = "/\\"
   }
   object OpOr extends BinOp {
-    override def pp: String = "||"
+    def level: Int = 2
+    override def pp: String = "\\/"
+  }
+  object OpUnion extends BinOp {
+    def level: Int = 4
+    override def pp: String = "++"
+  }
+  object OpSetEq extends BinOp {
+    def level: Int = 3
+    override def pp: String = "=i"
   }
 
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
@@ -50,15 +68,15 @@ object Expressions {
         case u@UnaryExpr(_, arg) =>
           val acc1 = if (p(u)) acc + u.asInstanceOf[R] else acc
           collector(acc1)(arg)
-        case EmptySet => acc
-        case u@SetUnion(l, r) =>
-          val acc1 = if (p(u)) acc + u.asInstanceOf[R] else acc
-          val acc2 = collector(acc1)(l)
-          collector(acc2)(r)
-        case s@SingletonSet(e) =>
+        case s@SetLiteral(elems) =>
           val acc1 = if (p(s)) acc + s.asInstanceOf[R] else acc
-          collector(acc1)(e)
+          elems.foldLeft(acc1)((a,e) => collector(a)(e))
         case c@IntConst(i) => if (p(c)) acc + c.asInstanceOf[R] else acc
+        case i@IfThenElse(cond, l, r) =>
+          val acc1 = if (p(i)) acc + i.asInstanceOf[R] else acc
+          val acc2 = collector(acc1)(cond)
+          val acc3 = collector(acc2)(l)
+          collector(acc3)(r)
       }
 
       collector(Set.empty)(this)
@@ -66,6 +84,14 @@ object Expressions {
 
     def vars: Set[Var] = collect(_.isInstanceOf[Var])
 
+    override def pp: String
+
+    def level: Int = 6
+
+    def printAtLevel(lvl: Int): String = {
+      val s = pp
+      if (lvl <= this.level) s else s"($s)"
+    }
   }
 
   // Program-level variable: program-level or ghost
@@ -106,37 +132,27 @@ object Expressions {
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+    override def level: Int = op.level
+    override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
 
-    override def pp: String = s"${left.pp} ${op.pp} ${right.pp}"
   }
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
 
-    override def pp: String = s"${op.pp} ${arg.pp}"
+    override def level = 5
+    override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
   }
 
-  /** **********************************************************************
-    * Finite sets and operations on them
-    * **********************************************************************/
-
-  abstract sealed class SetExpr extends Expr {
-    override def subst(sigma: Map[Var, Expr]): SetExpr
+  case class SetLiteral(elems: List[Expr]) extends Expr {
+    override def pp: String = s"{${elems.map(_.pp)}}"
+    override def subst(sigma: Map[Var, Expr]): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
   }
 
-  object EmptySet extends SetExpr {
-    override def pp: String = "Empty"
-    def subst(sigma: Map[Var, Expr]): this.type = EmptySet
-  }
+  case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
+    override def pp: String = s"${cond.printAtLevel(1)} ? ${left.printAtLevel(1)} : ${right.printAtLevel(1)}"
+    override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
 
-  case class SetUnion(l: Expr, r: Expr) extends SetExpr {
-    def subst(sigma: Map[Var, Expr]): SetUnion = SetUnion(l.subst(sigma), r.subst(sigma))
-    override def pp: String = s"Union(${l.pp}, ${r.pp})"
-  }
-
-  case class SingletonSet(e: Expr) extends SetExpr {
-    override def pp: String = s"{${e.pp}}"
-    override def subst(sigma: Map[Var, Expr]): SingletonSet = SingletonSet(e.subst(sigma))
   }
 
 }

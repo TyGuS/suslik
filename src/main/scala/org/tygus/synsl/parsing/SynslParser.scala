@@ -12,63 +12,67 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
 
   override val lexical = new SynslLexical
 
-  val tpeParser: Parser[SynslType] =
+  def typeParser: Parser[SynslType] =
     ("int" ^^^ IntType
-        ||| "bool" ^^^ BoolType
-        ||| "loc" ^^^ LocType
-        ||| "intset" ^^^ IntSetType
-        ||| "void" ^^^ VoidType)
+        | "bool" ^^^ BoolType
+        | "loc" ^^^ LocType
+        | "intset" ^^^ IntSetType
+        | "void" ^^^ VoidType)
 
-  val formal: Parser[(SynslType, Var)] = tpeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
+  def formal: Parser[(SynslType, Var)] = typeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
-  val intLiteral: Parser[Const] =
+  def intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))
 
-  val boolLiteral: Parser[Const] =
+  def boolLiteral: Parser[Const] =
     ("true" | "false") ^^ (b => BoolConst(java.lang.Boolean.parseBoolean(b)))
 
-  val varParser: Parser[Var] = ident ^^ Var
+  def setLiteral: Parser[Expr] =
+    "{" ~> repsep(expr, ",") <~ "}" ^^ SetLiteral
 
-  val parenExpr: Parser[Expr] = "(" ~> expr <~ ")"
+  def varParser: Parser[Var] = ident ^^ Var
 
-  val expLiteral: Parser[Expr] = intLiteral ||| boolLiteral ||| varParser
-
-  val unOpParser: Parser[UnOp] =
+  def unOpParser: Parser[UnOp] =
     "not" ^^^ OpNot
 
-  val binOpParser: Parser[BinOp] =
-    "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "<=" ^^^ OpLeq ||| "<" ^^^ OpLt |||
-        "==" ^^^ OpEq ||| "||" ^^^ OpOr ||| "&&" ^^^ OpAnd
+  def termOpParser: Parser[BinOp] =  "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion
 
-  val expr: Parser[Expr] = (
-      (expLiteral ~ binOpParser ~ expLiteral) ^^ { case a ~ op ~ b => BinaryExpr(op, a, b) }
-          ||| unOpParser ~ expLiteral ^^ { case op ~ a => UnaryExpr(op, a) }
-          ||| expLiteral
-      )
+  def relOpParser: Parser[BinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpEq ||| "=i" ^^^ OpEq
 
-  val setExpr: Parser[Expr] =
-    ("Empty" ^^^ EmptySet
-        ||| "{" ~> expr <~ "}" ^^ SingletonSet
-        ||| "Union" ~> ("(" ~> (setExpr ~ ("," ~> setExpr)) <~ ")") ^^ { case l ~ r => SetUnion(l, r) }
-        ||| varParser)
+  def logOpParser: Parser[BinOp] =  "\\/" ^^^ OpOr ||| "/\\" ^^^ OpAnd
+
+  def binOpParser (p: Parser[BinOp]): Parser[(Expr,Expr) => Expr] = {
+    p ^^ {op => (l,r) => BinaryExpr(op, l, r)}
+  }
+
+  def atom: Parser[Expr] = (
+      unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
+        | "(" ~> expr <~ ")"
+        | intLiteral | boolLiteral | setLiteral
+        | varParser
+    )
+
+  def term: Parser[Expr] = chainl1(atom, binOpParser(termOpParser))
+
+  def relExpr: Parser[Expr] =
+    term ~ opt(relOpParser ~ term) ^^ {
+      case a ~ None => a
+      case a ~ Some(op ~ b) => BinaryExpr(op, a, b) }
+
+  def expr: Parser[Expr] =
+    chainl1(relExpr, binOpParser (logOpParser)) ~ opt(("?" ~> expr <~ ":") ~ expr) ^^ {
+      case a ~ None => a
+      case a ~ Some(l ~ r) => IfThenElse(a, l, r) }
 
   // Formulas
 
-  val logLiteral: Parser[PFormula] = "true" ^^^ PTrue ||| "false" ^^^ PFalse
-
-  val parenPhi: Parser[PFormula] = logLiteral ||| "(" ~> phi <~ ")"
-
-  val phi: Parser[PFormula] = (
-      logLiteral
-          ||| (expLiteral <~ "<=") ~ expr ^^ { case a ~ b => PLeq(a, b) }
-          ||| (expLiteral <~ "<") ~ expr ^^ { case a ~ b => PLtn(a, b) }
-          ||| (setExpr <~ "=i") ~ setExpr ^^ { case a ~ b => SEq(a, b) }
-          ||| (expLiteral <~ "==") ~ expr ^^ { case a ~ b => PEq(a, b) }
-          ||| (parenPhi <~ "/\\") ~ parenPhi ^^ { case a ~ b => PAnd(a, b) }
-          ||| (parenPhi <~ "\\/") ~ parenPhi ^^ { case a ~ b => POr(a, b) }
-          ||| "not" ~> parenPhi ^^ PNeg
-          ||| parenPhi
-      )
+  def phi: Parser[PFormula] = {
+    for {
+      e <- expr
+      p = fromExpr(e)
+      if p.isDefined
+    }  yield p.head
+  }
 
   def identWithOffset: Parser[(Ident, Int)] = {
     val ov = ident ~ opt("+" ~> numericLit)
@@ -112,7 +116,7 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
     case params ~ formula => UnificationGoal(formula, params.toSet)
   }
 
-  def goalFunction: Parser[FunSpec] = assertion ~ tpeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+  def goalFunction: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
     case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
   }
 

@@ -2,7 +2,7 @@ Step 2: Recognise the same list in the post
 
 #####
 
-{ S1 =i Union({v}, S) ;
+{ S1 =i {v} ++ S ;
   [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, S)}
 
 void list_copy(loc x)

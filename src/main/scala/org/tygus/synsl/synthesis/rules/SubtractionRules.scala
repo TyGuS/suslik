@@ -63,8 +63,11 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
 
-      def noNewExistentials(newGoal: Goal) =
-        newGoal.existentials.subsetOf(goal.existentials)
+      def ghostEqualities(newGoal: Goal): PFormula = {
+        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield PEq(v, v)
+        mkConjunction(conjuncts.toList)
+      }
+
 
       val pre = goal.pre
       val post = goal.post
@@ -73,13 +76,15 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val foundFrames = SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
       val alternatives = for {
         FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <- foundFrames
+
         newPre = Assertion(pre.phi, newPreSigma)
         newPost = Assertion(post.phi.subst(sub), newPostSigma)
         preFootprint = preFrame.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
         postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
         ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-        newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-        if noNewExistentials(newGoal)
+        tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
+        newPreAdjusted = newPre.copy(phi = newPre.phi.andClean(ghostEqualities(tempGoal)))
+        newGoal = tempGoal.copy(pre = newPreAdjusted)
       } yield {
         Subderivation(List((newGoal, env)), pureKont(toString))
       }

@@ -18,6 +18,6 @@ object Resolver {
         }
       }
       )
-    (goals, Environment(preds, Map.empty, 2))
+    (goals, Environment(preds, Map.empty))
   }
 }

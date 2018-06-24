@@ -50,55 +50,52 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
     res == Success(Sat())
   }
 
-  private def convertFormula(phi: PFormula): Try[SMTBoolTerm] = phi match {
-    case PTrue => Try(True())
-    case PFalse => Try(False())
-    case PNeg(arg) => for {p <- convertFormula(arg)} yield !p
-    case PAnd(left, right) => for {
-      l <- convertFormula(left)
-      r <- convertFormula(right)
-    } yield l & r
-    case POr(left, right) => for {
-      l <- convertFormula(left)
-      r <- convertFormula(right)
-    } yield l | r
+  private def convertFormula(phi: PFormula): Try[SMTBoolTerm] = convertBoolExpr(phi.toExpr)
 
-    // General equality
-    // TODO: Make sure not only integers are supported!
-    case PEq(left, right) => for {
+//  private def convertIntSetExpr(e: Expr): Try[(SMTSetTerm, SMTBoolTerm)] = e match {
+//    case Var(name) => Try((ArrayBool1(name), True()))
+//    case SingletonSet(elem) => Failure(e)
+//    //  TODO: support the rest
+//    case EmptySet => Failure(e)
+//    case SetUnion(l, r) => Failure(e)
+//    case _ => Failure(e)
+//  }
+
+  private def convertBoolExpr(e: Expr): Try[SMTBoolTerm] =  e match {
+    case Var(name) => Try(Bools(name))
+    case BoolConst(true) => Try(True())
+    case BoolConst(false) => Try(False())
+    case UnaryExpr(OpNot, e1) => for {p <- convertBoolExpr(e1)} yield !p
+    case BinaryExpr(OpAnd, left, right) => for {
+      l <- convertBoolExpr(left)
+      r <- convertBoolExpr(right)
+    } yield l & r
+    case BinaryExpr(OpOr, left, right) => for {
+      l <- convertBoolExpr(left)
+      r <- convertBoolExpr(right)
+    } yield l | r
+    case BinaryExpr(OpEq, left, right) => for {
       l <- convertIntExpr(left)
       r <- convertIntExpr(right)
     } yield l === r
-
-    // Arithmetic
-    case PLeq(left, right) => for {
+    case BinaryExpr(OpLeq, left, right) => for {
       l <- convertIntExpr(left)
       r <- convertIntExpr(right)
     } yield l <= r
-    case PLtn(left, right) => for {
+    case BinaryExpr(OpLt, left, right) => for {
       l <- convertIntExpr(left)
       r <- convertIntExpr(right)
     } yield l < r
-
-    case SEq(SingletonSet(s1), SingletonSet(s2)) => for {
-      l <- convertIntExpr(s1)
-      r <- convertIntExpr(s2)
-    } yield l === r
-    // TODO: support other cases
-
-    case _ => Failure(phi)
-  }
-
-  private def convertIntSetExpr(e: Expr): Try[(SMTSetTerm, SMTBoolTerm)] = e match {
-    case Var(name) => Try((ArrayBool1(name), True()))
-    case SingletonSet(elem) => Failure(e)
-    //  TODO: support the rest
-    case EmptySet => Failure(e)
-    case SetUnion(l, r) => Failure(e)
     case _ => Failure(e)
   }
 
-  // So far only ints are supported
+    //    case SEq(SingletonSet(s1), SingletonSet(s2)) => for {
+    //      l <- convertIntExpr(s1)
+    //      r <- convertIntExpr(s2)
+    //    } yield l === r
+    // TODO: support other cases
+
+
   private def convertIntExpr(e: Expr): Try[SMTIntTerm] = e match {
     case Var(name) => Try(Ints(name))
     case IntConst(c) => Try(Ints(c))
@@ -110,7 +107,11 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
       case OpMinus => l - r
       case _ => throw SMTUnsupportedExpr(e)
     }
-    case UnaryExpr(op, arg) => Failure(e)
+    case IfThenElse(cond, left, right) => for {
+      c <- convertBoolExpr(cond)
+      l <- convertIntExpr(left)
+      r <- convertIntExpr(right)
+    } yield c.ite(l,r)
     case _ => Failure(e)
   }
 

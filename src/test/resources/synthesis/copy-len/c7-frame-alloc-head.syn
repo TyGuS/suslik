@@ -3,7 +3,7 @@ Add a head to a list
 
 #####
 
-{(len == 1 + len1) /\ (0 <= len1) ;
+{ len == 1 + len1  /\  0 <= len1 ;
    [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, len1) **
    r :-> t3 **
    lseg(t3, 0, len1) }

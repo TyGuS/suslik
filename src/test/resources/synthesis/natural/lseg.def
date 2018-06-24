@@ -4,7 +4,12 @@ predicate lseg(x, y, len) {
 }
 
 predicate treeN(x, n) {
-|  x == 0        => {n == 0 ; emp}
-|  not (x == 0)  => {(n == n1 + n2) /\ ((0 <= n1) /\ (0 <= n2)) ;
+|  x == 0        => { n == 0 ; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 ;
                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
+}
+
+predicate list_bounds(x, lo, hi) {
+|  x == 0        => { lo == 7  /\  hi == 0 ; emp }
+|  not (x == 0)  => { lo == (v <= lo1 ? v : lo1) /\ hi == (hi1 <= v ? v : hi1) ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** list_bounds(nxt, lo1, hi1) }
 }

@@ -50,13 +50,14 @@ object PureUnification extends UnificationBase {
     case (x@Var(_), e) => {
       genSubst(e, x, nonFreeInSource).toList
     }
-    case (SetUnion(ls, rs), SetUnion(lt, rt)) =>
+    case (BinaryExpr(OpUnion, ls, rs), BinaryExpr(OpUnion, lt, rt)) =>
       val m1 = unifyPairs(ls, rs, lt, rt, nonFreeInSource)
       val m2 = unifyPairs(ls, rs, rt, lt, nonFreeInSource)
       m1 ++ m2
-    case (SingletonSet(es), SingletonSet(et)) =>
+    case (SetLiteral(Nil), SetLiteral(Nil)) => List(Map.empty)
+    case (SetLiteral(es :: Nil), SetLiteral(et :: Nil)) =>
       unifyAsSetExpr(es, et, nonFreeInSource)
-    case (EmptySet, EmptySet) => List(Map.empty)
+      // TODO: these are not sets, and also take care of non-singleton cases
     case _ => List(Map.empty)
   }
 

@@ -1,6 +1,6 @@
 should be able to handle * partiality
 ###
-{ (a == x) /\ (y == a) ; x :-> y ** y :-> z}
+{ a == x  /\  y == a ; x :-> y ** y :-> z}
 void foo (loc x, loc y)
 { x == 2 ; y :-> a ** x :-> y}
 ###

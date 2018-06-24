@@ -31,12 +31,13 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.SubstRight,
     // NormalizationRules.Hypothesis,
 
+    OperationalRules.ReadRule,
+
     // Subtraction rules
     SubtractionRules.StarIntro,
     SubtractionRules.HypothesisUnify,
 
     // Invertible operational rules
-    OperationalRules.ReadRule,
     OperationalRules.WriteRule,
 
     // TODO: Only with this order of rules tree-morph succeeds!
