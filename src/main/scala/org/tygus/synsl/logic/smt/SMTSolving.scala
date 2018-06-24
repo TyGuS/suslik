@@ -19,8 +19,8 @@ import scala.util.{Failure, Success, Try}
 object SMTSolving extends Core with IntegerArithmetics with Resources with Commands
     with PureLogicUtils with ArrayExBool {
 
-  val defaultSolver = "CVC4"
-  // val defaultSolver = "Z3"
+  // val defaultSolver = "CVC4"
+  val defaultSolver = "Z3"
 
   {
     disableLogging()
