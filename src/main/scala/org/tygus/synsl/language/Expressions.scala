@@ -47,6 +47,10 @@ object Expressions {
     def level: Int = 4
     override def pp: String = "++"
   }
+  object OpIn extends BinOp {
+    def level: Int = 3
+    override def pp: String = "in"
+  }
   object OpSetEq extends BinOp {
     def level: Int = 3
     override def pp: String = "=i"
@@ -145,7 +149,7 @@ object Expressions {
   }
 
   case class SetLiteral(elems: List[Expr]) extends Expr {
-    override def pp: String = s"{${elems.map(_.pp)}}"
+    override def pp: String = s"{${elems.map(_.pp).mkString(", ")}}"
     override def subst(sigma: Map[Var, Expr]): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
   }
 

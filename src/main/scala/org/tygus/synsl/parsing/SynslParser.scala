@@ -37,7 +37,7 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
 
   def termOpParser: Parser[BinOp] =  "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion
 
-  def relOpParser: Parser[BinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpEq ||| "=i" ^^^ OpEq
+  def relOpParser: Parser[BinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpEq ||| "=i" ^^^ OpSetEq ||| "in" ^^^ OpIn
 
   def logOpParser: Parser[BinOp] =  "\\/" ^^^ OpOr ||| "/\\" ^^^ OpAnd
 

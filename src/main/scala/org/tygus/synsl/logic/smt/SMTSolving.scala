@@ -1,30 +1,41 @@
 package org.tygus.synsl.logic.smt
 
 import org.bitbucket.franck44.scalasmt.configurations.SMTInit
-import org.bitbucket.franck44.scalasmt.configurations.SMTLogics.{QF_AUFLIA, QF_LIA}
+import org.bitbucket.franck44.scalasmt.configurations.SMTLogics.{QF_AUFLIA, QF_LIA, AUFNIRA}
 import org.bitbucket.franck44.scalasmt.configurations.SMTOptions.MODELS
 import org.bitbucket.franck44.scalasmt.interpreters.{Resources, SMTSolver}
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.franck44.scalasmt.theories._
-import org.bitbucket.franck44.scalasmt.typedterms.{Commands, TypedTerm}
+import org.bitbucket.franck44.scalasmt.typedterms.{Commands, QuantifiedTerm, TypedTerm}
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.logic._
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Success
 
 /**
   * @author Ilya Sergey
   */
 
-object SMTSolving extends Core with IntegerArithmetics with Resources with Commands
-    with PureLogicUtils with ArrayExBool {
+object SMTSolving extends Core
+  with IntegerArithmetics
+  with QuantifiedTerm
+  with Resources
+  with Commands
+  with PureLogicUtils
+  with ArrayExBool
+  with ArrayExOperators {
 
   // val defaultSolver = "CVC4"
   val defaultSolver = "Z3"
+  implicit var solverObject: SMTSolver = null
 
   {
     disableLogging()
-    // new SMTSolver("Z3", new SMTInit(QF_LIA, List(MODELS)))
+
+    // create solver and assert axioms
+    // TODO: destroy solver when we're done
+    solverObject = new SMTSolver(defaultSolver, new SMTInit(AUFNIRA, List(MODELS)))
+    |=(emptyDef)
   }
 
   // Call this before synthesizing a new function
@@ -45,12 +56,14 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
   type SMTIntTerm = TypedTerm[IntTerm, Term]
   type SMTSetTerm = TypedTerm[ArrayTerm[BoolTerm], Term]
 
-  private def checkSat(term: SMTBoolTerm, solver: String = defaultSolver): Boolean = {
-    val res = using(new SMTSolver(solver, new SMTInit(QF_LIA, List(MODELS)))) { implicit solver => isSat(term) }
+  private def checkSat(term: SMTBoolTerm): Boolean = {
+    push(1)
+    val res = isSat(term)
+    pop(1)
     res == Success(Sat())
   }
 
-  private def convertFormula(phi: PFormula): Try[SMTBoolTerm] = convertBoolExpr(phi.toExpr)
+  private def convertFormula(phi: PFormula): SMTBoolTerm = convertBoolExpr(phi.toExpr)
 
 //  private def convertIntSetExpr(e: Expr): Try[(SMTSetTerm, SMTBoolTerm)] = e match {
 //    case Var(name) => Try((ArrayBool1(name), True()))
@@ -61,32 +74,46 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
 //    case _ => Failure(e)
 //  }
 
-  private def convertBoolExpr(e: Expr): Try[SMTBoolTerm] =  e match {
-    case Var(name) => Try(Bools(name))
-    case BoolConst(true) => Try(True())
-    case BoolConst(false) => Try(False())
-    case UnaryExpr(OpNot, e1) => for {p <- convertBoolExpr(e1)} yield !p
-    case BinaryExpr(OpAnd, left, right) => for {
-      l <- convertBoolExpr(left)
-      r <- convertBoolExpr(right)
-    } yield l & r
-    case BinaryExpr(OpOr, left, right) => for {
-      l <- convertBoolExpr(left)
-      r <- convertBoolExpr(right)
-    } yield l | r
-    case BinaryExpr(OpEq, left, right) => for {
-      l <- convertIntExpr(left)
-      r <- convertIntExpr(right)
-    } yield l === r
-    case BinaryExpr(OpLeq, left, right) => for {
-      l <- convertIntExpr(left)
-      r <- convertIntExpr(right)
-    } yield l <= r
-    case BinaryExpr(OpLt, left, right) => for {
-      l <- convertIntExpr(left)
-      r <- convertIntExpr(right)
-    } yield l < r
-    case _ => Failure(e)
+  private def convertSetExpr(e: Expr): SMTSetTerm = e match {
+    case Var(name) => ArrayBool1(name)
+    case SetLiteral(elems) => elems.foldLeft(emptySet)((res, elem) => res.store(convertIntExpr(elem), True()))
+    case _ => throw SMTUnsupportedExpr(e)
+  }
+
+  private def convertBoolExpr(e: Expr): SMTBoolTerm =  e match {
+    case Var(name) => Bools(name)
+    case BoolConst(true) => True()
+    case BoolConst(false) => False()
+    case UnaryExpr(OpNot, e1) => !convertBoolExpr(e1)
+    case BinaryExpr(OpAnd, left, right) => {
+      val l = convertBoolExpr(left)
+      val r = convertBoolExpr(right)
+      l & r }
+    case BinaryExpr(OpOr, left, right) => {
+      val l = convertBoolExpr(left)
+      val r = convertBoolExpr(right)
+      l | r }
+    case BinaryExpr(OpEq, left, right) => {
+      val l = convertIntExpr(left)
+      val r = convertIntExpr(right)
+      l === r }
+    case BinaryExpr(OpLeq, left, right) => {
+      val l = convertIntExpr(left)
+      val r = convertIntExpr(right)
+      l <= r }
+    case BinaryExpr(OpLt, left, right) => {
+      val l = convertIntExpr(left)
+      val r = convertIntExpr(right)
+      l < r }
+    case BinaryExpr(OpIn, left, right) => {
+      val l = convertIntExpr(left)
+      val r = convertSetExpr(right)
+      r(l) }
+    case BinaryExpr(OpSetEq, left, right) => {
+      val l = convertSetExpr(left)
+      val r = convertSetExpr(right)
+      l === r }
+    case _ => throw SMTUnsupportedExpr(e)
   }
 
     //    case SEq(SingletonSet(s1), SingletonSet(s2)) => for {
@@ -96,37 +123,37 @@ object SMTSolving extends Core with IntegerArithmetics with Resources with Comma
     // TODO: support other cases
 
 
-  private def convertIntExpr(e: Expr): Try[SMTIntTerm] = e match {
-    case Var(name) => Try(Ints(name))
-    case IntConst(c) => Try(Ints(c))
-    case BinaryExpr(op, left, right) => for {
-      l <- convertIntExpr(left)
-      r <- convertIntExpr(right)
-    } yield op match {
-      case OpPlus => l + r
-      case OpMinus => l - r
-      case _ => throw SMTUnsupportedExpr(e)
-    }
-    case IfThenElse(cond, left, right) => for {
-      c <- convertBoolExpr(cond)
-      l <- convertIntExpr(left)
-      r <- convertIntExpr(right)
-    } yield c.ite(l,r)
-    case _ => Failure(e)
+  private def convertIntExpr(e: Expr): SMTIntTerm = e match {
+    case Var(name) => Ints(name)
+    case IntConst(c) => Ints(c)
+    case BinaryExpr(op, left, right) => {
+      val l = convertIntExpr(left)
+      val r = convertIntExpr(right)
+      op match {
+        case OpPlus => l + r
+        case OpMinus => l - r
+        case _ => throw SMTUnsupportedExpr(e)
+      }}
+    case IfThenElse(cond, left, right) => {
+      val c = convertBoolExpr(cond)
+      val l = convertIntExpr(left)
+      val r = convertIntExpr(right)
+      c.ite(l,r) }
+    case _ => throw SMTUnsupportedExpr(e)
+  }
+
+  private def emptySet: SMTSetTerm = ArrayBool1("empty")
+  private def emptyDef: SMTBoolTerm = forall(Ints("x").symbol) {
+    val x = Ints("x")
+    !emptySet(x)
   }
 
   private val cache = collection.mutable.Map[PFormula, Boolean]()
   def cacheSize: Int = cache.size
 
   // Check if phi is satisfiable; all vars are implicitly existentially quantified
-  def sat(phi: PFormula, solver: String = defaultSolver): Boolean = {
-    def check(phi: PFormula): Boolean = {
-        val res: Try[Boolean] = for {
-          p <- convertFormula(phi)
-        } yield checkSat(p)
-        res.getOrElse(true)
-    }
-    cache.getOrElseUpdate(phi, check(phi))
+  def sat(phi: PFormula): Boolean = {
+    cache.getOrElseUpdate(phi, checkSat(convertFormula(phi)))
   }
 
   // Check if phi is valid; all vars are implicitly universally quantified

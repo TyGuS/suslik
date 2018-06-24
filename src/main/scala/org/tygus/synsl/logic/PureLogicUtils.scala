@@ -80,6 +80,7 @@ trait PureLogicUtils {
 
     // Set equality
     case s@SEq(left, right) => SEq(simplifyExpr(left), simplifyExpr(right))
+    case PIn(left, right) => PIn(simplifyExpr(left), simplifyExpr(right))
   }
 
   def simplifyExpr(e: Expr): Expr = e match {
@@ -108,6 +109,8 @@ trait PureLogicUtils {
     case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case PLeq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case PLtn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case PIn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case SEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case _ => false
   }
 
@@ -115,6 +118,7 @@ trait PureLogicUtils {
     case PTrue | PFalse => true
     case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case SEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case PIn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
     case PNeg(p) => isRelationPFormula(p)
     case p => isRelationPFormula(p)
   }
@@ -219,6 +223,7 @@ trait PureLogicUtils {
     case BinaryExpr(OpEq, e1, e2) => Some(PEq(e1, e2))
     case BinaryExpr(OpLt, e1, e2) => Some(PLtn(e1, e2))
     case BinaryExpr(OpLeq, e1, e2) => Some(PLeq(e1, e2))
+    case BinaryExpr(OpIn, e1, e2) => Some(PIn(e1, e2))
     case BinaryExpr(OpSetEq, e1, e2) => Some(SEq(e1, e2))
     case _ => None
   }

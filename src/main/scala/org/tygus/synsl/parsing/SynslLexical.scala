@@ -9,12 +9,12 @@ import scala.util.parsing.input.CharArrayReader.EofCh
 class SynslLexical extends StdLexical {
 
   // Add keywords
-  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate")
+  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate", "in")
 
   // Types
   reserved += ("int", "bool", "loc", "intset", "void", "Empty", "Union")
 
-  delimiters += ("(", ")", "=", ";", "**", "*", ":->", "=i",
+  delimiters += ("(", ")", "=", ";", "**", "*", ":->", "=i", "++",
       "{", "}", "/\\", "\\/", "\n", "\r", "=>", "?", ":",
       "<", ",", "/",   "+", "-", "==", "<=", "[", "]", "|"
   )

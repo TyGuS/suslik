@@ -2,11 +2,11 @@ should be able to reason with singleton sets
 
 #####
 
-{ true ; x :-> a }
+{ not (e == 0) ; x :-> a }
 
 void add(loc x, int e)
 
-{ {e, a} =i {a, r} ; x :-> r }
+{ e in {r} /\ not (0 in {r}) ; x :-> r }
 
 ######
 
