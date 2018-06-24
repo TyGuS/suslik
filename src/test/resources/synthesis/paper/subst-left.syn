@@ -1,0 +1,12 @@
+should be able to substitute equalities
+
+###
+
+{ z == 5 ; x :-> y ** y :-> z}
+void stillFive(loc x, loc y)
+{ y :-> 5 ** x :-> y}
+
+###
+
+void stillFive (loc x, loc y) {
+}
