@@ -11,36 +11,46 @@ object Expressions {
     override def pp: String = "not"
   }
 
-  sealed abstract class BinOp extends PrettyPrinting {}
+  sealed abstract class BinOp extends PrettyPrinting {
+    def level: Int
+  }
+
   object OpPlus extends BinOp {
+    def level: Int = 4
     override def pp: String = "+"
   }
   object OpMinus extends BinOp {
+    def level: Int = 4
     override def pp: String = "-"
   }
   object OpEq extends BinOp {
+    def level: Int = 3
     override def pp: String = "=="
   }
   object OpLeq extends BinOp {
+    def level: Int = 3
     override def pp: String = "<="
   }
   object OpLt extends BinOp {
+    def level: Int = 3
     override def pp: String = "<"
   }
   object OpAnd extends BinOp {
+    def level: Int = 2
     override def pp: String = "/\\"
   }
   object OpOr extends BinOp {
+    def level: Int = 2
     override def pp: String = "\\/"
   }
   object OpUnion extends BinOp {
+    def level: Int = 4
     override def pp: String = "++"
   }
   object OpSetEq extends BinOp {
+    def level: Int = 3
     override def pp: String = "=i"
   }
-
-
 
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
 
@@ -74,6 +84,14 @@ object Expressions {
 
     def vars: Set[Var] = collect(_.isInstanceOf[Var])
 
+    override def pp: String
+
+    def level: Int = 6
+
+    def printAtLevel(lvl: Int): String = {
+      val s = pp
+      if (lvl <= this.level) s else s"($s)"
+    }
   }
 
   // Program-level variable: program-level or ghost
@@ -114,14 +132,16 @@ object Expressions {
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+    override def level: Int = op.level
+    override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
 
-    override def pp: String = s"${left.pp} ${op.pp} ${right.pp}"
   }
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
 
-    override def pp: String = s"${op.pp} ${arg.pp}"
+    override def level = 5
+    override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
   }
 
   case class SetLiteral(elems: List[Expr]) extends Expr {
@@ -130,7 +150,7 @@ object Expressions {
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
-    override def pp: String = s"${cond.pp} ? ${left.pp} : ${right.pp}"
+    override def pp: String = s"${cond.printAtLevel(1)} ? ${left.printAtLevel(1)} : ${right.printAtLevel(1)}"
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
 
   }
