@@ -172,7 +172,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
        So, for the reasons of avoid sucking our galaxy into a block hole, we bump up the tags.
        */
         (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
-      val restPre = Assertion(PAnd(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
+      val restPre = Assertion(goal.pre.phi.andClean(callPost.phi), SFormula(restPreChunks.toList))
       val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
       callGoal
     }

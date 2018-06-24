@@ -185,7 +185,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       if (!SMTSolving.sat(pre))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
-      else if (!SMTSolving.sat(PAnd(pre, post)))
+      else if (!SMTSolving.sat(pre.andClean(post)))
         List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
       else
         Nil

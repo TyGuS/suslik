@@ -83,7 +83,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
         ruleApp = saveApplication((preFootprint, postFootprint), deriv)
         tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-        newPreAdjusted = newPre.copy(phi = PAnd(newPre.phi, ghostEqualities(tempGoal)))
+        newPreAdjusted = newPre.copy(phi = newPre.phi.andClean(ghostEqualities(tempGoal)))
         newGoal = tempGoal.copy(pre = newPreAdjusted)
       } yield {
         Subderivation(List((newGoal, env)), pureKont(toString))

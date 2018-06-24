@@ -188,10 +188,7 @@ trait PureLogicUtils {
   /**
     * Assemble a formula from a list of conjunctions
     */
-  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct match {
-    case h :: t => t.foldLeft(h)((z, p) => PAnd(z, p))
-    case Nil => PTrue
-  }
+  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct.foldLeft[PFormula](PTrue)((z, p) => z.andClean(p))
 
   /**
     * @param vs    a list of variables to refresh

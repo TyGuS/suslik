@@ -38,6 +38,16 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
 
   def implies(other: PFormula): PFormula = POr(PNeg(this), other)
 
+  def andClean(other: PFormula): PFormula = this match {
+    case PFalse => PFalse
+    case PTrue => other
+    case _ => other match {
+      case PFalse => PFalse
+      case PTrue => this
+      case _ => PAnd(this, other)
+    }
+  }
+
 }
 
 object PTrue extends PFormula {
