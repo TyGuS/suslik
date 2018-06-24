@@ -281,12 +281,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         }
       }
 
-      findHeaplet({
-        case SApp(_, _, _) => true
-        case _ => false
-      }, goal.post.sigma) match {
-        case None => Nil
-        case Some(h@SApp(pred, args, Some(t))) =>
+      def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
+        case SApp(pred, args, Some(t)) =>
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
@@ -315,10 +311,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             Subderivation(List((goal.copy(post = newPost, newRuleApp = Some(ruleApp)), env)), kont)
           }
           subDerivations
-        case Some(h) =>
-          ruleAssert(false, s"Close rule matched unexpected heaplet ${h.pp}")
-          Nil
+        case _ => Nil
       }
+
+      for {
+        h <- goal.post.sigma.chunks
+        s <- heapletResults(h)
+      } yield s
     }
   }
 

@@ -136,8 +136,8 @@ trait Synthesis extends SepLogicUtils {
         // Toggle this comment to enable and disable commute optimization
 
         // TODO: This optimisation interferes with ApplyHypothesis rule - see beyond/abduct/list-free-frame.syn
-        // val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
-        val subderivations = allSubderivations
+        val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
+        // val subderivations = allSubderivations
 
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest
