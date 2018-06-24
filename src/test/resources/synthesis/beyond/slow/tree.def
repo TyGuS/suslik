@@ -13,3 +13,8 @@ predicate treeN(x, n) {
 |  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 ;
                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
 }
+
+predicate tree_size(x, sz) {
+|  x == 0        => { sz == 0 ; emp }
+|  not (x == 0)  => { sz == 1 + szl + szr  /\  0 <= szl  /\  0 <= szr ; [x, 3] ** x :-> e ** (x + 1) :-> l ** (x + 2) :-> r ** tree_size(l, szl) ** tree_size(r, szr) }
+}
