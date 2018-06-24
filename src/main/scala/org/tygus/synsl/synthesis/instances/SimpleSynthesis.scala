@@ -14,7 +14,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction
-//    UnfoldingRules.InductionRule,
+    UnfoldingRules.InductionRule,
   )
 
   // Right now the rule is fixed statically
@@ -24,40 +24,41 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     SubtractionRules.EmpRule,
 
     // Normalization rules
-//    NormalizationRules.StarPartial,
-//    NormalizationRules.NilNotLval,
-//    NormalizationRules.SubstLeft,
-//    NormalizationRules.Inconsistency,
-//    NormalizationRules.SubstRight,
+    NormalizationRules.StarPartial,
+    NormalizationRules.NilNotLval,
+    NormalizationRules.SubstLeft,
+    NormalizationRules.Inconsistency,
+    NormalizationRules.SubstRight,
+    // NormalizationRules.Hypothesis,
 
     OperationalRules.ReadRule,
 
     // Subtraction rules
     SubtractionRules.StarIntro,
-//    SubtractionRules.HypothesisUnify,
+    SubtractionRules.HypothesisUnify,
 
     // Invertible operational rules
     OperationalRules.WriteRule,
 
-//    // TODO: Only with this order of rules tree-morph succeeds!
-//    // If these come last, it goes to an eternal alloc/free spiral. :(
-//    // UnfoldingRules.ApplyHypothesisRule,
-//
-//    UnfoldingRules.ApplyHypothesisAbduceFrameRule, // Experimental
-//
-//    // Also, moving UnfoldingRules.ApplyHypothesisRule up makes things worse...
-//    UnfoldingRules.CloseRule,
-//
-//    // Noninvertible operational rules
-//    // OperationalRules.WriteRuleOld,
-//    OperationalRules.AllocRule,
-//    OperationalRules.FreeRule,
-//
-//    // For experimentation
-//    // SubtractionRules.Pick,
-//
-//    OperationalRules.PickFromEnvRule,
-//
+    // TODO: Only with this order of rules tree-morph succeeds!
+    // If these come last, it goes to an eternal alloc/free spiral. :(
+    // UnfoldingRules.ApplyHypothesisRule,
+
+    UnfoldingRules.ApplyHypothesisAbduceFrameRule, // Experimental
+
+    // Also, moving UnfoldingRules.ApplyHypothesisRule up makes things worse...
+    UnfoldingRules.CloseRule,
+
+    // Noninvertible operational rules
+    // OperationalRules.WriteRuleOld,
+    OperationalRules.AllocRule,
+    OperationalRules.FreeRule,
+
+    // For experimentation
+    // SubtractionRules.Pick,
+
+    OperationalRules.PickFromEnvRule,
+
   )
 
 }
