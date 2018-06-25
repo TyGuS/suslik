@@ -25,8 +25,8 @@ object SMTSolving extends Core
   with ArrayExBool
   with ArrayExOperators {
 
-  // val defaultSolver = "CVC4"
-  val defaultSolver = "Z3"
+  val defaultSolver = "CVC4"
+  // val defaultSolver = "Z3"
   implicit var solverObject: SMTSolver = null
 
   {
@@ -60,7 +60,7 @@ object SMTSolving extends Core
     push(1)
     val res = isSat(term)
     pop(1)
-    res == Success(Sat())
+    res != Success(UnSat())
   }
 
   private def convertFormula(phi: PFormula): SMTBoolTerm = convertBoolExpr(phi.toExpr)
