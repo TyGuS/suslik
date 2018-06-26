@@ -18,6 +18,7 @@ sealed abstract class PFormula extends PrettyPrinting with Substitutable[PFormul
       case PLtn(left, right) => acc ++ left.collect(p) ++ right.collect(p)
       case PEq(left, right) => acc ++ left.collect(p) ++ right.collect(p)
       case SEq(left, right) => acc ++ left.collect(p) ++ right.collect(p)
+      case PIn(left, right) => acc ++ left.collect(p) ++ right.collect(p)
       case PAnd(left, right) => collector(collector(acc)(left))(right)
       case POr(left, right) => collector(collector(acc)(left))(right)
       case PNeg(arg) => collector(acc)(arg)
@@ -95,5 +96,9 @@ case class PEq(left: Expr, right: Expr) extends PFormula {
   Equality on finite sets
  */
 case class SEq(left: Expr, right: Expr) extends PFormula {
-  override def toExpr: Expr = BinaryExpr(OpEq, left, right)
+  override def toExpr: Expr = BinaryExpr(OpSetEq, left, right)
+}
+
+case class PIn(left: Expr, right: Expr) extends PFormula {
+  override def toExpr: Expr = BinaryExpr(OpIn, left, right)
 }
