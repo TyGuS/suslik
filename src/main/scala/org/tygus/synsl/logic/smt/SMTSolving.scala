@@ -106,7 +106,7 @@ object SMTSolving extends Core
       setTerm
     } else {
       val eTerms: List[SMTIntTerm] = elems.map(convertIntExpr)
-      new TypedTerm[SetTerm, Term](eTerms.flatMap(_.typeDefs).toSet,
+      new TypedTerm[SetTerm, Term](setTerm.typeDefs ++ eTerms.flatMap(_.typeDefs).toSet,
         QIdAndTermsTerm(setInsertSymbol, (eTerms :+ setTerm).map(_.termDef)))
     }
   }
