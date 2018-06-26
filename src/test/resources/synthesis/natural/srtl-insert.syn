@@ -2,11 +2,11 @@ sorted list: insert an element
 
 #####
 
-{0 <= n  /\  0 <= k /\  k <= 7 ; r :-> a ** srtl(x, n, lo, hi) }
-void srtl_insert (loc x, int k, loc r)
-{true ; r :-> y ** srtl(y, n + 1, k <= lo ? k : lo, hi) }
+{0 <= n  /\  0 <= k /\  k <= 7 ; ret :-> a ** srtl(x, n, lo, hi) }
+void srtl_insert (loc x, int k, loc ret)
+{true ; ret :-> y ** srtl(y, n + 1, k <= lo ? k : lo, hi) }
 
 #####
 
-void srtl_insert (loc x, int k, loc r) {
+void srtl_insert (loc x, int k, loc ret) {
 }

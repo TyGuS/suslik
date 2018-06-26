@@ -2,20 +2,20 @@ singly-linked list: min
 
 #####
 
-{true ; r :-> a ** sll(x, n, lo, hi) }
-void sll_min(loc x, loc r)
-{true ; r :-> lo ** sll(x, n, lo, hi) }
+{true ; ret :-> a ** sll(x, n, lo, hi) }
+void sll_min (loc x, loc ret)
+{true ; ret :-> lo ** sll(x, n, lo, hi) }
 
 #####
 
-void sll_min (loc x, loc r) {
+void sll_min (loc x, loc ret) {
   if (x == 0) {
-    *r = 7;
+    *ret = 7;
   } else {
     let v2 = *x;
     let nxt2 = *(x + 1);
-    list_min(nxt2, r);
-    let lo12 = *r;
-    *r = v2 <= lo12 ? v2 : lo12;
+    sll_min(nxt2, ret);
+    let lo12 = *ret;
+    *ret = v2 <= lo12 ? v2 : lo12;
   }
 }

@@ -2,20 +2,20 @@ singly-linked list: max
 
 #####
 
-{true ; r :-> a ** sll(x, n, lo, hi) }
-void sll_max (loc x, loc r)
-{true ; r :-> hi ** sll(x, n, lo, hi) }
+{true ; ret :-> a ** sll(x, n, lo, hi) }
+void sll_max (loc x, loc ret)
+{true ; ret :-> hi ** sll(x, n, lo, hi) }
 
 #####
 
-void sll_max (loc x, loc r) {
+void sll_max (loc x, loc ret) {
   if (x == 0) {
-    *r = 0;
+    *ret = 0;
   } else {
     let v2 = *x;
     let nxt2 = *(x + 1);
-    list_max(nxt2, r);
-    let hi12 = *r;
-    *r = hi12 <= v2 ? v2 : hi12;
+    sll_max(nxt2, ret);
+    let hi12 = *ret;
+    *ret = hi12 <= v2 ? v2 : hi12;
   }
 }

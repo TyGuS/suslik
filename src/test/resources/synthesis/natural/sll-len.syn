@@ -2,19 +2,19 @@ singly-linked list: length
 
 #####
 
-{0 <= n ; r :-> a ** sll(x, n, lo, hi) }
-void sll_len (loc x, loc r)
-{true ; r :-> n ** sll(x, n, lo, hi) }
+{0 <= n ; ret :-> a ** sll(x, n, lo, hi) }
+void sll_len (loc x, loc ret)
+{true ; ret :-> n ** sll(x, n, lo, hi) }
 
 #####
 
-void sll_len (loc h, loc r) {
+void sll_len (loc x, loc ret) {
   if (x == 0) {
-    *r = 0;
+    *ret = 0;
   } else {
     let nxt2 = *(x + 1);
-    list_len(nxt2, r);
-    let len12 = *r;
-    *r = 1 + len12;
+    sll_len(nxt2, ret);
+    let len12 = *ret;
+    *ret = 1 + len12;
   }
 }
