@@ -32,9 +32,4 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisTestUtil
     runAllTestsFromDir("copy")
   }
 
-  describe("Benchmarks from Natural Synthesis paper") {
-    runAllTestsFromDir("natural")
-  }
-
-
 }

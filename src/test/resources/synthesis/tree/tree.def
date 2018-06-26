@@ -8,6 +8,12 @@ predicate tree_elem(x, e) {
 |  not (x == 0)  => {[x, 3] ** x :-> e ** (x + 1) :-> l ** (x + 2) :-> r ** tree_elem(l, e) ** tree_elem(r, e)}
 }
 
+predicate treeN(x, n) {
+|  x == 0        => { n == 0 ; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 ;
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
+}
+
 predicate lseg(x, y) {
 |  x == y        => {emp}
 |  not (x == y)  => {[x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, y)}

@@ -2,9 +2,9 @@ should be able to synthesize list min
 
 #####
 
-{true ; r :-> blank ** list_bounds(x, lo, hi) }
+{true ; r :-> a ** sll(x, n, lo, hi) }
 void list_max(loc x, loc r)
-{true ; r :-> hi ** list_bounds(x, lo, hi) }
+{true ; r :-> hi ** sll(x, n, lo, hi) }
 
 #####
 
