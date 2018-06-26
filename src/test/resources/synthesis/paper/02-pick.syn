@@ -1,0 +1,7 @@
+should be able to instantiate an existential
+
+###
+{ x :-> 239 ** y :-> 30 }
+void pick(loc x, loc y)
+{ x :-> e ** y :-> e }
+###
