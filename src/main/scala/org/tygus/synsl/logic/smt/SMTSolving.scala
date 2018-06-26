@@ -23,8 +23,8 @@ object SMTSolving extends Core
   with ArrayExBool
   with ArrayExOperators {
 
-  val defaultSolver = "CVC4"
-  // val defaultSolver = "Z3"
+//  val defaultSolver = "CVC4"
+  val defaultSolver = "Z3"
 
   implicit private var solverObject: SMTSolver = null
 
@@ -54,11 +54,19 @@ object SMTSolving extends Core
   def emptySetTerm: Term = QIdTerm(emptySetSymbol)
 
   // Commands to be executed before solving starts
-  def prelude = List(
-    "(set-logic ALL_SUPPORTED)",
-    "(define-sort SetInt () (Set Int))",
-    "(define-fun empty () SetInt (as emptyset (Set Int)))"
-  )
+  def prelude = if (defaultSolver == "CVC4") {
+    List(
+      "(set-logic ALL_SUPPORTED)",
+      "(define-sort SetInt () (Set Int))",
+      "(define-fun empty () SetInt (as emptyset (Set Int)))")
+  } else if (defaultSolver == "Z3") {
+    List(
+      "(define-sort SetInt () (Array Int Bool))",
+      "(define-fun empty () SetInt ((as const SetInt) false))",
+      "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
+      "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))",
+      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))")
+  } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean = {
     push(1)
@@ -71,6 +79,9 @@ object SMTSolving extends Core
 
   case class SMTUnsupportedExpr(e: Expr)
     extends Exception(s"Cannot convert expression ${e.pp} to an equivalent SMT representation.")
+
+  case class SolverUnsupportedExpr(solver: String)
+    extends Exception(s"Unsupported solver: $solver.")
 
   private def convertFormula(phi: PFormula): SMTBoolTerm = convertBoolExpr(phi.toExpr)
 
@@ -106,8 +117,15 @@ object SMTSolving extends Core
       setTerm
     } else {
       val eTerms: List[SMTIntTerm] = elems.map(convertIntExpr)
-      new TypedTerm[SetTerm, Term](setTerm.typeDefs ++ eTerms.flatMap(_.typeDefs).toSet,
-        QIdAndTermsTerm(setInsertSymbol, (eTerms :+ setTerm).map(_.termDef)))
+      if (defaultSolver == "CVC4") {
+        new TypedTerm[SetTerm, Term](setTerm.typeDefs ++ eTerms.flatMap(_.typeDefs).toSet,
+          QIdAndTermsTerm(setInsertSymbol, (eTerms :+ setTerm).map(_.termDef)))
+      } else if (defaultSolver == "Z3") {
+        def makeInsertOne(setTerm: SMTSetTerm, eTerm: SMTIntTerm): SMTSetTerm =
+          new TypedTerm[SetTerm, Term](setTerm.typeDefs ++ eTerm.typeDefs,
+            QIdAndTermsTerm(setInsertSymbol, List(eTerm.termDef, setTerm.termDef)))
+        eTerms.foldLeft(setTerm)(makeInsertOne)
+      } else throw SolverUnsupportedExpr(defaultSolver)
     }
   }
 
