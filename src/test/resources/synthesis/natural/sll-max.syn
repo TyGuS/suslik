@@ -1,14 +1,14 @@
-should be able to synthesize list min
+singly-linked list: max
 
 #####
 
 {true ; r :-> a ** sll(x, n, lo, hi) }
-void list_max(loc x, loc r)
+void sll_max (loc x, loc r)
 {true ; r :-> hi ** sll(x, n, lo, hi) }
 
 #####
 
-void list_max (loc x, loc r) {
+void sll_max (loc x, loc r) {
   if (x == 0) {
     *r = 0;
   } else {

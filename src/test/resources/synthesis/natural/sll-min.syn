@@ -1,14 +1,14 @@
-should be able to synthesize list min
+singly-linked list: min
 
 #####
 
 {true ; r :-> a ** sll(x, n, lo, hi) }
-void list_min(loc x, loc r)
+void sll_min(loc x, loc r)
 {true ; r :-> lo ** sll(x, n, lo, hi) }
 
 #####
 
-void list_min (loc x, loc r) {
+void sll_min (loc x, loc r) {
   if (x == 0) {
     *r = 7;
   } else {

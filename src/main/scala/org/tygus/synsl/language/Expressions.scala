@@ -13,10 +13,12 @@ object Expressions {
 
   sealed abstract class BinOp extends PrettyPrinting {
     def level: Int
+    def associative: Boolean = false
   }
 
   object OpPlus extends BinOp {
     def level: Int = 4
+    override def associative: Boolean = true
     override def pp: String = "+"
   }
   object OpMinus extends BinOp {
@@ -37,14 +39,17 @@ object Expressions {
   }
   object OpAnd extends BinOp {
     def level: Int = 2
+    override def associative: Boolean = true
     override def pp: String = "/\\"
   }
   object OpOr extends BinOp {
     def level: Int = 2
+    override def associative: Boolean = true
     override def pp: String = "\\/"
   }
   object OpUnion extends BinOp {
     def level: Int = 4
+    override def associative: Boolean = true
     override def pp: String = "++"
   }
   object OpIn extends BinOp {
@@ -91,10 +96,13 @@ object Expressions {
     override def pp: String
 
     def level: Int = 6
+    def associative: Boolean = false
 
     def printAtLevel(lvl: Int): String = {
       val s = pp
-      if (lvl <= this.level) s else s"($s)"
+      if (lvl < this.level) s
+      else if (lvl == this.level && associative) s
+      else s"($s)"
     }
   }
 
@@ -137,6 +145,7 @@ object Expressions {
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
+    override def associative: Boolean = op.associative
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
 
   }
@@ -154,7 +163,8 @@ object Expressions {
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
-    override def pp: String = s"${cond.printAtLevel(1)} ? ${left.printAtLevel(1)} : ${right.printAtLevel(1)}"
+    override def level: Int = 1
+    override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
 
   }

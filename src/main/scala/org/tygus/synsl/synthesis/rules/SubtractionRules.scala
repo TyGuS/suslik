@@ -35,16 +35,13 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      if (pre.sigma.isEmp &&
-        post.sigma.isEmp &&
-        goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
-        {
-          //            SMTSolving.implies(pre.phi, post.phi) ||
-          //            SMTSolving.valid(post.phi) ||
-          SMTSolving.valid(pre.phi.implies(post.phi))
-        })
-        List(Subderivation(Nil, _ => Skip))
-      else Nil
+      if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
+        goal.existentials.isEmpty) {             // no existentials, otherwise should be solved by pure synthesis
+        if (SMTSolving.valid(pre.phi.implies(post.phi)))
+          List(Subderivation(Nil, _ => Skip)) // pre implies post: we are done
+        else
+          List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+      } else Nil
     }
   }
 

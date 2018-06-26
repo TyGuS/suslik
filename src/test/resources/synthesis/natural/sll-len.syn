@@ -1,14 +1,14 @@
-should be able to synthesize list length
+singly-linked list: length
 
 #####
 
 {0 <= n ; r :-> a ** sll(x, n, lo, hi) }
-void list_len(loc x, loc r)
+void sll_len (loc x, loc r)
 {true ; r :-> n ** sll(x, n, lo, hi) }
 
 #####
 
-void list_len (loc x, loc r) {
+void sll_len (loc h, loc r) {
   if (x == 0) {
     *r = 0;
   } else {
