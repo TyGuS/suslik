@@ -1,13 +1,12 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.FunDecl
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisRule.{refreshVars, saveApplication}
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -141,6 +140,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sub <- {
           SpatialUnification.unify(target, source)
         }
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
       } yield {
         val callGoal = mkCallGoal(f, sub, callSubPre, goal)
         val args = f.params.map { case (_, x) => x.subst(sub) }
@@ -206,6 +206,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
       } yield {
         val callGoal = ApplyHypothesisRule.mkCallGoal(f, actualSub, callSubPre, goal)
         val writeGoals = generateWriteGoals(actualSub, relaxedSub, f, goal)
