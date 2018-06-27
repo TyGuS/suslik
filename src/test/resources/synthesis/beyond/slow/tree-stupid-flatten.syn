@@ -1,9 +1,9 @@
 should be able to flatten a tree (this is actually just tree-free again)
 ###
 
-{true; tree(x)}
+{true; tree0(x)}
   void flatten_tree(loc x)
-{true ; lseg(x, x) }
+{true ; lsegN(x, y, len) }
 
 ###
 
@@ -12,8 +12,8 @@ void flatten_tree (loc x) {
   } else {
     let l2 = *(x + 1);
     let r2 = *(x + 2);
-    free(x);
-    flatten_tree(r2);
     flatten_tree(l2);
+    flatten_tree(r2);
+    free(x);
   }
 }
