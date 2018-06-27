@@ -113,6 +113,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
+        // TODO [sets]: Can we enable this
         // case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, simplify(p1)) match {
@@ -152,15 +153,17 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
+        // TODO [sets]: Can we enable this?
+        // case BinaryExpr(OpSetEq, v1@Var(_), SetLiteral(_)) => isExsistVar(v1)
         case _ => false
       }, simplify(p2)) match {
-        case Some((BinaryExpr(OpEq, l, r), rest2)) =>
+        case Some((BinaryExpr(_, l, r), rest2)) =>
           val (x, e) = if (isExsistVar(l)) {
             (l.asInstanceOf[Var], r)
           } else {
             (r.asInstanceOf[Var], l)
           }
-          val _p2 = mkConjunction(rest2).subst(x, e)
+          val _p2 = simplify(mkConjunction(rest2).subst(x, e))
           val _s2 = s2.subst(x, e)
           val newGoal = goal.copy(post = Assertion(_p2, _s2))
           List(Subderivation(List((newGoal, env)), pureKont(toString)))
