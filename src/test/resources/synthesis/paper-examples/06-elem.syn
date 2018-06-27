@@ -6,10 +6,10 @@ Example (6) from the paper (elem)
 
 void elem (loc x, int v)
 
-{ S1 ++ {v1} =i S; x :-> v1}
+{ S1 ++ {v1} =i S; x :-> v1 + 1}
 
 #####
 
 void elem (loc x, int v) {
-  *x = v;
+  *x = v + 1;
 }
