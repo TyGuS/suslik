@@ -1,0 +1,22 @@
+Example (??) from the paper (listmorph)
+
+###
+
+{true ; lseg(x, 0, S)}
+void listmorph(loc x)
+{true ; lseg2(y, 0, S) }
+
+#####
+
+void listmorph (loc x) {
+  if (x == 0) {
+  } else {
+    let v2 = *x;
+    let nxt2 = *(x + 1);
+    let y2 = malloc(3);
+    free(x);
+    *(y2 + 2) = nxt2;
+    *(y2 + 1) = v2;
+    *y2 = v2;
+  }
+}

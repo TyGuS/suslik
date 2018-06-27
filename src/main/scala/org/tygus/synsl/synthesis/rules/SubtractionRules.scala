@@ -1,6 +1,6 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.Expressions.{IntConst, Var}
+import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
@@ -112,7 +112,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val alternatives = for {
         t <- pre.sigma.chunks
         s <- post.sigma.chunks
-        sub <- tryUnify(t, s, goal.universals ++ goal.formals, false)
+        sub <- tryUnify(t, s, goal.universals ++ goal.formals)
         newPreSigma = pre.sigma - t
         newPostSigma = (post.sigma - s).subst(sub)
         if sideCond(newPreSigma, newPostSigma, t)

@@ -47,9 +47,8 @@ object PureUnification extends UnificationBase {
 
 
   private def unifyAsSetExpr(s: Expr, t: Expr, nonFreeInSource: Set[Var]): Seq[Subst] = (s, t) match {
-    case (x@Var(_), e) => {
+    case (x@Var(_), e) =>
       genSubst(e, x, nonFreeInSource).toList
-    }
     case (BinaryExpr(OpUnion, ls, rs), BinaryExpr(OpUnion, lt, rt)) =>
       val m1 = unifyPairs(ls, rs, lt, rt, nonFreeInSource)
       val m2 = unifyPairs(ls, rs, rt, lt, nonFreeInSource)

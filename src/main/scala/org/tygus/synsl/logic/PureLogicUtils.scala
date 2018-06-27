@@ -162,12 +162,16 @@ trait PureLogicUtils {
     None
   }
 
+  def isEquiv(e1: Expr, e2: Expr) : Boolean = (e1, e2) match {
+    case _ => e1 == e2
+  }
+
   /**
     * Check if two formulas are equivalent
     */
   def isEquiv(p1: PFormula, p2: PFormula): Boolean = (p1, p2) match {
-    case (PEq(e1, e2), PEq(e3, e4)) => e1 == e3 && e2 == e4 || e1 == e4 && e2 == e3
-    case (SEq(e1, e2), SEq(e3, e4)) => e1 == e3 && e2 == e4 || e1 == e4 && e2 == e3
+    case (PEq(e1, e2), PEq(e3, e4)) => isEquiv(e1, e3) && isEquiv(e2, e4) || isEquiv(e1, e4) && isEquiv(e2, e3)
+    case (SEq(e1, e2), SEq(e3, e4)) => isEquiv(e1, e3) && isEquiv(e2, e4) || isEquiv(e1, e4) && isEquiv(e2, e3)
     case (PNeg(z1), PNeg(z2)) => isEquiv(z1, z2)
     case _ => p1 == p2
   }

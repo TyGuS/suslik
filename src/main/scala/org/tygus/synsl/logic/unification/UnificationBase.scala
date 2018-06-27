@@ -74,7 +74,10 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       val iter = chunks.iterator
       while (iter.hasNext) {
         val candidate = iter.next()
-        for (sbst <- tryUnify(h, candidate, takenVars) if checkSubstWF(sbst)) {
+        for {
+          sbst <- tryUnify(h, candidate, takenVars)
+          if checkSubstWF(sbst)
+        } {
           val remainingAtomsAdapted = chunks.filter(_ != candidate).map(_.subst(sbst))
           return Some(sbst, remainingAtomsAdapted)
         }
