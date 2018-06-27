@@ -17,8 +17,8 @@ void list_copy (loc r, loc x) {
     list_copy(r, nxt2);
     let y12 = *r;
     let y2 = malloc(2);
-    *(y2 + 1) = y12;
     *y2 = v2;
+    *(y2 + 1) = y12;
     *r = y2;
   }
 }

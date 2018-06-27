@@ -29,7 +29,7 @@ object SMTSolving extends Core
   implicit private var solverObject: SMTSolver = null
 
   {
-    disableLogging()
+    // disableLogging()
 
     // create solver and assert axioms
     // TODO: destroy solver when we're done

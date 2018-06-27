@@ -27,7 +27,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
   */
 
-  object EmpRule extends SynthesisRule {
+  object EmpRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "[Sub: emp]"
 
@@ -35,13 +35,20 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
-        goal.existentials.isEmpty) {             // no existentials, otherwise should be solved by pure synthesis
-        if (SMTSolving.valid(pre.phi ==> post.phi))
-          List(Subderivation(Nil, _ => Skip)) // pre implies post: we are done
-        else
-          List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
-      } else Nil
+      if (pre.sigma.isEmp && post.sigma.isEmp) { // heaps are empty
+        val (eConjuncts, neConjuncts) = conjuncts(post.phi).partition(p => p.vars.exists(goal.isExistential))
+        if (eConjuncts.isEmpty) { // no existentials
+          if (SMTSolving.valid(pre.phi ==> post.phi))
+            List(Subderivation(Nil, _ => Skip)) // pre implies post: we are done
+          else
+            List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+        } else { // has existentials: check if the rest of the post is already invalid
+          if (SMTSolving.valid(pre.phi ==> mkConjunction(neConjuncts)))
+            Nil // valid so far, nothing to say
+          else
+            List(Subderivation(Nil, _ => Magic)) // pre doesn't imply even a weaker post: only magic can save us
+        }
+      } else Nil // heaps non-empty
     }
   }
 
@@ -141,22 +148,16 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: hypothesis-unify]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val pre = goal.pre
-      val post = goal.post
-      val params = goal.gamma.map(_._2).toSet
-      PureUnification.unify(
-        UnificationGoal(pre, params), UnificationGoal(post, params), needRefreshing = false) match {
-        case None => Nil
-        case Some(sbst) =>
-          val postSubst = post.subst(sbst)
-          removeEquivalent(pre.phi, postSubst.phi) match {
-            case Some(cs) =>
-              val newPost = Assertion(cs, postSubst.sigma)
-              val newGoal = goal.copy(post = newPost)
-              List(Subderivation(List((newGoal, env)), pureKont(toString)))
-            case None => Nil
-          }
-      }
+      // get post conjuncts with existentials
+      val postConjuncts = conjuncts(goal.post.phi).filter(p => p.vars.exists(goal.isExistential))
+      val preConjuncts = conjuncts(goal.pre.phi)
+
+      for {
+        s <- postConjuncts
+        t <- preConjuncts
+        sigma <- PureUnification.tryUnify(t, s, goal.existentials)
+        newGoal = goal.copy(post = goal.post.subst(sigma))
+      } yield Subderivation(List((newGoal, env)), pureKont(toString))
     }
   }
 
@@ -171,36 +172,18 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Sub: pick]"
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
-      val pre = goal.pre
-      val post = goal.post
 
-      // Heaplet RHS has existentials
-      def hasExistential: Heaplet => Boolean = {
-        case PointsTo(_, _, e) => e.vars.exists(v => goal.isExistential(v))
-        case _ => false
-      }
-
-      // When do two heaplets match
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && hasExistential(hr)
-
-      findMatchingHeaplets(_.isInstanceOf[PointsTo], isMatch, goal.pre.sigma, goal.post.sigma) match {
-        case None => Nil
-        case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
-          val cs = conjuncts(post.phi)
-          if (cs.contains(e1 |=| e2) || cs.contains(e2 |=| e1))
-            Nil
-          else {
-            val newPre = Assertion(pre.phi, goal.pre.sigma)
-            val newPost = Assertion(mkConjunction((e1 |=| e2) :: cs), goal.post.sigma)
-            val newGoal = goal.copy(newPre, newPost)
-            List(Subderivation(List((newGoal, env)), pureKont(toString)))
-          }
-        case Some((hl, hr)) =>
-          ruleAssert(assertion = false, s"Pick rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
-          Nil
-      }
+      if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
+        // This is a rule of last resort so only apply when heaps are empty
+        for {
+          ex <- goal.existentials.toList
+          v <- goal.universals.toList
+          // TODO: make type directed
+          sigma = Map(ex -> v)
+          newGoal = goal.copy(post = goal.post.subst(sigma))
+        } yield Subderivation(List((newGoal, env)), pureKont(toString))
+      } else Nil
     }
-
   }
 
 }

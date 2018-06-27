@@ -13,22 +13,22 @@ object Expressions {
 
   sealed abstract class BinOp extends PrettyPrinting {
     def level: Int
-    def associative: Boolean = false
   }
 
   sealed abstract class RelOp extends BinOp
   sealed abstract class LogicOp extends BinOp
+  trait SymmetricOp
+  trait AssociativeOp
 
-  object OpPlus extends BinOp {
+  object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
-    override def associative: Boolean = true
     override def pp: String = "+"
   }
   object OpMinus extends BinOp {
     def level: Int = 4
     override def pp: String = "-"
   }
-  object OpEq extends RelOp {
+  object OpEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=="
   }
@@ -40,26 +40,23 @@ object Expressions {
     def level: Int = 3
     override def pp: String = "<"
   }
-  object OpAnd extends LogicOp {
+  object OpAnd extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
-    override def associative: Boolean = true
     override def pp: String = "/\\"
   }
-  object OpOr extends LogicOp {
+  object OpOr extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
-    override def associative: Boolean = true
     override def pp: String = "\\/"
   }
-  object OpUnion extends BinOp {
+  object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
-    override def associative: Boolean = true
     override def pp: String = "++"
   }
   object OpIn extends RelOp {
     def level: Int = 3
     override def pp: String = "in"
   }
-  object OpSetEq extends RelOp {
+  object OpSetEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=i"
   }
@@ -159,7 +156,7 @@ object Expressions {
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
-    override def associative: Boolean = op.associative
+    override def associative: Boolean = op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
 
   }

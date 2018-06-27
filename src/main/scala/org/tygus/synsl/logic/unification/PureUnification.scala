@@ -1,6 +1,7 @@
 package org.tygus.synsl.logic.unification
 
 import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.logic.PureLogicUtils
 
 /**
   * Unification based on pure parts
@@ -8,59 +9,36 @@ import org.tygus.synsl.language.Expressions._
   * @author Ilya Sergey
   */
 
-object PureUnification extends UnificationBase {
-  type UAtom = PFormula
+object PureUnification extends PureLogicUtils {
 
-  val needRefreshing: Boolean = false
-  val precise: Boolean = false
-
-  private def isSetEq(e: Expr): Boolean = e match {
-    case BinaryExpr(OpSetEq, _, _) => true
-    case _ => false
-  }
-
-  protected def extractChunks(goal: UnificationGoal): List[PFormula] = {
-    conjuncts(goal.formula.phi).distinct.filter(isSetEq)
-  }
-
-  protected def checkShapesMatch(cs1: List[PFormula], cs2: List[PFormula]): Boolean = {
-    val (seqs1, seqs2) = (cs1.filter(isSetEq), cs2.filter(isSetEq))
-    !(seqs1.isEmpty || seqs2.isEmpty)
-  }
-
-  def tryUnify(target: PFormula, source: PFormula, nonFreeInSource: Set[Var]): Seq[Subst] = {
-    assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
+  def tryUnify(target: Expr, source: Expr, freeVars: Set[Var]): Seq[Subst] = {
+    // assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (source, target) match {
-      case (BinaryExpr(OpSetEq, ls, rs), BinaryExpr(OpSetEq, lt, rt)) =>
-        val m1 = unifyPairs(ls, rs, lt, rt, nonFreeInSource)
-        val m2 = unifyPairs(ls, rs, rt, lt, nonFreeInSource)
+      case (x@Var(_), e) if freeVars.contains(x) => {
+        List(Map(x -> e))
+      }
+      case (UnaryExpr(op1, s), UnaryExpr(op2, t))
+        if op1 == op2 =>
+        tryUnify(t, s, freeVars)
+      case (BinaryExpr(op1, ls, rs), BinaryExpr(op2, lt, rt))
+        if op1 == op2 && op1.isInstanceOf[SymmetricOp] =>
+        val m1 = unifyPairs(lt, rt, ls, rs, freeVars)
+        val m2 = unifyPairs(rt, lt, ls, rs, freeVars)
         m1 ++ m2
-      case _ => Nil
+      case (BinaryExpr(op1, ls, rs), BinaryExpr(op2, lt, rt)) if op1 == op2 =>
+        unifyPairs(lt, rt, ls, rs, freeVars)
+      // TODO: allow permutations
+      case (SetLiteral(Nil), SetLiteral(Nil)) => List(Map.empty)
+      case (SetLiteral(es :: ess), SetLiteral(et :: ets)) =>
+        unifyPairs( et, SetLiteral(ets), es, SetLiteral(ess), freeVars)
+      case _ => if (source == target) List(Map.empty) else Nil
     }
   }
 
   
-  private def unifyPairs(ls: Expr, rs: Expr, lt: Expr, rt: Expr, nonFreeInSource: Set[Var]): Seq[Subst] =
+  private def unifyPairs(lt: Expr, rt: Expr, ls: Expr, rs: Expr, freeVars: Set[Var]): Seq[Subst] =
     for {
-      m1 <- unifyAsSetExpr(ls, lt, nonFreeInSource)
-      m2 <- unifyAsSetExpr(rs, rt, nonFreeInSource)
-      if agreeOnSameKeys(m1, m2)
+      m1 <- tryUnify(lt, ls, freeVars)
+      m2 <- tryUnify(rt.subst(m1), rs.subst(m1), freeVars)
     } yield m1 ++ m2
-
-
-  private def unifyAsSetExpr(s: Expr, t: Expr, nonFreeInSource: Set[Var]): Seq[Subst] = (s, t) match {
-    case (x@Var(_), e) => {
-      genSubst(e, x, nonFreeInSource).toList
-    }
-    case (BinaryExpr(OpUnion, ls, rs), BinaryExpr(OpUnion, lt, rt)) =>
-      val m1 = unifyPairs(ls, rs, lt, rt, nonFreeInSource)
-      val m2 = unifyPairs(ls, rs, rt, lt, nonFreeInSource)
-      m1 ++ m2
-    case (SetLiteral(Nil), SetLiteral(Nil)) => List(Map.empty)
-    case (SetLiteral(es :: Nil), SetLiteral(et :: Nil)) =>
-      unifyAsSetExpr(es, et, nonFreeInSource)
-      // TODO: these are not sets, and also take care of non-singleton cases
-    case _ => List(Map.empty)
-  }
-
 }

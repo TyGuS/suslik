@@ -70,12 +70,12 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       * Tries to find amongst chunks a heaplet h', which can be unified with the heaplet h.
       * If successful, returns a substitution and a list of remaining heaplets
       */
-    def findChunkAndUnify(h: UAtom, chunks: List[UAtom]): Option[(Subst, List[UAtom])] = {
-      val iter = chunks.iterator
+    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Option[(Subst, List[UAtom])] = {
+      val iter = sourceChunks.iterator
       while (iter.hasNext) {
         val candidate = iter.next()
-        for (sbst <- tryUnify(h, candidate, takenVars) if checkSubstWF(sbst)) {
-          val remainingAtomsAdapted = chunks.filter(_ != candidate).map(_.subst(sbst))
+        for (sbst <- tryUnify(tc, candidate, takenVars) if checkSubstWF(sbst)) {
+          val remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
           return Some(sbst, remainingAtomsAdapted)
         }
       }

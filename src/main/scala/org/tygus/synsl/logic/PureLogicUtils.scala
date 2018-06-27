@@ -138,32 +138,11 @@ trait PureLogicUtils {
     None
   }
 
-  /**
-    * Check if two formulas are equivalent
-    */
-  def isEquiv(p1: PFormula, p2: PFormula): Boolean = (p1, p2) match {
-    case (BinaryExpr(OpEq, e1, e2), BinaryExpr(OpEq, e3, e4)) => e1 == e3 && e2 == e4 || e1 == e4 && e2 == e3
-    case (BinaryExpr(OpSetEq, e1, e2), BinaryExpr(OpSetEq, e3, e4)) => e1 == e3 && e2 == e4 || e1 == e4 && e2 == e3
-    case (UnaryExpr(OpNot, z1), UnaryExpr(OpNot, z2)) => isEquiv(z1, z2)
-    case _ => p1 == p2
-  }
-
-  /**
-    * Removes the conjuncts from `sparsen` that have equivalent ones in base
-    */
-  def removeEquivalent(base: PFormula, sparsen: PFormula): Option[PFormula] = {
-    val scs = conjuncts(sparsen)
-    val bcs = conjuncts(base)
-    val res = scs.filterNot(p => bcs.exists(c => isEquiv(p, c)))
-    if (res.size < scs.size) Some(mkConjunction(res)) else None
-  }
-
   def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[PFormula])] =
     Some(conjuncts(phi)).flatMap(cs => cs.find(p) match {
       case Some(c) => Some((c, cs.filter(e => e != c)))
       case None => None
     })
-
 
   /**
     * Assemble a formula from a list of conjunctions
@@ -189,7 +168,7 @@ trait PureLogicUtils {
 
     go(vs, bound, Map.empty)
   }
-  
+
 }
 
 case class PureLogicException(msg: String) extends SynSLException("pure", msg)
