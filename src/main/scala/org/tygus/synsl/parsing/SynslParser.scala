@@ -97,11 +97,6 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
       case name ~ params ~ clauses => InductivePredicate(name, params, clauses)
     }
 
-  def spec: Parser[Goal] = assertion ~ assertion ~ repsep(formal, ",") ^^ {
-    case pre ~ post ~ formals => Goal(pre, post, formals, "foo",
-      Derivation(pre.sigma.chunks, post.sigma.chunks))
-  }
-
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
     case params ~ formula => UnificationGoal(formula, params.toSet)
   }
@@ -117,8 +112,6 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
     case Success(_, in) if !in.atEnd => Failure("Not fully parsed", in)
     case s => s
   }
-
-  def parseSpec(input: String): ParseResult[Goal] = parse(spec)(input)
 
   def parseUnificationGoal(input: String): ParseResult[UnificationGoal] = parse(uGoal)(input)
 

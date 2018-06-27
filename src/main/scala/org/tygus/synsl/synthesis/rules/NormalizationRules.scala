@@ -122,8 +122,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val _s2 = s2.subst(x, l)
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
-            Assertion(_p2, _s2),
-            goal.gamma.filter { case (t, w) => w != x })
+            Assertion(_p2, _s2))
           List(Subderivation(List((newGoal, env)), pureKont(toString)))
         case _ => Nil
       }

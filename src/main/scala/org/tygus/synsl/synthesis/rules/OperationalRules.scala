@@ -104,7 +104,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
           for {
           // Try variables from the context
-            (_, l) <- goal.gamma.toList
+            l <- goal.gamma.programVars.toList
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
             subGoal = goal.copy(newPre, post.subst(m, l))
             kont = (stmts: Seq[Statement]) => {
@@ -192,7 +192,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
           val subGoal = goal.copy(pre.subst(a, y),
             post = post.subst(a, y),
-            gamma = (tpy, y) :: gamma.toList)
+            gamma = gamma.addProgramVar(y,tpy))
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
@@ -254,7 +254,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val postFootprint = pts.map(p => deriv.postIndex.indexOf(p)).toSet + deriv.postIndex.indexOf(h)
           val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-          val subGoal = goal.copy(newPre, post.subst(x, y), (tpy, y) :: gamma.toList, newRuleApp = Some(ruleApp))
+          val subGoal = goal.copy(newPre, post.subst(x, y), gamma.addProgramVar(y, tpy), newRuleApp = Some(ruleApp))
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
             SeqComp(Malloc(y, tpy, sz), stmts.head)

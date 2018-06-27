@@ -95,7 +95,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
       val newPost = goal.post.bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
 
-      val fspec = FunSpec(fname, VoidType, goal.gamma, newPre, newPost)
+      val fspec = FunSpec(fname, VoidType, goal.gamma.toFormals, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
     }
 
@@ -137,7 +137,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.gamma.map(_._2).toSet)
+        target = UnificationGoal(callSubPre, goal.gamma.programVars.toSet)
         sub <- {
           SpatialUnification.unify(target, source)
         }
@@ -202,7 +202,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
 
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.gamma.map(_._2).toSet)
+        target = UnificationGoal(callSubPre, goal.gamma.programVars.toSet)
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)

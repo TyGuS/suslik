@@ -20,7 +20,7 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting
   * @param name  function name
   * @param rType function return type
   */
-case class FunSpec(name: Ident, rType: SynslType, params: Gamma,
+case class FunSpec(name: Ident, rType: SynslType, params: Formals,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
   override def pp: String = {
     s"${pre.pp}\n${rType.pp} " +

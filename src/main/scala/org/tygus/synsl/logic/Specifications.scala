@@ -117,8 +117,7 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
   extends PrettyPrinting with PureLogicUtils {
 
   override def pp: String =
-    s"${gamma.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")} |-\n" +
-      s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
+    s"${gamma.pp} |-\n" + s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
 
   def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
     Assertion(simplify(post.phi), post.sigma))
@@ -142,17 +141,10 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
 
   def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 
-  /**
-    * How many unfoldings can we tolerate
-    */
-  def closeCredit: Int = post.sigma.chunks.map {
-    case SApp(_, _, Some(i)) => i
-    case _ => 0
-  }.sum
+  // TODO: replace with just gamma.vars
+  def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ gamma.vars
 
-  def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ gamma.map(_._2)
-
-  def formals: Set[Var] = gamma.map(_._2).toSet
+  def formals: Set[Var] = gamma.programVars.toSet
 
   def ghosts: Set[Var] = pre.vars ++ post.vars -- formals
 
@@ -168,14 +160,14 @@ case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, de
   def isGhost(x: Var): Boolean = ghosts.contains(x)
 
   // Determine whether x is in the context
-  def isConcrete(x: Var): Boolean = gamma.map(_._2).contains(x)
+  def isConcrete(x: Var): Boolean = formals.contains(x)
 
   def isExistential(x: Var): Boolean = existentials.contains(x)
 
   def getType(x: Var): SynslType = {
     // TODO: all ghosts are void for now; we treat void as the top type
-    gamma.find(_._2 == x) match {
-      case Some((t, _)) => t
+    gamma.types.get(x) match {
+      case Some(t) => t
       case None => VoidType
     }
     /*

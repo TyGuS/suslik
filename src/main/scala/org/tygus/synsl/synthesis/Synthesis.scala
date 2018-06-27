@@ -33,13 +33,13 @@ trait Synthesis extends SepLogicUtils {
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
   Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = Goal(pre, post, formals, name, Derivation(pre.sigma.chunks, post.sigma.chunks))
+    val goal = Goal(pre, post, new Gamma(formals), name, Derivation(pre.sigma.chunks, post.sigma.chunks))
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()
     synthesize(goal, env, startingDepth)(stats = stats, printFails = _printFails, rules = topLevelRules ++ everyDayRules) match {
       case Some(body) =>
-        val proc = Procedure(name, tp, goal.gamma, body)
+        val proc = Procedure(name, tp, formals, body)
         Some((proc, stats))
       case None =>
         printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $startingDepth.")
