@@ -82,6 +82,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
         newPreAdjusted = newPre.copy(phi = andClean(newPre.phi, ghostEqualities(tempGoal)))
         newGoal = tempGoal.copy(pre = newPreAdjusted)
+        if newGoal.existentials.subsetOf(goal.existentials)
       } yield {
         Subderivation(List((newGoal, env)), pureKont(toString))
       }
@@ -144,8 +145,9 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
       val params = goal.gamma.map(_._2).toSet
+      val commonVars = goal.vars -- goal.existentials
       PureUnification.unify(
-        UnificationGoal(pre, params), UnificationGoal(post, params), needRefreshing = false) match {
+        UnificationGoal(pre, params), UnificationGoal(post, params), commonVars, needRefreshing = false) match {
         case None => Nil
         case Some(sbst) =>
           val postSubst = post.subst(sbst)
