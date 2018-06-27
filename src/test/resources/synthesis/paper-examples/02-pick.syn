@@ -1,7 +1,11 @@
-should be able to instantiate an existential
+Example (2) from the paper (pick)
 
 ###
 { x :-> 239 ** y :-> 30 }
 void pick(loc x, loc y)
 { x :-> e ** y :-> e }
 ###
+
+void pick (loc x, loc y) {
+  *y = 239;
+}

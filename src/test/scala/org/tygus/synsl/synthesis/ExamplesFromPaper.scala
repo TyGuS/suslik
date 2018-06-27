@@ -7,7 +7,7 @@ import org.tygus.synsl.synthesis.instances.SimpleSynthesis
   * @author Ilya Sergey
   */
 
-class SynthesisWithTheories extends FunSpec with Matchers with SynthesisTestUtil {
+class ExamplesFromPaper extends FunSpec with Matchers with SynthesisTestUtil {
 
   val synthesis: Synthesis = new SimpleSynthesis
 
@@ -16,12 +16,8 @@ class SynthesisWithTheories extends FunSpec with Matchers with SynthesisTestUtil
       synthesizeFromSpec(testName, in, out)
     }
 
-  describe("SL-based synthesizer with theory of integers") {
-    runAllTestsFromDir("ints")
-  }
-
-  describe("SL-based synthesizer with theory of finite sets") {
-    runAllTestsFromDir("sets")
+  describe("SuSLik should be able synthesize") {
+    runAllTestsFromDir("paper-examples")
   }
 
 }

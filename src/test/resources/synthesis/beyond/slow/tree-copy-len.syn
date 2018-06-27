@@ -1,17 +1,16 @@
-should be able to synthesize a tree copy (with elements)
+should be able to synthesize a tree copy (with preserving length)
 
 #####
 
-{true ; r :-> 0 ** tree(x, S)}
+{true ; r :-> 0 ** treeN(x, n)}
 void tree_copy(loc x, loc r)
-{true ; r :-> y ** tree(x, S) ** tree(y, S) }
+{true ; r :-> y ** treeN(x, n) ** treeN(y, n) }
 
 #####
 
 void tree_copy (loc x, loc r) {
   if (x == 0) {
   } else {
-    let v2 = *x;
     let l2 = *(x + 1);
     let r12 = *(x + 2);
     tree_copy(l2, r);
@@ -22,7 +21,6 @@ void tree_copy (loc x, loc r) {
     let y3 = malloc(3);
     *(y3 + 2) = y22;
     *(y3 + 1) = y12;
-    *y3 = v2;
     *r = y3;
   }
 }

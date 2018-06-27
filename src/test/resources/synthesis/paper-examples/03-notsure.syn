@@ -1,5 +1,4 @@
-should be able to unify c with a
-(This is an example for the paper)
+Example (3) from the paper (notSure)
 
 ###
 {true ; x :-> a ** y :-> b ** a :-> 0}
