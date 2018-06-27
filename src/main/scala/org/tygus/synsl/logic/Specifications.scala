@@ -22,7 +22,7 @@ case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Asser
 
   // Collect arbitrary expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
-    phi.collectE(p) ++ sigma.collectE(p)
+    phi.collect(p) ++ sigma.collectE(p)
 
   def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 

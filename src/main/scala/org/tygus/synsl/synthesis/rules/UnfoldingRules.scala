@@ -1,7 +1,7 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.FunDecl
-import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
@@ -34,12 +34,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Unfold: induction]"
 
     private def kont(selectors: Seq[PFormula]): StmtProducer = stmts => {
-      val conds = selectors.map(_.toExpr)
       ruleAssert(selectors.length == stmts.length,
         s"Mismatch in sizes of selectors and sub-programs\n${selectors.length}: $selectors\n${stmts.length}: $stmts")
       ruleAssert(stmts.nonEmpty, s"Induction rule expected one or more subgoals got ${stmts.length}")
       if (stmts.length == 1) stmts.head else {
-        val cond_branches = conds.zip(stmts).reverse
+        val cond_branches = selectors.zip(stmts).reverse
         val ctail = cond_branches.tail
         val finalBranch = cond_branches.head._2
         ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
@@ -172,7 +171,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
        So, for the reasons of avoid sucking our galaxy into a block hole, we bump up the tags.
        */
         (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
-      val restPre = Assertion(goal.pre.phi.andClean(callPost.phi), SFormula(restPreChunks.toList))
+      val restPre = Assertion(andClean(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
       val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
       callGoal
     }
@@ -227,22 +226,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }).toSeq
     }
 
-    /**
-      * Make sure that recursive calls do not multiply like freaking rabbits.
-      */
-    private def willNotExplode(heaps: Seq[SFormula]): Boolean = {
-      val sapps = for {h <- heaps} yield h.apps
-      sapps.forall(seq => seq.size <= 1)
-    }
-
     private def generateWriteGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): List[Goal] = {
       val ptss = f.pre.sigma.ptss // raw points-to assertions
       for {
         p@PointsTo(x@Var(_), o, e) <- ptss
         if e.subst(relaxedSub) != e.subst(actualSub) // here is a discrepancy
       } yield {
-        val wPre = Assertion(PTrue, SFormula(List(PointsTo(x, o, e.subst(relaxedSub)))))
-        val wPost = Assertion(PTrue, SFormula(List(PointsTo(x, o, e.subst(actualSub)))))
+        val wPre = Assertion(pTrue, SFormula(List(PointsTo(x, o, e.subst(relaxedSub)))))
+        val wPost = Assertion(pTrue, SFormula(List(PointsTo(x, o, e.subst(actualSub)))))
         val stmt = Store(x, o, e.subst(actualSub))
         val wGoal = goal.copy(pre = wPre, post = wPost)
         wGoal

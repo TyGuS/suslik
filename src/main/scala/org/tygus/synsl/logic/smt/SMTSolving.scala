@@ -83,7 +83,7 @@ object SMTSolving extends Core
   case class SolverUnsupportedExpr(solver: String)
     extends Exception(s"Unsupported solver: $solver.")
 
-  private def convertFormula(phi: PFormula): SMTBoolTerm = convertBoolExpr(phi.toExpr)
+  private def convertFormula(phi: PFormula): SMTBoolTerm = convertBoolExpr(phi)
 
   private def convertSetExpr(e: Expr): SMTSetTerm = e match {
     case Var(name) => new VarTerm[ SetTerm ]( name, setSort )
@@ -205,7 +205,7 @@ object SMTSolving extends Core
 
   // Check if phi is valid; all vars are implicitly universally quantified
   def valid(phi: PFormula): Boolean = {
-    !sat(PNeg(phi))
+    !sat(phi.not)
   }
 
 }

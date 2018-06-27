@@ -154,8 +154,8 @@ object SpatialUnification extends UnificationBase {
     for {
       subHeapT <- findBlockRootedSubHeap(b, target)
       subHeapS <- findBlockRootedSubHeap(b, sourceSubst)
-      ugt = UnificationGoal(Assertion(PTrue, subHeapT), Set.empty)
-      ugs = UnificationGoal(Assertion(PTrue, subHeapS), Set.empty)
+      ugt = UnificationGoal(Assertion(pTrue, subHeapT), Set.empty)
+      ugs = UnificationGoal(Assertion(pTrue, subHeapS), Set.empty)
       sub1 <- {
         unify(ugt, ugs, boundInBoth = newBoundVars, needRefreshing = false)
       }

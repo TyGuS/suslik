@@ -16,6 +16,9 @@ object Expressions {
     def associative: Boolean = false
   }
 
+  sealed abstract class RelOp extends BinOp
+  sealed abstract class LogicOp extends BinOp
+
   object OpPlus extends BinOp {
     def level: Int = 4
     override def associative: Boolean = true
@@ -25,24 +28,24 @@ object Expressions {
     def level: Int = 4
     override def pp: String = "-"
   }
-  object OpEq extends BinOp {
+  object OpEq extends RelOp {
     def level: Int = 3
     override def pp: String = "=="
   }
-  object OpLeq extends BinOp {
+  object OpLeq extends RelOp {
     def level: Int = 3
     override def pp: String = "<="
   }
-  object OpLt extends BinOp {
+  object OpLt extends RelOp {
     def level: Int = 3
     override def pp: String = "<"
   }
-  object OpAnd extends BinOp {
+  object OpAnd extends LogicOp {
     def level: Int = 2
     override def associative: Boolean = true
     override def pp: String = "/\\"
   }
-  object OpOr extends BinOp {
+  object OpOr extends LogicOp {
     def level: Int = 2
     override def associative: Boolean = true
     override def pp: String = "\\/"
@@ -52,11 +55,11 @@ object Expressions {
     override def associative: Boolean = true
     override def pp: String = "++"
   }
-  object OpIn extends BinOp {
+  object OpIn extends RelOp {
     def level: Int = 3
     override def pp: String = "in"
   }
-  object OpSetEq extends BinOp {
+  object OpSetEq extends RelOp {
     def level: Int = 3
     override def pp: String = "=i"
   }
@@ -86,6 +89,7 @@ object Expressions {
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
+        case _ => acc
       }
 
       collector(Set.empty)(this)
@@ -104,7 +108,17 @@ object Expressions {
       else if (lvl == this.level && associative) s
       else s"($s)"
     }
+
+    // Convenience operators for building expressions
+    def |=| (other: Expr): Expr = BinaryExpr(OpEq, this, other)
+    def |/=| (other: Expr): Expr = (this |=| other).not
+    def not: Expr = UnaryExpr(OpNot, this)
+    def && (other: Expr): Expr = BinaryExpr(OpAnd, this, other)
+    def || (other: Expr): Expr = BinaryExpr(OpOr, this, other)
+    def ==> (other: Expr): Expr = this.not || other
   }
+
+  type PFormula = Expr
 
   // Program-level variable: program-level or ghost
   case class Var(name: String) extends Expr {
