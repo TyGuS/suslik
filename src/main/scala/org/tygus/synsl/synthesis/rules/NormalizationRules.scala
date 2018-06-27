@@ -144,7 +144,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       val s2 = goal.post.sigma
 
 
-      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.existentials.contains(e.asInstanceOf[Var])
+      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.isExistential(e.asInstanceOf[Var])
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
@@ -176,12 +176,6 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       val pre = goal.pre.phi
       val post = goal.post.phi
-
-      //      def hasInconsistentConjunct(p:PFormula): Boolean =
-      //        findConjunctAndRest({
-      //          case PNeg(PEq(x, y)) => x == y
-      //          case _ => false
-      //        }, simplify(p)).isDefined
 
       if (!SMTSolving.sat(pre))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
