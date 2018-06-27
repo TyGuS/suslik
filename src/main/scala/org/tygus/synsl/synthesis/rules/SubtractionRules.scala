@@ -1,6 +1,6 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.Expressions.Var
+import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.{Ident, Statements}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
@@ -35,16 +35,13 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      if (pre.sigma.isEmp &&
-        post.sigma.isEmp &&
-        goal.existentials.isEmpty && // No existentials, otherwise should be solved by pure synthesis
-        {
-          //            SMTSolving.implies(pre.phi, post.phi) ||
-          //            SMTSolving.valid(post.phi) ||
-          SMTSolving.valid(pre.phi.implies(post.phi))
-        })
-        List(Subderivation(Nil, _ => Skip))
-      else Nil
+      if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
+        goal.existentials.isEmpty) {             // no existentials, otherwise should be solved by pure synthesis
+        if (SMTSolving.valid(pre.phi ==> post.phi))
+          List(Subderivation(Nil, _ => Skip)) // pre implies post: we are done
+        else
+          List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+      } else Nil
     }
   }
 
@@ -64,7 +61,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
 
       def ghostEqualities(newGoal: Goal): PFormula = {
-        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield PEq(v, v)
+        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield v |=| v
         mkConjunction(conjuncts.toList)
       }
 
@@ -83,7 +80,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
         ruleApp = saveApplication((preFootprint, postFootprint), deriv)
         tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-        newPreAdjusted = newPre.copy(phi = newPre.phi.andClean(ghostEqualities(tempGoal)))
+        newPreAdjusted = newPre.copy(phi = andClean(newPre.phi, ghostEqualities(tempGoal)))
         newGoal = tempGoal.copy(pre = newPreAdjusted)
         if newGoal.existentials.subsetOf(goal.existentials)
       } yield {
@@ -192,11 +189,11 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
           val cs = conjuncts(post.phi)
-          if (cs.contains(PEq(e1, e2)) || cs.contains(PEq(e2, e1)))
+          if (cs.contains(e1 |=| e2) || cs.contains(e2 |=| e1))
             Nil
           else {
             val newPre = Assertion(pre.phi, goal.pre.sigma)
-            val newPost = Assertion(mkConjunction(PEq(e1, e2) :: cs), goal.post.sigma)
+            val newPost = Assertion(mkConjunction((e1 |=| e2) :: cs), goal.post.sigma)
             val newGoal = goal.copy(newPre, newPost)
             List(Subderivation(List((newGoal, env)), pureKont(toString)))
           }

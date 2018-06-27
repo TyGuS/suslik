@@ -1,8 +1,6 @@
 package org.tygus.synsl.logic.unification
 
 import org.tygus.synsl.language.Expressions._
-import org.tygus.synsl.logic.unification.PureUnification.unifyPairs
-import org.tygus.synsl.logic.{PFormula, SEq}
 
 /**
   * Unification based on pure parts
@@ -16,20 +14,24 @@ object PureUnification extends UnificationBase {
   val needRefreshing: Boolean = false
   val precise: Boolean = false
 
+  private def isSetEq(e: Expr): Boolean = e match {
+    case BinaryExpr(OpSetEq, _, _) => true
+    case _ => false
+  }
 
   protected def extractChunks(goal: UnificationGoal): List[PFormula] = {
-    conjuncts(goal.formula.phi).distinct.filter(_.isInstanceOf[SEq])
+    conjuncts(goal.formula.phi).distinct.filter(isSetEq)
   }
 
   protected def checkShapesMatch(cs1: List[PFormula], cs2: List[PFormula]): Boolean = {
-    val (seqs1, seqs2) = (cs1.filter(_.isInstanceOf[SEq]), cs2.filter(_.isInstanceOf[SEq]))
+    val (seqs1, seqs2) = (cs1.filter(isSetEq), cs2.filter(isSetEq))
     !(seqs1.isEmpty || seqs2.isEmpty)
   }
 
   def tryUnify(target: PFormula, source: PFormula, nonFreeInSource: Set[Var]): Seq[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (source, target) match {
-      case (SEq(ls, rs), SEq(lt, rt)) =>
+      case (BinaryExpr(OpSetEq, ls, rs), BinaryExpr(OpSetEq, lt, rt)) =>
         val m1 = unifyPairs(ls, rs, lt, rt, nonFreeInSource)
         val m2 = unifyPairs(ls, rs, rt, lt, nonFreeInSource)
         m1 ++ m2

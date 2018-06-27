@@ -1,6 +1,6 @@
 package org.tygus.synsl.synthesis.instances
 
-import org.tygus.synsl.logic.PTrue
+import org.tygus.synsl.language.Expressions.BoolConst
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis._
 import org.tygus.synsl.synthesis.rules.{OperationalRules, SubtractionRules, _}
@@ -16,7 +16,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   {
     // Warm-up the SMT solver on start-up to avoid future delays
-    assert(SMTSolving.valid(PTrue))
+    assert(SMTSolving.valid(BoolConst(true)))
   }
 
   val topLevelRules: List[SynthesisRule] = List(

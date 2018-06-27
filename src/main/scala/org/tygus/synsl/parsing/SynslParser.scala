@@ -64,16 +64,6 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
       case a ~ None => a
       case a ~ Some(l ~ r) => IfThenElse(a, l, r) }
 
-  // Formulas
-
-  def phi: Parser[PFormula] = {
-    for {
-      e <- expr
-      p = fromExpr(e)
-      if p.isDefined
-    }  yield p.head
-  }
-
   def identWithOffset: Parser[(Ident, Int)] = {
     val ov = ident ~ opt("+" ~> numericLit)
     ("(" ~> ov <~ ")" | ov) ^^ { case i ~ o =>
@@ -93,13 +83,13 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
           ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
       )
 
-  def assertion: Parser[Assertion] = "{" ~> (opt(phi <~ ";") ~ sigma) <~ "}" ^^ {
+  def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
     case Some(p) ~ s => Assertion(p, s)
-    case None ~ s => Assertion(PTrue, s)
+    case None ~ s => Assertion(pTrue, s)
   }
 
   def indClause: Parser[InductiveClause] =
-    phi ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(p, a) }
+    expr ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(p, a) }
 
   def indPredicate: Parser[InductivePredicate] =
     ("predicate" ~> ident) ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~

@@ -34,14 +34,14 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
         // All pointers
         val allPointers = (for (PointsTo(l, _, _) <- a.sigma.chunks) yield l).toSet
         allPointers.filter(
-          x => !cs.contains(PNeg(PEq(x, NilPtr))) && !cs.contains(PNeg(PEq(NilPtr, x)))
+          x => !cs.contains(x |/=| NilPtr) && !cs.contains(NilPtr |/=| x)
         )
       }
 
 
       def addToAssertion(a: Assertion, ptrs: Set[Expr]): Assertion = {
         val cs = conjuncts(a.phi)
-        val newPhi = mkConjunction(cs ++ ptrs.map { x => PNeg(PEq(x, NilPtr)) })
+        val newPhi = mkConjunction(cs ++ ptrs.map { x => x |/=| NilPtr })
         Assertion(newPhi, a.sigma)
       }
 
@@ -79,18 +79,18 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
-        map { s =>
-          val elems = s.toList
-          ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
-          (elems.head, elems.tail.head)
-        }.toList
+          map { s =>
+            val elems = s.toList
+            ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
+            (elems.head, elems.tail.head)
+          }.toList
       val newPairs = pairs.filter {
-        case (x, y) => !cs.contains(PNeg(PEq(x, y))) && !cs.contains(PNeg(PEq(y, x)))
+        case (x, y) => !cs.contains(x |/=| y) && !cs.contains(y |/=| x)
       }
       if (newPairs.isEmpty) return Nil
 
       // The implementation immediately adds _all_ inequalities
-      val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => PNeg(PEq(x, y)) })
+      val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => x |/=| y })
       val newGoal = goal.copy(Assertion(_p1, s1))
       List(Subderivation(List((newGoal, env)), pureKont(toString)))
     }
@@ -112,19 +112,23 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       val s2 = goal.post.sigma
 
       findConjunctAndRest({
-        case PEq(v1@Var(_), v2) => v1 != v2
+        case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
+        // case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, simplify(p1)) match {
-        case Some((PEq(x@Var(_), l), rest1)) =>
-          val _p1 = mkConjunction(rest1).subst(x, l)
+        case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
+          val _p1 = simplify(mkConjunction(rest1).subst(x, l))
           val _s1 = s1.subst(x, l)
-          val _p2 = p2.subst(x, l)
+          val _p2 = simplify(p2.subst(x, l))
           val _s2 = s2.subst(x, l)
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2),
             goal.gamma.filter { case (t, w) => w != x })
-          List(Subderivation(List((newGoal, env)), pureKont(toString)))
+          if (newGoal.existentials.subsetOf(goal.existentials)) {
+            List(Subderivation(List((newGoal, env)), pureKont(toString)))
+          }
+          else Nil
         case _ => Nil
       }
     }
@@ -147,10 +151,10 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.existentials.contains(e.asInstanceOf[Var])
 
       findConjunctAndRest({
-        case PEq(l, r) => isExsistVar(l) || isExsistVar(r)
+        case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false
       }, simplify(p2)) match {
-        case Some((PEq(l, r), rest2)) =>
+        case Some((BinaryExpr(OpEq, l, r), rest2)) =>
           val (x, e) = if (isExsistVar(l)) {
             (l.asInstanceOf[Var], r)
           } else {
@@ -185,7 +189,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       if (!SMTSolving.sat(pre))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
-      else if (!SMTSolving.sat(pre.andClean(post)))
+      else if (!SMTSolving.sat(andClean(pre, post)))
         List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
       else
         Nil

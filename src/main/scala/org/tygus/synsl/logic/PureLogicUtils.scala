@@ -43,90 +43,71 @@ trait PureLogicUtils {
   }
 
   /**
-    * Basic simlifier for logical formulae
+    * Expression simplifier
     */
-  def simplify(phi: PFormula): PFormula = phi match {
-    case p@(PTrue | PFalse) => p
-    case p@PLeq(left, right) => PLeq(simplifyExpr(left), simplifyExpr(right))
-    case p@PLtn(left, right) => PLtn(simplifyExpr(left), simplifyExpr(right))
-    case p@PEq(v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
-      if (n1.toString <= n2.toString) PEq(v1, v2) else PEq(v2, v1)
-    case p@PEq(e, v@Var(_)) if !e.isInstanceOf[Var] => PEq(v, simplifyExpr(e))
-    case p@PEq(left, right) => PEq(simplifyExpr(left), simplifyExpr(right))
+  def simplify(e: Expr): Expr = e match {
+    //  Truth table for and
+    case BinaryExpr(OpAnd, BoolConst(false), _) => pFalse
+    case BinaryExpr(OpAnd, _, BoolConst(false)) => pFalse
+    case BinaryExpr(OpAnd, BoolConst(true), right) => right
+    case BinaryExpr(OpAnd, left, BoolConst(true)) => left
 
-    //  Truth table for PAnd
-    case PAnd(PFalse, right) => PFalse
-    case PAnd(left, PFalse) => PFalse
-    case PAnd(PTrue, right) => right
-    case PAnd(left, PTrue) => left
-
-    //  Truth table for POr
-    case POr(PFalse, right) => right
-    case POr(left, PFalse) => left
-    case POr(PTrue, right) => PTrue
-    case POr(left, PTrue) => PTrue
-
-    //  The recursive cases
-    case PAnd(left, right) => PAnd(simplify(left), simplify(right))
-    case POr(left, right) => POr(simplify(left), simplify(right))
+    //  Truth table for or
+    case BinaryExpr(OpOr, BoolConst(true), _) => pTrue
+    case BinaryExpr(OpOr, _, BoolConst(true)) => pTrue
+    case BinaryExpr(OpOr, BoolConst(false), right) => right
+    case BinaryExpr(OpOr, left, BoolConst(false)) => left
 
     //  Classical logic stuff and de Morgan
-    case PNeg(PNeg(arg)) => simplify(arg)
-    case PNeg(PAnd(left, right)) => POr(simplify(PNeg(left)), simplify(PNeg(right)))
-    case PNeg(POr(left, right)) => PAnd(simplify(PNeg(left)), simplify(PNeg(right)))
-    case PNeg(PTrue) => PFalse
-    case PNeg(PFalse) => PTrue
-    case PNeg(arg) => PNeg(simplify(arg))
+    case UnaryExpr(OpNot, UnaryExpr(OpNot, arg)) => simplify(arg)
+    case UnaryExpr(OpNot, BinaryExpr(OpAnd, left, right)) => simplify(left.not) || simplify(right.not)
+    case UnaryExpr(OpNot, BinaryExpr(OpOr, left, right)) => simplify(left.not) && simplify(right.not)
+    case UnaryExpr(OpNot, BoolConst(true)) => pFalse
+    case UnaryExpr(OpNot, BoolConst(false)) => pTrue
 
-    // Set equality
-    case s@SEq(left, right) => SEq(simplifyExpr(left), simplifyExpr(right))
-    case PIn(left, right) => PIn(simplifyExpr(left), simplifyExpr(right))
-  }
+    case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
+      if (n1.toString <= n2.toString) BinaryExpr(OpEq, v1, v2) else BinaryExpr(OpEq, v2, v1)
+    case BinaryExpr(OpEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpEq, v, simplify(e))
 
-  def simplifyExpr(e: Expr): Expr = e match {
-    case BinaryExpr(OpPlus, left, IntConst(i)) if i.toInt == 0 => simplifyExpr(left)
-    case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplifyExpr(right)
-    case BinaryExpr(OpMinus, left, IntConst(i)) if i.toInt == 0 => simplifyExpr(left)
+    case BinaryExpr(OpPlus, left, IntConst(i)) if i.toInt == 0 => simplify(left)
+    case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplify(right)
+    case BinaryExpr(OpMinus, left, IntConst(i)) if i.toInt == 0 => simplify(left)
+
+    case BinaryExpr(OpUnion, left, SetLiteral(s)) if s.isEmpty => simplify(left)
+    case BinaryExpr(OpUnion, SetLiteral(s), right) if s.isEmpty => simplify(right)
+
+    case UnaryExpr(op, e1) => UnaryExpr(op, simplify(e1))
+    case BinaryExpr(op, e1, e2) => BinaryExpr(op, simplify(e1), simplify(e2))
+
     case _ => e
   }
 
+  def pTrue: PFormula = BoolConst(true)
+
+  def pFalse: PFormula = BoolConst(false)
+
+  def andClean(p1: PFormula, p2: PFormula): PFormula = simplify(p1 && p2)
+
   private def isAtomicExpr(e: Expr): Boolean = e match {
-    case BinaryExpr(OpAnd, _, _) => false
-    case BinaryExpr(OpOr, _, _) => false
-    case BinaryExpr(OpEq, _, _) => false
-    case BinaryExpr(OpLeq, _, _) => false
-    case BinaryExpr(OpLt, _, _) => false
+    case BinaryExpr(op, _, _) => !op.isInstanceOf[RelOp] && !op.isInstanceOf[LogicOp]
     case _ => true
-    //    case Var(name) => true
-    //    //  For now we only allow integers here
-    //    case IntConst(_) => true
-    //    // Do not simplify set expressions
-    //    case _: SetExpr => true
-    //    case _ => false
   }
 
   val isRelationPFormula: (PFormula) => Boolean = {
-    case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case PLeq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case PLtn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case PIn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case SEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
+    case BinaryExpr(op, e1, e2) => op.isInstanceOf[RelOp] && isAtomicExpr(e1) && isAtomicExpr(e2)
     case _ => false
   }
 
   val isAtomicPFormula: (PFormula) => Boolean = {
-    case PTrue | PFalse => true
-    case PEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case SEq(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case PIn(e1, e2) => isAtomicExpr(e1) && isAtomicExpr(e2)
-    case PNeg(p) => isRelationPFormula(p)
+    case BoolConst(true) | BoolConst(false) => true
+    case UnaryExpr(OpNot, p) => isRelationPFormula(p)
     case p => isRelationPFormula(p)
   }
 
   def isCNF(isAtom: PFormula => Boolean)(pf: PFormula): Boolean = {
     def check(phi: PFormula): Boolean = phi match {
-      case POr(_, _) => false
-      case PAnd(left, right) => check(left) && check(right)
+      case BinaryExpr(OpOr, _, _) => false
+      case BinaryExpr(OpAnd, left, right) => check(left) && check(right)
       case p => isAtom(p)
     }
 
@@ -144,9 +125,9 @@ trait PureLogicUtils {
     }
 
     def _conjuncts(p: PFormula): List[PFormula] = p match {
-      case PTrue => Nil
+      case BoolConst(true) => Nil
       case atom if isAtomicPFormula(atom) => List(atom)
-      case PAnd(left, right) => _conjuncts(left) ++ _conjuncts(right)
+      case BinaryExpr(OpAnd, left, right) => _conjuncts(left) ++ _conjuncts(right)
       case x => throw PureLogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
     }
 
@@ -162,19 +143,20 @@ trait PureLogicUtils {
     None
   }
 
-  def isEquiv(e1: Expr, e2: Expr) : Boolean = (e1, e2) match {
-    case _ => e1 == e2
-  }
-
   /**
     * Check if two formulas are equivalent
     */
   def isEquiv(p1: PFormula, p2: PFormula): Boolean = (p1, p2) match {
-    case (PEq(e1, e2), PEq(e3, e4)) => isEquiv(e1, e3) && isEquiv(e2, e4) || isEquiv(e1, e4) && isEquiv(e2, e3)
-    case (SEq(e1, e2), SEq(e3, e4)) => isEquiv(e1, e3) && isEquiv(e2, e4) || isEquiv(e1, e4) && isEquiv(e2, e3)
-    case (PNeg(z1), PNeg(z2)) => isEquiv(z1, z2)
+    case (BinaryExpr(OpEq, e1, e2), BinaryExpr(OpEq, e3, e4)) => isEquivPair(e1, e2, e3, e4)
+    case (BinaryExpr(OpSetEq, e1, e2), BinaryExpr(OpSetEq, e3, e4)) => isEquivPair(e1, e2, e3, e4)
+    case (UnaryExpr(OpNot, z1), UnaryExpr(OpNot, z2)) => isEquiv(z1, z2)
+    //  Fun with sets
+    case (BinaryExpr(OpUnion, e1, e2), BinaryExpr(OpUnion, e3, e4)) => isEquivPair(e1, e2, e3, e4)
     case _ => p1 == p2
   }
+
+  def isEquivPair(e1: Expr, e2: Expr, e3: Expr, e4: Expr): Boolean =
+    isEquiv(e1, e3) && isEquiv(e2, e4) || isEquiv(e1, e4) && isEquiv(e2, e3)
 
   /**
     * Removes the conjuncts from `sparsen` that have equivalent ones in base
@@ -196,7 +178,7 @@ trait PureLogicUtils {
   /**
     * Assemble a formula from a list of conjunctions
     */
-  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct.foldLeft[PFormula](PTrue)((z, p) => z.andClean(p))
+  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct.foldLeft[PFormula](pTrue)(andClean)
 
   /**
     * @param vs    a list of variables to refresh
@@ -218,20 +200,6 @@ trait PureLogicUtils {
     go(vs, bound, Map.empty)
   }
 
-  def fromExpr(e: Expr): Option[PFormula] = e match {
-    case BoolConst(true) => Some(PTrue)
-    case BoolConst(false) => Some(PFalse)
-    case UnaryExpr(OpNot, e1) => for (p1 <- fromExpr(e1)) yield PNeg(p1)
-    case BinaryExpr(OpAnd, e1, e2) => for (p1 <- fromExpr(e1); p2 <- fromExpr(e2)) yield PAnd(p1, p2)
-    case BinaryExpr(OpOr, e1, e2) => for (p1 <- fromExpr(e1); p2 <- fromExpr(e2)) yield POr(p1, p2)
-    case BinaryExpr(OpEq, e1, e2) => Some(PEq(e1, e2))
-    case BinaryExpr(OpLt, e1, e2) => Some(PLtn(e1, e2))
-    case BinaryExpr(OpLeq, e1, e2) => Some(PLeq(e1, e2))
-    case BinaryExpr(OpIn, e1, e2) => Some(PIn(e1, e2))
-    case BinaryExpr(OpSetEq, e1, e2) => Some(SEq(e1, e2))
-    case _ => None
-  }
-  
 }
 
 case class PureLogicException(msg: String) extends SynSLException("pure", msg)

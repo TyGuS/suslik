@@ -13,45 +13,53 @@ object Expressions {
 
   sealed abstract class BinOp extends PrettyPrinting {
     def level: Int
+    def associative: Boolean = false
   }
+
+  sealed abstract class RelOp extends BinOp
+  sealed abstract class LogicOp extends BinOp
 
   object OpPlus extends BinOp {
     def level: Int = 4
+    override def associative: Boolean = true
     override def pp: String = "+"
   }
   object OpMinus extends BinOp {
     def level: Int = 4
     override def pp: String = "-"
   }
-  object OpEq extends BinOp {
+  object OpEq extends RelOp {
     def level: Int = 3
     override def pp: String = "=="
   }
-  object OpLeq extends BinOp {
+  object OpLeq extends RelOp {
     def level: Int = 3
     override def pp: String = "<="
   }
-  object OpLt extends BinOp {
+  object OpLt extends RelOp {
     def level: Int = 3
     override def pp: String = "<"
   }
-  object OpAnd extends BinOp {
+  object OpAnd extends LogicOp {
     def level: Int = 2
+    override def associative: Boolean = true
     override def pp: String = "/\\"
   }
-  object OpOr extends BinOp {
+  object OpOr extends LogicOp {
     def level: Int = 2
+    override def associative: Boolean = true
     override def pp: String = "\\/"
   }
   object OpUnion extends BinOp {
     def level: Int = 4
+    override def associative: Boolean = true
     override def pp: String = "++"
   }
-  object OpIn extends BinOp {
+  object OpIn extends RelOp {
     def level: Int = 3
     override def pp: String = "in"
   }
-  object OpSetEq extends BinOp {
+  object OpSetEq extends RelOp {
     def level: Int = 3
     override def pp: String = "=i"
   }
@@ -81,6 +89,7 @@ object Expressions {
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
+        case _ => acc
       }
 
       collector(Set.empty)(this)
@@ -91,12 +100,25 @@ object Expressions {
     override def pp: String
 
     def level: Int = 6
+    def associative: Boolean = false
 
     def printAtLevel(lvl: Int): String = {
       val s = pp
-      if (lvl <= this.level) s else s"($s)"
+      if (lvl < this.level) s
+      else if (lvl == this.level && associative) s
+      else s"($s)"
     }
+
+    // Convenience operators for building expressions
+    def |=| (other: Expr): Expr = BinaryExpr(OpEq, this, other)
+    def |/=| (other: Expr): Expr = (this |=| other).not
+    def not: Expr = UnaryExpr(OpNot, this)
+    def && (other: Expr): Expr = BinaryExpr(OpAnd, this, other)
+    def || (other: Expr): Expr = BinaryExpr(OpOr, this, other)
+    def ==> (other: Expr): Expr = this.not || other
   }
+
+  type PFormula = Expr
 
   // Program-level variable: program-level or ghost
   case class Var(name: String) extends Expr {
@@ -137,6 +159,7 @@ object Expressions {
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
+    override def associative: Boolean = op.associative
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
 
   }
@@ -154,7 +177,8 @@ object Expressions {
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
-    override def pp: String = s"${cond.printAtLevel(1)} ? ${left.printAtLevel(1)} : ${right.printAtLevel(1)}"
+    override def level: Int = 1
+    override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
 
   }
