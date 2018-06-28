@@ -8,6 +8,8 @@ import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.SubtractionRules.StarIntro.toString
+import org.tygus.synsl.synthesis.rules.SubtractionRules.pureKont
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -17,21 +19,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-unfolding"
 
-  /*
-                      args ⊆ Г
-       p(params) = <sel_i(params); clause_i(params)>_i
-              b_i = sel_i[args/params]
-              c_i = clause_i[args/params]
-    ∀i, f_rec; Γ ; { φ ⋀ s_i ; b_i * P } ; { ψ ; Q } ---> S_i
-    f_rec : ∀xs, { φ ; p(args) * P } ; { ψ ; Q },
-       where xs = (vars { φ ; p(args) * P } ; { ψ ; Q }) U Г
-    --------------------------------------------------------------------[Unfold: induction]
-        Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> If(<b_i, S_i>)
+  object InvokeInductionRule extends SynthesisRule {
 
-   */
-  object InductionRule extends SynthesisRule {
-
-    override def toString: Ident = "[Unfold: induction]"
+    override def toString: Ident = "[Unfold: invoke-induction]"
 
     private def kont(selectors: Seq[PFormula]): StmtProducer = stmts => {
       ruleAssert(selectors.length == stmts.length,
@@ -45,10 +35,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    /**
-      * TODO: Handle multiple predicate application occurrences, i.e., provide multiple sets of sub-goals
-      * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
-      */
     private def mkInductiveSubGoals(goal: Goal): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
       val pre = goal.pre
       val env = goal.env
@@ -79,9 +65,38 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    private def mkIndHyp(goal: Goal, h: Heaplet): Environment = {
-      val fname = Var(goal.fname).refresh(goal.env.functions.keySet.map(Var)).name
+    def apply(goal: Goal): Seq[Subderivation] = {
+      // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
+      if (goal.hasAllocatedBlocks) return Nil
+
+      mkInductiveSubGoals(goal) match {
+        case None => Nil
+        case Some((selGoals, h)) =>
+          val (selectors, subGoals) = selGoals.unzip
+          List(Subderivation(subGoals, kont(selectors)))
+      }
+    }
+  }
+
+  /*
+                      args ⊆ Г
+       p(params) = <sel_i(params); clause_i(params)>_i
+              b_i = sel_i[args/params]
+              c_i = clause_i[args/params]
+    ∀i, f_rec; Γ ; { φ ⋀ s_i ; b_i * P } ; { ψ ; Q } ---> S_i
+    f_rec : ∀xs, { φ ; p(args) * P } ; { ψ ; Q },
+       where xs = (vars { φ ; p(args) * P } ; { ψ ; Q }) U Г
+    --------------------------------------------------------------------[Unfold: induction]
+        Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> If(<b_i, S_i>)
+
+   */
+  object MkInductionRule extends SynthesisRule {
+
+    override def toString: Ident = "[Unfold: make-induction]"
+
+    private def mkIndHyp(goal: Goal,h: Heaplet): Environment = {
       val env = goal.env
+      val fname = Var(goal.fname).refresh(env.functions.keySet.map(Var)).name
       // TODO: provide a proper type, not VOID
 
       // Re-tagging all predicate occurrences, so the inductive argument
@@ -101,19 +116,26 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {
+      val env = goal.env
+      if (env.functions.keySet.exists(n => n == goal.fname)) return Nil
       // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
       if (goal.hasAllocatedBlocks) return Nil
+      val preApps = goal.pre.sigma.apps
+      // Nothing to induce on
+      if (preApps.isEmpty) return Nil
 
-      mkInductiveSubGoals(goal) match {
-        case None => Nil
-        case Some((selGoals, h)) =>
-          val newEnv = mkIndHyp(goal, h)
-          val (selectors, subGoals) = selGoals.unzip
-          val goalsWithNewEnv = subGoals.map(g => g.copy(env = newEnv))
-          // Two alternatives: first without induction, then with induction
-          List(Subderivation(List(goal), identityProducer),
-            Subderivation(goalsWithNewEnv, kont(selectors)))
+      val apps = preApps ++ goal.post.sigma.apps
+      val noInductionOrUnfoldings = apps.forall {
+        case SApp(_, _, t) => t.contains(0)
       }
+
+      if (!noInductionOrUnfoldings) return Nil
+
+      for {
+        a <- preApps
+        newEnv = mkIndHyp(goal, a)
+        newGoal = goal.copy(env = newEnv)
+      } yield Subderivation(Seq(newGoal), pureKont(toString))
     }
   }
 
