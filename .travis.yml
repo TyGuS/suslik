@@ -1,0 +1,37 @@
+os:
+  - linux
+
+language: scala
+
+sudo: true
+
+scala:
+  - 2.12.5
+
+jdk:
+  - oraclejdk8
+  
+before_install:
+  - sudo apt-get -qq install lib32stdc++6
+
+install:
+  - ./.ci/install_z3.sh
+
+env:
+  - PATH="$HOME/z3/z3-4.6.0-x64-ubuntu-14.04/bin/:$PATH"
+
+before_script:
+  - sudo chmod +x /usr/local/bin/sbt
+
+script:
+  - travis_wait 20 sbt ++$TRAVIS_SCALA_VERSION test
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt/boot
+    - $HOME/z3
+before_cache:
+  - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
+  - find $HOME/.sbt -name "*.lock" -delete
+
