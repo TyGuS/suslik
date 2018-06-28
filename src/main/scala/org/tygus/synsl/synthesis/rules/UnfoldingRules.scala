@@ -107,9 +107,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
-      // Bump up twice in the post so that we can't apply IH to its results;
       // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
-      val newPost = goal.post.lockSAppTags() //bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
+      val newPost = goal.post.lockSAppTags()
 
       val fspec = FunSpec(fname, VoidType, goal.formals, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
@@ -117,7 +116,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val env = goal.env
-      if (env.functions.keySet.exists(n => n == goal.fname)) return Nil
+      if (env.functions.keySet.contains(goal.fname)) return Nil
       // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
       if (goal.hasAllocatedBlocks) return Nil
       val preApps = goal.pre.sigma.apps
@@ -131,11 +130,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       if (!noInductionOrUnfoldings) return Nil
 
-      for {
+      val inductionAlternatives = for {
         a <- preApps
         newEnv = mkIndHyp(goal, a)
         newGoal = goal.copy(env = newEnv)
       } yield Subderivation(Seq(newGoal), pureKont(toString))
+
+      val noInduction = Subderivation(Seq(goal.copy(goal.pre.lockSAppTags())), identityProducer)
+
+      noInduction :: inductionAlternatives
     }
   }
 
