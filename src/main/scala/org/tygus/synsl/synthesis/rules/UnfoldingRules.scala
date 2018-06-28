@@ -1,8 +1,9 @@
 package org.tygus.synsl.synthesis.rules
 
+import org.tygus.synsl.LanguageUtils
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements._
-import org.tygus.synsl.language.{Ident, VoidType}
+import org.tygus.synsl.language.{Ident, IntType, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
@@ -54,11 +55,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
-
-          // Get predicate from the environment
-          // TODO: Here's a potential bug, due to variable captures
-          // (existnentials in predicate clauses are captured by goal variables)
-          // TODO: refresh its existentials!
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
@@ -73,7 +69,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
           } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)))
-          Some((newGoals, h))
+          // This is important, otherwise the rule is unsound and produces programs reading from ghosts
+          // We can make the conditional without additional reading
+          // TODO: Generalise this in the future
+          val noGhosts = newGoals.forall{case (sel, _) => sel.vars.subsetOf(goal.formals)}
+          if (noGhosts) Some((newGoals, h)) else None
         case _ => None
       }
     }
@@ -268,7 +268,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {
         h match {
-          case SApp(_,_,Some(t)) => t > env.maxUnfoldingDepth
+          case SApp(_, _, Some(t)) => t > env.maxUnfoldingDepth
           case _ => false
         }
       }

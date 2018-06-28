@@ -3,25 +3,22 @@ should be able to synthesize list copy
 #####
 
 {true ; r :-> x ** lseg(x, 0, S)}
-void list_copy(loc r)
+void listcopy(loc r, loc x)
 {true ; r :-> y ** lseg(x, 0, S) ** lseg(y, 0, S) }
 
 #####
 
-void list_copy (loc r) {
+void listcopy (loc r, loc x) {
   if (x == 0) {
   } else {
-    let x2 = *r;
-    let v2 = *x2;
-    let nxt2 = *(x2 + 1);
+    let v2 = *x;
+    let nxt2 = *(x + 1);
     *r = nxt2;
-    list_copy(r);
+    listcopy(r, nxt2);
     let y12 = *r;
     let y2 = malloc(2);
-    *(y2 + 1) = nxt2;
+    *(y2 + 1) = y12;
     *y2 = v2;
     *r = y2;
-    *(x2 + 1) = y12;
-    *x2 = v2;
   }
 }

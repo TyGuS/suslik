@@ -3,18 +3,17 @@ should be able to synthesize list length from the root pointer
 #####
 
 {0 <= n ; r :-> x ** lsegn(x, 0, n) }
-void list_len(loc r)
+void list_len(loc r, loc x)
 {true ; r :-> n ** lsegn(x, 0, n) }
 
 #####
 
-void list_len (loc r) {
+void list_len (loc r, loc x) {
   if (x == 0) {
   } else {
-    let x2 = *r;
-    let nxt2 = *(x2 + 1);
+    let nxt2 = *(x + 1);
     *r = nxt2;
-    list_len(r);
+    list_len(r, nxt2);
     let len12 = *r;
     *r = 1 + len12;
   }
