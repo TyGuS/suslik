@@ -1,14 +1,14 @@
-predicate lseg(x, y, S) {
+predicate lseg(loc x, loc y, set S) {
 |  x == y        => { S =i {} ; emp }
 |  not (x == y)  => { S =i {v} ++ S1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, S1) }
 }
 
-predicate lseg0(x, y) {
+predicate lseg0(loc x, loc y) {
 |  x == y        => { emp }
 |  not (x == y)  => { [x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg0(nxt, y) }
 }
 
-predicate lseg2(x, S) {
+predicate lseg2(loc x, set S) {
 |  x == 0        => { S =i {} ; emp }
 |  not (x == 0)  => { S =i {v} ++ S1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, S1) }
 }
