@@ -26,7 +26,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def |-(other: Heaplet): Boolean
 
-  def resolve(gamma: Gamma): Option[Gamma]
+  def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 }
 
 /**
@@ -46,7 +46,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
     case _ => false
   }
 
-  def resolve(gamma: Gamma): Option[Gamma] = {
+  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     for {
       gamma1 <- loc.resolve(gamma, Some(LocType))
       gamma2 <- value.resolve(gamma1, Some(IntType))
@@ -68,7 +68,7 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 
   def |-(other: Heaplet): Boolean = false
 
-  def resolve(gamma: Gamma): Option[Gamma] = loc.resolve(gamma, Some(LocType))
+  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
 
 }
 
@@ -82,8 +82,17 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
 
   def |-(other: Heaplet): Boolean = false
 
-  // TODO: check against the predicate definition in the environment
-  def resolve(gamma: Gamma): Option[Gamma] = Some(gamma)
+  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
+    val formals = env.predicates(pred).params
+
+    if (formals.length == args.length) {
+      (formals, args).zipped.foldLeft[Option[Gamma]](Some(gamma))
+      { case (go, (formal, actual)) => go match {
+              case None => None
+              case Some(g) => actual.resolve(g, Some(formal._1))
+            }}
+    } else None
+  }
 }
 
 
@@ -140,10 +149,10 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def vars: List[Var] = chunks.flatMap(_.vars)
 
-  def resolve(gamma: Gamma): Option[Gamma] = {
+  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     chunks.foldLeft[Option[Map[Var, SynslType]]](Some(gamma))((go, h) => go match {
       case None => None
-      case Some(g) => h.resolve(g)
+      case Some(g) => h.resolve(g, env)
     })
   }
 

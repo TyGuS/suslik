@@ -25,6 +25,6 @@ trait RuleUtils {
   // by the footprint of their latest rule application,
   // so that sequential applications of the rule are unlikely to cause out-of-order derivations
   def sortAlternativesByFootprint(alts: Seq[Subderivation]): Seq[Subderivation] = {
-    alts.sortBy(_.subgoals.head._1.deriv.applications.head)
+    alts.sortBy(_.subgoals.head.deriv.applications.head)
   }
 }

@@ -48,8 +48,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * TODO: Handle multiple predicate application occurrences, i.e., provide multiple sets of sub-goals
       * TODO: This can lead to multiple induction hypotheses, all delivered by the same rule
       */
-    private def mkInductiveSubGoals(goal: Goal, env: Environment): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
+    private def mkInductiveSubGoals(goal: Goal): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
       val pre = goal.pre
+      val env = goal.env
       findHeaplet(_.isInstanceOf[SApp], pre.sigma) match {
         case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
@@ -78,8 +79,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    private def mkIndHyp(goal: Goal, env: Environment, h: Heaplet): Environment = {
-      val fname = Var(goal.fname).refresh(env.functions.keySet.map(Var)).name
+    private def mkIndHyp(goal: Goal, h: Heaplet): Environment = {
+      val fname = Var(goal.fname).refresh(goal.env.functions.keySet.map(Var)).name
+      val env = goal.env
       // TODO: provide a proper type, not VOID
 
       // Re-tagging all predicate occurrences, so the inductive argument
@@ -98,17 +100,19 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       env.copy(functions = env.functions + (fname -> fspec))
     }
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
       if (goal.hasAllocatedBlocks) return Nil
 
-      mkInductiveSubGoals(goal, env) match {
+      mkInductiveSubGoals(goal) match {
         case None => Nil
         case Some((selGoals, h)) =>
-          val newEnv = mkIndHyp(goal, env, h)
+          val newEnv = mkIndHyp(goal, h)
           val (selectors, subGoals) = selGoals.unzip
-          val goalsWithNewEnv = subGoals.map(g => (g, newEnv))
-          List(Subderivation(goalsWithNewEnv, kont(selectors)))
+          val goalsWithNewEnv = subGoals.map(g => g.copy(env = newEnv))
+          // Two alternatives: first without induction, then with induction
+          List(Subderivation(List(goal), identityProducer),
+            Subderivation(goalsWithNewEnv, kont(selectors)))
       }
     }
   }
@@ -123,9 +127,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: apply-hypothesis]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       (for {
-        (_, _f) <- env.functions
+        (_, _f) <- goal.env.functions
         f = _f.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified
@@ -148,7 +152,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val rest = stmts.head
           SeqComp(Call(None, Var(goal.fname), args), rest)
         }
-        Subderivation(List((callGoal, env)), kont)
+        Subderivation(List(callGoal), kont)
       }).toSeq
     }
 
@@ -186,9 +190,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: apply-hypothesis-abduct]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       (for {
-        (_, _funSpec) <- env.functions
+        (_, _funSpec) <- goal.env.functions
 
         // Make a "relaxed" substitution for the spec and for with it
         (f, exSub) = _funSpec.refreshExistentials(goal.vars).relaxFunSpec
@@ -220,7 +224,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val writesCallRest = writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
           writesCallRest
         }
-        val subGoals = writeGoals.map(wg => (wg, env)) ++ List((callGoal, env))
+        val subGoals = writeGoals ++ List(callGoal)
         Subderivation(subGoals, kont)
       }).toSeq
     }
@@ -259,8 +263,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       stmts.head
     }
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       val post = goal.post
+      val env = goal.env
       val deriv = goal.deriv
 
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
@@ -299,7 +304,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val postFootprint = Set(deriv.postIndex.indexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-            Subderivation(List((goal.copy(post = newPost, newRuleApp = Some(ruleApp)), env)), kont)
+            Subderivation(List(goal.copy(post = newPost, newRuleApp = Some(ruleApp))), kont)
           }
           subDerivations
         case _ => Nil

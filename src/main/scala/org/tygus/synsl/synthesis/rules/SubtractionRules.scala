@@ -32,7 +32,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Sub: emp]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
 
@@ -66,7 +66,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   object StarIntro extends SynthesisRule {
     override def toString: String = "[Sub: *-intro]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
 
       def ghostEqualities(newGoal: Goal): PFormula = {
         val conjuncts = for (v <- newGoal.existentials -- goal.existentials)
@@ -95,7 +95,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         newPreAdjusted = newPre.copy(phi = andClean(newPre.phi, ghostEqualities(tempGoal)))
         newGoal = tempGoal.copy(pre = newPreAdjusted)
       } yield {
-        Subderivation(List((newGoal, env)), pureKont(toString))
+        Subderivation(List(newGoal), pureKont(toString))
       }
       sortAlternativesByFootprint(alternatives)    }
   }
@@ -104,7 +104,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   object StarIntroOld extends SynthesisRule {
     override def toString: String = "[Sub: *-intro]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       def sideCond(p: SFormula, q: SFormula, r: Heaplet) = {
         val gvP = p.vars.filter(goal.isGhost).toSet
         val gvQ = q.vars.filter(goal.isGhost).toSet
@@ -133,7 +133,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
 
         val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-        Subderivation(List((newGoal, env)), pureKont(toString))
+        Subderivation(List(newGoal), pureKont(toString))
       }
       sortAlternativesByFootprint(alternatives)
     }
@@ -152,7 +152,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   object HypothesisUnify extends SynthesisRule {
     override def toString: String = "[Sub: hypothesis-unify]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       // get post conjuncts with existentials
       val postConjuncts = conjuncts(goal.post.phi).filter(p => p.vars.exists(goal.isExistential))
       val preConjuncts = conjuncts(goal.pre.phi)
@@ -162,7 +162,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         t <- preConjuncts
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
         newGoal = goal.copy(post = goal.post.subst(sigma))
-      } yield Subderivation(List((newGoal, env)), pureKont(toString))
+      } yield Subderivation(List(newGoal), pureKont(toString))
     }
   }
 
@@ -176,7 +176,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   object Pick extends SynthesisRule {
     override def toString: String = "[Sub: pick]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
 
       if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
         // This is a rule of last resort so only apply when heaps are empty
@@ -186,7 +186,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
           if goal.getType(ex).conformsTo(Some(goal.getType(v)))
           sigma = Map(ex -> v)
           newGoal = goal.copy(post = goal.post.subst(sigma))
-        } yield Subderivation(List((newGoal, env)), pureKont(toString))
+        } yield Subderivation(List(newGoal), pureKont(toString))
       } else Nil
     }
   }

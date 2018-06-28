@@ -33,7 +33,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write-old]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
 
@@ -62,7 +62,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             SeqComp(Store(x, offset, e2), rest)
           }
 
-          List(Subderivation(List((subGoal, env)), kont))
+          List(Subderivation(List(subGoal), kont))
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -80,7 +80,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write-from-env]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
 
@@ -113,7 +113,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
               val rest = stmts.head
               SeqComp(Store(x, offset, l), rest)
             }
-          } yield Subderivation(List((subGoal, env)), kont)
+          } yield Subderivation(List(subGoal), kont)
         case Some((hl, hr)) =>
           ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -135,7 +135,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       val post = goal.post
 
       // Heaplets have no ghosts
@@ -156,7 +156,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             val rest = stmts.head
             SeqComp(rest, Store(x, offset, l))
           }
-          List(Subderivation(List((subGoal, env)), kont))
+          List(Subderivation(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -174,7 +174,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: read]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
@@ -199,7 +199,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             if (rest.usedVars.contains(y)) SeqComp(Load(y, tpy, x, offset), rest) else rest
           }
 
-          List(Subderivation(List((subGoal, env)), kont))
+          List(Subderivation(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -218,7 +218,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   object AllocRule extends SynthesisRule {
     override def toString: Ident = "[Op: alloc]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
@@ -259,7 +259,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             SeqComp(Malloc(y, tpy, sz), stmts.head)
           }
 
-          List(Subderivation(List((subGoal, env)), kont))
+          List(Subderivation(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -279,7 +279,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: free]"
 
-    def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[Subderivation] = {
       def isConcreteBlock: Heaplet => Boolean = {
         case Block(v@Var(_), _) => goal.isProgramVar(v)
         case _ => false
@@ -310,7 +310,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             SeqComp(Free(x), stmts.head)
           }
 
-          List(Subderivation(List((subGoal, env)), kont))
+          List(Subderivation(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Free rule matched unexpected heaplet ${h.pp}")
           Nil

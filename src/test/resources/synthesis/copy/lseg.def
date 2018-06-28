@@ -1,4 +1,4 @@
-predicate lseg(x, y, S) {
-|  x == y        => { S =i {} ; emp }
-|  not (x == y)  => { S =i {v} ++ S1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, S1) }
+predicate lseg(int x, int y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, s1) }
 }

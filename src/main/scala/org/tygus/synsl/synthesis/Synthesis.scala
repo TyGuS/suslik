@@ -34,11 +34,11 @@ trait Synthesis extends SepLogicUtils {
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
   Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = makeNewGoal(pre, post, formals, name)
+    val goal = makeNewGoal(pre, post, formals, name, env)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()
-    synthesize(goal, env, startingDepth)(stats = stats, printFails = _printFails, rules = topLevelRules ++ everyDayRules) match {
+    synthesize(goal, startingDepth)(stats = stats, printFails = _printFails, rules = topLevelRules ++ everyDayRules) match {
       case Some(body) =>
         val proc = Procedure(name, tp, formals, body)
         Some((proc, stats))
@@ -49,13 +49,13 @@ trait Synthesis extends SepLogicUtils {
 
   }
 
-  private def synthesize(goal: Goal, env: Environment, depth: Int = startingDepth)
+  private def synthesize(goal: Goal, depth: Int = startingDepth)
                         (stats: SynStats,
                          printFails: Boolean,
                          rules: List[SynthesisRule])
                         (implicit ind: Int = 0): Option[Statement] = {
 
-    printLog(List((s"${env.pp}", Console.MAGENTA)))
+    printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
 
     if (depth < 0) return None
@@ -101,9 +101,9 @@ trait Synthesis extends SepLogicUtils {
           val results = new ListBuffer[Option[Statement]]
           import util.control.Breaks._
           breakable {
-            for {(subgoal, subenv) <- s.subgoals} {
+            for {subgoal <- s.subgoals} {
               val nextRules = if (depth < startingDepth) everyDayRules else topLevelRules ++ everyDayRules
-              synthesize(subgoal, subenv, depth - 1)(stats, printFails, nextRules)(ind + 1) match {
+              synthesize(subgoal, depth - 1)(stats, printFails, nextRules)(ind + 1) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -121,7 +121,7 @@ trait Synthesis extends SepLogicUtils {
         }
 
         // Invoke the rule
-        val allSubderivations = r(goal, env)
+        val allSubderivations = r(goal)
         val goalStr = s"$r: "
 
         // Filter out subderivations that violate rule ordering
@@ -137,7 +137,7 @@ trait Synthesis extends SepLogicUtils {
         // Toggle this comment to enable and disable commute optimization
 
         // TODO: This optimisation interferes with ApplyHypothesis rule - see beyond/abduct/list-free-frame.syn
-        val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(g => goalInOrder(g._1)))
+        val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
         // val subderivations = allSubderivations
 
         if (subderivations.isEmpty) {

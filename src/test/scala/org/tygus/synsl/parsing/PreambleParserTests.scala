@@ -13,7 +13,7 @@ class PreambleParserTests extends FunSpec with Matchers {
   import log._
 
   val pred1 =
-    """predicate lseg (x, y) {
+    """predicate lseg (loc x, loc y) {
       | x == y  =>  {emp}
       | not (x == y)  => {x :-> v ** x + 1 :-> z ** lseg(z, y)}
       }

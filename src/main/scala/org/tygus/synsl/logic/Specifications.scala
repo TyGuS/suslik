@@ -60,10 +60,10 @@ object Specifications {
     def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.lockSAppTags(cond))
 
-    def resolve(gamma: Gamma): Option[Gamma] = {
+    def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
       for {
         gamma1 <- phi.resolve(gamma, Some(BoolType))
-        gamma2 <- sigma.resolve(gamma1)
+        gamma2 <- sigma.resolve(gamma1, env)
       } yield gamma2
     }
 
@@ -125,6 +125,7 @@ object Specifications {
                   gamma: Gamma,
                   programVars: List[Var],
                   fname: String,
+                  env: Environment,
                   deriv: Derivation)
     extends PrettyPrinting with PureLogicUtils {
 
@@ -139,9 +140,10 @@ object Specifications {
              post: Assertion = this.post,
              gamma: Gamma = this.gamma,
              programVars: List[Var] = this.programVars,
+             env: Environment = this.env,
              newRuleApp: Option[RuleApplication] = None): Goal = {
 
-      val gammaFinal = resolvePrePost(gamma, pre, post)
+      val gammaFinal = resolvePrePost(gamma, env, pre, post)
 
       def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
         index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
@@ -151,7 +153,7 @@ object Specifications {
       val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
         postIndex = appendNewChunks(this.post, post, d.postIndex),
         applications = newRuleApp.toList ++ d.applications)
-      Goal(pre, post, gammaFinal, programVars, this.fname, newDeriv)
+      Goal(pre, post, gammaFinal, programVars, this.fname, env, newDeriv)
     }
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
@@ -189,32 +191,21 @@ object Specifications {
     def formals: Formals = programVars.map(v => (getType(v), v))
   }
 
-  private def resolvePrePost(gamma0: Gamma, pre: Assertion, post: Assertion): Gamma = {
-    pre.resolve(gamma0) match {
+  private def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
+    pre.resolve(gamma0, env) match {
       case None => throw SepLogicException(s"Resolution error in specification: ${pre.pp}")
-      case Some(gamma1) => post.resolve(gamma1) match {
+      case Some(gamma1) => post.resolve(gamma1, env) match {
         case None => throw SepLogicException(s"Resolution error in specification: ${post.pp}")
         case Some(gamma) => gamma
       }
     }
   }
 
-  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String): Goal = {
+  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
     val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
-    val gamma = resolvePrePost(gamma0, pre, post)
+    val gamma = resolvePrePost(gamma0, env, pre, post)
     val formalNames = formals.map(_._2)
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre, post, gamma, formalNames, fname, emptyDerivation)
+    Goal(pre, post, gamma, formalNames, fname, env, emptyDerivation)
   }
-
-  def makeNewPredicate(name: Ident, params: List[Var], clauses: Seq[InductiveClause]): InductivePredicate = {
-    clauses.foldLeft[Option[Map[Var, SynslType]]](Some(Map.empty))((go, e) => go match {
-      case None => None
-      case Some(g) => e.resolve(g)
-    }) match {
-      case None => throw SepLogicException(s"Resolution error in predicate definition: $name")
-      case Some(gamma) => InductivePredicate(name, params.map(p => (gamma(p), p)), clauses)
-    }
-  }
-
 }

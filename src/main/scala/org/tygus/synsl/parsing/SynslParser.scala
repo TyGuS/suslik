@@ -17,7 +17,7 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
     ("int" ^^^ IntType
         | "bool" ^^^ BoolType
         | "loc" ^^^ LocType
-        | "intset" ^^^ IntSetType
+        | "set" ^^^ IntSetType
         | "void" ^^^ VoidType)
 
   def formal: Parser[(SynslType, Var)] = typeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
@@ -93,9 +93,9 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
     expr ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(p, a) }
 
   def indPredicate: Parser[InductivePredicate] =
-    ("predicate" ~> ident) ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~
+    ("predicate" ~> ident) ~ ("(" ~> repsep(formal, ",") <~ ")") ~
         (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ params ~ clauses => makeNewPredicate(name, params, clauses)
+      case name ~ formals ~ clauses => InductivePredicate(name, formals, clauses)
     }
 
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {

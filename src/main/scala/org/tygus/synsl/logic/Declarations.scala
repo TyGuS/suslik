@@ -61,13 +61,6 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
     s"${selector.pp} => ${asn.pp}"
 
   def valid: Boolean = isAtomicPFormula(selector)
-
-  def resolve(gamma: Gamma): Option[Gamma] = {
-    for {
-      gamma1 <- selector.resolve(gamma, Some(BoolType))
-      gamma2 <- asn.resolve(gamma1)
-    } yield gamma2
-  }
 }
 
 /**

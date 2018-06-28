@@ -1,14 +1,14 @@
-predicate lseg(x, y) {
+predicate lseg(loc x, loc y) {
 |  x == y        => {emp}
 |  not (x == y)  => {[x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, y)}
 }
 
-predicate lseg1(x, y) {
+predicate lseg1(loc x, loc y) {
 |  x == y        => {emp}
 |  not (x == y)  => {[x, 2] ** x :-> 1 ** (x + 1) :-> nxt ** lseg1(nxt, y)}
 }
 
-predicate lsegn(x, y, len) {
+predicate lsegn(loc x, loc y, int len) {
 |  x == y        => { len == 0 ; emp }
 |  not (x == y)  => { (len == 1 + len1) /\ (0 <= len1) ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lsegn(nxt, y, len1) }
 }
