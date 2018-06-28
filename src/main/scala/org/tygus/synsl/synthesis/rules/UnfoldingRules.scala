@@ -92,7 +92,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
       // Bump up twice in the post so that we can't apply IH to its results;
       // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
-      val newPost = goal.post.bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
+      val newPost = goal.post.lockSAppTags() //bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
 
       val fspec = FunSpec(fname, VoidType, goal.gamma, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
