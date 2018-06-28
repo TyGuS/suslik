@@ -10,5 +10,5 @@ predicate lseg0(x, y) {
 
 predicate lseg2(x, S) {
 |  x == 0        => { S =i {} ; emp }
-|  not (x == 0)  => { S =i {v} ++ S1 ; [x, 3] ** x :-> v ** (x + 1) :-> v ** (x + 2) :-> nxt ** lseg2(nxt, S1) }
+|  not (x == 0)  => { S =i {v} ++ S1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, S1) }
 }
