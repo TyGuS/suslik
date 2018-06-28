@@ -114,8 +114,8 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
-        // TODO [sets]: Can we enable this
-        // case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
+        // This meeses with hypothesis unify:
+//        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, simplify(p1)) match {
         case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
@@ -125,10 +125,9 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val _s2 = s2.subst(x, l)
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
-            Assertion(_p2, _s2),
-            goal.gamma.filter { case (t, w) => w != x })
+            Assertion(_p2, _s2))
           if (newGoal.existentials.subsetOf(goal.existentials)) {
-            List(Subderivation(List((newGoal)), pureKont(toString)))
+            List(Subderivation(List(newGoal), pureKont(toString)))
           }
           else Nil
         case _ => Nil

@@ -68,6 +68,10 @@ trait PureLogicUtils {
     case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
       if (n1.toString <= n2.toString) BinaryExpr(OpEq, v1, v2) else BinaryExpr(OpEq, v2, v1)
     case BinaryExpr(OpEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpEq, v, simplify(e))
+//    case BinaryExpr(OpSetEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
+//      if (n1.toString <= n2.toString) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
+//    case BinaryExpr(OpSetEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpSetEq, v, simplify(e))
+
 
     case BinaryExpr(OpPlus, left, IntConst(i)) if i.toInt == 0 => simplify(left)
     case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplify(right)
