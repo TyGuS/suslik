@@ -1,8 +1,8 @@
 package org.tygus.synsl.logic.unification
 
-import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.language.Expressions.Var
 import org.tygus.synsl.logic.{SFormula, _}
-import org.tygus.synsl.logic.unification.SpatialUnification.Subst
+import org.tygus.synsl.logic.Specifications._
 
 /**
   * @author Ilya Sergey

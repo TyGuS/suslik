@@ -5,6 +5,7 @@ import org.tygus.synsl.LanguageUtils.generateFreshVar
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.{Statements, _}
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.synthesis._
 
 /**
@@ -104,7 +105,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
           for {
           // Try variables from the context
-            l <- goal.gamma.programVars.toList
+            l <- goal.programVars.toList
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
             subGoal = goal.copy(newPre, post.subst(m, l))
             kont = (stmts: Seq[Statement]) => {
@@ -190,9 +191,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
 
-          val subGoal = goal.copy(pre.subst(a, y),
-            post = post.subst(a, y),
-            gamma = gamma.addProgramVar(y,tpy))
+          val subGoal = goal.copy(pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
             val rest = stmts.head
@@ -254,7 +253,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val postFootprint = pts.map(p => deriv.postIndex.indexOf(p)).toSet + deriv.postIndex.indexOf(h)
           val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-          val subGoal = goal.copy(newPre, post.subst(x, y), gamma.addProgramVar(y, tpy), newRuleApp = Some(ruleApp))
+          val subGoal = goal.copy(newPre, post.subst(x, y), newRuleApp = Some(ruleApp)).addProgramVar(y, tpy)
           val kont: StmtProducer = stmts => {
             ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
             SeqComp(Malloc(y, tpy, sz), stmts.head)
@@ -282,7 +281,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
       def isConcreteBlock: Heaplet => Boolean = {
-        case Block(v@Var(_), _) => goal.isConcrete(v)
+        case Block(v@Var(_), _) => goal.isProgramVar(v)
         case _ => false
       }
 

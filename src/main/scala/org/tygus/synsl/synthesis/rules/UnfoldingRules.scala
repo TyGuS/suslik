@@ -1,13 +1,12 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.FunDecl
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisRule.{refreshVars, saveApplication}
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -61,7 +60,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           // (existnentials in predicate clauses are captured by goal variables)
           // TODO: refresh its existentials!
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
-          val sbst = params.zip(args).toMap
+          val sbst = params.map(_._2).zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
           val newGoals = for {
             InductiveClause(_sel, _asn) <- clauses
@@ -95,7 +94,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
       val newPost = goal.post.bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
 
-      val fspec = FunSpec(fname, VoidType, goal.gamma.toFormals, newPre, newPost)
+      val fspec = FunSpec(fname, VoidType, goal.formals, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
     }
 
@@ -137,7 +136,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.gamma.programVars.toSet)
+        target = UnificationGoal(callSubPre, goal.programVars.toSet)
         sub <- {
           SpatialUnification.unify(target, source)
         }
@@ -202,7 +201,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
 
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.gamma.programVars.toSet)
+        target = UnificationGoal(callSubPre, goal.programVars.toSet)
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
@@ -279,11 +278,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
-          val substArgs = params.zip(args).toMap
+          val paramNames = params.map(_._2)
+          val substArgs = paramNames.zip(args).toMap
           val subDerivations = for {
             InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
-            asnExistentials = asn.vars -- params.toSet
+            asnExistentials = asn.vars -- paramNames.toSet
             freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars)
             // Make sure that can unfold only once
             actualAssertion = asn.subst(freshExistentialsSubst).subst(substArgs)

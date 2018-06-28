@@ -2,6 +2,7 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.language.SynslType
 import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisAbduceFrameRule.refreshVars
 
@@ -61,6 +62,12 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
 
   def valid: Boolean = isAtomicPFormula(selector)
 
+  def resolve(gamma: Gamma): Option[Gamma] = {
+    for {
+      gamma1 <- selector.resolve(gamma, Some(BoolType))
+      gamma2 <- asn.resolve(gamma1)
+    } yield gamma2
+  }
 }
 
 /**
@@ -82,11 +89,11 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
   * TODO: add higher-order predicates, e.g., a list parameterised by a predicate
   *
   */
-case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[InductiveClause])
+case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[InductiveClause])
   extends TopLevelDeclaration with PureLogicUtils {
 
   override def pp: String = {
-    val prelude = s"$name (${params.map(_.pp).mkString(", ")}) {"
+    val prelude = s"$name (${params.map(_._2.pp).mkString(", ")}) {"
     val cls = clauses.map(_.pp).mkString(" | ")
     prelude + cls + "}"
   }
@@ -100,14 +107,14 @@ case class InductivePredicate(name: Ident, params: Seq[Var], clauses: Seq[Induct
     * @return inductive predicate
     */
   def refreshExistentials(vars: Set[Var]): InductivePredicate = {
-    val bound = vars ++ params.toSet
+    val bound = vars ++ params.map(_._2).toSet
     val sbst = refreshVars(existentials.toList, bound)
     this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
   }
 
   def vars: Set[Var] = clauses.flatMap(c => c.selector.vars ++ c.asn.vars).toSet
 
-  def existentials: Set[Var] = vars -- params.toSet
+  def existentials: Set[Var] = vars -- params.map(_._2).toSet
 
 }
 

@@ -1,11 +1,12 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.language.Expressions._
-import org.tygus.synsl.language.{Ident, Statements}
+import org.tygus.synsl.language.{Ident, IntSetType, Statements}
 import org.tygus.synsl.logic._
+import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.unification.SpatialUnification.{FrameChoppingResult, tryUnify}
-import org.tygus.synsl.logic.unification.{PureUnification, SpatialUnification, UnificationGoal}
+import org.tygus.synsl.logic.unification.{PureUnification, SpatialUnification}
 import org.tygus.synsl.synthesis._
 
 /**
@@ -68,14 +69,18 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal, env: Environment): Seq[Subderivation] = {
 
       def ghostEqualities(newGoal: Goal): PFormula = {
-        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield v |=| v
+        val conjuncts = for (v <- newGoal.existentials -- goal.existentials)
+          yield newGoal.getType(v) match {
+            case IntSetType => BinaryExpr(OpSetEq, v, v)
+            case _ =>  v |=| v
+          }
         mkConjunction(conjuncts.toList)
       }
 
 
       val pre = goal.pre
       val post = goal.post
-      val boundVars = goal.universals ++ goal.formals
+      val boundVars = goal.universals
       val deriv = goal.deriv
       val foundFrames = SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
       val alternatives = for {
@@ -115,7 +120,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val alternatives = for {
         t <- pre.sigma.chunks
         s <- post.sigma.chunks
-        sub <- tryUnify(t, s, goal.universals ++ goal.formals, false)
+        sub <- tryUnify(t, s, goal.universals, false)
         newPreSigma = pre.sigma - t
         newPostSigma = (post.sigma - s).subst(sub)
         if sideCond(newPreSigma, newPostSigma, t)
@@ -178,7 +183,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         for {
           ex <- goal.existentials.toList
           v <- goal.universals.toList
-          // TODO: make type directed
+          if goal.getType(ex).conformsTo(Some(goal.getType(v)))
           sigma = Map(ex -> v)
           newGoal = goal.copy(post = goal.post.subst(sigma))
         } yield Subderivation(List((newGoal, env)), pureKont(toString))

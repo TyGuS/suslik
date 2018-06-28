@@ -1,8 +1,7 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.SynSLException
-import org.tygus.synsl.logic.{Derivation, RuleApplication}
-import org.tygus.synsl.synthesis.{StmtProducer, Subderivation, SynthesisRule}
+import org.tygus.synsl.synthesis.{StmtProducer, Subderivation}
 
 /**
   * @author Ilya Sergey

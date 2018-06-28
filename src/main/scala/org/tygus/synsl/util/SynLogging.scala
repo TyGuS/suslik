@@ -1,7 +1,7 @@
 package org.tygus.synsl.util
 
 import org.tygus.synsl.language.Statements.Procedure
-import org.tygus.synsl.logic.Goal
+import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.SynthesisRule
 import scalaz.DList

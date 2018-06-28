@@ -26,6 +26,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def |-(other: Heaplet): Boolean
 
+  def resolve(gamma: Gamma): Option[Gamma]
 }
 
 /**
@@ -44,6 +45,13 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
     case PointsTo(_loc, _offset, _value) => this.loc == _loc && this.offset == _offset && this.value == _value
     case _ => false
   }
+
+  def resolve(gamma: Gamma): Option[Gamma] = {
+    for {
+      gamma1 <- loc.resolve(gamma, Some(LocType))
+      gamma2 <- value.resolve(gamma1, Some(IntType))
+    } yield gamma2
+  }
 }
 
 /**
@@ -59,6 +67,9 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   }
 
   def |-(other: Heaplet): Boolean = false
+
+  def resolve(gamma: Gamma): Option[Gamma] = loc.resolve(gamma, Some(LocType))
+
 }
 
 /**
@@ -70,6 +81,9 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
   def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
 
   def |-(other: Heaplet): Boolean = false
+
+  // TODO: check against the predicate definition in the environment
+  def resolve(gamma: Gamma): Option[Gamma] = Some(gamma)
 }
 
 
@@ -125,6 +139,13 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   }
 
   def vars: List[Var] = chunks.flatMap(_.vars)
+
+  def resolve(gamma: Gamma): Option[Gamma] = {
+    chunks.foldLeft[Option[Map[Var, SynslType]]](Some(gamma))((go, h) => go match {
+      case None => None
+      case Some(g) => h.resolve(g)
+    })
+  }
 
 }
 

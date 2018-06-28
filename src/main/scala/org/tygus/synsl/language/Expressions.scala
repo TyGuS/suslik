@@ -1,5 +1,7 @@
 package org.tygus.synsl.language
 
+import org.tygus.synsl.logic.Gamma
+
 /**
   * @author Ilya Sergey
   */
@@ -13,32 +15,53 @@ object Expressions {
 
   sealed abstract class BinOp extends PrettyPrinting {
     def level: Int
+    def lType: SynslType
+    def rType: SynslType
+    def resType: SynslType
   }
 
-  sealed abstract class RelOp extends BinOp
-  sealed abstract class LogicOp extends BinOp
+  sealed abstract class RelOp extends BinOp {
+    def resType: SynslType = BoolType
+  }
+  sealed abstract class LogicOp extends BinOp {
+    def lType: SynslType = BoolType
+    def rType: SynslType = BoolType
+    def resType: SynslType = BoolType
+  }
   trait SymmetricOp
   trait AssociativeOp
 
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "+"
+    def lType: SynslType = IntType
+    def rType: SynslType = IntType
+    def resType: SynslType = IntType
   }
   object OpMinus extends BinOp {
     def level: Int = 4
     override def pp: String = "-"
+    def lType: SynslType = IntType
+    def rType: SynslType = IntType
+    def resType: SynslType = IntType
   }
   object OpEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=="
+    def lType: SynslType = IntType
+    def rType: SynslType = IntType
   }
   object OpLeq extends RelOp {
     def level: Int = 3
     override def pp: String = "<="
+    def lType: SynslType = IntType
+    def rType: SynslType = IntType
   }
   object OpLt extends RelOp {
     def level: Int = 3
     override def pp: String = "<"
+    def lType: SynslType = IntType
+    def rType: SynslType = IntType
   }
   object OpAnd extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
@@ -51,14 +74,21 @@ object Expressions {
   object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "++"
+    def lType: SynslType = IntSetType
+    def rType: SynslType = IntSetType
+    def resType: SynslType = IntSetType
   }
   object OpIn extends RelOp {
     def level: Int = 3
     override def pp: String = "in"
+    def lType: SynslType = IntType
+    def rType: SynslType = IntSetType
   }
   object OpSetEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=i"
+    def lType: SynslType = IntSetType
+    def rType: SynslType = IntSetType
   }
 
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
@@ -113,6 +143,52 @@ object Expressions {
     def && (other: Expr): Expr = BinaryExpr(OpAnd, this, other)
     def || (other: Expr): Expr = BinaryExpr(OpOr, this, other)
     def ==> (other: Expr): Expr = this.not || other
+
+    def getType(gamma: Gamma): Option[SynslType]
+
+    def resolve(gamma: Gamma, target: Option[SynslType]): Option[Gamma] = this match {
+      case v@Var(_) => gamma.get(v) match {
+        case Some(t) => if (t.conformsTo(target)) Some(gamma) else None
+        case None => target match {
+          case Some(t1) => Some(gamma + (v -> t1))
+          case None => Some(gamma)
+        }
+      }
+      case BoolConst(_) => if (BoolType.conformsTo(target)) Some(gamma) else None
+      case IntConst(_) => if (IntType.conformsTo(target)) Some(gamma) else None
+      case UnaryExpr(op, e) => op match {
+        case OpNot => if (BoolType.conformsTo(target)) e.resolve(gamma, Some(BoolType)) else None
+      }
+      case BinaryExpr(op, l, r) =>
+        if (op.resType.conformsTo(target)) {
+          for {
+            gamma1 <- l.resolve(gamma, Some(op.lType))
+            gamma2 <- r.resolve(gamma1, Some(op.rType))
+          } yield gamma2
+        } else None
+      case SetLiteral(elems) =>
+        if (IntSetType.conformsTo(target)) {
+          elems.foldLeft[Option[Map[Var, SynslType]]](Some(gamma))((go, e) => go match {
+            case None => None
+            case Some(g) => e.resolve(g, Some(IntType))
+          })
+        } else None
+      case IfThenElse(c, t, e) =>
+        for {
+          gamma1 <- c.resolve(gamma, Some(BoolType))
+          gamma2 <- t.resolve(gamma1, None)
+          t1 = t.getType(gamma2)
+          gamma3 <- e.resolve(gamma2, t1)
+          t2 = e.getType(gamma3)
+          gamma4 <- t2 match {
+            case Some(_) => t.resolve(gamma3, t2) // RHS has more information: resolve LHS again
+            case None => {
+              assert(false, s"ITE with unconstrained types on both sides: $pp")
+              None
+            }
+          }
+        } yield gamma4
+    }
   }
 
   type PFormula = Expr
@@ -134,10 +210,12 @@ object Expressions {
       }
       Var(tmpName)
     }
+
+    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = gamma.get(this)
   }
 
   // Program-level constant
-  abstract class Const(value: Any) extends Expr {
+  sealed abstract class Const(value: Any) extends Expr {
     override def pp: String = value.toString
     def subst(sigma: Map[Var, Expr]): Expr = this
   }
@@ -147,18 +225,22 @@ object Expressions {
       * Let's have this instead of the dedicated Nil constructor
       */
     def isNull: Boolean = value == 0
+
+    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(IntType)
   }
 
   val NilPtr = IntConst(0)
 
-  case class BoolConst(value: Boolean) extends Const(value)
+  case class BoolConst(value: Boolean) extends Const(value) {
+    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(BoolType)
+  }
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
-
+    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(op.resType)
   }
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
@@ -166,18 +248,20 @@ object Expressions {
 
     override def level = 5
     override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
+    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(BoolType)
   }
 
   case class SetLiteral(elems: List[Expr]) extends Expr {
     override def pp: String = s"{${elems.map(_.pp).mkString(", ")}}"
     override def subst(sigma: Map[Var, Expr]): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
+    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(IntSetType)
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
     override def level: Int = 1
     override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
-
+    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = left.getType(gamma)
   }
 
 }

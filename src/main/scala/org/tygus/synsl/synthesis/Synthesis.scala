@@ -6,6 +6,7 @@ import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.rules.InvertibleRule
 import org.tygus.synsl.util.{SynLogging, SynStats}
+import org.tygus.synsl.logic.Specifications._
 
 import scala.Console.{BLACK, BLUE, CYAN, GREEN, MAGENTA, RED, YELLOW}
 import scala.collection.mutable.ListBuffer
@@ -33,7 +34,7 @@ trait Synthesis extends SepLogicUtils {
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
   Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = Goal(pre, post, new Gamma(formals), name, Derivation(pre.sigma.chunks, post.sigma.chunks))
+    val goal = makeNewGoal(pre, post, formals, name)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()

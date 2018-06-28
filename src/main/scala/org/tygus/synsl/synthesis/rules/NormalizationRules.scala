@@ -4,6 +4,7 @@ import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
+import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.synthesis._
 
 import scala.collection.Set

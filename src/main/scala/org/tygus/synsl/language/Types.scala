@@ -4,7 +4,15 @@ package org.tygus.synsl.language
   * @author Ilya Sergey
   */
 
-abstract class SynslType extends PrettyPrinting
+abstract class SynslType extends PrettyPrinting {
+  def conformsTo(target: Option[SynslType]): Boolean = target match {
+    case None => true
+    case Some(t1) if this == t1 => true
+    case Some(IntType) => this == LocType
+    case Some(LocType) => this == IntType
+    case _ => false
+  }
+}
 
 case object BoolType extends SynslType {
   override def pp: String = "bool"

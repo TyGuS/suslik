@@ -2,8 +2,8 @@ package org.tygus.synsl.logic.unification
 
 import org.tygus.synsl.language.Expressions.{Expr, Var}
 import org.tygus.synsl.language.Substitutable
-import org.tygus.synsl.logic.unification.PureUnification.Subst
-import org.tygus.synsl.logic.{Assertion, PureLogicUtils, SepLogicUtils}
+import org.tygus.synsl.logic.Specifications._
+import org.tygus.synsl.logic.{PureLogicUtils, SepLogicUtils}
 
 /**
   * Base engine for unification, both for spatial and for pure parts

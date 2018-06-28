@@ -7,193 +7,214 @@ import org.tygus.synsl.synthesis.SynthesisRule
 
 import scala.math.Ordering.Implicits._
 
-case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
-  with PureLogicUtils {
+object Specifications {
 
-  def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
+  case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
+    with PureLogicUtils {
 
-  // Get free variables
-  def varsPhi: Set[Var] = phi.vars
+    def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
 
-  def varsSigma: Set[Var] = sigma.collectE(_.isInstanceOf[Var])
+    // Get free variables
+    def varsPhi: Set[Var] = phi.vars
 
-  // Get all variables in the assertion
-  def vars: Set[Var] = varsPhi ++ varsSigma
+    def varsSigma: Set[Var] = sigma.collectE(_.isInstanceOf[Var])
 
-  // Collect arbitrary expressions
-  def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
-    phi.collect(p) ++ sigma.collectE(p)
+    // Get all variables in the assertion
+    def vars: Set[Var] = varsPhi ++ varsSigma
 
-  def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
+    // Collect arbitrary expressions
+    def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
+      phi.collect(p) ++ sigma.collectE(p)
 
-  // def |-(other: Assertion): Boolean = EntailmentSolver.entails(this, other)
+    def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
-  def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
-    val freshSubst = refreshVars(this.vars.toList, bound)
-    (this.subst(freshSubst), freshSubst)
+    def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
+      val freshSubst = refreshVars(this.vars.toList, bound)
+      (this.subst(freshSubst), freshSubst)
+    }
+
+    /**
+      * For all pointers x :-> v, changes v to a fresh variable $ex.
+      * Returns a substitution from $ex to v.
+      */
+    def relaxPTSImages: (Assertion, Subst) = {
+      val ptss = sigma.ptss
+      val (_, sub, newPtss) =
+        ptss.foldRight((Set.empty: Set[Var], Map.empty: Subst, Nil: List[PointsTo])) {
+          case (p@PointsTo(x, off, e), z@(taken, sbst, acc)) =>
+            // Only relax if the pure part is not affected!
+            if (e.vars.intersect(phi.vars).isEmpty) {
+              val freshName = LanguageUtils.generateFreshExistential(taken)
+              val taken1 = taken + freshName
+              val sub1 = sbst + (freshName -> e)
+              (taken1, sub1, PointsTo(x, off, freshName) :: acc)
+            } else (taken, sbst, p :: acc)
+        }
+      val newSigma = SFormula(sigma.chunks.filter(!ptss.contains(_)) ++ newPtss)
+      (this.copy(sigma = newSigma), sub)
+    }
+
+    def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
+      this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
+
+    def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
+      this.copy(sigma = this.sigma.lockSAppTags(cond))
+
+    def resolve(gamma: Gamma): Option[Gamma] = {
+      for {
+        gamma1 <- phi.resolve(gamma, Some(BoolType))
+        gamma2 <- sigma.resolve(gamma1)
+      } yield gamma2
+    }
+
+  }
+
+  case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
+    extends PrettyPrinting with Ordered[RuleApplication] {
+    override def pp: String =
+      s"${this.rule} ${this.timestamp} ${this.footprint}"
+
+    // Does this rule application commute with a previous application prev?
+    // Yes if my footprint only includes chunks that existed before prev was applied
+    def commutesWith(prev: RuleApplication): Boolean = {
+      this.footprint._1.forall(i => i < prev.timestamp._1) &&
+        this.footprint._2.forall(i => i < prev.timestamp._2)
+    }
+
+    // Rule applications are ordered by their footprint
+    // (the actual order doesn't really matter, as long as not all rules are equal)
+    override def compare(that: RuleApplication): Int = {
+      val min1 = this.footprint._1.union(this.footprint._2).min
+      val min2 = that.footprint._1.union(that.footprint._2).min
+      min1.compare(min2)
+    }
+  }
+
+
+  case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
+    extends PrettyPrinting {
+    override def pp: String =
+      s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
+        s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
+        s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
+
+    // Find a previous rule application that is out of order with the latest one
+    def outOfOrder(ruleOrder: Seq[SynthesisRule]): Option[RuleApplication] = {
+
+      // app1 is ordered before app2
+      // if its rule comes earlier in the rule order,
+      // or the rules are the same and the footprint comes earlier
+      def before(app1: RuleApplication, app2: RuleApplication): Boolean = {
+        val i1 = ruleOrder.indexOf(app1.rule)
+        val i2 = ruleOrder.indexOf(app2.rule)
+        (i1, app1) < (i2, app2)
+      }
+
+      applications match {
+        case Nil => None
+        case latest :: prevs => prevs.find(prev => latest.commutesWith(prev) && before(latest, prev))
+      }
+    }
   }
 
   /**
-    * For all pointers x :-> v, changes v to a fresh variable $ex.
-    * Returns a substitution from $ex to v.
+    * Main class for contextual Hoare-style specifications
     */
-  def relaxPTSImages: (Assertion, Subst) = {
-    val ptss = sigma.ptss
-    val (_, sub, newPtss) =
-      ptss.foldRight((Set.empty: Set[Var], Map.empty: Subst, Nil: List[PointsTo])) {
-        case (p@PointsTo(x, off, e), z@(taken, sbst, acc)) =>
-          // Only relax if the pure part is not affected!
-          if (e.vars.intersect(phi.vars).isEmpty) {
-            val freshName = LanguageUtils.generateFreshExistential(taken)
-            val taken1 = taken + freshName
-            val sub1 = sbst + (freshName -> e)
-            (taken1, sub1, PointsTo(x, off, freshName) :: acc)
-          } else (taken, sbst, p :: acc)
+  case class Goal(pre: Assertion,
+                  post: Assertion,
+                  gamma: Gamma,
+                  programVars: List[Var],
+                  fname: String,
+                  deriv: Derivation)
+    extends PrettyPrinting with PureLogicUtils {
+
+    override def pp: String =
+      s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
+        s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
+
+    def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
+      Assertion(simplify(post.phi), post.sigma))
+
+    def copy(pre: Assertion = this.pre,
+             post: Assertion = this.post,
+             gamma: Gamma = this.gamma,
+             programVars: List[Var] = this.programVars,
+             newRuleApp: Option[RuleApplication] = None): Goal = {
+
+      val gammaFinal = resolvePrePost(gamma, pre, post)
+
+      def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
+        index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
       }
-    val newSigma = SFormula(sigma.chunks.filter(!ptss.contains(_)) ++ newPtss)
-    (this.copy(sigma = newSigma), sub)
-  }
 
-  def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
-    this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
-
-  def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
-    this.copy(sigma = this.sigma.lockSAppTags(cond))
-
-}
-
-case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
-  extends PrettyPrinting with Ordered[RuleApplication] {
-  override def pp: String =
-    s"${this.rule} ${this.timestamp} ${this.footprint}"
-
-  // Does this rule application commute with a previous application prev?
-  // Yes if my footprint only includes chunks that existed before prev was applied
-  def commutesWith(prev: RuleApplication): Boolean = {
-    this.footprint._1.forall(i => i < prev.timestamp._1) &&
-      this.footprint._2.forall(i => i < prev.timestamp._2)
-  }
-
-  // Rule applications are ordered by their footprint
-  // (the actual order doesn't really matter, as long as not all rules are equal)
-  override def compare(that: RuleApplication): Int = {
-    val min1 = this.footprint._1.union(this.footprint._2).min
-    val min2 = that.footprint._1.union(that.footprint._2).min
-    min1.compare(min2)
-  }
-}
-
-
-case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
-  extends PrettyPrinting {
-  override def pp: String =
-    s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
-      s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
-      s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
-
-  // Find a previous rule application that is out of order with the latest one
-  def outOfOrder(ruleOrder: Seq[SynthesisRule]): Option[RuleApplication] = {
-
-    // app1 is ordered before app2
-    // if its rule comes earlier in the rule order,
-    // or the rules are the same and the footprint comes earlier
-    def before(app1: RuleApplication, app2: RuleApplication): Boolean = {
-      val i1 = ruleOrder.indexOf(app1.rule)
-      val i2 = ruleOrder.indexOf(app2.rule)
-      (i1, app1) < (i2, app2)
+      val d = this.deriv
+      val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
+        postIndex = appendNewChunks(this.post, post, d.postIndex),
+        applications = newRuleApp.toList ++ d.applications)
+      Goal(pre, post, gammaFinal, programVars, this.fname, newDeriv)
     }
 
-    applications match {
-      case Nil => None
-      case latest :: prevs => prevs.find(prev => latest.commutesWith(prev) && before(latest, prev))
-    }
-  }
-}
+    def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 
-/**
-  * Main class for contextual Hoare-style specifications
-  */
-case class Goal(pre: Assertion, post: Assertion, gamma: Gamma, fname: String, deriv: Derivation)
-  extends PrettyPrinting with PureLogicUtils {
+    // All variables this goal has ever used
+    def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ programVars
 
-  override def pp: String =
-    s"${gamma.pp} |-\n" + s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
+    // Variables currently used only in specs
+    def ghosts: Set[Var] = pre.vars ++ post.vars -- programVars
 
-  def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
-    Assertion(simplify(post.phi), post.sigma))
+    // Universally quantified variables: program variables and ghosts in pre
+    def universals: Set[Var] = programVars.toSet ++ pre.vars
 
-  def copy(pre: Assertion = this.pre,
-           post: Assertion = this.post,
-           gamma: Gamma = this.gamma,
-           newRuleApp: Option[RuleApplication] = None): Goal = {
+    // Ghosts that appear only in the postcondition
+    def existentials: Set[Var] = post.vars -- universals
 
-    def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
-      index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
-    }
+    // Determine whether `x` is a ghost variable wrt. given spec and gamma
+    def isGhost(x: Var): Boolean = ghosts.contains(x)
 
-    val d = this.deriv
-    val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
-      postIndex = appendNewChunks(this.post, post, d.postIndex),
-      applications = newRuleApp.toList ++ d.applications)
-    Goal(pre, post, gamma, this.fname, newDeriv)
-  }
+    // Determine whether x is in the context
+    def isProgramVar(x: Var): Boolean = programVars.contains(x)
 
+    def isExistential(x: Var): Boolean = existentials.contains(x)
 
-  def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
+    def addProgramVar(v: Var, t: SynslType): Goal =
+      this.copy(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
 
-  // TODO: replace with just gamma.vars
-  def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ gamma.vars
-
-  def formals: Set[Var] = gamma.programVars.toSet
-
-  def ghosts: Set[Var] = pre.vars ++ post.vars -- formals
-
-  def universals: Set[Var] = pre.vars ++ formals
-
-  def existentials: Set[Var] = post.vars -- universals
-
-  def givenConstants: Set[Const] = pre.collectE(_.isInstanceOf[Const])
-
-  def constantsInPost: Set[Const] = post.collectE(_.isInstanceOf[Const])
-
-  // Determine whether `x` is a ghost variable wrt. given spec and gamma
-  def isGhost(x: Var): Boolean = ghosts.contains(x)
-
-  // Determine whether x is in the context
-  def isConcrete(x: Var): Boolean = formals.contains(x)
-
-  def isExistential(x: Var): Boolean = existentials.contains(x)
-
-  def getType(x: Var): SynslType = {
-    // TODO: all ghosts are void for now; we treat void as the top type
-    gamma.types.get(x) match {
-      case Some(t) => t
-      case None => VoidType
-    }
-    /*
-    if (isGhost(x)) {
-      // Deduce the type from the parameter types and the spec
-      val candidates = pre.sigma.findSubFormula {
-        case PointsTo(_, _, v) => v == x
-        case _ => false
-      }
-      if (candidates.isEmpty) return None
-      val PointsTo(y, _, _) = candidates.head
-
-      val assocType: Option[(SynslType, Var)] = gamma.find(pv => pv._2.name == y.name)
-      if (assocType.isEmpty) return None
-      return assocType.get._1 match {
-        case PtrType(inner) => Some(inner)
-        case _ => None
-      }
-    } else {
-      // Typed variables get the type automatically
-      gamma.find(_._2 == x) match {
-        case Some((t, _)) => Some(t)
-        case None => None
+    def getType(x: Var): SynslType = {
+      gamma.get(x) match {
+        case Some(t) => t
+        case None => VoidType
       }
     }
-    */
+
+    def formals: Formals = programVars.map(v => (getType(v), v))
+  }
+
+  private def resolvePrePost(gamma0: Gamma, pre: Assertion, post: Assertion): Gamma = {
+    pre.resolve(gamma0) match {
+      case None => throw SepLogicException(s"Resolution error in specification: ${pre.pp}")
+      case Some(gamma1) => post.resolve(gamma1) match {
+        case None => throw SepLogicException(s"Resolution error in specification: ${post.pp}")
+        case Some(gamma) => gamma
+      }
+    }
+  }
+
+  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String): Goal = {
+    val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
+    val gamma = resolvePrePost(gamma0, pre, post)
+    val formalNames = formals.map(_._2)
+    val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
+    Goal(pre, post, gamma, formalNames, fname, emptyDerivation)
+  }
+
+  def makeNewPredicate(name: Ident, params: List[Var], clauses: Seq[InductiveClause]): InductivePredicate = {
+    clauses.foldLeft[Option[Map[Var, SynslType]]](Some(Map.empty))((go, e) => go match {
+      case None => None
+      case Some(g) => e.resolve(g)
+    }) match {
+      case None => throw SepLogicException(s"Resolution error in predicate definition: $name")
+      case Some(gamma) => InductivePredicate(name, params.map(p => (gamma(p), p)), clauses)
+    }
   }
 
 }

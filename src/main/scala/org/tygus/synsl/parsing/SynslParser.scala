@@ -4,6 +4,7 @@ import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.unification.UnificationGoal
+import org.tygus.synsl.logic.Specifications._
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
@@ -94,7 +95,7 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
   def indPredicate: Parser[InductivePredicate] =
     ("predicate" ~> ident) ~ ("(" ~> rep1sep(varParser, ",") <~ ")") ~
         (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ params ~ clauses => InductivePredicate(name, params, clauses)
+      case name ~ params ~ clauses => makeNewPredicate(name, params, clauses)
     }
 
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
