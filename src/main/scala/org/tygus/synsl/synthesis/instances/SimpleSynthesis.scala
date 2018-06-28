@@ -1,5 +1,7 @@
 package org.tygus.synsl.synthesis.instances
 
+import org.tygus.synsl.language.Expressions.BoolConst
+import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis._
 import org.tygus.synsl.synthesis.rules.{OperationalRules, SubtractionRules, _}
 import org.tygus.synsl.util.SynLogging
@@ -11,6 +13,11 @@ import org.tygus.synsl.util.SynLogging
 class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val startingDepth = 27
+
+  {
+    // Warm-up the SMT solver on start-up to avoid future delays
+    assert(SMTSolving.valid(BoolConst(true)))
+  }
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction
@@ -29,7 +36,6 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.SubstLeft,
     NormalizationRules.Inconsistency,
     NormalizationRules.SubstRight,
-    // NormalizationRules.Hypothesis,
 
     OperationalRules.ReadRule,
 

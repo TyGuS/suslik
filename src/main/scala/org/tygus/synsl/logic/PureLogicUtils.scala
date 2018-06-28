@@ -73,6 +73,9 @@ trait PureLogicUtils {
     case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplify(right)
     case BinaryExpr(OpMinus, left, IntConst(i)) if i.toInt == 0 => simplify(left)
 
+    case BinaryExpr(OpUnion, left, SetLiteral(s)) if s.isEmpty => simplify(left)
+    case BinaryExpr(OpUnion, SetLiteral(s), right) if s.isEmpty => simplify(right)
+
     case UnaryExpr(op, e1) => UnaryExpr(op, simplify(e1))
     case BinaryExpr(op, e1, e2) => BinaryExpr(op, simplify(e1), simplify(e2))
 
@@ -80,7 +83,9 @@ trait PureLogicUtils {
   }
 
   def pTrue: PFormula = BoolConst(true)
+
   def pFalse: PFormula = BoolConst(false)
+
   def andClean(p1: PFormula, p2: PFormula): PFormula = simplify(p1 && p2)
 
   private def isAtomicExpr(e: Expr): Boolean = e match {

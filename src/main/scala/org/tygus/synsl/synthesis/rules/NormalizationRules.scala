@@ -80,11 +80,11 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
-        map { s =>
-          val elems = s.toList
-          ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
-          (elems.head, elems.tail.head)
-        }.toList
+          map { s =>
+            val elems = s.toList
+            ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
+            (elems.head, elems.tail.head)
+          }.toList
       val newPairs = pairs.filter {
         case (x, y) => !cs.contains(x |/=| y) && !cs.contains(y |/=| x)
       }
@@ -114,17 +114,23 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
+        // TODO [sets]: Can we enable this
+        // case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, simplify(p1)) match {
-        case Some((BinaryExpr(OpEq, x@Var(_), l), rest1)) =>
-          val _p1 = mkConjunction(rest1).subst(x, l)
+        case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
+          val _p1 = simplify(mkConjunction(rest1).subst(x, l))
           val _s1 = s1.subst(x, l)
-          val _p2 = p2.subst(x, l)
+          val _p2 = simplify(p2.subst(x, l))
           val _s2 = s2.subst(x, l)
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
-            Assertion(_p2, _s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+            Assertion(_p2, _s2),
+            goal.gamma.filter { case (t, w) => w != x })
+          if (newGoal.existentials.subsetOf(goal.existentials)) {
+            List(Subderivation(List((newGoal)), pureKont(toString)))
+          }
+          else Nil
         case _ => Nil
       }
     }
@@ -148,15 +154,17 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
+        // TODO [sets]: Can we enable this?
+        // case BinaryExpr(OpSetEq, v1@Var(_), SetLiteral(_)) => isExsistVar(v1)
         case _ => false
       }, simplify(p2)) match {
-        case Some((BinaryExpr(OpEq, l, r), rest2)) =>
+        case Some((BinaryExpr(_, l, r), rest2)) =>
           val (x, e) = if (isExsistVar(l)) {
             (l.asInstanceOf[Var], r)
           } else {
             (r.asInstanceOf[Var], l)
           }
-          val _p2 = mkConjunction(rest2).subst(x, e)
+          val _p2 = simplify(mkConjunction(rest2).subst(x, e))
           val _s2 = s2.subst(x, e)
           val newGoal = goal.copy(post = Assertion(_p2, _s2))
           List(Subderivation(List(newGoal), pureKont(toString)))

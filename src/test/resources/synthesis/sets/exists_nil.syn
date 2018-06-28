@@ -2,7 +2,7 @@ Step 1: x-list is Nil, nothing to do here
 
 #####
 
-{(x == 0) /\ (S =i Empty) ; r :-> x}
+{(x == 0) /\ S =i {} ; r :-> x}
 void list_copy(loc r)
 {true ; r :-> y ** lseg(y, 0, S) }
 

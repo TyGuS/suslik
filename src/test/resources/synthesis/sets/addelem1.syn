@@ -6,7 +6,7 @@ should be able to reason with singleton sets
 
 void add(loc x, int e)
 
-{ e in {r} /\ not (0 in ({r} ++ {r})) /\ not (0 in {}) ; x :-> r }
+{ e in {r} /\ not (0 in ({r} ++ {r})) ; x :-> r }
 
 ######
 

@@ -94,6 +94,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
         newPreAdjusted = newPre.copy(phi = andClean(newPre.phi, ghostEqualities(tempGoal)))
         newGoal = tempGoal.copy(pre = newPreAdjusted)
+        if newGoal.existentials.subsetOf(goal.existentials)
       } yield {
         Subderivation(List(newGoal), pureKont(toString))
       }

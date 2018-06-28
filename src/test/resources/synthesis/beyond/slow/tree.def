@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 predicate lseg(loc x, loc y, int len) {
+=======
+predicate lsegN(x, y, len) {
+>>>>>>> master
 |  x == y        => { len == 0 ; emp }
 |  not (x == y)  => { len == 1 + len1  /\  0 <= len1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, len1) }
 }
@@ -14,7 +18,19 @@ predicate treeN(loc x, int n) {
                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
 }
 
+<<<<<<< HEAD
 predicate tree_size(loc x, int sz) {
 |  x == 0        => { sz == 0 ; emp }
 |  not (x == 0)  => { sz == 1 + szl + szr  /\  0 <= szl  /\  0 <= szr ; [x, 3] ** x :-> e ** (x + 1) :-> l ** (x + 2) :-> r ** tree_size(l, szl) ** tree_size(r, szr) }
+=======
+predicate lseg(x, y, S) {
+|  x == y        => { S =i {} ; emp }
+|  not (x == y)  => { S =i {v} ++ S1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, S1) }
+>>>>>>> master
 }
+
+predicate tree(x, S) {
+|  x == 0        => {S =i {}; emp}
+|  not (x == 0)  => {S =i {v} ++ S1 ++ S2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, S1) ** tree(r, S2)}
+}
+

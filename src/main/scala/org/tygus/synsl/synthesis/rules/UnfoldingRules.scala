@@ -5,6 +5,7 @@ import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.language.{Ident, VoidType}
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.Specifications._
+import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
 
@@ -55,11 +56,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
           // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
-
-          // Get predicate from the environment
-          // TODO: Here's a potential bug, due to variable captures
-          // (existnentials in predicate clauses are captured by goal variables)
-          // TODO: refresh its existentials!
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.map(_._2).zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
@@ -74,7 +70,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
           } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)))
-          Some((newGoals, h))
+          // This is important, otherwise the rule is unsound and produces programs reading from ghosts
+          // We can make the conditional without additional reading
+          // TODO: Generalise this in the future
+          val noGhosts = newGoals.forall{case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet)}
+          if (noGhosts) Some((newGoals, h)) else None
         case _ => None
       }
     }
@@ -94,7 +94,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
       // Bump up twice in the post so that we can't apply IH to its results;
       // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
-      val newPost = goal.post.bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
+      val newPost = goal.post.lockSAppTags() //bumpUpSAppTags().bumpUpSAppTags() //.lockSAppTags(x => !matcher(x))
 
       val fspec = FunSpec(fname, VoidType, goal.formals, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
@@ -144,6 +144,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sub <- {
           SpatialUnification.unify(target, source)
         }
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
       } yield {
         val callGoal = mkCallGoal(f, sub, callSubPre, goal)
         val args = f.params.map { case (_, x) => x.subst(sub) }
@@ -209,6 +210,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
       } yield {
         val callGoal = ApplyHypothesisRule.mkCallGoal(f, actualSub, callSubPre, goal)
         val writeGoals = generateWriteGoals(actualSub, relaxedSub, f, goal)
@@ -271,7 +273,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {
         h match {
-          case SApp(_,_,Some(t)) => t > env.maxUnfoldingDepth
+          case SApp(_, _, Some(t)) => t > env.maxUnfoldingDepth
           case _ => false
         }
       }

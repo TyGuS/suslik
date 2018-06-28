@@ -1,0 +1,13 @@
+Should solve the unification with empty sets - 2
+
+#####
+
+{ S =i {v} ++ S1 /\ S2 =i {} ; x :-> a}
+void elemInSet (loc x, int v)
+{ {v1} ++ S1 =i S ++ S2; x :-> v1}
+
+#####
+
+void elemInSet (loc x, int v) {
+  *x = v;
+}
