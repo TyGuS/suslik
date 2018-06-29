@@ -27,6 +27,8 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   def |-(other: Heaplet): Boolean
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
+
+  def rank: Int
 }
 
 /**
@@ -52,6 +54,8 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
       gamma2 <- value.resolve(gamma1, Some(IntType))
     } yield gamma2
   }
+
+  def rank: Int = 2
 }
 
 /**
@@ -70,6 +74,7 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
 
+  def rank: Int = 0
 }
 
 /**
@@ -93,6 +98,8 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
             }}
     } else None
   }
+
+  def rank: Int = 1
 }
 
 

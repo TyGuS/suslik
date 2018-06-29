@@ -35,13 +35,15 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.NilNotLval,
     NormalizationRules.SubstLeft,
     NormalizationRules.Inconsistency,
-    NormalizationRules.SubstRight,
+//    NormalizationRules.SubstRight,
 
     OperationalRules.ReadRule,
     UnfoldingRules.InvokeInductionRule,
 
     // Subtraction rules
-    SubtractionRules.StarIntro,
+    SubtractionRules.FrameExact,
+//    SubtractionRules.StarIntro,
+//    SubtractionRules.StarIntroOld,
 //    SubtractionRules.HypothesisUnify,
 
     // Invertible operational rules
@@ -53,8 +55,11 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
     UnfoldingRules.ApplyHypothesisAbduceFrameRule, // Experimental
 
+    SubtractionRules.HeapUnify,
+
     // Also, moving UnfoldingRules.ApplyHypothesisRule up makes things worse...
     UnfoldingRules.CloseRule,
+
 
     // Noninvertible operational rules
     // OperationalRules.WriteRuleOld,
@@ -62,6 +67,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     OperationalRules.FreeRule,
 
     SubtractionRules.HypothesisUnify,
+    NormalizationRules.SubstRight,
     SubtractionRules.Pick,
     OperationalRules.PickFromEnvRule,
 

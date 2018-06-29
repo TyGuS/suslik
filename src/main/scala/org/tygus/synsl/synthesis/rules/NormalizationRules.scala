@@ -5,7 +5,12 @@ import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.Specifications._
+import org.tygus.synsl.logic.unification.PureUnification
+import org.tygus.synsl.logic.unification.SpatialUnification.tryUnify
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.SubtractionRules.EmpRule.conjuncts
+import org.tygus.synsl.synthesis.rules.SubtractionRules.StarIntroOld.saveApplication
+import org.tygus.synsl.synthesis.rules.SubtractionRules.{pureKont, sortAlternativesByFootprint}
 
 import scala.collection.Set
 
@@ -114,7 +119,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
-        // This meeses with hypothesis unify:
+        // This messes with hypothesis unify:
 //        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, simplify(p1)) match {
@@ -145,30 +150,31 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: subst-R]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      val p2 = goal.post.phi
-      val s2 = goal.post.sigma
+//      if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
+        val p2 = goal.post.phi
+        val s2 = goal.post.sigma
 
+        def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.isExistential(e.asInstanceOf[Var])
 
-      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.isExistential(e.asInstanceOf[Var])
-
-      findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
-        // TODO [sets]: Can we enable this?
-        // case BinaryExpr(OpSetEq, v1@Var(_), SetLiteral(_)) => isExsistVar(v1)
-        case _ => false
-      }, simplify(p2)) match {
-        case Some((BinaryExpr(_, l, r), rest2)) =>
-          val (x, e) = if (isExsistVar(l)) {
-            (l.asInstanceOf[Var], r)
-          } else {
-            (r.asInstanceOf[Var], l)
-          }
-          val _p2 = simplify(mkConjunction(rest2).subst(x, e))
-          val _s2 = s2.subst(x, e)
-          val newGoal = goal.copy(post = Assertion(_p2, _s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
-        case _ => Nil
-      }
+        findConjunctAndRest({
+          case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
+          // TODO [sets]: Can we enable this?
+          case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
+          case _ => false
+        }, simplify(p2)) match {
+          case Some((BinaryExpr(_, l, r), rest2)) =>
+            val (x, e) = if (isExsistVar(l)) {
+              (l.asInstanceOf[Var], r)
+            } else {
+              (r.asInstanceOf[Var], l)
+            }
+            val _p2 = simplify(mkConjunction(rest2).subst(x, e))
+            val _s2 = s2.subst(x, e)
+            val newGoal = goal.copy(post = Assertion(_p2, _s2))
+            List(Subderivation(List(newGoal), pureKont(toString)))
+          case _ => Nil
+        }
+//      } else Nil
     }
   }
 
@@ -184,10 +190,17 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       val pre = goal.pre.phi
       val post = goal.post.phi
 
+      // If precondition does not contain predicates, we can't get get new facts from anywhere
+      // TODO: incompatible with abduction
+      val preIsFinal = !goal.pre.sigma.chunks.exists(_.isInstanceOf[SApp])
+      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
+
       if (!SMTSolving.sat(pre))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
       else if (!SMTSolving.sat(andClean(pre, post)))
         List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
+      else if (preIsFinal && !SMTSolving.valid(pre ==> universalPost))
+        List(Subderivation(Nil, _ => Magic)) // universal post not implies by pre: only magic can save us
       else
         Nil
     }

@@ -136,6 +136,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: write]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
+      val pre = goal.pre
       val post = goal.post
 
       // Heaplets have no ghosts
@@ -147,6 +148,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findHeaplet(noGhosts, post.sigma) match {
         case None => Nil
         case Some(h@PointsTo(x@Var(_), offset, l)) =>
+
+          // Same heaplet in pre: no point in writing
+          if (pre.sigma.chunks.contains(h)) return Nil
+
           val y = generateFreshVar(goal)
 
           val newPost = Assertion(post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
