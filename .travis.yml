@@ -21,8 +21,6 @@ before_install:
   - sudo apt-get upgrade
   - sudo apt-get dist-upgrade
   - sudo apt-get install libstdc++6
-  - sudo apt-get install conda
-  - conda install libgcc
 
 install:
   - ./.ci/install_z3.sh
