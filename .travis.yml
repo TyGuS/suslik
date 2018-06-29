@@ -16,7 +16,8 @@ jdk:
   - oraclejdk8
   
 before_install:
-  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test 
+  - conda install libgcc
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
   - sudo apt-get update
   - sudo apt-get upgrade
   - sudo apt-get dist-upgrade
