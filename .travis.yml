@@ -16,6 +16,10 @@ jdk:
   - oraclejdk8
   
 before_install:
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test 
+  - sudo apt-get update
+  - sudo apt-get upgrade
+  - sudo apt-get dist-upgrade
   - sudo apt-get install libstdc++6
 
 install:
