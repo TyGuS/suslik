@@ -139,10 +139,18 @@ object Expressions {
     // Convenience operators for building expressions
     def |=| (other: Expr): Expr = BinaryExpr(OpEq, this, other)
     def |/=| (other: Expr): Expr = (this |=| other).not
+    def eq(other: Expr, t: SynslType): Expr = t match {
+      case IntSetType => BinaryExpr(OpSetEq, this, other)
+      case BoolType => this <==> other
+      case _ => this |=| other
+    }
+    def neq(other: Expr, t: SynslType): Expr = this.eq(other, t).not
+
     def not: Expr = UnaryExpr(OpNot, this)
     def && (other: Expr): Expr = BinaryExpr(OpAnd, this, other)
     def || (other: Expr): Expr = BinaryExpr(OpOr, this, other)
     def ==> (other: Expr): Expr = this.not || other
+    def <==> (other: Expr): Expr = (this ==> other) && (other ==> this)
 
     def getType(gamma: Gamma): Option[SynslType]
 

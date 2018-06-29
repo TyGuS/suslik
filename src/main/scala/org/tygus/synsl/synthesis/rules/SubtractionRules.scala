@@ -69,14 +69,9 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[Subderivation] = {
 
       def ghostEqualities(newGoal: Goal): PFormula = {
-        val conjuncts = for (v <- newGoal.existentials -- goal.existentials)
-          yield newGoal.getType(v) match {
-            case IntSetType => BinaryExpr(OpSetEq, v, v)
-            case _ =>  v |=| v
-          }
+        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield v.eq(v, newGoal.getType(v))
         mkConjunction(conjuncts.toList)
       }
-
 
       val pre = goal.pre
       val post = goal.post
@@ -144,11 +139,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
       def ghostEqualities(newGoal: Goal): PFormula = {
-        val conjuncts = for (v <- newGoal.existentials -- goal.existentials)
-          yield newGoal.getType(v) match {
-            case IntSetType => BinaryExpr(OpSetEq, v, v)
-            case _ =>  v |=| v
-          }
+        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield v.eq(v, newGoal.getType(v))
         mkConjunction(conjuncts.toList)
       }
 
