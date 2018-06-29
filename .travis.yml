@@ -1,3 +1,7 @@
+####################################################################
+# This configuration is adapted from Damien Zufferey's PSync project
+#            https://github.com/dzufferey/psync
+####################################################################
 os:
   - linux
 

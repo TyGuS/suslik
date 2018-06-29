@@ -9,18 +9,18 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
 ### Requirements 
 
-* JDK 1.8
-* `sbt` (version >=1.1.6)
-* `Z3` SMT solver, available [here](https://github.com/Z3Prover/z3)
+* [Java SE Development Kit 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
+* [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
+* [Z3 SMT solver](https://github.com/Z3Prover/z3)
 
 ### Building the project
 
-To compile and run the test suitetest, execute from the root folder of the project:
+To compile and run the test suite, execute from the root folder of the project:
 
 ```
 sbt test
 ```
 
-## Synthesizing from Your Specifications
+## Synthesizing Programs from SL Specifications
 
-**Coming soon!**
+**The tutorial is coming soon!**
