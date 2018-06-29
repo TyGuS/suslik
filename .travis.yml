@@ -16,12 +16,13 @@ jdk:
   - oraclejdk8
   
 before_install:
-  - conda install libgcc
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
   - sudo apt-get update
   - sudo apt-get upgrade
   - sudo apt-get dist-upgrade
   - sudo apt-get install libstdc++6
+  - sudo apt-get install conda
+  - conda install libgcc
 
 install:
   - ./.ci/install_z3.sh
