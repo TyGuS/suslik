@@ -1,6 +1,9 @@
 # SynSL
 
-Synthesis of heap-manipulating programs from Separation Logic specs
+[![Build Status](https://travis-ci.org/TyGuS/synsl.svg?branch=master)](https://travis-ci.org/TyGuS/synsl)
+[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/synsl/master/LICENSE)
+
+Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
 ## Setup and Build
 
@@ -18,3 +21,6 @@ To compile and run the test suitetest, execute from the root folder of the proje
 sbt test
 ```
 
+## Synthesizing from Your Specifications
+
+**Coming soon!**
