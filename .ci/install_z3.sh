@@ -9,7 +9,7 @@ if [ ! -f "$HOME/z3/z3-${version}-x64-ubuntu-16.04/bin/z3" ]; then
   if [ "$(ls -A $HOME/z3)" ]; then
       rm -r $HOME/z3/*
   fi
-  wget https://github.com/Z3Prover/z3/releases/download/z3-4.5.0/z3-4.5.0-x64-ubuntu-16.04.zip -O ~/z3.zip
+  wget https://github.com/Z3Prover/z3/releases/download/z3-${version}/z3-${version}-x64-ubuntu-16.04.zip -O ~/z3.zip
   unzip ~/z3.zip -d ~/z3
 fi
 
