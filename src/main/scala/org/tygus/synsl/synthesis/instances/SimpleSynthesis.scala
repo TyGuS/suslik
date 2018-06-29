@@ -42,18 +42,14 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
     // Subtraction rules
     SubtractionRules.StarIntro,
-//    SubtractionRules.HypothesisUnify,
 
     // Invertible operational rules
     OperationalRules.WriteRule,
 
-    // TODO: Only with this order of rules tree-morph succeeds!
     // If these come last, it goes to an eternal alloc/free spiral. :(
-    // UnfoldingRules.ApplyHypothesisRule,
+    UnfoldingRules.AbductWritesAndCallRule,
+//    UnfoldingRules.ApplyHypothesisRule,
 
-    UnfoldingRules.ApplyHypothesisAbduceFrameRule, // Experimental
-
-    // Also, moving UnfoldingRules.ApplyHypothesisRule up makes things worse...
     UnfoldingRules.CloseRule,
 
     // Noninvertible operational rules
