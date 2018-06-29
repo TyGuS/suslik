@@ -146,7 +146,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   TODO: Make sure it works on non-trivial sub-heaps
    */
 
-  object ApplyHypothesisRule extends SynthesisRule {
+  object CallRule extends SynthesisRule {
 
     override def toString: Ident = "[Unfold: apply-hypothesis]"
 
@@ -168,9 +168,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           SpatialUnification.unify(target, source)
         }
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+        args = f.params.map { case (_, x) => x.subst(sub) }
+        if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
       } yield {
         val callGoal = mkCallGoal(f, sub, callSubPre, goal)
-        val args = f.params.map { case (_, x) => x.subst(sub) }
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
           val rest = stmts.head
@@ -226,6 +227,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoalsOpt, restGoal) = writesAndRestGoals(actualSub, relaxedSub, f, goal)
+
+        args = f.params.map { case (_, x) => x.subst(actualSub) }
+        if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+
       } yield {
         val writeGoals = writeGoalsOpt.toList
         val n = writeGoals.length
@@ -234,12 +239,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           ruleAssert(stmts.length == n + 1, s"Apply-hypotheses rule expected ${n + 1} premise and got ${stmts.length}")
           val writes = stmts.take(n)
           val rest = stmts.drop(n).head
-          val args = f.params.map { case (_, x) => x.subst(actualSub) }
           val k = SeqComp(Call(None, Var(goal.fname), args), rest)
           writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
         }
 
-        val callGoal = ApplyHypothesisRule.mkCallGoal(f, actualSub, callSubPre, goal)
+        val callGoal = CallRule.mkCallGoal(f, actualSub, callSubPre, goal)
         val subGoals = writeGoals ++ List(callGoal)
         Subderivation(subGoals, kont)
       }).toSeq

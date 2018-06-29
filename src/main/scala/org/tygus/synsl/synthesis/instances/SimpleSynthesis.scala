@@ -48,7 +48,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
     // If these come last, it goes to an eternal alloc/free spiral. :(
     UnfoldingRules.AbductWritesAndCallRule,
-//    UnfoldingRules.ApplyHypothesisRule,
+//    UnfoldingRules.CallRule,
 
     UnfoldingRules.CloseRule,
 
