@@ -197,7 +197,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  // TODO: This rule interfereces with Derivation chaching!
+  // TODO: This rule interfereces with Derivation caching!
   object AbductWritesRule extends SynthesisRule {
 
     override def toString: Ident = "[Unfold: abduct-writes]"

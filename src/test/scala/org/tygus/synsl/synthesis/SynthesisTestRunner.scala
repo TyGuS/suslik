@@ -2,7 +2,6 @@ package org.tygus.synsl.synthesis
 
 import java.lang.Boolean.parseBoolean
 
-import org.tygus.synsl.synthesis.instances.SimpleSynthesis
 import org.tygus.synsl.util.{SynLogLevels, SynLogging}
 
 /**
@@ -15,8 +14,6 @@ object SynthesisTestRunner extends SynthesisTestUtil {
   override implicit val log: SynLogging = SynLogLevels.Verbose
 
   import log._
-
-  val synthesis: Synthesis = new SimpleSynthesis
 
   /**
     * Running a single test file (2nd argument) from a folder (1 argument) under

@@ -4,6 +4,7 @@ import java.io.File
 
 import org.tygus.synsl.logic.Resolver._
 import org.tygus.synsl.parsing.SynslParser
+import org.tygus.synsl.synthesis.instances.PhasedSynthesis
 import org.tygus.synsl.util.{SynLogLevels, SynLogging, SynStatUtil}
 
 import scala.io.Source
@@ -28,7 +29,7 @@ trait SynthesisTestUtil {
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
 
-  val synthesis: Synthesis
+  val synthesis: Synthesis = new PhasedSynthesis
 
   def doTest(testName: String, desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit
 

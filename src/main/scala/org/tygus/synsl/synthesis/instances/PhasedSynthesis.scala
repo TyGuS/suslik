@@ -2,15 +2,11 @@ package org.tygus.synsl.synthesis.instances
 
 import org.tygus.synsl.language.Expressions.BoolConst
 import org.tygus.synsl.logic.smt.SMTSolving
-import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.{OperationalRules, SubtractionRules, _}
+import org.tygus.synsl.synthesis.{Synthesis, SynthesisRule}
+import org.tygus.synsl.synthesis.rules.{NormalizationRules, OperationalRules, SubtractionRules, UnfoldingRules}
 import org.tygus.synsl.util.SynLogging
 
-/**
-  * @author Ilya Sergey
-  */
-
-class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
+class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
 
   val startingDepth = 27
 
@@ -35,30 +31,26 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.NilNotLval,
     NormalizationRules.SubstLeft,
     NormalizationRules.Inconsistency,
-    NormalizationRules.SubstRight,
+//    NormalizationRules.SubstRight,
 
     OperationalRules.ReadRule,
     UnfoldingRules.InvokeInductionRule,
 
-    // Subtraction rules
-    SubtractionRules.StarIntro,
-
-    // Invertible operational rules
+    SubtractionRules.FrameExact,
     OperationalRules.WriteRule,
 
-    // If these come last, it goes to an eternal alloc/free spiral. :(
     //    UnfoldingRules.AbductWritesAndCallRule,
     UnfoldingRules.CallRule,
     UnfoldingRules.AbductWritesRule,
+    SubtractionRules.HeapUnify,
 
     UnfoldingRules.CloseRule,
 
-    // Noninvertible operational rules
-    // OperationalRules.WriteRuleOld,
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
 
     SubtractionRules.HypothesisUnify,
+    NormalizationRules.SubstRight,
     SubtractionRules.Pick,
     OperationalRules.PickFromEnvRule,
 
