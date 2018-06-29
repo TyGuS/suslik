@@ -29,6 +29,7 @@ trait Synthesis extends SepLogicUtils {
 
   val topLevelRules: List[SynthesisRule]
   val everyDayRules: List[SynthesisRule]
+  def allRules: List[SynthesisRule] = topLevelRules ++ everyDayRules
   val startingDepth: Int
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
@@ -38,7 +39,7 @@ trait Synthesis extends SepLogicUtils {
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()
-    synthesize(goal, startingDepth)(stats = stats, printFails = _printFails, rules = topLevelRules ++ everyDayRules) match {
+    synthesize(goal, startingDepth)(stats = stats, printFails = _printFails, rules = allRules) match {
       case Some(body) =>
         val proc = Procedure(name, tp, formals, body)
         Some((proc, stats))
@@ -126,7 +127,7 @@ trait Synthesis extends SepLogicUtils {
 
         // Filter out subderivations that violate rule ordering
         def goalInOrder(g: Goal): Boolean = {
-          g.deriv.outOfOrder(rules) match {
+          g.deriv.outOfOrder(allRules) match {
             case None => true
             case Some(app) =>
               printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)), isFail = true)
