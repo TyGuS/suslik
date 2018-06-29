@@ -188,15 +188,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
       val restPreChunks =
-      /*
-       If we don't increase tags, bad things might happen.
-
-       For instance, a "list_copy" function starts "tweaking" the pre, so it could apply itself more times,
-       eventually flooding the entire universe with copies of the very same list! Since this clearly
-       perturbs the laws of existence, we prohibit such an obscenity...
-
-       So, for the reasons of avoid sucking our galaxy into a block hole, we bump up the tags.
-       */
         (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.lockSAppTags().chunks
       val restPre = Assertion(andClean(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
       val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
@@ -245,8 +236,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val rest = stmts.drop(n).head
           val args = f.params.map { case (_, x) => x.subst(actualSub) }
           val k = SeqComp(Call(None, Var(goal.fname), args), rest)
-          val writesCallRest = writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
-          writesCallRest
+          writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
         }
 
         val callGoal = ApplyHypothesisRule.mkCallGoal(f, actualSub, callSubPre, goal)
@@ -262,10 +252,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if actualSub.contains(x)
         if e.subst(relaxedSub) != e.subst(actualSub)
         actualSource = x.subst(actualSub)
-        pActual <- goal.pre.sigma.ptss.find { case PointsTo(y, off1, _) => y == actualSource && off == off1 }
-        pDesired = PointsTo(actualSource, off, e.subst(actualSub))
+        pToReplace <- goal.pre.sigma.ptss.find { case PointsTo(y, off1, _) => y == actualSource && off == off1 }
+        pToObtain = PointsTo(actualSource, off, e.subst(actualSub))
       } yield {
-        (pActual, pDesired)
+        (pToReplace, pToObtain)
       }).unzip
 
       val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
