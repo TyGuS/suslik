@@ -16,13 +16,13 @@ jdk:
   - oraclejdk8
   
 before_install:
-  - sudo apt-get -qq install lib32stdc++6
+  - sudo apt-get -qq install lib64stdc++6
 
 install:
   - ./.ci/install_z3.sh
 
 env:
-  - PATH="$HOME/z3/z3-4.6.0-x64-ubuntu-14.04/bin/:$PATH"
+  - PATH="$HOME/z3/z3-4.6.0-x64-ubuntu-16.04/bin/:$PATH"
 
 before_script:
   - sudo chmod +x /usr/local/bin/sbt
