@@ -170,12 +170,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       val newPostSigma = post.sigma - postHeaplets
       val newPre = Assertion(pre.phi, newPreSigma)
       val newPost = Assertion(post.phi, newPostSigma)
-      // TODO: why doesn't this work?
-//      val preFootprint = preHeaplets.map(p => deriv.preIndex.indexOf(p)).toSet
-//      val postFootprint = postHeaplets.map(p => deriv.preIndex.indexOf(p)).toSet
-//      val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-//      val tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-      val tempGoal = goal.copy(newPre, newPost)
+      val preFootprint = preHeaplets.map(p => deriv.preIndex.indexOf(p)).toSet
+      val postFootprint = postHeaplets.map(p => deriv.postIndex.indexOf(p)).toSet
+      val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
+      val tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
       val newPreAdjusted = newPre.copy(phi = andClean(newPre.phi, ghostEqualities(tempGoal)))
       val newGoal = tempGoal.copy(pre = newPreAdjusted)
       List(Subderivation(List(newGoal), pureKont(toString)))
