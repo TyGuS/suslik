@@ -7,7 +7,7 @@ version := "0.5.0"
 
 scalaVersion := "2.12.5"
 
-val akkaVersion = "2.5.3"
+// val akkaVersion = "2.5.3"
 
 resolvers in ThisBuild ++= Seq(
     Resolver.sonatypeRepo("releases"),

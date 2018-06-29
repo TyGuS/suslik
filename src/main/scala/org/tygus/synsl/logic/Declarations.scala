@@ -4,7 +4,6 @@ import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.language.SynslType
-import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisAbduceFrameRule.refreshVars
 
 /**
   * @author Ilya Sergey
@@ -13,7 +12,7 @@ import org.tygus.synsl.synthesis.rules.UnfoldingRules.ApplyHypothesisAbduceFrame
 /**
   * A top-level declaration in a program
   */
-sealed abstract class TopLevelDeclaration extends PrettyPrinting
+sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicUtils
 
 /**
   * Function to synthesize
@@ -25,15 +24,15 @@ case class FunSpec(name: Ident, rType: SynslType, params: Formals,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
   override def pp: String = {
     s"${pre.pp}\n${rType.pp} " +
-      s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
-      s"${post.pp}"
+        s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
+        s"${post.pp}"
   }
 
 
   def ppInline: String = {
     s"${rType.pp} " +
-      s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})" +
-      s" ${pre.pp} ${post.pp}"
+        s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})" +
+        s" ${pre.pp} ${post.pp}"
   }
 
   def relaxFunSpec = {
@@ -49,7 +48,6 @@ case class FunSpec(name: Ident, rType: SynslType, params: Formals,
     val newPost = post.subst(sub)
     this.copy(pre = newPre, post = newPost)
   }
-
 
 }
 
@@ -83,7 +81,7 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
   *
   */
 case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[InductiveClause])
-  extends TopLevelDeclaration with PureLogicUtils {
+    extends TopLevelDeclaration with PureLogicUtils {
 
   override def pp: String = {
     val prelude = s"$name (${params.map(_._2.pp).mkString(", ")}) {"
