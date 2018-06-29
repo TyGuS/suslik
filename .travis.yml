@@ -16,7 +16,7 @@ jdk:
   - oraclejdk8
   
 before_install:
-  - sudo apt-get -qq install lib64stdc++6
+  - sudo apt-get install libstdc++6
 
 install:
   - ./.ci/install_z3.sh
