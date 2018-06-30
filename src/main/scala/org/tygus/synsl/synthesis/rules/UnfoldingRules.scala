@@ -130,15 +130,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       if (!noInductionOrUnfoldings) return Nil
 
-      val inductionAlternatives = for {
+      for {
         a <- preApps
         newEnv = mkIndHyp(goal, a)
         newGoal = goal.copy(env = newEnv)
       } yield Subderivation(Seq(newGoal), pureKont(toString))
-
-      val noInduction = Subderivation(Seq(goal.copy(goal.pre.lockSAppTags())), identityProducer)
-
-      noInduction :: inductionAlternatives
     }
   }
 

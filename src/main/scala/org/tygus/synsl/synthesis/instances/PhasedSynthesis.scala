@@ -8,7 +8,7 @@ import org.tygus.synsl.util.SynLogging
 
 class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
 
-  val startingDepth = 40
+  val startingDepth = 100
 
   {
     // Warm-up the SMT solver on start-up to avoid future delays

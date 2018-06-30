@@ -14,6 +14,11 @@ predicate treeN(loc x, int n) {
                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
 }
 
+predicate treeS(loc x, set s) {
+|  x == 0        => {s =i {}; emp}
+|  not (x == 0)  => {s =i {v} ++ s1 ++ s2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeS(l, s1) ** treeS(r, s2)}
+}
+
 predicate lseg(loc x, loc y) {
 |  x == y        => {emp}
 |  not (x == y)  => {[x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, y)}
