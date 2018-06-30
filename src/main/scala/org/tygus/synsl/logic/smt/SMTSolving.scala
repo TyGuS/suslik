@@ -68,12 +68,13 @@ object SMTSolving extends Core
       "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))")
   } else throw SolverUnsupportedExpr(defaultSolver)
 
-  private def checkSat(term: SMTBoolTerm): Boolean = {
-    push(1)
-    val res = isSat(term)
-    pop(1)
-    res != Success(UnSat()) // Unknown counts as SAT
-  }
+  private def checkSat(term: SMTBoolTerm): Boolean =
+    this.synchronized {
+      push(1)
+      val res = isSat(term)
+      pop(1)
+      res != Success(UnSat()) // Unknown counts as SAT
+    }
 
   /** Translating expression into SMT  */
 
