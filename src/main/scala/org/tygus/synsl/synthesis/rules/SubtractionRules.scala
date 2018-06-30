@@ -204,12 +204,12 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     Γ ; {φ ∧ φ1 ; P} ; {ψ' ; Q'} ---> S
             s = unify(φ1, φ2)
       {ψ' ; Q'} = subst({ψ ; Q}, s)
-  --------------------------------------- [Hypothesis-Unify]
+  --------------------------------------- [Pure-Unify]
   Γ ; {φ ∧ φ1 ; P} ; {ψ ∧ φ2 ; Q} ---> S
 
    */
 
-  object HypothesisUnify extends SynthesisRule with FlatPhase {
+  object PureUnify extends SynthesisRule with FlatPhase {
     override def toString: String = "[Norm: pure-unify]"
 
     def apply(goal: Goal): Seq[Subderivation] = {

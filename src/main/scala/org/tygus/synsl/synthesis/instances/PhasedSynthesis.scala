@@ -50,7 +50,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     OperationalRules.FreeRule,
     NormalizationRules.HeapUnreachable,
 
-    SubtractionRules.HypothesisUnify,
+    SubtractionRules.PureUnify,
     SubtractionRules.Pick,
     OperationalRules.PickFromEnvRule,
   )
