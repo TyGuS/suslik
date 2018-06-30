@@ -21,7 +21,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction
-    UnfoldingRules.MkInductionRule,
+    UnfoldingRules.InductionRule,
   )
 
   // Right now the rule is fixed statically
@@ -38,7 +38,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     NormalizationRules.SubstRight,
 
     OperationalRules.ReadRule,
-    UnfoldingRules.InvokeInductionRule,
+    UnfoldingRules.Open,
 
     // Subtraction rules
     SubtractionRules.StarIntro,
@@ -51,7 +51,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.CallRule,
     UnfoldingRules.AbductWritesRule,
 
-    UnfoldingRules.CloseRule,
+    UnfoldingRules.Close,
 
     // Noninvertible operational rules
     // OperationalRules.WriteRuleOld,

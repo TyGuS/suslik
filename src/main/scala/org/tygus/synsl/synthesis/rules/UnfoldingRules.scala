@@ -18,9 +18,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-unfolding"
 
-  object InvokeInductionRule extends SynthesisRule with AnyPhase {
+  object Open extends SynthesisRule with PredicatePhase {
 
-    override def toString: Ident = "[Unfold: invoke-induction]"
+    override def toString: Ident = "[Unfold: open]"
 
     private def kont(selectors: Seq[PFormula]): StmtProducer = stmts => {
       ruleAssert(selectors.length == stmts.length,
@@ -89,9 +89,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> If(<b_i, S_i>)
 
    */
-  object MkInductionRule extends SynthesisRule with AnyPhase {
+  object InductionRule extends SynthesisRule with AnyPhase {
 
-    override def toString: Ident = "[Unfold: make-induction]"
+    override def toString: Ident = "[Unfold: induction]"
 
     private def mkIndHyp(goal: Goal, h: Heaplet): Environment = {
       val env = goal.env
@@ -279,7 +279,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         Γ ; { φ ; P } ; { ψ ; p(args) * Q } ---> S
 
    */
-  object CloseRule extends SynthesisRule with PredicatePhase {
+  object Close extends SynthesisRule with PredicatePhase {
 
     override def toString: Ident = "[Unfold: close]"
 

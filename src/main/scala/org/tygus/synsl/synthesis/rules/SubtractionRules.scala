@@ -126,7 +126,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  abstract class FrameExact extends SynthesisRule {
+  abstract class Frame extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
     def apply(goal: Goal): Seq[Subderivation] = {
@@ -154,15 +154,13 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-
-  object FrameExactPred extends FrameExact with PredicatePhase {
-    override def toString: String = "[Sub: frame-exact-pred]"
+  object FramePred extends Frame with PredicatePhase {
+    override def toString: String = "[Sub: frame-pred]"
   }
 
-  object FrameExactFlat extends FrameExact with FlatPhase with InvertibleRule {
-    override def toString: String = "[Sub: frame-exact-flat]"
+  object FrameFlat extends Frame with FlatPhase with InvertibleRule {
+    override def toString: String = "[Sub: frame-flat]"
   }
-
 
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean

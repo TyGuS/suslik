@@ -17,7 +17,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction
-    UnfoldingRules.MkInductionRule,
+    UnfoldingRules.InductionRule,
   )
 
   val everyDayRules: List[SynthesisRule] = List(
@@ -31,19 +31,19 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     OperationalRules.ReadRule,
 
     // Predicate phase rules
-    SubtractionRules.FrameExactPred,
+    SubtractionRules.FramePred,
     UnfoldingRules.CallRule,
-    UnfoldingRules.InvokeInductionRule,
+    UnfoldingRules.Open,
     SubtractionRules.HeapUnifyPred,
     UnfoldingRules.AbductWritesRule,
-    UnfoldingRules.CloseRule,
+    UnfoldingRules.Close,
 
 
     // Flat phase rules
     NormalizationRules.SubstLeft,
     NormalizationRules.SubstRight,
     NormalizationRules.PureUnreachable,
-    SubtractionRules.FrameExactFlat,
+    SubtractionRules.FrameFlat,
     SubtractionRules.HeapUnifyFlat,
     OperationalRules.AllocRule,
     OperationalRules.WriteRule,
