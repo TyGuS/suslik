@@ -149,7 +149,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   object CallRule extends SynthesisRule {
 
-    override def toString: Ident = "[Unfold: apply-hypothesis]"
+    override def toString: Ident = "[Unfold: call]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       (for {
@@ -196,8 +196,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       callGoal
     }
   }
-
-  // TODO: This rule interfereces with Derivation caching!
+  /*
+   * The rule implementing a limited form of abduction:
+   * Relaxes the function by replacing some of the points-to values by ghosts to allow for more unifications
+   * Infers the discrepancies and emits new write-goals
+   * Uses multiple-sub-derivation mechanism to enable several writes, followed by a call (via CallRule)
+   */
   object AbductWritesRule extends SynthesisRule {
 
     override def toString: Ident = "[Unfold: abduct-writes]"
@@ -253,87 +257,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       // val preFootprintToReplace = ptsToReplace.map(p => goal.deriv.preIndex.indexOf(p)).toSet
       // val ruleApp = saveApplication((preFootprintToReplace, Set.empty), goal.deriv)
-      val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
-      val remainingGoal = goal.copy(pre = Assertion(goal.pre.phi, heapAfterWrites))
-
-      if (ptsToReplace.isEmpty) return (None, remainingGoal)
-
-      val smallWriteGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
-      val smallWriteGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
-      val smallWritesGoal = goal.copy(pre = smallWriteGoalPre, post = smallWriteGoalPost)
-
-      (Some(smallWritesGoal), remainingGoal)
-    }
-
-  }
-
-
-  /*
-   Hypothesis rule with some abduction embedded in it:
-   * Relaxes the function by replacing some of the points-to values by ghosts to allow for more unifications
-   * Infers the discrepancies and emits new write-goals
-   * Uses multiple-sub-derivation mechanism to enable several writes, followed by a call
-   */
-  object AbductWritesAndCallRule extends SynthesisRule {
-
-    override def toString: Ident = "[Unfold: abduct-writes]"
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-      (for {
-        (_, _funSpec) <- goal.env.functions
-
-        // Make a "relaxed" substitution for the spec and for with it
-        (f, exSub) = _funSpec.refreshExistentials(goal.vars).relaxFunSpec
-
-        lilHeap = f.pre.sigma
-        largHeap = goal.pre.sigma
-        matchingHeaps = findLargestMatchingHeap(lilHeap, largHeap)
-        // if willNotExplode(matchingHeaps)
-        largPreSubHeap <- matchingHeaps
-        callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
-
-        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        relaxedSub <- SpatialUnification.unify(target, source)
-        // Preserve regular variables and fresh existentials back to what they were, if applicable
-        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
-        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
-        (writeGoalsOpt, restGoal) = writesAndRestGoals(actualSub, relaxedSub, f, goal)
-
-        args = f.params.map { case (_, x) => x.subst(actualSub) }
-        if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
-
-      } yield {
-        val writeGoals = writeGoalsOpt.toList
-        val n = writeGoals.length
-
-        val kont: StmtProducer = stmts => {
-          ruleAssert(stmts.length == n + 1, s"Apply-hypotheses rule expected ${n + 1} premise and got ${stmts.length}")
-          val writes = stmts.take(n)
-          val rest = stmts.drop(n).head
-          val k = SeqComp(Call(None, Var(goal.fname), args), rest)
-          writes.foldRight(k) { case (w, r) => SeqComp(w, r) }
-        }
-
-        val callGoal = CallRule.mkCallGoal(f, actualSub, callSubPre, goal)
-        val subGoals = writeGoals ++ List(callGoal)
-        Subderivation(subGoals, kont)
-      }).toSeq
-    }
-
-    def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): (Option[Goal], Goal) = {
-      val ptss = f.pre.sigma.ptss // raw points-to assertions
-      val (ptsToReplace, ptsToObtain) = (for {
-        p@PointsTo(x@Var(_), off, e) <- ptss
-        if actualSub.contains(x)
-        if e.subst(relaxedSub) != e.subst(actualSub)
-        actualSource = x.subst(actualSub)
-        pToReplace <- goal.pre.sigma.ptss.find { case PointsTo(y, off1, _) => y == actualSource && off == off1 }
-        pToObtain = PointsTo(actualSource, off, e.subst(actualSub))
-      } yield {
-        (pToReplace, pToObtain)
-      }).unzip
-
       val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
       val remainingGoal = goal.copy(pre = Assertion(goal.pre.phi, heapAfterWrites))
 
