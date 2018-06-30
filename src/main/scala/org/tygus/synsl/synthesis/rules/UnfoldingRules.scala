@@ -18,7 +18,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-unfolding"
 
-  object InvokeInductionRule extends SynthesisRule {
+  object InvokeInductionRule extends SynthesisRule with AnyPhase {
 
     override def toString: Ident = "[Unfold: invoke-induction]"
 
@@ -89,7 +89,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> If(<b_i, S_i>)
 
    */
-  object MkInductionRule extends SynthesisRule {
+  object MkInductionRule extends SynthesisRule with AnyPhase {
 
     override def toString: Ident = "[Unfold: make-induction]"
 
@@ -147,9 +147,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   TODO: Make sure it works on non-trivial sub-heaps
    */
 
-  object CallRule extends SynthesisRule {
+  object CallRule extends SynthesisRule with PredicatePhase {
 
-    override def toString: Ident = "[Unfold: apply-hypothesis]"
+    override def toString: Ident = "[Unfold: call]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       (for {
@@ -198,7 +198,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   }
 
   // TODO: This rule interfereces with Derivation caching!
-  object AbductWritesRule extends SynthesisRule {
+  object AbductWritesRule extends SynthesisRule with PredicatePhase {
 
     override def toString: Ident = "[Unfold: abduct-writes]"
 
@@ -274,7 +274,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    * Infers the discrepancies and emits new write-goals
    * Uses multiple-sub-derivation mechanism to enable several writes, followed by a call
    */
-  object AbductWritesAndCallRule extends SynthesisRule {
+  object AbductWritesAndCallRule extends SynthesisRule with PredicatePhase {
 
     override def toString: Ident = "[Unfold: abduct-writes]"
 
@@ -357,7 +357,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         Γ ; { φ ; P } ; { ψ ; p(args) * Q } ---> S
 
    */
-  object CloseRule extends SynthesisRule {
+  object CloseRule extends SynthesisRule with PredicatePhase {
 
     override def toString: Ident = "[Unfold: close]"
 

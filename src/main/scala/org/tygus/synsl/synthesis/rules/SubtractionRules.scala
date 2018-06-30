@@ -28,7 +28,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
   */
 
-  object EmpRule extends SynthesisRule with InvertibleRule {
+  object EmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
 
     override def toString: Ident = "[Sub: emp]"
 
@@ -63,7 +63,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     This is the former [frame] rule
    */
 
-  object StarIntro extends SynthesisRule {
+  object StarIntro extends SynthesisRule with AnyPhase {
     override def toString: String = "[Sub: *-intro]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
@@ -89,7 +89,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   }
 
 
-  object StarIntroOld extends SynthesisRule {
+  object StarIntroOld extends SynthesisRule with AnyPhase {
     override def toString: String = "[Sub: *-intro]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
@@ -127,12 +127,9 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   }
 
   abstract class FrameExact extends SynthesisRule {
-    def correctPhase(goal: Goal): Boolean
     def heapletFilter(h: Heaplet): Boolean
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      if (!correctPhase(goal)) return Nil
-
       val pre = goal.pre
       val post = goal.post
       val deriv = goal.deriv
@@ -157,44 +154,20 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  trait PredicatePhase {
-    def correctPhase(goal: Goal): Boolean = {
-      goal.hasPredicates
-    }
-
-    def heapletFilter(h: Heaplet): Boolean = {
-      h.isInstanceOf[SApp]
-    }
-  }
-
-  trait NonPredicatePhase {
-    def correctPhase(goal: Goal): Boolean = {
-      !goal.hasPredicates
-    }
-
-    def heapletFilter(h: Heaplet): Boolean = {
-      true
-    }
-  }
-
 
   object FrameExactPred extends FrameExact with PredicatePhase {
-    override def toString: String = "[Sub: frame-exact-1]"
+    override def toString: String = "[Sub: frame-exact-pred]"
   }
 
-  object FrameExactNonPred extends FrameExact with NonPredicatePhase with InvertibleRule {
-    override def toString: String = "[Sub: frame-exact-2]"
+  object FrameExactFlat extends FrameExact with FlatPhase with InvertibleRule {
+    override def toString: String = "[Sub: frame-exact-flat]"
   }
 
 
   abstract class HeapUnify extends SynthesisRule {
-    def correctPhase(goal: Goal): Boolean
     def heapletFilter(h: Heaplet): Boolean
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (!correctPhase(goal)) return Nil
-
       val pre = goal.pre
       val post = goal.post
       val deriv = goal.deriv
@@ -221,11 +194,11 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
   }
 
   object HeapUnifyPred extends HeapUnify with PredicatePhase  {
-    override def toString: String = "[Sub: heap-unify-1]"
+    override def toString: String = "[Sub: heap-unify-pred]"
   }
 
-  object HeapUnifyNonPred extends HeapUnify with NonPredicatePhase  {
-    override def toString: String = "[Sub: heap-unify-2]"
+  object HeapUnifyFlat extends HeapUnify with FlatPhase  {
+    override def toString: String = "[Sub: heap-unify-flat]"
   }
 
 
@@ -238,13 +211,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
    */
 
-  object HypothesisUnify extends SynthesisRule {
+  object HypothesisUnify extends SynthesisRule with FlatPhase {
     override def toString: String = "[Norm: pure-unify]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
-
       // get post conjuncts with existentials
       val postConjuncts = conjuncts(goal.post.phi).filter(p => p.vars.exists(goal.isExistential))
       val preConjuncts = conjuncts(goal.pre.phi)
@@ -265,7 +235,7 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> Y * Q} ---> S
    */
 
-  object Pick extends SynthesisRule {
+  object Pick extends SynthesisRule with FlatPhase {
     override def toString: String = "[Sub: pick]"
 
     def apply(goal: Goal): Seq[Subderivation] = {

@@ -13,6 +13,9 @@ abstract class SynthesisRule extends PureLogicUtils {
   // Apply the rule and get all possible sub-derivations
   def apply(goal: Goal): Seq[Subderivation]
 
+  // Is the rule enabled on this goal?
+  def enabled(goal: Goal): Boolean
+
   def saveApplication(footprint: (Set[Int], Set[Int]), currentDeriv: Derivation): RuleApplication =
     RuleApplication(this, footprint, (currentDeriv.preIndex.length, currentDeriv.postIndex.length))
 }
@@ -28,6 +31,31 @@ case class Subderivation(subgoals: Seq[Goal], kont: StmtProducer)
   override def pp: String =
     s"${subgoals.size} subgoal(s):\n${subgoals.map { g => s"${g.env.pp}${g.pp}" }.mkString("\n")}"
 }
+
+trait AnyPhase {
+  def enabled(goal: Goal): Boolean = true
+}
+
+trait PredicatePhase {
+  def enabled(goal: Goal): Boolean = {
+    goal.hasPredicates
+  }
+
+  def heapletFilter(h: Heaplet): Boolean = {
+    h.isInstanceOf[SApp]
+  }
+}
+
+trait FlatPhase {
+  def enabled(goal: Goal): Boolean = {
+    !goal.hasPredicates
+  }
+
+  def heapletFilter(h: Heaplet): Boolean = {
+    true
+  }
+}
+
 
 
 

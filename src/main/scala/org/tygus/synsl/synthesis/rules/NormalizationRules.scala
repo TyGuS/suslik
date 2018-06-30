@@ -25,7 +25,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   Γ ; {φ ; x.f -> l * P} ; {ψ ; Q} ---> S
   */
 
-  object NilNotLval extends SynthesisRule with InvertibleRule {
+  object NilNotLval extends SynthesisRule with AnyPhase with InvertibleRule {
     override def toString: String = "[Norm: nil-not-lval]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
@@ -70,7 +70,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   ------------------------------------------------------------ [*-partial]
   Γ ; {φ ; x.f -> l * y.f -> l' * P} ; {ψ ; Q} ---> S
    */
-  object StarPartial extends SynthesisRule with InvertibleRule {
+  object StarPartial extends SynthesisRule with AnyPhase with InvertibleRule {
     override def toString: String = "[Norm: *-partial]"
 
     def extendPure(p: PFormula, s: SFormula): Option[PFormula] = {
@@ -120,13 +120,10 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   ------------------------------------------------ [subst-L]
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
-  object SubstLeft extends SynthesisRule with InvertibleRule {
+  object SubstLeft extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Norm: subst-L]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
-
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
@@ -158,14 +155,10 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     --------------------------------------- [subst-R]
     Γ ; {φ ; P} ; {ψ ∧ X = l; Q} ---> S
   */
-  object SubstRight extends SynthesisRule with InvertibleRule {
+  object SubstRight extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Norm: subst-R]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
-
-//      if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
         val p2 = goal.post.phi
         val s2 = goal.post.sigma
 
@@ -189,7 +182,6 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
             List(Subderivation(List(newGoal), pureKont(toString)))
           case _ => Nil
         }
-//      } else Nil
     }
   }
 
@@ -198,7 +190,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   --------------------------------------- [inconsistency]
   Γ ; {φ ∧ l ≠ l ; P} ; {ψ ; Q} ---> emp
   */
-  object Inconsistency extends SynthesisRule with InvertibleRule {
+  object Inconsistency extends SynthesisRule with AnyPhase with InvertibleRule {
     override def toString: String = "[Norm: inconsistency]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
@@ -215,13 +207,10 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   }
 
   // Short-circuits failure if universal part of post is too strong
-  object PureUnreachable extends SynthesisRule with InvertibleRule {
+  object PureUnreachable extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Norm: pure-unreach]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
-
       val pre = goal.pre.phi
       val post = goal.post.phi
 
@@ -237,14 +226,11 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   }
 
   // Short-circuits failure if spatial post doesn't match pre
-  // Important: this rule should only fire after alloc is done
-  object HeapUnreachable extends SynthesisRule with InvertibleRule {
+  // Important: this rule should only fire after alloc and free
+  object HeapUnreachable extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Norm: heap-unreach]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
-
       AllocRule.findBlockAndChunks(goal) match {
         case None =>
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
@@ -258,14 +244,13 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   }
 
 
-
   // TODO: remove me once full SMT support in Emp is provided
   /*
   Γ ; {φ ∧ φ' ; P} ; {ψ ; Q} ---> S
   --------------------------------------- [Hypothesis]
   Γ ; {φ ∧ φ' ; P} ; {ψ ∧ φ' ; Q} ---> S
   */
-  object Hypothesis extends SynthesisRule with InvertibleRule {
+  object Hypothesis extends SynthesisRule with AnyPhase with InvertibleRule {
     override def toString: String = "[Norm: hypothesis]"
 
     def apply(goal: Goal): Seq[Subderivation] = {

@@ -125,7 +125,7 @@ trait Synthesis extends SepLogicUtils {
         }
 
         // Invoke the rule
-        val allSubderivations = r(goal)
+        val allSubderivations = if (r.enabled(goal)) r(goal) else Nil
         val goalStr = s"$r: "
 
         // Filter out subderivations that violate rule ordering

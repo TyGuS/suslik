@@ -18,9 +18,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
   import Statements._
 
-  // TODO: Implement [cond]
-  // TODO: Implement [call]
-
   /*
   Write rule: create a new write from where it's possible
 
@@ -29,7 +26,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l' * Q} ---> *x.f := l' ; S
 
   */
-  object WriteRuleOld extends SynthesisRule {
+  object WriteRuleOld extends SynthesisRule with FlatPhase {
 
     override def toString: Ident = "[Op: write-old]"
 
@@ -76,13 +73,11 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   --------------------------------------------------------------------------------[pick-from-env]
      Γ ; {φ ; x.f -> - * P} ; {ψ ; x.f -> m * Q} ---> *x.f := l ; S
    */
-  object PickFromEnvRule extends SynthesisRule with InvertibleRule {
+  object PickFromEnvRule extends SynthesisRule with FlatPhase with InvertibleRule {
 
     override def toString: Ident = "[Op: write-from-env]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
 
       val pre = goal.pre
       val post = goal.post
@@ -134,13 +129,11 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; P} ; {ψ ; x.f -> l * Q} ---> S; *x.f := l
 
   */
-  object WriteRule extends SynthesisRule with InvertibleRule {
+  object WriteRule extends SynthesisRule with FlatPhase with InvertibleRule {
 
     override def toString: Ident = "[Op: write]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
 
       val pre = goal.pre
       val post = goal.post
@@ -181,7 +174,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       ---------------------------------------------------------------- [read]
              Γ ; {φ ; x.f -> A * P} ; {ψ ; Q} ---> let y := *x.f ; S
   */
-  object ReadRule extends SynthesisRule with InvertibleRule {
+  object ReadRule extends SynthesisRule with AnyPhase with InvertibleRule {
 
     override def toString: Ident = "[Op: read]"
 
@@ -226,7 +219,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
      -------------------------------------------------------------- [alloc]
      Γ ; {φ ; P} ; {ψ ; block(X, n) * Q} ---> let y = malloc(n); S
   */
-  object AllocRule extends SynthesisRule {
+  object AllocRule extends SynthesisRule with FlatPhase {
     override def toString: Ident = "[Op: alloc]"
 
     def findBlockAndChunks(goal: Goal): Option[(Heaplet, Seq[Heaplet])] = {
@@ -296,13 +289,11 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
    ------------------------------------------------------------------------ [free]
    Γ ; {φ ; block(x, n) * x -> (l1 .. ln) * P} ; { ψ ; Q } ---> free(x); S
 */
-  object FreeRule extends SynthesisRule {
+  object FreeRule extends SynthesisRule with FlatPhase {
 
     override def toString: Ident = "[Op: free]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      if (goal.hasPredicates) return Nil
 
       def isConcreteBlock: Heaplet => Boolean = {
         case Block(v@Var(_), _) => goal.isProgramVar(v)
