@@ -69,6 +69,9 @@ object Specifications {
       } yield gamma2
     }
 
+    // TODO: take into account distance between pure parts
+    def distance(other: Assertion): Int = this.sigma.distance(other.sigma)
+
   }
 
   case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
@@ -207,6 +210,8 @@ object Specifications {
     }
 
     def formals: Formals = programVars.map(v => (getType(v), v))
+
+    def distance: Int = pre.distance(post)
 
   }
 

@@ -2,6 +2,7 @@ package org.tygus.synsl.logic
 
 import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
+import org.tygus.synsl.synthesis.rules.LogicalRules.findMatchingHeaplets
 
 /**
   * Separation logic fragment
@@ -163,6 +164,17 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
       case None => None
       case Some(g) => h.resolve(g, env)
     })
+  }
+
+  // How dissimilar is this formula from other?
+  def distance(other: SFormula): Int = {
+    def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)
+
+    findMatchingHeaplets(_ => true, isMatch, this, other) match {
+      case None => this.chunks.length + other.chunks.length
+      case Some((l, r)) => (this - l).distance(other - r)
+    }
+
   }
 
 }

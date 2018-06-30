@@ -46,7 +46,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val newGoal = goal.copy(post = newPost, newRuleApp = Some(ruleApp))
         Subderivation(List(newGoal), pureKont(toString))
       }
-      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
+//      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
+      nubBy[Subderivation,Assertion](alternatives, sub => sub.subgoals.head.post).sortBy(s => s.subgoals.head.distance)
     }
   }
 
