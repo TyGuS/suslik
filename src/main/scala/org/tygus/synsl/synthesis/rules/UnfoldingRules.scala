@@ -18,7 +18,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-unfolding"
 
-  object Open extends SynthesisRule with PredicatePhase {
+  object Open extends SynthesisRule with UnfoldingPhase {
 
     override def toString: Ident = "[Unfold: open]"
 
@@ -147,7 +147,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   TODO: Make sure it works on non-trivial sub-heaps
    */
 
-  object CallRule extends SynthesisRule with PredicatePhase {
+  object CallRule extends SynthesisRule with UnfoldingPhase {
 
     override def toString: Ident = "[Unfold: call]"
 
@@ -202,7 +202,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    * Infers the discrepancies and emits new write-goals
    * Uses multiple-sub-derivation mechanism to enable several writes, followed by a call (via CallRule)
    */
-  object AbductWritesRule extends SynthesisRule with PredicatePhase {
+  object AbductWritesRule extends SynthesisRule with UnfoldingPhase {
 
     override def toString: Ident = "[Unfold: abduct-writes]"
 
@@ -279,7 +279,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         Γ ; { φ ; P } ; { ψ ; p(args) * Q } ---> S
 
    */
-  object Close extends SynthesisRule with PredicatePhase {
+  object Close extends SynthesisRule with UnfoldingPhase {
 
     override def toString: Ident = "[Unfold: close]"
 

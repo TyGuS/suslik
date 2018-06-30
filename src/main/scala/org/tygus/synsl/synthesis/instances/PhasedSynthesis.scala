@@ -31,10 +31,10 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     OperationalRules.ReadRule,
 
     // Predicate phase rules
-    SubtractionRules.FramePred,
+    SubtractionRules.FrameUnfolding,
     UnfoldingRules.CallRule,
     UnfoldingRules.Open,
-    SubtractionRules.HeapUnifyPred,
+    SubtractionRules.HeapUnifyUnfolding,
     UnfoldingRules.AbductWritesRule,
     UnfoldingRules.Close,
 

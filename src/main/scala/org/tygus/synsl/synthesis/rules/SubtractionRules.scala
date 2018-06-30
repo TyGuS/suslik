@@ -154,8 +154,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  object FramePred extends Frame with PredicatePhase {
-    override def toString: String = "[Sub: frame-pred]"
+  object FrameUnfolding extends Frame with UnfoldingPhase {
+    override def toString: String = "[Sub: frame-unfold]"
   }
 
   object FrameFlat extends Frame with FlatPhase with InvertibleRule {
@@ -191,8 +191,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  object HeapUnifyPred extends HeapUnify with PredicatePhase  {
-    override def toString: String = "[Sub: heap-unify-pred]"
+  object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase  {
+    override def toString: String = "[Sub: heap-unify-unfold]"
   }
 
   object HeapUnifyFlat extends HeapUnify with FlatPhase  {

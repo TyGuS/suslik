@@ -4,7 +4,6 @@ import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
-import org.tygus.synsl.synthesis.rules.InvertibleRule
 import org.tygus.synsl.util.{SynLogging, SynStats}
 import org.tygus.synsl.logic.Specifications._
 
