@@ -186,7 +186,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * Make a call goal for `f` with a given precondition
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): Goal = {
-      val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.indexOf(p)).toSet
+      val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.lastIndexOf(p)).toSet
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
       val restPreChunks =
@@ -404,7 +404,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val postFootprint = Set(deriv.postIndex.indexOf(h))
+            val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
             Subderivation(List(goal.copy(post = newPost, newRuleApp = Some(ruleApp))), kont)

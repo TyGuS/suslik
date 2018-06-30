@@ -4,14 +4,12 @@ should be able to update structs
 
 {true; x :-> y ** account(y, bal, lim)}
 void deposit(loc x, int amount)
-{true ; x :-> y ** account(y, bal + amount, lim) }
+{newBal == bal + amount ; x :-> y ** account(y, newBal, lim) }
 
 ###
 
 void deposit (loc x, int amount) {
   let y2 = *x;
-  let lim2 = *y2;
   let bal2 = *(y2 + 1);
   *(y2 + 1) = bal2 + amount;
-  *y2 = lim2;
 }

@@ -26,6 +26,8 @@ object Specifications {
     def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
       phi.collect(p) ++ sigma.collectE(p)
 
+    def hasPredicates: Boolean = sigma.chunks.exists(_.isInstanceOf[SApp])
+
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
@@ -143,20 +145,36 @@ object Specifications {
              env: Environment = this.env,
              newRuleApp: Option[RuleApplication] = None): Goal = {
 
-      val gammaFinal = resolvePrePost(gamma, env, pre, post)
+      // Variables that used to be universals but would become existentials
+      val fauxExistentials: Set[Var] = (post.vars -- (pre.vars ++ programVars) -- this.existentials) intersect this.vars
+      val conjuncts: List[PFormula] = for (v <- fauxExistentials.toList) yield v.eq(v, getType(v))
+      // For each such variable, add a trivial euqality to the pure precondition to avoid changing the meaning
+      val preAdjusted = pre.copy(phi = mkConjunction(pre.phi :: conjuncts))
 
+      // Resolve types
+      val gammaFinal = resolvePrePost(gamma, env, preAdjusted, post)
+
+      // Build a new derivation
       def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
-        index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks)
+        index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks).sortBy(_.rank)
       }
-
       val d = this.deriv
-      val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
+      val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, preAdjusted, d.preIndex),
         postIndex = appendNewChunks(this.post, post, d.postIndex),
         applications = newRuleApp.toList ++ d.applications)
-      Goal(pre, post, gammaFinal, programVars, this.fname, env, newDeriv)
+
+      // Sort heaplets from old to new
+      val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newDeriv.preIndex.lastIndexOf(h)))
+      val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newDeriv.postIndex.lastIndexOf(h)))
+      val preSorted = preAdjusted.copy(sigma = newPreSigma)
+      val postSorted = post.copy(sigma = newPostSigma)
+
+      Goal(preSorted, postSorted, gammaFinal, programVars, this.fname, env, newDeriv)
     }
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
+
+    def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates
 
     // All variables this goal has ever used
     def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ programVars
@@ -189,6 +207,7 @@ object Specifications {
     }
 
     def formals: Formals = programVars.map(v => (getType(v), v))
+
   }
 
   private def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {

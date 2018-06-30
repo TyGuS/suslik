@@ -29,7 +29,7 @@ trait SynthesisTestUtil {
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
 
-  val synthesis: Synthesis = new PhasedSynthesis
+  val synthesis: Synthesis
 
   def doTest(testName: String, desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit
 

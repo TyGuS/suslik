@@ -15,6 +15,5 @@ void list_free (loc r, loc x) {
     let nxt2 = *(x + 1);
     list_free(r, nxt2);
     free(x);
-    *r = 0;
   }
 }

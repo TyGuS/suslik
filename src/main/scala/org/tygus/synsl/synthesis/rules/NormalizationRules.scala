@@ -5,12 +5,8 @@ import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.Specifications._
-import org.tygus.synsl.logic.unification.PureUnification
-import org.tygus.synsl.logic.unification.SpatialUnification.tryUnify
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.SubtractionRules.EmpRule.conjuncts
-import org.tygus.synsl.synthesis.rules.SubtractionRules.StarIntroOld.saveApplication
-import org.tygus.synsl.synthesis.rules.SubtractionRules.{pureKont, sortAlternativesByFootprint}
+import org.tygus.synsl.synthesis.rules.OperationalRules.AllocRule
 
 import scala.collection.Set
 
@@ -77,28 +73,44 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   object StarPartial extends SynthesisRule with InvertibleRule {
     override def toString: String = "[Norm: *-partial]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
-      val p1 = goal.pre.phi
-      val s1 = goal.pre.sigma
-
-      val cs = conjuncts(p1)
-      val ptrs = (for (PointsTo(x, _, _) <- s1.chunks) yield x).toSet
+    def extendPure(p: PFormula, s: SFormula): Option[PFormula] = {
+      val cs = conjuncts(p)
+      val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
-          map { s =>
-            val elems = s.toList
-            ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
-            (elems.head, elems.tail.head)
-          }.toList
+        map { s =>
+          val elems = s.toList
+          ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
+          (elems.head, elems.tail.head)
+        }.toList
       val newPairs = pairs.filter {
         case (x, y) => !cs.contains(x |/=| y) && !cs.contains(y |/=| x)
       }
-      if (newPairs.isEmpty) return Nil
+      if (newPairs.isEmpty) None
+      else Some(mkConjunction(cs ++ newPairs.map { case (x, y) => x |/=| y }))
+    }
 
-      // The implementation immediately adds _all_ inequalities
-      val _p1 = mkConjunction(cs ++ newPairs.map { case (x, y) => x |/=| y })
-      val newGoal = goal.copy(Assertion(_p1, s1))
-      List(Subderivation(List(newGoal), pureKont(toString)))
+    def apply(goal: Goal): Seq[Subderivation] = {
+      val s1 = goal.pre.sigma
+      val s2 = goal.post.sigma
+
+      (extendPure(goal.pre.phi, s1), extendPure(goal.post.phi, s2)) match {
+          // TODO: this is not complete, but probably okay if we exclude existentials?
+//        case (None, None) => Nil
+//        case (Some(p1), None) =>
+//          val newGoal = goal.copy(pre = Assertion(p1, s1))
+//          List(Subderivation(List(newGoal), pureKont(toString)))
+//        case (None, Some(p2)) =>
+//          val newGoal = goal.copy(post = Assertion(p2, s2))
+//          List(Subderivation(List(newGoal), pureKont(toString)))
+//        case (Some(p1), Some(p2)) =>
+//          val newGoal = goal.copy(pre = Assertion(p1, s1), post = Assertion(p2, s2))
+//          List(Subderivation(List(newGoal), pureKont(toString)))
+        case (None, _) => Nil
+        case (Some(p1), _) =>
+          val newGoal = goal.copy(pre = Assertion(p1, s1))
+          List(Subderivation(List(newGoal), pureKont(toString)))
+      }
     }
   }
 
@@ -112,6 +124,9 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: subst-L]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
@@ -131,10 +146,7 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-          if (newGoal.existentials.subsetOf(goal.existentials)) {
             List(Subderivation(List(newGoal), pureKont(toString)))
-          }
-          else Nil
         case _ => Nil
       }
     }
@@ -150,6 +162,9 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
     override def toString: String = "[Norm: subst-R]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
 //      if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
         val p2 = goal.post.phi
         val s2 = goal.post.sigma
@@ -190,21 +205,59 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
       val pre = goal.pre.phi
       val post = goal.post.phi
 
-      // If precondition does not contain predicates, we can't get get new facts from anywhere
-      // TODO: incompatible with abduction
-      val preIsFinal = !goal.pre.sigma.chunks.exists(_.isInstanceOf[SApp])
-      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
-
       if (!SMTSolving.sat(pre))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
       else if (!SMTSolving.sat(andClean(pre, post)))
         List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
-      else if (preIsFinal && !SMTSolving.valid(pre ==> universalPost))
+      else
+        Nil
+    }
+  }
+
+  // Short-circuits failure if universal part of post is too strong
+  object PureUnreachable extends SynthesisRule with InvertibleRule {
+    override def toString: String = "[Norm: pure-unreach]"
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
+      val pre = goal.pre.phi
+      val post = goal.post.phi
+
+      // If precondition does not contain predicates, we can't get get new facts from anywhere
+      // TODO: incompatible with abduction
+      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
+
+      if (!SMTSolving.valid(pre ==> universalPost))
         List(Subderivation(Nil, _ => Magic)) // universal post not implies by pre: only magic can save us
       else
         Nil
     }
   }
+
+  // Short-circuits failure if spatial post doesn't match pre
+  // Important: this rule should only fire after alloc is done
+  object HeapUnreachable extends SynthesisRule with InvertibleRule {
+    override def toString: String = "[Norm: heap-unreach]"
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
+      AllocRule.findBlockAndChunks(goal) match {
+        case None =>
+          if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
+            Nil
+          else
+            List(Subderivation(Nil, _ => Magic)) // spatial parts do not match: only magic can save us
+        case Some(_) => Nil // does not apply if there are existential chunks left
+      }
+
+    }
+  }
+
+
 
   // TODO: remove me once full SMT support in Emp is provided
   /*

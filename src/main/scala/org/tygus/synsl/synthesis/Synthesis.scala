@@ -59,7 +59,10 @@ trait Synthesis extends SepLogicUtils {
     printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
 
-    if (depth < 0) return None
+    if (depth < 0) {
+      printLog(List(("Reached maximum depth.", RED)))
+      return None
+    }
 
     def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
       case Nil => None
@@ -130,6 +133,8 @@ trait Synthesis extends SepLogicUtils {
           g.deriv.outOfOrder(allRules) match {
             case None => true
             case Some(app) =>
+//              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
+//              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
               printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)), isFail = true)
               false
           }
@@ -139,7 +144,7 @@ trait Synthesis extends SepLogicUtils {
 
         // TODO: This optimisation interferes with ApplyHypothesis rule - see beyond/abduct/list-free-frame.syn
         val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
-        // val subderivations = allSubderivations
+//         val subderivations = allSubderivations
 
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest

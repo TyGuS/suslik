@@ -81,6 +81,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: write-from-env]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
       val pre = goal.pre
       val post = goal.post
 
@@ -136,6 +139,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: write]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
       val pre = goal.pre
       val post = goal.post
 
@@ -223,20 +229,40 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   object AllocRule extends SynthesisRule {
     override def toString: Ident = "[Op: alloc]"
 
+    def findBlockAndChunks(goal: Goal): Option[(Heaplet, Seq[Heaplet])] = {
+      val post = goal.post
+      val pre = goal.pre
+
+      def isExistBlock: Heaplet => Boolean = {
+        case Block(x@Var(_), _) => goal.isExistential(x)
+        case _ => false
+      }
+
+      findHeaplet(isExistBlock, post.sigma) match {
+        case None => None
+        case Some(h@Block(x@Var(_), sz)) =>
+          val pts = for (off <- 0 until sz) yield
+            findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), post.sigma)
+          Some((h, pts.flatten))
+        case Some(h) =>
+          ruleAssert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
+          None
+      }
+
+    }
+
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
       val deriv = goal.deriv
 
-      def isExistBlock(goal: Goal): Heaplet => Boolean = {
-        case Block(x@Var(_), _) => goal.isExistential(x)
-        case _ => false
-      }
-
-      findHeaplet(isExistBlock(goal), post.sigma) match {
+      findBlockAndChunks(goal) match {
         case None => Nil
-        case Some(h@Block(x@Var(_), sz)) =>
+        case Some((h@Block(x@Var(_), sz), pts)) =>
           val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
@@ -248,14 +274,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val freshBlock = Block(x, sz).subst(x, y)
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
 
-          // Collecting the points-to chunks from post for footprint
-          val pts = for (off <- 0 until sz) yield {
-            findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), post.sigma) match {
-              case Some(pt) => pt
-              case _ => return Nil
-            }
-          }
-          val postFootprint = pts.map(p => deriv.postIndex.indexOf(p)).toSet + deriv.postIndex.indexOf(h)
+          val postFootprint = pts.map(p => deriv.postIndex.lastIndexOf(p)).toSet + deriv.postIndex.lastIndexOf(h)
           val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
           val subGoal = goal.copy(newPre, post.subst(x, y), newRuleApp = Some(ruleApp)).addProgramVar(y, tpy)
@@ -265,9 +284,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           }
 
           List(Subderivation(List(subGoal), kont))
-        case Some(h) =>
-          ruleAssert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
-          Nil
       }
     }
 
@@ -285,6 +301,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: free]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
       def isConcreteBlock: Heaplet => Boolean = {
         case Block(v@Var(_), _) => goal.isProgramVar(v)
         case _ => false
@@ -306,7 +325,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
           // Collecting the footprint
-          val preFootprint = pts.map(p => deriv.preIndex.indexOf(p)).toSet + deriv.preIndex.indexOf(h)
+          val preFootprint = pts.map(p => deriv.preIndex.lastIndexOf(p)).toSet + deriv.preIndex.lastIndexOf(h)
           val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
 
           val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))

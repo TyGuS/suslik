@@ -29,6 +29,12 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
   def rank: Int
+
+  def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this
+
+  def eqModTags(other: Heaplet): Boolean = {
+    this.adjustTag(_ => None) == other.adjustTag(_ => None)
+  }
 }
 
 /**
@@ -74,7 +80,7 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
 
-  def rank: Int = 0
+  def rank: Int = 1
 }
 
 /**
@@ -99,7 +105,9 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
     } else None
   }
 
-  def rank: Int = 1
+  def rank: Int = 0
+
+  override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
 }
 
 
@@ -122,20 +130,14 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   /**
     * Change tags for applications, to avoind re-applying the rule
     */
-  def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
-    case a@SApp(_, _, t) if cond(a) => a.copy(tag = t.map(_ + 1))
-    case x => x
-  })
+  def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h ) )
 
-  def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
-    case a@SApp(_, _, t) if cond(a) => a.copy(tag = Some(i))
-    case x => x
-  })
+  def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h ) )
 
-  def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula = SFormula(chunks.map {
-    case a@SApp(_, _, t) if cond(a) => a.copy(tag = None)
-    case x => x
-  })
+  def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h ) )
 
   def isEmp: Boolean = chunks.isEmpty
 

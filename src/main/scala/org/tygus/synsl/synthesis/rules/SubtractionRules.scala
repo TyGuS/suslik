@@ -68,11 +68,6 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
 
-      def ghostEqualities(newGoal: Goal): PFormula = {
-        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield v.eq(v, newGoal.getType(v))
-        mkConjunction(conjuncts.toList)
-      }
-
       val pre = goal.pre
       val post = goal.post
       val boundVars = goal.universals
@@ -83,13 +78,10 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
 
         newPre = Assertion(pre.phi, newPreSigma)
         newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        preFootprint = preFrame.chunks.map(p => deriv.preIndex.indexOf(p)).toSet
-        postFootprint = postFrame.chunks.map(p => deriv.postIndex.indexOf(p)).toSet
+        preFootprint = preFrame.chunks.map(p => deriv.preIndex.lastIndexOf(p)).toSet
+        postFootprint = postFrame.chunks.map(p => deriv.postIndex.lastIndexOf(p)).toSet
         ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-        tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-        newPreAdjusted = newPre.copy(phi = andClean(newPre.phi, ghostEqualities(tempGoal)))
-        newGoal = tempGoal.copy(pre = newPreAdjusted)
-        if newGoal.existentials.subsetOf(goal.existentials)
+        newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
       } yield {
         Subderivation(List(newGoal), pureKont(toString))
       }
@@ -123,8 +115,8 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
         val newPre = Assertion(pre.phi, newPreSigma)
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
 
-        val preFootprint = Set(deriv.preIndex.indexOf(t))
-        val postFootprint = Set(deriv.postIndex.indexOf(s))
+        val preFootprint = Set(deriv.preIndex.lastIndexOf(t))
+        val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
 
         val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
@@ -134,79 +126,91 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  object FrameExact extends SynthesisRule with InvertibleRule {
-    override def toString: String = "[Sub: frame-exact]"
+  abstract class FrameExact extends SynthesisRule {
+    def correctPhase(goal: Goal): Boolean
+    def heapletFilter(h: Heaplet): Boolean
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      def ghostEqualities(newGoal: Goal): PFormula = {
-        val conjuncts = for (v <- newGoal.existentials -- goal.existentials) yield v.eq(v, newGoal.getType(v))
-        mkConjunction(conjuncts.toList)
-      }
+      if (!correctPhase(goal)) return Nil
 
       val pre = goal.pre
       val post = goal.post
       val deriv = goal.deriv
 
-      val matchingHeaplets = for {
-        t <- pre.sigma.chunks
-        s <- post.sigma.chunks
-        sub = tryUnify(t, s, goal.universals, false)
-        if sub.contains(emptySubst) // essentially t == s modulo tags
-      } yield (t, s)
+      def isSuitable(hPost: Heaplet): Boolean = !hPost.vars.exists(goal.isExistential) && heapletFilter(hPost)
+      def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && isSuitable(hPost)
 
-      if (matchingHeaplets.isEmpty) return Nil
+      findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
+        case None => Nil
+        case Some((hPre, hPost)) => {
+          val newPreSigma = pre.sigma - hPre
+          val newPostSigma = post.sigma - hPost
+          val newPre = Assertion(pre.phi, newPreSigma)
+          val newPost = Assertion(post.phi, newPostSigma)
+          val preFootprint = Set(deriv.preIndex.lastIndexOf(hPre))
+          val postFootprint = Set(deriv.postIndex.lastIndexOf(hPost))
+          val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
+          val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
+          List(Subderivation(List(newGoal), pureKont(toString)))
+        }
+      }
+    }
+  }
 
-      val (preHeaplets, postHeaplets) = matchingHeaplets.unzip
-      val newPreSigma = pre.sigma - preHeaplets
-      val newPostSigma = post.sigma - postHeaplets
-      val newPre = Assertion(pre.phi, newPreSigma)
-      val newPost = Assertion(post.phi, newPostSigma)
-      val preFootprint = preHeaplets.map(p => deriv.preIndex.indexOf(p)).toSet
-      val postFootprint = postHeaplets.map(p => deriv.postIndex.indexOf(p)).toSet
-      val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-      val tempGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-      val newPreAdjusted = newPre.copy(phi = andClean(newPre.phi, ghostEqualities(tempGoal)))
-      val newGoal = tempGoal.copy(pre = newPreAdjusted)
-      List(Subderivation(List(newGoal), pureKont(toString)))
+  trait PredicatePhase {
+    def correctPhase(goal: Goal): Boolean = {
+      goal.hasPredicates
+    }
+
+    def heapletFilter(h: Heaplet): Boolean = {
+      h.isInstanceOf[SApp]
+    }
+  }
+
+  trait NonPredicatePhase {
+    def correctPhase(goal: Goal): Boolean = {
+      !goal.hasPredicates
+    }
+
+    def heapletFilter(h: Heaplet): Boolean = {
+      true
     }
   }
 
 
-  object HeapUnify extends SynthesisRule {
-    override def toString: String = "[Norm: heap-unify]"
+  object FrameExactPred extends FrameExact with PredicatePhase {
+    override def toString: String = "[Sub: frame-exact-1]"
+  }
+
+  object FrameExactNonPred extends FrameExact with NonPredicatePhase with InvertibleRule {
+    override def toString: String = "[Sub: frame-exact-2]"
+  }
+
+
+  abstract class HeapUnify extends SynthesisRule {
+    def correctPhase(goal: Goal): Boolean
+    def heapletFilter(h: Heaplet): Boolean
 
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (!correctPhase(goal)) return Nil
+
       val pre = goal.pre
       val post = goal.post
       val deriv = goal.deriv
 
-      val substitutions = for {
-        s <- post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential)).sortBy(_.rank)
-        t <- pre.sigma.chunks.sortBy(_.rank)
-        sub <- tryUnify(t, s, goal.universals, false)
-      } yield sub
-
-      def nubBy[A,B](l:List[A], p:A=>B):List[A] =
-      {
-        def go[A,B](l:List[A], p:A=>B, s:Set[B], acc:List[A]):List[A] = l match
-        {
-          case Nil => acc.reverse
-          case (x::xs) if s.contains(p(x)) => go(xs,p,s,acc)
-          case (x::xs)                     => go(xs,p,s+p(x),x::acc)
-        }
-        go(l,p,Set.empty,Nil)
-      }
+      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
 
       val alternatives = for {
-        s <- post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential)).sortBy(_.rank)
+        s <- postCandidates
         t <- pre.sigma.chunks.sortBy(_.rank)
         sub <- tryUnify(t, s, goal.universals, false)
         newPostSigma = post.sigma.subst(sub)
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
 
-        val preFootprint = Set(deriv.preIndex.indexOf(t))
-        val postFootprint = Set(deriv.postIndex.indexOf(s))
+        val preFootprint = Set(deriv.preIndex.lastIndexOf(t))
+        val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
 
         val newGoal = goal.copy(post = newPost, newRuleApp = Some(ruleApp))
@@ -215,6 +219,15 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
       nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
     }
   }
+
+  object HeapUnifyPred extends HeapUnify with PredicatePhase  {
+    override def toString: String = "[Sub: heap-unify-1]"
+  }
+
+  object HeapUnifyNonPred extends HeapUnify with NonPredicatePhase  {
+    override def toString: String = "[Sub: heap-unify-2]"
+  }
+
 
   /*
     Γ ; {φ ∧ φ1 ; P} ; {ψ' ; Q'} ---> S
@@ -229,6 +242,9 @@ object SubtractionRules extends SepLogicUtils with RuleUtils {
     override def toString: String = "[Norm: pure-unify]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
+
+      if (goal.hasPredicates) return Nil
+
       // get post conjuncts with existentials
       val postConjuncts = conjuncts(goal.post.phi).filter(p => p.vars.exists(goal.isExistential))
       val preConjuncts = conjuncts(goal.pre.phi)

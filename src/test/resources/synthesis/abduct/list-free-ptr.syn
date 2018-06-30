@@ -15,6 +15,5 @@ void list_free (loc r) {
     *r = nxt2;
     list_free(r);
     free(x2);
-    *r = 0;
   }
 }

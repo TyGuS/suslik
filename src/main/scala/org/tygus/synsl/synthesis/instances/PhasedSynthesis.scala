@@ -8,7 +8,7 @@ import org.tygus.synsl.util.SynLogging
 
 class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
 
-  val startingDepth = 27
+  val startingDepth = 40
 
   {
     // Warm-up the SMT solver on start-up to avoid future delays
@@ -20,8 +20,6 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.MkInductionRule,
   )
 
-  // Right now the rule is fixed statically
-  // TODO: apply dynamic heuristics for rule application
   val everyDayRules: List[SynthesisRule] = List(
     // Terminal
     SubtractionRules.EmpRule,
@@ -29,31 +27,32 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     // Normalization rules
     NormalizationRules.StarPartial,
     NormalizationRules.NilNotLval,
-    NormalizationRules.SubstLeft,
     NormalizationRules.Inconsistency,
-//    NormalizationRules.SubstRight,
-
     OperationalRules.ReadRule,
-    UnfoldingRules.InvokeInductionRule,
 
-    SubtractionRules.FrameExact,
-    OperationalRules.WriteRule,
-
-    //    UnfoldingRules.AbductWritesAndCallRule,
+    // Predicate phase rules
+    SubtractionRules.FrameExactPred,
     UnfoldingRules.CallRule,
+    UnfoldingRules.InvokeInductionRule,
+    SubtractionRules.HeapUnifyPred,
     UnfoldingRules.AbductWritesRule,
-    SubtractionRules.HeapUnify,
-
     UnfoldingRules.CloseRule,
 
+
+    // No predicate phase
+    NormalizationRules.SubstLeft,
+    NormalizationRules.SubstRight,
+    NormalizationRules.PureUnreachable,
+    SubtractionRules.FrameExactNonPred,
+    SubtractionRules.HeapUnifyNonPred,
     OperationalRules.AllocRule,
+    OperationalRules.WriteRule,
     OperationalRules.FreeRule,
+    NormalizationRules.HeapUnreachable,
 
     SubtractionRules.HypothesisUnify,
-    NormalizationRules.SubstRight,
     SubtractionRules.Pick,
     OperationalRules.PickFromEnvRule,
-
   )
 
 }
