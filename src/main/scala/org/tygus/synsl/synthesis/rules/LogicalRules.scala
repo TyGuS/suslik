@@ -167,18 +167,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object StarPartial extends SynthesisRule with AnyPhase with InvertibleRule {
     override def toString: String = "[Norm: *-partial]"
 
-    def extendPure(p: PFormula, s: SFormula): Option[PFormula] = {
+    def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[PFormula] = {
       val cs = conjuncts(p)
       val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
       // All pairs of pointers
-      val pairs = (for (x <- ptrs; y <- ptrs if x != y) yield Set(x, y)).
-        map { s =>
-          val elems = s.toList
-          ruleAssert(elems.size == 2, "Wrong number of elements in a pair")
-          (elems.head, elems.tail.head)
-        }.toList
+      val pairs = for (x <- ptrs; y <- ptrs if x != y) yield (x, y)
       val newPairs = pairs.filter {
-        case (x, y) => !cs.contains(x |/=| y) && !cs.contains(y |/=| x)
+        case (x, y) => excludeVars.intersect(x.vars ++ y.vars).isEmpty &&
+          !cs.contains(x |/=| y) && !cs.contains(y |/=| x)
       }
       if (newPairs.isEmpty) None
       else Some(mkConjunction(cs ++ newPairs.map { case (x, y) => x |/=| y }))
@@ -188,22 +184,22 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val s1 = goal.pre.sigma
       val s2 = goal.post.sigma
 
-      (extendPure(goal.pre.phi, s1), extendPure(goal.post.phi, s2)) match {
-          // TODO: this is not complete, but probably okay if we exclude existentials?
-//        case (None, None) => Nil
-//        case (Some(p1), None) =>
-//          val newGoal = goal.copy(pre = Assertion(p1, s1))
-//          List(Subderivation(List(newGoal), pureKont(toString)))
-//        case (None, Some(p2)) =>
-//          val newGoal = goal.copy(post = Assertion(p2, s2))
-//          List(Subderivation(List(newGoal), pureKont(toString)))
-//        case (Some(p1), Some(p2)) =>
-//          val newGoal = goal.copy(pre = Assertion(p1, s1), post = Assertion(p2, s2))
-//          List(Subderivation(List(newGoal), pureKont(toString)))
-        case (None, _) => Nil
-        case (Some(p1), _) =>
+      (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, goal.existentials)) match {
+          // TODO: make sure it's complete to include post, otherwise revert to pre only
+        case (None, None) => Nil
+        case (Some(p1), None) =>
           val newGoal = goal.copy(pre = Assertion(p1, s1))
           List(Subderivation(List(newGoal), pureKont(toString)))
+        case (None, Some(p2)) =>
+          val newGoal = goal.copy(post = Assertion(p2, s2))
+          List(Subderivation(List(newGoal), pureKont(toString)))
+        case (Some(p1), Some(p2)) =>
+          val newGoal = goal.copy(pre = Assertion(p1, s1), post = Assertion(p2, s2))
+          List(Subderivation(List(newGoal), pureKont(toString)))
+//        case (None, _) => Nil
+//        case (Some(p1), _) =>
+//          val newGoal = goal.copy(pre = Assertion(p1, s1))
+//          List(Subderivation(List(newGoal), pureKont(toString)))
       }
     }
   }
