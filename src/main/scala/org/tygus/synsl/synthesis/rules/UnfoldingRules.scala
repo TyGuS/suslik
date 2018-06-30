@@ -199,7 +199,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    * Infers the discrepancies and emits new write-goals
    * Uses multiple-sub-derivation mechanism to enable several writes, followed by a call (via CallRule)
    */
-  object AbductWritesRule extends SynthesisRule with UnfoldingPhase {
+  object AbduceCall extends SynthesisRule with UnfoldingPhase {
 
     override def toString: Ident = "[Unfold: abduct-writes]"
 
