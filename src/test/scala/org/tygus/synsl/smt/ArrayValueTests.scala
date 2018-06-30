@@ -105,12 +105,14 @@ class ArrayValueTests
             val model = getModel()
             //            println(s"Model: $model")
             val witness = getValue(v)
-            println(s"[${s.name}] Value of {$v.symbol} is: ${
-              witness match {
-                case Success(x) ⇒ x.show;
-                case Failure(f) ⇒ "Failure: f.getMessage"
-              }
-            }")
+            /*
+                        println(s"[${s.name}] Value of {$v.symbol} is: ${
+                          witness match {
+                            case Success(x) ⇒ x.show;
+                            case Failure(f) ⇒ "Failure: f.getMessage"
+                          }
+                        }")
+            */
           }
           result
         }
