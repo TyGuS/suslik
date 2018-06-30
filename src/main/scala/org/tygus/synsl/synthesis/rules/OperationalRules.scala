@@ -9,6 +9,7 @@ import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.synthesis._
 
 /**
+  * Operational rules emit statement that operate of flat parts of the heap.
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
@@ -66,59 +67,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
     }
   }
-
-
-  /*
-    Γ, l ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l * Q}[l/m] ---> S   m is existential
-  --------------------------------------------------------------------------------[pick-from-env]
-     Γ ; {φ ; x.f -> - * P} ; {ψ ; x.f -> m * Q} ---> *x.f := l ; S
-   */
-  object PickFromEnvRule extends SynthesisRule with FlatPhase with InvertibleRule {
-
-    override def toString: Ident = "[Op: write-from-env]"
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-
-      val pre = goal.pre
-      val post = goal.post
-
-      def isSuitable: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, v@Var(_)) =>
-          !goal.isGhost(x) && goal.isExistential(v) && LanguageUtils.isNotDefaultFreshVar(v)
-        case _ => false
-      }
-
-      def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
-        case _ => false
-      }
-
-      // When do two heaplets match
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && isSuitable(hr)
-
-      if (post.sigma.chunks.size > 1) return Nil
-
-      findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
-        case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
-          for {
-          // Try variables from the context
-            l <- goal.programVars.toList
-            newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
-            subGoal = goal.copy(newPre, post.subst(m, l))
-            kont = (stmts: Seq[Statement]) => {
-              ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
-              val rest = stmts.head
-              SeqComp(Store(x, offset, l), rest)
-            }
-          } yield Subderivation(List(subGoal), kont)
-        case Some((hl, hr)) =>
-          ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
-          Nil
-      }
-    }
-  }
-
 
 
   /*

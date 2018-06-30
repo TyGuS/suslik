@@ -3,7 +3,7 @@ package org.tygus.synsl.synthesis.instances
 import org.tygus.synsl.language.Expressions.BoolConst
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.{Synthesis, SynthesisRule}
-import org.tygus.synsl.synthesis.rules.{NormalizationRules, OperationalRules, SubtractionRules, UnfoldingRules}
+import org.tygus.synsl.synthesis.rules._
 import org.tygus.synsl.util.SynLogging
 
 class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
@@ -22,37 +22,37 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
 
   val everyDayRules: List[SynthesisRule] = List(
     // Terminal
-    SubtractionRules.EmpRule,
+    LogicalRules.EmpRule,
 
     // Normalization rules
-    NormalizationRules.StarPartial,
-    NormalizationRules.NilNotLval,
-    NormalizationRules.Inconsistency,
+    LogicalRules.StarPartial,
+    LogicalRules.NilNotLval,
+    LogicalRules.Inconsistency,
+    FailRules.PostInconsistent,
     OperationalRules.ReadRule,
 
     // Predicate phase rules
-    SubtractionRules.FrameUnfolding,
+    LogicalRules.FrameUnfolding,
     UnfoldingRules.CallRule,
     UnfoldingRules.Open,
-    SubtractionRules.HeapUnifyUnfolding,
+    UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.AbductWritesRule,
     UnfoldingRules.Close,
 
-
     // Flat phase rules
-    NormalizationRules.SubstLeft,
-    NormalizationRules.SubstRight,
-    NormalizationRules.PureUnreachable,
-    SubtractionRules.FrameFlat,
-    SubtractionRules.HeapUnifyFlat,
+    LogicalRules.SubstLeft,
+    UnificationRules.SubstRight,
+    FailRules.PostInvalid,
+    LogicalRules.FrameFlat,
+    UnificationRules.HeapUnifyFlat,
     OperationalRules.AllocRule,
     OperationalRules.WriteRule,
     OperationalRules.FreeRule,
-    NormalizationRules.HeapUnreachable,
+    FailRules.HeapUnreachable,
 
-    SubtractionRules.PureUnify,
-    SubtractionRules.Pick,
-    OperationalRules.PickFromEnvRule,
+    UnificationRules.PureUnify,
+    UnificationRules.Pick,
+    UnificationRules.PickFromEnvRule,
   )
 
 }

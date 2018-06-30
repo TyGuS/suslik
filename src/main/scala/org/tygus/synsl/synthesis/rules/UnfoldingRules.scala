@@ -11,6 +11,7 @@ import org.tygus.synsl.synthesis._
 import org.tygus.synsl.synthesis.rules.UnfoldingRules.CallRule.saveApplication
 
 /**
+  * Unfolding rules deal with predicates and recursion.
   * @author Nadia Polikarpova, Ilya Sergey
   */
 

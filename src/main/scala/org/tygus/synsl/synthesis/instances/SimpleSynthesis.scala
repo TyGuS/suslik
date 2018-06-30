@@ -3,7 +3,7 @@ package org.tygus.synsl.synthesis.instances
 import org.tygus.synsl.language.Expressions.BoolConst
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.{OperationalRules, SubtractionRules, _}
+import org.tygus.synsl.synthesis.rules._
 import org.tygus.synsl.util.SynLogging
 
 /**
@@ -28,20 +28,20 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
   // TODO: apply dynamic heuristics for rule application
   val everyDayRules: List[SynthesisRule] = List(
     // Terminal
-    SubtractionRules.EmpRule,
+    LogicalRules.EmpRule,
 
     // Normalization rules
-    NormalizationRules.StarPartial,
-    NormalizationRules.NilNotLval,
-    NormalizationRules.SubstLeft,
-    NormalizationRules.Inconsistency,
-    NormalizationRules.SubstRight,
+    LogicalRules.StarPartial,
+    LogicalRules.NilNotLval,
+    LogicalRules.SubstLeft,
+    LogicalRules.Inconsistency,
+    UnificationRules.SubstRight,
 
     OperationalRules.ReadRule,
     UnfoldingRules.Open,
 
     // Subtraction rules
-    SubtractionRules.StarIntro,
+    UnificationRules.StarIntro,
 
     // Invertible operational rules
     OperationalRules.WriteRule,
@@ -58,9 +58,9 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     OperationalRules.AllocRule,
     OperationalRules.FreeRule,
 
-    SubtractionRules.PureUnify,
-    SubtractionRules.Pick,
-    OperationalRules.PickFromEnvRule,
+    UnificationRules.PureUnify,
+    UnificationRules.Pick,
+    UnificationRules.PickFromEnvRule,
 
   )
 
