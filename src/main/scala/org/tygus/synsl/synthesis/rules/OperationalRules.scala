@@ -222,26 +222,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   object AllocRule extends SynthesisRule with FlatPhase {
     override def toString: Ident = "[Op: alloc]"
 
-    def findBlockAndChunks(goal: Goal): Option[(Heaplet, Seq[Heaplet])] = {
-      val post = goal.post
-      val pre = goal.pre
-
+    def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       def isExistBlock: Heaplet => Boolean = {
         case Block(x@Var(_), _) => goal.isExistential(x)
         case _ => false
       }
 
-      findHeaplet(isExistBlock, post.sigma) match {
-        case None => None
-        case Some(h@Block(x@Var(_), sz)) =>
-          val pts = for (off <- 0 until sz) yield
-            findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), post.sigma)
-          Some((h, pts.flatten))
-        case Some(h) =>
-          ruleAssert(false, s"Alloc rule matched unexpected heaplet ${h.pp}")
-          None
-      }
-
+      findBlockAndChunks(isExistBlock, _ => true, goal.post.sigma)
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {
@@ -253,7 +240,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val gamma = goal.gamma
       val deriv = goal.deriv
 
-      findBlockAndChunks(goal) match {
+      findTargetHeaplets(goal) match {
         case None => Nil
         case Some((h@Block(x@Var(_), sz), pts)) =>
           val y = generateFreshVar(goal, x.name)
@@ -294,26 +281,20 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: free]"
 
+    def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
+      // Heaplets have no ghosts
+      def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
+
+      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
+    }
+
     def apply(goal: Goal): Seq[Subderivation] = {
-
-      def isConcreteBlock: Heaplet => Boolean = {
-        case Block(v@Var(_), _) => goal.isProgramVar(v)
-        case _ => false
-      }
-
       val pre = goal.pre
       val deriv = goal.deriv
 
-      findHeaplet(isConcreteBlock, goal.pre.sigma) match {
+      findTargetHeaplets(goal) match {
         case None => Nil
-        case Some(h@Block(x@Var(_), sz)) =>
-          // Okay, found the block, now looking for the points-to chunks
-          val pts = for (off <- 0 until sz) yield {
-            findHeaplet(sameLhs(PointsTo(x, off, IntConst(0))), goal.pre.sigma) match {
-              case Some(pt) if pt.vars.forall(!goal.isGhost(_)) => pt
-              case _ => return Nil
-            }
-          }
+        case Some((h@Block(x@Var(_), _), pts)) =>
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
           // Collecting the footprint
@@ -327,9 +308,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           }
 
           List(Subderivation(List(subGoal), kont))
-        case Some(h) =>
-          ruleAssert(false, s"Free rule matched unexpected heaplet ${h.pp}")
-          Nil
       }
     }
 

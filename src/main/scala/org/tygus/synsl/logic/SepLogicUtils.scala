@@ -1,7 +1,7 @@
 package org.tygus.synsl.logic
 
 import org.tygus.synsl.SynSLException
-import org.tygus.synsl.language.Expressions.{Expr, Var}
+import org.tygus.synsl.language.Expressions.{Expr, IntConst, Var}
 import org.tygus.synsl.logic.unification.SpatialUnification.tryUnify
 
 /**
@@ -20,6 +20,9 @@ trait SepLogicUtils extends PureLogicUtils {
   def findHeaplet(p: (Heaplet) => Boolean,
                   sigma: SFormula): Option[Heaplet] = sigma.chunks.find(p)
 
+  /**
+    * Get heaplets from pre and post satisfying a relation
+    */
   def findMatchingHeaplets(pl: Heaplet => Boolean,
                            pr: (Heaplet, Heaplet) => Boolean,
                            pre: SFormula,
@@ -28,6 +31,9 @@ trait SepLogicUtils extends PureLogicUtils {
           hr <- post.chunks.toStream if pr(hl, hr)} yield (hl, hr)).headOption
   }
 
+  /**
+    * Are two heaplets both points-to with the same LHS?
+    */
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
     slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
@@ -36,6 +42,25 @@ trait SepLogicUtils extends PureLogicUtils {
       case _ => false
     }
   }
+
+  /**
+    * Find a block satisfying a predicates, and all matching chunks.
+    * Returns None if not all chunks are present.
+    */
+  def findBlockAndChunks(pBlock: Heaplet => Boolean,
+                         pPts: Heaplet => Boolean,
+                         sigma: SFormula): Option[(Block, Seq[Heaplet])] = {
+    findHeaplet(pBlock, sigma) match {
+      case None => None
+      case Some(h@Block(x@Var(_), sz)) =>
+        val pts = for (off <- 0 until sz) yield
+          findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
+        Some((h, pts.flatten))
+      case Some(h) =>
+        None
+    }
+  }
+
 
   /**
     * Find the set of sub-formalas of `large` that `small` might possibly by unified with.

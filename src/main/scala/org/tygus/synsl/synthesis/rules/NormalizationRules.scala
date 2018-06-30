@@ -6,7 +6,7 @@ import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.OperationalRules.AllocRule
+import org.tygus.synsl.synthesis.rules.OperationalRules.{AllocRule, FreeRule}
 
 import scala.collection.Set
 
@@ -226,18 +226,18 @@ object NormalizationRules extends PureLogicUtils with SepLogicUtils with RuleUti
   }
 
   // Short-circuits failure if spatial post doesn't match pre
-  // Important: this rule should only fire after alloc and free
+  // This rule is only applicable if alloc and free aren't
   object HeapUnreachable extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Norm: heap-unreach]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      AllocRule.findBlockAndChunks(goal) match {
-        case None =>
+      (AllocRule.findTargetHeaplets(goal), FreeRule.findTargetHeaplets(goal)) match {
+        case (None, None) =>
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
             Nil
           else
             List(Subderivation(Nil, _ => Magic)) // spatial parts do not match: only magic can save us
-        case Some(_) => Nil // does not apply if there are existential chunks left
+        case _ => Nil // does not apply if we could still alloc or free
       }
 
     }

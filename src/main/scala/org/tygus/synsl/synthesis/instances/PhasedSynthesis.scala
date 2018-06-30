@@ -39,7 +39,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.CloseRule,
 
 
-    // No predicate phase
+    // Flat phase rules
     NormalizationRules.SubstLeft,
     NormalizationRules.SubstRight,
     NormalizationRules.PureUnreachable,
