@@ -323,7 +323,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualConstraints = actualAssertion.phi
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
-//            if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+            // if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
