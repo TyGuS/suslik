@@ -112,8 +112,10 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
 /**
   * Program: for now just a sequence of declarations
   */
-case class Program(decls: Seq[TopLevelDeclaration]) extends PrettyPrinting {
-  override def pp: String = decls.map(_.pp).mkString("\n\n")
+case class Program(predicates: Seq[InductivePredicate],
+                   funs: Seq[FunSpec],
+                   goal: FunSpec) extends PrettyPrinting {
+  override def pp: String = predicates.map(_.pp).mkString("\n\n") ++ funs.map(_.pp).mkString("\n\n")
 }
 
 

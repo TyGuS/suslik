@@ -17,6 +17,8 @@ class PreambleParserTests extends FunSpec with Matchers {
       | x == y  =>  {emp}
       | not (x == y)  => {x :-> v ** x + 1 :-> z ** lseg(z, y)}
       }
+
+      {emp} void foo (loc x) {emp}
     """
 
   def parseSimpleSpec(text: String) {

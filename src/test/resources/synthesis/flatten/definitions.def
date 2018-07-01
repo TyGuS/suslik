@@ -1,0 +1,13 @@
+predicate lseg(loc x, loc y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, s1) }
+}
+
+predicate tree(loc x, set s) {
+|  x == 0        => {s =i {}; emp}
+|  not (x == 0)  => {s =i {v} ++ s1 ++ s2; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1) ** tree(r, s2)}
+}
+
+{ r :-> x ** lseg(x, 0, s1) ** lseg(y, 0, s2)}
+void list_append(loc r, loc y)
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)}

@@ -1,7 +1,5 @@
 package org.tygus.synsl.logic
 
-import org.tygus.synsl.language._
-
 object Resolver {
 
   /**
@@ -9,15 +7,18 @@ object Resolver {
     * TODO: type checking
     */
   def resolveProgram(prog: Program): (Seq [FunSpec], Environment) = {
-    val (goals, preds) =
-      prog.decls.foldLeft((Nil: List[FunSpec], Map.empty[Ident, InductivePredicate]))((acc, decl) => {
-        val (gs, ps) = acc
-        decl match {
-          case p@InductivePredicate(name, _, _) => (gs, ps + (name -> p))
-          case g@FunSpec(_, _, _, _, _) => (g :: gs, ps)
-        }
-      }
-      )
-    (goals, Environment(preds, Map.empty))
+    val Program(preds, funs, goal) = prog
+    val funMap = funs.map(fs => fs.name -> setUpAuxiliaryFunction(fs)).toMap
+    val predMap = preds.map(ps => ps.name -> ps).toMap
+    (List(goal), Environment(predMap, funMap))
+  }
+
+  def setUpAuxiliaryFunction(fs: FunSpec) : FunSpec = {
+    // TODO: This is not optimal and, in principle, can lead to infinite derivations
+    // However, a generalisation, enabling multiple calls would be too much of a hassle
+    // A temporary solution is to kick this function out of the environment, once used
+    val newPre = fs.pre.moveToLevel2()
+    val newPost = fs.post.lockSAppTags()
+    fs.copy(pre = newPre, post = newPost)
   }
 }

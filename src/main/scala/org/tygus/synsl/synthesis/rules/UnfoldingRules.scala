@@ -108,7 +108,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
       // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
-      val newPost = goal.post.lockSAppTags()
+      // Second-order, now can only apply library functions
+      val newPost = goal.post.bumpUpSAppTags()
 
       val fspec = FunSpec(fname, VoidType, goal.formals, newPre, newPost)
       env.copy(functions = env.functions + (fname -> fspec))
@@ -173,7 +174,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
           val rest = stmts.head
-          SeqComp(Call(None, Var(goal.fname), args), rest)
+          SeqComp(Call(None, Var(f.name), args), rest)
         }
         Subderivation(List(callGoal), kont)
       }).toSeq
@@ -187,9 +188,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
       val restPreChunks =
-        (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.lockSAppTags().chunks
+        (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
       val restPre = Assertion(andClean(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
-      val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp))
+      val newEnv = if (f.name == goal.fname) goal.env else {
+        // To avoind more than one application of a library function
+        val funs = goal.env.functions.filterKeys(_ != f.name)
+        goal.env.copy(functions = funs)
+      }
+      val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp), env = newEnv)
       callGoal
     }
   }

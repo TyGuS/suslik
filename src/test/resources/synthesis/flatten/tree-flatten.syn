@@ -1,0 +1,31 @@
+should be able to flatten the tree into a list given an auxiliary function for list appending
+
+####
+
+{ true ; z :-> x ** tree(x, s)}
+void tree_flatten(loc z)
+{ true ;  z :-> y ** lseg(y, 0, s)}
+
+####
+
+void tree_flatten (loc z) {
+  let x2 = *z;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let l2 = *(x2 + 1);
+    let r2 = *(x2 + 2);
+    *z = l2;
+    tree_flatten(z);
+    let y12 = *z;
+    *z = r2;
+    tree_flatten(z);
+    list_append(z, y12);
+    let z12 = *z;
+    let y3 = malloc(2);
+    free(x2);
+    *y3 = v2;
+    *(y3 + 1) = z12;
+    *z = y3;
+  }
+}

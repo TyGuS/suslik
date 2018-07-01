@@ -36,34 +36,36 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
   def unOpParser: Parser[UnOp] =
     "not" ^^^ OpNot
 
-  def termOpParser: Parser[BinOp] =  "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion
+  def termOpParser: Parser[BinOp] = "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion
 
   def relOpParser: Parser[BinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpEq ||| "=i" ^^^ OpSetEq ||| "in" ^^^ OpIn
 
-  def logOpParser: Parser[BinOp] =  "\\/" ^^^ OpOr ||| "/\\" ^^^ OpAnd
+  def logOpParser: Parser[BinOp] = "\\/" ^^^ OpOr ||| "/\\" ^^^ OpAnd
 
-  def binOpParser (p: Parser[BinOp]): Parser[(Expr,Expr) => Expr] = {
-    p ^^ {op => (l,r) => BinaryExpr(op, l, r)}
+  def binOpParser(p: Parser[BinOp]): Parser[(Expr, Expr) => Expr] = {
+    p ^^ { op => (l, r) => BinaryExpr(op, l, r) }
   }
 
   def atom: Parser[Expr] = (
       unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
-        | "(" ~> expr <~ ")"
-        | intLiteral | boolLiteral | setLiteral
-        | varParser
-    )
+          | "(" ~> expr <~ ")"
+          | intLiteral | boolLiteral | setLiteral
+          | varParser
+      )
 
   def term: Parser[Expr] = chainl1(atom, binOpParser(termOpParser))
 
   def relExpr: Parser[Expr] =
     term ~ opt(relOpParser ~ term) ^^ {
       case a ~ None => a
-      case a ~ Some(op ~ b) => BinaryExpr(op, a, b) }
+      case a ~ Some(op ~ b) => BinaryExpr(op, a, b)
+    }
 
   def expr: Parser[Expr] =
-    chainl1(relExpr, binOpParser (logOpParser)) ~ opt(("?" ~> expr <~ ":") ~ expr) ^^ {
+    chainl1(relExpr, binOpParser(logOpParser)) ~ opt(("?" ~> expr <~ ":") ~ expr) ^^ {
       case a ~ None => a
-      case a ~ Some(l ~ r) => IfThenElse(a, l, r) }
+      case a ~ Some(l ~ r) => IfThenElse(a, l, r)
+    }
 
   def identWithOffset: Parser[(Ident, Int)] = {
     val ov = ident ~ opt("+" ~> numericLit)
@@ -106,7 +108,14 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
     case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
   }
 
-  def program: Parser[Program] = rep(indPredicate ||| goalFunction) ^^ Program
+  def program: Parser[Program] = rep(indPredicate ||| goalFunction) ^^ { pfs =>
+    val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
+    val fs = for (f@FunSpec(_, _, _, _, _) <- pfs) yield f
+    assert(fs.nonEmpty, "No single function spec is provided")
+    val goal = fs.last
+    val funs = fs.take(fs.length - 1)
+    Program(ps, funs, goal)
+  }
 
   def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {
     case e: Error => Failure(e.msg, e.next)

@@ -59,6 +59,9 @@ object Specifications {
     def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
 
+    def moveToLevel2(cond: Heaplet => Boolean = _ => true): Assertion =
+      this.copy(sigma = this.sigma.moveToLevel2(cond))
+
     def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.lockSAppTags(cond))
 

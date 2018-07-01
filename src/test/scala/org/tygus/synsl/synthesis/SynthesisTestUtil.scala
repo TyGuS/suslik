@@ -68,7 +68,7 @@ trait SynthesisTestUtil {
     assert(res.successful, res)
 
     val prog = res.get
-    assert(prog.decls.nonEmpty)
+    // assert(prog.predicates.nonEmpty)
     val (goals, env) = resolveProgram(prog)
 
     assert(goals.lengthCompare(1) == 0, "Expected a single synthesis goal")

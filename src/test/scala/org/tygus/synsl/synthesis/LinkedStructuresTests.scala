@@ -32,4 +32,8 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisTestUtil
     runAllTestsFromDir("copy")
   }
 
+  describe("SL-based synthesizer for collections set of elements") {
+    runAllTestsFromDir("flatten")
+  }
+
 }
