@@ -6,5 +6,9 @@ predicate lseg(loc x, set s) {
 predicate dllseg(loc x, loc y, loc z, set s) {
 |  x == y => { s =i {} ; emp }
 |  not (x == y) =>
-   { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (i + 2) :-> z ** dllseg(w, y, x, s1) }
+   { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dllseg(w, y, x, s1) }
 }
+
+{ true; dllseg(x, 0, z, s) }
+void set_prev(loc x, loc prev)
+{ true; dllseg(x, 0, prev, s)}

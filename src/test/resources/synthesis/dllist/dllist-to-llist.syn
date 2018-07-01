@@ -3,7 +3,7 @@ should be able to convert a doubly-linked list to single-linked list
 #######
 
 { true ; f :-> x ** lseg(x, s)}
-void tree_flatten(loc f)
+void sll_to_dll(loc f)
 { true ;  f :-> i ** dllseg(i, 0, z, s)}
 
 #######
