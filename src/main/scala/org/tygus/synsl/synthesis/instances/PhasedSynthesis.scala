@@ -36,7 +36,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.CallRule,
     UnfoldingRules.Open,
     UnificationRules.HeapUnifyUnfolding,
-    UnfoldingRules.AbductWritesRule,
+    UnfoldingRules.AbduceCall,
     UnfoldingRules.Close,
 
     // Flat phase rules
