@@ -88,7 +88,7 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   * Predicate application
   */
 case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extends Heaplet {
-  override def pp: String = s"$pred(${args.map(_.pp).mkString(", ")} [$tag])"
+  override def pp: String = s"$pred(${args.map(_.pp).mkString(", ")})"
 
   def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
 
