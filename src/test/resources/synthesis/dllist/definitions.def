@@ -1,0 +1,10 @@
+predicate lseg(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }
+}
+
+predicate dllseg(loc x, loc y, loc z, set s) {
+|  x == y => { s =i {} ; emp }
+|  not (x == y) =>
+   { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (i + 2) :-> z ** dllseg(w, y, x, s1) }
+}

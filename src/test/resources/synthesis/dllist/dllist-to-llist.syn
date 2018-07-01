@@ -1,0 +1,9 @@
+should be able to convert a doubly-linked list to single-linked list
+
+#######
+
+{ true ; f :-> x ** lseg(x, s)}
+void tree_flatten(loc f, loc z)
+{ true ;  f :-> i ** dllseg(i, j, z, s)}
+
+#######
