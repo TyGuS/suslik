@@ -92,10 +92,12 @@ object Specifications {
         this.footprint._2.forall(i => i < prev.timestamp._2)
     }
 
-    // Rule applications are ordered by cost;
+    // Rule applications are ordered by cost and then by footprint;
     // for efficiency, when a rule produces multiple alternatives, lower costs should go first
     override def compare(that: RuleApplication): Int = {
-      cost.compare(that.cost)
+      val minL = this.footprint._1.union(this.footprint._2).min
+      val minR = that.footprint._1.union(that.footprint._2).min
+      implicitly[Ordering[(Int, Int)]].compare((cost, minL), (that.cost, minR))
     }
   }
 
