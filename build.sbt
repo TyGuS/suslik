@@ -1,9 +1,9 @@
 
 organization := "org.tygus"
 
-name := "synsl"
+name := "suslik"
 
-version := "0.5.0"
+version := "0.1.0"
 
 scalaVersion := "2.12.5"
 
@@ -13,6 +13,8 @@ resolvers in ThisBuild ++= Seq(
     Resolver.sonatypeRepo("releases"),
     Resolver.sonatypeRepo("snapshots")
 )
+
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.7")
 
 libraryDependencies ++= Seq(
   // "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -43,3 +45,11 @@ initialCommands in console :=
        | root.setLevel(Level.OFF)
        | """.stripMargin
 
+mainClass in assembly := Some("org.tygus.synsl.synthesis.SynthesisRunner")
+
+assemblyJarName in assembly := "suslik.jar"
+
+assemblyMergeStrategy in assembly := {
+ case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+ case x => MergeStrategy.first
+}

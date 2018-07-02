@@ -1,7 +1,5 @@
 package org.tygus.synsl.synthesis
 
-import java.lang.Boolean.parseBoolean
-
 import org.tygus.synsl.synthesis.instances.PhasedSynthesis
 import org.tygus.synsl.util.{SynLogLevels, SynLogging}
 
@@ -9,7 +7,7 @@ import org.tygus.synsl.util.{SynLogLevels, SynLogging}
   * @author Ilya Sergey
   */
 
-object SynthesisTestRunner extends SynthesisTestUtil {
+object SynthesisRunner extends SynthesisTestUtil {
 
   // Enable verbose logging
   override implicit val log: SynLogging = SynLogLevels.Verbose

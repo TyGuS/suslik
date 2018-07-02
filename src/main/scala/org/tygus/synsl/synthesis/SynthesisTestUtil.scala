@@ -2,11 +2,8 @@ package org.tygus.synsl.synthesis
 
 import java.io.File
 
-import org.tygus.synsl.language.Expressions.{BinaryExpr, IntConst, OpLeq, OpPlus}
 import org.tygus.synsl.logic.Resolver._
-import org.tygus.synsl.logic.smt.SMTSolving.sat
 import org.tygus.synsl.parsing.SynslParser
-import org.tygus.synsl.synthesis.instances.PhasedSynthesis
 import org.tygus.synsl.util.{SynLogLevels, SynLogging, SynStatUtil}
 
 import scala.io.Source
@@ -145,7 +142,7 @@ trait SynthesisTestUtil {
           val fullInput = List(defs, in).mkString("\n")
           doTest(testName, desc, fullInput, out, params)
         case None =>
-          assert(false, s"No file with the name $fname found in the directory $dir.")
+          System.err.println(s"No file with the name $fname found in the directory $dir.")
       }
     }
   }
