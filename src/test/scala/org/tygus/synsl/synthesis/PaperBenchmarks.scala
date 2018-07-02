@@ -7,7 +7,7 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisTestUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
-  def doTest(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultTestParams): Unit =
+  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultTestParams): Unit =
     it(desc) {
       synthesizeFromSpec(testName, in, out)
     }
@@ -18,6 +18,10 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisTestUtil {
 
   describe("Benchmarks from Natural Synthesis paper") {
     runAllTestsFromDir("paper-benchmarks/natural")
+  }
+
+  describe("Benchmarks from Jennisys paper") {
+    runAllTestsFromDir("paper-benchmarks/jennisys")
   }
 
   describe("Benchmarks from Dryad suite") {

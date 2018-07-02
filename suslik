@@ -1,2 +1,2 @@
 #!/bin/bash
-sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner $*"
+scala ./target/scala-2.12/suslik.jar $*

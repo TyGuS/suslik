@@ -1,7 +1,5 @@
 package org.tygus.synsl.synthesis
 
-import java.lang.Boolean.parseBoolean
-
 import org.tygus.synsl.synthesis.instances.PhasedSynthesis
 import org.tygus.synsl.util.{SynLogLevels, SynLogging}
 
@@ -9,7 +7,7 @@ import org.tygus.synsl.util.{SynLogLevels, SynLogging}
   * @author Ilya Sergey
   */
 
-object SynthesisTestRunner extends SynthesisTestUtil {
+object SynthesisRunner extends SynthesisTestUtil {
 
   // Enable verbose logging
   override implicit val log: SynLogging = SynLogLevels.Verbose
@@ -33,7 +31,7 @@ object SynthesisTestRunner extends SynthesisTestUtil {
     */
   def main(args: Array[String]): Unit = handleInput(args)
 
-  def doTest(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
+  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
     println(desc)
     println()
     synthesizeFromSpec(testName, in, out, params)
@@ -68,11 +66,11 @@ object SynthesisTestRunner extends SynthesisTestUtil {
 
     arg[String]("folder").action {(x, c) =>
       c.copy(dirName = x)
-    }.text("a folder under ./src/test/resources/synthesis starting from this on as a root")
+    }.text("a folder with the predicate definitions, lemmas, and synthesis goal file")
 
-    arg[String]("file").action {(x, c) =>
+    arg[String]("goalName").action {(x, c) =>
       c.copy(fileName = x)
-    }.text("a test case file under the specified folder")
+    }.text("a test case name (the file under the specified folder, called goalName.syn)")
 
     opt[Boolean]('t', "trace").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printDerivations = b))
@@ -84,7 +82,7 @@ object SynthesisTestRunner extends SynthesisTestUtil {
 
     help("help").text("prints this usage text")
 
-    note("\nOnce the synthesis is done execution statistics will be available in stats.csv.\n")
+    note("\nOnce the synthesis is done execution, statistics will be available in stats.csv (rewritten every time).\n")
 
   }
 }

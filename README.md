@@ -1,4 +1,4 @@
-# SynSL
+# Synthetic Separation Logic
 
 [![Build Status](https://travis-ci.org/TyGuS/synsl.svg?branch=master)](https://travis-ci.org/TyGuS/synsl)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/synsl/master/LICENSE)
@@ -12,16 +12,30 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 * [Java SE Development Kit 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 * [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
 * [Z3 SMT solver](https://github.com/Z3Prover/z3)
+* [Scala](https://www.scala-lang.org/download/) (version >= 2.12.5) - to run the standalone artifact
 
-### Building the Project
+### Building and Testing the Project
 
-To compile and run the entire test suite, execute from the root folder of the project:
+To compile and run the entire test suite (and see some cool synthesis results), execute from the root folder of the project:
 
 ```
 sbt test
 ```
 
+### Compiling the Executables
+
+Just run the following from your command line: 
+
+```
+sbt assembly
+```
+
+As the result, an executable `JAR`-file will be produced, so you can run it as explained below.
+
 ## Synthesizing Programs from SL Specifications
+
+Once you have built the artifact via `sbt assembly`, you can run 
+it as a standalone application (given that the runnable `scala` is in your path).
 
 ### Case Studies
 
@@ -89,17 +103,17 @@ void listcopy (loc r) {
 
 ### Trying the Synthesis with the Case Studies
 
-To run the synthesis for a specific case study from `src/test/resources/synthesis`,
+To run the synthesis for a specific case study from a specific folder,
 execute the following script:
 
 ```
-suslik [options] folder file
+suslik [options] folder goalName
 ```
 where the necessary arguments and options are
 
 ```
-  folder                a folder under ./src/test/resources/synthesis starting from this on as a root
-  file                  a test case file under the specified folder
+  folder                a folder with the predicate definitions, lemmas, and synthesis goal file
+  goalName              a test case name (the file under the specified folder, called goalName.syn)
   -t, --trace <value>   print the entire derivation trace; default: true
   -a, --assert <value>  check that the synthesized result matches the last part of the test file; default: false
   --help                prints the usage text
@@ -107,14 +121,22 @@ where the necessary arguments and options are
 
 Once the synthesis is done execution statistics will be available in `stats.csv`.
 
-For instance, to synthesize `paper-examples/19-listcopy.syn`, run
+For instance, to synthesize `paper-examples/19-listcopy.syn` and see the derivation trace, run
 
 ```
-suslik paper-examples 19-listcopy
+suslik src/test/resources/synthesis/paper-examples 19-listcopy -t true
 ```
 
-You can add your own folders and test cases into that folder.
+If you are going to synthesize case studies from the provided set, you may only type the folder under 
+`synthesis` (i.e., without the prefix of the path), e.g.:
 
-## Troubleshooting
+```
+suslik paper-examples 19-listcopy -t true
+```
 
-Coming soon.
+or 
+
+```
+suslik simple swap -t false
+```
+ 

@@ -1,14 +1,13 @@
 package org.tygus.synsl.synthesis
 
+import java.awt.Color
 import java.io.File
 
-import org.tygus.synsl.language.Expressions.{BinaryExpr, IntConst, OpLeq, OpPlus}
 import org.tygus.synsl.logic.Resolver._
-import org.tygus.synsl.logic.smt.SMTSolving.sat
 import org.tygus.synsl.parsing.SynslParser
-import org.tygus.synsl.synthesis.instances.PhasedSynthesis
 import org.tygus.synsl.util.{SynLogLevels, SynLogging, SynStatUtil}
 
+import scala.Console.RED
 import scala.io.Source
 
 /**
@@ -33,7 +32,7 @@ trait SynthesisTestUtil {
 
   val synthesis: Synthesis
 
-  def doTest(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultTestParams): Unit
+  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultTestParams): Unit
 
   import synthesis._
 
@@ -77,7 +76,7 @@ trait SynthesisTestUtil {
 
     val goal = goals.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(goal, env, params.printDerivations)
+    val sresult = synthesizeProc(goal, env)(params.printDerivations)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
@@ -126,14 +125,22 @@ trait SynthesisTestUtil {
       for (f <- tests) {
         val (testName, desc, in, out) = getDescInputOutput(f.getAbsolutePath)
         val fullInput = List(defs, in).mkString("\n")
-        doTest(testName, desc, fullInput, out)
+        doRun(testName, desc, fullInput, out)
       }
     }
   }
 
   def runSingleTestFromDir(dir: String, fname: String, params: SynConfig = defaultTestParams) {
-    val path = List(rootDir, dir).mkString(File.separator)
-    val testDir = new File(path)
+    var testDir = new File(dir)
+    if (!testDir.exists()) {
+      val path = List(rootDir, dir).mkString(File.separator)
+      println(s"Trying the path $path")
+      testDir = new File(path)
+      if (!testDir.exists()) {
+        System.err.println(s"Found no directory $dir.")
+        return
+      }
+    }
     if (testDir.exists() && testDir.isDirectory) {
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
@@ -143,9 +150,9 @@ trait SynthesisTestUtil {
         case Some(f) =>
           val (testName, desc, in, out) = getDescInputOutput(f.getAbsolutePath)
           val fullInput = List(defs, in).mkString("\n")
-          doTest(testName, desc, fullInput, out, params)
+          doRun(testName, desc, fullInput, out, params)
         case None =>
-          assert(false, s"No file with the name $fname found in the directory $dir.")
+          System.err.println(s"No file with the name $fname.syn found in the directory $dir.")
       }
     }
   }
