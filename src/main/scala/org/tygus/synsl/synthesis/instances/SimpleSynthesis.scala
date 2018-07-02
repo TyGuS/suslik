@@ -14,11 +14,6 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val startingDepth = 27
 
-  {
-    // Warm-up the SMT solver on start-up to avoid future delays
-    assert(SMTSolving.valid(BoolConst(true)))
-  }
-
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction
     UnfoldingRules.InductionRule,

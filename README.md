@@ -15,7 +15,7 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
 ### Building the project
 
-To compile and run the test suite, execute from the root folder of the project:
+To compile and run the entire test suite, execute from the root folder of the project:
 
 ```
 sbt test
@@ -23,4 +23,82 @@ sbt test
 
 ## Synthesizing Programs from SL Specifications
 
-**The tutorial is coming soon!**
+### Case Studies
+
+At the moment, many interesting case studies can be found in the folder
+`$PROJECT_ROOT/src/test/resources/synthesis`.
+
+Each set of case studies is in a single folder (e.g., `copy`). The definitions
+of inductive predicates and auxiliary function specifications (lemmas) are given
+in the single `.def`-file, typically present in each such folder. For instance,
+in `paper-examples`, it is `predicates.def`.
+The remaining files (`*.syn`) are the test cases, each
+structured in the following format:
+
+```
+<A textual comment about what capability of the synthesizer is being assessed.>
+#####
+<Hoare-stule specification of the synthesized procedure>
+#####
+<Expected result>
+```
+
+For example, `paper-examples/19-listcopy.syn` is defined as follows:
+
+```
+Example (19) from the paper (listcopy)
+
+#####
+
+{true ; r :-> x ** lseg(x, 0, S)}
+void listcopy(loc r)
+{true ; r :-> y ** lseg(x, 0, S) ** lseg(y, 0, S) }
+
+#####
+
+void listcopy (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    listcopy(r);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *y2 = v2;
+    *(y2 + 1) = nxt2;
+    *r = y2;
+    *(x2 + 1) = y12;
+  }
+}
+```
+
+### Trying the Synthesis with the Provided Case Studies
+
+To run the synthesis for a specific case study from `src/test/resources/synthesis`,
+execute the following script:
+
+```
+sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner folder testname [[printTrace] [assertSuccess]]"
+```
+
+* `folder` - a folder under `src/test/resources/synthesis`
+* `testname` - the name of a file in that folder, without the `.syn` extension
+
+The last two input arguments are  optional boolean flags:
+
+* `printTrace` - print the entire derivation trace. Default: `true`.
+* `assertSuccess` - check that the synthesized result matches what's in the last part of the test file. Default: `false`.
+
+For instance, to synthesize `paper-examples/19-listcopy.syn`, run
+
+```
+sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner paper-examples 19-listcopy"
+```
+
+You can add your own folders and test cases into that folder.
+
+## Troubleshooting
+
+Coming soon.

@@ -36,8 +36,9 @@ object SynthesisTestRunner extends SynthesisTestUtil {
     val dirName = args(0)
     val fileName = args(1)
     val printFails = if (args.length > 2) parseBoolean(args(2)) else true
+    val assertSuccess = if (args.length > 3) parseBoolean(args(2)) else false
     // TODO: refactor to pass more parameters as implicits
-    val params = TestParams(printFails)
+    val params = TestParams(printFails, assertSuccess)
     runSingleTestFromDir(dirName, fileName, params)
   }
 

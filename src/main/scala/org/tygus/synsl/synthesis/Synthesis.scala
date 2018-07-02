@@ -28,7 +28,9 @@ trait Synthesis extends SepLogicUtils {
 
   val topLevelRules: List[SynthesisRule]
   val everyDayRules: List[SynthesisRule]
+
   def allRules: List[SynthesisRule] = topLevelRules ++ everyDayRules
+
   val startingDepth: Int
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
@@ -38,7 +40,7 @@ trait Synthesis extends SepLogicUtils {
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0)
     val stats = new SynStats()
     SMTSolving.init()
-    synthesize(goal, startingDepth)(stats = stats, printFails = _printFails, rules = allRules) match {
+    synthesize(goal, startingDepth)(stats = stats, rules = allRules)(printDerivations = _printFails) match {
       case Some(body) =>
         val proc = Procedure(name, tp, formals, body)
         Some((proc, stats))
@@ -51,9 +53,8 @@ trait Synthesis extends SepLogicUtils {
 
   private def synthesize(goal: Goal, depth: Int = startingDepth)
                         (stats: SynStats,
-                         printFails: Boolean,
                          rules: List[SynthesisRule])
-                        (implicit ind: Int = 0): Option[Statement] = {
+                        (implicit ind: Int = 0, printDerivations: Boolean = true): Option[Statement] = {
 
     printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
@@ -106,7 +107,7 @@ trait Synthesis extends SepLogicUtils {
           breakable {
             for {subgoal <- s.subgoals} {
               val nextRules = if (depth < startingDepth) everyDayRules else topLevelRules ++ everyDayRules
-              synthesize(subgoal, depth - 1)(stats, printFails, nextRules)(ind + 1) match {
+              synthesize(subgoal, depth - 1)(stats, nextRules)(ind + 1, printDerivations) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -132,8 +133,8 @@ trait Synthesis extends SepLogicUtils {
           g.deriv.outOfOrder(allRules) match {
             case None => true
             case Some(app) =>
-//              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-//              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
+              //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
+              //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
               printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)), isFail = true)
               false
           }
@@ -143,7 +144,7 @@ trait Synthesis extends SepLogicUtils {
 
         // TODO: This optimisation interferes with ApplyHypothesis rule - see beyond/abduct/list-free-frame.syn
         val subderivations = allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
-//         val subderivations = allSubderivations
+        //         val subderivations = allSubderivations
 
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest
@@ -168,14 +169,16 @@ trait Synthesis extends SepLogicUtils {
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
 
   private def printLog(sc: List[(String, String)], isFail: Boolean = false)
-                      (implicit i: Int, printFails: Boolean = true): Unit = {
-    if (!isFail || printFails) {
-      for ((s, c) <- sc if s.trim.length > 0) {
-        print(s"$BLACK$getIndent")
-        println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent$c")}")
+                      (implicit i: Int, printDerivations: Boolean = true): Unit = {
+    if (printDerivations) {
+      if (!isFail || printDerivations) {
+        for ((s, c) <- sc if s.trim.length > 0) {
+          print(s"$BLACK$getIndent")
+          println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent$c")}")
+        }
       }
+      print(s"$BLACK")
     }
-    print(s"$BLACK")
   }
 
 }

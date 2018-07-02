@@ -2,7 +2,9 @@ package org.tygus.synsl.synthesis
 
 import java.io.File
 
+import org.tygus.synsl.language.Expressions.{BinaryExpr, IntConst, OpLeq, OpPlus}
 import org.tygus.synsl.logic.Resolver._
+import org.tygus.synsl.logic.smt.SMTSolving.sat
 import org.tygus.synsl.parsing.SynslParser
 import org.tygus.synsl.synthesis.instances.PhasedSynthesis
 import org.tygus.synsl.util.{SynLogLevels, SynLogging, SynStatUtil}
@@ -22,7 +24,7 @@ trait SynthesisTestUtil {
   val testExtension = "syn"
   val defExtension = "def"
 
-  case class TestParams(printFails: Boolean = true)
+  case class TestParams(printDerivations: Boolean = true, assertSuccess: Boolean = true)
   val defaultTestParams : TestParams = new TestParams
 
 
@@ -75,7 +77,7 @@ trait SynthesisTestUtil {
 
     val goal = goals.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(goal, env, params.printFails)
+    val sresult = synthesizeProc(goal, env, params.printDerivations)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
@@ -96,7 +98,9 @@ trait SynthesisTestUtil {
         if (out != "nope") {
           val tt = out.trim.lines.toList
           val res = result.trim.lines.toList
-          assert(res == tt, s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
+          if (params.assertSuccess) {
+            assert(res == tt, s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
+          }
         }
       case None =>
         assert(false, s"Failed to synthesise:\n$sresult")
@@ -110,7 +114,6 @@ trait SynthesisTestUtil {
     val file = new File(defFiles.head.getAbsolutePath)
     Source.fromFile(file).getLines.toList.mkString("\n")
   }
-
 
   def runAllTestsFromDir(dir: String) {
     val path = List(rootDir, dir).mkString(File.separator)
