@@ -207,7 +207,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    */
   object AbduceCall extends SynthesisRule with UnfoldingPhase {
 
-    override def toString: Ident = "[Unfold: abduct-writes]"
+    override def toString: Ident = "[Unfold: abduce-call]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       (for {

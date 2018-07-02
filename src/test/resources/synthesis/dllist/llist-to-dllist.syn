@@ -1,0 +1,9 @@
+should be able to convert a doubly-linked list to single-linked list
+
+#######
+
+{ true ; f :-> x ** lseg(x, s)}
+void sll_to_dll(loc f)
+{ true ;  f :-> i ** dllseg(i, z, s)}
+
+#######
