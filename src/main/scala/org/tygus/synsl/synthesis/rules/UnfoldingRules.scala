@@ -8,7 +8,6 @@ import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.synsl.synthesis._
-import org.tygus.synsl.synthesis.rules.UnfoldingRules.CallRule.saveApplication
 
 /**
   * Unfolding rules deal with predicates and recursion.

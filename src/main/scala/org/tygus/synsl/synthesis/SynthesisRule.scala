@@ -16,8 +16,16 @@ abstract class SynthesisRule extends PureLogicUtils {
   // Is the rule enabled on this goal?
   def enabled(goal: Goal): Boolean
 
-  def saveApplication(footprint: (Set[Int], Set[Int]), currentDeriv: Derivation): RuleApplication =
-    RuleApplication(this, footprint, (currentDeriv.preIndex.length, currentDeriv.postIndex.length))
+  def saveApplication(footprint: (Set[Int], Set[Int]),
+                      currentDeriv: Derivation,
+                      customCost: Option[Int] = None): RuleApplication = {
+    val cost = customCost match {
+      // By default, applications with earlier footprint have lower cost
+      case None => footprint._1.union(footprint._2).min
+      case Some(s) => s
+    }
+    RuleApplication(this, footprint, (currentDeriv.preIndex.length, currentDeriv.postIndex.length), cost)
+  }
 }
 
 /**

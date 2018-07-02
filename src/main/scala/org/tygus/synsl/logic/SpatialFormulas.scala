@@ -169,7 +169,17 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     })
   }
 
-  // How dissimilar is this formula from other?
+  // How many heaplets do the two formulas have in common?
+  def similarity(other: SFormula): Int = {
+    def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)
+
+    findMatchingHeaplets(_ => true, isMatch, this, other) match {
+      case None => 0
+      case Some((l, r)) => 1 + (this - l).similarity(other - r)
+    }
+  }
+
+  // How many heaplets are different between the two formulas?
   def distance(other: SFormula): Int = {
     def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)
 

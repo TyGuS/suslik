@@ -4,6 +4,7 @@ import org.tygus.synsl.LanguageUtils
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.synthesis.SynthesisRule
+import org.tygus.synsl.synthesis.rules.UnificationRules.{HeapUnify, HeapUnifyUnfolding}
 
 import scala.math.Ordering.Implicits._
 
@@ -73,14 +74,16 @@ object Specifications {
     }
 
     // TODO: take into account distance between pure parts
+    def similarity(other: Assertion): Int = this.sigma.similarity(other.sigma)
+
     def distance(other: Assertion): Int = this.sigma.distance(other.sigma)
 
   }
 
-  case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int))
+  case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int), cost: Int)
     extends PrettyPrinting with Ordered[RuleApplication] {
     override def pp: String =
-      s"${this.rule} ${this.timestamp} ${this.footprint}"
+      s"${this.rule} ${this.timestamp} ${this.footprint} with cost ${this.cost}"
 
     // Does this rule application commute with a previous application prev?
     // Yes if my footprint only includes chunks that existed before prev was applied
@@ -89,12 +92,10 @@ object Specifications {
         this.footprint._2.forall(i => i < prev.timestamp._2)
     }
 
-    // Rule applications are ordered by their footprint
-    // (the actual order doesn't really matter, as long as not all rules are equal)
+    // Rule applications are ordered by cost;
+    // for efficiency, when a rule produces multiple alternatives, lower costs should go first
     override def compare(that: RuleApplication): Int = {
-      val min1 = this.footprint._1.union(this.footprint._2).min
-      val min2 = that.footprint._1.union(that.footprint._2).min
-      min1.compare(min2)
+      cost.compare(that.cost)
     }
   }
 
@@ -213,6 +214,8 @@ object Specifications {
     }
 
     def formals: Formals = programVars.map(v => (getType(v), v))
+
+    def similarity: Int = pre.similarity(post)
 
     def distance: Int = pre.distance(post)
 
