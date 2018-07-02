@@ -113,7 +113,7 @@ where the necessary arguments and options are
 
 ```
   folder                a folder with the definition and synthesis goal file
-  goalName              a test case name (the file under the specified folder, called name.syn)
+  goalName              a test case name (the file under the specified folder, called goalName.syn)
   -t, --trace <value>   print the entire derivation trace; default: true
   -a, --assert <value>  check that the synthesized result matches the last part of the test file; default: false
   --help                prints the usage text
@@ -132,9 +132,11 @@ If you are going to synthesize case studies from the provided set, you may only 
 
 ```
 suslik paper-examples 19-listcopy -t true
+```
+
+or 
+
+```
 suslik simple swap -t false
 ```
  
-## Troubleshooting
-
-Coming soon.

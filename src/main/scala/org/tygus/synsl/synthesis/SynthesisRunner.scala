@@ -70,7 +70,7 @@ object SynthesisRunner extends SynthesisTestUtil {
 
     arg[String]("goalName").action {(x, c) =>
       c.copy(fileName = x)
-    }.text("a test case name (the file under the specified folder, called name.syn)")
+    }.text("a test case name (the file under the specified folder, called goalName.syn)")
 
     opt[Boolean]('t', "trace").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printDerivations = b))
