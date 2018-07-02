@@ -54,11 +54,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
           val subGoal = goal.copy(newPre, newPost)
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
-            val rest = stmts.head
-            SeqComp(Store(x, offset, e2), rest)
-          }
+          val kont: StmtProducer = prepend(Store(x, offset, e2), toString)
 
           List(Subderivation(List(subGoal), kont))
         case Some((hl, hr)) =>
@@ -103,11 +99,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
           val newPost = Assertion(post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
           val subGoal = goal.copy(post = newPost)
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
-            val rest = stmts.head
-            SeqComp(rest, Store(x, offset, l))
-          }
+          val kont: StmtProducer = append(Store(x, offset, l), toString)
           List(Subderivation(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
@@ -144,13 +136,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val tpy = goal.getType(a)
 
           val subGoal = goal.copy(pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"Read rule expected 1 premise and got ${stmts.length}")
-            val rest = stmts.head
-            // Do not generate read for unused variables
-            if (rest.usedVars.contains(y)) SeqComp(Load(y, tpy, x, offset), rest) else rest
-          }
-
+          val kont: StmtProducer = prepend(Load(y, tpy, x, offset), toString)
           List(Subderivation(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
@@ -204,11 +190,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
           val subGoal = goal.copy(newPre, post.subst(x, y), newRuleApp = Some(ruleApp)).addProgramVar(y, tpy)
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"Alloc rule expected 1 premise and got ${stmts.length}")
-            SeqComp(Malloc(y, tpy, sz), stmts.head)
-          }
-
+          val kont: StmtProducer = prepend(Malloc(y, tpy, sz), toString)
           List(Subderivation(List(subGoal), kont))
         case _ => Nil
       }
@@ -248,10 +230,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
 
           val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
-          val kont: StmtProducer = stmts => {
-            ruleAssert(stmts.lengthCompare(1) == 0, s"Free rule expected 1 premise and got ${stmts.length}")
-            SeqComp(Free(x), stmts.head)
-          }
+          val kont: StmtProducer = prepend(Free(x), toString)
 
           List(Subderivation(List(subGoal), kont))
         case Some(_) => Nil

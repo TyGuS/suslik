@@ -166,11 +166,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
       } yield {
         val callGoal = mkCallGoal(f, sub, callSubPre, goal)
-        val kont: StmtProducer = stmts => {
-          ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
-          val rest = stmts.head
-          SeqComp(Call(None, Var(f.name), args), rest)
-        }
+        val kont: StmtProducer = prepend(Call(None, Var(f.name), args), toString)
         Subderivation(List(callGoal), kont)
       }).toSeq
     }

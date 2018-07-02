@@ -160,11 +160,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
             l <- goal.programVars.toList
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
             subGoal = goal.copy(newPre, post.subst(m, l))
-            kont = (stmts: Seq[Statement]) => {
-              ruleAssert(stmts.lengthCompare(1) == 0, s"Write rule expected 1 premise and got ${stmts.length}")
-              val rest = stmts.head
-              SeqComp(Store(x, offset, l), rest)
-            }
+            kont = prepend(Store(x, offset, l), toString)
           } yield Subderivation(List(subGoal), kont)
         case Some((hl, hr)) =>
           ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")

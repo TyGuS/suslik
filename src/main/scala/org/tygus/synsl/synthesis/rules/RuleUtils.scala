@@ -1,6 +1,7 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.SynSLException
+import org.tygus.synsl.language.Statements.{Load, SeqComp, Statement}
 import org.tygus.synsl.synthesis.{StmtProducer, Subderivation}
 
 /**
@@ -20,6 +21,25 @@ trait RuleUtils {
       ruleAssert(stmts.lengthCompare(1) == 0, s"Rule $rulename expects 1 premise and got ${stmts.length}")
       stmts.head
     }
+
+  def prepend(s: Statement, rulename: String): StmtProducer =
+    stmts => {
+      ruleAssert(stmts.lengthCompare(1) == 0, s"Rule $rulename expects 1 premise and got ${stmts.length}")
+      val rest = stmts.head
+      s match {
+        // Do not generate read for unused variables
+        case Load(y, tpy, x, offset) => if (rest.usedVars.contains(y)) SeqComp(s, rest) else rest
+        case _ => SeqComp(s, rest)
+      }
+  }
+
+  def append(s: Statement, rulename: String): StmtProducer =
+    stmts => {
+      ruleAssert(stmts.lengthCompare(1) == 0, s"Rule $rulename expects 1 premise and got ${stmts.length}")
+      val rest = stmts.head
+      SeqComp(rest, s)
+    }
+
 
   // Sort a sequence of alternative subderivations (where every subderivation contains a single goal)
   // by the footprint of their latest rule application,

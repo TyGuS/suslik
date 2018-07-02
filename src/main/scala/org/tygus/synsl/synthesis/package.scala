@@ -11,6 +11,4 @@ package object synthesis {
   // A continuation for synthesizing the "larger" statement from substatement
   type StmtProducer = Seq[Statement] => Statement
 
-  def identityProducer: StmtProducer = _.head
-
 }
