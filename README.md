@@ -101,7 +101,7 @@ where the necessary arguments and options are
   folder                a folder under ./src/test/resources/synthesis starting from this on as a root
   file                  a test case file under the specified folder
   -t, --trace <value>   print the entire derivation trace; default: true
-  -a, --assert <value>  check that the synthesized result matches what's in the last part of the test file; default: false
+  -a, --assert <value>  check that the synthesized result matches the last part of the test file; default: false
   --help                prints the usage text
 ```
 

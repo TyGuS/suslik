@@ -80,7 +80,7 @@ object SynthesisTestRunner extends SynthesisTestUtil {
 
     opt[Boolean]('a', "assert").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))
-    }.text("check that the synthesized result matches what's in the last part of the test file; default: false")
+    }.text("check that the synthesized result matches the last part of the test file; default: false")
 
     help("help").text("prints this usage text")
 
