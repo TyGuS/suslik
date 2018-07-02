@@ -82,7 +82,7 @@ object SynthesisRunner extends SynthesisTestUtil {
 
     help("help").text("prints this usage text")
 
-    note("\nOnce the synthesis is done execution statistics will be available in stats.csv.\n")
+    note("\nOnce the synthesis is done execution, statistics will be available in stats.csv (rewritten every time).\n")
 
   }
 }
