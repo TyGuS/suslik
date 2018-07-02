@@ -36,4 +36,8 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisTestUtil
     runAllTestsFromDir("flatten")
   }
 
+  describe("SL-based synthesizer for doubly-linked lists") {
+    runAllTestsFromDir("dllist")
+  }
+
 }

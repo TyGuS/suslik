@@ -2,9 +2,9 @@ should be able to set the previous pointer of a doubly-linked list
 
 #######
 
-{ true; dllseg(x, 0, z, s) }
+{ true; (prev + 1) :-> x ** dllseg(x, z, s) }
 void set_prev(loc x, loc prev)
-{ true; dllseg(x, 0, prev, s)}
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)}
 
 #######
 

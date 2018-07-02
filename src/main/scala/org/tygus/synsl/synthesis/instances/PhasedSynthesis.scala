@@ -21,7 +21,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     if (depth == startingDepth)
       allRules
     else if (goal.hasPredicates)
-      anyPhaseRules ++ unfoldingPhaseRules ++ List(OperationalRules.AllocRule)
+      anyPhaseRules ++ unfoldingPhaseRules
     else
       anyPhaseRules ++ flatPhaseRules
 
@@ -37,6 +37,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,
     OperationalRules.ReadRule,
+    OperationalRules.AllocRule,
   )
 
   val unfoldingPhaseRules: List[SynthesisRule] = List(
@@ -57,7 +58,6 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     FailRules.PostInvalid,
     LogicalRules.FrameFlat,
     UnificationRules.HeapUnifyFlat,
-    OperationalRules.AllocRule,
     OperationalRules.WriteRule,
     OperationalRules.FreeRule,
     FailRules.HeapUnreachable,
