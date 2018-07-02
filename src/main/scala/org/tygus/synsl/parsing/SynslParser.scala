@@ -108,7 +108,7 @@ class SynslParser extends StandardTokenParsers with SepLogicUtils {
     case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
   }
 
-  def program: Parser[Program] = rep(indPredicate ||| goalFunction) ^^ { pfs =>
+  def program: Parser[Program] = rep(indPredicate | goalFunction) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _) <- pfs) yield f
     assert(fs.nonEmpty, "No single function spec is provided")

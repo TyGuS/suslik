@@ -20,6 +20,10 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisTestUtil {
     runAllTestsFromDir("paper-benchmarks/natural")
   }
 
+  describe("Benchmarks from Jennisys paper") {
+    runAllTestsFromDir("paper-benchmarks/jennisys")
+  }
+
   describe("Benchmarks from Dryad suite") {
     runAllTestsFromDir("paper-benchmarks/dryad")
   }

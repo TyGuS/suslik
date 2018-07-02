@@ -1,0 +1,16 @@
+singly-linked list: singleton
+
+#####
+
+{ true ; ret :-> a }
+void sll_singleton (int x, loc ret)
+{ len == 1  /\  elems =i {x} ; ret :-> y ** sll(y, len, elems) }
+
+#####
+
+void sll_singleton (int x, loc ret) {
+  let y2 = malloc(2);
+  *y2 = x;
+  *(y2 + 1) = 0;
+  *ret = y2;
+}
