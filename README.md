@@ -105,6 +105,8 @@ where the necessary arguments and options are
   --help                prints the usage text
 ```
 
+Once the synthesis is done execution statistics will be available in `stats.csv`.
+
 For instance, to synthesize `paper-examples/19-listcopy.syn`, run
 
 ```
