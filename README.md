@@ -13,7 +13,7 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 * [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
 * [Z3 SMT solver](https://github.com/Z3Prover/z3)
 
-### Building the project
+### Building the Project
 
 To compile and run the entire test suite, execute from the root folder of the project:
 
