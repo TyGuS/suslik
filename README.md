@@ -103,7 +103,7 @@ void listcopy (loc r) {
 
 ### Trying the Synthesis with the Case Studies
 
-To run the synthesis for a specific case study from `src/test/resources/synthesis`,
+To run the synthesis for a specific case study from a specific folder,
 execute the following script:
 
 ```
@@ -121,10 +121,10 @@ where the necessary arguments and options are
 
 Once the synthesis is done execution statistics will be available in `stats.csv`.
 
-For instance, to synthesize `paper-examples/19-listcopy.syn`, run
+For instance, to synthesize `paper-examples/19-listcopy.syn` and see the derivation trace, run
 
 ```
-suslik paper-examples 19-listcopy
+suslik src/test/resources/synthesis/paper-examples 19-listcopy -t true
 ```
 
 You can add your own folders and test cases into that folder.

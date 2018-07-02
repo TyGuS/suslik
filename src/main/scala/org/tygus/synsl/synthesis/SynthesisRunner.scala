@@ -31,7 +31,7 @@ object SynthesisRunner extends SynthesisTestUtil {
     */
   def main(args: Array[String]): Unit = handleInput(args)
 
-  def doTest(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
+  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
     println(desc)
     println()
     synthesizeFromSpec(testName, in, out, params)
