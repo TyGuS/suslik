@@ -66,11 +66,11 @@ object SynthesisRunner extends SynthesisTestUtil {
 
     arg[String]("folder").action {(x, c) =>
       c.copy(dirName = x)
-    }.text("a folder under ./src/test/resources/synthesis starting from this on as a root")
+    }.text("a folder with the definition and synthesis goal file")
 
-    arg[String]("file").action {(x, c) =>
+    arg[String]("goalName").action {(x, c) =>
       c.copy(fileName = x)
-    }.text("a test case file under the specified folder")
+    }.text("a test case name (the file under the specified folder, called name.syn)")
 
     opt[Boolean]('t', "trace").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printDerivations = b))
