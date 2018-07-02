@@ -66,7 +66,7 @@ object SynthesisRunner extends SynthesisTestUtil {
 
     arg[String]("folder").action {(x, c) =>
       c.copy(dirName = x)
-    }.text("a folder with the definition and synthesis goal file")
+    }.text("a folder with the predicate definitions, lemmas, and synthesis goal file")
 
     arg[String]("goalName").action {(x, c) =>
       c.copy(fileName = x)

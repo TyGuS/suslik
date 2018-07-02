@@ -112,7 +112,7 @@ suslik [options] folder goalName
 where the necessary arguments and options are
 
 ```
-  folder                a folder with the definition and synthesis goal file
+  folder                a folder with the predicate definitions, lemmas, and synthesis goal file
   goalName              a test case name (the file under the specified folder, called goalName.syn)
   -t, --trace <value>   print the entire derivation trace; default: true
   -a, --assert <value>  check that the synthesized result matches the last part of the test file; default: false
