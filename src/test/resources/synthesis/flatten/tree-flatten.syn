@@ -17,10 +17,10 @@ void tree_flatten (loc z) {
     let r2 = *(x2 + 2);
     *z = l2;
     tree_flatten(z);
-    let y12 = *z;
-    *z = r2;
-    tree_flatten(z);
-    list_append(z, y12);
+    *x2 = r2;
+    tree_flatten(x2);
+    let y22 = *x2;
+    list_append(z, y22);
     let z12 = *z;
     let y3 = malloc(2);
     free(x2);

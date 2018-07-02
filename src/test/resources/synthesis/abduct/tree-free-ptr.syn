@@ -15,8 +15,8 @@ void free_tree (loc r) {
     let r12 = *(x2 + 2);
     *r = l2;
     free_tree(r);
-    *r = r12;
-    free_tree(r);
+    *x2 = r12;
+    free_tree(x2);
     free(x2);
   }
 }

@@ -18,9 +18,11 @@ void tree_size (loc r) {
     *r = l2;
     tree_size(r);
     let n12 = *r;
-    *r = r12;
-    tree_size(r);
-    let n22 = *r;
+    *x2 = r12;
+    tree_size(x2);
+    let n22 = *x2;
     *r = 1 + n12 + n22;
+    *(x2 + 2) = l2;
+    *(x2 + 1) = r12;
   }
 }

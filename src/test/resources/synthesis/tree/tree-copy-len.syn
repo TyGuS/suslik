@@ -15,12 +15,13 @@ void tree_copy (loc x, loc r) {
     let r12 = *(x + 2);
     tree_copy(l2, r);
     let y12 = *r;
-    *r = 0;
-    tree_copy(r12, r);
-    let y22 = *r;
+    *x = 0;
+    tree_copy(r12, x);
+    let y22 = *x;
     let y3 = malloc(3);
-    *(y3 + 2) = y22;
+    *(y3 + 2) = r12;
     *(y3 + 1) = y12;
     *r = y3;
+    *(x + 2) = y22;
   }
 }
