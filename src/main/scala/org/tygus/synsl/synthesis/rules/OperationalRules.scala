@@ -254,6 +254,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           }
 
           List(Subderivation(List(subGoal), kont))
+        case Some(_) => Nil
       }
     }
 

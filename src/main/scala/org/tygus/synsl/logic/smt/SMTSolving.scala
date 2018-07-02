@@ -35,6 +35,7 @@ object SMTSolving extends Core
     // TODO: destroy solver when we're done
     solverObject = new SMTSolver(defaultSolver, new SMTInit())
     for (cmd <- prelude) { solverObject.eval(Raw(cmd)) }
+
   }
 
   /** Communication with the solver  */
@@ -194,6 +195,7 @@ object SMTSolving extends Core
 
   // Call this before synthesizing a new function
   def init(): Unit = {
+    // Warm up solver
     cache.clear()
   }
 

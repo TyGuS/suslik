@@ -11,7 +11,7 @@ class AbductionTests extends FunSpec with Matchers with SynthesisTestUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
-  def doTest(testName: String, desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit =
+  def doTest(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultTestParams): Unit =
     it(desc) {
       synthesizeFromSpec(testName, in, out)
     }

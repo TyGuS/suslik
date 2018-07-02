@@ -13,9 +13,9 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 * [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
 * [Z3 SMT solver](https://github.com/Z3Prover/z3)
 
-### Building the project
+### Building the Project
 
-To compile and run the test suite, execute from the root folder of the project:
+To compile and run the entire test suite, execute from the root folder of the project:
 
 ```
 sbt test
@@ -23,4 +23,98 @@ sbt test
 
 ## Synthesizing Programs from SL Specifications
 
-**The tutorial is coming soon!**
+### Case Studies
+
+At the moment, many interesting case studies can be found in the folder
+`$PROJECT_ROOT/src/test/resources/synthesis`.
+
+Each set of case studies is in a single folder (e.g., `copy`). The definitions
+of inductive predicates and auxiliary function specifications (lemmas) are given
+in the single `.def`-file, typically present in each such folder. For instance,
+in `paper-examples`, it is `predicates.def`, whose contents are as follows:
+
+```
+predicate lseg(loc x, loc y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, s1) }
+}
+
+predicate lseg2(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, s1) }
+}
+```
+
+The remaining files (`*.syn`) are the test cases, each
+structured in the following format:
+
+```
+<A textual comment about what capability of the synthesizer is being assessed.>
+#####
+<Hoare-stule specification of the synthesized procedure>
+#####
+<Expected result>
+```
+
+For example, `paper-examples/19-listcopy.syn` is defined as follows:
+
+```
+Example (19) from the paper (listcopy)
+
+#####
+
+{true ; r :-> x ** lseg(x, 0, S)}
+void listcopy(loc r)
+{true ; r :-> y ** lseg(x, 0, S) ** lseg(y, 0, S) }
+
+#####
+
+void listcopy (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    listcopy(r);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *y2 = v2;
+    *(y2 + 1) = nxt2;
+    *r = y2;
+    *(x2 + 1) = y12;
+  }
+}
+```
+
+### Trying the Synthesis with the Case Studies
+
+To run the synthesis for a specific case study from `src/test/resources/synthesis`,
+execute the following script:
+
+```
+suslik [options] folder file
+```
+where the necessary arguments and options are
+
+```
+  folder                a folder under ./src/test/resources/synthesis starting from this on as a root
+  file                  a test case file under the specified folder
+  -t, --trace <value>   print the entire derivation trace; default: true
+  -a, --assert <value>  check that the synthesized result matches the last part of the test file; default: false
+  --help                prints the usage text
+```
+
+Once the synthesis is done execution statistics will be available in `stats.csv`.
+
+For instance, to synthesize `paper-examples/19-listcopy.syn`, run
+
+```
+suslik paper-examples 19-listcopy
+```
+
+You can add your own folders and test cases into that folder.
+
+## Troubleshooting
+
+Coming soon.

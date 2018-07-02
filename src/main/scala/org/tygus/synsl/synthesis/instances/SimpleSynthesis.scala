@@ -15,15 +15,9 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val startingDepth = 27
 
-  {
-    // Warm-up the SMT solver on start-up to avoid future delays
-    assert(SMTSolving.valid(BoolConst(true)))
-  }
-
   def allRules: List[SynthesisRule] = topLevelRules ++ everyDayRules
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] =
     if (depth < startingDepth) everyDayRules else allRules
-
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction
