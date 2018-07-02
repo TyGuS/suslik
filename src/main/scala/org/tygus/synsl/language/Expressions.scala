@@ -156,7 +156,10 @@ object Expressions {
 
     def resolve(gamma: Gamma, target: Option[SynslType]): Option[Gamma] = this match {
       case v@Var(_) => gamma.get(v) match {
-        case Some(t) => if (t.conformsTo(target)) Some(gamma) else None
+        case Some(t) => t.supertype(target) match {
+          case None => None
+          case Some(t1) => Some(gamma + (v -> t1))
+        }
         case None => target match {
           case Some(t1) => Some(gamma + (v -> t1))
           case None => Some(gamma)

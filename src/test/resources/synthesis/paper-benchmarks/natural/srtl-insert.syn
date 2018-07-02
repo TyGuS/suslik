@@ -1,0 +1,16 @@
+sorted list: insert an element
+
+#####
+
+{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtl(x, n, lo, hi) }
+void srtl_insert (loc x, loc r)
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1) }
+
+#####
+
+void srtl_insert (loc x, int k, loc r) {
+  let y2 = malloc(2);
+  *y2 = k;
+  *(y2 + 1) = x;
+  *r = y2;
+}

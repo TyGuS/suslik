@@ -4,7 +4,7 @@ sorted list: prepend an element
 
 {0 <= n  /\  k <= lo ; r :-> a ** srtl(x, n, lo, hi) }
 void srtl_prepend (loc x, int k, loc r)
-{true ; r :-> y ** srtl(y, n + 1, k <= lo ? k : lo, hi <= k ? k : hi) }
+{n1 == n + 1  /\ hi1 == hi <= k ? k : hi ; r :-> y ** srtl(y, n1, k, hi1) }
 
 #####
 

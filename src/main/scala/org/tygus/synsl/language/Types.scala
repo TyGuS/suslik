@@ -5,13 +5,16 @@ package org.tygus.synsl.language
   */
 
 abstract class SynslType extends PrettyPrinting {
-  def conformsTo(target: Option[SynslType]): Boolean = target match {
-    case None => true
-    case Some(t1) if this == t1 => true
-    case Some(IntType) => this == LocType
-    case Some(LocType) => this == IntType
-    case _ => false
+  def supertype(target: Option[SynslType]): Option[SynslType] = target match {
+    case None => Some(this)
+    case Some(t1) if this == t1 => Some(this)
+    case Some(IntType) if this == LocType => Some(this)
+    case Some(LocType) if this == IntType => Some(LocType)
+    case _ => None
   }
+
+  def conformsTo(target: Option[SynslType]): Boolean = supertype(target).isDefined
+
 }
 
 case object BoolType extends SynslType {
