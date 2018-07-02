@@ -24,8 +24,8 @@ trait SynthesisTestUtil {
   val testExtension = "syn"
   val defExtension = "def"
 
-  case class TestParams(printDerivations: Boolean = true, assertSuccess: Boolean = true)
-  val defaultTestParams : TestParams = new TestParams
+  case class SynConfig(printDerivations: Boolean = true, assertSuccess: Boolean = true)
+  val defaultTestParams : SynConfig = new SynConfig
 
 
   // The path starts from the project root.
@@ -33,7 +33,7 @@ trait SynthesisTestUtil {
 
   val synthesis: Synthesis
 
-  def doTest(testName: String, desc: String, in: String, out: String, params: TestParams = defaultTestParams): Unit
+  def doTest(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultTestParams): Unit
 
   import synthesis._
 
@@ -64,7 +64,7 @@ trait SynthesisTestUtil {
     synthesizeFromSpec(in, out)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: TestParams = defaultTestParams) {
+  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultTestParams) {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
     assert(res.successful, res)
@@ -131,7 +131,7 @@ trait SynthesisTestUtil {
     }
   }
 
-  def runSingleTestFromDir(dir: String, fname: String, params: TestParams = defaultTestParams) {
+  def runSingleTestFromDir(dir: String, fname: String, params: SynConfig = defaultTestParams) {
     val path = List(rootDir, dir).mkString(File.separator)
     val testDir = new File(path)
     if (testDir.exists() && testDir.isDirectory) {

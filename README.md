@@ -93,21 +93,22 @@ To run the synthesis for a specific case study from `src/test/resources/synthesi
 execute the following script:
 
 ```
-sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner folder testname [[printTrace] [checkResult]]"
+suslik [options] folder file
 ```
+where the necessary arguments and options are
 
-* `folder` - a folder under `src/test/resources/synthesis`
-* `testname` - the name of a file in that folder, without the `.syn` extension
-
-The last two input arguments are  optional boolean flags:
-
-* `printTrace` - print the entire derivation trace. Default: `true`.
-* `checkResult` - check that the synthesized result matches what's in the last part of the test file. Default: `false`.
+```
+  folder                a folder under ./src/test/resources/synthesis starting from this on as a root
+  file                  a test case file under the specified folder
+  -t, --trace <value>   print the entire derivation trace; default: true
+  -a, --assert <value>  check that the synthesized result matches what's in the last part of the test file; default: false
+  --help                prints the usage text
+```
 
 For instance, to synthesize `paper-examples/19-listcopy.syn`, run
 
 ```
-sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner paper-examples 19-listcopy"
+suslik paper-examples 19-listcopy
 ```
 
 You can add your own folders and test cases into that folder.
