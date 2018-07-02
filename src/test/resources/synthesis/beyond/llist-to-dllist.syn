@@ -1,4 +1,6 @@
-should be able to convert a doubly-linked list to single-linked list
+should be able to convert a signly-linked list to a double-linked list
+currently fails because this requires allocation before call (or open);
+can be fixed by interleaving phases or moving alloc to an earlier phase
 
 #######
 

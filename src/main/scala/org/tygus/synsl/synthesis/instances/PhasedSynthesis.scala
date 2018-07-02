@@ -37,7 +37,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,
     OperationalRules.ReadRule,
-    OperationalRules.AllocRule,
+//    OperationalRules.AllocRule,
   )
 
   val unfoldingPhaseRules: List[SynthesisRule] = List(
@@ -58,6 +58,7 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     FailRules.PostInvalid,
     LogicalRules.FrameFlat,
     UnificationRules.HeapUnifyFlat,
+    OperationalRules.AllocRule,
     OperationalRules.WriteRule,
     OperationalRules.FreeRule,
     FailRules.HeapUnreachable,

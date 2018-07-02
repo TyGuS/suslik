@@ -39,8 +39,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val env = goal.env
       findHeaplet(_.isInstanceOf[SApp], pre.sigma) match {
-        case Some(h@SApp(pred, args, tag)) if tag.contains(0) =>
-          // Only 0-tagged (i.e., not yet once unfolded predicates) can be unfolded
+        case Some(h@SApp(pred, args, Some(t))) if t < env.maxUnfoldingDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.map(_._2).zip(args).toMap
@@ -66,9 +65,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
-      if (goal.hasAllocatedBlocks) return Nil
-
       mkInductiveSubGoals(goal) match {
         case None => Nil
         case Some((selGoals, h)) =>
