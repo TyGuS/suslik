@@ -127,8 +127,14 @@ For instance, to synthesize `paper-examples/19-listcopy.syn` and see the derivat
 suslik src/test/resources/synthesis/paper-examples 19-listcopy -t true
 ```
 
-You can add your own folders and test cases into that folder.
+If you are going to synthesize case studies from the provided set, you may only type the folder under 
+`synthesis` (i.e., without the prefix of the path), e.g.:
 
+```
+suslik paper-examples 19-listcopy -t true
+suslik simple swap -t false
+```
+ 
 ## Troubleshooting
 
 Coming soon.
