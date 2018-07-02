@@ -74,7 +74,7 @@ void listcopy (loc r) {
 }
 ```
 
-### Trying the Synthesis with the Provided Case Studies
+### Trying the Synthesis with the Case Studies
 
 To run the synthesis for a specific case study from `src/test/resources/synthesis`,
 execute the following script:
