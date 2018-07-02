@@ -80,7 +80,7 @@ To run the synthesis for a specific case study from `src/test/resources/synthesi
 execute the following script:
 
 ```
-sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner folder testname [[printTrace] [assertSuccess]]"
+sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner folder testname [[printTrace] [checkResult]]"
 ```
 
 * `folder` - a folder under `src/test/resources/synthesis`
@@ -89,7 +89,7 @@ sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner folder testname 
 The last two input arguments are  optional boolean flags:
 
 * `printTrace` - print the entire derivation trace. Default: `true`.
-* `assertSuccess` - check that the synthesized result matches what's in the last part of the test file. Default: `false`.
+* `checkResult` - check that the synthesized result matches what's in the last part of the test file. Default: `false`.
 
 For instance, to synthesize `paper-examples/19-listcopy.syn`, run
 
