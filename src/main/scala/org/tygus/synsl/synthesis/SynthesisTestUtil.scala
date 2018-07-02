@@ -6,6 +6,7 @@ import org.tygus.synsl.logic.Resolver._
 import org.tygus.synsl.parsing.SynslParser
 import org.tygus.synsl.util.{SynLogLevels, SynLogging, SynStatUtil}
 
+import scala.Console.RED
 import scala.io.Source
 
 /**
@@ -74,7 +75,7 @@ trait SynthesisTestUtil {
 
     val goal = goals.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(goal, env, params.printDerivations)
+    val sresult = synthesizeProc(goal, env)(params.printDerivations)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
@@ -131,6 +132,10 @@ trait SynthesisTestUtil {
   def runSingleTestFromDir(dir: String, fname: String, params: SynConfig = defaultTestParams) {
     val path = List(rootDir, dir).mkString(File.separator)
     val testDir = new File(path)
+    if (!testDir.exists()) {
+      System.err.println(s"${RED}No directory $dir")
+      return
+    }
     if (testDir.exists() && testDir.isDirectory) {
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
@@ -142,7 +147,7 @@ trait SynthesisTestUtil {
           val fullInput = List(defs, in).mkString("\n")
           doTest(testName, desc, fullInput, out, params)
         case None =>
-          System.err.println(s"No file with the name $fname found in the directory $dir.")
+          System.err.println(s"${RED}No file with the name $fname found in the directory $dir.")
       }
     }
   }
