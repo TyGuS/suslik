@@ -181,8 +181,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
 
-      if (goal.hasPredicates) return Nil
-
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma

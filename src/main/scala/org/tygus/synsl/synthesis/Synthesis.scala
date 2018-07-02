@@ -26,9 +26,10 @@ trait Synthesis extends SepLogicUtils {
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
-  val topLevelRules: List[SynthesisRule]
-  val everyDayRules: List[SynthesisRule]
-  def allRules: List[SynthesisRule] = topLevelRules ++ everyDayRules
+  def allRules: List[SynthesisRule]
+  def initialRules: List[SynthesisRule] = allRules
+  def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
+
   val startingDepth: Int
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, _printFails: Boolean = true):
@@ -105,8 +106,7 @@ trait Synthesis extends SepLogicUtils {
           import util.control.Breaks._
           breakable {
             for {subgoal <- s.subgoals} {
-              val nextRules = if (depth < startingDepth) everyDayRules else topLevelRules ++ everyDayRules
-              synthesize(subgoal, depth - 1)(stats, printFails, nextRules)(ind + 1) match {
+              synthesize(subgoal, depth - 1)(stats, printFails, nextRules(subgoal, depth))(ind + 1) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -124,7 +124,7 @@ trait Synthesis extends SepLogicUtils {
         }
 
         // Invoke the rule
-        val allSubderivations = if (r.enabled(goal)) r(goal) else Nil
+        val allSubderivations = r(goal)
         val goalStr = s"$r: "
 
         // Filter out subderivations that violate rule ordering

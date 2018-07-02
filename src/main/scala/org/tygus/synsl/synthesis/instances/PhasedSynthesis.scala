@@ -1,6 +1,7 @@
 package org.tygus.synsl.synthesis.instances
 
 import org.tygus.synsl.language.Expressions.BoolConst
+import org.tygus.synsl.logic.Specifications.Goal
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.{Synthesis, SynthesisRule}
 import org.tygus.synsl.synthesis.rules._
@@ -15,29 +16,40 @@ class PhasedSynthesis (implicit val log: SynLogging) extends Synthesis {
     assert(SMTSolving.valid(BoolConst(true)))
   }
 
+  def allRules: List[SynthesisRule] = topLevelRules ++ anyPhaseRules ++ unfoldingPhaseRules ++ flatPhaseRules
+  def nextRules(goal: Goal, depth: Int): List[SynthesisRule] =
+    if (depth == startingDepth)
+      allRules
+    else if (goal.hasPredicates)
+      anyPhaseRules ++ unfoldingPhaseRules ++ List(OperationalRules.AllocRule)
+    else
+      anyPhaseRules ++ flatPhaseRules
+
+
   val topLevelRules: List[SynthesisRule] = List(
-    // Top-level induction
     UnfoldingRules.InductionRule,
   )
 
-  val everyDayRules: List[SynthesisRule] = List(
-    // Terminal
-    LogicalRules.EmpRule,
-
+  val anyPhaseRules: List[SynthesisRule] = List(
     // Normalization rules
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,
     OperationalRules.ReadRule,
+  )
 
-    // Predicate phase rules
+  val unfoldingPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfolding,
     UnfoldingRules.CallRule,
     UnfoldingRules.Open,
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.AbduceCall,
     UnfoldingRules.Close,
+  )
+
+  val flatPhaseRules: List[SynthesisRule] = List(
+    LogicalRules.EmpRule,
 
     // Flat phase rules
     LogicalRules.SubstLeft,

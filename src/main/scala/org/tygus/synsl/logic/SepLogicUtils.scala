@@ -79,7 +79,7 @@ trait SepLogicUtils extends PureLogicUtils {
         }
 
         stuff.filter {
-          case PointsTo(_loc, _offset, _value) => offset == _offset && !hasBlockForLoc(_loc)
+          case PointsTo(_loc, _offset, _value) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
       case SApp(pred, args, tag) => stuff.filter {
