@@ -31,7 +31,20 @@ At the moment, many interesting case studies can be found in the folder
 Each set of case studies is in a single folder (e.g., `copy`). The definitions
 of inductive predicates and auxiliary function specifications (lemmas) are given
 in the single `.def`-file, typically present in each such folder. For instance,
-in `paper-examples`, it is `predicates.def`.
+in `paper-examples`, it is `predicates.def`, whose contents are as follows:
+
+```
+predicate lseg(loc x, loc y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, s1) }
+}
+
+predicate lseg2(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, s1) }
+}
+```
+
 The remaining files (`*.syn`) are the test cases, each
 structured in the following format:
 
