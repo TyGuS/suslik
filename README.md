@@ -112,11 +112,12 @@ suslik [options] folder goalName
 where the necessary arguments and options are
 
 ```
-  folder                a folder with the predicate definitions, lemmas, and synthesis goal file
-  goalName              a test case name (the file under the specified folder, called goalName.syn)
-  -t, --trace <value>   print the entire derivation trace; default: true
-  -a, --assert <value>  check that the synthesized result matches the last part of the test file; default: false
-  --help                prints the usage text
+  folder                 a folder with the predicate definitions, lemmas, and synthesis goal file
+  goalName               a test case name (the file under the specified folder, called goalName.syn)
+  -r, --trace <value>    print the entire derivation trace; default: true
+  -t, --timeout <value>  timeout for the derivation (in milliseconds); default: 300000 (5 min)
+  -a, --assert <value>   check that the synthesized result matches the last part of the test file; default: false
+  --help                 prints this usage text
 ```
 
 Once the synthesis is done execution statistics will be available in `stats.csv`.

@@ -124,7 +124,8 @@ case class Program(predicates: Seq[InductivePredicate],
   * (predicates, component functions, etc)
   */
 case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
-                       maxUnfoldingDepth: Int = 1) {
+                       maxUnfoldingDepth: Int = 1,
+                       startTime: Long) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

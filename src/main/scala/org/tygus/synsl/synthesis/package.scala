@@ -11,4 +11,7 @@ package object synthesis {
   // A continuation for synthesizing the "larger" statement from substatement
   type StmtProducer = Seq[Statement] => Statement
 
+
+  val DEFAULT_TIMEOUT = 300000
+  val defaultConfig : SynConfig = new SynConfig
 }

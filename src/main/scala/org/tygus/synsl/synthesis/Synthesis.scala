@@ -2,12 +2,12 @@ package org.tygus.synsl.synthesis
 
 import org.tygus.synsl.SynSLException
 import org.tygus.synsl.language.Statements._
+import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.util.{SynLogging, SynStats}
-import org.tygus.synsl.logic.Specifications._
 
-import scala.Console.{BLACK, BLUE, CYAN, GREEN, MAGENTA, RED, YELLOW}
+import scala.Console._
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -31,19 +31,25 @@ trait Synthesis extends SepLogicUtils {
 
   val startingDepth: Int
 
-  def synthesizeProc(funGoal: FunSpec, env: Environment)(implicit printTrace: Boolean = true):
+  def synthesizeProc(funGoal: FunSpec, env: Environment)(implicit config: SynConfig = defaultConfig):
   Option[(Procedure, SynStats)] = {
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = makeNewGoal(pre, post, formals, name, env)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0, printTrace)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0, config.printDerivations)
     val stats = new SynStats()
     SMTSolving.init()
-    synthesize(goal, startingDepth)(stats = stats, rules = nextRules(goal, startingDepth))(printTrace = printTrace) match {
-      case Some(body) =>
-        val proc = Procedure(name, tp, formals, body)
-        Some((proc, stats))
-      case None =>
-        printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $startingDepth.")
+    try {
+      synthesize(goal, startingDepth)(stats = stats, rules = nextRules(goal, startingDepth))(config = config) match {
+        case Some(body) =>
+          val proc = Procedure(name, tp, formals, body)
+          Some((proc, stats))
+        case None =>
+          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $startingDepth.")
+          None
+      }
+    } catch {
+      case SynTimeOutException(msg) =>
+        printLog(List((msg, RED)))(i = 0)
         None
     }
 
@@ -52,10 +58,15 @@ trait Synthesis extends SepLogicUtils {
   private def synthesize(goal: Goal, depth: Int = startingDepth)
                         (stats: SynStats,
                          rules: List[SynthesisRule])
-                        (implicit ind: Int = 0, printTrace: Boolean = true): Option[Statement] = {
+                        (implicit ind: Int = 0, config: SynConfig = defaultConfig): Option[Statement] = {
 
     printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
+
+    val currentTime = System.currentTimeMillis()
+    if (currentTime - goal.env.startTime > config.timeOut) {
+      throw SynTimeOutException(s"\n\nThe derivation took too long (>${config.timeOut.toDouble / 1000} seconds\n")
+    }
 
     if (depth < 0) {
       printLog(List(("Reached maximum depth.", RED)))
@@ -104,7 +115,7 @@ trait Synthesis extends SepLogicUtils {
           import util.control.Breaks._
           breakable {
             for {subgoal <- s.subgoals} {
-              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1, printTrace) match {
+              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1, config) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -133,7 +144,7 @@ trait Synthesis extends SepLogicUtils {
                   val goal = s.subgoals.head
                   val newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond.not))
                   val newG = goal.copy(newPre)
-                  synthesize(newG, depth - 1)(stats, nextRules(newG, depth - 1))(ind + 1, printTrace) match {
+                  synthesize(newG, depth - 1)(stats, nextRules(newG, depth - 1))(ind + 1, config) match {
                     case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
                     case _ => None // failed to synthesize else
                   }

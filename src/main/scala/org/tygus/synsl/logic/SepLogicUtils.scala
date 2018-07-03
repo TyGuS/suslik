@@ -61,16 +61,6 @@ trait SepLogicUtils extends PureLogicUtils {
     }
   }
 
-  // TODO: This is very much experimental -- allows to enable
-  // chained recursive calls with at least one "focused" segment tagged with Some(1)
-  // The rest (tagged with None) can match anything
-  // As an example see tree-flatten-acc.syn
-  def matchTagsWithNone(targetTag: Option[Int], sourceTag: Option[Int]) = {
-    val res = targetTag == sourceTag ||
-        targetTag.nonEmpty && sourceTag.isEmpty
-    res
-  }
-
   /**
     * Find the set of sub-formalas of `large` that `small` might possibly by unified with.
     */
