@@ -22,8 +22,6 @@ trait Synthesis extends SepLogicUtils {
 
   val synQualifier: String = "synthesis"
 
-  case class SynthesisException(msg: String) extends SynSLException(synQualifier, msg)
-
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   def allRules: List[SynthesisRule]

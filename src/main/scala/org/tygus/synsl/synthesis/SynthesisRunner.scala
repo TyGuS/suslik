@@ -34,7 +34,13 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
     println(desc)
     println()
-    synthesizeFromSpec(testName, in, out, params)
+    try {
+      synthesizeFromSpec(testName, in, out, params)
+    } catch {
+      case SynthesisException(msg) =>
+        System.err.println("Synthesis failed:")
+        System.err.println(msg)
+    }
   }
 
   case class RunConfig(synConfig: SynConfig, dirName: String, fileName: String)
