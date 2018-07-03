@@ -27,7 +27,6 @@ trait Synthesis extends SepLogicUtils {
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   def allRules: List[SynthesisRule]
-  def initialRules: List[SynthesisRule] = allRules
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
   val startingDepth: Int
@@ -39,7 +38,7 @@ trait Synthesis extends SepLogicUtils {
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0, printTrace)
     val stats = new SynStats()
     SMTSolving.init()
-    synthesize(goal, startingDepth)(stats = stats, rules = allRules)(printTrace = printTrace) match {
+    synthesize(goal, startingDepth)(stats = stats, rules = nextRules(goal, startingDepth))(printTrace = printTrace) match {
       case Some(body) =>
         val proc = Procedure(name, tp, formals, body)
         Some((proc, stats))
@@ -105,7 +104,7 @@ trait Synthesis extends SepLogicUtils {
           import util.control.Breaks._
           breakable {
             for {subgoal <- s.subgoals} {
-              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth))(ind + 1, printTrace) match {
+              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1, printTrace) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -134,7 +133,7 @@ trait Synthesis extends SepLogicUtils {
                   val goal = s.subgoals.head
                   val newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond.not))
                   val newG = goal.copy(newPre)
-                  synthesize(newG, depth - 1)(stats, nextRules(newG, depth))(ind + 1, printTrace) match {
+                  synthesize(newG, depth - 1)(stats, nextRules(newG, depth - 1))(ind + 1, printTrace) match {
                     case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
                     case _ => None // failed to synthesize else
                   }
