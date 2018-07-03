@@ -1,12 +1,13 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.Expressions.Expr
-import org.tygus.synsl.language.IntType
+import org.tygus.synsl.language.Expressions.{Expr, PFormula}
+import org.tygus.synsl.language.{Ident, IntType}
 import org.tygus.synsl.language.Statements.{Guarded, Magic, Skip}
 import org.tygus.synsl.logic.Specifications.Goal
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.{PureLogicUtils, SepLogicUtils}
 import org.tygus.synsl.synthesis._
+import org.tygus.synsl.synthesis.rules.LogicalRules.EmpRule.{conjuncts, mkConjunction}
 import org.tygus.synsl.synthesis.rules.OperationalRules.{AllocRule, FreeRule}
 
 /**
@@ -37,7 +38,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   // Short-circuits failure if universal part of post is too strong
   object PostInvalid extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Norm: post-invalid]"
+    override def toString: String = "[Fail: post-invalid]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre.phi
@@ -51,6 +52,44 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         Nil
     }
   }
+
+  object AbduceBranch extends SynthesisRule with FlatPhase {
+
+    override def toString: Ident = "[Fail: abduce-branch]"
+
+    def condCandidates(goal: Goal): Seq[Expr] =
+      for {
+        lhs <- goal.programVars
+        rhs <- goal.programVars
+        if lhs != rhs
+        if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
+      } yield lhs |<=| rhs
+
+    def guardedCandidates(goal: Goal, pre: PFormula, post: PFormula): Seq[Subderivation] =
+      for {
+        cond <- condCandidates(goal)
+        if SMTSolving.valid((pre && cond) ==> post)
+        if SMTSolving.sat(pre && cond)
+        newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond))
+        newGoal = goal.copy(newPre)
+      } yield Subderivation(List(newGoal), stmts => Guarded(cond, stmts.head))
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+      val pre = goal.pre.phi
+      val post = goal.post.phi
+
+      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
+      if (SMTSolving.valid(pre ==> universalPost))
+        Nil // valid so far, nothing to say
+      else {
+        val guarded = guardedCandidates(goal, pre, universalPost)
+        if (guarded.isEmpty)
+          List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+        else guarded
+      }
+    }
+  }
+
 
   // Short-circuits failure if spatial post doesn't match pre
   // This rule is only applicable if alloc and free aren't

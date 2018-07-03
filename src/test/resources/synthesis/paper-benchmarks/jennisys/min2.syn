@@ -11,5 +11,9 @@ void min2(loc r, int x, int y)
 ###
 
 void min2 (loc r, int x, int y) {
-  *r = y;
+  if (y <= x) {
+    *r = x;
+  } else {
+    *r = y;
+  }
 }

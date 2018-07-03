@@ -52,12 +52,13 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
   )
 
   val flatPhaseRules: List[SynthesisRule] = List(
+//    FailRules.PostInvalid,
+    FailRules.AbduceBranch,
     LogicalRules.EmpRule,
 
     // Flat phase rules
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
-//    FailRules.PostInvalid,
     LogicalRules.FrameFlat,
     UnificationRules.HeapUnifyFlat,
     OperationalRules.AllocRule,
