@@ -11,6 +11,7 @@ import org.tygus.synsl.synthesis._
 
 /**
   * Unfolding rules deal with predicates and recursion.
+  *
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
@@ -159,13 +160,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
         sub <- {
-          SpatialUnification.unify(target, source)
+          SpatialUnification.unify(target, source).toList
         }
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+        callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val callGoal = mkCallGoal(f, sub, callSubPre, goal)
         val kont: StmtProducer = stmts => {
           ruleAssert(stmts.length == 1, s"Apply-hypotheses rule expected 1 premise and got ${stmts.length}")
           val rest = stmts.head
@@ -178,20 +179,29 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     /**
       * Make a call goal for `f` with a given precondition
       */
-    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): Goal = {
+    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
       val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.lastIndexOf(p)).toSet
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
-      val restPreChunks =
-        (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ callPost.sigma.bumpUpSAppTags().chunks
-      val restPre = Assertion(andClean(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
       val newEnv = if (f.name == goal.fname) goal.env else {
         // To avoind more than one application of a library function
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
-      val callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp), env = newEnv)
-      callGoal
+      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
+      val addedChunks2 = callPost.sigma.lockSAppTags()
+      // Here we return two options for added chunks:
+      // (a) with bumped tags
+      // (b) with locked tags
+      // The former enables applications of other functions (tree-flatten)
+      // The latter enables application of the same recursive function (tree-flatten-acc),
+      // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
+      for {
+        acs <- List(addedChunks1, addedChunks2)
+        restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
+        restPre = Assertion(andClean(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
+        callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp), env = newEnv)
+      } yield callGoal
     }
   }
   /*
@@ -318,7 +328,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualConstraints = actualAssertion.phi
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
-             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+            if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))

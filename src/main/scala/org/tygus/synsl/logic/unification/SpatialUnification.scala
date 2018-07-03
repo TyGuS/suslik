@@ -49,11 +49,13 @@ object SpatialUnification extends UnificationBase {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource).toList
         }
-      case (SApp(p1, es1, t1), SApp(p2, es2, t2)) =>
+      case (SApp(p1, es1, targetTag), SApp(p2, es2, sourceTag)) =>
         // Only unify predicates with variables as arguments
         // if es2.forall(_.isInstanceOf[Var])
+
         if (p1 != p2 || es1.size != es2.size ||
-          (t1 != t2 && tagsMatter)) Nil
+            (targetTag != sourceTag && tagsMatter)) Nil
+
         else {
           val pairs = es1.zip(es2)
           // Collect the mapping from the predicate parameters
@@ -124,7 +126,7 @@ object SpatialUnification extends UnificationBase {
     val _tr = target - p
     val _sr = source.subst(sub) - p
     if (_tr.chunks.length == target.chunks.length - 1 &&
-      _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
+        _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
     else None
   }
 
@@ -141,7 +143,7 @@ object SpatialUnification extends UnificationBase {
     val _tr = removeSAppIgnoringTag(target, tFrame)
     val _sr = removeSAppIgnoringTag(source.subst(sub), tFrame)
     if (_tr.chunks.length == target.chunks.length - 1 &&
-      _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
+        _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
     else None
   }
 
