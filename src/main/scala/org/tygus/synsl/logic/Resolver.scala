@@ -10,7 +10,9 @@ object Resolver {
     val Program(preds, funs, goal) = prog
     val funMap = funs.map(fs => fs.name -> setUpAuxiliaryFunction(fs)).toMap
     val predMap = preds.map(ps => ps.name -> ps).toMap
-    (List(goal), Environment(predMap, funMap))
+
+    val time0 = System.currentTimeMillis()
+    (List(goal), Environment(predMap, funMap, startTime = time0))
   }
 
   def setUpAuxiliaryFunction(fs: FunSpec) : FunSpec = {

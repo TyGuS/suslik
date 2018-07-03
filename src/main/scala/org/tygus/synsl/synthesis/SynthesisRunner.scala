@@ -7,7 +7,7 @@ import org.tygus.synsl.util.{SynLogLevels, SynLogging}
   * @author Ilya Sergey
   */
 
-object SynthesisRunner extends SynthesisTestUtil {
+object SynthesisRunner extends SynthesisRunnerUtil {
 
   // Enable verbose logging
   override implicit val log: SynLogging = SynLogLevels.Verbose
@@ -44,8 +44,8 @@ object SynthesisRunner extends SynthesisTestUtil {
   private val VERSION = "0.1"
   private val VERSION_STRING = s"v$VERSION"
 
-  private val defaultFolder = "paper-examples"
-  private val defaultFile = "01-swap"
+  private val defaultFolder = "simple"
+  private val defaultFile = "swap"
 
   private def handleInput(args: Array[String]): Unit = {
     val newConfig = RunConfig(SynConfig(), defaultFolder, defaultFile)
@@ -72,9 +72,13 @@ object SynthesisRunner extends SynthesisTestUtil {
       c.copy(fileName = x)
     }.text("a test case name (the file under the specified folder, called goalName.syn)")
 
-    opt[Boolean]('t', "trace").action { (b, rc) =>
+    opt[Boolean]('r', "trace").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printDerivations = b))
     }.text("print the entire derivation trace; default: true")
+
+    opt[Long]('t', "timeout").action { (t, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(timeOut = t))
+    }.text("timeout for the derivation default (in millisecondds): 300000 (5 min)")
 
     opt[Boolean]('a', "assert").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))

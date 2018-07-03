@@ -13,4 +13,10 @@ package object synthesis {
 
   def identityProducer: StmtProducer = _.head
 
+  val DEFAULT_TIMEOUT = 300000
+  val defaultConfig : SynConfig = new SynConfig
+
+
+
+
 }

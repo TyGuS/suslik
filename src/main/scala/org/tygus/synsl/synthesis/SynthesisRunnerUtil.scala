@@ -1,20 +1,18 @@
 package org.tygus.synsl.synthesis
 
-import java.awt.Color
 import java.io.File
 
 import org.tygus.synsl.logic.Resolver._
 import org.tygus.synsl.parsing.SynslParser
 import org.tygus.synsl.util.{SynLogLevels, SynLogging, SynStatUtil}
 
-import scala.Console.RED
 import scala.io.Source
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait SynthesisTestUtil {
+trait SynthesisRunnerUtil {
 
   implicit val log : SynLogging = SynLogLevels.Test
   import log._
@@ -23,16 +21,12 @@ trait SynthesisTestUtil {
   val testExtension = "syn"
   val defExtension = "def"
 
-  case class SynConfig(printDerivations: Boolean = true, assertSuccess: Boolean = true)
-  val defaultTestParams : SynConfig = new SynConfig
-
-
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
 
   val synthesis: Synthesis
 
-  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultTestParams): Unit
+  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit
 
   import synthesis._
 
@@ -63,7 +57,7 @@ trait SynthesisTestUtil {
     synthesizeFromSpec(in, out)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultTestParams) {
+  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
     assert(res.successful, res)
@@ -76,7 +70,7 @@ trait SynthesisTestUtil {
 
     val goal = goals.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(goal, env)(params.printDerivations)
+    val sresult = synthesizeProc(goal, env)(params)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
@@ -130,7 +124,7 @@ trait SynthesisTestUtil {
     }
   }
 
-  def runSingleTestFromDir(dir: String, fname: String, params: SynConfig = defaultTestParams) {
+  def runSingleTestFromDir(dir: String, fname: String, params: SynConfig = defaultConfig) {
     var testDir = new File(dir)
     if (!testDir.exists()) {
       val path = List(rootDir, dir).mkString(File.separator)
