@@ -60,6 +60,11 @@ object Statements {
             builder.append(mkSpaces(offset)).append(s"} else {\n")
             build(eb, offset + 2)
             builder.append(mkSpaces(offset)).append(s"}\n")
+          case Guarded(cond, b) =>
+            builder.append(mkSpaces(offset))
+            builder.append(s"assume (${cond.pp}) {\n")
+            build(b, offset + 2)
+            builder.append(mkSpaces(offset)).append(s"}\n")
         }
       }
 
@@ -90,6 +95,8 @@ object Statements {
         case If(cond, tb, eb) =>
           val acc1 = collector(acc ++ cond.collect(p))(tb)
           collector(acc1)(eb)
+        case Guarded(cond, b) =>
+          collector(acc ++ cond.collect(p))(b)
       }
 
       collector(Set.empty)(this)
@@ -126,7 +133,16 @@ object Statements {
   // let to = f(args); rest
   case class Call(to: Option[(Var, SynslType)], fun: Var, args: Seq[Expr]) extends Statement
 
-  case class SeqComp(s1: Statement, s2: Statement) extends Statement
+  case class SeqComp(s1: Statement, s2: Statement) extends Statement {
+    def simplify: Statement = {
+      (s1, s2) match {
+        case (Guarded(cond, b), _) => Guarded(cond, SeqComp(b, s2).simplify)
+        case (_, Guarded(cond, b)) => Guarded(cond, SeqComp(s1, b).simplify)
+        case (Load(y, _, _, _), _) => if (s2.usedVars.contains(y)) this else s2 // Do not generate read for unused variables
+        case _ => this
+      }
+    }
+  }
 
   // if (cond) { tb } else { eb }
   case class If(cond: Expr, tb: Statement, eb: Statement) extends Statement {
@@ -140,7 +156,7 @@ object Statements {
     }
   }
 
-
+  case class Guarded(cond: Expr, body: Statement) extends Statement
 
   // A procedure
   case class Procedure(name: String, tp: SynslType, formals: Seq[(SynslType, Var)], body: Statement) {

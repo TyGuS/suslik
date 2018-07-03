@@ -26,18 +26,14 @@ trait RuleUtils {
     stmts => {
       ruleAssert(stmts.lengthCompare(1) == 0, s"Rule $rulename expects 1 premise and got ${stmts.length}")
       val rest = stmts.head
-      s match {
-        // Do not generate read for unused variables
-        case Load(y, tpy, x, offset) => if (rest.usedVars.contains(y)) SeqComp(s, rest) else rest
-        case _ => SeqComp(s, rest)
-      }
+      SeqComp(s, rest).simplify
   }
 
   def append(s: Statement, rulename: String): StmtProducer =
     stmts => {
       ruleAssert(stmts.lengthCompare(1) == 0, s"Rule $rulename expects 1 premise and got ${stmts.length}")
       val rest = stmts.head
-      SeqComp(rest, s)
+      SeqComp(rest, s).simplify
     }
 
 
