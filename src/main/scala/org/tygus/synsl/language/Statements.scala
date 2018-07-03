@@ -137,6 +137,7 @@ object Statements {
     def simplify: Statement = {
       (s1, s2) match {
         case (Guarded(cond, b), _) => Guarded(cond, SeqComp(b, s2).simplify)
+        case (Load(y, _, _, _), Guarded(cond, b)) if cond.vars.contains(y) => this
         case (_, Guarded(cond, b)) => Guarded(cond, SeqComp(s1, b).simplify)
         case (Load(y, _, _, _), _) => if (s2.usedVars.contains(y)) this else s2 // Do not generate read for unused variables
         case _ => this

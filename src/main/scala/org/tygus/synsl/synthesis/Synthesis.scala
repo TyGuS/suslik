@@ -40,6 +40,15 @@ trait Synthesis extends SepLogicUtils {
     val stats = new SynStats()
     SMTSolving.init()
     synthesize(goal, startingDepth)(stats = stats, rules = allRules)(printTrace = printTrace) match {
+      case Some(Guarded(cond, st)) =>
+        val newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond.not))
+        val newG = goal.copy(newPre)
+        synthesize(newG, startingDepth)(stats = stats, rules = allRules)(printTrace = printTrace) match {
+          case Some(body) =>
+            val proc = Procedure(name, tp, formals, If(cond,st,body))
+            Some((proc, stats))
+          case _ => None // failed to synthesize else
+        }
       case Some(body) =>
         val proc = Procedure(name, tp, formals, body)
         Some((proc, stats))
@@ -117,6 +126,22 @@ trait Synthesis extends SepLogicUtils {
           if (resultStmts.size < s.subgoals.size) {
             // One of the sub-goals failed: this sub-derivation fails
             None
+          } else if (resultStmts.size == 1) {
+            resultStmts.head match {
+              case Guarded(cond, st) =>
+                s.kont(resultStmts) match {
+                  case g@Guarded(_, _) => Some(g) // propagate guard to upper-level goal
+                  case _ =>  // cannot propagate: try to synthesize else branch
+                    val goal = s.subgoals.head
+                    val newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond.not))
+                    val newG = goal.copy(newPre)
+                    synthesize(newG, depth - 1)(stats, nextRules(newG, depth))(ind + 1, printTrace) match {
+                      case Some(res) => Some(s.kont(List(If(cond, st, res)))) // successfully synthesized else
+                      case _ => None // failed to synthesize else
+                      }
+                    }
+              case _ => Some(s.kont(resultStmts))
+            }
           } else {
             Some(s.kont(resultStmts))
           }

@@ -145,6 +145,7 @@ object Expressions {
       case _ => this |=| other
     }
     def neq(other: Expr, t: SynslType): Expr = this.eq(other, t).not
+    def |<=| (other: Expr): Expr = BinaryExpr(OpLeq, this, other)
 
     def not: Expr = UnaryExpr(OpNot, this)
     def && (other: Expr): Expr = BinaryExpr(OpAnd, this, other)

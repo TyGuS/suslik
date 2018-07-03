@@ -1,6 +1,8 @@
 package org.tygus.synsl.synthesis.rules
 
-import org.tygus.synsl.language.Statements.Magic
+import org.tygus.synsl.language.Expressions.Expr
+import org.tygus.synsl.language.IntType
+import org.tygus.synsl.language.Statements.{Guarded, Magic, Skip}
 import org.tygus.synsl.logic.Specifications.Goal
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.logic.{PureLogicUtils, SepLogicUtils}
@@ -42,9 +44,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       // If precondition does not contain predicates, we can't get get new facts from anywhere
-      // TODO: incompatible with abduction
       val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
-
       if (!SMTSolving.valid(pre ==> universalPost))
         List(Subderivation(Nil, _ => Magic)) // universal post not implies by pre: only magic can save us
       else

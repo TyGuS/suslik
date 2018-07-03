@@ -1,7 +1,7 @@
 package org.tygus.synsl.synthesis.rules
 
 import org.tygus.synsl.language.Expressions._
-import org.tygus.synsl.language.Ident
+import org.tygus.synsl.language.{Ident, IntType}
 import org.tygus.synsl.language.Statements._
 import org.tygus.synsl.logic._
 import org.tygus.synsl.logic.smt.SMTSolving
@@ -30,22 +30,47 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Sub: emp]"
 
+    def condCandidates(goal: Goal): Seq[Expr] =
+      for {
+        lhs <- goal.programVars
+        rhs <- goal.programVars
+        if lhs != rhs
+        if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
+      } yield lhs |<=| rhs
+
+    def guardedCandidates(goal: Goal, pre: PFormula, post: PFormula): Seq[Subderivation] =
+      for {
+        cond <- condCandidates(goal)
+        if SMTSolving.valid((pre && cond) ==> post)
+        if SMTSolving.sat(pre && cond)
+      } yield Subderivation(Nil, _ => Guarded(cond, Skip))
+
+
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
 
       if (pre.sigma.isEmp && post.sigma.isEmp) { // heaps are empty
         val (eConjuncts, neConjuncts) = conjuncts(post.phi).partition(p => p.vars.exists(goal.isExistential))
+        val universalPost = mkConjunction(neConjuncts)
         if (eConjuncts.isEmpty) { // no existentials
           if (SMTSolving.valid(pre.phi ==> post.phi))
             List(Subderivation(Nil, _ => Skip)) // pre implies post: we are done
-          else
-            List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+          else {
+            val guarded = guardedCandidates(goal, pre.phi, universalPost)
+            if (guarded.isEmpty)
+              List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+            else guarded
+          }
         } else { // has existentials: check if the rest of the post is already invalid
-          if (SMTSolving.valid(pre.phi ==> mkConjunction(neConjuncts)))
+          if (SMTSolving.valid(pre.phi ==> universalPost))
             Nil // valid so far, nothing to say
-          else
-            List(Subderivation(Nil, _ => Magic)) // pre doesn't imply even a weaker post: only magic can save us
+          else{
+            val guarded = guardedCandidates(goal, pre.phi, universalPost)
+            if (guarded.isEmpty)
+              List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+            else guarded
+          }
         }
       } else Nil // heaps non-empty
     }

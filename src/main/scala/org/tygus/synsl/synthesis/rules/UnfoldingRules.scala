@@ -297,6 +297,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
         case SApp(pred, args, Some(t)) =>
+          if (t > env.maxUnfoldingDepth) return Nil
+
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
@@ -314,7 +316,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualConstraints = actualAssertion.phi
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
-             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+//             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))

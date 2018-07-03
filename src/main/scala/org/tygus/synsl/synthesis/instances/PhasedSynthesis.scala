@@ -57,7 +57,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     // Flat phase rules
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
-    FailRules.PostInvalid,
+//    FailRules.PostInvalid,
     LogicalRules.FrameFlat,
     UnificationRules.HeapUnifyFlat,
     OperationalRules.AllocRule,
