@@ -44,7 +44,7 @@ trait Synthesis extends SepLogicUtils {
       }
     } catch {
       case SynTimeOutException(msg) =>
-        printLog(List((msg, RED)))(i = 0, config)
+        printlnErr(msg)
         None
     }
 
