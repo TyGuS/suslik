@@ -125,19 +125,19 @@ Once the synthesis is done execution statistics will be available in `stats.csv`
 For instance, to synthesize `paper-examples/19-listcopy.syn` and see the derivation trace, run
 
 ```
-suslik src/test/resources/synthesis/paper-examples 19-listcopy -t true
+suslik src/test/resources/synthesis/paper-examples 19-listcopy
 ```
 
 If you are going to synthesize case studies from the provided set, you may only type the folder under 
 `synthesis` (i.e., without the prefix of the path), e.g.:
 
 ```
-suslik paper-examples 19-listcopy -t true
+suslik paper-examples 19-listcopy -r true
 ```
 
 or 
 
 ```
-suslik simple swap -t false
+suslik simple swap -r false -t 800
 ```
  

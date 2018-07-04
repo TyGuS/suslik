@@ -1,6 +1,8 @@
 package org.tygus.synsl.synthesis
 
 import org.tygus.synsl.language.PrettyPrinting
+import org.tygus.synsl.SynSLException
+import scala.Console.RED
 
 /**
   * @author Ilya Sergey
@@ -24,3 +26,7 @@ case class SynConfig( // Timeout and logging
 }
 
 case class SynTimeOutException(msg: String) extends Exception(msg)
+
+case class SynthesisException(msg: String) extends Exception(msg)
+
+

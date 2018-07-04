@@ -23,9 +23,7 @@ trait Synthesis extends SepLogicUtils {
   val synQualifier: String = "synthesis"
 
   var config: SynConfig = defaultConfig
-
-  case class SynthesisException(msg: String) extends SynSLException(synQualifier, msg)
-
+  
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   def allRules: List[SynthesisRule]
@@ -66,7 +64,7 @@ trait Synthesis extends SepLogicUtils {
 
     val currentTime = System.currentTimeMillis()
     if (currentTime - goal.env.startTime > config.timeOut) {
-      throw SynTimeOutException(s"\n\nThe derivation took too long (>${config.timeOut.toDouble / 1000} seconds\n")
+      throw SynTimeOutException(s"\n\nThe derivation took too long (>${config.timeOut.toDouble / 1000} seconds).\n")
     }
 
     if (depth < 0) {

@@ -57,16 +57,20 @@ trait SynthesisRunnerUtil {
     synthesizeFromSpec(in, out)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) {
+  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) : Unit = {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
-    assert(res.successful, res)
+    if (! res.successful) {
+      throw SynthesisException(s"Failed to parse the input.")
+    }
 
     val prog = res.get
     // assert(prog.predicates.nonEmpty)
     val (goals, env) = resolveProgram(prog)
 
-    assert(goals.lengthCompare(1) == 0, "Expected a single synthesis goal")
+    if (goals.lengthCompare(1) != 0) {
+      throw SynthesisException("Expected a single synthesis goal")
+    }
 
     val goal = goals.head
     val time1 = System.currentTimeMillis()
@@ -92,12 +96,12 @@ trait SynthesisRunnerUtil {
         if (out != "nope") {
           val tt = out.trim.lines.toList
           val res = result.trim.lines.toList
-          if (params.assertSuccess) {
-            assert(res == tt, s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
+          if (params.assertSuccess && res != tt) {
+            throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
           }
         }
       case None =>
-        assert(false, s"Failed to synthesise:\n$sresult")
+        throw SynthesisException(s"Failed to synthesise:\n$sresult")
     }
   }
 
