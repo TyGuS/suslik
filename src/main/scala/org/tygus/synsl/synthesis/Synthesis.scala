@@ -27,10 +27,10 @@ trait Synthesis extends SepLogicUtils {
 
   def synthesizeProc(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
-    val config = env.config
+    implicit val config: SynConfig = env.config
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = makeNewGoal(pre, post, formals, name, env)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0, env.config.printDerivations)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
     val stats = new SynStats()
     SMTSolving.init()
     try {
@@ -44,7 +44,7 @@ trait Synthesis extends SepLogicUtils {
       }
     } catch {
       case SynTimeOutException(msg) =>
-        printLog(List((msg, RED)))(i = 0)
+        printLog(List((msg, RED)))(i = 0, config)
         None
     }
 
@@ -54,11 +54,10 @@ trait Synthesis extends SepLogicUtils {
                         (stats: SynStats,
                          rules: List[SynthesisRule])
                         (implicit ind: Int = 0): Option[Statement] = {
+    implicit val config: SynConfig = goal.env.config
 
     printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
-
-    val config = goal.env.config
 
     val currentTime = System.currentTimeMillis()
     if (currentTime - goal.env.startTime > config.timeOut) {
@@ -195,9 +194,9 @@ trait Synthesis extends SepLogicUtils {
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
 
   private def printLog(sc: List[(String, String)], isFail: Boolean = false)
-                      (implicit i: Int, printDerivations: Boolean = true): Unit = {
-    if (printDerivations) {
-      if (!isFail || printDerivations) {
+                      (implicit i: Int, config: SynConfig): Unit = {
+    if (config.printDerivations) {
+      if (!isFail) {
         for ((s, c) <- sc if s.trim.length > 0) {
           print(s"$BLACK$getIndent")
           println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent$c")}")
