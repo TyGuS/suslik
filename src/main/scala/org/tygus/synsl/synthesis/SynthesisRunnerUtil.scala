@@ -60,7 +60,7 @@ trait SynthesisRunnerUtil {
   def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) : Unit = {
     val parser = new SynslParser
     val res = parser.parseGoal(text)
-    if (! res.successful) {
+    if (!res.successful) {
       throw SynthesisException(s"Failed to parse the input.")
     }
 

@@ -20,8 +20,6 @@ trait Synthesis extends SepLogicUtils {
 
   import log._
 
-  val synQualifier: String = "synthesis"
-
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   def allRules(goal: Goal): List[SynthesisRule]
