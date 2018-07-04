@@ -16,7 +16,8 @@ case class SynConfig( // Timeout and logging
                       startingDepth: Int              = 100,
                       maxOpenDepth: Int               = 1,
                       maxCloseDepth: Int              = 1,
-                      branchAbductionEnabled: Boolean = false
+                      branchAbductionEnabled: Boolean = false,
+                      printFailed: Boolean            = false
                     ) extends PrettyPrinting {
   override def pp: String =
     List(s"maxOpenDepth = $maxOpenDepth",

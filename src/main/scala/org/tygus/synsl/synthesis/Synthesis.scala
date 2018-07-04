@@ -196,7 +196,7 @@ trait Synthesis extends SepLogicUtils {
   private def printLog(sc: List[(String, String)], isFail: Boolean = false)
                       (implicit i: Int, config: SynConfig): Unit = {
     if (config.printDerivations) {
-      if (!isFail) {
+      if (!isFail || config.printFailed) {
         for ((s, c) <- sc if s.trim.length > 0) {
           print(s"$BLACK$getIndent")
           println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent$c")}")

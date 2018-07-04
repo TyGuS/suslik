@@ -116,11 +116,13 @@ folder                        a folder with the predicate definitions, lemmas, a
 goalName                      a test case name (the file under the specified folder, called goalName.syn)
 
 -r, --trace <value>           print the entire derivation trace; default: true
--t, --timeout <value>         timeout for the derivation default (in millisecondds): 300000 (5 min)
+-t, --timeout <value>         timeout for the derivation; default (in milliseconds): 300000 (5 min)
+-d, --depth <value>           derivation depth; default: 100
 -a, --assert <value>          check that the synthesized result agains the expected one; default: false
 -c, --maxCloseDepth <value>   maximum unfolding depth in the post-condition; default: 1
 -o, --maxOpenDepth <value>    maximum unfolding depth in the pre-condition; default: 1
--b, --branchAbduction <value> abduce branches; default: false
+-b, --branchAbduction <value> abduct conditional branches; default: false
+-f, --printFailed <value>     print failed rule applications; default: false
 
 --help                        prints the help reference
 ```

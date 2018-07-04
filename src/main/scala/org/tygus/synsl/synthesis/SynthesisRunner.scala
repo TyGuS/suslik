@@ -84,7 +84,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Long]('t', "timeout").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(timeOut = t))
-    }.text("timeout for the derivation default (in millisecondds): 300000 (5 min)")
+    }.text("timeout for the derivation; default (in milliseconds): 300000 (5 min)")
+
+    opt[Int]('d', "depth").action { (d, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(startingDepth = d))
+    }.text("derivation depth; default: 100")
 
     opt[Boolean]('a', "assert").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))
@@ -100,7 +104,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('b', "branchAbduction").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(branchAbductionEnabled = b))
-    }.text("abduce branches; default: false")
+    }.text("abduct conditional branches; default: false")
+
+    opt[Boolean]('f', "printFailed").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
+    }.text("print failed rule applications; default: false")
 
     help("help").text("prints this usage text")
 
