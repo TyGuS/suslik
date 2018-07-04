@@ -15,9 +15,9 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val startingDepth = 27
 
-  def allRules: List[SynthesisRule] = topLevelRules ++ everyDayRules
+  def allRules(goal: Goal): List[SynthesisRule] = topLevelRules ++ everyDayRules
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] =
-    if (depth < startingDepth) everyDayRules else allRules
+    if (depth < startingDepth) everyDayRules else allRules(goal)
 
   val topLevelRules: List[SynthesisRule] = List(
     // Top-level induction

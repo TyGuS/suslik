@@ -22,16 +22,14 @@ trait Synthesis extends SepLogicUtils {
 
   val synQualifier: String = "synthesis"
 
-  var config: SynConfig = defaultConfig
-  
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
-  def allRules: List[SynthesisRule]
+  def allRules(goal: Goal): List[SynthesisRule]
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
   def synthesizeProc(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
-    config = env.config
+    val config = env.config
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = makeNewGoal(pre, post, formals, name, env)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0, env.config.printDerivations)
@@ -57,10 +55,12 @@ trait Synthesis extends SepLogicUtils {
   private def synthesize(goal: Goal, depth: Int)
                         (stats: SynStats,
                          rules: List[SynthesisRule])
-                        (implicit ind: Int = 0, config: SynConfig = defaultConfig): Option[Statement] = {
+                        (implicit ind: Int = 0): Option[Statement] = {
 
     printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
     printLog(List((s"${goal.pp}", Console.BLUE)))
+
+    val config = goal.env.config
 
     val currentTime = System.currentTimeMillis()
     if (currentTime - goal.env.startTime > config.timeOut) {
@@ -114,7 +114,7 @@ trait Synthesis extends SepLogicUtils {
           import util.control.Breaks._
           breakable {
             for {subgoal <- s.subgoals} {
-              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1, config) match {
+              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1) match {
                 case s@Some(_) => results.append(s)
                 case _ => break
               }
@@ -143,7 +143,7 @@ trait Synthesis extends SepLogicUtils {
                   val goal = s.subgoals.head
                   val newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond.not))
                   val newG = goal.copy(newPre)
-                  synthesize(newG, depth - 1)(stats, nextRules(newG, depth - 1))(ind + 1, config) match {
+                  synthesize(newG, depth - 1)(stats, nextRules(newG, depth - 1))(ind + 1) match {
                     case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
                     case _ => None // failed to synthesize else
                   }
@@ -158,7 +158,7 @@ trait Synthesis extends SepLogicUtils {
 
         // Filter out subderivations that violate rule ordering
         def goalInOrder(g: Goal): Boolean = {
-          g.deriv.outOfOrder(allRules) match {
+          g.deriv.outOfOrder(allRules(goal)) match {
             case None => true
             case Some(app) =>
               //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)

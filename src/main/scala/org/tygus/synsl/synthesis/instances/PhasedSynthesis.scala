@@ -16,14 +16,16 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     }
   }
 
-  def allRules: List[SynthesisRule] = topLevelRules ++ anyPhaseRules ++ unfoldingPhaseRules ++ flatPhaseRules
+  def allRules(goal: Goal): List[SynthesisRule] =
+    topLevelRules ++ anyPhaseRules ++ unfoldingPhaseRules ++ flatPhaseRules(goal.env.config)
+
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] =
-    if (depth == config.startingDepth)
-      allRules
+    if (depth == goal.env.config.startingDepth)
+      allRules(goal)
     else if (goal.hasPredicates)
       anyPhaseRules ++ unfoldingPhaseRules
     else
-      anyPhaseRules ++ flatPhaseRules
+      anyPhaseRules ++ flatPhaseRules(goal.env.config)
 
 
   def topLevelRules: List[SynthesisRule] = List(
@@ -49,7 +51,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.Close,
   )
 
-  def flatPhaseRules: List[SynthesisRule] = List(
+  def flatPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     if (config.branchAbductionEnabled) {
       FailRules.AbduceBranch
     } else {
