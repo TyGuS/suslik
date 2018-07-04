@@ -61,7 +61,7 @@ trait Synthesis extends SepLogicUtils {
 
     val currentTime = System.currentTimeMillis()
     if (currentTime - goal.env.startTime > config.timeOut) {
-      throw SynTimeOutException(s"\n\nThe derivation took too long (>${config.timeOut.toDouble / 1000} seconds).\n")
+      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds).\n")
     }
 
     if (depth < 0) {
