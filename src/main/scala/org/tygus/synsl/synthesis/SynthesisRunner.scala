@@ -88,7 +88,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('a', "assert").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))
-    }.text("check that the synthesized result matches the last part of the test file; default: false")
+    }.text("check that the synthesized result agains the expected one; default: false")
 
     opt[Int]('c', "maxCloseDepth").action { (d, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(maxCloseDepth = d))
