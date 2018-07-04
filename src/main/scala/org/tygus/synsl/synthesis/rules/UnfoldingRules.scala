@@ -35,11 +35,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    private def mkInductiveSubGoals(goal: Goal): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
+    private def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
       val pre = goal.pre
       val env = goal.env
-      findHeaplet(_.isInstanceOf[SApp], pre.sigma) match {
-        case Some(h@SApp(pred, args, Some(t))) if t < env.config.maxOpenDepth =>
+
+      h match {
+        case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.map(_._2).zip(args).toMap
@@ -65,12 +66,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      mkInductiveSubGoals(goal) match {
-        case None => Nil
-        case Some((selGoals, h)) =>
-          val (selectors, subGoals) = selGoals.unzip
-          List(Subderivation(subGoals, kont(selectors)))
-      }
+      for {
+        h <- goal.pre.sigma.chunks
+        s <- mkInductiveSubGoals(goal, h) match {
+          case None => None
+          case Some((selGoals, h)) =>
+            val (selectors, subGoals) = selGoals.unzip
+            Some(Subderivation(subGoals, kont(selectors)))
+        }
+      } yield s
     }
   }
 
