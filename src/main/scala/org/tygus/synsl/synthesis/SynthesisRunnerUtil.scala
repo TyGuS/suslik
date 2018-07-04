@@ -70,7 +70,7 @@ trait SynthesisRunnerUtil {
 
     val goal = goals.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(goal, env)(params)
+    val sresult = synthesizeProc(goal, env.copy(config = params))
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
@@ -79,6 +79,7 @@ trait SynthesisRunnerUtil {
     sresult match {
       case Some((rr, stats)) =>
         testPrintln(s"\n[$testName]:", Console.MAGENTA)
+        if (params != defaultConfig) testPrintln(params.pp) else ()
         testPrintln(s"${goal.pp}\n", Console.BLUE)
         testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
         testPrintln(s"Number of backtrackings ${stats.numBack}")

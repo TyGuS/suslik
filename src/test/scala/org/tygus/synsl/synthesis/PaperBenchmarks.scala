@@ -9,7 +9,8 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
     it(desc) {
-      synthesizeFromSpec(testName, in, out)
+      val customParams = params.copy(maxCloseDepth = 2, branchAbductionEnabled = true)
+      synthesizeFromSpec(testName, in, out, customParams)
     }
 
   describe("SuSLik should be able synthesize") {

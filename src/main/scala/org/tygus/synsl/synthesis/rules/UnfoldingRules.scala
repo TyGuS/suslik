@@ -39,7 +39,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val env = goal.env
       findHeaplet(_.isInstanceOf[SApp], pre.sigma) match {
-        case Some(h@SApp(pred, args, Some(t))) if t < env.maxUnfoldingDepth =>
+        case Some(h@SApp(pred, args, Some(t))) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.map(_._2).zip(args).toMap
@@ -300,14 +300,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {
         h match {
-          case SApp(_, _, Some(t)) => t > env.maxUnfoldingDepth
+          case SApp(_, _, Some(t)) => t > env.config.maxCloseDepth
           case _ => false
         }
       }
 
       def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
         case SApp(pred, args, Some(t)) =>
-          if (t > env.maxUnfoldingDepth) return Nil
+          if (t >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")

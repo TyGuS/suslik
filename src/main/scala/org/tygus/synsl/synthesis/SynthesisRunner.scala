@@ -84,6 +84,18 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))
     }.text("check that the synthesized result matches the last part of the test file; default: false")
 
+    opt[Int]('c', "maxCloseDepth").action { (d, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(maxCloseDepth = d))
+    }.text("maximum unfolding depth in the post-condition; default: 1")
+
+    opt[Int]('o', "maxOpenDepth").action { (d, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(maxOpenDepth = d))
+    }.text("maximum unfolding depth in the pre-condition; default: 1")
+
+    opt[Boolean]('b', "branchAbduction").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(branchAbductionEnabled = b))
+    }.text("abduce branches; default: false")
+
     help("help").text("prints this usage text")
 
     note("\nOnce the synthesis is done execution, statistics will be available in stats.csv (rewritten every time).\n")

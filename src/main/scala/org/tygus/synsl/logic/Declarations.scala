@@ -4,6 +4,8 @@ import org.tygus.synsl.language._
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.language.SynslType
+import org.tygus.synsl.synthesis.SynConfig
+import org.tygus.synsl.synthesis._
 
 /**
   * @author Ilya Sergey
@@ -124,7 +126,7 @@ case class Program(predicates: Seq[InductivePredicate],
   * (predicates, component functions, etc)
   */
 case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
-                       maxUnfoldingDepth: Int = 1,
+                       config: SynConfig = defaultConfig,
                        startTime: Long) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")

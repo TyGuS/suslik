@@ -22,6 +22,8 @@ trait Synthesis extends SepLogicUtils {
 
   val synQualifier: String = "synthesis"
 
+  var config: SynConfig = defaultConfig
+
   case class SynthesisException(msg: String) extends SynSLException(synQualifier, msg)
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
@@ -29,22 +31,21 @@ trait Synthesis extends SepLogicUtils {
   def allRules: List[SynthesisRule]
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
-  val startingDepth: Int
-
-  def synthesizeProc(funGoal: FunSpec, env: Environment)(implicit config: SynConfig = defaultConfig):
+  def synthesizeProc(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
+    config = env.config
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = makeNewGoal(pre, post, formals, name, env)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0, config.printDerivations)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(0, env.config.printDerivations)
     val stats = new SynStats()
     SMTSolving.init()
     try {
-      synthesize(goal, startingDepth)(stats = stats, rules = nextRules(goal, startingDepth))(config = config) match {
+      synthesize(goal, config.startingDepth)(stats = stats, rules = nextRules(goal, config.startingDepth)) match {
         case Some(body) =>
           val proc = Procedure(name, tp, formals, body)
           Some((proc, stats))
         case None =>
-          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = $startingDepth.")
+          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = ${config.startingDepth}.")
           None
       }
     } catch {
@@ -55,7 +56,7 @@ trait Synthesis extends SepLogicUtils {
 
   }
 
-  private def synthesize(goal: Goal, depth: Int = startingDepth)
+  private def synthesize(goal: Goal, depth: Int)
                         (stats: SynStats,
                          rules: List[SynthesisRule])
                         (implicit ind: Int = 0, config: SynConfig = defaultConfig): Option[Statement] = {
@@ -138,7 +139,7 @@ trait Synthesis extends SepLogicUtils {
           stmts match {
             case Guarded(cond, thn) :: Nil =>
               s.kont(stmts) match {
-                case g@Guarded(_, _) if depth < startingDepth => // Can propagate to upper-level goal
+                case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
                   Some(g)
                 case _ => // Cannot propagate: try to synthesize else branch
                   val goal = s.subgoals.head

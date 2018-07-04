@@ -3,13 +3,11 @@ package org.tygus.synsl.synthesis.instances
 import org.tygus.synsl.logic.Specifications.Goal
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.logic.smt.SMTSolving.sat
-import org.tygus.synsl.synthesis.{Synthesis, SynthesisRule}
+import org.tygus.synsl.synthesis._
 import org.tygus.synsl.synthesis.rules._
 import org.tygus.synsl.util.SynLogging
 
 class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
-
-  val startingDepth = 100
 
   {
     // Warm-up the SMT solver on start-up to avoid future delays
@@ -20,7 +18,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   def allRules: List[SynthesisRule] = topLevelRules ++ anyPhaseRules ++ unfoldingPhaseRules ++ flatPhaseRules
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] =
-    if (depth == startingDepth)
+    if (depth == config.startingDepth)
       allRules
     else if (goal.hasPredicates)
       anyPhaseRules ++ unfoldingPhaseRules
@@ -28,11 +26,11 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
       anyPhaseRules ++ flatPhaseRules
 
 
-  val topLevelRules: List[SynthesisRule] = List(
+  def topLevelRules: List[SynthesisRule] = List(
     UnfoldingRules.InductionRule,
   )
 
-  val anyPhaseRules: List[SynthesisRule] = List(
+  def anyPhaseRules: List[SynthesisRule] = List(
     // Normalization rules
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
@@ -42,7 +40,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 //    OperationalRules.AllocRule,
   )
 
-  val unfoldingPhaseRules: List[SynthesisRule] = List(
+  def unfoldingPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfolding,
     UnfoldingRules.CallRule,
     UnfoldingRules.Open,
@@ -51,9 +49,12 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.Close,
   )
 
-  val flatPhaseRules: List[SynthesisRule] = List(
-//    FailRules.PostInvalid,
-    FailRules.AbduceBranch,
+  def flatPhaseRules: List[SynthesisRule] = List(
+    if (config.branchAbductionEnabled) {
+      FailRules.AbduceBranch
+    } else {
+      FailRules.PostInvalid
+    },
     LogicalRules.EmpRule,
 
     // Flat phase rules
