@@ -138,7 +138,7 @@ trait Synthesis extends SepLogicUtils {
                   Some(g)
                 case _ => // Cannot propagate: try to synthesize else branch
                   val goal = s.subgoals.head
-                  val newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond.not))
+                  val newPre = goal.pre.copy(phi = goal.pre.phi && cond.not)
                   // Set starting depth to current depth: new subgoal will start at its own starting depth
                   // to disallow producing guarded statements
                   val newConfig = goal.env.config.copy(startingDepth = depth)

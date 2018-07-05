@@ -4,7 +4,6 @@ import org.tygus.synsl.LanguageUtils
 import org.tygus.synsl.language.Expressions._
 import org.tygus.synsl.language._
 import org.tygus.synsl.synthesis.SynthesisRule
-import org.tygus.synsl.synthesis.rules.UnificationRules.{HeapUnify, HeapUnifyUnfolding}
 
 import scala.math.Ordering.Implicits._
 
@@ -145,7 +144,7 @@ object Specifications {
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
         s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
 
-    def simpl: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
+    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
       Assertion(simplify(post.phi), post.sigma))
 
     def copy(pre: Assertion = this.pre,
@@ -167,11 +166,11 @@ object Specifications {
         postIndex = appendNewChunks(this.post, post, d.postIndex),
         applications = newRuleApp.toList ++ d.applications)
 
-      // Sort heaplets from old to new
+      // Sort heaplets from old to new and simplify pure parts
       val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newDeriv.preIndex.lastIndexOf(h)))
       val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newDeriv.postIndex.lastIndexOf(h)))
-      val preSorted = pre.copy(sigma = newPreSigma)
-      val postSorted = post.copy(sigma = newPostSigma)
+      val preSorted = Assertion(simplify(pre.phi), newPreSigma)
+      val postSorted = Assertion(simplify(post.phi), newPostSigma)
       val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
 
       Goal(preSorted, postSorted, gammaFinal, programVars, newUniversalGhosts, this.fname, env, newDeriv)
@@ -238,6 +237,6 @@ object Specifications {
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env, emptyDerivation)
+    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env, emptyDerivation).simplifyPure
   }
 }

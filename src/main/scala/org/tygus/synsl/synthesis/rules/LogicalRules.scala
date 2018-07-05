@@ -215,17 +215,47 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         // This messes with hypothesis unify:
 //        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
-      }, simplify(p1)) match {
+      }, p1) match {
         case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
-          val _p1 = simplify(mkConjunction(rest1).subst(x, l))
+          val _p1 = mkConjunction(rest1).subst(x, l)
           val _s1 = s1.subst(x, l)
-          val _p2 = simplify(p2.subst(x, l))
+          val _p2 = p2.subst(x, l)
           val _s2 = s2.subst(x, l)
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
             List(Subderivation(List(newGoal), pureKont(toString)))
         case _ => Nil
+      }
+    }
+  }
+
+  object SubstLeftVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
+    override def toString: String = "[Norm: subst-L-var]"
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+      val p1 = goal.pre.phi
+      val s1 = goal.pre.sigma
+      val p2 = goal.post.phi
+      val s2 = goal.post.sigma
+
+      lazy val sigmas: List[Subst] = for {
+        v1 <- p1.vars.toList
+        v2 <- p1.vars.filter(_.name < v1.name)
+        if SMTSolving.valid(p1 ==> (v1 |=| v2))
+      } yield Map(v1 -> v2)
+
+      sigmas match {
+        case Nil => Nil
+        case sigma :: _ =>
+          val _p1 = p1.subst(sigma)
+          val _s1 = s1.subst(sigma)
+          val _p2 = p2.subst(sigma)
+          val _s2 = s2.subst(sigma)
+          val newGoal = goal.copy(
+            Assertion(_p1, _s1),
+            Assertion(_p2, _s2))
+          List(Subderivation(List(newGoal), pureKont(toString)))
       }
     }
   }
