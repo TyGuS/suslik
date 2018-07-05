@@ -104,20 +104,21 @@ trait PureLogicUtils {
     case _ => false
   }
 
-  val isAtomicPFormula: (PFormula) => Boolean = {
+  val isAtomicPFormula: PFormula => Boolean = {
     case BoolConst(true) | BoolConst(false) => true
     case UnaryExpr(OpNot, p) => isRelationPFormula(p)
     case p => isRelationPFormula(p)
   }
 
-  def isCNF(isAtom: PFormula => Boolean)(pf: PFormula): Boolean = {
-    def check(phi: PFormula): Boolean = phi match {
-      case BinaryExpr(OpOr, _, _) => false
-      case BinaryExpr(OpAnd, left, right) => check(left) && check(right)
-      case p => isAtom(p)
-    }
+  val isDisjunction: PFormula => Boolean = {
+    case BinaryExpr(OpAnd, _, _) => false
+    case BinaryExpr(OpOr, left, right) => isDisjunction(left) && isDisjunction(right)
+    case p => isAtomicPFormula(p)
+  }
 
-    check(simplify(pf))
+  val isCNF: PFormula => Boolean = {
+    case BinaryExpr(OpAnd, left, right) => isCNF(left) && isCNF(right)
+    case p => isDisjunction(p)
   }
 
   /**
@@ -126,15 +127,14 @@ trait PureLogicUtils {
   def conjuncts(phi: PFormula): List[PFormula] = {
 
     val pf = simplify(phi)
-    if (!isCNF(isAtomicPFormula)(pf)) {
+    if (!isCNF(pf)) {
       throw PureLogicException(s"The formula ${phi.pp} is not in CNF")
     }
 
     def _conjuncts(p: PFormula): List[PFormula] = p match {
       case BoolConst(true) => Nil
-      case atom if isAtomicPFormula(atom) => List(atom)
       case BinaryExpr(OpAnd, left, right) => _conjuncts(left) ++ _conjuncts(right)
-      case x => throw PureLogicException(s"Not a conjunction or an atomic pure formula: ${x.pp}")
+      case x => List(x)
     }
 
     _conjuncts(pf).distinct

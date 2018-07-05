@@ -75,7 +75,7 @@ trait Synthesis extends SepLogicUtils {
 
         // Try alternative sub-derivations after applying `r`
         def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
-          case a :: as =>
+          case Seq(a,as@_*) =>
             if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
             solveSubgoals(a) match {
               case Some(Magic) =>
@@ -88,7 +88,7 @@ trait Synthesis extends SepLogicUtils {
                 stats.bumpUpBacktracing()
                 tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
             }
-          case Nil =>
+          case Seq() =>
             // All alternatives have failed
             if (r.isInstanceOf[InvertibleRule]) {
               // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
@@ -107,19 +107,19 @@ trait Synthesis extends SepLogicUtils {
 
           // Optimization: if one of the subgoals failed, to not try the rest!
           // <ugly-imperative-code>
-          val results = new ListBuffer[Option[Statement]]
+          val results = new ListBuffer[Statement]
           import util.control.Breaks._
           breakable {
             for {subgoal <- s.subgoals} {
               synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1) match {
-                case s@Some(_) => results.append(s)
+                case Some(s) => results.append(s)
                 case _ => break
               }
             }
           }
           // </ugly-imperative-code>
 
-          val resultStmts = for (r <- results if r.isDefined) yield r.get
+          val resultStmts = for (r <- results) yield r
           if (resultStmts.size < s.subgoals.size)
             // One of the sub-goals failed: this sub-derivation fails
             None
@@ -139,8 +139,11 @@ trait Synthesis extends SepLogicUtils {
                 case _ => // Cannot propagate: try to synthesize else branch
                   val goal = s.subgoals.head
                   val newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond.not))
-                  val newG = goal.copy(newPre)
-                  synthesize(newG, depth - 1)(stats, nextRules(newG, depth - 1))(ind + 1) match {
+                  // Set starting depth to current depth: new subgoal will start at its own starting depth
+                  // to disallow producing guarded statements
+                  val newConfig = goal.env.config.copy(startingDepth = depth)
+                  val newG = goal.copy(newPre, env = goal.env.copy(config = newConfig))
+                  synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
                     case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
                     case _ => None // failed to synthesize else
                   }

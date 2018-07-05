@@ -57,13 +57,24 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Fail: abduce-branch]"
 
-    def condCandidates(goal: Goal): Seq[Expr] =
+    def atomCandidates(goal: Goal): Seq[Expr] =
       for {
         lhs <- goal.programVars
         rhs <- goal.programVars
         if lhs != rhs
         if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
       } yield lhs |<=| rhs
+
+    def condCandidates(goal: Goal): Seq[Expr] = {
+      val atoms = atomCandidates(goal)
+      // Toggle this to enable abduction of conjunctions
+      // (without branch pruning, produces too many branches)
+      atoms
+//      for {
+//        subset <- atoms.toSet.subsets.toSeq
+//        if subset.nonEmpty
+//      } yield mkConjunction(subset.toList)
+    }
 
     def guardedCandidates(goal: Goal, pre: PFormula, post: PFormula): Seq[Subderivation] =
       for {
