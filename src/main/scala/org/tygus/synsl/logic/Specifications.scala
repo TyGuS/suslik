@@ -135,6 +135,7 @@ object Specifications {
                   post: Assertion,
                   gamma: Gamma,
                   programVars: List[Var],
+                  universalGhosts: Set[Var],
                   fname: String,
                   env: Environment,
                   deriv: Derivation)
@@ -154,31 +155,26 @@ object Specifications {
              env: Environment = this.env,
              newRuleApp: Option[RuleApplication] = None): Goal = {
 
-      // Variables that used to be universals but would become existentials
-      val fauxExistentials: Set[Var] = (post.vars -- (pre.vars ++ programVars) -- this.existentials) intersect this.vars
-      val conjuncts: List[PFormula] = for (v <- fauxExistentials.toList) yield v.eq(v, getType(v))
-      // For each such variable, add a trivial euqality to the pure precondition to avoid changing the meaning
-      val preAdjusted = pre.copy(phi = mkConjunction(pre.phi :: conjuncts))
-
       // Resolve types
-      val gammaFinal = resolvePrePost(gamma, env, preAdjusted, post)
+      val gammaFinal = resolvePrePost(gamma, env, pre, post)
 
       // Build a new derivation
       def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
         index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks).sortBy(_.rank)
       }
       val d = this.deriv
-      val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, preAdjusted, d.preIndex),
+      val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
         postIndex = appendNewChunks(this.post, post, d.postIndex),
         applications = newRuleApp.toList ++ d.applications)
 
       // Sort heaplets from old to new
       val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newDeriv.preIndex.lastIndexOf(h)))
       val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newDeriv.postIndex.lastIndexOf(h)))
-      val preSorted = preAdjusted.copy(sigma = newPreSigma)
+      val preSorted = pre.copy(sigma = newPreSigma)
       val postSorted = post.copy(sigma = newPostSigma)
+      val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
 
-      Goal(preSorted, postSorted, gammaFinal, programVars, this.fname, env, newDeriv)
+      Goal(preSorted, postSorted, gammaFinal, programVars, newUniversalGhosts, this.fname, env, newDeriv)
     }
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
@@ -188,14 +184,17 @@ object Specifications {
     // All variables this goal has ever used
     def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ programVars
 
+    // All universally-quantified variables this goal has ever used
+    def allUniversals: Set[Var] = universalGhosts ++ programVars
+
     // Variables currently used only in specs
     def ghosts: Set[Var] = pre.vars ++ post.vars -- programVars
 
-    // Universally quantified variables: program variables and ghosts in pre
+    // Currently used universally quantified variables: program variables and ghosts in pre
     def universals: Set[Var] = programVars.toSet ++ pre.vars
 
-    // Ghosts that appear only in the postcondition
-    def existentials: Set[Var] = post.vars -- universals
+    // Currently used ghosts that appear only in the postcondition
+    def existentials: Set[Var] = post.vars -- allUniversals
 
     // Determine whether `x` is a ghost variable wrt. given spec and gamma
     def isGhost(x: Var): Boolean = ghosts.contains(x)
@@ -237,7 +236,8 @@ object Specifications {
     val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     val formalNames = formals.map(_._2)
+    val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre, post, gamma, formalNames, fname, env, emptyDerivation)
+    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env, emptyDerivation)
   }
 }
