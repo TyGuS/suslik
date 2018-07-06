@@ -110,6 +110,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
     }.text("print failed rule applications; default: false")
 
+    opt[Boolean]('g', "tags").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
+    }.text("print predicate application tags in derivations; default: false")
+
     help("help").text("prints this usage text")
 
     note("\nOnce the synthesis is done execution, statistics will be available in stats.csv (rewritten every time).\n")

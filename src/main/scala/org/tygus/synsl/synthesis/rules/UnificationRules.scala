@@ -13,6 +13,7 @@ import org.tygus.synsl.synthesis._
 /**
   * The goal of unification rules is to eliminate existentials
   * via either heap unification or various forms of pure synthesis.
+  *
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
@@ -41,22 +42,28 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
         val preFootprint = Set(deriv.preIndex.lastIndexOf(t))
         val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
-        val ruleApp = saveApplication((preFootprint, postFootprint), deriv, - pre.similarity(newPost))
+        val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
 
         val newGoal = goal.copy(post = newPost, newRuleApp = Some(ruleApp))
         Subderivation(List(newGoal), pureKont(toString))
       }
-//      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
-      nubBy[Subderivation,Assertion](alternatives, sub => sub.subgoals.head.post)
-        .sortBy(s => (- s.subgoals.head.similarity, s.subgoals.head.deriv.applications.head))
+      //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
+      val ord = new Ordering[(Int, RuleApplication)] {
+        def compare(x: (Int, RuleApplication), y: (Int, RuleApplication)): Int = {
+          val c1 = x._1.compare(y._1)
+          if (c1 != 0) c1 else x._2.compare(y._2)
+        }
+      }
+      val derivations = nubBy[Subderivation, Assertion](alternatives, sub => sub.subgoals.head.post)
+      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.deriv.applications.head))(ord)
     }
   }
 
-  object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase  {
+  object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase {
     override def toString: String = "[Sub: heap-unify-unfold]"
   }
 
-  object HeapUnifyFlat extends HeapUnify with FlatPhase  {
+  object HeapUnifyFlat extends HeapUnify with FlatPhase {
     override def toString: String = "[Sub: heap-unify-flat]"
   }
 
@@ -225,7 +232,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       } yield {
         Subderivation(List(newGoal), pureKont(toString))
       }
-      sortAlternativesByFootprint(alternatives)    }
+      sortAlternativesByFootprint(alternatives)
+    }
   }
 
 }
