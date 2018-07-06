@@ -215,17 +215,51 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         // This messes with hypothesis unify:
 //        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
-      }, simplify(p1)) match {
+      }, p1) match {
         case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
-          val _p1 = simplify(mkConjunction(rest1).subst(x, l))
+          val _p1 = mkConjunction(rest1).subst(x, l)
           val _s1 = s1.subst(x, l)
-          val _p2 = simplify(p2.subst(x, l))
+          val _p2 = p2.subst(x, l)
           val _s2 = s2.subst(x, l)
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
             List(Subderivation(List(newGoal), pureKont(toString)))
         case _ => Nil
+      }
+    }
+  }
+
+  // This rule has to come after inconsistency
+  object SubstLeftVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
+    override def toString: String = "[Norm: subst-L-var]"
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+      val p1 = goal.pre.phi
+      val s1 = goal.pre.sigma
+      val p2 = goal.post.phi
+      val s2 = goal.post.sigma
+
+      val varCandidates = goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)
+
+      lazy val subs: List[Subst] = for {
+        v1 <- varCandidates
+        v2 <- varCandidates.drop(varCandidates.indexOf(v1) + 1)
+        if goal.getType(v1) == goal.getType(v2)
+        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v1)))
+      } yield Map(v2 -> v1)
+
+      subs match {
+        case Nil => Nil
+        case sub :: _ =>
+          val _p1 = p1.subst(sub)
+          val _s1 = s1.subst(sub)
+          val _p2 = p2.subst(sub)
+          val _s2 = s2.subst(sub)
+          val newGoal = goal.copy(
+            Assertion(_p1, _s1),
+            Assertion(_p2, _s2))
+          List(Subderivation(List(newGoal), pureKont(toString)))
       }
     }
   }

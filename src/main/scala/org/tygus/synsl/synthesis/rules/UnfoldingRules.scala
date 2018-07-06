@@ -199,7 +199,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       for {
         acs <- List(addedChunks1, addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
-        restPre = Assertion(andClean(goal.pre.phi, callPost.phi), SFormula(restPreChunks.toList))
+        restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
         callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp), env = newEnv)
       } yield callGoal
     }
@@ -333,7 +333,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
-            val newPhi = simplify(mkConjunction(List(actualSelector, post.phi, actualConstraints)))
+            val newPhi = mkConjunction(List(actualSelector, post.phi, actualConstraints))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))

@@ -1,8 +1,6 @@
 package org.tygus.synsl.synthesis
 
 import org.tygus.synsl.language.PrettyPrinting
-import org.tygus.synsl.SynSLException
-import scala.Console.RED
 
 /**
   * @author Ilya Sergey
@@ -19,6 +17,11 @@ case class SynConfig( // Timeout and logging
                       branchAbductionEnabled: Boolean = false,
                       printFailed: Boolean            = false
                     ) extends PrettyPrinting {
+
+  def combine(params: SynConfig): SynConfig =
+    // TODO: properly combine elementwise
+    if (params == defaultConfig) this else params
+
   override def pp: String =
     List(s"maxOpenDepth = $maxOpenDepth",
       s"maxCloseDepth = $maxCloseDepth",

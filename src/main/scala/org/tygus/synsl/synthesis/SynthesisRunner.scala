@@ -115,4 +115,12 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     note("\nOnce the synthesis is done execution, statistics will be available in stats.csv (rewritten every time).\n")
 
   }
+
+  def parseParams(paramString: Array[String]): SynConfig = {
+    val newConfig = RunConfig(SynConfig(), defaultFolder, defaultFile)
+    parser.parse(paramString, newConfig) match {
+      case Some(RunConfig(synConfig, _, _)) => synConfig
+      case None => throw SynthesisException("Bad argument format.")
+    }
+  }
 }

@@ -20,7 +20,7 @@ void tree_size (loc x, loc r) {
     tree_size(r12, x);
     let n22 = *x;
     *r = 1 + n12 + n22;
-    *(x + 2) = l2;
     *(x + 1) = r12;
+    *(x + 2) = l2;
   }
 }

@@ -28,7 +28,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre.phi
       val post = goal.post.phi
 
-      if (!SMTSolving.sat(andClean(pre, post)))
+      if (!SMTSolving.sat(pre && post))
         List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
       else
         Nil
@@ -81,7 +81,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         cond <- condCandidates(goal)
         if SMTSolving.valid((pre && cond) ==> post)
         if SMTSolving.sat(pre && cond)
-        newPre = goal.pre.copy(phi = andClean(goal.pre.phi, cond))
+        newPre = goal.pre.copy(phi = goal.pre.phi && cond)
         newGoal = goal.copy(newPre)
       } yield Subderivation(List(newGoal), stmts => Guarded(cond, stmts.head))
 

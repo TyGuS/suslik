@@ -49,16 +49,26 @@ trait PureLogicUtils {
     */
   def simplify(e: Expr): Expr = e match {
     //  Truth table for and
-    case BinaryExpr(OpAnd, BoolConst(false), _) => pFalse
-    case BinaryExpr(OpAnd, _, BoolConst(false)) => pFalse
-    case BinaryExpr(OpAnd, BoolConst(true), right) => right
-    case BinaryExpr(OpAnd, left, BoolConst(true)) => left
+    case BinaryExpr(OpAnd, e1, e2) => simplify(e1) match {
+      case BoolConst(false) => pFalse
+      case BoolConst(true) => simplify(e2)
+      case s1 => simplify(e2) match {
+        case BoolConst(false) => pFalse
+        case BoolConst(true) => s1
+        case s2 => s1 && s2
+      }
+    }
 
     //  Truth table for or
-    case BinaryExpr(OpOr, BoolConst(true), _) => pTrue
-    case BinaryExpr(OpOr, _, BoolConst(true)) => pTrue
-    case BinaryExpr(OpOr, BoolConst(false), right) => right
-    case BinaryExpr(OpOr, left, BoolConst(false)) => left
+    case BinaryExpr(OpOr, e1, e2) => simplify(e1) match {
+      case BoolConst(true) => pTrue
+      case BoolConst(false) => simplify(e2)
+      case s1 => simplify(e2) match {
+        case BoolConst(true) => pTrue
+        case BoolConst(false) => s1
+        case s2 => s1 || s2
+      }
+    }
 
     //  Classical logic stuff and de Morgan
     case UnaryExpr(OpNot, UnaryExpr(OpNot, arg)) => simplify(arg)
@@ -67,11 +77,15 @@ trait PureLogicUtils {
     case UnaryExpr(OpNot, BoolConst(true)) => pFalse
     case UnaryExpr(OpNot, BoolConst(false)) => pTrue
 
+    case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+      BoolConst(true)
     case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
-      if (n1.toString <= n2.toString) BinaryExpr(OpEq, v1, v2) else BinaryExpr(OpEq, v2, v1)
+      if (n1 <= n2) BinaryExpr(OpEq, v1, v2) else BinaryExpr(OpEq, v2, v1)
     case BinaryExpr(OpEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpEq, v, simplify(e))
+    case BinaryExpr(OpSetEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+      BoolConst(true)
     case BinaryExpr(OpSetEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
-      if (n1.toString <= n2.toString) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
+      if (n1 <= n2) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
     case BinaryExpr(OpSetEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpSetEq, v, simplify(e))
 
 
@@ -91,9 +105,7 @@ trait PureLogicUtils {
   def pTrue: PFormula = BoolConst(true)
 
   def pFalse: PFormula = BoolConst(false)
-
-  def andClean(p1: PFormula, p2: PFormula): PFormula = simplify(p1 && p2)
-
+  
   private def isAtomicExpr(e: Expr): Boolean = e match {
     case BinaryExpr(op, _, _) => !op.isInstanceOf[RelOp] && !op.isInstanceOf[LogicOp]
     case _ => true
@@ -158,7 +170,7 @@ trait PureLogicUtils {
   /**
     * Assemble a formula from a list of conjunctions
     */
-  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct.foldLeft[PFormula](pTrue)(andClean)
+  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct.foldLeft[PFormula](pTrue)((p1, p2) => p1 && p2)
 
   /**
     * @param vs    a list of variables to refresh

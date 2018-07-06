@@ -80,14 +80,14 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         // TODO [sets]: Can we enable this?
         case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false
-      }, simplify(p2)) match {
+      }, p2) match {
         case Some((BinaryExpr(_, l, r), rest2)) =>
           val (x, e) = if (isExsistVar(l)) {
             (l.asInstanceOf[Var], r)
           } else {
             (r.asInstanceOf[Var], l)
           }
-          val _p2 = simplify(mkConjunction(rest2).subst(x, e))
+          val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
           val newGoal = goal.copy(post = Assertion(_p2, _s2))
           List(Subderivation(List(newGoal), pureKont(toString)))
