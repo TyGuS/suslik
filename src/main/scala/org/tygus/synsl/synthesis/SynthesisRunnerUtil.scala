@@ -20,6 +20,7 @@ trait SynthesisRunnerUtil {
   val testSeparator = "###"
   val testExtension = "syn"
   val defExtension = "def"
+  val paramPrefix = "#"
 
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
@@ -29,11 +30,15 @@ trait SynthesisRunnerUtil {
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit
 
   import synthesis._
-
-  def getDescInputOutput(testFilePath: String): (String, String, String, String) = {
+  
+  def getDescInputOutput(testFilePath: String): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
     // The path is counted from the rout
-    val lines = Source.fromFile(file).getLines.toList
+    val allLines = Source.fromFile(file).getLines.toList
+    val (params, lines) =
+      if (allLines.nonEmpty && allLines.head.startsWith(paramPrefix)) {
+        (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' ')), allLines.tail)
+      } else (defaultConfig, allLines)
     val i = lines.indexWhere(_.trim.contains(testSeparator))
     val (l1, l2) = lines.splitAt(i)
     val fname = removeSuffix(file.getName, s".$testExtension")
@@ -49,12 +54,12 @@ trait SynthesisRunnerUtil {
     val (l3, l4) = remainder.splitAt(j)
     val input = l3.mkString(" ").trim
     val output = l4.tail.mkString("\n").trim
-    (testName, desc, input, output)
+    (testName, desc, input, output, params)
   }
 
   def synthesizeFromFile(dir: String, testName: String): Unit = {
-    val (_, desc, in, out) = getDescInputOutput(testName)
-    synthesizeFromSpec(in, out)
+    val (_, desc, in, out, params) = getDescInputOutput(testName)
+    synthesizeFromSpec(testName, in, out, params)
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) : Unit = {
@@ -122,9 +127,9 @@ trait SynthesisRunnerUtil {
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
       for (f <- tests) {
-        val (testName, desc, in, out) = getDescInputOutput(f.getAbsolutePath)
+        val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
         val fullInput = List(defs, in).mkString("\n")
-        doRun(testName, desc, fullInput, out)
+        doRun(testName, desc, fullInput, out, params)
       }
     }
   }
@@ -147,9 +152,9 @@ trait SynthesisRunnerUtil {
       val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
       tests.find(f => removeSuffix(f.getName, s".$testExtension") == fname) match {
         case Some(f) =>
-          val (testName, desc, in, out) = getDescInputOutput(f.getAbsolutePath)
+          val (testName, desc, in, out, fileParams) = getDescInputOutput(f.getAbsolutePath)
           val fullInput = List(defs, in).mkString("\n")
-          doRun(testName, desc, fullInput, out, params)
+          doRun(testName, desc, fullInput, out, fileParams.combine(params))
         case None =>
           System.err.println(s"No file with the name $fname.syn found in the directory $dir.")
       }

@@ -9,15 +9,8 @@ void srtl_prepend (loc x, int k, loc r)
 #####
 
 void srtl_prepend (loc x, int k, loc r) {
-  if (x == 0) {
-    let y2 = malloc(2);
-    *y2 = k;
-    *(y2 + 1) = 0;
-    *r = y2;
-  } else {
-    let y2 = malloc(2);
-    *y2 = k;
-    *(y2 + 1) = x;
-    *r = y2;
-  }
+  let y2 = malloc(2);
+  *y2 = k;
+  *(y2 + 1) = x;
+  *r = y2;
 }

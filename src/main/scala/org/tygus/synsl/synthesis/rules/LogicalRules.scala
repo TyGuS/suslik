@@ -239,19 +239,22 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
 
-      lazy val sigmas: List[Subst] = for {
-        v1 <- p1.vars.toList
-        v2 <- p1.vars.filter(_.name < v1.name)
-        if SMTSolving.valid(p1 ==> (v1 |=| v2))
-      } yield Map(v1 -> v2)
+      val varCandidates = goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)
 
-      sigmas match {
+      lazy val subs: List[Subst] = for {
+        v1 <- varCandidates
+        v2 <- varCandidates.drop(varCandidates.indexOf(v1) + 1)
+        if goal.getType(v1) == goal.getType(v2)
+        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v1)))
+      } yield Map(v2 -> v1)
+
+      subs match {
         case Nil => Nil
-        case sigma :: _ =>
-          val _p1 = p1.subst(sigma)
-          val _s1 = s1.subst(sigma)
-          val _p2 = p2.subst(sigma)
-          val _s2 = s2.subst(sigma)
+        case sub :: _ =>
+          val _p1 = p1.subst(sub)
+          val _s1 = s1.subst(sub)
+          val _p2 = p2.subst(sub)
+          val _s2 = s2.subst(sub)
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
