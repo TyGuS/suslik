@@ -38,6 +38,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,
+//    LogicalRules.SubstLeftVar,
     OperationalRules.ReadRule,
 //    OperationalRules.AllocRule,
   )

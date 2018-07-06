@@ -230,6 +230,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
+  // This rule has to come after inconsistency
   object SubstLeftVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
     override def toString: String = "[Norm: subst-L-var]"
 

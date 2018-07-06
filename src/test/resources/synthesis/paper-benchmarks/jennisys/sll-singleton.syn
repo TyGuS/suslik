@@ -1,5 +1,5 @@
-#. srtl_singleton -c 2
-singly-linked list: singleton
+#. this -c 2
+singly-linked list: construct a list with one element
 
 #####
 
