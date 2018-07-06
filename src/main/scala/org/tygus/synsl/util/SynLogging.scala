@@ -1,6 +1,7 @@
 package org.tygus.synsl.util
 
 import org.tygus.synsl.language.Statements.Procedure
+import org.tygus.synsl.logic.FunSpec
 import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.logic.smt.SMTSolving
 import org.tygus.synsl.synthesis.SynthesisRule
@@ -93,7 +94,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n "
+    List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n"
 
   {
     if (myFile.exists()) myFile.delete()
@@ -104,13 +105,14 @@ object SynStatUtil {
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
       try f(resource) finally resource.close()
 
-  def log(name: String, time: Long, stats: Option[(Procedure, SynStats)]): Unit = {
+  def log(name: String, time: Long, spec: FunSpec, stats: Option[(Procedure, SynStats)]): Unit = {
     val statRow = (stats match {
-      case Some((_, st)) => List(st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
+      case Some((proc, st)) => List(proc.body.size, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
       case None => DList.replicate(4, "FAIL").toList
     }).mkString(", ")
 
-    val data = s"$name, $time, $statRow\n"
+    val specSize = spec.pre.size + spec.post.size
+    val data = s"$name, $time, $specSize, $statRow\n"
     using(new FileWriter(myFile, true))(_.write(data))
   }
 

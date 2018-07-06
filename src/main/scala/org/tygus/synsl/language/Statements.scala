@@ -104,6 +104,20 @@ object Statements {
 
     def usedVars: Set[Var] = collectE(_.isInstanceOf[Var])
 
+    // Statement size in AST nodes
+    def size: Int = this match {
+      case Skip => 0
+      case Error => 1
+      case Magic => 1
+      case Store(to, off, e) => 1 + to.size + e.size
+      case Load(to, _, from, _) => 1 + to.size + from.size
+      case Malloc(to, _, _) => 1 + to.size
+      case Free(x) => 1 + x.size
+      case Call(_, fun, args) => 1 + args.map(_.size).sum
+      case SeqComp(s1,s2) => s1.size + s2.size
+      case If(cond, tb, eb) => 1 + cond.size + tb.size + eb.size
+      case Guarded(cond, b) => 1 + cond.size + b.size
+    }
   }
 
   // skip;

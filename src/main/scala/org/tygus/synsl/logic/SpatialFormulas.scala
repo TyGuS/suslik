@@ -36,6 +36,14 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   def eqModTags(other: Heaplet): Boolean = {
     this.adjustTag(_ => None) == other.adjustTag(_ => None)
   }
+
+  // Size of the heaplet (in AST nodes)
+  def size: Int = this match {
+    case PointsTo(loc, _, value) => 1 + loc.size + value.size
+    case Block(loc, _) => 1 + loc.size
+    case SApp(_, args, _) => args.map(_.size).sum
+  }
+
 }
 
 /**
@@ -194,8 +202,9 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
       case None => this.chunks.length + other.chunks.length
       case Some((l, r)) => (this - l).distance(other - r)
     }
-
   }
 
+  // Size of the formula (in AST nodes)
+  def size: Int = chunks.map(_.size).sum
 }
 

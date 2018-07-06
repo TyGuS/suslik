@@ -110,7 +110,6 @@ object Expressions {
         case s@SetLiteral(elems) =>
           val acc1 = if (p(s)) acc + s.asInstanceOf[R] else acc
           elems.foldLeft(acc1)((a,e) => collector(a)(e))
-        case c@IntConst(i) => if (p(c)) acc + c.asInstanceOf[R] else acc
         case i@IfThenElse(cond, l, r) =>
           val acc1 = if (p(i)) acc + i.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(cond)
@@ -200,6 +199,15 @@ object Expressions {
             }
           }
         } yield gamma4
+    }
+
+    // Expression size in AST nodes
+    def size: Int = this match {
+      case BinaryExpr(_, l, r) => 1 + l.size + r.size
+      case UnaryExpr(_, arg) => 1 + arg.size
+      case SetLiteral(elems) => 1 + elems.map(_.size).sum
+      case IfThenElse(cond, l, r) => 1 + cond.size + l.size + r.size
+      case _ => 1
     }
   }
 

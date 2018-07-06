@@ -71,25 +71,25 @@ trait SynthesisRunnerUtil {
 
     val prog = res.get
     // assert(prog.predicates.nonEmpty)
-    val (goals, env) = resolveProgram(prog)
+    val (specs, env) = resolveProgram(prog)
 
-    if (goals.lengthCompare(1) != 0) {
+    if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
     }
 
-    val goal = goals.head
+    val spec = specs.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(goal, env.copy(config = params))
+    val sresult = synthesizeProc(spec, env.copy(config = params))
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
-    SynStatUtil.log(testName, delta, sresult)
+    SynStatUtil.log(testName, delta, spec, sresult)
 
     sresult match {
       case Some((rr, stats)) =>
         testPrintln(s"\n[$testName]:", Console.MAGENTA)
         if (params != defaultConfig) testPrintln(params.pp) else ()
-        testPrintln(s"${goal.pp}\n", Console.BLUE)
+        testPrintln(s"${spec.pp}\n", Console.BLUE)
         testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
         testPrintln(s"Number of backtrackings ${stats.numBack}")
         testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")

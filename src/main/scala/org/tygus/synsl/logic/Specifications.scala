@@ -77,6 +77,8 @@ object Specifications {
 
     def distance(other: Assertion): Int = this.sigma.distance(other.sigma)
 
+    // Size of the assertion (in AST nodes)
+    def size: Int = phi.size + sigma.size
   }
 
   case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int), cost: Int)
@@ -221,6 +223,8 @@ object Specifications {
 
     def distance: Int = pre.distance(post)
 
+    // Size of the specification in this goal (in AST nodes)
+    def specSize: Int = pre.size + post.size
   }
 
   private def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
