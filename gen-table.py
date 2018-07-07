@@ -76,8 +76,10 @@ def var_option(var):
 def format_time(t):
   if t < 0:
     return '-'
+  if t < 0.1:
+    return '$<0.1$'
   else:
-    return '{0:0.2f}'.format(t)
+    return '{0:0.1f}'.format(t)
 
 def read_csv():
   '''Read stats file into the results dictionary'''
