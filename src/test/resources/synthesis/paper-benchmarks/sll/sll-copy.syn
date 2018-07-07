@@ -1,0 +1,26 @@
+should be able to synthesize list copy
+
+#####
+
+{true ; r :-> x ** sll(x, s)}
+void sll_copy(loc r)
+{true ; r :-> y ** sll(x, s) ** sll(y, s) }
+
+#####
+
+void sll_copy (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    sll_copy(r);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *y2 = v2;
+    *(y2 + 1) = nxt2;
+    *r = y2;
+    *(x2 + 1) = y12;
+  }
+}

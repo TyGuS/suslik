@@ -28,23 +28,30 @@ class BenchmarkGroup:
         self.benchmarks = benchmarks            # List of benchmarks in this group
 
 ALL_BENCHMARKS = [
+    BenchmarkGroup("Integers",  [
+        Benchmark('ints/swap', 'swap two', []),
+        Benchmark('ints/min2', 'min of two', ['jennisys']),
+        ]),        
     BenchmarkGroup("Linked List", [
-        Benchmark('natural/sll-len', 'length', ['natural']),
-        Benchmark('natural/sll-max', 'max', ['natural']),
-        Benchmark('natural/sll-min', 'min', ['natural']),
+        Benchmark('sll-bounds/sll-len', 'length', ['natural']),
+        Benchmark('sll-bounds/sll-max', 'max', ['natural']),
+        Benchmark('sll-bounds/sll-min', 'min', ['natural']),
+        Benchmark('sll/sll-singleton', 'singleton', ['jennisys']),
+        Benchmark('sll/sll-free', 'dispose', []),
+        Benchmark('sll/sll-copy', 'copy', []),
+        Benchmark('sll/sll-append', 'append', ['dryad']),
         ]),
-    # BenchmarkGroup("Strictly sorted list", ['-f=AllArguments'], [
-        # Benchmark('StrictIncList-Insert', 'insert', '$<$'),
-        # Benchmark('StrictIncList-Delete', 'delete', '$<$'),
-        # Benchmark('StrictIncList-Intersect', 'intersect', '$<$', ['-f=AllArguments']),
-        # ]),
-    # BenchmarkGroup("Tree", [
-        # Benchmark('tree/tree-size', 'size', []),
-        # ]),
-    # BenchmarkGroup("Integers",  [], [
-        # Benchmark('Tree-Elem', 'is member', 'false, not, or, $=$'),
-        # Benchmark('Tree-Count', 'node count', '0, 1, +'),
-        # ]),        
+    BenchmarkGroup("Sorted list", [
+        Benchmark('srtl/srtl-prepend', 'prepend', ['natural']),
+        Benchmark('srtl/srtl-insert', 'insert', ['natural']),
+        Benchmark('srtl/insertion-sort', 'insertion sort', ['natural']),
+        ]),
+    BenchmarkGroup("Tree", [
+        Benchmark('tree/tree-size', 'size', []),
+        Benchmark('tree/tree-free', 'dispose', []),
+        Benchmark('tree/tree-copy', 'copy', []),
+        Benchmark('tree/tree-flatten', 'flatten to list', []),
+        ]),
 ]
 
 class SynthesisResult:
