@@ -63,7 +63,6 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
   )
 
   def flatPhaseRules(config: SynConfig): List[SynthesisRule] = List(
-    // TODO: abduction also acts as post invalid!
     if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
     LogicalRules.EmpRule,
 

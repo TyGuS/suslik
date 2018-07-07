@@ -102,7 +102,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else {
         val guarded = guardedCandidates(goal, pre, universalPost)
         if (guarded.isEmpty)
-          List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+          if (goal.env.config.fail)
+            List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+          else
+            Nil // would like to return Magic, but fail optimization is disabled
         else guarded
       }
     }

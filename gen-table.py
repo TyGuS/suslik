@@ -15,7 +15,7 @@ PAPER_DIR = '/mnt/h/Work/papers/synsl/synsl/popl19-draft/tab' # Directory where 
 TEST_DIR = 'src/test/resources/synthesis/paper-benchmarks/'
 SOURCES = ['natural', 'jennisys', 'dryad']
 # VARIANTS = ['commute']
-VARIANTS = ['phased', 'invert', 'fail', 'commute']
+VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
 
 class Benchmark:
   def __init__(self, name, description, source=[]):
@@ -70,8 +70,12 @@ class SynthesisResult:
   def str(self):
     return self.name + ', ' + '{0:0.2f}'.format(self.time) + ', ' + self.spec_size + ', ' + self.code_size + ', ' + str(self.variant_times)
 
+# SuSLik command-line options to run the variant var    
 def var_option(var):
-  return '--' + var + ' false'
+  if var == 'all':
+    return ' '.join([var_option(v) for v in VARIANTS[:-1]])
+  else:
+    return '--' + var + ' false'
     
 def format_time(t):
   if t < 0:
@@ -80,6 +84,10 @@ def format_time(t):
     return '$<0.1$'
   else:
     return '{0:0.1f}'.format(t)
+    
+def format_ratio(m, n):
+  return '{0:0.1f}'.format(float(m)/float(n))
+    
 
 def read_csv():
   '''Read stats file into the results dictionary'''
@@ -140,13 +148,14 @@ def write_latex():
         result = results [b.name]        
         row = \
           ' & ' + b.description + footnotes(b.source) +\
-          ' & ' + result.spec_size + \
           ' & ' + result.code_size + \
+          ' & ' + format_ratio(result.code_size, result.spec_size) + \
           ' & ' + format_time(result.time) + \
           ' & ' + format_time(result.variant_times['phased']) + \
           ' & ' + format_time(result.variant_times['invert']) + \
           ' & ' + format_time(result.variant_times['fail']) + \
-          ' & ' + format_time(result.variant_times['commute']) + ' \\\\'
+          ' & ' + format_time(result.variant_times['commute']) + \
+          ' & ' + format_time(result.variant_times['all']) + ' \\\\'
           
         outfile.write (row)
         outfile.write ('\n')
