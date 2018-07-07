@@ -1,5 +1,0 @@
-predicate sll(loc x, int len, set elems) {
-|  x == 0        => { len == 0  /\  elems =i {} ; emp }
-|  not (x == 0)  => { len == 1 + len1  /\  elems =i {v} ++ elems1 ;
-                      [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, len1, elems1) }
-}

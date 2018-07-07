@@ -16,17 +16,20 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
     runAllTestsFromDir("paper-examples")
   }
 
-  describe("Benchmarks from Natural Synthesis paper") {
-    runAllTestsFromDir("paper-benchmarks/natural")
+  describe("Integers") {
+    runAllTestsFromDir("paper-benchmarks/ints")
   }
 
-  describe("Benchmarks from Jennisys paper") {
-    runAllTestsFromDir("paper-benchmarks/jennisys")
+  describe("Singly-linked list with bounds") {
+    runAllTestsFromDir("paper-benchmarks/sll-bounds")
   }
 
-  describe("Benchmarks from Dryad suite") {
-    runAllTestsFromDir("paper-benchmarks/dryad")
+  describe("Singly-linked list with set of elements") {
+    runAllTestsFromDir("paper-benchmarks/sll")
   }
 
+  describe("Sorted list") {
+    runAllTestsFromDir("paper-benchmarks/srtl")
+  }
 
 }

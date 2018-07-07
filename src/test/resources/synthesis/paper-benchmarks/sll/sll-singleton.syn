@@ -5,7 +5,7 @@ singly-linked list: construct a list with one element
 
 { true ; ret :-> a }
 void sll_singleton (int x, loc ret)
-{ len == 1  /\  elems =i {x} ; ret :-> y ** sll(y, len, elems) }
+{ elems =i {x} ; ret :-> y ** sll(y, elems) }
 
 #####
 
