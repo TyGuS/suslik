@@ -126,10 +126,7 @@ def write_latex():
   '''Generate Latex table from the results dictionary'''
   
   total_count = 0
-  # to_def = 0
-  # to_nrt = 0
-  # to_ncc = 0
-  # to_nmus = 0
+  to_count = {var : 0 for var in VARIANTS}
 
   with open(LATEX_FILE, 'w') as outfile:
     for group in groups:
@@ -155,14 +152,9 @@ def write_latex():
         outfile.write ('\n')
         
         total_count = total_count + 1
-        # if result.variant_times['def'] < 0.0:
-           # to_def = to_def + 1 
-        # if result.variant_times['nrt'] < 0.0:
-           # to_nrt = to_nrt + 1 
-        # if result.variant_times['ncc'] < 0.0:
-           # to_ncc = to_ncc + 1 
-        # if result.variant_times['nmus'] < 0.0:
-           # to_nmus = to_nmus + 1 
+        for var in VARIANTS:
+          if result.variant_times[var] < 0.0:
+            to_count[var] = to_count[var] + 1 
         
       outfile.write ('\\hline')
       
@@ -173,10 +165,8 @@ def write_latex():
     print 'Paper not found in ', PAPER_DIR  
       
   print 'Total:', total_count
-  # print 'TO def:', to_def
-  # print 'TO nrt:', to_nrt
-  # print 'TO ncc:', to_ncc
-  # print 'TO nmus:', to_nmus
+  for var in VARIANTS:
+    print 'TO', var, to_count[var]
   
 def generate_variants():
   '''Generate benchmark variants with disables optimizations'''
