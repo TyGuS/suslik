@@ -83,12 +83,12 @@ trait SynthesisRunnerUtil {
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
-    SynStatUtil.log(testName, delta, spec, sresult)
+    SynStatUtil.log(testName, delta, params, spec, sresult)
 
     sresult match {
       case Some((rr, stats)) =>
         testPrintln(s"\n[$testName]:", Console.MAGENTA)
-        if (params != defaultConfig) testPrintln(params.pp) else ()
+        testPrintln(params.pp)
         testPrintln(s"${spec.pp}\n", Console.BLUE)
         testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
         testPrintln(s"Number of backtrackings ${stats.numBack}")

@@ -12,9 +12,9 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
       synthesizeFromSpec(testName, in, out, params)
     }
 
-//  describe("SuSLik should be able synthesize") {
-//    runAllTestsFromDir("paper-examples")
-//  }
+  describe("SuSLik should be able synthesize") {
+    runAllTestsFromDir("paper-examples")
+  }
 
   describe("Integers") {
     runAllTestsFromDir("paper-benchmarks/ints")

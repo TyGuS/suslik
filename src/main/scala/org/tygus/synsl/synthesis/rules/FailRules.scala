@@ -20,9 +20,16 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-fail"
 
+  // Noop rule: never applies (used to replace disabled rules)
+  object Noop extends SynthesisRule with AnyPhase {
+    override def toString: String = "[Fail: noop]"
+
+    def apply(goal: Goal): Seq[Subderivation] = Nil
+  }
+
   // Short-circuits failure if pure post is inconsistent with the pre
   object PostInconsistent extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Norm: post-inconsistent]"
+    override def toString: String = "[Fail: post-inconsistent]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre.phi
@@ -105,7 +112,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   // Short-circuits failure if spatial post doesn't match pre
   // This rule is only applicable if alloc and free aren't
   object HeapUnreachable extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Norm: heap-unreachable]"
+    override def toString: String = "[Fail: heap-unreachable]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       (AllocRule.findTargetHeaplets(goal), FreeRule.findTargetHeaplets(goal)) match {

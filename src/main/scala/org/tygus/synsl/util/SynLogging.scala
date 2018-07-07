@@ -4,7 +4,7 @@ import org.tygus.synsl.language.Statements.Procedure
 import org.tygus.synsl.logic.FunSpec
 import org.tygus.synsl.logic.Specifications._
 import org.tygus.synsl.logic.smt.SMTSolving
-import org.tygus.synsl.synthesis.SynthesisRule
+import org.tygus.synsl.synthesis.{SynConfig, SynthesisRule}
 import scalaz.DList
 
 /**
@@ -105,14 +105,14 @@ object SynStatUtil {
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
       try f(resource) finally resource.close()
 
-  def log(name: String, time: Long, spec: FunSpec, stats: Option[(Procedure, SynStats)]): Unit = {
+  def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(Procedure, SynStats)]): Unit = {
     val statRow = (stats match {
       case Some((proc, st)) => List(proc.body.size, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
       case None => DList.replicate(4, "FAIL").toList
     }).mkString(", ")
 
     val specSize = spec.pre.size + spec.post.size
-    val data = s"$name, $time, $specSize, $statRow\n"
+    val data = s"$name, $time, $specSize, $statRow, ${config.pp}\n"
     using(new FileWriter(myFile, true))(_.write(data))
   }
 

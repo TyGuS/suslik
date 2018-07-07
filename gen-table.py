@@ -12,6 +12,7 @@ import csv
 CSV_FILE = 'stats.csv'                                        # CSV-input file
 LATEX_FILE = 'results.tex'                                    # Latex-output file
 PAPER_DIR = '/mnt/h/Work/papers/synsl/synsl/popl19-draft/tab' # Directory where to copy the latex file (if exists)
+SOURCES = ['natural', 'jennisys', 'dryad']
 
 class Benchmark:
     def __init__(self, name, description, source=[]):
@@ -86,6 +87,13 @@ def read_csv():
         for row in statsReader:
             name = row['Name']
             results [name] = SynthesisResult(name, float(row['Time'])/1000, row['Spec Size'], row['Code Size'])   
+            
+def footnotes(sources):
+  res = ''
+  for s in sources:
+    i = SOURCES.index(s)
+    res = res + '\\textsuperscript{' + str(i) + '}'
+  return res    
 
 def write_latex():
     '''Generate Latex table from the results dictionary'''
@@ -105,9 +113,10 @@ def write_latex():
             outfile.write ('}}}')            
 
             for b in group.benchmarks:
-                result = results [b.name]                
+                result = results [b.name]
+                
                 row = \
-                    ' & ' + b.description +\
+                    ' & ' + b.description + footnotes(b.source) +\
                     ' & ' + result.spec_size + \
                     ' & ' + result.code_size + \
                     ' & ' + format_time(result.time) + ' \\\\'
