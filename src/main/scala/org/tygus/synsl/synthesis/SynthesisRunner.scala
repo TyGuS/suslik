@@ -103,8 +103,24 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }.text("maximum unfolding depth in the pre-condition; default: 1")
 
     opt[Boolean]('b', "branchAbduction").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(branchAbductionEnabled = b))
-    }.text("abduct conditional branches; default: false")
+      rc.copy(synConfig = rc.synConfig.copy(branchAbduction = b))
+    }.text("abduce conditional branches; default: false")
+
+    opt[Boolean](name = "commute").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(commute = b))
+    }.text("only try commutative rule applications in one order; default: true")
+
+    opt[Boolean](name = "phased").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(phased = b))
+    }.text("split rules into unfolding and flat phases; default: true")
+
+    opt[Boolean](name = "fail").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(fail = b))
+    }.text("enable early failure rules; default: true")
+
+    opt[Boolean](name = "invert").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(invert = b))
+    }.text("enable invertible rules; default: true")
 
     opt[Boolean]('f', "printFailed").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printFailed = b))

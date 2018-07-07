@@ -90,7 +90,7 @@ trait Synthesis extends SepLogicUtils {
             }
           case Seq() =>
             // All alternatives have failed
-            if (r.isInstanceOf[InvertibleRule]) {
+            if (config.invert && r.isInstanceOf[InvertibleRule]) {
               // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
               printLog(List((s"${r.toString} All sub-derivations failed: invertible rule, do not backtrack.", MAGENTA)))
               None
@@ -169,7 +169,7 @@ trait Synthesis extends SepLogicUtils {
         }
 
         // TODO: This optimisation interferes with ApplyHypothesis rule - see beyond/abduct/list-free-frame.syn
-        val subderivations = if (config.commuteEnabled)
+        val subderivations = if (config.commute)
             allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
           else
             allSubderivations
