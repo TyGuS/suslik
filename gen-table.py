@@ -126,7 +126,7 @@ def store_result(name, time, spec_size, code_size, variant = 'none'):
 def footnotes(sources):
   res = ''
   for s in sources:
-    i = SOURCES.index(s)
+    i = SOURCES.index(s) + 1
     res = res + '\\textsuperscript{' + str(i) + '}'
   return res  
 
