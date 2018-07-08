@@ -168,7 +168,6 @@ trait Synthesis extends SepLogicUtils {
           }
         }
 
-        // TODO: This optimisation interferes with ApplyHypothesis rule - see beyond/abduct/list-free-frame.syn
         val subderivations = if (config.commute)
             allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
           else
