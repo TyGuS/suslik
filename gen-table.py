@@ -18,10 +18,11 @@ SOURCES = ['natural', 'jennisys', 'dryad']
 VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
 
 class Benchmark:
-  def __init__(self, name, description, source=[]):
+  def __init__(self, name, description, source=[], ntime=-3.0):
     self.name = name        # Id (corresponds to test file name)
     self.description = description  # Description (in the table)
     self.source = source      # Where is this benchmark from (in the table)
+    self.natural_time = ntime
 
   def str(self):
     return self.name + ': ' + self.description
@@ -33,28 +34,29 @@ class BenchmarkGroup:
 
 ALL_BENCHMARKS = [
   BenchmarkGroup("Integers",  [
-    Benchmark('ints/swap', 'swap two', []),
+    Benchmark('ints/swap', 'swap two'),
     Benchmark('ints/min2', 'min of two', ['jennisys']),
     ]),    
   BenchmarkGroup("Linked List", [
-    Benchmark('sll-bounds/sll-len', 'length', ['natural']),
-    Benchmark('sll-bounds/sll-max', 'max', ['natural']),
-    Benchmark('sll-bounds/sll-min', 'min', ['natural']),
+    Benchmark('sll-bounds/sll-len', 'length', ['natural'], 12.0),
+    Benchmark('sll-bounds/sll-max', 'max', ['natural'], 11.0),
+    Benchmark('sll-bounds/sll-min', 'min', ['natural'], 23.0),
     Benchmark('sll/sll-singleton', 'singleton', ['jennisys']),
-    Benchmark('sll/sll-free', 'dispose', []),
-    Benchmark('sll/sll-copy', 'copy', []),
+    Benchmark('sll/sll-free', 'dispose'),
+    Benchmark('sll/sll-copy', 'copy'),
     Benchmark('sll/sll-append', 'append', ['dryad']),
     ]),
   BenchmarkGroup("Sorted list", [
-    Benchmark('srtl/srtl-prepend', 'prepend', ['natural']),
-    Benchmark('srtl/srtl-insert', 'insert', ['natural']),
-    Benchmark('srtl/insertion-sort', 'insertion sort', ['natural']),
+    Benchmark('srtl/srtl-prepend', 'prepend', ['natural'], 8.0),
+    Benchmark('srtl/srtl-insert', 'insert', ['natural'], 28.0),
+    Benchmark('srtl/insertion-sort', 'insertion sort', ['natural'], 94.0),
     ]),
   BenchmarkGroup("Tree", [
-    Benchmark('tree/tree-size', 'size', []),
-    Benchmark('tree/tree-free', 'dispose', []),
-    Benchmark('tree/tree-copy', 'copy', []),
-    Benchmark('tree/tree-flatten', 'flatten to list', []),
+    Benchmark('tree/tree-size', 'size'),
+    Benchmark('tree/tree-free', 'dispose'),
+    Benchmark('tree/tree-copy', 'copy'),
+    Benchmark('tree/tree-flatten', 'flatten w/append'),
+    Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
     ]),
 ]
 
@@ -85,8 +87,11 @@ def format_time(t):
   else:
     return '{0:0.1f}'.format(t)
     
-def format_ratio(m, n):
-  return '{0:0.1f}'.format(float(m)/float(n))
+def format_ratio(m, n, precision = 1):
+  if m < 0.0:
+    return ''
+  else:
+    return ('{0:0.' + str(precision) + 'f}').format(m/n) + 'x'
     
 
 def read_csv():
@@ -149,13 +154,14 @@ def write_latex():
         row = \
           ' & ' + b.description + footnotes(b.source) +\
           ' & ' + result.code_size + \
-          ' & ' + format_ratio(result.code_size, result.spec_size) + \
+          ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
           ' & ' + format_time(result.time) + \
           ' & ' + format_time(result.variant_times['phased']) + \
           ' & ' + format_time(result.variant_times['invert']) + \
           ' & ' + format_time(result.variant_times['fail']) + \
           ' & ' + format_time(result.variant_times['commute']) + \
-          ' & ' + format_time(result.variant_times['all']) + ' \\\\'
+          ' & ' + format_time(result.variant_times['all']) + \
+          ' & ' + format_ratio(b.natural_time, result.time, 0) +' \\\\'
           
         outfile.write (row)
         outfile.write ('\n')
