@@ -2,14 +2,13 @@
 
 ## Immediate fixes and extensions
 
-* Unify expressions and pure formulas?
-* Keep pure formulas in canonical form
-* Parse and handle blanks
-* Type-check declarations in the resolver, add ghosts to gamma
-* Add a flag to control logging output? [Ilya]
-* Pick logic for locations and implement proper subsumption of spatial formulas
-* Proper syntax for declarations (function signatures, inductive predicates, etc)
-* (Fix the parser for pointers to pointer)
+* [DONE] Unify expressions and pure formulas?
+* [DONE] Keep pure formulas in canonical form
+* [DONE] Parse and handle blanks
+* [DONE] Type-check declarations in the resolver, add ghosts to gamma
+* [DONE] Add a flag to control logging output? [Ilya]
+* [DONE] Pick logic for locations and implement proper subsumption of spatial formulas
+* [DONE] Proper syntax for declarations (function signatures, inductive predicates, etc)
 * Interpreter for imperative programs
 
 ## More expressive SL
@@ -19,10 +18,9 @@
     - [DONE] Parser for definitions
     - [DONE] Predicate occurrences in spatial formulas
     - [DONE] Enhance parser for spatial formulas
-    - Synthesis rules for list-like stuff
-      - What are the simples examples?
-      - Perhaps, the simplest is deallocation, 
-        so we need implementation for `free()`
+    - [DONE] Synthesis rules for list-like stuff
+      - [DONE] What are the simples examples?
+      - [DONE] Perhaps, the simplest is deallocation, so we need implementation for `free()`
     - Higher-order list predicates
 
 ## Synthesis machinery
