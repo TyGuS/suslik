@@ -40,12 +40,15 @@ it as a standalone application (given that the runnable `scala` is in your path)
 ### Case Studies
 
 At the moment, many interesting case studies can be found in the folder
-`$PROJECT_ROOT/src/test/resources/synthesis`.
+`$PROJECT_ROOT/src/test/resources/synthesis`. Specifically, examples
+and benchmarks related to the paper on SSL  are in the folders
+`paper-examples` and `paper-benchmarks`.
 
 Each set of case studies is in a single folder (e.g., `copy`). The definitions
 of inductive predicates and auxiliary function specifications (lemmas) are given
-in the single `.def`-file, typically present in each such folder. For instance,
-in `paper-examples`, it is `predicates.def`, whose contents are as follows:
+in the single `.def`-file, typically present in each such folder.
+
+For instance, in `paper-examples`, it is `predicates.def`, whose contents are as follows:
 
 ```
 predicate lseg(loc x, loc y, set s) {
