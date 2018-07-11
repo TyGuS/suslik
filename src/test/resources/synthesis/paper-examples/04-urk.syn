@@ -1,0 +1,13 @@
+Example (4) from the paper (urk)
+
+###
+
+{ a == x  /\  y == a ; x :-> y ** y :-> z}
+void urk (loc x, loc y)
+{ true ; y :-> a ** x :-> y}
+
+###
+
+void urk (loc x, loc y) {
+  error;
+}

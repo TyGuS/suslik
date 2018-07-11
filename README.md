@@ -1,7 +1,7 @@
 # Synthetic Separation Logic
 
 [![Build Status](https://travis-ci.org/TyGuS/synsl.svg?branch=master)](https://travis-ci.org/TyGuS/synsl)
-[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/synsl/master/LICENSE)
+[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE)
 
 Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
@@ -12,7 +12,7 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 * [Java SE Development Kit 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 * [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
 * [Z3 SMT solver](https://github.com/Z3Prover/z3)
-* [Scala](https://www.scala-lang.org/download/) (version >= 2.12.5) - to run the standalone artifact
+* [Scala](https://www.scala-lang.org/download/) (version >= 2.12.6) - to run the standalone artifact
 
 ### Building and Testing the Project
 
@@ -40,12 +40,15 @@ it as a standalone application (given that the runnable `scala` is in your path)
 ### Case Studies
 
 At the moment, many interesting case studies can be found in the folder
-`$PROJECT_ROOT/src/test/resources/synthesis`.
+`$PROJECT_ROOT/src/test/resources/synthesis`. Specifically, examples
+and benchmarks related to the paper on SSL  are in the folders
+`paper-examples` and `paper-benchmarks`.
 
 Each set of case studies is in a single folder (e.g., `copy`). The definitions
 of inductive predicates and auxiliary function specifications (lemmas) are given
-in the single `.def`-file, typically present in each such folder. For instance,
-in `paper-examples`, it is `predicates.def`, whose contents are as follows:
+in the single `.def`-file, typically present in each such folder.
+
+For instance, in `paper-examples`, it is `predicates.def`, whose contents are as follows:
 
 ```
 predicate lseg(loc x, loc y, set s) {
@@ -129,10 +132,10 @@ goalName                      a test case name (the file under the specified fol
 
 Once the synthesis is done execution statistics will be available in `stats.csv`.
 
-For instance, to synthesize `paper-examples/19-listcopy.syn` and see the derivation trace, run
+For instance, to synthesize `paper-examples/17-listcopy.syn` and see the derivation trace, run
 
 ```
-suslik src/test/resources/synthesis/paper-examples 19-listcopy
+suslik src/test/resources/synthesis/paper-examples 17-listcopy
 ```
 
 If you are going to synthesize case studies from the provided set, you may only type the folder under 
