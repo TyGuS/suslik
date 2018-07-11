@@ -72,7 +72,8 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.FrameFlat,
     UnificationRules.HeapUnifyFlat,
     OperationalRules.AllocRule,
-    OperationalRules.WriteRule,
+    OperationalRules.WriteRuleOld,
+//    OperationalRules.WriteRule,
     OperationalRules.FreeRule,
     if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
 
