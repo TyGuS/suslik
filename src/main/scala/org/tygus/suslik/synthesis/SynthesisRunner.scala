@@ -17,16 +17,21 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   val synthesis: Synthesis = new PhasedSynthesis
 
   /**
-    * Running a single test file (2nd argument) from a folder (1 argument) under
-    * ./src/test/resources/synthesis
+    * Comman line args:
     *
-    * For instance, you can run from IntelliJ config by passing, e.g.,
-    * simple emp
-    * as program arguments
+    * folder                        a folder with the predicate definitions, lemmas, and synthesis goal file
+    * goalName                      a test case name (the file under the specified folder, called goalName.syn)
     *
-    * You can also do it using sbt from the command line (from the project root):
+    * -r, --trace <value>           print the entire derivation trace; default: true
+    * -t, --timeout <value>         timeout for the derivation; default (in milliseconds): 300000 (5 min)
+    * -d, --depth <value>           derivation depth; default: 100
+    * -a, --assert <value>          check that the synthesized result agains the expected one; default: false
+    * -c, --maxCloseDepth <value>   maximum unfolding depth in the post-condition; default: 1
+    * -o, --maxOpenDepth <value>    maximum unfolding depth in the pre-condition; default: 1
+    * -b, --branchAbduction <value> abduct conditional branches; default: false
+    * -f, --printFailed <value>     print failed rule applications; default: false
     *
-    * sbt "test:runMain org.tygus.synsl.synthesis.SynthesisTestRunner paper-examples 01-swap"
+    * --help                        prints the help reference
     *
     */
   def main(args: Array[String]): Unit = handleInput(args)

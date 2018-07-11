@@ -22,7 +22,7 @@ class PreambleParserTests extends FunSpec with Matchers {
     """
 
   def parseSimpleSpec(text: String) {
-    val parser = new SynslParser
+    val parser = new SSLParser
     val result = parser.parseGoal(text)
     // So far, just assert that the result is a success
     assert(result.successful, result)
@@ -32,7 +32,7 @@ class PreambleParserTests extends FunSpec with Matchers {
     println(res.pp)
   }
 
-  describe("Parser for SynSL definitions") {
+  describe("Parser for SSL definitions") {
     it("should parse a list predicate") {
       parseSimpleSpec(pred1)
     }

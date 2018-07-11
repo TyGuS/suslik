@@ -6,7 +6,7 @@ import scala.util.parsing.input.CharArrayReader.EofCh
 /**
   * @author Ilya Sergey
   */
-class SynslLexical extends StdLexical {
+class SSLLexical extends StdLexical {
 
   // Add keywords
   reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate", "in")

@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis
 import java.io.File
 
 import org.tygus.suslik.logic.Resolver._
-import org.tygus.suslik.parsing.SynslParser
+import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil}
 
 import scala.io.Source
@@ -63,7 +63,7 @@ trait SynthesisRunnerUtil {
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) : Unit = {
-    val parser = new SynslParser
+    val parser = new SSLParser
     val res = parser.parseGoal(text)
     if (!res.successful) {
       throw SynthesisException(s"Failed to parse the input.")

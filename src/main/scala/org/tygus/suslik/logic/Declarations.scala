@@ -3,7 +3,7 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.language.SynslType
+import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.synthesis.SynConfig
 import org.tygus.suslik.synthesis._
 
@@ -22,7 +22,7 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
   * @param name  function name
   * @param rType function return type
   */
-case class FunSpec(name: Ident, rType: SynslType, params: Formals,
+case class FunSpec(name: Ident, rType: SSLType, params: Formals,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
   override def pp: String = {
     s"${pre.pp}\n${rType.pp} " +

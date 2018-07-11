@@ -3,13 +3,13 @@ package org.tygus.suslik.unification
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.logic.PureLogicUtils
-import org.tygus.suslik.parsing.SynslParser
+import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.util.SynLogLevels
 
 class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils {
 
   private def getSourceTarget(sourceText: String, targetText: String) = {
-    val parser = new SynslParser
+    val parser = new SSLParser
     val targetRes = parser.parseUnificationGoal(targetText)
     val sourceRes = parser.parseUnificationGoal(sourceText)
     assert(targetRes.successful, targetRes)

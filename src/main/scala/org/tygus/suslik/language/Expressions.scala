@@ -15,18 +15,18 @@ object Expressions {
 
   sealed abstract class BinOp extends PrettyPrinting {
     def level: Int
-    def lType: SynslType
-    def rType: SynslType
-    def resType: SynslType
+    def lType: SSLType
+    def rType: SSLType
+    def resType: SSLType
   }
 
   sealed abstract class RelOp extends BinOp {
-    def resType: SynslType = BoolType
+    def resType: SSLType = BoolType
   }
   sealed abstract class LogicOp extends BinOp {
-    def lType: SynslType = BoolType
-    def rType: SynslType = BoolType
-    def resType: SynslType = BoolType
+    def lType: SSLType = BoolType
+    def rType: SSLType = BoolType
+    def resType: SSLType = BoolType
   }
   trait SymmetricOp
   trait AssociativeOp
@@ -34,34 +34,34 @@ object Expressions {
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "+"
-    def lType: SynslType = IntType
-    def rType: SynslType = IntType
-    def resType: SynslType = IntType
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
+    def resType: SSLType = IntType
   }
   object OpMinus extends BinOp {
     def level: Int = 4
     override def pp: String = "-"
-    def lType: SynslType = IntType
-    def rType: SynslType = IntType
-    def resType: SynslType = IntType
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
+    def resType: SSLType = IntType
   }
   object OpEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=="
-    def lType: SynslType = IntType
-    def rType: SynslType = IntType
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
   }
   object OpLeq extends RelOp {
     def level: Int = 3
     override def pp: String = "<="
-    def lType: SynslType = IntType
-    def rType: SynslType = IntType
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
   }
   object OpLt extends RelOp {
     def level: Int = 3
     override def pp: String = "<"
-    def lType: SynslType = IntType
-    def rType: SynslType = IntType
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
   }
   object OpAnd extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
@@ -74,21 +74,21 @@ object Expressions {
   object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "++"
-    def lType: SynslType = IntSetType
-    def rType: SynslType = IntSetType
-    def resType: SynslType = IntSetType
+    def lType: SSLType = IntSetType
+    def rType: SSLType = IntSetType
+    def resType: SSLType = IntSetType
   }
   object OpIn extends RelOp {
     def level: Int = 3
     override def pp: String = "in"
-    def lType: SynslType = IntType
-    def rType: SynslType = IntSetType
+    def lType: SSLType = IntType
+    def rType: SSLType = IntSetType
   }
   object OpSetEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=i"
-    def lType: SynslType = IntSetType
-    def rType: SynslType = IntSetType
+    def lType: SSLType = IntSetType
+    def rType: SSLType = IntSetType
   }
 
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
@@ -138,12 +138,12 @@ object Expressions {
     // Convenience operators for building expressions
     def |=| (other: Expr): Expr = BinaryExpr(OpEq, this, other)
     def |/=| (other: Expr): Expr = (this |=| other).not
-    def eq(other: Expr, t: SynslType): Expr = t match {
+    def eq(other: Expr, t: SSLType): Expr = t match {
       case IntSetType => BinaryExpr(OpSetEq, this, other)
       case BoolType => this <==> other
       case _ => this |=| other
     }
-    def neq(other: Expr, t: SynslType): Expr = this.eq(other, t).not
+    def neq(other: Expr, t: SSLType): Expr = this.eq(other, t).not
     def |<=| (other: Expr): Expr = BinaryExpr(OpLeq, this, other)
 
     def not: Expr = UnaryExpr(OpNot, this)
@@ -152,9 +152,9 @@ object Expressions {
     def ==> (other: Expr): Expr = this.not || other
     def <==> (other: Expr): Expr = (this ==> other) && (other ==> this)
 
-    def getType(gamma: Gamma): Option[SynslType]
+    def getType(gamma: Gamma): Option[SSLType]
 
-    def resolve(gamma: Gamma, target: Option[SynslType]): Option[Gamma] = this match {
+    def resolve(gamma: Gamma, target: Option[SSLType]): Option[Gamma] = this match {
       case v@Var(_) => gamma.get(v) match {
         case Some(t) => t.supertype(target) match {
           case None => None
@@ -179,7 +179,7 @@ object Expressions {
         } else None
       case SetLiteral(elems) =>
         if (IntSetType.conformsTo(target)) {
-          elems.foldLeft[Option[Map[Var, SynslType]]](Some(gamma))((go, e) => go match {
+          elems.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, e) => go match {
             case None => None
             case Some(g) => e.resolve(g, Some(IntType))
           })
@@ -231,7 +231,7 @@ object Expressions {
       Var(tmpName)
     }
 
-    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = gamma.get(this)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = gamma.get(this)
   }
 
   // Program-level constant
@@ -246,13 +246,13 @@ object Expressions {
       */
     def isNull: Boolean = value == 0
 
-    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(IntType)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(IntType)
   }
 
   val NilPtr = IntConst(0)
 
   case class BoolConst(value: Boolean) extends Const(value) {
-    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(BoolType)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(BoolType)
   }
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
@@ -260,7 +260,7 @@ object Expressions {
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
-    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(op.resType)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(op.resType)
   }
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
@@ -268,20 +268,20 @@ object Expressions {
 
     override def level = 5
     override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
-    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(BoolType)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(BoolType)
   }
 
   case class SetLiteral(elems: List[Expr]) extends Expr {
     override def pp: String = s"{${elems.map(_.pp).mkString(", ")}}"
     override def subst(sigma: Map[Var, Expr]): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
-    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = Some(IntSetType)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(IntSetType)
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
     override def level: Int = 1
     override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
-    def getType(gamma: Map[Var, SynslType]): Option[SynslType] = left.getType(gamma)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = left.getType(gamma)
   }
 
 }

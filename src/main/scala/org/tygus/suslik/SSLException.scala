@@ -6,5 +6,5 @@ package org.tygus.suslik
   * @author Ilya Sergey
   */
 
-abstract class SynSLException(qualifier: String, val cause: String)
+abstract class SSLException(qualifier: String, val cause: String)
     extends Exception(s"[$qualifier] $cause")

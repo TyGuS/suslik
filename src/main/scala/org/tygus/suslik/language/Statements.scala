@@ -130,13 +130,13 @@ object Statements {
   case object Magic extends Statement
 
   // let to = malloc(n); rest
-  case class Malloc(to: Var, tpe: SynslType, sz: Int = 1) extends Statement
+  case class Malloc(to: Var, tpe: SSLType, sz: Int = 1) extends Statement
 
   // free(v); rest
   case class Free(v: Var) extends Statement
 
   // let to = *from; rest
-  case class Load(to: Var, tpe: SynslType, from: Var,
+  case class Load(to: Var, tpe: SSLType, from: Var,
                   offset: Int = 0) extends Statement
 
   // *to.offset = e; rest
@@ -145,7 +145,7 @@ object Statements {
   // f(args); rest
   // or
   // let to = f(args); rest
-  case class Call(to: Option[(Var, SynslType)], fun: Var, args: Seq[Expr]) extends Statement
+  case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr]) extends Statement
 
   case class SeqComp(s1: Statement, s2: Statement) extends Statement {
     def simplify: Statement = {
@@ -174,7 +174,7 @@ object Statements {
   case class Guarded(cond: Expr, body: Statement) extends Statement
 
   // A procedure
-  case class Procedure(name: String, tp: SynslType, formals: Seq[(SynslType, Var)], body: Statement) {
+  case class Procedure(name: String, tp: SSLType, formals: Seq[(SSLType, Var)], body: Statement) {
 
     def pp: String =
       s"""

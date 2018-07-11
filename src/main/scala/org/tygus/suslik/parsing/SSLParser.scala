@@ -9,18 +9,18 @@ import org.tygus.suslik.logic.Specifications._
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
 
-class SynslParser extends StandardTokenParsers with SepLogicUtils {
+class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
-  override val lexical = new SynslLexical
+  override val lexical = new SSLLexical
 
-  def typeParser: Parser[SynslType] =
+  def typeParser: Parser[SSLType] =
     ("int" ^^^ IntType
         | "bool" ^^^ BoolType
         | "loc" ^^^ LocType
         | "set" ^^^ IntSetType
         | "void" ^^^ VoidType)
 
-  def formal: Parser[(SynslType, Var)] = typeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
+  def formal: Parser[(SSLType, Var)] = typeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
   def intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))

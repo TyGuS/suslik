@@ -178,7 +178,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   def vars: List[Var] = chunks.flatMap(_.vars)
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
-    chunks.foldLeft[Option[Map[Var, SynslType]]](Some(gamma))((go, h) => go match {
+    chunks.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, h) => go match {
       case None => None
       case Some(g) => h.resolve(g, env)
     })

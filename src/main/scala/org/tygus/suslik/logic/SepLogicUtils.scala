@@ -1,6 +1,6 @@
 package org.tygus.suslik.logic
 
-import org.tygus.suslik.SynSLException
+import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions.{Expr, IntConst, Var}
 import org.tygus.suslik.logic.unification.SpatialUnification.tryUnify
 
@@ -129,5 +129,5 @@ trait SepLogicUtils extends PureLogicUtils {
 
 }
 
-case class SepLogicException(msg: String) extends SynSLException("seplog", msg)
+case class SepLogicException(msg: String) extends SSLException("seplog", msg)
 

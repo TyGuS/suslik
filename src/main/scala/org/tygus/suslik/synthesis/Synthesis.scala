@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.SynSLException
+import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._

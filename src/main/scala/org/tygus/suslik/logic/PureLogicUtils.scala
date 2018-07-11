@@ -1,6 +1,6 @@
 package org.tygus.suslik.logic
 
-import org.tygus.suslik.SynSLException
+import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
 
 /**
@@ -194,4 +194,4 @@ trait PureLogicUtils {
 
 }
 
-case class PureLogicException(msg: String) extends SynSLException("pure", msg)
+case class PureLogicException(msg: String) extends SSLException("pure", msg)

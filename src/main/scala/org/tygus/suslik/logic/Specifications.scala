@@ -207,10 +207,10 @@ object Specifications {
 
     def isExistential(x: Var): Boolean = existentials.contains(x)
 
-    def addProgramVar(v: Var, t: SynslType): Goal =
+    def addProgramVar(v: Var, t: SSLType): Goal =
       this.copy(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
 
-    def getType(x: Var): SynslType = {
+    def getType(x: Var): SSLType = {
       gamma.get(x) match {
         case Some(t) => t
         case None => VoidType

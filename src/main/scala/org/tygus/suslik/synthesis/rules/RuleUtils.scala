@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.SynSLException
+import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Statements.{Load, SeqComp, Statement}
 import org.tygus.suslik.synthesis.{StmtProducer, Subderivation}
 
@@ -12,7 +12,7 @@ trait RuleUtils {
 
   val exceptionQualifier: String
 
-  case class SynthesisRuleException(msg: String) extends SynSLException(exceptionQualifier, msg)
+  case class SynthesisRuleException(msg: String) extends SSLException(exceptionQualifier, msg)
 
   protected[synthesis] def ruleAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisRuleException(msg)
 

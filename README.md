@@ -1,7 +1,7 @@
 # Synthetic Separation Logic
 
-[![Build Status](https://travis-ci.org/TyGuS/synsl.svg?branch=master)](https://travis-ci.org/TyGuS/synsl)
-[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/synsl/master/LICENSE)
+[![Build Status](https://travis-ci.org/TyGuS/suslik.svg?branch=master)](https://travis-ci.org/TyGuS/suslik)
+[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE)
 
 Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
@@ -132,10 +132,10 @@ goalName                      a test case name (the file under the specified fol
 
 Once the synthesis is done execution statistics will be available in `stats.csv`.
 
-For instance, to synthesize `paper-examples/19-listcopy.syn` and see the derivation trace, run
+For instance, to synthesize `paper-examples/17-listcopy.syn` and see the derivation trace, run
 
 ```
-suslik src/test/resources/synthesis/paper-examples 19-listcopy
+suslik src/test/resources/synthesis/paper-examples 17-listcopy
 ```
 
 If you are going to synthesize case studies from the provided set, you may only type the folder under 
