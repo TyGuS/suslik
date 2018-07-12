@@ -23,9 +23,9 @@ void tree_flatten (loc z) {
     list_append(z, y22);
     let z12 = *z;
     let y3 = malloc(2);
+    *z = y3;
+    *(y3 + 1) = z12;
     free(x2);
     *y3 = v2;
-    *(y3 + 1) = z12;
-    *z = y3;
   }
 }

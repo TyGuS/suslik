@@ -18,9 +18,9 @@ void dll_to_sll (loc f) {
     dll_to_sll(f);
     let i12 = *f;
     let i2 = malloc(2);
+    *f = i2;
+    *(i2 + 1) = i12;
     free(x2);
     *i2 = v2;
-    *(i2 + 1) = i12;
-    *f = i2;
   }
 }

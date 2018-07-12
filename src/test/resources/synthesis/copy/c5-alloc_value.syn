@@ -13,6 +13,6 @@ void foo(loc r, int v)
 
 void foo (loc r, int v) {
   let Y2 = malloc(2);
-  *Y2 = v;
   *r = Y2;
+  *Y2 = v;
 }
