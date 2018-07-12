@@ -6,7 +6,7 @@ should be able to allocate structures
 ###
 void createAccount (loc x, int bal, int lim) {
   let y2 = malloc(2);
-  *(y2 + 1) = bal;
-  *y2 = lim;
   *x = y2;
+  *y2 = lim;
+  *(y2 + 1) = bal;
 }

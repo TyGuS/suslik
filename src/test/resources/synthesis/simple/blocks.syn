@@ -10,8 +10,8 @@ void create(loc x)
 
 void create (loc x) {
   let y2 = malloc(3);
-  *(y2 + 2) = x;
-  *(y2 + 1) = 2;
-  *y2 = 1;
   *x = y2;
+  *y2 = 1;
+  *(y2 + 1) = 2;
+  *(y2 + 2) = x;
 }

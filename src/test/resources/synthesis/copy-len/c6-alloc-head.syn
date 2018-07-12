@@ -13,6 +13,6 @@ void list_copy(loc r, int v, loc t3)
 
 void list_copy (loc r, int v, loc t3) {
   let Y2 = malloc(2);
-  *(Y2 + 1) = t3;
   *r = Y2;
+  *(Y2 + 1) = t3;
 }

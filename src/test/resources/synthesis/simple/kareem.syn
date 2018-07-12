@@ -6,8 +6,8 @@ void kareem1(loc x, loc y, loc z)
 ###
 void kareem1 (loc x, loc y, loc z) {
   let v2 = *x;
-  *v2 = x;
+  *x = y;
   *z = x;
   *y = z;
-  *x = y;
+  *v2 = x;
 }
