@@ -43,7 +43,7 @@ ALL_BENCHMARKS = [
     Benchmark('sll-bounds/sll-min', 'min', ['natural'], 23.0),
     Benchmark('sll/sll-singleton', 'singleton', ['jennisys']),
     Benchmark('sll/sll-free', 'dispose'),
-    Benchmark('sll/sll-init', 'initialize'),
+    # Benchmark('sll/sll-init', 'initialize'),
     Benchmark('sll/sll-copy', 'copy', ['dryad']),
     Benchmark('sll/sll-append', 'append', ['dryad']),
     Benchmark('sll/sll-delete-all', 'delete', ['dryad']),
@@ -59,6 +59,9 @@ ALL_BENCHMARKS = [
     Benchmark('tree/tree-copy', 'copy'),
     Benchmark('tree/tree-flatten', 'flatten w/append'),
     Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
+    ]),
+  BenchmarkGroup("BST", [
+    Benchmark('tree/tree-size', 'insert', ['natural'], 343.0),
     ]),
 ]
 
