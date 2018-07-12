@@ -43,7 +43,7 @@ ALL_BENCHMARKS = [
     Benchmark('sll-bounds/sll-min', 'min', ['natural'], 23.0),
     Benchmark('sll/sll-singleton', 'singleton', ['jennisys']),
     Benchmark('sll/sll-free', 'dispose'),
-    # Benchmark('sll/sll-init', 'initialize'),
+    Benchmark('sll/sll-init', 'initialize'),
     Benchmark('sll/sll-copy', 'copy', ['dryad']),
     Benchmark('sll/sll-append', 'append', ['dryad']),
     Benchmark('sll/sll-delete-all', 'delete', ['dryad']),
@@ -61,7 +61,9 @@ ALL_BENCHMARKS = [
     Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
     ]),
   BenchmarkGroup("BST", [
-    Benchmark('tree/tree-size', 'insert', ['natural'], 343.0),
+    Benchmark('bst/bst-insert', 'insert', ['natural'], 343.0),
+    Benchmark('bst/bst-left-rotate', 'rotate left', ['natural'], 17.0),
+    Benchmark('bst/bst-right-rotate', 'rotate right', ['natural'], 14.0),
     ]),
 ]
 
@@ -166,7 +168,7 @@ def write_latex():
           ' & ' + format_time(result.variant_times['fail']) + \
           ' & ' + format_time(result.variant_times['commute']) + \
           ' & ' + format_time(result.variant_times['all']) + \
-          ' & ' + format_ratio(b.natural_time, result.time, 0) +' \\\\'
+          ' & ' + format_ratio(b.natural_time, result.time, 1) +' \\\\'
           
         outfile.write (row)
         outfile.write ('\n')
