@@ -1,0 +1,10 @@
+#. this -o 2 -c 2
+binary search tree: rotate right
+
+#####
+
+{ 0 <= n /\ not (x == 0) ; ret :-> a ** bst(x, n, lo, hi) }
+void bst_remove_root (loc x, loc ret)
+{ n1 == n - 1 ; ret :-> y ** bst(y, n1, lo1, hi1)  }
+
+#####
