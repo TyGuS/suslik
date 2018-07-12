@@ -11,6 +11,6 @@ void srtl_prepend (loc x, int k, loc r)
 void srtl_prepend (loc x, int k, loc r) {
   let y2 = malloc(2);
   *r = y2;
-  *y2 = k;
   *(y2 + 1) = x;
+  *y2 = k;
 }
