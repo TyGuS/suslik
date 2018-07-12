@@ -21,7 +21,7 @@ void insertion_sort (loc x, loc r) {
     let y12 = *r;
     srtl_insert(y12, x);
     let y22 = *x;
-    *x = v2;
     *r = y22;
+    *x = v2;
   }
 }

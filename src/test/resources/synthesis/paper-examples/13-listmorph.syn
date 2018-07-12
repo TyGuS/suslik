@@ -16,10 +16,10 @@ void listmorph (loc x, loc r) {
     listmorph(nxt2, r);
     let y12 = *r;
     let y2 = malloc(3);
-    free(x);
-    *(y2 + 1) = v2 + 1;
-    *y2 = v2;
-    *(y2 + 2) = y12;
     *r = y2;
+    *(y2 + 2) = y12;
+    free(x);
+    *y2 = v2;
+    *(y2 + 1) = v2 + 1;
   }
 }

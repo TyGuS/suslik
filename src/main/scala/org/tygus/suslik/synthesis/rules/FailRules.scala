@@ -76,11 +76,11 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val atoms = atomCandidates(goal)
       // Toggle this to enable abduction of conjunctions
       // (without branch pruning, produces too many branches)
-      atoms
-//      for {
-//        subset <- atoms.toSet.subsets.toSeq
-//        if subset.nonEmpty
-//      } yield mkConjunction(subset.toList)
+//      atoms
+      for {
+        subset <- atoms.toSet.subsets.toSeq
+        if subset.nonEmpty
+      } yield simplify(mkConjunction(subset.toList))
     }
 
     def guardedCandidates(goal: Goal, pre: PFormula, post: PFormula): Seq[Subderivation] =

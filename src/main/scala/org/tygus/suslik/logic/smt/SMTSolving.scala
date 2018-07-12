@@ -51,7 +51,9 @@ object SMTSolving extends Core
   def emptySetSymbol = SimpleQId(SymbolId(SSymbol("empty")))
   def setInsertSymbol = SimpleQId(SymbolId(SSymbol("insert")))
   def setUnionSymbol = SimpleQId(SymbolId(SSymbol("union")))
+  def setDiffSymbol = SimpleQId(SymbolId(SSymbol("difference")))
   def setMemberSymbol = SimpleQId(SymbolId(SSymbol("member")))
+  def setSubsetSymbol = SimpleQId(SymbolId(SSymbol("subset")))
   def emptySetTerm: Term = QIdTerm(emptySetSymbol)
 
   // Commands to be executed before solving starts
@@ -65,8 +67,11 @@ object SMTSolving extends Core
       "(define-sort SetInt () (Array Int Bool))",
       "(define-fun empty () SetInt ((as const SetInt) false))",
       "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
-      "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))",
-      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))")
+      "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))")
+//      "(define-fun subset ((s1 SetInt) (s2 SetInt)) Bool (= s1 (intersect s1 s2)))")
+//      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))",
+//      "(define-fun andNot ((b1 Bool) (b2 Bool)) Bool (and b1 (not b2)))",
+//      "(define-fun diff ((s1 SetInt) (s2 SetInt)) SetInt (((_ map andNot) s1 s2)))")
   } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean =
@@ -110,6 +115,11 @@ object SMTSolving extends Core
       val l = convertSetExpr(left)
       val r = convertSetExpr(right)
       new TypedTerm[SetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(setUnionSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpDiff, left, right) => {
+      val l = convertSetExpr(left)
+      val r = convertSetExpr(right)
+      new TypedTerm[SetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(setDiffSymbol, List(l.termDef, r.termDef)))
     }
     case _ => throw SMTUnsupportedExpr(e)
   }
@@ -166,6 +176,12 @@ object SMTSolving extends Core
       val l = convertSetExpr(left)
       val r = convertSetExpr(right)
       l === r }
+    case BinaryExpr(OpSubset, left, right) => {
+      val l = convertSetExpr(left)
+      val r = convertSetExpr(right)
+      new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(setSubsetSymbol, List(l.termDef, r.termDef)))
+    }
     case _ => throw SMTUnsupportedExpr(e)
   }
 

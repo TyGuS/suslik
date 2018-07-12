@@ -181,8 +181,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val freshChunks = for {
             off <- 0 until sz
             z = generateFreshVar(goal)
-          } yield PointsTo(y, off, z)
-          // yield PointsTo(y, off, IntConst(0))
+          } // yield PointsTo(y, off, z)
+            yield PointsTo(y, off, IntConst(666))
           val freshBlock = Block(x, sz).subst(x, y)
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
 

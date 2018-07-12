@@ -78,6 +78,13 @@ object Expressions {
     def rType: SSLType = IntSetType
     def resType: SSLType = IntSetType
   }
+  object OpDiff extends BinOp with SymmetricOp with AssociativeOp {
+    def level: Int = 4
+    override def pp: String = "--"
+    def lType: SSLType = IntSetType
+    def rType: SSLType = IntSetType
+    def resType: SSLType = IntSetType
+  }
   object OpIn extends RelOp {
     def level: Int = 3
     override def pp: String = "in"
@@ -90,6 +97,13 @@ object Expressions {
     def lType: SSLType = IntSetType
     def rType: SSLType = IntSetType
   }
+  object OpSubset extends RelOp {
+    def level: Int = 3
+    override def pp: String = "<=i"
+    def lType: SSLType = IntSetType
+    def rType: SSLType = IntSetType
+  }
+
 
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
 

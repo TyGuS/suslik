@@ -43,8 +43,10 @@ ALL_BENCHMARKS = [
     Benchmark('sll-bounds/sll-min', 'min', ['natural'], 23.0),
     Benchmark('sll/sll-singleton', 'singleton', ['jennisys']),
     Benchmark('sll/sll-free', 'dispose'),
-    Benchmark('sll/sll-copy', 'copy'),
+    Benchmark('sll/sll-init', 'initialize'),
+    Benchmark('sll/sll-copy', 'copy', ['dryad']),
     Benchmark('sll/sll-append', 'append', ['dryad']),
+    Benchmark('sll/sll-delete-all', 'delete', ['dryad']),
     ]),
   BenchmarkGroup("Sorted list", [
     Benchmark('srtl/srtl-prepend', 'prepend', ['natural'], 8.0),
