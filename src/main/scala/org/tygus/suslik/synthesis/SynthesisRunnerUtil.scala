@@ -38,7 +38,7 @@ trait SynthesisRunnerUtil {
     val (params, lines) =
       if (allLines.nonEmpty && allLines.head.startsWith(paramPrefix)) {
         (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' '), initialParams), allLines.tail)
-      } else (defaultConfig, allLines)
+      } else (initialParams, allLines)
     val i = lines.indexWhere(_.trim.contains(testSeparator))
     val (l1, l2) = lines.splitAt(i)
     val fname = removeSuffix(file.getName, s".$testExtension")
