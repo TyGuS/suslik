@@ -60,12 +60,12 @@ object SynLogLevels {
 }
 
 class SynStats {
-  private var backracking: Int = 0
+  private var backtracking: Int = 0
   private var successful: Int = 0
   private var lasting: Int = 0
 
   def bumpUpBacktracing() {
-    backracking = backracking + 1
+    backtracking = backtracking + 1
   }
 
   def bumpUpSuccessfulRuleApp() {
@@ -76,7 +76,7 @@ class SynStats {
     lasting = lasting + 1
   }
 
-  def numBack: Int = backracking
+  def numBack: Int = backtracking
   def numSucc : Int = successful
   def numLasting : Int = lasting
   def smtCacheSize: Int = SMTSolving.cacheSize
@@ -96,24 +96,28 @@ object SynStatUtil {
   val initRow: String =
     List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n"
 
-  {
-    if (myFile.exists()) myFile.delete()
-    myFile.createNewFile()
-    using(new FileWriter(myFile, true))(_.write(initRow))
+  def init(config: SynConfig){
+    if (config.logToFile) {
+      if (myFile.exists()) myFile.delete()
+      myFile.createNewFile()
+      using(new FileWriter(myFile, true))(_.write(initRow))
+    }
   }
 
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
       try f(resource) finally resource.close()
 
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(Procedure, SynStats)]): Unit = {
-    val statRow = (stats match {
-      case Some((proc, st)) => List(proc.body.size, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
-      case None => DList.replicate(4, "FAIL").toList
-    }).mkString(", ")
+    if (config.logToFile) {
+      val statRow = (stats match {
+        case Some((proc, st)) => List(proc.body.size, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
+        case None => DList.replicate(4, "FAIL").toList
+      }).mkString(", ")
 
-    val specSize = spec.pre.size + spec.post.size
-    val data = s"$name, $time, $specSize, $statRow, ${config.pp}\n"
-    using(new FileWriter(myFile, true))(_.write(data))
+      val specSize = spec.pre.size + spec.post.size
+      val data = s"$name, $time, $specSize, $statRow, ${config.pp}\n"
+      using(new FileWriter(myFile, true))(_.write(data))
+    }
   }
 
 }

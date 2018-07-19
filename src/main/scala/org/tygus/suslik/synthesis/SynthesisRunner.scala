@@ -17,7 +17,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   val synthesis: Synthesis = new PhasedSynthesis
 
   /**
-    * Comman line args:
+    * Command line args:
     *
     * folder                        a folder with the predicate definitions, lemmas, and synthesis goal file
     * goalName                      a test case name (the file under the specified folder, called goalName.syn)
@@ -37,8 +37,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   def main(args: Array[String]): Unit = handleInput(args)
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
-    println(desc)
-    println()
+    if (params.printStats) {
+      println(desc)
+      println()
+    }
     try {
       synthesizeFromSpec(testName, in, out, params)
     } catch {
@@ -97,7 +99,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('a', "assert").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))
-    }.text("check that the synthesized result agains the expected one; default: false")
+    }.text("check that the synthesized result against the expected one; default: true")
 
     opt[Int]('c', "maxCloseDepth").action { (d, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(maxCloseDepth = d))
@@ -127,6 +129,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(invert = b))
     }.text("enable invertible rules; default: true")
 
+    opt[Boolean]('s', "printStats").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printStats = b))
+    }.text("print synthesis stats; default: true")
+
     opt[Boolean]('f', "printFailed").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
     }.text("print failed rule applications; default: false")
@@ -135,14 +141,19 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
     }.text("print predicate application tags in derivations; default: false")
 
+    opt[Boolean]('l', "log").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(logToFile = b))
+    }.text("log results to a csv file; default: true")
+
+
     help("help").text("prints this usage text")
 
     note("\nOnce the synthesis is done execution, statistics will be available in stats.csv (rewritten every time).\n")
 
   }
 
-  def parseParams(paramString: Array[String]): SynConfig = {
-    val newConfig = RunConfig(SynConfig(), defaultFolder, defaultFile)
+  def parseParams(paramString: Array[String], params: SynConfig): SynConfig = {
+    val newConfig = RunConfig(params, defaultFolder, defaultFile)
     parser.parse(paramString, newConfig) match {
       case Some(RunConfig(synConfig, _, _)) => synConfig
       case None => throw SynthesisException("Bad argument format.")

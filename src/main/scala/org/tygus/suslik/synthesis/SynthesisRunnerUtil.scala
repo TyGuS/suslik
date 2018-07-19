@@ -31,13 +31,13 @@ trait SynthesisRunnerUtil {
 
   import synthesis._
   
-  def getDescInputOutput(testFilePath: String): (String, String, String, String, SynConfig) = {
+  def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
     // The path is counted from the rout
     val allLines = Source.fromFile(file).getLines.toList
     val (params, lines) =
       if (allLines.nonEmpty && allLines.head.startsWith(paramPrefix)) {
-        (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' ')), allLines.tail)
+        (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' '), initialParams), allLines.tail)
       } else (defaultConfig, allLines)
     val i = lines.indexWhere(_.trim.contains(testSeparator))
     val (l1, l2) = lines.splitAt(i)
@@ -87,17 +87,21 @@ trait SynthesisRunnerUtil {
 
     sresult match {
       case Some((rr, stats)) =>
-        testPrintln(s"\n[$testName]:", Console.MAGENTA)
-        testPrintln(params.pp)
-        testPrintln(s"${spec.pp}\n", Console.BLUE)
-        testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
-        testPrintln(s"Number of backtrackings ${stats.numBack}")
-        testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
-        testPrintln(s"Total successful rule applications: ${stats.numSucc}")
-        testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
         val result = rr.pp
-        testPrintln(s"$result")
-        testPrintln("-----------------------------------------------------")
+        if (params.printStats) {
+          testPrintln(s"\n[$testName]:", Console.MAGENTA)
+          testPrintln(params.pp)
+          testPrintln(s"${spec.pp}\n", Console.BLUE)
+          testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
+          testPrintln(s"Number of backtrackings ${stats.numBack}")
+          testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
+          testPrintln(s"Total successful rule applications: ${stats.numSucc}")
+          testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
+          testPrintln(result)
+          testPrintln("-----------------------------------------------------")
+        } else {
+          println(result)
+        }
         if (out != "nope") {
           val tt = out.trim.lines.toList
           val res = result.trim.lines.toList
@@ -122,6 +126,8 @@ trait SynthesisRunnerUtil {
     val path = List(rootDir, dir).mkString(File.separator)
     val testDir = new File(path)
     if (testDir.exists() && testDir.isDirectory) {
+      // Create log file
+      SynStatUtil.init(defaultConfig)
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
@@ -146,15 +152,17 @@ trait SynthesisRunnerUtil {
       }
     }
     if (testDir.exists() && testDir.isDirectory) {
+      // Maybe create log file (depending on params)
+      SynStatUtil.init(params)
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
       tests.find(f => removeSuffix(f.getName, s".$testExtension") == fname) match {
         case Some(f) =>
-          val (testName, desc, in, out, fileParams) = getDescInputOutput(f.getAbsolutePath)
+          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
-          doRun(testName, desc, fullInput, out, fileParams.combine(params))
+          doRun(testName, desc, fullInput, out, allParams)
         case None =>
           System.err.println(s"No file with the name $fname.syn found in the directory $dir.")
       }

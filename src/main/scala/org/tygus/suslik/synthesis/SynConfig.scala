@@ -17,25 +17,23 @@ case class SynConfig(
                       fail: Boolean             = true,
                       commute: Boolean          = true,
                       // Timeout and logging
+                      printStats: Boolean = true,
                       printDerivations: Boolean = true,
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
                       assertSuccess: Boolean    = true,
+                      logToFile: Boolean        = true,
                       timeOut: Long             = DEFAULT_TIMEOUT
                     ) extends PrettyPrinting {
 
-  def combine(params: SynConfig): SynConfig =
-    // TODO: properly combine elementwise
-    if (params == defaultConfig) this else params
-
   override def pp: String =
-    ( (if (maxOpenDepth == 1) Nil else List(s"maxOpenDepth = $maxOpenDepth")) ++
-      (if (maxCloseDepth == 1) Nil else List(s"maxCloseDepth = $maxCloseDepth")) ++
-      (if (!branchAbduction) Nil else List(s"branchAbduction = $branchAbduction")) ++
-      (if (phased) Nil else List(s"phased = $phased")) ++
-      (if (invert) Nil else List(s"invert = $invert")) ++
-      (if (fail) Nil else List(s"fail = $fail")) ++
-      (if (commute) Nil else List(s"commute = $commute"))
+    ( (if (maxOpenDepth == defaultConfig.maxOpenDepth) Nil else List(s"maxOpenDepth = $maxOpenDepth")) ++
+      (if (maxCloseDepth == defaultConfig.maxCloseDepth) Nil else List(s"maxCloseDepth = $maxCloseDepth")) ++
+      (if (branchAbduction == defaultConfig.branchAbduction) Nil else List(s"branchAbduction = $branchAbduction")) ++
+      (if (phased == defaultConfig.phased) Nil else List(s"phased = $phased")) ++
+      (if (invert == defaultConfig.invert) Nil else List(s"invert = $invert")) ++
+      (if (fail == defaultConfig.fail) Nil else List(s"fail = $fail")) ++
+      (if (commute == defaultConfig.commute) Nil else List(s"commute = $commute"))
       ).mkString(", ")
 }
 
