@@ -7,7 +7,7 @@ Synthesis of Heap-Manipulating Programs from Separation Logic
 Specifications
 
 <p align="center">
-  <img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="200" height="200">
+  <img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150">
 </p>
 
 
