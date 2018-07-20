@@ -3,7 +3,13 @@
 [![Build Status](https://travis-ci.org/TyGuS/suslik.svg?branch=master)](https://travis-ci.org/TyGuS/suslik)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE)
 
-Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
+Synthesis of Heap-Manipulating Programs from Separation Logic
+Specifications
+
+<p align="center">
+  <img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="200" height="200">
+</p>
+
 
 ## Setup and Build
 
