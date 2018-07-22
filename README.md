@@ -79,10 +79,10 @@ structured in the following format:
 <Expected result>
 ```
 
-For example, `paper-examples/19-listcopy.syn` is defined as follows:
+For example, `paper-examples/17-listcopy.syn` (see the [accompanying draft](https://arxiv.org/pdf/1807.07022.pdf) is defined as follows:
 
 ```
-Example (19) from the paper (listcopy)
+Example (17) from the paper (listcopy)
 
 #####
 
