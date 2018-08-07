@@ -40,7 +40,7 @@ As the result, an executable `JAR`-file will be produced, so you can run it as e
 
 ## Synthesizing Programs from SL Specifications
 
-The simplest way to try out examples is via the [Online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
+The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
 
 Alternatively, once you have built the artifact via `sbt assembly`, you can run 
 it as a standalone application (given that the runnable `scala` is in your path).
