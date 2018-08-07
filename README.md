@@ -7,7 +7,7 @@ Synthesis of Heap-Manipulating Programs from Separation Logic
 Specifications
 
 <p align="center">
-  <img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150">
+  <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150"></a>
 </p>
 
 
@@ -40,7 +40,9 @@ As the result, an executable `JAR`-file will be produced, so you can run it as e
 
 ## Synthesizing Programs from SL Specifications
 
-Once you have built the artifact via `sbt assembly`, you can run 
+The simplest way to try out examples is via the [Online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
+
+Alternatively, once you have built the artifact via `sbt assembly`, you can run 
 it as a standalone application (given that the runnable `scala` is in your path).
 
 ### Case Studies
