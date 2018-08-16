@@ -1,0 +1,9 @@
+singly-linked list: append
+
+#####
+
+{true ; lseg(x1, s1) ** lseg(x2, s2) ** ret :-> x2}
+void lseg_append (loc x1, loc ret)
+{s =i s1 ++ s2 ; lseg(y, s) ** ret :-> y }
+
+#####

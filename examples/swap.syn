@@ -1,0 +1,11 @@
+Swapping example
+###
+
+{ x :-> a ** y :-> b }
+
+void swap(loc x, loc y)
+
+{ x :-> b ** y :-> a }
+
+###
+

@@ -1,0 +1,13 @@
+should be able to flatten the tree into a list given an auxiliary function for list appending
+
+####
+
+{ lseg(x1, s1) ** lseg(x2, s2) ** ret :-> x2 }
+void lseg_append (loc x1, loc ret)
+{ s =i s1 ++ s2 ; lseg(y, s) ** ret :-> y }
+
+{ z :-> x ** tree(x, s) }
+void flatten(loc z)
+{ z :-> y ** lseg(y, s) }
+
+####

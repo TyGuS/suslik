@@ -7,14 +7,14 @@ minimum of two integers
 
 void min2(loc r, int x, int y)
 
-{ x <= m  /\  y <= m; r :-> m }
+{ m <= x  /\  m <= y; r :-> m }
 
 ###
 
 void min2 (loc r, int x, int y) {
   if (y <= x) {
-    *r = x;
-  } else {
     *r = y;
+  } else {
+    *r = x;
   }
 }

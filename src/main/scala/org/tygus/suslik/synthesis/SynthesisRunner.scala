@@ -22,10 +22,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * folder                        a folder with the predicate definitions, lemmas, and synthesis goal file
     * goalName                      a test case name (the file under the specified folder, called goalName.syn)
     *
-    * -r, --trace <value>           print the entire derivation trace; default: true
+    * -r, --trace <value>           print the entire derivation trace; default: false
     * -t, --timeout <value>         timeout for the derivation; default (in milliseconds): 300000 (5 min)
     * -d, --depth <value>           derivation depth; default: 100
-    * -a, --assert <value>          check that the synthesized result agains the expected one; default: false
+    * -a, --assert <value>          check that the synthesized result against the expected one; default: false
     * -c, --maxCloseDepth <value>   maximum unfolding depth in the post-condition; default: 1
     * -o, --maxOpenDepth <value>    maximum unfolding depth in the pre-condition; default: 1
     * -b, --branchAbduction <value> abduct conditional branches; default: false
@@ -133,7 +133,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(printStats = b))
     }.text("print synthesis stats; default: true")
 
-    opt[Boolean]('f', "printFailed").action { (b, rc) =>
+    opt[Boolean]('e', "printEnv").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
+    }.text("print synthesis context; default: false")
+
+    opt[Boolean]('f', "printFail").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
     }.text("print failed rule applications; default: false")
 

@@ -10,6 +10,11 @@ Specifications
   <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150"></a>
 </p>
 
+## Usage
+
+The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
+
+Otherwise, check the building instructions below.
 
 ## Setup and Build
 
@@ -39,8 +44,6 @@ sbt assembly
 As the result, an executable `JAR`-file will be produced, so you can run it as explained below.
 
 ## Synthesizing Programs from SL Specifications
-
-The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
 
 Alternatively, once you have built the artifact via `sbt assembly`, you can run 
 it as a standalone application (given that the runnable `scala` is in your path).
@@ -76,12 +79,12 @@ structured in the following format:
 ```
 <A textual comment about what capability of the synthesizer is being assessed.>
 #####
-<Hoare-stule specification of the synthesized procedure>
+<Hoare-style specification of the synthesized procedure in SL>
 #####
-<Expected result>
+<Optional expected result>
 ```
 
-For example, `paper-examples/17-listcopy.syn` (see the [accompanying draft](https://arxiv.org/pdf/1807.07022.pdf)) is defined as follows:
+For example, `examples/listcopy.syn` (see the [accompanying draft](https://arxiv.org/pdf/1807.07022.pdf)) is defined as follows:
 
 ```
 Example (17) from the paper (listcopy)
@@ -123,39 +126,49 @@ suslik [options] folder goalName
 where the necessary arguments and options are
 
 ```
-folder                        a folder with the predicate definitions, lemmas, and synthesis goal file
-goalName                      a test case name (the file under the specified folder, called goalName.syn)
+  folder                   a folder with the predicate definitions, lemmas, and synthesis goal file
+  goalName                 a test case name (the file under the specified folder, called goalName.syn)
+  -r, --trace <value>      print the entire derivation trace; default: true
+  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 300000 (5 min)
+  -d, --depth <value>      derivation depth; default: 100
+  -a, --assert <value>     check that the synthesized result against the expected one; default: true
+  -c, --maxCloseDepth <value>
+                           maximum unfolding depth in the post-condition; default: 1
+  -o, --maxOpenDepth <value>
+                           maximum unfolding depth in the pre-condition; default: 1
+  -b, --branchAbduction <value>
+                           abduce conditional branches; default: false
+  --commute <value>        only try commutative rule applications in one order; default: true
+  --phased <value>         split rules into unfolding and flat phases; default: true
+  --fail <value>           enable early failure rules; default: true
+  --invert <value>         enable invertible rules; default: true
+  -s, --printStats <value> print synthesis stats; default: true
+  -e, --printEnv <value>   print synthesis context; default: false
+  -f, --printFail <value>  print failed rule applications; default: false
+  -g, --tags <value>       print predicate application tags in derivations; default: false
+  -l, --log <value>        log results to a csv file; default: true
+  --help                   prints this usage text
 
--r, --trace <value>           print the entire derivation trace; default: true
--t, --timeout <value>         timeout for the derivation; default (in milliseconds): 300000 (5 min)
--d, --depth <value>           derivation depth; default: 100
--a, --assert <value>          check that the synthesized result agains the expected one; default: false
--c, --maxCloseDepth <value>   maximum unfolding depth in the post-condition; default: 1
--o, --maxOpenDepth <value>    maximum unfolding depth in the pre-condition; default: 1
--b, --branchAbduction <value> abduct conditional branches; default: false
--f, --printFailed <value>     print failed rule applications; default: false
-
---help                        prints the help reference
 ```
 
 Once the synthesis is done execution statistics will be available in `stats.csv`.
 
-For instance, to synthesize `paper-examples/17-listcopy.syn` and see the derivation trace, run
+For instance, to synthesize `$PROJECT_ROOT/examples/listcopy.syn` and see the derivation trace, run
 
 ```
-suslik src/test/resources/synthesis/paper-examples 17-listcopy
+suslik examples listcopy
 ```
 
 If you are going to synthesize case studies from the provided set, you may only type the folder under 
 `synthesis` (i.e., without the prefix of the path), e.g.:
 
 ```
-suslik paper-examples 19-listcopy -r true
+suslik paper-examples 17-listcopy -r true
 ```
 
 or 
 
 ```
-suslik simple swap -r false -t 800
+suslik examples swap -r false -t 800
 ```
  

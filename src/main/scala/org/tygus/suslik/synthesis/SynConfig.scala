@@ -18,10 +18,11 @@ case class SynConfig(
                       commute: Boolean          = true,
                       // Timeout and logging
                       printStats: Boolean = true,
-                      printDerivations: Boolean = true,
+                      printDerivations: Boolean = false,
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
-                      assertSuccess: Boolean    = true,
+                      printEnv: Boolean         = false,
+                      assertSuccess: Boolean    = false,
                       logToFile: Boolean        = true,
                       timeOut: Long             = DEFAULT_TIMEOUT
                     ) extends PrettyPrinting {

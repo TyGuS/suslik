@@ -56,7 +56,9 @@ trait Synthesis extends SepLogicUtils {
                         (implicit ind: Int = 0): Option[Statement] = {
     implicit val config: SynConfig = goal.env.config
 
-    printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+    if (config.printEnv) {
+      printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+    }
     printLog(List((s"${goal.pp}", Console.BLUE)))
 
     val currentTime = System.currentTimeMillis()
@@ -163,7 +165,7 @@ trait Synthesis extends SepLogicUtils {
             case Some(app) =>
               //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
               //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-              printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)), isFail = false)
+              printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
               false
           }
         }
