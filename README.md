@@ -8,7 +8,12 @@ Specifications
 
 <p align="center">
   <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150"></a>
-</p>
+  </p>
+
+## Theory Behind the Tool
+
+The details of Synthetic Separation Logic cand be found in the
+[accompanying draft paper](https://arxiv.org/pdf/1807.07022.pdf).
 
 ## Usage
 
@@ -51,29 +56,31 @@ it as a standalone application (given that the runnable `scala` is in your path)
 ### Case Studies
 
 At the moment, many interesting case studies can be found in the folder
-`$PROJECT_ROOT/src/test/resources/synthesis`. Specifically, examples
+`$PROJECT_ROOT/examples`. More examples
 and benchmarks related to the paper on SSL  are in the folders
-`paper-examples` and `paper-benchmarks`.
+`paper-examples` and `paper-benchmarks` under `$PROJECT_ROOT/src/test/resources/synthesis`.
 
-Each set of case studies is in a single folder (e.g., `copy`). The definitions
-of inductive predicates and auxiliary function specifications (lemmas) are given
-in the single `.def`-file, typically present in each such folder.
-
-For instance, in `paper-examples`, it is `predicates.def`, whose contents are as follows:
+Each set of case studies is in a single folder (e.g., `copy`). The
+definitions of inductive predicates and auxiliary function
+specifications (lemmas) are given in the single `.def`-file, typically
+present in each such folder. For instance, in `examples`, it is
+`predicates.def`, whose contents are as follows:
 
 ```
-predicate lseg(loc x, loc y, set s) {
-|  x == y       => {s =i {} ; emp}
-|  not (x == y) => {s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, s1)}
+predicate lseg(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }
 }
 
 predicate lseg2(loc x, set s) {
-|  x == 0       => {s =i {} ; emp}
-|  not (x == 0) => {s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, s1)}
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, s1) }
 }
+
+...
 ```
 
-The remaining files (`*.syn`) are the test cases, each
+The remaining files (`*.syn`) are the actual examples, each
 structured in the following format:
 
 ```
@@ -84,10 +91,10 @@ structured in the following format:
 <Optional expected result>
 ```
 
-For example, `examples/listcopy.syn` (see the [accompanying draft](https://arxiv.org/pdf/1807.07022.pdf)) is defined as follows:
+For example, `examples/listcopy.syn` is defined as follows:
 
 ```
-Example (17) from the paper (listcopy)
+Copy a linked list
 
 #####
 
@@ -97,22 +104,6 @@ void listcopy(loc r)
 
 #####
 
-void listcopy (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
-  } else {
-    let v2 = *x2;
-    let nxt2 = *(x2 + 1);
-    *r = nxt2;
-    listcopy(r);
-    let y12 = *r;
-    let y2 = malloc(2);
-    *y2 = v2;
-    *(y2 + 1) = nxt2;
-    *r = y2;
-    *(x2 + 1) = y12;
-  }
-}
 ```
 
 ### Trying the Synthesis with the Case Studies
@@ -159,8 +150,29 @@ For instance, to synthesize `$PROJECT_ROOT/examples/listcopy.syn` and see the de
 suslik examples listcopy
 ```
 
+to get the following result:
+
+```
+void listcopy (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    listcopy(r);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *(x2 + 1) = y12;
+    *r = y2;
+    *(y2 + 1) = nxt2;
+    *y2 = v2;
+  }
+}
+```
+
 If you are going to synthesize case studies from the provided set, you may only type the folder under 
-`synthesis` (i.e., without the prefix of the path), e.g.:
+`$PROJECT_ROOT/src/test/resources/` (i.e., without the full prefix of the path), e.g.:
 
 ```
 suslik paper-examples 17-listcopy -r true
