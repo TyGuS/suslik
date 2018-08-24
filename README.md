@@ -172,7 +172,7 @@ void listcopy (loc r) {
 ```
 
 If you are going to synthesize case studies from the provided set, you may only type the folder under 
-`$PROJECT_ROOT/src/test/resources/` (i.e., without the full prefix of the path), e.g.:
+`$PROJECT_ROOT/src/test/resources/synthesis/` (i.e., without the full prefix of the path), e.g.:
 
 ```
 suslik paper-examples 17-listcopy -r true
