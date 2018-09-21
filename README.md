@@ -12,7 +12,7 @@ Specifications
 
 ## Theory Behind the Tool
 
-The details of Synthetic Separation Logic cand be found in the
+The details of Synthetic Separation Logic can be found in the
 [accompanying draft paper](https://arxiv.org/pdf/1807.07022.pdf).
 
 ## Usage
