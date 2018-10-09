@@ -3,10 +3,7 @@ import os, os.path
 import platform
 import shutil
 import time
-# import re
 import csv
-# from subprocess import call, check_output, STDOUT
-# from colorama import init, Fore, Back, Style
 
 # Globals
 CSV_FILE = 'stats.csv'                    # CSV-input file
@@ -14,7 +11,9 @@ LATEX_FILE = 'results.tex'                  # Latex-output file
 PAPER_DIR = '/mnt/h/Work/papers/synsl/synsl/popl19-draft/tab' # Directory where to copy the latex file (if exists)
 TEST_DIR = 'src/test/resources/synthesis/paper-benchmarks/'
 SOURCES = ['natural', 'jennisys', 'dryad']
-# VARIANTS = ['commute']
+# VARIANTS = ['phased', 'invert', 'fail', 'commute', 
+            # 'phased-invert', 'phased-fail', 'phased-commute', 'invert-fail', 'invert-commute', 'fail-commute',
+            # 'phased-invert-fail', 'phased-invert-commute', 'invert-fail-commute']
 VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
 
 class Benchmark:
@@ -84,7 +83,7 @@ def var_option(var):
   if var == 'all':
     return ' '.join([var_option(v) for v in VARIANTS[:-1]])
   else:
-    return '--' + var + ' false'
+    return ' '.join(['--' + v + ' false' for v in var.split('-')])
     
 def format_time(t):
   if t < 0:

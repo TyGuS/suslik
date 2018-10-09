@@ -12,7 +12,7 @@ Specifications
 
 ## Theory Behind the Tool
 
-The details of Synthetic Separation Logic cand be found in the
+The details of Synthetic Separation Logic can be found in the
 [accompanying draft paper](https://arxiv.org/pdf/1807.07022.pdf).
 
 ## Usage
@@ -171,7 +171,6 @@ void listcopy (loc r) {
 ```
 
 For running benchmarks or examples from the accompanying paper, run, e.g.,
-
 ```
 suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
 ``` 
