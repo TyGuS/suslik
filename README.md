@@ -112,13 +112,12 @@ To run the synthesis for a specific case study from a specific folder,
 execute the following script:
 
 ```
-suslik [options] folder goalName
+suslik fileName [options]
 ```
 where the necessary arguments and options are
 
 ```
-  folder                   a folder with the predicate definitions, lemmas, and synthesis goal file
-  goalName                 a test case name (the file under the specified folder, called goalName.syn)
+  fileName                 a synthesis file name (the file under the specified folder, called filename.syn)
   -r, --trace <value>      print the entire derivation trace; default: true
   -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 300000 (5 min)
   -d, --depth <value>      derivation depth; default: 100
@@ -147,7 +146,7 @@ Once the synthesis is done execution statistics will be available in `stats.csv`
 For instance, to synthesize `$PROJECT_ROOT/examples/listcopy.syn` and see the derivation trace, run
 
 ```
-suslik examples listcopy
+suslik examples/listcopy.syn
 ```
 
 to get the following result:
@@ -171,16 +170,8 @@ void listcopy (loc r) {
 }
 ```
 
-If you are going to synthesize case studies from the provided set, you may only type the folder under 
-`$PROJECT_ROOT/src/test/resources/` (i.e., without the full prefix of the path), e.g.:
+For running benchmarks or examples from the accompanying paper, run, e.g.,
 
 ```
-suslik paper-examples 17-listcopy -r true
-```
-
-or 
-
-```
-suslik examples swap -r false -t 800
-```
- 
+suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
+``` 

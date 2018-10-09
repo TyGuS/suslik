@@ -1,5 +1,7 @@
 package org.tygus.suslik.synthesis
 
+import java.io.File
+
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 import org.tygus.suslik.util.{SynLogLevels, SynLogging}
 
@@ -19,8 +21,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   /**
     * Command line args:
     *
-    * folder                        a folder with the predicate definitions, lemmas, and synthesis goal file
-    * goalName                      a test case name (the file under the specified folder, called goalName.syn)
+    * filePath                      a synthesis file name (the file under the specified folder, called filename.syn)
     *
     * -r, --trace <value>           print the entire derivation trace; default: false
     * -t, --timeout <value>         timeout for the derivation; default (in milliseconds): 300000 (5 min)
@@ -50,21 +51,30 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }
   }
 
-  case class RunConfig(synConfig: SynConfig, dirName: String, fileName: String)
+  case class RunConfig(synConfig: SynConfig, fileName: String)
 
   val TOOLNAME = "SuSLik"
   val SCRIPTNAME = "suslik"
   private val VERSION = "0.1"
   private val VERSION_STRING = s"v$VERSION"
 
-  private val defaultFolder = "simple"
-  private val defaultFile = "swap"
+  private val defaultFile = List(".", "examples", "swap").mkString(File.separator)
+
+  private def getParentDir(filePath: String): String = {
+    val file = new File(filePath)
+    if (!file.exists()) {
+      "."
+    }
+    else file.getParentFile.getAbsolutePath
+  }
 
   private def handleInput(args: Array[String]): Unit = {
-    val newConfig = RunConfig(SynConfig(), defaultFolder, defaultFile)
+    val newConfig = RunConfig(SynConfig(), defaultFile)
     parser.parse(args, newConfig) match {
-      case Some(RunConfig(synConfig, dir, file)) =>
-        runSingleTestFromDir(dir, file, synConfig)
+      case Some(RunConfig(synConfig, file)) =>
+        val dir = getParentDir(file)
+        val fName = new File(file).getName
+        runSingleTestFromDir(dir, fName, synConfig)
       case None =>
         System.err.println("Bad argument format.")
     }
@@ -77,13 +87,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     head(TOOLNAME, VERSION_STRING)
 
-    arg[String]("folder").action {(x, c) =>
-      c.copy(dirName = x)
-    }.text("a folder with the predicate definitions, lemmas, and synthesis goal file")
-
-    arg[String]("goalName").action {(x, c) =>
+    arg[String]("fileName").action {(x, c) =>
       c.copy(fileName = x)
-    }.text("a test case name (the file under the specified folder, called goalName.syn)")
+    }.text("a synthesis file name (the file under the specified folder, called filename.syn)")
 
     opt[Boolean]('r', "trace").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printDerivations = b))
@@ -157,9 +163,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   }
 
   def parseParams(paramString: Array[String], params: SynConfig): SynConfig = {
-    val newConfig = RunConfig(params, defaultFolder, defaultFile)
+    val newConfig = RunConfig(params, defaultFile)
     parser.parse(paramString, newConfig) match {
-      case Some(RunConfig(synConfig, _, _)) => synConfig
+      case Some(RunConfig(synConfig, _)) => synConfig
       case None => throw SynthesisException("Bad argument format.")
     }
   }

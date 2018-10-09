@@ -1,4 +1,4 @@
-#. this -b true -c 2
+# -b true -c 2
 binary search tree: insert an element
 
 #####

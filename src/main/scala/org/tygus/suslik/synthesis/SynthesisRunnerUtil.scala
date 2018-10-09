@@ -158,13 +158,13 @@ trait SynthesisRunnerUtil {
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
-      tests.find(f => removeSuffix(f.getName, s".$testExtension") == fname) match {
+      tests.find(f => f.getName == fname) match {
         case Some(f) =>
           val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
           doRun(testName, desc, fullInput, out, allParams)
         case None =>
-          System.err.println(s"No file with the name $fname.syn found in the directory $dir.")
+          System.err.println(s"No file with the name $fname found in the directory $dir.")
       }
     }
   }
