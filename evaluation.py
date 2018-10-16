@@ -7,6 +7,7 @@ import csv
 
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'suslik.jar'                                       # Path to suslik.jar
+ALT_JAR      = 'target/scala-2.12/suslik.jar'                     # Alternative path to suslik.jar (if built from sources)
 TIMEOUT      = '-t=120000'                                        # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/synthesis/paper-benchmarks/'   # Root directory for the tests   
 VARIANTS     = ['phased', 'invert', 'fail', 'commute', 'none']    # Configurations
@@ -79,7 +80,7 @@ def run_benchmark(file):
   '''Run single benchmark'''
   with open(RESULTS, "a") as outfile:
     print 'Running', file
-    call([JAVA8, '-jar', SUSLIK_JAR, file, TIMEOUT], stdout=outfile)
+    call([JAVA8, '-jar', suslik_jar, file, TIMEOUT], stdout=outfile)
     read_csv()
     
 def var_option(var):
@@ -119,7 +120,7 @@ def test_variants():
 def clean_variants():
   '''Remove previously generated benchmark variants'''
   
-  for group in groups:
+  for group in ALL_BENCHMARKS:
     for b in group.benchmarks:
       test = TEST_DIR + b.name
       for var in VARIANTS:
@@ -195,6 +196,7 @@ def cmdline():
   a = argparse.ArgumentParser()
   a.add_argument('--unopt', action='store_true')
   a.add_argument('--tiny', action='store_true')
+  a.add_argument('--clean', action='store_true')
   return a.parse_args()          
           
 if __name__ == '__main__':
@@ -202,6 +204,20 @@ if __name__ == '__main__':
   
   if os.path.isfile(RESULTS):        
     os.remove(RESULTS)
+        
+  if cl_opts.clean:
+    if os.path.isfile(STATS):        
+      os.remove(STATS)
+    clean_variants()
+    exit()
+    
+  if os.path.isfile(ALT_JAR):
+    suslik_jar = ALT_JAR
+  elif os.path.isfile(SUSLIK_JAR):
+    suslik_jar = SUSLIK_JAR
+  else:
+    print 'suslik.jar not found'
+    exit()
     
   if cl_opts.unopt:
     variants = VARIANTS
