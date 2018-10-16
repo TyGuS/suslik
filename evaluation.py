@@ -112,9 +112,9 @@ def test_variants():
               f.write(lines[0].rstrip() + ' ' + var_option(var) + '\n' + lines[1])
             else:
               # no config line, create one
-              f.write('#. this ' + var_option(var) + '\n' + content)
+              f.write('#. ' + var_option(var) + '\n' + content)
               
-          run_benchmark(testFileName) # Run variant
+          run_benchmark(varFileName) # Run variant
       
 def clean_variants():
   '''Remove previously generated benchmark variants'''
@@ -178,13 +178,13 @@ def write_stats():
         stats.write(row)
         
       
-def store_result(name, time, spec_size, code_size, variant = 'none'):
+def store_result(name, time, spec_size, code_size, variant = 'all'):
   timeOrTO = -1.0 if code_size == 'FAIL' else time
   
   if not(name in results):
     results[name] = SynthesisResult(name, timeOrTO, spec_size, code_size)
   
-  if variant == 'none':
+  if variant == 'all':
     results[name].time = timeOrTO
     results[name].code_size = code_size
   else:
@@ -204,12 +204,12 @@ if __name__ == '__main__':
     os.remove(RESULTS)
     
   if cl_opts.unopt:
-    variants = [VARIANTS]
+    variants = VARIANTS
   else:
     variants = []
     
   if cl_opts.tiny:
-    groups = ALL_BENCHMARKS[0:2]
+    groups = ALL_BENCHMARKS[0:1]
   else:
     groups = ALL_BENCHMARKS
   
