@@ -41,6 +41,8 @@ initialCommands in console :=
 
 mainClass in assembly := Some("org.tygus.suslik.synthesis.SynthesisRunner")
 
+test in assembly := {}
+
 assemblyJarName in assembly := "suslik.jar"
 
 assemblyMergeStrategy in assembly := {
