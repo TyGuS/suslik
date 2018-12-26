@@ -5,13 +5,28 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.logic.Specifications._
-
 import org.tygus.suslik.synthesis.SynthesisException
-
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
-
+import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 class SSLParser extends StandardTokenParsers with SepLogicUtils {
+
+  // Modified repN
+  def repAll[T](p: => Parser[T]): Parser[List[T]] =
+    Parser { in =>
+      val elems = new ListBuffer[T]
+      val p0 = p    // avoid repeatedly re-evaluating by-name parser
+
+      @tailrec def applyp(in0: Input): ParseResult[List[T]] =
+        if (in0.atEnd) Success(elems.toList, in0)
+        else p0(in0) match {
+          case Success(x, rest) => elems += x ; applyp(rest)
+          case ns: NoSuccess    => ns
+        }
+
+      applyp(in)
+    }
 
   override val lexical = new SSLLexical
 
@@ -110,7 +125,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
   }
 
-  def program: Parser[Program] = rep(indPredicate | goalFunction) ^^ { pfs =>
+  def program: Parser[Program] = repAll(indPredicate | goalFunction) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _) <- pfs) yield f
     if (fs.isEmpty){
