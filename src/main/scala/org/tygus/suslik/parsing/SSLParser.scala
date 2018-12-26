@@ -6,6 +6,8 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.logic.Specifications._
 
+import org.tygus.suslik.synthesis.SynthesisException
+
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
 
@@ -111,7 +113,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def program: Parser[Program] = rep(indPredicate | goalFunction) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _) <- pfs) yield f
-    assert(fs.nonEmpty, "No single function spec is provided")
+    if (fs.isEmpty){
+      throw SynthesisException("Parsing failed. No single function spec is provided.")
+    }
     val goal = fs.last
     val funs = fs.take(fs.length - 1)
     Program(ps, funs, goal)

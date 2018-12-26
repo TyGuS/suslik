@@ -66,7 +66,7 @@ trait SynthesisRunnerUtil {
     val parser = new SSLParser
     val res = parser.parseGoal(text)
     if (!res.successful) {
-      throw SynthesisException(s"Failed to parse the input.")
+      throw SynthesisException(s"Failed to parse the input:\n$res")
     }
 
     val prog = res.get
