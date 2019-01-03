@@ -63,6 +63,10 @@ class SynStats {
   private var backtracking: Int = 0
   private var successful: Int = 0
   private var lasting: Int = 0
+  private var saved_results_positive: Int = 0
+  private var saved_results_negative: Int = 0
+  private var recalled_results_positive: Int = 0
+  private var recalled_results_negative: Int = 0
 
   def bumpUpBacktracing() {
     backtracking = backtracking + 1
@@ -76,10 +80,31 @@ class SynStats {
     lasting = lasting + 1
   }
 
+  def bumpUpSavedResultsNegative() {
+    saved_results_negative += 1
+  }
+  def bumpUpRecalledResultsNegative() {
+    recalled_results_negative += 1
+  }
+
+  def bumpUpSavedResultsPositive() {
+    saved_results_positive +=  1
+  }
+  def bumpUpRecalledResultsPositive() {
+    recalled_results_positive +=  1
+  }
+
+
   def numBack: Int = backtracking
   def numSucc : Int = successful
   def numLasting : Int = lasting
+  def numSavedResultsPositive : Int = saved_results_positive
+  def numRecalledResultsPositive : Int = recalled_results_positive
+  def numSavedResultsNegative : Int = saved_results_negative
+  def numRecalledResultsNegative : Int = recalled_results_negative
   def smtCacheSize: Int = SMTSolving.cacheSize
+  var total_goals_saved = 0
+
 }
 
 abstract sealed class SynCertificate
