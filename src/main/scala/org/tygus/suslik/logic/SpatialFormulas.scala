@@ -2,6 +2,7 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.synthesis.SynthesisException
 import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 
 /**
@@ -110,6 +111,9 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
   def |-(other: Heaplet): Boolean = false
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
+    if (!(env.predicates contains  pred)){
+      throw SynthesisException( s"predicate $pred is undefined")
+    }
     val formals = env.predicates(pred).params
 
     if (formals.length == args.length) {
