@@ -83,9 +83,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.isExistential(e.asInstanceOf[Var])
 
       findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
         // TODO [sets]: Can we enable this?
-        case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
+        case BinaryExpr(OpOverloadedEq, l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false
       }, p2) match {
         case Some((BinaryExpr(_, l, r), rest2)) =>

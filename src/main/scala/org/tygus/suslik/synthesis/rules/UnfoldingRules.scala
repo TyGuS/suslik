@@ -166,7 +166,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sub <- {
           SpatialUnification.unify(target, source).toList
         }
-        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub), goal.gamma)
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
@@ -232,7 +232,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
-        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub), goal.gamma)
         (writeGoalsOpt, restGoal) = writesAndRestGoals(actualSub, relaxedSub, f, goal)
         if writeGoalsOpt.nonEmpty
       } yield {

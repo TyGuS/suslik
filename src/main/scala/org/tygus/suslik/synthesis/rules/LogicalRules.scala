@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident, IntType}
+import org.tygus.suslik.language.{Ident, IntSetType, IntType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -36,7 +36,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty &&             // no existentials
-        SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
+        SMTSolving.valid(pre.phi ==> post.phi, goal.gamma))  // pre implies post
         List(Subderivation(Nil, _ => Skip))      // we are done
       else Nil
     }
@@ -55,7 +55,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre.phi
       val post = goal.post.phi
 
-      if (!SMTSolving.sat(pre))
+      if (!SMTSolving.sat(pre, goal.gamma))
         List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
       else
         Nil
@@ -209,9 +209,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
-
-      findConjunctAndRest({
-        case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
+      findConjunctAndRest({   // TODO: find a way that doesn't slow down runtime by type inference
+        case BinaryExpr(OpOverloadedEq, v1@Var(_), v2) =>
+          if(v1.getType(goal.gamma) != Some(IntSetType)) v1 != v2 else false
         // This messes with hypothesis unify:
 //        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
         case _ => false
@@ -246,7 +246,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         v1 <- varCandidates
         v2 <- varCandidates.drop(varCandidates.indexOf(v1) + 1)
         if goal.getType(v1) == goal.getType(v2)
-        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v1)))
+        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v1)), goal.gamma)
       } yield Map(v2 -> v1)
 
       subs match {

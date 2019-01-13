@@ -15,8 +15,7 @@ object Expressions {
 
   sealed abstract class BinOp extends PrettyPrinting {
     def level: Int
-    def lType: SSLType
-    def rType: SSLType
+    def lrTypes: List[(SSLType, SSLType)]
     def resType: SSLType
   }
 
@@ -24,8 +23,7 @@ object Expressions {
     def resType: SSLType = BoolType
   }
   sealed abstract class LogicOp extends BinOp {
-    def lType: SSLType = BoolType
-    def rType: SSLType = BoolType
+    def lrTypes: List[(SSLType, SSLType)] = List((BoolType,BoolType))
     def resType: SSLType = BoolType
   }
   trait SymmetricOp
@@ -34,34 +32,40 @@ object Expressions {
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "+"
-    def lType: SSLType = IntType
-    def rType: SSLType = IntType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntType,IntType))
     def resType: SSLType = IntType
   }
   object OpMinus extends BinOp {
     def level: Int = 4
     override def pp: String = "-"
-    def lType: SSLType = IntType
-    def rType: SSLType = IntType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntType,IntType))
     def resType: SSLType = IntType
   }
-  object OpEq extends RelOp with SymmetricOp {
+  object OpEq1 extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=="
-    def lType: SSLType = IntType
-    def rType: SSLType = IntType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntType,IntType))
+  }
+  object OpOverloadedEq extends RelOp with SymmetricOp {
+    def level: Int = 3
+    override def pp: String = "=="
+    def lrTypes: List[(SSLType, SSLType)] = List(
+      (IntType, IntType),
+      (IntSetType, IntSetType),
+      (LocType, LocType),
+      (LocType, IntType),
+      (IntType, LocType),
+    )
   }
   object OpLeq extends RelOp {
     def level: Int = 3
     override def pp: String = "<="
-    def lType: SSLType = IntType
-    def rType: SSLType = IntType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntType,IntType))
   }
   object OpLt extends RelOp {
     def level: Int = 3
     override def pp: String = "<"
-    def lType: SSLType = IntType
-    def rType: SSLType = IntType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntType,IntType))
   }
   object OpAnd extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
@@ -74,34 +78,29 @@ object Expressions {
   object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "++"
-    def lType: SSLType = IntSetType
-    def rType: SSLType = IntSetType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntSetType,IntSetType))
     def resType: SSLType = IntSetType
   }
   object OpDiff extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "--"
-    def lType: SSLType = IntSetType
-    def rType: SSLType = IntSetType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntSetType,IntSetType))
     def resType: SSLType = IntSetType
   }
   object OpIn extends RelOp {
     def level: Int = 3
     override def pp: String = "in"
-    def lType: SSLType = IntType
-    def rType: SSLType = IntSetType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntType,IntSetType))
   }
-  object OpSetEq extends RelOp with SymmetricOp {
+  object OpSetEq1 extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=i"
-    def lType: SSLType = IntSetType
-    def rType: SSLType = IntSetType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntSetType,IntSetType))
   }
   object OpSubset extends RelOp {
     def level: Int = 3
     override def pp: String = "<=i"
-    def lType: SSLType = IntSetType
-    def rType: SSLType = IntSetType
+    def lrTypes: List[(SSLType, SSLType)] = List((IntSetType,IntSetType))
   }
 
 
@@ -150,10 +149,10 @@ object Expressions {
     }
 
     // Convenience operators for building expressions
-    def |=| (other: Expr): Expr = BinaryExpr(OpEq, this, other)
+    def |=| (other: Expr): Expr = BinaryExpr(OpOverloadedEq, this, other)
     def |/=| (other: Expr): Expr = (this |=| other).not
     def eq(other: Expr, t: SSLType): Expr = t match {
-      case IntSetType => BinaryExpr(OpSetEq, this, other)
+      case IntSetType => BinaryExpr(OpOverloadedEq, this, other)
       case BoolType => this <==> other
       case _ => this |=| other
     }
@@ -186,10 +185,17 @@ object Expressions {
       }
       case BinaryExpr(op, l, r) =>
         if (op.resType.conformsTo(target)) {
-          for {
-            gamma1 <- l.resolve(gamma, Some(op.lType))
-            gamma2 <- r.resolve(gamma1, Some(op.rType))
-          } yield gamma2
+          (for {  // TODO: find a clearer way
+            (lType, rType) <- op.lrTypes
+            gamma1 = l.resolve(gamma, Some(lType))
+            if gamma1.isDefined
+            gamma2 = r.resolve(gamma1.get, Some(rType))
+            if gamma2.isDefined
+          } yield gamma2).head
+//          for {
+//            gamma1 <- l.resolve(gamma, Some(op.lType))
+//            gamma2 <- r.resolve(gamma1, Some(op.rType))
+//          } yield gamma2
         } else None
       case SetLiteral(elems) =>
         if (IntSetType.conformsTo(target)) {

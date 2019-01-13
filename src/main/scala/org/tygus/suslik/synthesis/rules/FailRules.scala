@@ -35,7 +35,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre.phi
       val post = goal.post.phi
 
-      if (!SMTSolving.sat(pre && post))
+      if (!SMTSolving.sat(pre && post, goal.gamma))
         List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
       else
         Nil
@@ -53,7 +53,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
-      if (!SMTSolving.valid(pre ==> universalPost))
+      if (!SMTSolving.valid(pre ==> universalPost, goal.gamma))
         List(Subderivation(Nil, _ => Magic)) // universal post not implies by pre: only magic can save us
       else
         Nil
@@ -86,8 +86,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def guardedCandidates(goal: Goal, pre: PFormula, post: PFormula): Seq[Subderivation] =
       for {
         cond <- condCandidates(goal)
-        if SMTSolving.valid((pre && cond) ==> post)
-        if SMTSolving.sat(pre && cond)
+        if SMTSolving.valid((pre && cond) ==> post, goal.gamma)
+        if SMTSolving.sat(pre && cond, goal.gamma)
         newPre = goal.pre.copy(phi = goal.pre.phi && cond)
         newGoal = goal.copy(newPre)
       } yield Subderivation(List(newGoal), stmts => Guarded(cond, stmts.head))
@@ -97,7 +97,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
-      if (SMTSolving.valid(pre ==> universalPost))
+      if (SMTSolving.valid(pre ==> universalPost, goal.gamma))
         Nil // valid so far, nothing to say
       else {
         val guarded = guardedCandidates(goal, pre, universalPost)

@@ -12,7 +12,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
   {
     // Warm-up the SMT solver on start-up to avoid future delays
     for (i <- 1 to 5; j <- 1 to 2; k <- 1 to 3) {
-      sat(BinaryExpr(OpLeq, IntConst(i), BinaryExpr(OpPlus, IntConst(j), IntConst(k))))
+      sat(BinaryExpr(OpLeq, IntConst(i), BinaryExpr(OpPlus, IntConst(j), IntConst(k))), Map.empty)
     }
   }
 
