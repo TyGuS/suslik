@@ -50,12 +50,12 @@ object Expressions {
     def level: Int = 3
     override def pp: String = "=="
     def lrTypes: List[(SSLType, SSLType)] = List(
-      (BoolType, BoolType),
       (IntType, IntType),
       (IntSetType, IntSetType),
       (LocType, LocType),
       (LocType, IntType),
       (IntType, LocType),
+      (BoolType, BoolType),
     )
   }
   object OpLeq extends RelOp {
