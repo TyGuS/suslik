@@ -169,6 +169,11 @@ object SMTSolving extends Core
         => {
           convertBoolExpr(BinaryExpr(OpEq1, left, right), gamma)
         }
+        case (Some(BoolType), Some(BoolType)) =>{
+          val l = convertBoolExpr(left, gamma)
+          val r = convertBoolExpr(right, gamma)
+          l === r
+        }
         case other => {
           throw new RuntimeException("unexpected types for `==` operator: " + other)
         }
