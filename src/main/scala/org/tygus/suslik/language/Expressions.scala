@@ -31,6 +31,21 @@ object Expressions {
   trait SymmetricOp
   trait AssociativeOp
 
+  sealed abstract class OverloadedBinOp{
+    def lType_rType_op: Map[(SSLType, SSLType), BinOp]
+  }
+
+  object OpOverloadedEq extends  OverloadedBinOp{
+    override def lType_rType_op: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntType) -> OpEq,
+      (LocType, LocType) -> OpEq,
+      (IntType, LocType) -> OpEq,
+      (LocType, IntType) -> OpEq,
+      (IntSetType, IntSetType) -> OpSetEq,
+      (BoolType, BoolType) -> OpEq,
+    )
+  }
+
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "+"
