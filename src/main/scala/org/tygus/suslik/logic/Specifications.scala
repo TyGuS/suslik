@@ -148,7 +148,7 @@ object Specifications {
                   deriv: Derivation)
 
     extends PrettyPrinting with PureLogicUtils {
-    val pre: Assertion = pre_maybe_overloaded.resolveOverloading(gamma)
+    val pre: Assertion = pre_maybe_overloaded.resolveOverloading(gamma) // TODO: move from here to somewhere so it doesn't slowdown the synthesis
     val post: Assertion = post_maybe_overloaded.resolveOverloading(gamma)
 
     override def pp: String =
