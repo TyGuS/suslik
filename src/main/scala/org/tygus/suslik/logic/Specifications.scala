@@ -67,7 +67,7 @@ object Specifications {
 
     def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
       for {
-        gamma1 <- phi.resolveTypes(gamma, Some(BoolType))
+        gamma1 <- phi.resolve(gamma, Some(BoolType))
         gamma2 <- sigma.resolve(gamma1, env)
       } yield gamma2
     }
@@ -250,6 +250,6 @@ object Specifications {
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, formalNames, ghostUniversals, fname, env, emptyDerivation).simplifyPure
+    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env, emptyDerivation).simplifyPure
   }
 }
