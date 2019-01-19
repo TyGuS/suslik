@@ -250,6 +250,6 @@ object Specifications {
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env, emptyDerivation).simplifyPure
+    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env.resolveOverloading(gamma), emptyDerivation).simplifyPure
   }
 }

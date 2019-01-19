@@ -24,6 +24,11 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
   */
 case class FunSpec(name: Ident, rType: SSLType, params: Formals,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
+
+  def resolveOverloading(gamma: Gamma):FunSpec = {
+    this.copy(pre=pre.resolveOverloading(gamma), post=post.resolveOverloading(gamma))
+  }
+
   override def pp: String = {
     s"${pre.pp}\n${rType.pp} " +
         s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
@@ -61,6 +66,10 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
     s"${selector.pp} => ${asn.pp}"
 
   def valid: Boolean = isAtomicPFormula(selector)
+
+  def resolveOverloading(gamma: Gamma): InductiveClause ={
+    this.copy(selector = selector.resolveOverloading(gamma), asn=asn.resolveOverloading(gamma))
+  }
 }
 
 /**
@@ -84,6 +93,10 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
   */
 case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[InductiveClause])
     extends TopLevelDeclaration with PureLogicUtils {
+
+  def resolveOverloading(gamma: Gamma): InductivePredicate = {
+    this.copy(clauses = clauses.map(_.resolveOverloading(gamma)))
+  }
 
   override def pp: String = {
     val prelude = s"$name (${params.map(_._2.pp).mkString(", ")}) {"
@@ -135,6 +148,11 @@ case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
     val fsStr = if (functions.nonEmpty) s"\n[Functions  (${functions.size}): $fs]" else ""
     //val post = if (ps.nonEmpty || fs.nonEmpty) "\n" else ""
     s"$psStr$fsStr"
+  }
+
+  def resolveOverloading(gamma: Gamma): Environment = {
+    this.copy(predicates = predicates.map{case (k,v) => (k, v.resolveOverloading(gamma))},
+      functions=functions.map{case (k,v) => (k, v.resolveOverloading(gamma))})
   }
 }
 
