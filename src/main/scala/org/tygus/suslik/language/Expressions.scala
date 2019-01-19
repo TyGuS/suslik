@@ -272,8 +272,8 @@ object Expressions {
       case expr: OverloadedBinaryExpr =>
         BinaryExpr(
           expr.inferConcreteOp(gamma),
-          expr.left,
-          expr.right)
+          expr.left.resolveOverloading(gamma),
+          expr.right.resolveOverloading(gamma))
       case Var(_)
       | BoolConst(_)
       | IntConst(_)  => this
