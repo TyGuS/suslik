@@ -14,22 +14,25 @@ object Expressions {
     override def pp: String = "not"
   }
 
-  sealed abstract class BinOp extends PrettyPrinting {
-    def level: Int
-    def lType: SSLType
+
+  sealed abstract class ConcreteBinOp extends OverloadedBinOp {
+    def lType:SSLType
     def rType: SSLType
+
+    override def opFromTypes: Map[(SSLType, SSLType), ConcreteBinOp] = Map((lType, rType) -> this)
+
     def resType: SSLType
   }
 
-  sealed abstract class OverloadedBinOp extends PrettyPrinting{
-    def opFromTypes: Map[(SSLType, SSLType), BinOp]
+  sealed abstract class OverloadedBinOp extends PrettyPrinting {
+    def opFromTypes: Map[(SSLType, SSLType), ConcreteBinOp]
     def level:Int
   }
 
-  sealed abstract class RelOp extends BinOp {
+  sealed abstract class RelOp extends ConcreteBinOp {
     def resType: SSLType = BoolType
   }
-  sealed abstract class LogicOp extends BinOp {
+  sealed abstract class LogicOp extends ConcreteBinOp {
     def lType: SSLType = BoolType
     def rType: SSLType = BoolType
     def resType: SSLType = BoolType
@@ -40,7 +43,7 @@ object Expressions {
   object OpOverloadedEq extends  OverloadedBinOp{
     override def level: Int = 3
     override def pp: String = "=="
-    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+    override def opFromTypes: Map[(SSLType, SSLType), ConcreteBinOp] = Map(
       (IntType, IntType) -> OpEq,
       (LocType, LocType) -> OpEq,
       (IntType, LocType) -> OpEq,
@@ -50,14 +53,14 @@ object Expressions {
     )
   }
 
-  object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
+  object OpPlus extends ConcreteBinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "+"
     def lType: SSLType = IntType
     def rType: SSLType = IntType
     def resType: SSLType = IntType
   }
-  object OpMinus extends BinOp {
+  object OpMinus extends ConcreteBinOp {
     def level: Int = 4
     override def pp: String = "-"
     def lType: SSLType = IntType
@@ -90,14 +93,14 @@ object Expressions {
     def level: Int = 2
     override def pp: String = "\\/"
   }
-  object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
+  object OpUnion extends ConcreteBinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "++"
     def lType: SSLType = IntSetType
     def rType: SSLType = IntSetType
     def resType: SSLType = IntSetType
   }
-  object OpDiff extends BinOp with SymmetricOp with AssociativeOp {
+  object OpDiff extends ConcreteBinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "--"
     def lType: SSLType = IntSetType
@@ -187,7 +190,7 @@ object Expressions {
 
     def getType(gamma: Gamma): Option[SSLType]
 
-    def resolve(gamma: Gamma, target: Option[SSLType]): Option[Gamma] = this match {
+    def resolveTypes(gamma: Gamma, target: Option[SSLType]): Option[Gamma] = this match {
       case v@Var(_) => gamma.get(v) match {
         case Some(t) => t.supertype(target) match {
           case None => None
@@ -201,22 +204,22 @@ object Expressions {
       case BoolConst(_) => if (BoolType.conformsTo(target)) Some(gamma) else None
       case IntConst(_) => if (IntType.conformsTo(target)) Some(gamma) else None
       case UnaryExpr(op, e) => op match {
-        case OpNot => if (BoolType.conformsTo(target)) e.resolve(gamma, Some(BoolType)) else None
+        case OpNot => if (BoolType.conformsTo(target)) e.resolveTypes(gamma, Some(BoolType)) else None
       }
       case BinaryExpr(op, l, r) =>
         if (op.resType.conformsTo(target)) {
           for {
-            gamma1 <- l.resolve(gamma, Some(op.lType))
-            gamma2 <- r.resolve(gamma1, Some(op.rType))
+            gamma1 <- l.resolveTypes(gamma, Some(op.lType))
+            gamma2 <- r.resolveTypes(gamma1, Some(op.rType))
           } yield gamma2
         } else None
       case OverloadedBinaryExpr(overloaded_op, left, right) =>
         val possible_gammas = for{
           ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
           if target.contains(op.resType)
-          gamma1 = left.resolve(gamma, Some(lTarget))
+          gamma1 = left.resolveTypes(gamma, Some(lTarget))
           if gamma1.isDefined
-          gamma2 = right.resolve(gamma1.get, Some(rTarget))
+          gamma2 = right.resolveTypes(gamma1.get, Some(rTarget))
           if gamma2.isDefined
           is_exactly_defined = (left.getType(gamma2.get).contains(lTarget)
                             && right.getType(gamma2.get).contains(rTarget))
@@ -236,18 +239,18 @@ object Expressions {
         if (IntSetType.conformsTo(target)) {
           elems.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, e) => go match {
             case None => None
-            case Some(g) => e.resolve(g, Some(IntType))
+            case Some(g) => e.resolveTypes(g, Some(IntType))
           })
         } else None
       case IfThenElse(c, t, e) =>
         for {
-          gamma1 <- c.resolve(gamma, Some(BoolType))
-          gamma2 <- t.resolve(gamma1, None)
+          gamma1 <- c.resolveTypes(gamma, Some(BoolType))
+          gamma2 <- t.resolveTypes(gamma1, None)
           t1 = t.getType(gamma2)
-          gamma3 <- e.resolve(gamma2, t1)
+          gamma3 <- e.resolveTypes(gamma2, t1)
           t2 = e.getType(gamma3)
           gamma4 <- t2 match {
-            case Some(_) => t.resolve(gamma3, t2) // RHS has more information: resolve LHS again
+            case Some(_) => t.resolveTypes(gamma3, t2) // RHS has more information: resolve LHS again
             case None => {
               assert(false, s"ITE with unconstrained types on both sides: $pp")
               None
@@ -328,7 +331,7 @@ object Expressions {
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(BoolType)
   }
 
-  case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
+  case class BinaryExpr(op: ConcreteBinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
@@ -342,7 +345,7 @@ object Expressions {
     override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
 
-    def inferConcreteOp(gamma: Gamma):BinOp = {
+    def inferConcreteOp(gamma: Gamma):ConcreteBinOp = {
       val lType = left.getType(gamma)
       val rType = right.getType(gamma)
       val strictly_defined_ops = for {

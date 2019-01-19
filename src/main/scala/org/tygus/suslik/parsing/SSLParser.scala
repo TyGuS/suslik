@@ -53,14 +53,14 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def unOpParser: Parser[UnOp] =
     "not" ^^^ OpNot
 
-  def termOpParser: Parser[BinOp] = "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion ||| "--" ^^^ OpDiff
+  def termOpParser: Parser[OverloadedBinOp] = "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion ||| "--" ^^^ OpDiff
 
-  def relOpParser: Parser[BinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpEq ||| "=i" ^^^ OpSetEq ||| "<=i" ^^^ OpSubset ||| "in" ^^^ OpIn
+  def relOpParser: Parser[OverloadedBinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpEq ||| "=i" ^^^ OpSetEq ||| "<=i" ^^^ OpSubset ||| "in" ^^^ OpIn
 
-  def logOpParser: Parser[BinOp] = "\\/" ^^^ OpOr ||| "/\\" ^^^ OpAnd
+  def logOpParser: Parser[OverloadedBinOp] = "\\/" ^^^ OpOr ||| "/\\" ^^^ OpAnd
 
-  def binOpParser(p: Parser[BinOp]): Parser[(Expr, Expr) => Expr] = {
-    p ^^ { op => (l, r) => BinaryExpr(op, l, r) }
+  def binOpParser(p: Parser[OverloadedBinOp]): Parser[(Expr, Expr) => Expr] = {
+    p ^^ { op => (l, r) => OverloadedBinaryExpr(op, l, r) }
   }
 
   def atom: Parser[Expr] = (
@@ -75,7 +75,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def relExpr: Parser[Expr] =
     term ~ opt(relOpParser ~ term) ^^ {
       case a ~ None => a
-      case a ~ Some(op ~ b) => BinaryExpr(op, a, b)
+      case a ~ Some(op ~ b) => OverloadedBinaryExpr(op, a, b)
     }
 
   def expr: Parser[Expr] =

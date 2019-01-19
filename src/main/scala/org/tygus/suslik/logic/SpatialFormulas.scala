@@ -66,8 +66,8 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     for {
-      gamma1 <- loc.resolve(gamma, Some(LocType))
-      gamma2 <- value.resolve(gamma1, Some(IntType))
+      gamma1 <- loc.resolveTypes(gamma, Some(LocType))
+      gamma2 <- value.resolveTypes(gamma1, Some(IntType))
     } yield gamma2
   }
 
@@ -88,7 +88,7 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 
   def |-(other: Heaplet): Boolean = false
 
-  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
+  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolveTypes(gamma, Some(LocType))
 
   def rank: Int = 1
 }
@@ -120,7 +120,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
       (formals, args).zipped.foldLeft[Option[Gamma]](Some(gamma))
       { case (go, (formal, actual)) => go match {
               case None => None
-              case Some(g) => actual.resolve(g, Some(formal._1))
+              case Some(g) => actual.resolveTypes(g, Some(formal._1))
             }}
     } else None
   }

@@ -67,9 +67,13 @@ object Specifications {
 
     def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
       for {
-        gamma1 <- phi.resolve(gamma, Some(BoolType))
+        gamma1 <- phi.resolveTypes(gamma, Some(BoolType))
         gamma2 <- sigma.resolve(gamma1, env)
       } yield gamma2
+    }
+
+    def resolveOverloading(gamma: Gamma): Assertion = {
+      this.copy(phi = phi.resolveOverloading(gamma))
     }
 
     // TODO: take into account distance between pure parts
@@ -134,15 +138,18 @@ object Specifications {
   /**
     * Main class for contextual Hoare-style specifications
     */
-  case class Goal(pre: Assertion,
-                  post: Assertion,
+  case class Goal(pre_maybe_overloaded: Assertion,
+                  post_maybe_overloaded: Assertion,
                   gamma: Gamma,
                   programVars: List[Var],
                   universalGhosts: Set[Var],
                   fname: String,
                   env: Environment,
                   deriv: Derivation)
+
     extends PrettyPrinting with PureLogicUtils {
+    val pre: Assertion = pre_maybe_overloaded.resolveOverloading(gamma)
+    val post: Assertion = post_maybe_overloaded.resolveOverloading(gamma)
 
     override def pp: String =
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
@@ -243,6 +250,6 @@ object Specifications {
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env, emptyDerivation).simplifyPure
+    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, formalNames, ghostUniversals, fname, env, emptyDerivation).simplifyPure
   }
 }
