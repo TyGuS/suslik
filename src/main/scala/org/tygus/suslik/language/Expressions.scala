@@ -45,9 +45,6 @@ object Expressions {
     override def pp: String = "=="
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpEq,
-      (LocType, LocType) -> OpEq,
-      (IntType, LocType) -> OpEq,
-      (LocType, IntType) -> OpEq,
       (IntSetType, IntSetType) -> OpSetEq,
       (BoolType, BoolType) -> OpEq,
     )
@@ -350,11 +347,12 @@ object Expressions {
       val rType = right.getType(gamma)
       val strictly_defined_ops = for {
         ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
-        if lType.contains(lTarget) && rType.contains(rTarget)
+        if (lType.contains(lTarget)|| lType.isEmpty) && (rType.contains(rTarget) || rType.isEmpty)
       } yield op
       strictly_defined_ops.size match {
         case 1 => strictly_defined_ops.head
-        case n if n > 1 => throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for input types ${(lType, rType)}")
+        case n if n > 1 =>
+          throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous with strict typing ${(lType, rType)}")
         case 0 =>
           val defined_ops = for {
             ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
@@ -371,7 +369,7 @@ object Expressions {
           defined_ops.size match {
             case 0 => throw SynthesisException(s"Operation ${overloaded_op.pp} is not defined for input types ${(lType, rType)}")
             case 1 => defined_ops.head
-            case _ => throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for input types ${(lType, rType)}")
+            case _ => throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for weak typing ${(lType, rType)}")
           }
       }
     }
