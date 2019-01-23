@@ -102,9 +102,6 @@ trait SynthesisRunnerUtil {
           testPrintln(s"Number of recalled negative results: ${stats.numRecalledResultsNegative}")
           testPrintln(s"Number of recalled positive results: ${stats.numRecalledResultsPositive}")
           testPrintln(s"Total number of saved results: ${saved_results.size}")
-          //          for ((goal, (_, count)) <- saved_results if count > 1) {
-          //            testPrintln(s"$count ${goal.pp}")
-          //          }
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
         } else {
