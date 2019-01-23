@@ -155,6 +155,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(logToFile = b))
     }.text("log results to a csv file; default: true")
 
+    opt[Boolean](name="memoization").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(memoization = b))
+    }.text("enable memoization; default: true")
+
 
     help("help").text("prints this usage text")
 

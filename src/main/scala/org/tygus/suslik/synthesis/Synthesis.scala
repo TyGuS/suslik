@@ -51,28 +51,31 @@ trait Synthesis extends SepLogicUtils {
 
   }
 
-  var saved_results = scala.collection.mutable.Map[Goal, (Option[Statement], Int)]()
+  var saved_results = scala.collection.mutable.Map[(Goal, List[SynthesisRule]), (Option[Statement], Int)]()
+
   private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
-                        (stats: SynStats,
-                         rules: List[SynthesisRule])
-                        (implicit ind: Int = 0): Option[Statement] = {
-    if(saved_results.contains(goal)){
-      val (res, recalled_count) = saved_results(goal)
-      saved_results(goal) = (res, recalled_count + 1)
+                                  (stats: SynStats,
+                                   rules: List[SynthesisRule])
+                                  (implicit ind: Int = 0): Option[Statement] = {
+    if (!goal.env.config.memoization) {
+      synthesize_actual(goal, depth)(stats, rules)(ind)
+    } else if (saved_results.contains(goal, rules)) { //
+      val (res, recalled_count) = saved_results(goal, rules)
+      saved_results((goal, rules)) = (res, recalled_count + 1)
       if (res.isDefined) {
         stats.bumpUpRecalledResultsPositive()
-      }else{
+      } else {
         stats.bumpUpRecalledResultsNegative()
       }
       res
-    }else{
+    } else {
       val res = synthesize_actual(goal, depth)(stats, rules)(ind)
       if (res.isDefined) {
         stats.bumpUpSavedResultsPositive()
-      }else{
+      } else {
         stats.bumpUpSavedResultsNegative()
       }
-      saved_results(goal) = (res,0)
+      saved_results((goal, rules)) = (res, 0)
       res
     }
   }
