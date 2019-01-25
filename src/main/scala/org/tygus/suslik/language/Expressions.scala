@@ -21,11 +21,14 @@ object Expressions {
 
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map((lType, rType) -> this)
 
+    override def default: BinOp = this
+
     def resType: SSLType
   }
 
   sealed abstract class OverloadedBinOp extends PrettyPrinting {
     def opFromTypes: Map[(SSLType, SSLType), BinOp]
+    def default: BinOp
     def level:Int
   }
 
@@ -40,7 +43,7 @@ object Expressions {
   trait SymmetricOp
   trait AssociativeOp
 
-  object OpOverloadedEq extends  OverloadedBinOp{
+  object OpOverloadedEq extends OverloadedBinOp{
     override def level: Int = 3
     override def pp: String = "=="
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
@@ -48,6 +51,8 @@ object Expressions {
       (IntSetType, IntSetType) -> OpSetEq,
       (BoolType, BoolType) -> OpEq,
     )
+
+    override def default: BinOp = OpEq
   }
 
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
@@ -213,24 +218,22 @@ object Expressions {
       case OverloadedBinaryExpr(overloaded_op, left, right) =>
         val possible_gammas = for{
           ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
-          if target.contains(op.resType)
-          gamma1 = left.resolve(gamma, Some(lTarget))
-          if gamma1.isDefined
-          gamma2 = right.resolve(gamma1.get, Some(rTarget))
-          if gamma2.isDefined
-          is_exactly_defined = (left.getType(gamma2.get).contains(lTarget)
-                            && right.getType(gamma2.get).contains(rTarget))
+          if op.resType.conformsTo(target)
+          gamma1 <- left.resolve(gamma, Some(lTarget))
+          gamma2 <- right.resolve(gamma1, Some(rTarget))
+          is_exactly_defined = (left.getType(gamma2).contains(lTarget)
+                            && right.getType(gamma2).contains(rTarget))
         } yield (gamma2, is_exactly_defined)
         val exact_gammas = possible_gammas.filter {case (_, exact) => exact}
         exact_gammas.size match{
           case 0 =>
             possible_gammas.size match{
               case 0 => None
-              case 1 => possible_gammas.head._1
-              case _ => Some(gamma)// Overloading is ambiguous. TODO: Or should I intersect all gammas?
+              case 1 => Some(possible_gammas.head._1)
+              case _ => BinaryExpr(overloaded_op.default, left, right).resolve(gamma, target) // Ambiguity, using default
             }
-          case 1 => exact_gammas.head._1
-          case _ => Some(gamma) // Overloading is ambiguous. TODO: Or should I intersect all gammas?
+          case 1 => Some(exact_gammas.head._1)
+          case _ => BinaryExpr(overloaded_op.default, left, right).resolve(gamma, target) // Ambiguity, using default
         }
       case SetLiteral(elems) =>
         if (IntSetType.conformsTo(target)) {
@@ -352,7 +355,14 @@ object Expressions {
       strictly_defined_ops.size match {
         case 1 => strictly_defined_ops.head
         case n if n > 1 =>
-          throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous with strict typing ${(lType, rType)}")
+          val op = overloaded_op.default
+          if (lType.isEmpty || lType.get.conformsTo(Some(op.lType))
+            && rType.isEmpty || rType.get.conformsTo(Some(op.rType))) {
+            op
+          } else {
+            throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for strong typing ${(lType, rType)}" +
+              s", and arguments don't conform to the default types")
+          }
         case 0 =>
           val defined_ops = for {
             ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
@@ -369,7 +379,15 @@ object Expressions {
           defined_ops.size match {
             case 0 => throw SynthesisException(s"Operation ${overloaded_op.pp} is not defined for input types ${(lType, rType)}")
             case 1 => defined_ops.head
-            case _ => throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for weak typing ${(lType, rType)}")
+            case _ =>
+              val op = overloaded_op.default
+              if (lType.isEmpty || lType.get.conformsTo(Some(op.lType))
+                && rType.isEmpty || rType.get.conformsTo(Some(op.rType))) {
+                op
+              } else {
+                throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for weak typing ${(lType, rType)}" +
+                  s", and arguments don't conform to the default types")
+              }
           }
       }
     }
