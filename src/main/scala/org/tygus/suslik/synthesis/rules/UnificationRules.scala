@@ -84,6 +84,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
+          // TODO: discuss and enable
+//        case BinaryExpr(OpBoolEq, l, r) => isExsistVar(l) || isExsistVar(r)
         // TODO [sets]: Can we enable this?
         case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false

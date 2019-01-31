@@ -1,0 +1,7 @@
+(not (a == not a))
+#####
+
+{true ; emp}
+void foo (int v)
+{(not (a == not a)); emp}
+#####

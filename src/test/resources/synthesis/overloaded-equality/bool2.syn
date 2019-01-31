@@ -1,0 +1,7 @@
+a /\ (b \/ c) == a /\ b \/ a /\ c
+#####
+
+{true ; emp}
+void foo (int v)
+{(a /\ (b \/ c) )== (a /\ b \/ a /\ c ); emp}
+#####

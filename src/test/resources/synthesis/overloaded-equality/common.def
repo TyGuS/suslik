@@ -1,0 +1,7 @@
+predicate ambiguous1(loc x, set s) {
+|  x == 0        => { www==www ; emp }
+}
+
+predicate ambiguous2(loc x, set s) {
+|  x == 0        => { (not (a == not a)) ; emp }
+}

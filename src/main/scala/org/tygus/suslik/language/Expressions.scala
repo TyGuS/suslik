@@ -49,7 +49,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpEq,
       (IntSetType, IntSetType) -> OpSetEq,
-      (BoolType, BoolType) -> OpEq,
+      (BoolType, BoolType) -> OpBoolEq,
     )
 
     override def default: BinOp = OpEq
@@ -75,6 +75,14 @@ object Expressions {
     def lType: SSLType = IntType
     def rType: SSLType = IntType
   }
+
+  object OpBoolEq extends RelOp with SymmetricOp {
+    def level: Int = 3
+    override def pp: String = "=="
+    def lType: SSLType = BoolType
+    def rType: SSLType = BoolType
+  }
+
   object OpLeq extends RelOp {
     def level: Int = 3
     override def pp: String = "<="

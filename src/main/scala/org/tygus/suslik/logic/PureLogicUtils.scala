@@ -55,6 +55,9 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(false) => pFalse
         case BoolConst(true) => s1
+        case s2 if s1 == s2 => s1
+        case s2 if s1 == s2.not => pFalse
+        case s2 if s1.not == s2 => pFalse
         case s2 => s1 && s2
       }
     }
@@ -66,6 +69,9 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(true) => pTrue
         case BoolConst(false) => s1
+        case s2 if s2 == s1 => s1 // Todo: discuss, Can I add it here, or should it be the job of SMT solver?
+        case s2 if s2 == s1.not => pTrue // Todo: discuss, Can I add it here, or should it be the job of SMT solver?
+        case s2 if s2.not == s1 => pTrue // Todo: discuss, Can I add it here, or should it be the job of SMT solver?
         case s2 => s1 || s2
       }
     }
@@ -88,6 +94,16 @@ trait PureLogicUtils {
       if (n1 <= n2) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
     case BinaryExpr(OpSetEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpSetEq, v, simplify(e))
 
+      // TODO: discuss and enable
+//    case BinaryExpr(OpBoolEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+//      BoolConst(true)
+//    case BinaryExpr(OpBoolEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
+//      if (n1 <= n2) BinaryExpr(OpBoolEq, v1, v2) else BinaryExpr(OpBoolEq, v2, v1)
+//    case BinaryExpr(OpBoolEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpBoolEq, v, simplify(e))
+    case BinaryExpr(OpBoolEq, e1, e2) => simplify(e1 <==> e2)
+//    case BinaryExpr(OpBoolEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
+//      if (n1 <= n2) BinaryExpr(OpBoolEq, v1, v2) else BinaryExpr(OpBoolEq, v2, v1)
+//    case BinaryExpr(OpBoolEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpBoolEq, v, simplify(e))
 
     case BinaryExpr(OpPlus, left, IntConst(i)) if i.toInt == 0 => simplify(left)
     case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplify(right)
