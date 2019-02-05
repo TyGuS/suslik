@@ -1,0 +1,7 @@
+Shakespeare
+boolean variable is not considered atomic in PureLogicUtils.isAtomicExpr
+#####
+{true ; emp}
+void question(int v)
+{ be \/ not be; emp}
+#####
