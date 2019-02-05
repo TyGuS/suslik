@@ -72,6 +72,10 @@ object Specifications {
       } yield gamma2
     }
 
+    def resolveOverloading(gamma: Gamma): Assertion = {
+      this.copy(phi = phi.resolveOverloading(gamma), sigma=sigma.resolveOverloading(gamma))
+    }
+
     // TODO: take into account distance between pure parts
     def similarity(other: Assertion): Int = this.sigma.similarity(other.sigma)
 
@@ -142,6 +146,7 @@ object Specifications {
                   fname: String,
                   env: Environment,
                   deriv: Derivation)
+
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
@@ -227,7 +232,7 @@ object Specifications {
     def specSize: Int = pre.size + post.size
   }
 
-  private def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
+  def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
     pre.resolve(gamma0, env) match {
       case None => throw SepLogicException(s"Resolution error in specification: ${pre.pp}")
       case Some(gamma1) => post.resolve(gamma1, env) match {
@@ -243,6 +248,6 @@ object Specifications {
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre, post, gamma, formalNames, ghostUniversals, fname, env, emptyDerivation).simplifyPure
+    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, formalNames, ghostUniversals, fname, env.resolveOverloading(), emptyDerivation).simplifyPure
   }
 }

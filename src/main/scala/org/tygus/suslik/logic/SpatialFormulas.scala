@@ -10,6 +10,8 @@ import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
   */
 sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
 
+  def resolveOverloading(gamma: Gamma):Heaplet
+
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
     def collector(acc: Set[R])(h: Heaplet): Set[R] = h match {
@@ -51,6 +53,10 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   * var + offset :-> value
   */
 case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
+
+  override def resolveOverloading(gamma: Gamma): Heaplet =
+    this.copy(loc = loc.resolveOverloading(gamma), value=value.resolveOverloading(gamma))
+
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
     s"$head :-> ${value.pp}"
@@ -78,6 +84,9 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   * block(var, size)
   */
 case class Block(loc: Expr, sz: Int) extends Heaplet {
+
+  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(loc=loc.resolveOverloading(gamma))
+
   override def pp: Ident = {
     s"[${loc.pp}, $sz]"
   }
@@ -97,6 +106,9 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   * Predicate application
   */
 case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extends Heaplet {
+
+  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args=args.map(_.resolveOverloading(gamma)))
+
   override def pp: String = {
     val ppTag : Option[Int] => String = {
       case None => "[-]" // "[\uD83D\uDD12]" // "locked"
@@ -132,6 +144,8 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
 
 
 case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
+  def resolveOverloading(gamma: Gamma): SFormula = {this.copy(chunks=chunks.map(_.resolveOverloading(gamma)))}
+
   override def pp: Ident = if (chunks.isEmpty) "emp" else chunks.map(_.pp).mkString(" ** ")
 
   def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b

@@ -2,6 +2,7 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.synthesis.SynConfig
 
 /**
   * Utilities for pure formulae
@@ -45,9 +46,37 @@ trait PureLogicUtils {
   }
 
   /**
+    *
+    */
+  def propagate_not(e:Expr):Expr = e match {
+    //  Classical logic stuff and de Morgan
+    case UnaryExpr(OpNot, UnaryExpr(OpNot, arg)) => propagate_not(arg)
+    case UnaryExpr(OpNot, BinaryExpr(OpAnd, left, right)) => propagate_not(left.not) || propagate_not(right.not)
+    case UnaryExpr(OpNot, BinaryExpr(OpOr, left, right)) => propagate_not(left.not) && propagate_not(right.not)
+    case UnaryExpr(OpNot, BoolConst(true)) => pFalse
+    case UnaryExpr(OpNot, BoolConst(false)) => pTrue
+    case UnaryExpr(op, e1) if op  != OpNot => UnaryExpr(op, propagate_not(e1))
+    case BinaryExpr(op, left, right) => BinaryExpr(op, propagate_not(left), propagate_not(right))
+    case _ => e
+  }
+
+  def desugar(e: Expr): Expr = e match {
+      // Bi-implication usually ends up not being in CNF, so it is not very useful
+//    case BinaryExpr(OpBoolEq, e1, e2) => desugar(e1) <==> desugar(e2)
+//
+//    case BinaryExpr(op, e1, e2) => BinaryExpr(op, desugar(e1), desugar(e2))
+//    case UnaryExpr(op, e1) => UnaryExpr(op, desugar(e1))
+    case _ => e
+  }
+
+  def propperify(e: Expr): Expr = propagate_not(desugar(e))
+
+  /**
     * Expression simplifier
     */
-  def simplify(e: Expr): Expr = e match {
+  private val disable_simplification = true
+  def simplify(e: Expr): Expr = if(disable_simplification) propperify(e)
+  else propperify(e) match {
     //  Truth table for and
     case BinaryExpr(OpAnd, e1, e2) => simplify(e1) match {
       case BoolConst(false) => pFalse
@@ -55,6 +84,9 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(false) => pFalse
         case BoolConst(true) => s1
+//        case s2 if s1 == s2 => s1 // TODO: maybe enable
+//        case s2 if s1 == s2.not => pFalse
+//        case s2 if s1.not == s2 => pFalse
         case s2 => s1 && s2
       }
     }
@@ -66,6 +98,9 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(true) => pTrue
         case BoolConst(false) => s1
+//        case s2 if s2 == s1 => s1 // TODO: maybe enable
+//        case s2 if s2 == s1.not => pTrue
+//        case s2 if s2.not == s1 => pTrue
         case s2 => s1 || s2
       }
     }
@@ -88,6 +123,12 @@ trait PureLogicUtils {
       if (n1 <= n2) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
     case BinaryExpr(OpSetEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpSetEq, v, simplify(e))
 
+      // TODO: maybe enable
+//    case BinaryExpr(OpBoolEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+//      BoolConst(true)
+//    case BinaryExpr(OpBoolEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
+//      if (n1 <= n2) BinaryExpr(OpBoolEq, v1, v2) else BinaryExpr(OpBoolEq, v2, v1)
+//    case BinaryExpr(OpBoolEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpBoolEq, v, simplify(e))
 
     case BinaryExpr(OpPlus, left, IntConst(i)) if i.toInt == 0 => simplify(left)
     case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplify(right)
@@ -105,7 +146,7 @@ trait PureLogicUtils {
   def pTrue: PFormula = BoolConst(true)
 
   def pFalse: PFormula = BoolConst(false)
-  
+
   private def isAtomicExpr(e: Expr): Boolean = e match {
     case BinaryExpr(op, _, _) => !op.isInstanceOf[RelOp] && !op.isInstanceOf[LogicOp]
     case _ => true
@@ -118,6 +159,8 @@ trait PureLogicUtils {
 
   val isAtomicPFormula: PFormula => Boolean = {
     case BoolConst(true) | BoolConst(false) => true
+    case Var(_) => true // Not sure, because var might be non-bool, which is not very atomic (or is it atomic enough?)
+    case UnaryExpr(OpNot, Var(_)) => true // here var must be bool
     case UnaryExpr(OpNot, p) => isRelationPFormula(p)
     case p => isRelationPFormula(p)
   }

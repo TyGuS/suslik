@@ -97,6 +97,11 @@ trait SynthesisRunnerUtil {
           testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
           testPrintln(s"Total successful rule applications: ${stats.numSucc}")
           testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
+          testPrintln(s"Number of saved negative results: ${stats.numSavedResultsNegative}")
+          testPrintln(s"Number of saved positive results: ${stats.numSavedResultsPositive}")
+          testPrintln(s"Number of recalled negative results: ${stats.numRecalledResultsNegative}")
+          testPrintln(s"Number of recalled positive results: ${stats.numRecalledResultsPositive}")
+          testPrintln(s"Total number of saved results: ${saved_results.size}")
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
         } else {

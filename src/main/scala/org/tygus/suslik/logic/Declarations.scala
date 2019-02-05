@@ -24,6 +24,13 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
   */
 case class FunSpec(name: Ident, rType: SSLType, params: Formals,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
+
+  def resolveOverloading(env:Environment):FunSpec = {
+    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
+    val gamma = resolvePrePost(gamma0, env, pre, post)
+    this.copy(pre=pre.resolveOverloading(gamma), post=post.resolveOverloading(gamma))
+  }
+
   override def pp: String = {
     s"${pre.pp}\n${rType.pp} " +
         s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
@@ -61,6 +68,33 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
     s"${selector.pp} => ${asn.pp}"
 
   def valid: Boolean = isAtomicPFormula(selector)
+
+  /*
+    Get info about types
+  * result:
+  * None: contradiction in resolve
+  * Some(gamma, true): new info obtained
+  * Some(gamma, false): no new info
+  * */
+  def resolve(gamma0: Gamma, env: Environment):Option[Gamma]= {
+    val new_gamma = for {
+      gamma1 <- selector.resolve(gamma0, Some(BoolType))
+      gamma2 <- asn.resolve(gamma1, env)
+    }yield gamma2
+    if(new_gamma.isEmpty){
+      None
+    }else{
+      if (!new_gamma.contains(gamma0)){ // Info was updated, so it worth to make a new iteration
+        resolve(new_gamma.get, env)
+      }else{
+        new_gamma // No update, return
+      }
+    }
+  }
+
+  def resolveOverloading(gamma: Gamma): InductiveClause ={
+    this.copy(selector = selector.resolveOverloading(gamma), asn=asn.resolveOverloading(gamma))
+  }
 }
 
 /**
@@ -84,6 +118,26 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
   */
 case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[InductiveClause])
     extends TopLevelDeclaration with PureLogicUtils {
+
+  def resolve(gamma: Gamma, env:Environment):Option[Gamma] = {
+    val init_gamma : Option[Gamma] = Some(gamma)
+    val new_gamma = clauses.foldLeft(init_gamma)((accum_gamma, clause) => accum_gamma match{
+      case Some(g) => clause.resolve(g, env)
+      case _ => None
+    })
+    new_gamma match {
+      case Some(g) =>
+        if (g == gamma) Some(g) else resolve(g, env)
+      case _ => None
+    }
+  }
+
+  def resolveOverloading(env:Environment): InductivePredicate = {
+    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived from the params
+    val gamma = resolve(gamma0, env)
+    if (gamma.isEmpty) throw SepLogicException(s"Resolution error in predicate: ${this.pp}")
+    this.copy(clauses = clauses.map(_.resolveOverloading(gamma.get)))
+  }
 
   override def pp: String = {
     val prelude = s"$name (${params.map(_._2.pp).mkString(", ")}) {"
@@ -135,6 +189,11 @@ case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
     val fsStr = if (functions.nonEmpty) s"\n[Functions  (${functions.size}): $fs]" else ""
     //val post = if (ps.nonEmpty || fs.nonEmpty) "\n" else ""
     s"$psStr$fsStr"
+  }
+
+  def resolveOverloading(): Environment = { // No gamma in input, because every fun & pred has own gamma
+    this.copy(predicates = predicates.map{case (k,v) => (k, v.resolveOverloading(this))},
+      functions=functions.map{case (k,v) => (k, v.resolveOverloading(this))})
   }
 }
 

@@ -8,6 +8,7 @@ import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -50,7 +51,36 @@ trait Synthesis extends SepLogicUtils {
 
   }
 
-  private def synthesize(goal: Goal, depth: Int)
+  var saved_results = scala.collection.mutable.Map[(Goal, List[SynthesisRule]), (Option[Statement], Int)]()
+
+  private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
+                                  (stats: SynStats,
+                                   rules: List[SynthesisRule])
+                                  (implicit ind: Int = 0): Option[Statement] = {
+    if (!goal.env.config.memoization) {
+      synthesize_actual(goal, depth)(stats, rules)(ind)
+    } else if (saved_results.contains(goal, rules)) { //
+      val (res, recalled_count) = saved_results(goal, rules)
+      saved_results((goal, rules)) = (res, recalled_count + 1)
+      if (res.isDefined) {
+        stats.bumpUpRecalledResultsPositive()
+      } else {
+        stats.bumpUpRecalledResultsNegative()
+      }
+      res
+    } else {
+      val res = synthesize_actual(goal, depth)(stats, rules)(ind)
+      if (res.isDefined) {
+        stats.bumpUpSavedResultsPositive()
+      } else {
+        stats.bumpUpSavedResultsNegative()
+      }
+      saved_results((goal, rules)) = (res, 0)
+      res
+    }
+  }
+
+  private def synthesize_actual(goal: Goal, depth: Int)
                         (stats: SynStats,
                          rules: List[SynthesisRule])
                         (implicit ind: Int = 0): Option[Statement] = {

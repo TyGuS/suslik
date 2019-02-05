@@ -1,6 +1,7 @@
 package org.tygus.suslik.language
 
 import org.tygus.suslik.logic.Gamma
+import org.tygus.suslik.synthesis.SynthesisException
 
 /**
   * @author Ilya Sergey
@@ -13,11 +14,22 @@ object Expressions {
     override def pp: String = "not"
   }
 
-  sealed abstract class BinOp extends PrettyPrinting {
-    def level: Int
-    def lType: SSLType
+
+  sealed abstract class BinOp extends OverloadedBinOp {
+    def lType:SSLType
     def rType: SSLType
+
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map((lType, rType) -> this)
+
+    override def default: BinOp = this
+
     def resType: SSLType
+  }
+
+  sealed abstract class OverloadedBinOp extends PrettyPrinting {
+    def opFromTypes: Map[(SSLType, SSLType), BinOp]
+    def default: BinOp
+    def level:Int
   }
 
   sealed abstract class RelOp extends BinOp {
@@ -30,6 +42,18 @@ object Expressions {
   }
   trait SymmetricOp
   trait AssociativeOp
+
+  object OpOverloadedEq extends OverloadedBinOp{
+    override def level: Int = 3
+    override def pp: String = "=="
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntType) -> OpEq,
+      (IntSetType, IntSetType) -> OpSetEq,
+      (BoolType, BoolType) -> OpBoolEq,
+    )
+
+    override def default: BinOp = OpEq
+  }
 
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
@@ -51,6 +75,14 @@ object Expressions {
     def lType: SSLType = IntType
     def rType: SSLType = IntType
   }
+
+  object OpBoolEq extends RelOp with SymmetricOp {
+    def level: Int = 3
+    override def pp: String = "=="
+    def lType: SSLType = BoolType
+    def rType: SSLType = BoolType
+  }
+
   object OpLeq extends RelOp {
     def level: Int = 3
     override def pp: String = "<="
@@ -65,11 +97,11 @@ object Expressions {
   }
   object OpAnd extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
-    override def pp: String = "/\\"
+    override def pp: String = "&&"
   }
   object OpOr extends LogicOp with SymmetricOp with AssociativeOp {
-    def level: Int = 2
-    override def pp: String = "\\/"
+    def level: Int = 1
+    override def pp: String = "||"
   }
   object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
@@ -191,6 +223,26 @@ object Expressions {
             gamma2 <- r.resolve(gamma1, Some(op.rType))
           } yield gamma2
         } else None
+      case OverloadedBinaryExpr(overloaded_op, left, right) =>
+        val possible_gammas = for{
+          ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
+          if op.resType.conformsTo(target)
+          gamma1 <- left.resolve(gamma, Some(lTarget))
+          gamma2 <- right.resolve(gamma1, Some(rTarget))
+          is_exactly_defined = (left.getType(gamma2).contains(lTarget)
+                            && right.getType(gamma2).contains(rTarget))
+        } yield (gamma2, is_exactly_defined)
+        val exact_gammas = possible_gammas.filter {case (_, exact) => exact}
+        exact_gammas.size match{
+          case 0 =>
+            possible_gammas.size match{
+              case 0 => None
+              case 1 => Some(possible_gammas.head._1)
+              case _ => BinaryExpr(overloaded_op.default, left, right).resolve(gamma, target) // Ambiguity, using default
+            }
+          case 1 => Some(exact_gammas.head._1)
+          case _ => BinaryExpr(overloaded_op.default, left, right).resolve(gamma, target) // Ambiguity, using default
+        }
       case SetLiteral(elems) =>
         if (IntSetType.conformsTo(target)) {
           elems.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, e) => go match {
@@ -222,6 +274,24 @@ object Expressions {
       case SetLiteral(elems) => 1 + elems.map(_.size).sum
       case IfThenElse(cond, l, r) => 1 + cond.size + l.size + r.size
       case _ => 1
+    }
+
+    def resolveOverloading(gamma: Gamma) :Expr= this match {
+      case expr: OverloadedBinaryExpr =>
+        BinaryExpr(
+          expr.inferConcreteOp(gamma),
+          expr.left.resolveOverloading(gamma),
+          expr.right.resolveOverloading(gamma))
+      case Var(_)
+      | BoolConst(_)
+      | IntConst(_)  => this
+      case UnaryExpr(op, e) => UnaryExpr(op, e.resolveOverloading(gamma))
+      case BinaryExpr(op, l, r) => BinaryExpr(op, l.resolveOverloading(gamma), r.resolveOverloading(gamma))
+      case SetLiteral(elems) => SetLiteral(elems.map(_.resolveOverloading(gamma)))
+      case IfThenElse(c, t, e) =>IfThenElse(c.resolveOverloading(gamma),
+                                            t.resolveOverloading(gamma),
+                                            e.resolveOverloading(gamma))
+
     }
   }
 
@@ -277,6 +347,61 @@ object Expressions {
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(op.resType)
   }
 
+  case class OverloadedBinaryExpr(overloaded_op: OverloadedBinOp, left: Expr, right: Expr) extends Expr {
+    def subst(sigma: Map[Var, Expr]): Expr = OverloadedBinaryExpr(overloaded_op, left.subst(sigma), right.subst(sigma))
+    override def level: Int = overloaded_op.level
+    override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
+    override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
+
+    def inferConcreteOp(gamma: Gamma):BinOp = {
+      val lType = left.getType(gamma)
+      val rType = right.getType(gamma)
+      val strictly_defined_ops = for {
+        ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
+        if (lType.contains(lTarget)|| lType.isEmpty) && (rType.contains(rTarget) || rType.isEmpty)
+      } yield op
+      strictly_defined_ops.size match {
+        case 1 => strictly_defined_ops.head
+        case n if n > 1 =>
+          val op = overloaded_op.default
+          if (lType.isEmpty || lType.get.conformsTo(Some(op.lType))
+            && rType.isEmpty || rType.get.conformsTo(Some(op.rType))) {
+            op
+          } else {
+            throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for strong typing ${(lType, rType)}" +
+              s", and arguments don't conform to the default types")
+          }
+        case 0 =>
+          val defined_ops = for {
+            ((lTarget, rTarget), op) <- overloaded_op.opFromTypes
+            l_ok = lType match {
+              case Some(t) => t.conformsTo(Some(lTarget))
+              case None => true
+            }
+            r_ok = rType match {
+              case Some(t) => t.conformsTo(Some(rTarget))
+              case None => true
+            }
+            if l_ok && r_ok
+          } yield op
+          defined_ops.size match {
+            case 0 => throw SynthesisException(s"Operation ${overloaded_op.pp} is not defined for input types ${(lType, rType)}")
+            case 1 => defined_ops.head
+            case _ =>
+              val op = overloaded_op.default
+              if (lType.isEmpty || lType.get.conformsTo(Some(op.lType))
+                && rType.isEmpty || rType.get.conformsTo(Some(op.rType))) {
+                op
+              } else {
+                throw SynthesisException(s"Operation ${overloaded_op.pp} is ambiguous for weak typing ${(lType, rType)}" +
+                  s", and arguments don't conform to the default types")
+              }
+          }
+      }
+    }
+    override def getType(gamma: Gamma): Option[SSLType] = Some(inferConcreteOp(gamma).resType)
+  }
+
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
 
@@ -292,7 +417,7 @@ object Expressions {
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
-    override def level: Int = 1
+    override def level: Int = 0
     override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = left.getType(gamma)

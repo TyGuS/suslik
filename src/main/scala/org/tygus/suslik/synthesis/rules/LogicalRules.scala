@@ -214,6 +214,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
         // This messes with hypothesis unify:
 //        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
+          //TODO: discuss and enable
+//        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, p1) match {
         case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>

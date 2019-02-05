@@ -158,6 +158,10 @@ object SMTSolving extends Core
       val l = convertIntExpr(left)
       val r = convertIntExpr(right)
       l === r }
+    case BinaryExpr(OpBoolEq, left, right) => {
+      val l = convertBoolExpr(left)
+      val r = convertBoolExpr(right)
+      l === r }
     case BinaryExpr(OpLeq, left, right) => {
       val l = convertIntExpr(left)
       val r = convertIntExpr(right)
