@@ -53,7 +53,6 @@ class OverloadedOperatorsTests extends scalatestFunSpec with Matchers with Synth
       assert(goal.gamma(Var("l")) == LocType)
       assert(goal.gamma(Var("s")) == IntSetType)
       assert(goal.gamma(Var("b")) == BoolType)
-      print(goal.gamma)
     }
 
     it("should resolve ambiguity as int by default") {
@@ -64,7 +63,6 @@ class OverloadedOperatorsTests extends scalatestFunSpec with Matchers with Synth
 
       val goal = resolveFromSpec("foo", code)
       assert(goal.gamma(Var("www")) == IntType)
-      print(goal.gamma)
     }
 
     it("should resolve type from equality chain") {
@@ -86,7 +84,6 @@ class OverloadedOperatorsTests extends scalatestFunSpec with Matchers with Synth
       assert(goal.gamma(Var("i")) == IntType)
       assert(goal.gamma(Var("j")) == IntType)
       assert(goal.gamma(Var("k")) == IntType)
-      print(goal.gamma)
     }
   }
 
