@@ -100,7 +100,7 @@ object Expressions {
     override def pp: String = "&&"
   }
   object OpOr extends LogicOp with SymmetricOp with AssociativeOp {
-    def level: Int = 2
+    def level: Int = 1
     override def pp: String = "||"
   }
   object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
@@ -417,7 +417,7 @@ object Expressions {
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
-    override def level: Int = 1
+    override def level: Int = 0
     override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = left.getType(gamma)
