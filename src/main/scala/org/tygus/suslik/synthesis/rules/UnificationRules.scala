@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.Ident
+import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
@@ -167,6 +167,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           for {
             // Try variables from the context
             l <- goal.programVars.toList
+            if goal.gamma(l).conformsTo(Some(IntType))
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
             subGoal = goal.copy(newPre, post.subst(m, l))
             kont = prepend(Store(x, offset, l), toString)
