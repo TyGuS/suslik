@@ -97,11 +97,11 @@ object Expressions {
   }
   object OpAnd extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
-    override def pp: String = "/\\"
+    override def pp: String = "&&"
   }
   object OpOr extends LogicOp with SymmetricOp with AssociativeOp {
     def level: Int = 2
-    override def pp: String = "\\/"
+    override def pp: String = "||"
   }
   object OpUnion extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4

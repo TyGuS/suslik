@@ -57,7 +57,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def relOpParser: Parser[OverloadedBinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpOverloadedEq ||| "=i" ^^^ OpOverloadedEq ||| "<=i" ^^^ OpSubset ||| "in" ^^^ OpIn
 
-  def logOpParser: Parser[OverloadedBinOp] = "\\/" ^^^ OpOr ||| "/\\" ^^^ OpAnd
+  def logOpParser: Parser[OverloadedBinOp] = ("\\/"|"||") ^^^ OpOr ||| ("/\\"|"&&") ^^^ OpAnd
 
   def binOpParser(p: Parser[OverloadedBinOp]): Parser[(Expr, Expr) => Expr] = {
     p ^^ { op => (l, r) => OverloadedBinaryExpr(op, l, r) }
