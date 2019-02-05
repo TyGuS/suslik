@@ -61,10 +61,11 @@ trait PureLogicUtils {
   }
 
   def desugar(e: Expr): Expr = e match {
-    case BinaryExpr(OpBoolEq, e1, e2) => desugar(e1) <==> desugar(e2)
-
-    case BinaryExpr(op, e1, e2) => BinaryExpr(op, desugar(e1), desugar(e2))
-    case UnaryExpr(op, e1) => UnaryExpr(op, desugar(e1))
+      // Bi-implication usually ends up not being in CNF, so it is not very useful
+//    case BinaryExpr(OpBoolEq, e1, e2) => desugar(e1) <==> desugar(e2)
+//
+//    case BinaryExpr(op, e1, e2) => BinaryExpr(op, desugar(e1), desugar(e2))
+//    case UnaryExpr(op, e1) => UnaryExpr(op, desugar(e1))
     case _ => e
   }
 
