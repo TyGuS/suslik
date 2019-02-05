@@ -1,5 +1,5 @@
 Shakespeare
-boolean variable is not considered atomic in PureLogicUtils.isAtomicExpr
+runs out of rules
 #####
 {true ; emp}
 void question(int v)
