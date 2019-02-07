@@ -1,0 +1,10 @@
+Listfree example
+
+###
+
+{true; lseg(x, S) ** y :-> x}
+  void listfree2(loc x, loc y)
+{true ; y :-> 0 }
+
+###
+
