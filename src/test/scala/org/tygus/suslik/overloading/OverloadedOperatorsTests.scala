@@ -1,20 +1,19 @@
 package org.tygus.suslik.synthesis
 
-import org.scalatest.{Matchers, FunSpec => scalatestFunSpec}
+import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.Var
-import org.tygus.suslik.logic._
+import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Resolver.resolveProgram
 import org.tygus.suslik.logic.Specifications.makeNewGoal
+import org.tygus.suslik.logic._
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
-import org.tygus.suslik.language._
-import org.tygus.suslik.util.SynStatUtil
 
 /**
   * @author Roman Shchedrin
   */
 
-class OverloadedOperatorsTests extends scalatestFunSpec with Matchers with SynthesisRunnerUtil {
+class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunnerUtil  {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
