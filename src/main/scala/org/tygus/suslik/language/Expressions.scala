@@ -55,6 +55,39 @@ object Expressions {
     override def default: BinOp = OpEq
   }
 
+  object OpOverloadedPlus extends OverloadedBinOp{
+    override def level: Int = 4
+    override def pp: String = "+"
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntType) -> OpPlus,
+      (IntSetType, IntSetType) -> OpUnion,
+    )
+
+    override def default: BinOp = OpPlus
+  }
+
+  object OpOverloadedMinus extends OverloadedBinOp{
+    override def level: Int = 4
+    override def pp: String = "-"
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntType) -> OpMinus,
+      (IntSetType, IntSetType) -> OpDiff,
+    )
+
+    override def default: BinOp = OpMinus
+  }
+
+  object OpOverloadedLeq extends OverloadedBinOp{
+    override def level: Int = 3
+    override def pp: String = "<="
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntType) -> OpLeq,
+      (IntSetType, IntSetType) -> OpSubset,
+    )
+
+    override def default: BinOp = OpLeq
+  }
+
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "+"
