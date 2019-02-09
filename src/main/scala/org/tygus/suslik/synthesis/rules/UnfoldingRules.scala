@@ -53,7 +53,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             body = asn.sigma
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
-            _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
+            // _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
+            _newPreSigma2 = SFormula(remainingChunks)
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma)))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts

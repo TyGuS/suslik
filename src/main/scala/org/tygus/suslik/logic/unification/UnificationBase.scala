@@ -61,8 +61,8 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       sbst.forall { case (from, to) =>
         // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
         (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
-            // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
-            (!sParams.contains(from) || to.vars.forall(tParams.contains))
+          // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
+          (!sParams.contains(from) || to.vars.forall(tParams.contains))
       }
     }
 
@@ -114,7 +114,19 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
           val allVarsCaptured = true //newAssertion.vars.forall(target.formula.vars.contains(_))
           // TODO: Once SMT is there, also check implications
           if (allVarsCaptured) {
-            return Some(compose(freshSubst, newSubst))
+            val composition = compose(freshSubst, newSubst)
+            /* [Handling spatial-based unification]
+              Sometimes, there are parameters of the function spec, that are not present in the spatial part.
+              In this case, freshSubst will contain mappings to the variable that is not present in the current
+              goal (target). For those variables, for which we don't have a match, we just remove them from the substitution.
+              This is sound, as the result is _A_ substitution, which is correct in the case of loops,
+              as it refers to the variable in the scope.
+             */
+            val resultSubst = composition.filter {
+              case (k, v@Var(_)) => target.params.contains(v)
+              case _ => true
+            }
+            return Some(resultSubst)
           }
         // Otherwise, continue
         case None =>
@@ -147,6 +159,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
   */
 case class UnificationGoal(formula: Assertion, params: Set[Var]) {
   def ghosts: Set[Var] = formula.vars -- params
+
   override def toString: String = s"(${params.map(_.pp).mkString(", ")}) ${formula.pp}"
 }
 

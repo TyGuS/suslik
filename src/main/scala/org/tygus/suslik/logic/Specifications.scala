@@ -168,7 +168,9 @@ object Specifications {
 
 
       for ((name, spec) <- names.zip(specs))
-        yield FunSpec(name, VoidType, spec.formals, spec.pre, spec.post)
+        yield {
+          FunSpec(name, VoidType, spec.formals, spec.pre, spec.post)
+        }
     }
 
     def spawnChild(pre: Assertion = this.pre,
