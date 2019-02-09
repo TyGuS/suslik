@@ -150,6 +150,22 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: call]"
 
+    def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
+      val pairTags = for {
+        SApp(name, args, t) <- adaptedFunPre.chunks
+        SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
+          case SApp(_name, _args, _) => _name == name && _args == args
+          case _ => false
+        }
+      } yield (t, _t)
+      val comparisons = pairTags.map {case (t, s) => compareTags(t, s)}
+      val allDefined = comparisons.forall(_.isDefined)
+      val allGeq = comparisons.forall(_.getOrElse(1) <= 0)
+      val atLeastOneLarger = comparisons.exists(_.getOrElse(1) < 0)
+      allDefined && allGeq && atLeastOneLarger
+    }
+
+
     def apply(goal: Goal): Seq[Subderivation] = {
       (for {
         _f <- goal.funSpecs
@@ -170,6 +186,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+        // Check that the goal's subheap had at leas one unfolding
+        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args), toString)
@@ -205,6 +223,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       } yield callGoal
     }
   }
+
   /*
    * The rule implementing a limited form of abduction:
    * Relaxes the function by replacing some of the points-to values by ghosts to allow for more unifications
@@ -331,7 +350,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualConstraints = actualAssertion.phi
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
-//             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+            //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = mkConjunction(List(actualSelector, post.phi, actualConstraints))

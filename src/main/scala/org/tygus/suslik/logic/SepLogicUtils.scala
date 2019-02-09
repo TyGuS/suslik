@@ -61,16 +61,17 @@ trait SepLogicUtils extends PureLogicUtils {
     }
   }
 
+  def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
+    case (None, None) => Some(0)
+    case (Some(x), Some(y)) => Some (x - y)
+    case _ => None
+  }
+
+
   /**
     * Find the set of sub-formulas of `large` that `small` might possibly by unified with.
     */
   def findLargestMatchingHeap(small: SFormula, large: SFormula): Seq[SFormula] = {
-
-    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
-      case (None, None) => Some(0)
-      case (Some(x), Some(y)) => Some (x - y)
-      case _ => None
-    }
 
     def findMatchingFor(h: Heaplet, stuff: Seq[Heaplet]): Seq[Heaplet] = h match {
       case Block(loc, sz) => stuff.filter {
@@ -89,8 +90,7 @@ trait SepLogicUtils extends PureLogicUtils {
         }
       case SApp(pred, args, tag) => stuff.filter {
         case SApp(_pred, _args, _tag) =>
-          _pred == pred && args.length == _args.length &&
-            compareTags(tag, _tag) == Some(-1)
+          _pred == pred && args.length == _args.length
         case _ => false
       }
     }
