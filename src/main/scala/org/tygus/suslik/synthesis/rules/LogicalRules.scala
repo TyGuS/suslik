@@ -87,7 +87,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val preFootprint = Set(deriv.preIndex.lastIndexOf(hPre))
           val postFootprint = Set(deriv.postIndex.lastIndexOf(hPost))
           val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-          val newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
+          val newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
           List(Subderivation(List(newGoal), pureKont(toString)))
         }
       }
@@ -143,7 +143,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
-        val newGoal = goal.copy(newPre, newPost)
+        val newGoal = goal.spawnChild(newPre, newPost)
         List(Subderivation(List(newGoal), pureKont(toString)))
       }
     }
@@ -179,17 +179,17 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           // TODO: make sure it's complete to include post, otherwise revert to pre only
         case (None, None) => Nil
         case (Some(p1), None) =>
-          val newGoal = goal.copy(pre = Assertion(p1, s1))
+          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
           List(Subderivation(List(newGoal), pureKont(toString)))
         case (None, Some(p2)) =>
-          val newGoal = goal.copy(post = Assertion(p2, s2))
+          val newGoal = goal.spawnChild(post = Assertion(p2, s2))
           List(Subderivation(List(newGoal), pureKont(toString)))
         case (Some(p1), Some(p2)) =>
-          val newGoal = goal.copy(pre = Assertion(p1, s1), post = Assertion(p2, s2))
+          val newGoal = goal.spawnChild(pre = Assertion(p1, s1), post = Assertion(p2, s2))
           List(Subderivation(List(newGoal), pureKont(toString)))
 //        case (None, _) => Nil
 //        case (Some(p1), _) =>
-//          val newGoal = goal.copy(pre = Assertion(p1, s1))
+//          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
 //          List(Subderivation(List(newGoal), pureKont(toString)))
       }
     }
@@ -223,7 +223,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val _s1 = s1.subst(x, l)
           val _p2 = p2.subst(x, l)
           val _s2 = s2.subst(x, l)
-          val newGoal = goal.copy(
+          val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
             List(Subderivation(List(newGoal), pureKont(toString)))
@@ -258,7 +258,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val _s1 = s1.subst(sub)
           val _p2 = p2.subst(sub)
           val _s2 = s2.subst(sub)
-          val newGoal = goal.copy(
+          val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
           List(Subderivation(List(newGoal), pureKont(toString)))

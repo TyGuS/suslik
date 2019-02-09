@@ -73,7 +73,7 @@ object Specifications {
     }
 
     def resolveOverloading(gamma: Gamma): Assertion = {
-      this.copy(phi = phi.resolveOverloading(gamma), sigma=sigma.resolveOverloading(gamma))
+      this.copy(phi = phi.resolveOverloading(gamma), sigma = sigma.resolveOverloading(gamma))
     }
 
     // TODO: take into account distance between pure parts
@@ -141,6 +141,7 @@ object Specifications {
   case class Goal(pre: Assertion,
                   post: Assertion,
                   gamma: Gamma,
+                  parent: Option[Goal],
                   programVars: List[Var],
                   universalGhosts: Set[Var],
                   fname: String,
@@ -153,15 +154,30 @@ object Specifications {
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
         s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
 
-    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
+    def simplifyPure: Goal = spawnChild(Assertion(simplify(pre.phi), pre.sigma),
       Assertion(simplify(post.phi), post.sigma))
 
-    def copy(pre: Assertion = this.pre,
-             post: Assertion = this.post,
-             gamma: Gamma = this.gamma,
-             programVars: List[Var] = this.programVars,
-             env: Environment = this.env,
-             newRuleApp: Option[RuleApplication] = None): Goal = {
+    def funSpecs = {
+      def ancestors(g: Goal): List[Goal] = g.parent match {
+        case None => Nil
+        case Some(p) => p :: ancestors(p)
+      }
+      val specs = ancestors(this).reverse
+      val names = for (i <- 1 to specs.size)
+          yield if (i == 1) this.fname else s"rec$i"
+
+
+      for ((name, spec) <- names.zip(specs))
+        yield FunSpec(name, VoidType, spec.formals, spec.pre, spec.post)
+    }
+
+    def spawnChild(pre: Assertion = this.pre,
+                   post: Assertion = this.post,
+                   gamma: Gamma = this.gamma,
+                   parent: Option[Goal] = Some(this),
+                   programVars: List[Var] = this.programVars,
+                   env: Environment = this.env,
+                   newRuleApp: Option[RuleApplication] = None): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -170,6 +186,7 @@ object Specifications {
       def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
         index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks).sortBy(_.rank)
       }
+
       val d = this.deriv
       val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
         postIndex = appendNewChunks(this.post, post, d.postIndex),
@@ -182,7 +199,7 @@ object Specifications {
       val postSorted = Assertion(simplify(post.phi), newPostSigma)
       val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
 
-      Goal(preSorted, postSorted, gammaFinal, programVars, newUniversalGhosts, this.fname, env, newDeriv)
+      Goal(preSorted, postSorted, gammaFinal, parent, programVars, newUniversalGhosts, this.fname, env, newDeriv)
     }
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
@@ -213,7 +230,7 @@ object Specifications {
     def isExistential(x: Var): Boolean = existentials.contains(x)
 
     def addProgramVar(v: Var, t: SSLType): Goal =
-      this.copy(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
+      this.spawnChild(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
 
     def getType(x: Var): SSLType = {
       gamma.get(x) match {
@@ -242,12 +259,14 @@ object Specifications {
     }
   }
 
-  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
-    val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
+  def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
+    val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, formalNames, ghostUniversals, fname, env.resolveOverloading(), emptyDerivation).simplifyPure
+    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, None,
+      formalNames, ghostUniversals, fname, env.resolveOverloading(), emptyDerivation).simplifyPure
   }
+
 }

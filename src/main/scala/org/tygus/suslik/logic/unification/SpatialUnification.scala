@@ -15,7 +15,7 @@ object SpatialUnification extends UnificationBase {
 
 
   def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst] =
-    tryUnify(target, source, nonFreeInSource, tagsMatter = true)
+    tryUnify(target, source, nonFreeInSource, tagsMatter = false)
 
   /**
     * Tries to unify two heaplets `target` and `source`, assuming `source` has

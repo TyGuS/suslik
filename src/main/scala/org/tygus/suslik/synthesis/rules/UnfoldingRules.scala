@@ -55,7 +55,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
-          } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)))
+          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma)))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
@@ -134,7 +134,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       for {
         a <- preApps
         newEnv = mkIndHyp(goal, a)
-        newGoal = goal.copy(env = newEnv)
+        newGoal = goal.spawnChild(env = newEnv)
       } yield Subderivation(Seq(newGoal), pureKont(toString))
     }
   }
@@ -151,7 +151,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
       (for {
-        (_, _f) <- goal.env.functions
+        _f <- goal.funSpecs
         f = _f.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified
@@ -200,7 +200,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         acs <- List(addedChunks1, addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
-        callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp), env = newEnv)
+        callGoal = goal.spawnChild(restPre, newRuleApp = Some(ruleApp), env = newEnv)
       } yield callGoal
     }
   }
@@ -266,13 +266,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // val preFootprintToReplace = ptsToReplace.map(p => goal.deriv.preIndex.indexOf(p)).toSet
       // val ruleApp = saveApplication((preFootprintToReplace, Set.empty), goal.deriv)
       val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
-      val remainingGoal = goal.copy(pre = Assertion(goal.pre.phi, heapAfterWrites))
+      val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites))
 
       if (ptsToReplace.isEmpty) return (None, remainingGoal)
 
       val smallWriteGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
       val smallWriteGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
-      val smallWritesGoal = goal.copy(pre = smallWriteGoalPre, post = smallWriteGoalPost)
+      val smallWritesGoal = goal.spawnChild(pre = smallWriteGoalPre, post = smallWriteGoalPost)
 
       (Some(smallWritesGoal), remainingGoal)
     }
@@ -339,7 +339,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-            Subderivation(List(goal.copy(post = newPost, newRuleApp = Some(ruleApp))), kont)
+            Subderivation(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont)
           }
           subDerivations
         case _ => Nil

@@ -62,9 +62,15 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   /**
-    * Find the set of sub-formalas of `large` that `small` might possibly by unified with.
+    * Find the set of sub-formulas of `large` that `small` might possibly by unified with.
     */
   def findLargestMatchingHeap(small: SFormula, large: SFormula): Seq[SFormula] = {
+
+    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
+      case (None, None) => Some(0)
+      case (Some(x), Some(y)) => Some (x - y)
+      case _ => None
+    }
 
     def findMatchingFor(h: Heaplet, stuff: Seq[Heaplet]): Seq[Heaplet] = h match {
       case Block(loc, sz) => stuff.filter {
@@ -83,7 +89,8 @@ trait SepLogicUtils extends PureLogicUtils {
         }
       case SApp(pred, args, tag) => stuff.filter {
         case SApp(_pred, _args, _tag) =>
-          _pred == pred && args.length == _args.length && tag == _tag
+          _pred == pred && args.length == _args.length &&
+            compareTags(tag, _tag) == Some(-1)
         case _ => false
       }
     }
@@ -108,8 +115,8 @@ trait SepLogicUtils extends PureLogicUtils {
     val ps = for {p@PointsTo(y, o, _) <- sf.chunks if x == y} yield p
     val offsets = ps.map { case PointsTo(_, o, _) => o }.sorted
     val goodChunks = offsets.size == sz && // All offsets are present
-        offsets.distinct.size == offsets.size && // No repetitions
-        offsets.forall(o => o < sz) // all smaller than sz
+      offsets.distinct.size == offsets.size && // No repetitions
+      offsets.forall(o => o < sz) // all smaller than sz
     if (goodChunks) Some(SFormula(b :: ps)) else None
   }
 

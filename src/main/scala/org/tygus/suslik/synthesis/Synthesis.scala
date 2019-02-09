@@ -31,7 +31,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
   Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config
     val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = makeNewGoal(pre, post, formals, name, env)
+    val goal = topLevelGoal(pre, post, formals, name, env)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
     val stats = new SynStats()
     SMTSolving.init()
@@ -155,7 +155,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
                   // Set starting depth to current depth: new subgoal will start at its own starting depth
                   // to disallow producing guarded statements
                   val newConfig = goal.env.config.copy(startingDepth = depth)
-                  val newG = goal.copy(newPre, env = goal.env.copy(config = newConfig))
+                  val newG = goal.spawnChild(newPre, env = goal.env.copy(config = newConfig))
                   synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
                     case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
                     case _ => None // failed to synthesize else

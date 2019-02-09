@@ -44,7 +44,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
 
-        val newGoal = goal.copy(post = newPost, newRuleApp = Some(ruleApp))
+        val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
         Subderivation(List(newGoal), pureKont(toString))
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
@@ -98,7 +98,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           }
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
-          val newGoal = goal.copy(post = Assertion(_p2, _s2))
+          val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
           List(Subderivation(List(newGoal), pureKont(toString)))
         case _ => Nil
       }
@@ -126,7 +126,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         s <- postConjuncts
         t <- preConjuncts
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
-        newGoal = goal.copy(post = goal.post.subst(sigma))
+        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
       } yield Subderivation(List(newGoal), pureKont(toString))
     }
   }
@@ -169,7 +169,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
             l <- goal.programVars.toList
             if goal.gamma(l).conformsTo(Some(IntType))
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
-            subGoal = goal.copy(newPre, post.subst(m, l))
+            subGoal = goal.spawnChild(newPre, post.subst(m, l))
             kont = prepend(Store(x, offset, l), toString)
           } yield Subderivation(List(subGoal), kont)
         case Some((hl, hr)) =>
@@ -197,7 +197,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           v <- goal.universals.toList
           if goal.getType(ex).conformsTo(Some(goal.getType(v)))
           sigma = Map(ex -> v)
-          newGoal = goal.copy(post = goal.post.subst(sigma))
+          newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         } yield Subderivation(List(newGoal), pureKont(toString))
       } else Nil
     }
@@ -231,7 +231,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         preFootprint = preFrame.chunks.map(p => deriv.preIndex.lastIndexOf(p)).toSet
         postFootprint = postFrame.chunks.map(p => deriv.postIndex.lastIndexOf(p)).toSet
         ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-        newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
+        newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
       } yield {
         Subderivation(List(newGoal), pureKont(toString))
       }

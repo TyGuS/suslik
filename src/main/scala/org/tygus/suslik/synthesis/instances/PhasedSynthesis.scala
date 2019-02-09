@@ -38,7 +38,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
 
   def topLevelRules: List[SynthesisRule] = List(
-    UnfoldingRules.InductionRule,
+    // UnfoldingRules.InductionRule,
   )
 
   def anyPhaseRules(config: SynConfig):  List[SynthesisRule] = List(

@@ -89,7 +89,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         if SMTSolving.valid((pre && cond) ==> post)
         if SMTSolving.sat(pre && cond)
         newPre = goal.pre.copy(phi = goal.pre.phi && cond)
-        newGoal = goal.copy(newPre)
+        newGoal = goal.spawnChild(newPre)
       } yield Subderivation(List(newGoal), stmts => Guarded(cond, stmts.head))
 
     def apply(goal: Goal): Seq[Subderivation] = {
