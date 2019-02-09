@@ -2,7 +2,7 @@ Listfree example
 
 ###
 
-{true; lseg(x, S1) ** lseg(y, S2)}
+{true; lseg(x) ** lseg(y)}
   void listfree2(loc x, loc y)
 {true ; emp }
 

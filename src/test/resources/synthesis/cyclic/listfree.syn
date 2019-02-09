@@ -1,0 +1,11 @@
+Simple Listfree example
+
+###
+
+{true; lseg(x)}
+  void listfree(loc x)
+{true ; emp }
+
+###
+
+
