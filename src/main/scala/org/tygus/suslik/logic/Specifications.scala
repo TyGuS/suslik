@@ -2,6 +2,7 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisRule
 
@@ -173,16 +174,22 @@ object Specifications {
     def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
       Assertion(simplify(post.phi), post.sigma))
 
-    def funSpecs: List[FunSpec] = {
-      def ancestors(g: Goal): List[Goal] = g.parent match {
-        case None => Nil
-        case Some(p) => p :: ancestors(p)
-      }
-      for (spec <- ancestors(this).reverse)
-        yield {
-          val name = this.fname + spec.label.pp
-          FunSpec(name, VoidType, spec.formals, spec.pre, spec.post)
-        }
+    // Ancestors of this goal in the derivation (root last)
+    def ancestors: List[Goal] = parent match {
+      case None => Nil
+      case Some(p) => p :: p.ancestors
+    }
+
+    // Turn this goal into a helper function specification
+    def toFunSpec: FunSpec = {
+      val name = this.fname + this.label.pp
+      FunSpec(name, VoidType, this.formals, this.pre, this.post)
+    }
+
+    // Turn this goal into a helper function call
+    def toCall: Statement = {
+      val f = this.toFunSpec
+      Call(None, Var(f.name), f.params.map(_._2), None)
     }
 
     def spawnChild(pre: Assertion = this.pre,
@@ -275,6 +282,9 @@ object Specifications {
     }
   }
 
+  // Label of the top-level goal
+  def topLabel: GoalLabel = GoalLabel(List(0))
+
   def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
     val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
@@ -285,7 +295,7 @@ object Specifications {
     val post1 = post.resolveOverloading(gamma)
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, GoalLabel(List(0)), None, env.resolveOverloading(), emptyDerivation).simplifyPure
+      fname, topLabel, None, env.resolveOverloading(), emptyDerivation).simplifyPure
   }
 
 }

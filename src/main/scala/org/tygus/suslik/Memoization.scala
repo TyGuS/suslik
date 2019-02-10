@@ -1,6 +1,7 @@
 package org.tygus.suslik
 
 import org.tygus.suslik.language.Statements.Statement
+import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SynthesisRule
 import org.tygus.suslik.util.SynStats
@@ -9,13 +10,13 @@ import scala.collection.mutable
 
 trait Memoization {
 
-  type ResultMap = mutable.Map[(Goal, List[SynthesisRule]), (Option[Statement], Int)]
+  type ResultMap = mutable.Map[(Goal, List[SynthesisRule]), (Option[Solution], Int)]
 
   def runWithMemo(goal: Goal,
                   savedResults: ResultMap,
                   stats: SynStats,
                   rules: List[SynthesisRule],
-                  res: => Option[Statement]): Option[Statement] = {
+                  res: => Option[Solution]): Option[Solution] = {
     if (!goal.env.config.memoization) {
       res
     } else if (savedResults.contains(goal, rules)) { //
@@ -30,7 +31,7 @@ trait Memoization {
     }
   }
 
-  private def logMemoization(stats: SynStats, res: Option[Statement]) = {
+  private def logMemoization(stats: SynStats, res: Option[Solution]) = {
     if (res.isDefined) {
       stats.bumpUpRecalledResultsPositive()
     } else {

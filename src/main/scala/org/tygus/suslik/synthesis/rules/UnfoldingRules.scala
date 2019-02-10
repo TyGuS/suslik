@@ -166,8 +166,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
       for {
-        _f <- goal.funSpecs
-        f = _f.refreshExistentials(goal.vars)
+        // look at all ancestors starting from the root
+        // and try to find a companion
+        a <- goal.ancestors.reverse
+        f = a.toFunSpec.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
@@ -188,7 +190,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(None, Var(f.name), args), toString)
+        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, Some(a.label)), toString)
         Subderivation(List(callGoal), kont)
       }
     }

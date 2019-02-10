@@ -86,8 +86,8 @@ trait SynthesisRunnerUtil {
     SynStatUtil.log(testName, delta, params, spec, sresult)
 
     sresult match {
-      case Some((rr, stats)) =>
-        val result = rr.pp
+      case Some((procs, stats)) =>
+        val result = procs.map(_.pp).mkString
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)

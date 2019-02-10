@@ -27,8 +27,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
 
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
-  def synthesizeProc(funGoal: FunSpec, env: Environment):
-  Option[(Procedure, SynStats)] = {
+  def synthesizeProc(funGoal: FunSpec, env: Environment): Option[(List[Procedure], SynStats)] = {
     implicit val config: SynConfig = env.config
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = topLevelGoal(pre, post, formals, name, env)
@@ -37,9 +36,9 @@ trait Synthesis extends SepLogicUtils with Memoization {
     SMTSolving.init()
     try {
       synthesize(goal, config.startingDepth)(stats = stats, rules = nextRules(goal, config.startingDepth)) match {
-        case Some(body) =>
-          val proc = Procedure(name, tp, formals, body)
-          Some((proc, stats))
+        case Some((body, helpers)) =>
+          val main = Procedure(name, tp, formals, body)
+          Some(main :: helpers, stats)
         case None =>
           printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = ${config.startingDepth}.")
           None
@@ -49,22 +48,21 @@ trait Synthesis extends SepLogicUtils with Memoization {
         printlnErr(msg)
         None
     }
-
   }
 
   private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
                         (stats: SynStats,
                          rules: List[SynthesisRule])
                         (implicit ind: Int = 0,
-                         savedResults: ResultMap = mutable.Map.empty): Option[Statement] = {
-    lazy val res: Option[Statement] = synthesizeInner(goal, depth)(stats, rules)(ind)
+                         savedResults: ResultMap = mutable.Map.empty): Option[Solution] = {
+    lazy val res: Option[Solution] = synthesizeInner(goal, depth)(stats, rules)(ind)
     runWithMemo(goal, savedResults, stats, rules, res)
   }
 
   private def synthesizeInner(goal: Goal, depth: Int)
                              (stats: SynStats,
                               rules: List[SynthesisRule])
-                             (implicit ind: Int = 0): Option[Statement] = {
+                             (implicit ind: Int = 0): Option[Solution] = {
     implicit val config: SynConfig = goal.env.config
 
     if (config.printEnv) {
@@ -82,16 +80,16 @@ trait Synthesis extends SepLogicUtils with Memoization {
       return None
     }
 
-    def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
+    def tryRules(rules: List[SynthesisRule]): Option[Solution] = rules match {
       case Nil => None
       case r :: rs =>
 
         // Try alternative sub-derivations after applying `r`
-        def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
+        def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Solution] = alts match {
           case Seq(a, as@_*) =>
             if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
             solveSubgoals(a) match {
-              case Some(Magic) =>
+              case Some((Magic, _)) =>
                 stats.bumpUpBacktracing()
                 tryAlternatives(as, altIndex + 1) // This alternative is inconsistent: try other alternatives
               case Some(res) =>
@@ -116,11 +114,11 @@ trait Synthesis extends SepLogicUtils with Memoization {
         }
 
         // Solve all sub-goals in a sub-derivation
-        def solveSubgoals(s: Subderivation): Option[Statement] = {
+        def solveSubgoals(s: Subderivation): Option[Solution] = {
 
           // Optimization: if one of the subgoals failed, to not try the rest!
           // <ugly-imperative-code>
-          val results = new ListBuffer[Statement]
+          val results = new ListBuffer[Solution]
           import util.control.Breaks._
           breakable {
             for {subgoal <- s.subgoals} {
@@ -132,37 +130,50 @@ trait Synthesis extends SepLogicUtils with Memoization {
           }
           // </ugly-imperative-code>
 
-          val resultStmts = for (r <- results) yield r
-          if (resultStmts.size < s.subgoals.size)
-          // One of the sub-goals failed: this sub-derivation fails
+          // TODO: why did we need this line before?
+//          val successes = for (r <- results) yield r
+          if (results.size < s.subgoals.size)
+            // One of the sub-goals failed: this sub-derivation fails
             None
-          else
-            handleGuard(s, resultStmts.toList)
+          else {
+            val (stmts, helpers) = results.unzip
+            val stmt = s.kont(stmts)
+            val allHelpers = helpers.toList.flatten
+            if (stmt.companions.contains(goal.label) && goal.label != topLabel) {
+              // Current goal is a non-top-level companion: extract a helper
+              val f = goal.toFunSpec
+              val newHelper = Procedure(f.name, f.rType, f.params, stmt)
+              Some((goal.toCall, newHelper :: allHelpers))
+            } else
+              Some((stmt, allHelpers))
+              // handleGuard(s, resultStmts.toList)
+          }
         }
 
+        // TODO: enable condition abduction again
         // If stmts is a single guarded statement:
         // if possible, propagate guard to the result of the current goal,
         // otherwise, try to synthesize the else branch and fail if that fails
-        def handleGuard(s: Subderivation, stmts: List[Statement]): Option[Statement] =
-          stmts match {
-            case Guarded(cond, thn) :: Nil =>
-              s.kont(stmts) match {
-                case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
-                  Some(g)
-                case _ => // Cannot propagate: try to synthesize else branch
-                  val goal = s.subgoals.head
-                  val newPre = goal.pre.copy(phi = goal.pre.phi && cond.not)
-                  // Set starting depth to current depth: new subgoal will start at its own starting depth
-                  // to disallow producing guarded statements
-                  val newConfig = goal.env.config.copy(startingDepth = depth)
-                  val newG = goal.spawnChild(newPre, env = goal.env.copy(config = newConfig))
-                  synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
-                    case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
-                    case _ => None // failed to synthesize else
-                  }
-              }
-            case _ => Some(s.kont(stmts))
-          }
+//        def handleGuard(s: Subderivation, stmts: List[Statement]): Option[Prog] =
+//          stmts match {
+//            case Guarded(cond, thn) :: Nil =>
+//              s.kont(stmts) match {
+//                case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
+//                  Some(g)
+//                case _ => // Cannot propagate: try to synthesize else branch
+//                  val goal = s.subgoals.head
+//                  val newPre = goal.pre.copy(phi = goal.pre.phi && cond.not)
+//                  // Set starting depth to current depth: new subgoal will start at its own starting depth
+//                  // to disallow producing guarded statements
+//                  val newConfig = goal.env.config.copy(startingDepth = depth)
+//                  val newG = goal.spawnChild(newPre, env = goal.env.copy(config = newConfig))
+//                  synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
+//                    case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
+//                    case _ => None // failed to synthesize else
+//                  }
+//              }
+//            case _ => Some(s.kont(stmts))
+//          }
 
 
         // Invoke the rule

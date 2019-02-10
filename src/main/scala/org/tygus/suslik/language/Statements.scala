@@ -1,5 +1,6 @@
 package org.tygus.suslik.language
 
+import org.tygus.suslik.logic.Specifications.GoalLabel
 import org.tygus.suslik.util.StringUtil._
 
 /**
@@ -41,7 +42,7 @@ object Statements {
             val f = if (off <= 0) from.pp else s"(${from.pp} + $off)"
             // Do not print the type annotation
             builder.append(s"let ${to.pp} = *$f;\n")
-          case Call(tt, fun, args) =>
+          case Call(tt, fun, args, _) =>
             builder.append(mkSpaces(offset))
             tt match {
               case Some(tpe) =>
@@ -87,7 +88,7 @@ object Statements {
           acc
         case Free(x) =>
           acc ++ x.collect(p)
-        case Call(_, fun, args) =>
+        case Call(_, fun, args, _) =>
           acc ++ fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
         case SeqComp(s1,s2) =>
           val acc1 = collector(acc)(s1)
@@ -113,10 +114,19 @@ object Statements {
       case Load(to, _, from, _) => 1 + to.size + from.size
       case Malloc(to, _, _) => 1 + to.size
       case Free(x) => 1 + x.size
-      case Call(_, fun, args) => 1 + args.map(_.size).sum
+      case Call(_, fun, args, _) => 1 + args.map(_.size).sum
       case SeqComp(s1,s2) => s1.size + s2.size
       case If(cond, tb, eb) => 1 + cond.size + tb.size + eb.size
       case Guarded(cond, b) => 1 + cond.size + b.size
+    }
+
+    // Companions of all calls inside this statement
+    def companions: List[GoalLabel] = this match {
+      case Call(_, _, _, Some(comp)) => List(comp)
+      case SeqComp(s1,s2) => s1.companions ++ s2.companions
+      case If(_, tb, eb) => tb.companions ++ eb.companions
+      case Guarded(_, b) => b.companions
+      case _ => Nil
     }
   }
 
@@ -145,7 +155,7 @@ object Statements {
   // f(args); rest
   // or
   // let to = f(args); rest
-  case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr]) extends Statement
+  case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr], companion: Option[GoalLabel]) extends Statement
 
   case class SeqComp(s1: Statement, s2: Statement) extends Statement {
     def simplify: Statement = {
@@ -183,5 +193,9 @@ object Statements {
     """.stripMargin
 
   }
+
+  // Solution for a synthesis goal:
+  // a statement and a possibly empty list of recursive helpers
+  type Solution = (Statement, List[Procedure])
 
 }

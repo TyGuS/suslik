@@ -132,10 +132,10 @@ object SynStatUtil {
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
       try f(resource) finally resource.close()
 
-  def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(Procedure, SynStats)]): Unit = {
+  def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(List[Procedure], SynStats)]): Unit = {
     if (config.logToFile) {
       val statRow = (stats match {
-        case Some((proc, st)) => List(proc.body.size, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
+        case Some((procs, st)) => List(procs.map(_.body.size).sum, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
         case None => DList.replicate(4, "FAIL").toList
       }).mkString(", ")
 
