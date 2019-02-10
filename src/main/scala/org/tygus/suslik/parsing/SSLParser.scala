@@ -54,18 +54,25 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     "not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus
 
   // TODO: remove legacy ++, --, =i, /\, \/, <=i
-  def termOpParser: Parser[OverloadedBinOp] = ("++" ||| "+") ^^^ OpOverloadedPlus ||| ("--" ||| "-") ^^^ OpOverloadedMinus
-
-  def relOpParser: Parser[OverloadedBinOp] = (
-        "<" ^^^ OpLt
-    ||| "!=" ^^^ OpNotEqual
-    ||| "==>" ^^^ OpImplication
-    ||| ("==" | "=i") ^^^ OpOverloadedEq
-    ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq
-    ||| "in" ^^^ OpIn
+  def termOpParser: Parser[OverloadedBinOp] = (
+    ("++" ||| "+") ^^^ OpOverloadedPlus
+      ||| ("--" ||| "-") ^^^ OpOverloadedMinus
+      ||| "*" ^^^ OpOverloadedStar
     )
 
-  def logOpParser: Parser[OverloadedBinOp] = ("\\/"|"||") ^^^ OpOr ||| ("/\\"|"&&") ^^^ OpAnd
+  def relOpParser: Parser[OverloadedBinOp] = (
+    "<" ^^^ OpLt
+      ||| "!=" ^^^ OpNotEqual
+      ||| ("==" | "=i") ^^^ OpOverloadedEq
+      ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq
+      ||| "in" ^^^ OpIn
+    )
+
+  def logOpParser: Parser[OverloadedBinOp] = (
+    ("\\/" | "||") ^^^ OpOr
+      ||| ("/\\" | "&&") ^^^ OpAnd
+      ||| "==>" ^^^ OpImplication
+    )
 
   def binOpParser(p: Parser[OverloadedBinOp]): Parser[(Expr, Expr) => Expr] = {
     p ^^ { op => (l, r) => OverloadedBinaryExpr(op, l, r) }

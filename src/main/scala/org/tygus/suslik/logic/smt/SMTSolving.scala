@@ -121,6 +121,11 @@ object SMTSolving extends Core
       val r = convertSetExpr(right)
       new TypedTerm[SetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(setDiffSymbol, List(l.termDef, r.termDef)))
     }
+    case BinaryExpr(OpIntersect, left, right) => {
+      val l = convertSetExpr(left)
+      val r = convertSetExpr(right)
+      new TypedTerm[SetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(setInsertSymbol, List(l.termDef, r.termDef)))
+    }
     case _ => throw SMTUnsupportedExpr(e)
   }
 
@@ -198,6 +203,7 @@ object SMTSolving extends Core
       op match {
         case OpPlus => l + r
         case OpMinus => l - r
+        case OpMultiply => l * r
         case _ => throw SMTUnsupportedExpr(e)
       }}
     case IfThenElse(cond, left, right) => {

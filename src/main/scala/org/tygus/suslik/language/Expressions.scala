@@ -113,6 +113,17 @@ object Expressions {
     override def default: BinOp = OpLeq
   }
 
+  object OpOverloadedStar extends OverloadedBinOp{
+    override def level: Int = 4
+    override def pp: String = "*"
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntType) -> OpMultiply,
+      (IntSetType, IntSetType) -> OpIntersect,
+    )
+
+    override def default: BinOp = OpLeq
+  }
+
   object OpPlus extends BinOp with SymmetricOp with AssociativeOp {
     def level: Int = 4
     override def pp: String = "+"
@@ -123,6 +134,13 @@ object Expressions {
   object OpMinus extends BinOp {
     def level: Int = 4
     override def pp: String = "-"
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
+    def resType: SSLType = IntType
+  }
+  object OpMultiply extends BinOp {
+    def level: Int = 4
+    override def pp: String = "*"
     def lType: SSLType = IntType
     def rType: SSLType = IntType
     def resType: SSLType = IntType
@@ -192,6 +210,13 @@ object Expressions {
     override def pp: String = "<=i"
     def lType: SSLType = IntSetType
     def rType: SSLType = IntSetType
+  }
+  object OpIntersect extends BinOp with SymmetricOp with AssociativeOp {
+    def level: Int = 4
+    override def pp: String = "*"
+    def lType: SSLType = IntSetType
+    def rType: SSLType = IntSetType
+    override def resType: SSLType = IntSetType
   }
 
 
