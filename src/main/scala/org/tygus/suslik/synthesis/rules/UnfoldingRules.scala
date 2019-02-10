@@ -46,17 +46,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val sbst = params.map(_._2).zip(args).toMap
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
           val newGoals = for {
-            InductiveClause(_sel, _asn) <- clauses
+            c@InductiveClause(_sel, _asn) <- clauses
             sel = _sel.subst(sbst)
             asn = _asn.subst(sbst)
             constraints = asn.phi
             body = asn.sigma
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
-            // _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
-            _newPreSigma2 = SFormula(remainingChunks)
-            newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
-          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma)))
+            newPreSigma = SFormula(_newPreSigma1.chunks ++ remainingChunks)
+          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
@@ -167,7 +165,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      (for {
+      for {
         _f <- goal.funSpecs
         f = _f.refreshExistentials(goal.vars)
 
@@ -192,7 +190,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       } yield {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args), toString)
         Subderivation(List(callGoal), kont)
-      }).toSeq
+      }
     }
 
     /**

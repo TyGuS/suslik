@@ -135,40 +135,52 @@ object Specifications {
     }
   }
 
+  case class GoalLabel(labels: List[Int]) extends PrettyPrinting {
+    override def pp: String = labels match {
+      case List(0) => ""
+      case _ => labels.reverse.map(_.toString).mkString
+    }
+
+    def bumpUp(childId: Option[Int]): GoalLabel = {
+      val x :: xs = labels
+      childId match {
+        case None => GoalLabel((x + 1) :: xs)
+        case Some(c) => GoalLabel(0 :: (x + c) :: xs)
+      }
+    }
+  }
+
   /**
     * Main class for contextual Hoare-style specifications
     */
   case class Goal(pre: Assertion,
                   post: Assertion,
-                  gamma: Gamma,
-                  parent: Option[Goal],
-                  programVars: List[Var],
-                  universalGhosts: Set[Var],
-                  fname: String,
-                  env: Environment,
+                  gamma: Gamma, // types of all variables (program, universal, and existential)
+                  programVars: List[Var], // program-level variables
+                  universalGhosts: Set[Var], // universally quantified ghost variables
+                  fname: String, // top-level function name
+                  label: GoalLabel, // unique id within the derivation
+                  parent: Option[Goal], // parent goal in the derivation
+                  env: Environment, // predicates and components
                   deriv: Derivation)
 
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
-        s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
+        s"${pre.pp}\n${post.pp}" // + s"\n${label.pp}"
 
-    def simplifyPure: Goal = spawnChild(Assertion(simplify(pre.phi), pre.sigma),
+    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
       Assertion(simplify(post.phi), post.sigma))
 
-    def funSpecs = {
+    def funSpecs: List[FunSpec] = {
       def ancestors(g: Goal): List[Goal] = g.parent match {
         case None => Nil
         case Some(p) => p :: ancestors(p)
       }
-      val specs = ancestors(this).reverse
-      val names = for (i <- 1 to specs.size)
-          yield if (i == 1) this.fname else s"rec$i"
-
-
-      for ((name, spec) <- names.zip(specs))
+      for (spec <- ancestors(this).reverse)
         yield {
+          val name = this.fname + spec.label.pp
           FunSpec(name, VoidType, spec.formals, spec.pre, spec.post)
         }
     }
@@ -176,8 +188,8 @@ object Specifications {
     def spawnChild(pre: Assertion = this.pre,
                    post: Assertion = this.post,
                    gamma: Gamma = this.gamma,
-                   parent: Option[Goal] = Some(this),
                    programVars: List[Var] = this.programVars,
+                   childId: Option[Int] = None,
                    env: Environment = this.env,
                    newRuleApp: Option[RuleApplication] = None): Goal = {
 
@@ -201,7 +213,9 @@ object Specifications {
       val postSorted = Assertion(simplify(post.phi), newPostSigma)
       val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
 
-      Goal(preSorted, postSorted, gammaFinal, parent, programVars, newUniversalGhosts, this.fname, env, newDeriv)
+      Goal(preSorted, postSorted,
+        gammaFinal, programVars, newUniversalGhosts,
+        this.fname, this.label.bumpUp(childId), Some(this), env, newDeriv)
     }
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
@@ -267,8 +281,11 @@ object Specifications {
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, None,
-      formalNames, ghostUniversals, fname, env.resolveOverloading(), emptyDerivation).simplifyPure
+    val pre1 = pre.resolveOverloading(gamma)
+    val post1 = post.resolveOverloading(gamma)
+    Goal(pre1, post1,
+      gamma, formalNames, ghostUniversals,
+      fname, GoalLabel(List(0)), None, env.resolveOverloading(), emptyDerivation).simplifyPure
   }
 
 }
