@@ -51,11 +51,19 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def varParser: Parser[Var] = ident ^^ Var
 
   def unOpParser: Parser[UnOp] =
-    "not" ^^^ OpNot
+    "not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus
 
-  def termOpParser: Parser[OverloadedBinOp] = ("++" ||| "+") ^^^ OpOverloadedPlus ||| ("--" ||| "-") ^^^ OpOverloadedMinus// TODO: remove legacy ++, --, =i, /\, \/, <=i
+  // TODO: remove legacy ++, --, =i, /\, \/, <=i
+  def termOpParser: Parser[OverloadedBinOp] = ("++" ||| "+") ^^^ OpOverloadedPlus ||| ("--" ||| "-") ^^^ OpOverloadedMinus
 
-  def relOpParser: Parser[OverloadedBinOp] = "<" ^^^ OpLt ||| ("==" | "=i") ^^^ OpOverloadedEq ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq ||| "in" ^^^ OpIn
+  def relOpParser: Parser[OverloadedBinOp] = (
+        "<" ^^^ OpLt
+    ||| "!=" ^^^ OpNotEqual
+    ||| "==>" ^^^ OpImplication
+    ||| ("==" | "=i") ^^^ OpOverloadedEq
+    ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq
+    ||| "in" ^^^ OpIn
+    )
 
   def logOpParser: Parser[OverloadedBinOp] = ("\\/"|"||") ^^^ OpOr ||| ("/\\"|"&&") ^^^ OpAnd
 
@@ -104,7 +112,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
-    case Some(p) ~ s => Assertion(p, s)
+    case Some(p) ~ s => Assertion(desugar(p), s)
     case None ~ s => Assertion(pTrue, s)
   }
 

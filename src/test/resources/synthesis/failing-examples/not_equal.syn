@@ -1,0 +1,7 @@
+res != 5
+Runs out of rules
+###
+{  r:->was}
+void neq(loc r)
+{ res != 5 ; r:->res}
+###

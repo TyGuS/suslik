@@ -9,9 +9,17 @@ import org.tygus.suslik.synthesis.SynthesisException
 
 object Expressions {
 
-  sealed abstract class UnOp extends PrettyPrinting {}
+  sealed abstract class UnOp extends PrettyPrinting {
+    def outputType : SSLType
+  }
   object OpNot extends UnOp {
     override def pp: String = "not"
+    override def outputType: SSLType = BoolType
+  }
+
+  object OpUnaryMinus extends UnOp {
+    override def pp: String = "-"
+    override def outputType: SSLType = IntType
   }
 
 
@@ -53,6 +61,23 @@ object Expressions {
     )
 
     override def default: BinOp = OpEq
+  }
+
+  object OpNotEqual extends OverloadedBinOp{
+    // some not implemented, because it is syntactic sugar operator, and shouldn't be met after Parser
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = ???
+    override def default: BinOp = ???
+    override def level: Int = 3
+    override def pp: String = "!="
+  }
+
+  object OpImplication extends BinOp{
+    override def level: Int = 3
+    override def pp: String = "==>"
+
+    override def lType: SSLType = BoolType
+    override def rType: SSLType = BoolType
+    override def resType: SSLType = BoolType
   }
 
   object OpOverloadedPlus extends OverloadedBinOp{
@@ -216,7 +241,9 @@ object Expressions {
 
     // Convenience operators for building expressions
     def |=| (other: Expr): Expr = BinaryExpr(OpEq, this, other)
+    def |===| (other: Expr): Expr = OverloadedBinaryExpr(OpOverloadedEq, this, other)
     def |/=| (other: Expr): Expr = (this |=| other).not
+    def |/===| (other: Expr): Expr = (this |===| other).not
     def eq(other: Expr, t: SSLType): Expr = t match {
       case IntSetType => BinaryExpr(OpSetEq, this, other)
       case BoolType => this <==> other
@@ -248,6 +275,7 @@ object Expressions {
       case IntConst(_) => if (IntType.conformsTo(target)) Some(gamma) else None
       case UnaryExpr(op, e) => op match {
         case OpNot => if (BoolType.conformsTo(target)) e.resolve(gamma, Some(BoolType)) else None
+        case OpUnaryMinus => if (IntType.conformsTo(target)) e.resolve(gamma, Some(IntType)) else None
       }
       case BinaryExpr(op, l, r) =>
         if (op.resType.conformsTo(target)) {
@@ -440,7 +468,7 @@ object Expressions {
 
     override def level = 5
     override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(BoolType)
+    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(op.outputType)
   }
 
   case class SetLiteral(elems: List[Expr]) extends Expr {
