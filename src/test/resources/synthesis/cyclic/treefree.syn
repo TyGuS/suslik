@@ -1,0 +1,9 @@
+Simple tree deallocate example
+
+###
+
+{true; tree(x)}
+  void treefree(loc x)
+{true ; emp }
+
+###
