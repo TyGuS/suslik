@@ -167,9 +167,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
       for {
-        // look at all ancestors starting from the root
+        // look at all proper ancestors starting from the root
         // and try to find a companion
-        a <- goal.ancestors.reverse
+        a <- goal.companionCandidates.reverse
         f = a.toFunSpec.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified

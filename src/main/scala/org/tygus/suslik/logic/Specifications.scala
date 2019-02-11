@@ -168,8 +168,9 @@ object Specifications {
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
+      s"${label.pp}\n" +
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
-        s"${pre.pp}\n${post.pp}" // + s"\n${label.pp}"
+        s"${pre.pp}\n${post.pp}"
 
     def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
       Assertion(simplify(post.phi), post.sigma))
@@ -178,6 +179,12 @@ object Specifications {
     def ancestors: List[Goal] = parent match {
       case None => Nil
       case Some(p) => p :: p.ancestors
+    }
+
+    // Ancestors before progress was last made
+    def companionCandidates: List[Goal] = {
+      // TODO: this is a bit of a hack, only works because Open is the only rule that branches
+      ancestors.dropWhile(_.label.labels.length == this.label.labels.length)
     }
 
     // Turn this goal into a helper function specification
