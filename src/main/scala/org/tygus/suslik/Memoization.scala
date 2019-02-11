@@ -11,11 +11,11 @@ trait Memoization {
 
   type ResultMap = mutable.Map[(Goal, List[SynthesisRule]), (Option[Statement], Int)]
 
-  val savedResults: ResultMap  = mutable.Map.empty
   def runWithMemo(goal: Goal,
                   stats: SynStats,
                   rules: List[SynthesisRule],
-                  res: => Option[Statement]): Option[Statement] = {
+                  res: => Option[Statement])
+                 (implicit savedResults: ResultMap = mutable.Map.empty): Option[Statement] = {
     if (!goal.env.config.memoization) {
       res
     } else if (savedResults.contains(goal, rules)) { //
