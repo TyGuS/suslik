@@ -54,6 +54,7 @@ object SMTSolving extends Core
   def setDiffSymbol = SimpleQId(SymbolId(SSymbol("difference")))
   def setMemberSymbol = SimpleQId(SymbolId(SSymbol("member")))
   def setSubsetSymbol = SimpleQId(SymbolId(SSymbol("subset")))
+  def setIntersectSymbol = SimpleQId(SymbolId(SSymbol("intersect")))
   def emptySetTerm: Term = QIdTerm(emptySetSymbol)
 
   // Commands to be executed before solving starts
@@ -124,7 +125,7 @@ object SMTSolving extends Core
     case BinaryExpr(OpIntersect, left, right) => {
       val l = convertSetExpr(left)
       val r = convertSetExpr(right)
-      new TypedTerm[SetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(setInsertSymbol, List(l.termDef, r.termDef)))
+      new TypedTerm[SetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(setIntersectSymbol, List(l.termDef, r.termDef)))
     }
     case _ => throw SMTUnsupportedExpr(e)
   }
