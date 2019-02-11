@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.SSLException
+import org.tygus.suslik.Memoization
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -15,7 +15,7 @@ import scala.collection.mutable.ListBuffer
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis extends SepLogicUtils {
+trait Synthesis extends SepLogicUtils with Memoization {
 
   val log: SynLogging
 
@@ -24,6 +24,7 @@ trait Synthesis extends SepLogicUtils {
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   def allRules(goal: Goal): List[SynthesisRule]
+
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
   def synthesizeProc(funGoal: FunSpec, env: Environment):
@@ -51,39 +52,19 @@ trait Synthesis extends SepLogicUtils {
 
   }
 
-  var saved_results = scala.collection.mutable.Map[(Goal, List[SynthesisRule]), (Option[Statement], Int)]()
-
   private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
-                                  (stats: SynStats,
-                                   rules: List[SynthesisRule])
-                                  (implicit ind: Int = 0): Option[Statement] = {
-    if (!goal.env.config.memoization) {
-      synthesize_actual(goal, depth)(stats, rules)(ind)
-    } else if (saved_results.contains(goal, rules)) { //
-      val (res, recalled_count) = saved_results(goal, rules)
-      saved_results((goal, rules)) = (res, recalled_count + 1)
-      if (res.isDefined) {
-        stats.bumpUpRecalledResultsPositive()
-      } else {
-        stats.bumpUpRecalledResultsNegative()
-      }
-      res
-    } else {
-      val res = synthesize_actual(goal, depth)(stats, rules)(ind)
-      if (res.isDefined) {
-        stats.bumpUpSavedResultsPositive()
-      } else {
-        stats.bumpUpSavedResultsNegative()
-      }
-      saved_results((goal, rules)) = (res, 0)
-      res
-    }
-  }
-
-  private def synthesize_actual(goal: Goal, depth: Int)
                         (stats: SynStats,
                          rules: List[SynthesisRule])
-                        (implicit ind: Int = 0): Option[Statement] = {
+                        (implicit ind: Int = 0,
+                         savedResults: ResultMap = mutable.Map.empty): Option[Statement] = {
+    lazy val res: Option[Statement] = synthesizeInner(goal, depth)(stats, rules)(ind)
+    runWithMemo(goal, savedResults, stats, rules, res)
+  }
+
+  private def synthesizeInner(goal: Goal, depth: Int)
+                             (stats: SynStats,
+                              rules: List[SynthesisRule])
+                             (implicit ind: Int = 0): Option[Statement] = {
     implicit val config: SynConfig = goal.env.config
 
     if (config.printEnv) {
@@ -107,7 +88,7 @@ trait Synthesis extends SepLogicUtils {
 
         // Try alternative sub-derivations after applying `r`
         def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
-          case Seq(a,as@_*) =>
+          case Seq(a, as@_*) =>
             if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
             solveSubgoals(a) match {
               case Some(Magic) =>
@@ -153,7 +134,7 @@ trait Synthesis extends SepLogicUtils {
 
           val resultStmts = for (r <- results) yield r
           if (resultStmts.size < s.subgoals.size)
-            // One of the sub-goals failed: this sub-derivation fails
+          // One of the sub-goals failed: this sub-derivation fails
             None
           else
             handleGuard(s, resultStmts.toList)
@@ -184,7 +165,7 @@ trait Synthesis extends SepLogicUtils {
           }
 
 
-            // Invoke the rule
+        // Invoke the rule
         val allSubderivations = r(goal)
         val goalStr = s"$r: "
 
@@ -201,9 +182,9 @@ trait Synthesis extends SepLogicUtils {
         }
 
         val subderivations = if (config.commute)
-            allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
-          else
-            allSubderivations
+          allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
+        else
+          allSubderivations
 
         if (subderivations.isEmpty) {
           // Rule not applicable: try the rest

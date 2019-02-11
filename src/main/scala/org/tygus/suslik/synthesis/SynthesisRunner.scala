@@ -148,7 +148,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }.text("print failed rule applications; default: false")
 
     opt[Boolean]('g', "tags").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
+      rc.copy(synConfig = rc.synConfig.copy(printTags = b))
     }.text("print predicate application tags in derivations; default: false")
 
     opt[Boolean]('l', "log").action { (b, rc) =>
