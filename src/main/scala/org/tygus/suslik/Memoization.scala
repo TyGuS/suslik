@@ -11,8 +11,8 @@ trait Memoization {
 
   type ResultMap = mutable.Map[(Goal, List[SynthesisRule]), (Option[Statement], Int)]
 
+  val savedResults: ResultMap  = mutable.Map.empty
   def runWithMemo(goal: Goal,
-                  savedResults: ResultMap, // Todo: fix that savedResults are always empty
                   stats: SynStats,
                   rules: List[SynthesisRule],
                   res: => Option[Statement]): Option[Statement] = {

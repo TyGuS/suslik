@@ -55,10 +55,9 @@ trait Synthesis extends SepLogicUtils with Memoization {
   private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
                         (stats: SynStats,
                          rules: List[SynthesisRule])
-                        (implicit ind: Int = 0,
-                         savedResults: ResultMap = mutable.Map.empty): Option[Statement] = {
+                        (implicit ind: Int = 0): Option[Statement] = {
     lazy val res: Option[Statement] = synthesizeInner(goal, depth)(stats, rules)(ind)
-    runWithMemo(goal, savedResults, stats, rules, res)
+    runWithMemo(goal, stats, rules, res)
   }
 
   private def synthesizeInner(goal: Goal, depth: Int)
