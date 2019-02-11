@@ -1,0 +1,16 @@
+#. -b true
+intersect given sll with set of two elements
+
+
+#####
+
+predicate sll(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}
+
+{true ; sll(old_sll, old_elems) ** ret :-> second_set_elem}
+void sll_intersect (loc old_sll, loc ret, int e2)
+{intersect_elems =i old_elems * {second_set_elem, e2} ; sll(new_sll, intersect_elems) ** ret :-> new_sll }
+
+#####

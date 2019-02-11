@@ -1,0 +1,11 @@
+leq
+#####
+
+{a <= b; r :->  was}
+void star(int a, int b, loc r)
+{ {res} <= {4,a}; r :-> res}
+#####
+
+void star (int a, int b, loc r) {
+  *r = a;
+}
