@@ -15,7 +15,7 @@ import scala.collection.mutable.ListBuffer
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis extends SepLogicUtils with Memoization {
+trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
 
@@ -27,9 +27,13 @@ trait Synthesis extends SepLogicUtils with Memoization {
 
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
+  val memo = new Memoization
+
   def synthesizeProc(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config
+    // Cleanup the memo table
+    memo.cleanup()
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = makeNewGoal(pre, post, formals, name, env)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
@@ -55,10 +59,9 @@ trait Synthesis extends SepLogicUtils with Memoization {
   private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
                         (stats: SynStats,
                          rules: List[SynthesisRule])
-                        (implicit ind: Int = 0,
-                         savedResults: ResultMap = mutable.Map.empty): Option[Statement] = {
+                        (implicit ind: Int = 0): Option[Statement] = {
     lazy val res: Option[Statement] = synthesizeInner(goal, depth)(stats, rules)(ind)
-    runWithMemo(goal, savedResults, stats, rules, res)
+    memo.runWithMemo(goal, stats, rules, res)
   }
 
   private def synthesizeInner(goal: Goal, depth: Int)
