@@ -12,7 +12,7 @@ trait Memoization {
   type ResultMap = mutable.Map[(Goal, List[SynthesisRule]), (Option[Statement], Int)]
 
   def runWithMemo(goal: Goal,
-                  savedResults: ResultMap,
+                  savedResults: ResultMap, // Todo: fix that savedResults are always empty
                   stats: SynStats,
                   rules: List[SynthesisRule],
                   res: => Option[Statement]): Option[Statement] = {
@@ -21,20 +21,28 @@ trait Memoization {
     } else if (savedResults.contains(goal, rules)) { //
       val (res, recalled_count) = savedResults(goal, rules)
       savedResults((goal, rules)) = (res, recalled_count + 1)
-      logMemoization(stats, res)
+      logMemoizationRecalled(stats, res)
       res
     } else {
-      logMemoization(stats, res)
+      logMemoizationSaved(stats, res)
       savedResults((goal, rules)) = (res, 0)
       res
     }
   }
 
-  private def logMemoization(stats: SynStats, res: Option[Statement]) = {
+  private def logMemoizationRecalled(stats: SynStats, res: Option[Statement]) = {
     if (res.isDefined) {
       stats.bumpUpRecalledResultsPositive()
     } else {
       stats.bumpUpRecalledResultsNegative()
+    }
+  }
+
+  private def logMemoizationSaved(stats: SynStats, res: Option[Statement]) = {
+    if (res.isDefined) {
+      stats.bumpUpSavedResultsPositive()
+    } else {
+      stats.bumpUpSavedResultsNegative()
     }
   }
 
