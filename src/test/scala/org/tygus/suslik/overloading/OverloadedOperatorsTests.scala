@@ -86,8 +86,8 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
     }
   }
 
-  describe("Overloaded equality tests") {
-    runAllTestsFromDir("overloaded-equality")
+  describe("Overloaded operators tests") {
+    runAllTestsFromDir("overloaded-ops")
   }
 
 }
