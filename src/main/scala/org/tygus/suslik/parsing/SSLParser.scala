@@ -136,13 +136,15 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case params ~ formula => UnificationGoal(formula, params.toSet)
   }
 
-  def goalFunction: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
+  def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]" ^^ (x => x)
+
+  def goalFunction: Parser[FunSpec] = varsDeclaration.? ~ assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+    case vars_decl ~ pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
   }
 
   def program: Parser[Program] = repAll(indPredicate | goalFunction) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
-    val fs = for (f@FunSpec(_, _, _, _, _) <- pfs) yield f
+    val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
     if (fs.isEmpty){
       throw SynthesisException("Parsing failed. No single function spec is provided.")
     }

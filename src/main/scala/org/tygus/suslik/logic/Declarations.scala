@@ -23,7 +23,7 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
   * @param rType function return type
   */
 case class FunSpec(name: Ident, rType: SSLType, params: Formals,
-                   pre: Assertion, post: Assertion) extends TopLevelDeclaration {
+                   pre: Assertion, post: Assertion, var_decl: Formals = Nil) extends TopLevelDeclaration {
 
   def resolveOverloading(env:Environment):FunSpec = {
     val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
@@ -173,6 +173,7 @@ case class Program(predicates: Seq[InductivePredicate],
                    goal: FunSpec) extends PrettyPrinting {
   override def pp: String = predicates.map(_.pp).mkString("\n\n") ++ funs.map(_.pp).mkString("\n\n")
 }
+
 
 
 /**

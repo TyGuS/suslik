@@ -30,8 +30,8 @@ trait Synthesis extends SepLogicUtils with Memoization {
   def synthesizeProc(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config
-    val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = makeNewGoal(pre, post, formals, name, env)
+    val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
+    val goal = makeNewGoal(pre, post, formals, name, env, var_decl)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
     val stats = new SynStats()
     SMTSolving.init()

@@ -242,8 +242,8 @@ object Specifications {
     }
   }
 
-  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
-    val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
+  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment, vars_decl:Formals): Goal = {
+    val gamma0 = (formals.map({ case (t, v) => (v, t) })++vars_decl.map({ case (t, v) => (v, t) })).toMap // initial environemnt: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
