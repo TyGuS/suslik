@@ -136,21 +136,31 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case params ~ formula => UnificationGoal(formula, params.toSet)
   }
 
-  def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]" ^^ (x => x)
+  def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]"
 
-  def goalFunction: Parser[FunSpec] = varsDeclaration.? ~ assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+  def goalFunction_old: Parser[FunSpec] = varsDeclaration.? ~ assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
     case vars_decl ~ pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
   }
 
-  def program: Parser[Program] = repAll(indPredicate | goalFunction) ^^ { pfs =>
+  def nonGoalFunction: Parser[FunSpec] =  typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ~ assertion ^^ {
+    case  tpe ~ name ~ formals  ~ vars_decl ~ pre ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
+  }
+
+  case class GoalContainer(goal: FunSpec) // just to distinguish from FunSpec while matching in `program`
+  def goalFunction: Parser[GoalContainer] =  nonGoalFunction <~ "{" <~ "??" <~ "}" ^^ GoalContainer
+
+  def program: Parser[Program] = repAll(indPredicate | (goalFunction ||| nonGoalFunction)) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
-    if (fs.isEmpty){
-      throw SynthesisException("Parsing failed. No single function spec is provided.")
+    val goals = for (GoalContainer(g) <- pfs) yield g
+    if (goals.isEmpty) {
+      throw SynthesisException("Parsing failed: no single goal spec is provided.")
     }
-    val goal = fs.last
-    val funs = fs.take(fs.length - 1)
-    Program(ps, funs, goal)
+    if (goals.size > 1) {
+      throw SynthesisException("Parsing failed: more than one goal is provided.")
+    }
+    val goal = goals.last
+    Program(ps, fs, goal)
   }
 
   def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {
