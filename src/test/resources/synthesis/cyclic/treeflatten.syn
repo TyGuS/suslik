@@ -1,4 +1,4 @@
-should be able to flatten the tree into a list given an auxiliary function for list appending
+Flatten a tree into a list (needs append as an auxiliary)
 
 ####
 
