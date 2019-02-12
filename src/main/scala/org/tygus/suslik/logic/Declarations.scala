@@ -32,9 +32,13 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
   }
 
   override def pp: String = {
-    s"${pre.pp}\n${rType.pp} " +
-        s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
-        s"${post.pp}"
+    (""
+      + s"${rType.pp} "
+      + s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) "
+      + s"[${var_decl.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}]\n"
+      + s"${pre.pp}\n"
+      + s"${post.pp}"
+      )
   }
 
 
