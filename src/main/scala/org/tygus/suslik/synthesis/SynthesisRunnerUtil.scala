@@ -35,6 +35,10 @@ trait SynthesisRunnerUtil {
   
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
+    val format = testFilePath match{
+      case s if s.endsWith(testExtension) => dotSyn
+      case s if s.endsWith(sketchExtension) => dotSus
+    }
     // The path is counted from the rout
     val allLines = Source.fromFile(file).getLines.toList
     val (params, lines) =
@@ -56,7 +60,7 @@ trait SynthesisRunnerUtil {
       val (spec, expectedSrc) = specAndSrc.splitAt(j)
       val input = spec.mkString(" ").trim
       val output = expectedSrc.tail.mkString("\n").trim
-      (testName, desc, input, output, params)
+      (testName, desc, input, output, params.copy(inputFormat = format))
     }
 
     def parseSus = {
@@ -65,10 +69,10 @@ trait SynthesisRunnerUtil {
       val input = lines.mkString(" ").trim
       val testName = testFilePath
       val output = noOutputCheck
-      (testName, desc, input, output, params)
+      (testName, desc, input, output, params.copy(inputFormat = format))
     }
 
-    params.inputFormat match {
+    format match {
       case `dotSyn` => parseSyn
       case `dotSus` => parseSus
     }
@@ -155,7 +159,9 @@ trait SynthesisRunnerUtil {
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
-      val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
+      val tests = testDir.listFiles.filter(f => f.isFile
+        && (f.getName.endsWith(s".$testExtension") ||
+            f.getName.endsWith(s".$sketchExtension"))).toList
       for (f <- tests) {
         val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
         val fullInput = List(defs, in).mkString("\n")
@@ -182,14 +188,11 @@ trait SynthesisRunnerUtil {
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile
-        && (f.getName.endsWith(s".$testExtension") || f.getName.endsWith(s".$sketchExtension"))).toList
+        && (f.getName.endsWith(s".$testExtension") ||
+            f.getName.endsWith(s".$sketchExtension"))).toList
       tests.find(f => f.getName == fname) match {
         case Some(f) =>
-          val format = fname match{
-            case s if s.endsWith(testExtension) => dotSyn
-            case s if s.endsWith(sketchExtension) => dotSus
-          }
-          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params.copy(inputFormat = format))
+          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
           doRun(testName, desc, fullInput, out, allParams)
         case None =>

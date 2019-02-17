@@ -30,7 +30,7 @@ case class SynConfig(
                       logToFile: Boolean        = true,
                       memoization: Boolean        = true,
                       timeOut: Long             = DEFAULT_TIMEOUT,
-                      inputFormat: InputFormat = dotSus // doesn't matter, inferred from extension
+                      inputFormat: InputFormat = dotSyn
                     ) extends PrettyPrinting {
 
   override def pp: String =
