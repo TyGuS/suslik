@@ -166,10 +166,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
 
     def apply(goal: Goal): Seq[Subderivation] = {
+      val cands = goal.companionCandidates.reverse
       for {
         // look at all proper ancestors starting from the root
         // and try to find a companion
-        a <- goal.companionCandidates.reverse
+        // (If auxiliary abduction is disabled, only look at the root)
+        a <- if (goal.env.config.auxAbduction) cands else cands.take(1)
         f = a.toFunSpec.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified
@@ -181,14 +183,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        sub <- {
-          SpatialUnification.unify(target, source).toList
-        }
+        sub <- SpatialUnification.unify(target, source).toList
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         // Check that the goal's subheap had at leas one unfolding
-        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
+//        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args, Some(a.label)), toString)
@@ -235,12 +235,17 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: abduce-call]"
 
+    // TODO: refactor common parts with CallRule
     def apply(goal: Goal): Seq[Subderivation] = {
-      (for {
-        (_, _funSpec) <- goal.env.functions
-
+      val cands = goal.companionCandidates.reverse
+      for {
+        // look at all proper ancestors starting from the root
+        // and try to find a companion
+        // (If auxiliary abduction is disabled, only look at the root)
+        a <- if (goal.env.config.auxAbduction) cands else cands.take(1)
         // Make a "relaxed" substitution for the spec and for with it
-        (f, exSub) = _funSpec.refreshExistentials(goal.vars).relaxFunSpec
+        (f, exSub) = a.toFunSpec.refreshExistentials(goal.vars).relaxFunSpec
+        //        (_, _funSpec) <- goal.env.functions // TODO: add components
 
         lilHeap = f.pre.sigma
         largHeap = goal.pre.sigma
@@ -267,7 +272,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         }
         val subGoals = writeGoals ++ List(restGoal)
         Subderivation(subGoals, kont)
-      }).toSeq
+      }
     }
 
     def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): (Option[Goal], Goal) = {
