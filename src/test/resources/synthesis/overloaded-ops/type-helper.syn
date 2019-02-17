@@ -1,9 +1,8 @@
 type helper
 #####
 
-[bool a, int k]
 {a==b; emp}
-void typing()
+void typing() [bool a, int k]
 { b == true \/ true; emp}
 #####
 

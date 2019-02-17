@@ -138,8 +138,8 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]"
 
-  def goalFunctionSYN: Parser[FunSpec] = varsDeclaration.? ~ assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case vars_decl ~ pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
+  def goalFunctionSYN: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ^^ {
+    case pre ~ tpe ~ name ~ formals ~ vars_decl ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
   }
 
   def nonGoalFunction: Parser[FunSpec] =  typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ~ assertion ^^ {
