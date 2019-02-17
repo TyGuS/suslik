@@ -1,4 +1,4 @@
-package org.tygus.suslik.synthesis
+package org.tygus.suslik.overloading
 
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.Var
@@ -7,6 +7,7 @@ import org.tygus.suslik.logic.Resolver.resolveProgram
 import org.tygus.suslik.logic.Specifications.makeNewGoal
 import org.tygus.suslik.logic._
 import org.tygus.suslik.parsing.SSLParser
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 
 /**
