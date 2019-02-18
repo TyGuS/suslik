@@ -169,9 +169,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
         sub <- SpatialUnification.unify(target, source).toList
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
-        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
         // Check that the goal's subheap had at leas one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
@@ -192,7 +192,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
-      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
+//      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
       val addedChunks2 = callPost.sigma.lockSAppTags()
       // Here we return two options for added chunks:
       // (a) with bumped tags
