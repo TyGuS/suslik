@@ -15,19 +15,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   val startingDepth = 27
 
-  def allRules(goal: Goal): List[SynthesisRule] = topLevelRules ++ everyDayRules
-
-  def nextRules(goal: Goal, depth: Int): List[SynthesisRule] =
-    if (depth < startingDepth) everyDayRules else allRules(goal)
-
-  val topLevelRules: List[SynthesisRule] = List(
-    // Top-level induction
-    UnfoldingRules.InductionRule,
-  )
-
-  // Right now the rule is fixed statically
-  // TODO: apply dynamic heuristics for rule application
-  val everyDayRules: List[SynthesisRule] = List(
+  def allRules(goal: Goal): List[SynthesisRule] = List(
     // Terminal
     LogicalRules.EmpRule,
 
@@ -64,5 +52,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnificationRules.PickFromEnvRule,
 
   )
+
+  def nextRules(goal: Goal, depth: Int): List[SynthesisRule] = allRules(goal)
 
 }

@@ -78,67 +78,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  /*
-                      args ⊆ Г
-       p(params) = <sel_i(params); clause_i(params)>_i
-              b_i = sel_i[args/params]
-              c_i = clause_i[args/params]
-    ∀i, f_rec; Γ ; { φ ⋀ s_i ; b_i * P } ; { ψ ; Q } ---> S_i
-    f_rec : ∀xs, { φ ; p(args) * P } ; { ψ ; Q },
-       where xs = (vars { φ ; p(args) * P } ; { ψ ; Q }) U Г
-    --------------------------------------------------------------------[Unfold: induction]
-        Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> If(<b_i, S_i>)
-
-   */
-  object InductionRule extends SynthesisRule with AnyPhase {
-
-    override def toString: Ident = "[Unfold: induction]"
-
-    private def mkIndHyp(goal: Goal, h: Heaplet): Environment = {
-      val env = goal.env
-      val fname = Var(goal.fname).refresh(env.functions.keySet.map(Var)).name
-      // TODO: provide a proper type, not VOID
-
-      // Re-tagging all predicate occurrences, so the inductive argument
-      // would be tagged with Some(1), and everyone else with None(1)
-      val SApp(pname, xs, t) = h
-      val matcher: Heaplet => Boolean = {
-        case SApp(x, ys, q) => x == pname && ys == xs
-        case _ => false
-      }
-      val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
-      // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
-      // Second-order, now can only apply library functions
-      val newPost = goal.post.bumpUpSAppTags()
-
-      val fspec = FunSpec(fname, VoidType, goal.formals, newPre, newPost)
-      env.copy(functions = env.functions + (fname -> fspec))
-    }
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-      val env = goal.env
-      if (env.functions.keySet.contains(goal.fname)) return Nil
-      // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
-      if (goal.hasAllocatedBlocks) return Nil
-      val preApps = goal.pre.sigma.apps
-      // Nothing to induce on
-      if (preApps.isEmpty) return Nil
-
-      val apps = preApps ++ goal.post.sigma.apps
-      val noInductionOrUnfoldings = apps.forall {
-        case SApp(_, _, t) => t.contains(0)
-      }
-
-      if (!noInductionOrUnfoldings) return Nil
-
-      for {
-        a <- preApps
-        newEnv = mkIndHyp(goal, a)
-        newGoal = goal.spawnChild(env = newEnv)
-      } yield Subderivation(Seq(newGoal), pureKont(toString))
-    }
-  }
-
+ 
   /*
   Application rule: apply the inductive hypothesis
 
