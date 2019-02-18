@@ -281,6 +281,17 @@ object Expressions {
       case _ => 1
     }
 
+    // Compute conjuncts once
+    lazy val conjuncts: List[PFormula] = {
+      def _conjuncts(p: PFormula): List[PFormula] = p match {
+        case BoolConst(true) => Nil
+        case BinaryExpr(OpAnd, left, right) => _conjuncts(left) ++ _conjuncts(right)
+        case x => List(x)
+      }
+
+      _conjuncts(this).distinct
+    }
+
     def resolveOverloading(gamma: Gamma): Expr = this match {
       case expr: OverloadedBinaryExpr =>
         BinaryExpr(

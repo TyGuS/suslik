@@ -119,8 +119,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
     def apply(goal: Goal): Seq[Subderivation] = {
       // get post conjuncts with existentials
-      val postConjuncts = conjuncts(goal.post.phi).filter(p => p.vars.exists(goal.isExistential))
-      val preConjuncts = conjuncts(goal.pre.phi)
+      val postConjuncts = goal.post.phi.conjuncts.filter(p => p.vars.exists(goal.isExistential))
+      val preConjuncts = goal.pre.phi.conjuncts
 
       for {
         s <- postConjuncts

@@ -7,7 +7,6 @@ import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.LogicalRules.EmpRule.{conjuncts, mkConjunction}
 import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule}
 
 /**
@@ -52,7 +51,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       // If precondition does not contain predicates, we can't get get new facts from anywhere
-      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
+      val universalPost = mkConjunction(post.conjuncts.filterNot(p => p.vars.exists(goal.isExistential)))
       if (!SMTSolving.valid(pre ==> universalPost))
         List(Subderivation(Nil, _ => Magic)) // universal post not implies by pre: only magic can save us
       else
@@ -96,7 +95,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre.phi
       val post = goal.post.phi
 
-      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
+      val universalPost = mkConjunction(post.conjuncts.filterNot(p => p.vars.exists(goal.isExistential)))
       if (SMTSolving.valid(pre ==> universalPost))
         Nil // valid so far, nothing to say
       else {
