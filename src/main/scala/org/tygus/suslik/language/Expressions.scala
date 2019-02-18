@@ -150,6 +150,10 @@ object Expressions {
           val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(l)
           collector(acc2)(r)
+        case b@OverloadedBinaryExpr(_, l, r) =>
+          val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
+          val acc2 = collector(acc1)(l)
+          collector(acc2)(r)
         case u@UnaryExpr(_, arg) =>
           val acc1 = if (p(u)) acc + u.asInstanceOf[R] else acc
           collector(acc1)(arg)
@@ -270,13 +274,14 @@ object Expressions {
     // Expression size in AST nodes
     def size: Int = this match {
       case BinaryExpr(_, l, r) => 1 + l.size + r.size
+      case OverloadedBinaryExpr(_, l, r) => 1 + l.size + r.size
       case UnaryExpr(_, arg) => 1 + arg.size
       case SetLiteral(elems) => 1 + elems.map(_.size).sum
       case IfThenElse(cond, l, r) => 1 + cond.size + l.size + r.size
       case _ => 1
     }
 
-    def resolveOverloading(gamma: Gamma) :Expr= this match {
+    def resolveOverloading(gamma: Gamma): Expr = this match {
       case expr: OverloadedBinaryExpr =>
         BinaryExpr(
           expr.inferConcreteOp(gamma),

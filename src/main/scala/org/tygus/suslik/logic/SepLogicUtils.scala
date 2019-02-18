@@ -67,6 +67,22 @@ trait SepLogicUtils extends PureLogicUtils {
     case _ => None
   }
 
+  def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
+    val pairTags = for {
+      SApp(name, args, t) <- adaptedFunPre.chunks
+      SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
+        case SApp(_name, _args, _) => _name == name && _args == args
+        case _ => false
+      }
+    } yield (t, _t)
+    val comparisons = pairTags.map {case (t, s) => compareTags(t, s)}
+    val allDefined = comparisons.forall(_.isDefined)
+    val allGeq = comparisons.forall(_.getOrElse(1) <= 0)
+    val atLeastOneLarger = comparisons.exists(_.getOrElse(1) < 0)
+    allDefined && allGeq && atLeastOneLarger
+  }
+
+
 
   /**
     * Find the set of sub-formulas of `large` that `small` might possibly by unified with.

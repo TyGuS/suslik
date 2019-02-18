@@ -149,22 +149,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: call]"
 
-    def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
-      val pairTags = for {
-        SApp(name, args, t) <- adaptedFunPre.chunks
-        SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
-          case SApp(_name, _args, _) => _name == name && _args == args
-          case _ => false
-        }
-      } yield (t, _t)
-      val comparisons = pairTags.map {case (t, s) => compareTags(t, s)}
-      val allDefined = comparisons.forall(_.isDefined)
-      val allGeq = comparisons.forall(_.getOrElse(1) <= 0)
-      val atLeastOneLarger = comparisons.exists(_.getOrElse(1) < 0)
-      allDefined && allGeq && atLeastOneLarger
-    }
-
-
     def apply(goal: Goal): Seq[Subderivation] = {
       val cands = goal.companionCandidates.reverse
       for {
@@ -184,11 +168,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
         sub <- SpatialUnification.unify(target, source).toList
+        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         // Check that the goal's subheap had at leas one unfolding
-//        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args, Some(a.label)), toString)
@@ -204,7 +188,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
-        // To avoind more than one application of a library function
+        // To avoid more than one application of a library function
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
@@ -217,7 +201,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // The latter enables application of the same recursive function (tree-flatten-acc),
       // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
       for {
-        acs <- List(addedChunks1, addedChunks2)
+//        acs <- List(addedChunks1, addedChunks2)
+        acs <- List(addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
         callGoal = goal.spawnChild(restPre, newRuleApp = Some(ruleApp), env = newEnv)
@@ -258,6 +243,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+        if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoalsOpt, restGoal) = writesAndRestGoals(actualSub, relaxedSub, f, goal)
         if writeGoalsOpt.nonEmpty

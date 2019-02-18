@@ -1,3 +1,4 @@
+# -x true
 Flatten a tree into a list (needs append as an auxiliary)
 
 ####

@@ -115,6 +115,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(maxOpenDepth = d))
     }.text("maximum unfolding depth in the pre-condition; default: 1")
 
+    opt[Boolean]('x', "auxAbduction").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(auxAbduction = b))
+    }.text("abduce auxiliary functions; default: false")
+
     opt[Boolean]('b', "branchAbduction").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(branchAbduction = b))
     }.text("abduce conditional branches; default: false")

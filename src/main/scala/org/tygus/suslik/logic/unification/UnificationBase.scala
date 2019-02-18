@@ -123,7 +123,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
               as it refers to the variable in the scope.
              */
             val resultSubst = composition.filter {
-              case (k, v@Var(_)) => target.params.contains(v)
+              case (k, v@Var(_)) => target.formula.vars.contains(v)
               case _ => true
             }
             return Some(resultSubst)
