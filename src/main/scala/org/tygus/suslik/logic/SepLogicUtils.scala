@@ -62,10 +62,12 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
-    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
-      case (Some(x), Some(y)) => x - y
-      case _ => 0
-    }
+//    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
+//      case (Some(x), Some(y)) => x - y
+//      case _ => 0
+//    }
+
+    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = lilTag.getOrElse(0) - largTag.getOrElse(0)
 
     val pairTags = for {
       SApp(name, args, t) <- adaptedFunPre.chunks

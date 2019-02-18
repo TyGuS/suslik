@@ -150,13 +150,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Unfold: call]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      val cands = goal.companionCandidates.reverse
+      // look at all proper ancestors starting from the root
+      // and try to find a companion
+      // (If auxiliary abduction is disabled, only look at the root)
+      val allCands = goal.companionCandidates.reverse
+      val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
+      val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
+        goal.env.functions.values.map (f => (f, None)) // components
       for {
-        // look at all proper ancestors starting from the root
-        // and try to find a companion
-        // (If auxiliary abduction is disabled, only look at the root)
-        a <- if (goal.env.config.auxAbduction) cands else cands.take(1)
-        f = a.toFunSpec.refreshExistentials(goal.vars)
+        (_f, l) <- funLabels
+        f = _f.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
@@ -175,7 +178,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Check that the goal's subheap had at leas one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, Some(a.label)), toString)
+        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l), toString)
         Subderivation(List(callGoal), kont)
       }
     }
@@ -222,14 +225,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     // TODO: refactor common parts with CallRule
     def apply(goal: Goal): Seq[Subderivation] = {
-      val cands = goal.companionCandidates.reverse
+      val allCands = goal.companionCandidates.reverse
+      val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
+      val fpecs = cands.map(_.toFunSpec) ++ // companions
+        goal.env.functions.values // components
       for {
-        // look at all proper ancestors starting from the root
-        // and try to find a companion
-        // (If auxiliary abduction is disabled, only look at the root)
-        a <- if (goal.env.config.auxAbduction) cands else cands.take(1)
+        _f <- fpecs
         // Make a "relaxed" substitution for the spec and for with it
-        (f, exSub) = a.toFunSpec.refreshExistentials(goal.vars).relaxFunSpec
+        (f, exSub) = _f.refreshExistentials(goal.vars).relaxFunSpec
         //        (_, _funSpec) <- goal.env.functions // TODO: add components
 
         lilHeap = f.pre.sigma
