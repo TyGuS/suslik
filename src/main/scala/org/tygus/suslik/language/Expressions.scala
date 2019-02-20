@@ -71,6 +71,22 @@ object Expressions {
     override def pp: String = "!="
   }
 
+  object OpGt extends OverloadedBinOp{
+    // some not implemented, because it is syntactic sugar operator, and shouldn't be met after Parser
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = ???
+    override def default: BinOp = ???
+    override def level: Int = 3
+    override def pp: String = ">"
+  }
+
+  object OpGeq extends OverloadedBinOp{
+    // some not implemented, because it is syntactic sugar operator, and shouldn't be met after Parser
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = ???
+    override def default: BinOp = ???
+    override def level: Int = 3
+    override def pp: String = ">="
+  }
+
   object OpImplication extends BinOp{
     override def level: Int = 3
     override def pp: String = "==>"

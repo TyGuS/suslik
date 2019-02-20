@@ -72,6 +72,8 @@ trait PureLogicUtils {
 //    case BinaryExpr(OpBoolEq, e1, e2) => desugar(e1) <==> desugar(e2)
     case UnaryExpr(OpUnaryMinus, arg) => BinaryExpr(OpMinus, IntConst(0), desugar(arg))
     case OverloadedBinaryExpr(OpNotEqual, e1, e2)  => desugar(e1) |/===| desugar(e2)
+    case OverloadedBinaryExpr(OpGt, e1, e2)  => OverloadedBinaryExpr(OpLt, desugar(e2), desugar(e1))
+    case OverloadedBinaryExpr(OpGeq, e1, e2)  => OverloadedBinaryExpr(OpLeq, desugar(e2), desugar(e1))
     case BinaryExpr(OpImplication, e1, e2)           => desugar(e1) ==> desugar(e2)
     case OverloadedBinaryExpr(OpImplication, e1, e2) => desugar(e1) ==> desugar(e2)
 
