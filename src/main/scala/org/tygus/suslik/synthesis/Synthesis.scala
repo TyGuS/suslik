@@ -29,6 +29,22 @@ trait Synthesis extends SepLogicUtils {
 
   val memo = new Memoization
 
+//  def synthesizeProgramFromSketch(funGoal: FunSpec, funSketch:Procedure, env: Environment):Option[(Procedure, SynStats)] ={
+//    val specifiedBody: Procedure = propagatePre(funSketch, funGoal)
+//    if(Procedure == Error){
+//      None
+//    }else {
+//      var completeFunction = specifiedBody
+//      val goals: Seq[FunSpec] = extractGoals(specifiedBody)
+//      for (goal <- goals){
+//        val solution = synthesizeProc(goal, env)
+//        completeFunction.replace(SubGoal(goal), silution)
+//      }
+//      completeFunction
+//    }
+//  }
+
+
   def synthesizeProc(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config

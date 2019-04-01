@@ -1,11 +1,13 @@
 package org.tygus.suslik.parsing
 
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.SynthesisException
+
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -148,8 +150,50 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case  tpe ~ name ~ formals  ~ vars_decl ~ pre ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
   }
 
+  def statementParser:Parser[Statement] = (
+    ("??" ^^^ Hole)
+      ||| ("error" ~> ";" ^^^ Statements.Error)
+      ||| ("magic" ~> ";" ^^^ Magic)
+      // Malloc
+      ||| "let" ~> varParser ~ ("=" ~> "malloc" ~> "(" ~> numericLit <~ ")" ~> ";") ^^ {
+        case variable ~ number_str => Malloc(variable, IntType, Integer.parseInt(number_str)) // todo: maybe not ignore type here
+      }
+      ||| ("free" ~> "(" ~> varParser <~ ")" ~> ";") ^^ Free
+      // Store
+      ||| "*" ~> varParser ~ ("=" ~> expr <~ ";") ^^ {
+        case variable ~ e => Store(variable, 0, e)
+      }
+      ||| ("*" ~> "(" ~> varParser <~ "+") ~ numericLit ~ (")" ~> "=" ~> expr <~ ";") ^^ {
+        case variable ~ offset_str ~ e => Store(variable, Integer.parseInt(offset_str), e)
+      }
+      // Load
+      ||| ("let" ~> varParser) ~ ("=" ~> "*" ~> varParser <~ ";") ^^ {
+        case to ~ from => Load(to, IntType, from) // todo: maybe not ignore type here
+      }
+      ||| ("let" ~> varParser <~ "=" <~ "*" <~ "(") ~ (varParser <~ "+") ~ (numericLit <~ ")" <~ ";") ^^ {
+        case to ~ from ~ offset_str => Load(to, IntType, from, Integer.parseInt(offset_str)) // todo: maybe not ignore type here
+      }
+      // Call
+      ||| varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
+        case fun ~ args => Call(None, fun, args)
+      }
+      ||| typeParser ~ (varParser <~ "=") ~ varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
+        case tpe ~ to ~ fun ~ args => Call(Some((to, tpe)), fun, args)
+      }
+      // if
+      ||| ("if" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}") ~ ("else" ~> "{" ~> codeWithHoles <~ "}") ^^ {
+        case cond ~ tb ~ eb => If(cond, tb, eb)
+      }
+      // Guarded
+      ||| ("assume" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}")  ^^ {
+        case cond ~ body => Guarded(cond, body)
+      }
+    )
+
+  def codeWithHoles:Parser[Statement] = rep(statementParser) ^^ (seq => if(seq.nonEmpty) seq.reduceLeft(SeqComp) else Skip)
+
   case class GoalContainer(goal: FunSpec) // just to distinguish from FunSpec while matching in `program`
-  def goalFunctionV1: Parser[GoalContainer] =  nonGoalFunction <~ "{" <~ "??" <~ "}" ^^ GoalContainer
+  def goalFunctionV1: Parser[GoalContainer] =  nonGoalFunction <~ "{" <~ codeWithHoles <~ "}" ^^ GoalContainer
 
   def programSUS: Parser[Program] = repAll(indPredicate | (goalFunctionV1 ||| nonGoalFunction)) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
