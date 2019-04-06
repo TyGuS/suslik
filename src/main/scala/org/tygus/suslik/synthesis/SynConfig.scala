@@ -26,7 +26,7 @@ case class SynConfig(
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
                       printEnv: Boolean         = false,
-                      assertSuccess: Boolean    = false,
+                      assertSuccess: Boolean    = true,
                       logToFile: Boolean        = true,
                       memoization: Boolean        = true,
                       timeOut: Long             = DEFAULT_TIMEOUT,

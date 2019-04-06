@@ -66,9 +66,13 @@ trait SynthesisRunnerUtil {
     def parseSus = {
       val hasDescr = lines.head.trim.startsWith("/*") // todo:support multiline descr
       val desc = if(hasDescr) lines.head.trim else ""
-      val input = lines.mkString(" ").trim
+
+      val j = lines.indexWhere(_.trim.startsWith(testSeparator))
+      val (spec, expectedSrc) = lines.splitAt(j)
+
+      val input = spec.mkString(" ").trim
       val testName = testFilePath
-      val output = noOutputCheck
+      val output = expectedSrc.tail.mkString("\n").trim
       (testName, desc, input, output, params.copy(inputFormat = format))
     }
 
@@ -95,7 +99,7 @@ trait SynthesisRunnerUtil {
 
     val prog = res.get
     // assert(prog.predicates.nonEmpty)
-    val (specs, env) = resolveProgram(prog)
+    val (specs, env, body) = resolveProgram(prog)
 
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
@@ -103,7 +107,7 @@ trait SynthesisRunnerUtil {
 
     val spec = specs.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(spec, env.copy(config = params))
+    val sresult = synthesizeProc(spec, env.copy(config = params), body)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 

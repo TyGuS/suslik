@@ -25,7 +25,7 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
       throw SynthesisException(s"Failed to parse the input:\n$res")
     }
     val prog = res.get
-    val (specs, env) = resolveProgram(prog)
+    val (specs, env, body) = resolveProgram(prog)
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
     }

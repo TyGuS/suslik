@@ -1,0 +1,18 @@
+/* swap with holes 1 */
+
+void swap(loc x, loc y)
+{ x :-> a ** y :-> b }
+{ x :-> b ** y :-> a }
+{
+  let yy = *y;
+  ??
+}
+
+###
+
+void swap (loc x, loc y) {
+  let yy = *y;
+  let a2 = *x;
+  *y = a2;
+  *x = yy;
+}

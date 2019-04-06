@@ -3,10 +3,12 @@ package org.tygus.suslik.synthesis.rules
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.LanguageUtils.generateFreshVar
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements.Load
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
   * Operational rules emit statement that operate of flat parts of the heap.
@@ -77,6 +79,29 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write]"
 
+    // *(to + offset) = e
+    def symbolicExecution(goal: Goal, cmd:Store): Goal = {
+      val pre = goal.pre
+      val post = goal.post
+      val Store(to, offset, new_val) = cmd
+
+      def matchingHeaplet(h:Heaplet) = h match{
+        case PointsTo(`to`, `offset`, _) => true
+        case _ => false
+      }
+
+      findHeaplet(matchingHeaplet, pre.sigma) match {
+        case None => throw SynthesisException(cmd.pp + "  <--- memory is not yet allocated in this address")
+        case Some(h@PointsTo(`to`, `offset`, _)) =>
+          val newPre = Assertion(pre.phi, (pre.sigma - h) ** PointsTo(to, offset, new_val))
+          val subGoal = goal.copy(pre = newPre)
+          subGoal
+        case Some(h) =>
+          ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
+          goal
+      }
+    }
+
     def apply(goal: Goal): Seq[Subderivation] = {
 
       val pre = goal.pre
@@ -117,6 +142,26 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   object ReadRule extends SynthesisRule with AnyPhase with InvertibleRule {
 
     override def toString: Ident = "[Op: read]"
+
+    /* let to = *(from + offset) */
+    def symbolicExecution(goal:Goal, cmd:Load):Goal = {
+      val pre = goal.pre
+      val post = goal.post
+      val Load(to, tpy, from, offset) = cmd
+      def isMatchingHeaplet: Heaplet => Boolean = {
+        case PointsTo(`from`, `offset`, a@Var(_)) => true
+        case _ => false
+      }
+      findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
+        case None => throw SynthesisException(cmd.pp + " <--- invalid command: right part is not defined (or not a ghost)")
+        case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
+
+          val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
+          subGoal
+        case Some(h) =>
+          throw SynthesisException(cmd.pp + s" <--- Read rule matched unexpected heaplet ${h.pp}")
+      }
+    }
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
@@ -163,6 +208,33 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       findBlockAndChunks(isExistBlock, _ => true, goal.post.sigma)
+    }
+
+    def symbolicExecution(goal: Goal, params:Malloc): Goal = {
+      val Malloc(y, tpy, sz) = params
+      val pre = goal.pre
+      val post = goal.post
+      val gamma = goal.gamma
+      val deriv = goal.deriv
+
+//      val y = generateFreshVar(goal, x.name)
+
+      val freshChunks = for {
+        off <- 0 until sz
+        z = generateFreshVar(goal)
+      } // yield PointsTo(y, off, z)
+        yield PointsTo(y, off, IntConst(666))
+//      val freshBlock = Block(x, sz).subst(x, y)
+      val freshBlock = Block(y, sz)
+      val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
+
+//      val postFootprint = pts.map(p => deriv.postIndex.lastIndexOf(p)).toSet + deriv.postIndex.lastIndexOf(h)
+//      val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
+
+//      val subGoal = goal.copy(newPre, post.subst(x, y), newRuleApp = Some(ruleApp)).addProgramVar(y, tpy)
+      val subGoal = goal.copy(newPre, post).addProgramVar(y, tpy)
+//      List(Subderivation(List(subGoal), kont))
+      subGoal
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {
@@ -214,6 +286,27 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
 
       findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
+    }
+
+    def symbolicExecution(goal:Goal, params:Free): Goal ={
+      val pre = goal.pre
+      val deriv = goal.deriv
+      val Free(x) = params
+
+      findTargetHeaplets(goal) match {
+        case None => throw SynthesisException("command " + params.pp + " is invalid")
+        case Some((h@Block(`x`, _), pts)) =>
+          val newPre = Assertion(pre.phi, pre.sigma - h - pts)
+
+          // Collecting the footprint
+//          val preFootprint = pts.map(p => deriv.preIndex.lastIndexOf(p)).toSet + deriv.preIndex.lastIndexOf(h)
+//          val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
+
+//          val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
+          val subGoal = goal.copy(newPre)
+          subGoal
+        case Some(_) => throw SynthesisException("command " + params.pp + " is invalid")
+      }
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {

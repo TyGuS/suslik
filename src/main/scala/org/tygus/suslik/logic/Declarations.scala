@@ -4,6 +4,7 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.language.SSLType
+import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.synthesis.SynConfig
 import org.tygus.suslik.synthesis._
 
@@ -169,12 +170,15 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
 
 }
 
+
+case class GoalContainer(spec: FunSpec, body: Statement)
+
 /**
   * Program: for now just a sequence of declarations
   */
 case class Program(predicates: Seq[InductivePredicate],
                    funs: Seq[FunSpec],
-                   goal: FunSpec) extends PrettyPrinting {
+                   goal: GoalContainer) extends PrettyPrinting {
   override def pp: String = predicates.map(_.pp).mkString("\n\n") ++ funs.map(_.pp).mkString("\n\n")
 }
 

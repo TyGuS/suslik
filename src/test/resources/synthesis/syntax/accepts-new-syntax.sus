@@ -9,3 +9,8 @@ void vvvvvv(int a, int b, loc r)
 [int a, int b]
 {a!=b; r :->was}
 { res != a; r:-> res}
+
+###
+
+void typing () {
+}

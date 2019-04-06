@@ -5,7 +5,11 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule, ReadRule, WriteRule}
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule
+import org.tygus.suslik.util.OtherUtil.Accumulator
 import org.tygus.suslik.util.{SynLogging, SynStats}
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 import scala.Console._
 import scala.collection.mutable
@@ -29,23 +33,132 @@ trait Synthesis extends SepLogicUtils {
 
   val memo = new Memoization
 
-//  def synthesizeProgramFromSketch(funGoal: FunSpec, funSketch:Procedure, env: Environment):Option[(Procedure, SynStats)] ={
-//    val specifiedBody: Procedure = propagatePre(funSketch, funGoal)
-//    if(Procedure == Error){
-//      None
-//    }else {
-//      var completeFunction = specifiedBody
-//      val goals: Seq[FunSpec] = extractGoals(specifiedBody)
-//      for (goal <- goals){
-//        val solution = synthesizeProc(goal, env)
-//        completeFunction.replace(SubGoal(goal), silution)
-//      }
-//      completeFunction
-//    }
-//  }
+  def cutHead(prog: Statement): (Statement, Option[Statement]) = prog match {
+    case SeqComp(s1, s2) => {
+      val (head, tail_first) = cutHead(s1)
+      if (tail_first.isDefined) {
+        (head, Some(SeqComp(tail_first.get, s2)))
+      } else {
+        (head, Some(s2))
+      }
+    }
+    case other => (other, None)
+  }
+
+  // What should be the goal after application of the statement?
+  def modifyPre(spec:Goal, statement:Statement):Goal = statement match {
+    case Skip => spec
+    case Hole => throw SynthesisException(Hole.pp + " is not allowed here")
+    case Error => throw SynthesisException(Error.pp + " is not allowed here")
+    case Magic => throw SynthesisException(Magic.pp + " is not allowed here")
+    case cmd: Malloc => AllocRule.symbolicExecution(spec, cmd)
+    case cmd: Free => FreeRule.symbolicExecution(spec, cmd)
+    case cmd: Store => WriteRule.symbolicExecution(spec, cmd)
+    case cmd: Load => ReadRule.symbolicExecution(spec, cmd)
+    case cmd: Call => ???
+    case cmd: SubGoal => ??? // should be same as call with that signature
+    case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")
+    case cmd: If => throw SynthesisException("Found if-then-else in the middle of the program. if-then-else is currently allowed only in the end.")
+    case Guarded(cond, _) => spec.copy(spec.pre.copy(spec.pre.phi && cond))
+  }
+
+  def propagatePre(spec: Goal,
+                   funSketch: Statement,
+                   synthesis_goals_acc: Accumulator[Goal],
+                   correctness_goals_acc:Accumulator[Goal]): Statement= {
+    val (head, tail) = cutHead(funSketch)
+    val new_head = head match{
+      case Hole =>
+        if(tail.isDefined){
+          throw SynthesisException("Found hole in the middle of the program. Holes are currently allowed only in the end.")
+        }
+        SubGoal(spec)
+      case other => other
+    }
+    if(tail.isDefined){
+      val tail_goal:Goal = modifyPre(spec, head)
+      val new_tail = propagatePre(tail_goal, tail.get, synthesis_goals_acc, correctness_goals_acc)
+      SeqComp(new_head, new_tail)
+    }else{
+      new_head match{
+        case sg@SubGoal(g) => {
+          synthesis_goals_acc.put(g)
+          sg
+        }
+        case If(cond, tb,eb) =>
+          If(cond,
+            propagatePre(modifyPre(spec, Guarded(cond, tb)), tb, synthesis_goals_acc, correctness_goals_acc),
+            propagatePre(modifyPre(spec, Guarded(cond.not, eb)), eb, synthesis_goals_acc, correctness_goals_acc)
+          )
+        case other => {
+          val correctness_goal:Goal = modifyPre(spec, head)
+          correctness_goals_acc.put(correctness_goal)
+          other
+        }
+      }
+    }
+  }
 
 
-  def synthesizeProc(funGoal: FunSpec, env: Environment):
+
+// synthesizeProgramFromSketch
+  def synthesizeProc(funGoal: FunSpec, env: Environment, funSketch:Statement):Option[(Procedure, SynStats)] ={
+    implicit val config: SynConfig = env.config
+    // Cleanup the memo table
+    memo.cleanup()
+    val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
+    val goal = makeNewGoal(pre, post, formals, name, env, var_decl)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
+    val stats = new SynStats()
+
+    SMTSolving.init()
+    val subGoalsAcc = new Accumulator[Goal]()
+    val corrGoalsAcc = new Accumulator[Goal]()
+    val specifiedBody = propagatePre(goal, funSketch, subGoalsAcc, corrGoalsAcc)
+    val subGoals = subGoalsAcc.get
+    val correctness_goals = corrGoalsAcc.get
+    println(specifiedBody.pp)
+    for (corrGoal <- correctness_goals) {
+      val solution =
+        // todo: change rules set here to non-operational only-----v
+        synthesize(corrGoal, config.startingDepth)(stats = stats, rules = nextRules(corrGoal, config.startingDepth))
+      if(!solution.contains(Skip) ){
+        return Some(Procedure(name, tp, formals, Error), stats)
+      }
+    }
+
+    if (specifiedBody == Error) {
+      None
+    } else {
+      try {
+        var completeFunction: Option[Statement] = Some(specifiedBody)
+        for (subGoal <- subGoals) {
+          if (completeFunction.isDefined) {
+            val solution = synthesize(subGoal, config.startingDepth)(stats = stats, rules = nextRules(subGoal, config.startingDepth))
+            completeFunction = solution match {
+              case Some(sol) => Some(completeFunction.get.replace(SubGoal(subGoal), sol))
+              case _ => None
+            }
+          }
+        }
+        completeFunction match {
+          case Some(body) =>
+            val proc = Procedure(name, tp, formals, body)
+            Some((proc, stats))
+          case None =>
+            printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = ${config.startingDepth}.")
+            None
+        }
+      } catch {
+        case SynTimeOutException(msg) =>
+          printlnErr(msg)
+          None
+      }
+    }
+  }
+
+
+  def synthesizeProc_old(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config
     // Cleanup the memo table

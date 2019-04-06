@@ -1,5 +1,6 @@
 package org.tygus.suslik.language
 
+import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.Subderivation
 import org.tygus.suslik.util.StringUtil._
@@ -141,12 +142,12 @@ object Statements {
       case stmt@Hole => stmt
       case stmt@Error => stmt
       case stmt@Magic => stmt
-      case stmt@Store(to, off, e) => stmt
-      case stmt@Load(to, _, from, _) => stmt
-      case stmt@Malloc(to, _, _) => stmt
-      case stmt@Free(x) => stmt
-      case stmt@Call(_, fun, args) => stmt
-      case stmt@SubGoal(_) => stmt
+      case stmt:Store => stmt
+      case stmt:Load => stmt
+      case stmt:Malloc => stmt
+      case stmt:Free => stmt
+      case stmt:Call => stmt
+      case stmt:SubGoal => stmt
 
       // propagate
       case SeqComp(s1,s2) => SeqComp(s1.replace(target,replacement), s2.replace(target, replacement))

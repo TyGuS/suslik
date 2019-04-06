@@ -190,15 +190,17 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       }
     )
 
-  def codeWithHoles:Parser[Statement] = rep(statementParser) ^^ (seq => if(seq.nonEmpty) seq.reduceLeft(SeqComp) else Skip)
+  def codeWithHoles:Parser[Statement] = rep(statementParser) ^^ (seq => if(seq.nonEmpty) seq.reduceRight(SeqComp) else Skip)
 
-  case class GoalContainer(goal: FunSpec) // just to distinguish from FunSpec while matching in `program`
-  def goalFunctionV1: Parser[GoalContainer] =  nonGoalFunction <~ "{" <~ codeWithHoles <~ "}" ^^ GoalContainer
+
+  def goalFunctionV1: Parser[GoalContainer] =  nonGoalFunction ~ ("{" ~> codeWithHoles <~ "}") ^^ {
+    case goal ~ body => GoalContainer(goal, body)
+  }
 
   def programSUS: Parser[Program] = repAll(indPredicate | (goalFunctionV1 ||| nonGoalFunction)) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
-    val goals = for (GoalContainer(g) <- pfs) yield g
+    val goals = for (gc@GoalContainer(_, _) <- pfs) yield gc
     if (goals.isEmpty) {
       throw SynthesisException("Parsing failed: no single goal spec is provided.")
     }
@@ -217,7 +219,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     }
     val goal = fs.last
     val funs = fs.take(fs.length - 1)
-    Program(ps, funs, goal)
+    Program(ps, funs, GoalContainer(goal, Hole))
   }
 
   def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {

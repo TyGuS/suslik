@@ -1,0 +1,16 @@
+/* malloc free 1 */
+
+void nop(loc x, loc y)
+{}
+{}
+{
+  let yy = malloc(15);
+  ??
+}
+
+###
+
+void nop (loc x, loc y) {
+  let yy = malloc(15);
+  free(yy);
+}
