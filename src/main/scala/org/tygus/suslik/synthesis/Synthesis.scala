@@ -1,11 +1,13 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.Memoization
+import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule, ReadRule, WriteRule}
+import org.tygus.suslik.synthesis.rules.UnfoldingRules
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule
 import org.tygus.suslik.util.OtherUtil.Accumulator
 import org.tygus.suslik.util.{SynLogging, SynStats}
@@ -107,11 +109,22 @@ trait Synthesis extends SepLogicUtils {
     // Cleanup the memo table
     memo.cleanup()
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
-    val goal = makeNewGoal(pre, post, formals, name, env, var_decl)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
-    val stats = new SynStats()
+    val initial_goal = makeNewGoal(pre, post, formals, name, env, var_decl)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${initial_goal.pp}\n", Console.BLUE)))(i = 0, config)
 
+    val inductive_derivations = UnfoldingRules.InductionRule(initial_goal)
+    val stats = new SynStats()
     SMTSolving.init()
+
+    val subgoals = inductive_derivations.map({x => x.subgoals.head}) ++ List(initial_goal)
+    val answers = subgoals.view
+      .map({goal => synthesizeProcNoInduction(goal, env, funSketch, stats, tp, formals)})
+      .collectFirst {case Some(x) => x}
+    answers
+  }
+
+  def synthesizeProcNoInduction(goal:Goal, env: Environment, funSketch:Statement, stats:SynStats, tp:SSLType, formals:Formals):Option[(Procedure, SynStats)] = {
+    implicit val config: SynConfig = env.config
     val subGoalsAcc = new Accumulator[Goal]()
     val corrGoalsAcc = new Accumulator[Goal]()
     val specifiedBody = propagatePre(goal, funSketch.resolveOverloading(goal.gamma), subGoalsAcc, corrGoalsAcc)
@@ -120,10 +133,10 @@ trait Synthesis extends SepLogicUtils {
     println(specifiedBody.pp)
     for (corrGoal <- correctness_goals) {
       val solution =
-        // todo: change rules set here to non-operational only-----v
-        synthesize(corrGoal, config.startingDepth)(stats = stats, rules = nextRules(corrGoal, config.startingDepth))
+      // todo: change rules set here to non-operational only-----v
+        synthesize(corrGoal, config.startingDepth)(stats = stats, rules = nextRules(corrGoal, config.startingDepth+1))
       if(!solution.contains(Skip) ){
-        return Some(Procedure(name, tp, formals, Error), stats)
+        return Some(Procedure(goal.fname, tp, formals, Error), stats)
       }
     }
 
@@ -134,19 +147,19 @@ trait Synthesis extends SepLogicUtils {
         var completeFunction: Option[Statement] = Some(specifiedBody)
         for (subGoal <- subGoals) {
           if (completeFunction.isDefined) {
-            val solution = synthesize(subGoal, config.startingDepth)(stats = stats, rules = nextRules(subGoal, config.startingDepth))
+            val solution = synthesize(subGoal, config.startingDepth)(stats = stats, rules = nextRules(subGoal, config.startingDepth+1))
             completeFunction = solution match {
               case Some(sol) => Some(completeFunction.get.replace(SubGoal(subGoal), sol))
-              case _ => {
+              case _ =>
                 printlnErr(s"Deductive synthesis failed for the subgoal\n ${subGoal.pp},\n depth = ${config.startingDepth}.")
                 None
-              }
             }
           }
         }
+
         completeFunction match {
           case Some(body) =>
-            val proc = Procedure(name, tp, formals, body)
+            val proc = Procedure(goal.fname, tp, formals, body)
             Some((proc, stats))
           case None =>
             printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = ${config.startingDepth}.")

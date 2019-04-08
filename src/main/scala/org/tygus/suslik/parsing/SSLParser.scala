@@ -161,10 +161,10 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       ||| ("free" ~> "(" ~> varParser <~ ")" ~> ";") ^^ Free
       // Store
       ||| "*" ~> varParser ~ ("=" ~> expr <~ ";") ^^ {
-        case variable ~ e => Store(variable, 0, e)
+        case variable ~ e => Store(variable, 0, desugar(e))
       }
       ||| ("*" ~> "(" ~> varParser <~ "+") ~ numericLit ~ (")" ~> "=" ~> expr <~ ";") ^^ {
-        case variable ~ offset_str ~ e => Store(variable, Integer.parseInt(offset_str), e)
+        case variable ~ offset_str ~ e => Store(variable, Integer.parseInt(offset_str), desugar(e))
       }
       // Load
       ||| ("let" ~> varParser) ~ ("=" ~> "*" ~> varParser <~ ";") ^^ {
@@ -175,18 +175,18 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       }
       // Call
       ||| varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
-        case fun ~ args => Call(None, fun, args)
+        case fun ~ args => Call(None, fun, args.map(desugar))
       }
       ||| typeParser ~ (varParser <~ "=") ~ varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
-        case tpe ~ to ~ fun ~ args => Call(Some((to, tpe)), fun, args)
+        case tpe ~ to ~ fun ~ args => Call(Some((to, tpe)), fun, args.map(desugar))
       }
       // if
       ||| ("if" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}") ~ ("else" ~> "{" ~> codeWithHoles <~ "}") ^^ {
-        case cond ~ tb ~ eb => If(cond, tb, eb)
+        case cond ~ tb ~ eb => If(desugar(cond), tb, eb)
       }
       // Guarded
       ||| ("assume" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}")  ^^ {
-        case cond ~ body => Guarded(cond, body)
+        case cond ~ body => Guarded(desugar(cond), body)
       }
     )
 
