@@ -1,6 +1,6 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.FunSpec
+import org.tygus.suslik.logic.{FunSpec, Gamma}
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.Subderivation
 import org.tygus.suslik.util.StringUtil._
@@ -153,6 +153,14 @@ object Statements {
       case SeqComp(s1,s2) => SeqComp(s1.replace(target,replacement), s2.replace(target, replacement))
       case If(cond, tb, eb) => If(cond, tb.replace(target, replacement), eb.replace(target, replacement))
       case Guarded(cond, b) =>  Guarded(cond, b.replace(target, replacement))
+    }
+
+    def resolveOverloading(gamma:Gamma):Statement = this match {
+      case cmd:If => cmd.copy(cond = cmd.cond.resolveOverloading(gamma))
+      case cmd:Guarded => cmd.copy(cond = cmd.cond.resolveOverloading(gamma))
+      case cmd:Store => cmd.copy(e = cmd.e.resolveOverloading(gamma))
+      case cmd:Call => cmd.copy(args = cmd.args.map({e => e.resolveOverloading(gamma)}))
+      case other => other
     }
 
   }

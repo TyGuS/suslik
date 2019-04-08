@@ -114,7 +114,7 @@ trait Synthesis extends SepLogicUtils {
     SMTSolving.init()
     val subGoalsAcc = new Accumulator[Goal]()
     val corrGoalsAcc = new Accumulator[Goal]()
-    val specifiedBody = propagatePre(goal, funSketch, subGoalsAcc, corrGoalsAcc)
+    val specifiedBody = propagatePre(goal, funSketch.resolveOverloading(goal.gamma), subGoalsAcc, corrGoalsAcc)
     val subGoals = subGoalsAcc.get
     val correctness_goals = corrGoalsAcc.get
     println(specifiedBody.pp)
@@ -137,7 +137,10 @@ trait Synthesis extends SepLogicUtils {
             val solution = synthesize(subGoal, config.startingDepth)(stats = stats, rules = nextRules(subGoal, config.startingDepth))
             completeFunction = solution match {
               case Some(sol) => Some(completeFunction.get.replace(SubGoal(subGoal), sol))
-              case _ => None
+              case _ => {
+                printlnErr(s"Deductive synthesis failed for the subgoal\n ${subGoal.pp},\n depth = ${config.startingDepth}.")
+                None
+              }
             }
           }
         }
