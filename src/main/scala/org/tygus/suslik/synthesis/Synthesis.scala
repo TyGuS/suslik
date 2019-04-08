@@ -67,7 +67,8 @@ trait Synthesis extends SepLogicUtils {
   def propagatePre(spec: Goal,
                    funSketch: Statement,
                    synthesis_goals_acc: Accumulator[Goal],
-                   correctness_goals_acc:Accumulator[Goal]): Statement= {
+                   correctness_goals_acc:Accumulator[Goal]): Statement=
+  try{
     val (head, tail) = cutHead(funSketch)
     val new_head = head match{
       case Hole =>
@@ -100,6 +101,12 @@ trait Synthesis extends SepLogicUtils {
       }
     }
   }
+  catch{
+    case SymbolicExecutionError(why) => {
+      printlnErr(why)
+      Error
+    }
+  }
 
 
 
@@ -130,20 +137,20 @@ trait Synthesis extends SepLogicUtils {
     val specifiedBody = propagatePre(goal, funSketch.resolveOverloading(goal.gamma), subGoalsAcc, corrGoalsAcc)
     val subGoals = subGoalsAcc.get
     val correctness_goals = corrGoalsAcc.get
-    println(specifiedBody.pp)
-    for (corrGoal <- correctness_goals) {
-      val solution =
-      // todo: change rules set here to non-operational only-----v
-        synthesize(corrGoal, config.startingDepth)(stats = stats, rules = nextRules(corrGoal, config.startingDepth+1))
-      if(!solution.contains(Skip) ){
-        return Some(Procedure(goal.fname, tp, formals, Error), stats)
-      }
-    }
+
 
     if (specifiedBody == Error) {
-      None
+      Some(Procedure(goal.fname, tp, formals, Error), stats)
     } else {
       try {
+        for (corrGoal <- correctness_goals) {
+          val solution =
+          // todo: change rules set here to non-operational only-----v
+            synthesize(corrGoal, config.startingDepth)(stats = stats, rules = nextRules(corrGoal, config.startingDepth+1))
+          if(!solution.contains(Skip) ){
+            return Some(Procedure(goal.fname, tp, formals, Error), stats)
+          }
+        }
         var completeFunction: Option[Statement] = Some(specifiedBody)
         for (subGoal <- subGoals) {
           if (completeFunction.isDefined) {

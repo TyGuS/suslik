@@ -47,5 +47,6 @@ case class SynConfig(
 case class SynTimeOutException(msg: String) extends Exception(msg)
 
 case class SynthesisException(msg: String) extends Exception(msg)
+case class SymbolicExecutionError(msg: String) extends Exception(msg)
 
 

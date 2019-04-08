@@ -85,6 +85,16 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val Store(to, offset, new_val) = cmd
 
+      val vars_in_new_val:Set[Var] = new_val.collect({
+        case Var(_) => true
+        case _ => false
+      })
+      // check that expression is defined during the execution
+      for(v<-vars_in_new_val){
+        // todo: I'm not sure if programVars is the right set to check it
+        symExecAssert(goal.programVars.contains(v), s"Variable `${v.pp}` is read before defined.")
+      }
+
       def matchingHeaplet(h:Heaplet) = h match{
         case PointsTo(`to`, `offset`, _) => true
         case _ => false
@@ -153,9 +163,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
-        case None => throw SynthesisException(cmd.pp + " <--- invalid command: right part is not defined (or not a ghost)")
+        case None => throw SynthesisException(cmd.pp + " <--- invalid command: right part is not defined.")
         case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
-
           val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
           subGoal
         case Some(h) =>
