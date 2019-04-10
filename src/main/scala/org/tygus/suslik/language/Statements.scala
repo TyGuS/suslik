@@ -156,8 +156,19 @@ object Statements {
     }
 
     def resolveOverloading(gamma:Gamma):Statement = this match {
-      case cmd:If => cmd.copy(cond = cmd.cond.resolveOverloading(gamma))
-      case cmd:Guarded => cmd.copy(cond = cmd.cond.resolveOverloading(gamma))
+      case SeqComp(s1,s2)=> SeqComp(
+        s1.resolveOverloading(gamma),
+        s2.resolveOverloading(gamma)
+      )
+      case If(cond, tb, eb) => If(
+        cond.resolveOverloading(gamma),
+        tb.resolveOverloading(gamma),
+        eb.resolveOverloading(gamma)
+      )
+      case Guarded(cond, body) => Guarded(
+        cond.resolveOverloading(gamma),
+        body.resolveOverloading(gamma)
+      )
       case cmd:Store => cmd.copy(e = cmd.e.resolveOverloading(gamma))
       case cmd:Call => cmd.copy(args = cmd.args.map({e => e.resolveOverloading(gamma)}))
       case other => other

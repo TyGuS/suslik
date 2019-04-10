@@ -57,7 +57,10 @@ trait SepLogicUtils extends PureLogicUtils {
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
         Some((h, pts.flatten))
       case Some(h) =>
-        None
+        None // todo: is this correct?
+      // For example find heaplet can stop at PointsTo, not reach the block and return None.
+      // I think there should be findHeaplet(pBlock and isBlock, sigma)
+
     }
   }
 

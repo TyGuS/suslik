@@ -92,7 +92,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       // check that expression is defined during the execution
       for(v<-vars_in_new_val){
         // todo: I'm not sure if programVars is the right set to check it
-        symExecAssert(goal.programVars.contains(v), s"Variable `${v.pp}` is read before defined.")
+        symExecAssert(goal.isProgramVar(v), s"Variable `${v.pp}` is read before defined.")
       }
 
       def matchingHeaplet(h:Heaplet) = h match{
@@ -159,7 +159,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val Load(to, tpy, from, offset) = cmd
       def isMatchingHeaplet: Heaplet => Boolean = {
-        case PointsTo(`from`, `offset`, a@Var(_)) => true
+        case PointsTo(`from`, `offset`, _) => true
         case _ => false
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
@@ -293,17 +293,21 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
+      def noGhostsAndIsBlock(h: Heaplet): Boolean = h match {
+        case b:Block => noGhosts(b)
+        case _ => false
+      }
 
-      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
+      findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
     }
 
-    def symbolicExecution(goal:Goal, params:Free): Goal ={
+    def symbolicExecution(goal:Goal, cmd:Free): Goal ={
       val pre = goal.pre
       val deriv = goal.deriv
-      val Free(x) = params
+      val Free(x) = cmd
 
       findTargetHeaplets(goal) match {
-        case None => throw SynthesisException("command " + params.pp + " is invalid")
+        case None => throw SynthesisException("command " + cmd.pp + " is invalid")
         case Some((h@Block(`x`, _), pts)) =>
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
@@ -314,7 +318,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 //          val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
           val subGoal = goal.copy(newPre)
           subGoal
-        case Some(_) => throw SynthesisException("command " + params.pp + " is invalid")
+        case Some(what) => throw SynthesisException("Unexpected heaplet " + what + " found while executing " + cmd.pp)
       }
     }
 

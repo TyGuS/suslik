@@ -4,14 +4,12 @@ import org.tygus.suslik.Memoization
 import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic._
+import org.tygus.suslik.logic.{SApp, _}
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule, ReadRule, WriteRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules
-import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule
 import org.tygus.suslik.util.OtherUtil.Accumulator
 import org.tygus.suslik.util.{SynLogging, SynStats}
-import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 import scala.Console._
 import scala.collection.mutable
@@ -47,7 +45,43 @@ trait Synthesis extends SepLogicUtils {
     case other => (other, None)
   }
 
-  // What should be the goal after application of the statement?
+  def unrollSAppsWherePossible(initial_assertion: Assertion, goal:Goal):Assertion = {
+    val sigma = initial_assertion.sigma
+    val phi = initial_assertion.phi
+
+    val sapp = sigma.chunks.find({case _:SApp => true case _ => false})
+    if(sapp.isEmpty){
+      initial_assertion
+    }else{
+      // borrowed from Open rule
+      val SApp(pred, args, _) = sapp.get
+      val remainingChunks = sigma.chunks.filter(_ != sapp.get)
+      val env = goal.env
+      assert(env.predicates.contains(pred), s"Undefined predicate: $pred")
+      val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+      val sbst = params.map(_._2).zip(args).toMap
+      lazy val possible_unrollings = for{
+        InductiveClause(_sel, _asn) <- clauses
+        sel = _sel.subst(sbst)
+        asn = _asn.subst(sbst)
+        constraints = asn.phi
+        body = asn.sigma
+        if SMTSolving.valid(phi ==> sel)
+        newPhi = phi && constraints
+        _newSigma1 = SFormula(body.chunks).bumpUpSAppTags() // todo: what is bumpUpSAppTags for?
+        _newSigma2 = SFormula(remainingChunks).lockSAppTags() // todo: what is lockSAppTags for?
+        newSigma = SFormula(_newSigma1.chunks ++ _newSigma2.chunks)
+      } yield Assertion(newPhi, newSigma)
+      if(possible_unrollings.nonEmpty){
+        unrollSAppsWherePossible(possible_unrollings.head, goal) // todo: is it finite?
+      }else{
+        initial_assertion
+      }
+    }
+  }
+
+  // Returns the goal after application of the statement
+  // TODO: check every rule for soundness: 1. Don't read ghosts, 2. update ProgramVars
   def modifyPre(spec:Goal, statement:Statement):Goal = statement match {
     case Skip => spec
     case Hole => throw SynthesisException(Hole.pp + " is not allowed here")
@@ -61,7 +95,11 @@ trait Synthesis extends SepLogicUtils {
     case cmd: SubGoal => ??? // should be same as call with that signature
     case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")
     case cmd: If => throw SynthesisException("Found if-then-else in the middle of the program. if-then-else is currently allowed only in the end.")
-    case Guarded(cond, _) => spec.copy(spec.pre.copy(spec.pre.phi && cond))
+    case Guarded(cond, _) => {
+      val newPhi = spec.pre.phi && cond
+      val newPre = unrollSAppsWherePossible(Assertion(newPhi, spec.pre.sigma), spec)
+      spec.copy(pre = newPre)
+    }
   }
 
   def propagatePre(spec: Goal,

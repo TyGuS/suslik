@@ -149,6 +149,35 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: call]"
 
+//    def symbolicExecution(goal:Goal, cmd:Call):Goal = {
+//      val Call(to, fun, given_args) = cmd
+//      (for {
+//        (fname, _f) <- goal.env.functions
+//        if fname == fun
+//        f = _f.refreshExistentials(goal.vars)
+//
+//        // Find all subsets of the goal's pre that might be unified
+//        lilHeap = f.pre.sigma
+//        largHeap = goal.pre.sigma
+//        largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+//        callSubPre = goal.pre.copy(sigma = largSubHeap)
+//
+//        // Try to unify f's precondition and found goal pre's subheaps
+//        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
+//        target = UnificationGoal(callSubPre, goal.programVars.toSet)
+//        sub <- {
+//          SpatialUnification.unify(target, source).toList
+//        }
+//        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+//        args = f.params.map { case (_, x) => x.subst(sub) }
+//        if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+//        callGoal <- mkCallGoal(f, sub, callSubPre, goal)
+//      } yield {
+//        val kont: StmtProducer = prepend(Call(None, Var(f.name), args), toString)
+//        Subderivation(List(callGoal), kont)
+//      }).toSeq
+//    }
+
     def apply(goal: Goal): Seq[Subderivation] = {
       (for {
         (_, _f) <- goal.env.functions
