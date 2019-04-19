@@ -4,7 +4,8 @@ import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.{SynConfig, SynthesisRule}
+import org.tygus.suslik.synthesis.{SynConfig}
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import scalaz.DList
 
 /**

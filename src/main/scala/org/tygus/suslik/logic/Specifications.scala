@@ -4,7 +4,7 @@ import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
-import org.tygus.suslik.synthesis.SynthesisRule
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 
 import scala.math.Ordering.Implicits._
 

@@ -1,12 +1,12 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident, IntType}
+import org.tygus.suslik.language.{Ident}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * Logical rules simplify specs and terminate the derivation;
@@ -37,7 +37,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty &&             // no existentials
         SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
-        List(Subderivation(Nil, _ => Skip))      // we are done
+        List(Subderivation(Nil, constProducer(Skip, "Emp")))      // we are done
       else Nil
     }
   }
@@ -56,7 +56,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       if (!SMTSolving.sat(pre))
-        List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
+        List(Subderivation(Nil, constProducer(Error, "inconsistency"))) // pre inconsistent: return error
       else
         Nil
     }
@@ -88,7 +88,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val postFootprint = Set(deriv.postIndex.lastIndexOf(hPost))
           val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
           val newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          List(Subderivation(List(newGoal), idProducer(toString)))
         }
       }
     }
@@ -143,7 +143,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
-        List(Subderivation(List(newGoal), pureKont(toString)))
+        List(Subderivation(List(newGoal), idProducer(toString)))
       }
     }
   }
@@ -178,13 +178,13 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case (None, None) => Nil
         case (Some(p1), None) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          List(Subderivation(List(newGoal), idProducer(toString)))
         case (None, Some(p2)) =>
           val newGoal = goal.spawnChild(post = Assertion(p2, s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          List(Subderivation(List(newGoal), idProducer(toString)))
         case (Some(p1), Some(p2)) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1), post = Assertion(p2, s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          List(Subderivation(List(newGoal), idProducer(toString)))
 //        case (None, _) => Nil
 //        case (Some(p1), _) =>
 //          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
@@ -224,7 +224,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-            List(Subderivation(List(newGoal), pureKont(toString)))
+            List(Subderivation(List(newGoal), idProducer(toString)))
         case _ => Nil
       }
     }
@@ -259,7 +259,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          List(Subderivation(List(newGoal), idProducer(toString)))
       }
     }
   }

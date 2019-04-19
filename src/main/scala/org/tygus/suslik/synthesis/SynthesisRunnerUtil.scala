@@ -79,7 +79,8 @@ trait SynthesisRunnerUtil {
 
     val spec = specs.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(spec, env.copy(config = params))
+    val config = params.copy(startTime = time1)
+    val sresult = synthesizeProc(spec, env.copy(config = config))
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 

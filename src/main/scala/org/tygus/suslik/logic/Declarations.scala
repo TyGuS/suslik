@@ -5,7 +5,6 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.synthesis.SynConfig
-import org.tygus.suslik.synthesis._
 
 /**
   * @author Ilya Sergey
@@ -180,8 +179,7 @@ case class Program(predicates: Seq[InductivePredicate],
   * (predicates, component functions, etc)
   */
 case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
-                       config: SynConfig = defaultConfig,
-                       startTime: Long) {
+                       config: SynConfig) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

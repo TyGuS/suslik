@@ -2,11 +2,11 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions.{Expr, PFormula}
 import org.tygus.suslik.language.{Ident, IntType}
-import org.tygus.suslik.language.Statements.{Guarded, Magic, Skip}
+import org.tygus.suslik.language.Statements.{Guarded, Magic}
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule}
 
 /**
@@ -35,7 +35,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       if (!SMTSolving.sat(pre && post))
-        List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
+        List(Subderivation(Nil, constProducer(Magic, "post-inconsistent"))) // post inconsistent: only magic can save us
       else
         Nil
     }
@@ -53,7 +53,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       val universalPost = mkConjunction(post.conjuncts.filterNot(p => p.vars.exists(goal.isExistential)))
       if (!SMTSolving.valid(pre ==> universalPost))
-        List(Subderivation(Nil, _ => Magic)) // universal post not implies by pre: only magic can save us
+        List(Subderivation(Nil, constProducer(Magic, "post-invalid"))) // universal post not implies by pre: only magic can save us
       else
         Nil
     }
@@ -89,7 +89,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         if SMTSolving.sat(pre && cond)
         newPre = goal.pre.copy(phi = goal.pre.phi && cond)
         newGoal = goal.spawnChild(newPre)
-      } yield Subderivation(List(newGoal), stmts => Guarded(cond, stmts.head))
+      } yield Subderivation(List(newGoal), StmtProducer(1, stmts => Guarded(cond, stmts.head), "abduce-branch"))
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre.phi
@@ -102,7 +102,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal, pre, universalPost)
         if (guarded.isEmpty)
           if (goal.env.config.fail)
-            List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
+            List(Subderivation(Nil, constProducer(Magic, "abduce-branch"))) // pre doesn't imply post: only magic can save us
           else
             Nil // would like to return Magic, but fail optimization is disabled
         else guarded
@@ -122,7 +122,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
             Nil
           else
-            List(Subderivation(Nil, _ => Magic)) // spatial parts do not match: only magic can save us
+            List(Subderivation(Nil, constProducer(Magic, "heap-unreachable"))) // spatial parts do not match: only magic can save us
         case _ => Nil // does not apply if we could still alloc or free
       }
 

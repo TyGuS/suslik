@@ -1,9 +1,8 @@
 package org.tygus.suslik
 
-import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications.Goal
-import org.tygus.suslik.synthesis.SynthesisRule
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import org.tygus.suslik.util.SynStats
 
 import scala.collection.mutable

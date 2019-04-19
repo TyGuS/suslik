@@ -9,6 +9,7 @@ import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
 import org.tygus.suslik.logic.unification.SpatialUnification.{FrameChoppingResult, tryUnify}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * The goal of unification rules is to eliminate existentials
@@ -45,7 +46,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
 
         val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
-        Subderivation(List(newGoal), pureKont(toString))
+        Subderivation(List(newGoal), idProducer(toString))
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
       val ord = new Ordering[(Int, RuleApplication)] {
@@ -99,7 +100,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          List(Subderivation(List(newGoal), idProducer(toString)))
         case _ => Nil
       }
     }
@@ -127,7 +128,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         t <- preConjuncts
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-      } yield Subderivation(List(newGoal), pureKont(toString))
+      } yield Subderivation(List(newGoal), idProducer(toString))
     }
   }
 
@@ -198,7 +199,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           if goal.getType(ex).conformsTo(Some(goal.getType(v)))
           sigma = Map(ex -> v)
           newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-        } yield Subderivation(List(newGoal), pureKont(toString))
+        } yield Subderivation(List(newGoal), idProducer(toString))
       } else Nil
     }
   }
@@ -233,7 +234,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         ruleApp = saveApplication((preFootprint, postFootprint), deriv)
         newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
       } yield {
-        Subderivation(List(newGoal), pureKont(toString))
+        Subderivation(List(newGoal), idProducer(toString))
       }
       sortAlternativesByFootprint(alternatives)
     }

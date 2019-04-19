@@ -18,7 +18,7 @@ case class SynConfig(
                       fail: Boolean             = true,
                       commute: Boolean          = true,
                       // Timeout and logging
-                      printStats: Boolean = true,
+                      printStats: Boolean       = true,
                       printDerivations: Boolean = false,
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
@@ -26,7 +26,9 @@ case class SynConfig(
                       assertSuccess: Boolean    = false,
                       logToFile: Boolean        = true,
                       memoization: Boolean      = true,
-                      timeOut: Long             = DEFAULT_TIMEOUT
+                      timeOut: Long             = 120000,
+                      // Global state
+                      startTime: Long           = 0
                     ) extends PrettyPrinting {
 
   override def pp: String =

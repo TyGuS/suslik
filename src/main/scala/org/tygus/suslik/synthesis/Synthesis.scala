@@ -6,6 +6,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.util.{SynLogging, SynStats}
+import org.tygus.suslik.synthesis.rules.Rules._
 
 import scala.Console._
 import scala.collection.mutable
@@ -50,11 +51,11 @@ trait Synthesis extends SepLogicUtils with Memoization {
     }
   }
 
-  private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
-                        (stats: SynStats,
-                         rules: List[SynthesisRule])
-                        (implicit ind: Int = 0,
-                         savedResults: ResultMap = mutable.Map.empty): Option[Solution] = {
+  protected def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
+                          (stats: SynStats,
+                           rules: List[SynthesisRule])
+                          (implicit ind: Int = 0,
+                           savedResults: ResultMap = mutable.Map.empty): Option[Solution] = {
     lazy val res: Option[Solution] = synthesizeInner(goal, depth)(stats, rules)(ind)
     runWithMemo(goal, savedResults, stats, rules, res)
   }
@@ -71,7 +72,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
     printLog(List((s"${goal.pp}", Console.BLUE)))
 
     val currentTime = System.currentTimeMillis()
-    if (currentTime - goal.env.startTime > config.timeOut) {
+    if (currentTime - config.startTime > config.timeOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
     }
 
@@ -131,13 +132,13 @@ trait Synthesis extends SepLogicUtils with Memoization {
           // </ugly-imperative-code>
 
           // TODO: why did we need this line before?
-//          val successes = for (r <- results) yield r
+          //          val successes = for (r <- results) yield r
           if (results.size < s.subgoals.size)
-            // One of the sub-goals failed: this sub-derivation fails
+          // One of the sub-goals failed: this sub-derivation fails
             None
           else {
             val (stmts, helpers) = results.unzip
-//            val stmt = s.kont(stmts)
+            //            val stmt = s.kont(stmts)
             handleGuard(s, stmts.toList) match {
               case None => None
               case Some((stmt, helpers2)) =>
@@ -151,17 +152,16 @@ trait Synthesis extends SepLogicUtils with Memoization {
                   Some((stmt, allHelpers))
             }
 
-            }
+          }
         }
 
-        // TODO: enable condition abduction again
         // If stmts is a single guarded statement:
         // if possible, propagate guard to the result of the current goal,
         // otherwise, try to synthesize the else branch and fail if that fails
         def handleGuard(s: Subderivation, stmts: List[Statement]): Option[Solution] =
           stmts match {
             case Guarded(cond, thn) :: Nil =>
-              s.kont(stmts) match {
+              s.kont.fn(stmts) match {
                 case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
                   Some(g, Nil)
                 case _ => // Cannot propagate: try to synthesize else branch
@@ -172,11 +172,11 @@ trait Synthesis extends SepLogicUtils with Memoization {
                   val newConfig = goal.env.config.copy(startingDepth = depth)
                   val newG = goal.spawnChild(newPre, env = goal.env.copy(config = newConfig))
                   synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
-                    case Some((els, helpers)) => Some(s.kont(List(If(cond, thn, els))), helpers) // successfully synthesized else
+                    case Some((els, helpers)) => Some(s.kont.fn(List(If(cond, thn, els))), helpers) // successfully synthesized else
                     case _ => None // failed to synthesize else
                   }
               }
-            case _ => Some(s.kont(stmts), Nil)
+            case _ => Some(s.kont.fn(stmts), Nil)
           }
 
 
@@ -223,7 +223,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
 
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
 
-  private def printLog(sc: List[(String, String)], isFail: Boolean = false)
+  protected def printLog(sc: List[(String, String)], isFail: Boolean = false)
                       (implicit i: Int, config: SynConfig): Unit = {
     if (config.printDerivations) {
       if (!isFail || config.printFailed) {

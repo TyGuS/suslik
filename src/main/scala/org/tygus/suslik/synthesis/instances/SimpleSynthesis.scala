@@ -1,10 +1,9 @@
 package org.tygus.suslik.synthesis.instances
 
-import org.tygus.suslik.language.Expressions.BoolConst
 import org.tygus.suslik.logic.Specifications.Goal
-import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules._
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import org.tygus.suslik.util.SynLogging
 
 /**

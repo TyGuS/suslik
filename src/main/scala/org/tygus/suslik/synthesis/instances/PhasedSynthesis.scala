@@ -4,10 +4,11 @@ import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.smt.SMTSolving.sat
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import org.tygus.suslik.synthesis.rules._
 import org.tygus.suslik.util.SynLogging
 
-class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
+class PhasedSynthesis(implicit val log: SynLogging) extends QSynthesis {
 
   {
     // Warm-up the SMT solver on start-up to avoid future delays

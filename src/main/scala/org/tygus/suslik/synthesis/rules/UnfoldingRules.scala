@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * Unfolding rules deal with predicates and recursion.
@@ -23,17 +24,18 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: open]"
 
-    private def kont(selectors: Seq[PFormula]): StmtProducer = stmts => {
-      ruleAssert(selectors.length == stmts.length,
-        s"Mismatch in sizes of selectors and sub-programs\n${selectors.length}: $selectors\n${stmts.length}: $stmts")
-      ruleAssert(stmts.nonEmpty, s"Induction rule expected one or more subgoals got ${stmts.length}")
-      if (stmts.length == 1) stmts.head else {
-        val cond_branches = selectors.zip(stmts).reverse
-        val ctail = cond_branches.tail
-        val finalBranch = cond_branches.head._2
-        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
-      }
-    }
+    private def kont(selectors: Seq[PFormula]): StmtProducer = StmtProducer(
+      selectors.length,
+      stmts => {
+        if (stmts.length == 1) stmts.head else {
+          val cond_branches = selectors.zip(stmts).reverse
+          val ctail = cond_branches.tail
+          val finalBranch = cond_branches.head._2
+          ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
+        }
+      },
+      "open")
+
 
     private def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
       val pre = goal.pre
@@ -193,14 +195,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       } yield {
         val writeGoals = writeGoalsOpt.toList
         val n = writeGoals.length
-        val kont: StmtProducer = stmts => {
-          ruleAssert(stmts.length == n + 1, s"Apply-hypotheses rule expected ${n + 1} premise and got ${stmts.length}")
-          val writes = stmts.take(n)
-          val rest = stmts.drop(n).head
-          writes.foldRight(rest) { case (w, r) => SeqComp(w, r) }
-        }
+        val producer = StmtProducer(n + 1,
+          stmts => {
+            val writes = stmts.take(n)
+            val rest = stmts.drop(n).head
+            writes.foldRight(rest) { case (w, r) => SeqComp(w, r) }
+          },
+        "abduce-call")
+
         val subGoals = writeGoals ++ List(restGoal)
-        Subderivation(subGoals, kont)
+        Subderivation(subGoals, producer)
       }
     }
 
@@ -246,11 +250,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: close]"
 
-    private val kont: StmtProducer = stmts => {
-      ruleAssert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
-      stmts.head
-    }
-
     def apply(goal: Goal): Seq[Subderivation] = {
       val post = goal.post
       val env = goal.env
@@ -294,7 +293,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-            Subderivation(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont)
+            Subderivation(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), idProducer("close"))
           }
           subDerivations
         case _ => Nil

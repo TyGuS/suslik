@@ -1,12 +1,11 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.LanguageUtils.generateFreshVar
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * Operational rules emit statement that operate of flat parts of the heap.

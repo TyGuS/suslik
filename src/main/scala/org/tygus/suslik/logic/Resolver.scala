@@ -1,5 +1,7 @@
 package org.tygus.suslik.logic
 
+import org.tygus.suslik.synthesis.SynConfig
+
 object Resolver {
 
   /**
@@ -10,9 +12,7 @@ object Resolver {
     val Program(preds, funs, goal) = prog
     val funMap = funs.map(fs => fs.name -> setUpAuxiliaryFunction(fs)).toMap
     val predMap = preds.map(ps => ps.name -> ps).toMap
-
-    val time0 = System.currentTimeMillis()
-    (List(goal), Environment(predMap, funMap, startTime = time0))
+    (List(goal), Environment(predMap, funMap, SynConfig()))
   }
 
   def setUpAuxiliaryFunction(fs: FunSpec) : FunSpec = {
