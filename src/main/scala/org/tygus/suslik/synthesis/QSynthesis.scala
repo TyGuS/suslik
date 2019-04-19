@@ -60,7 +60,7 @@ trait QSynthesis extends Synthesis {
           // add the rest of the open goals from the current subderivation,
           // and set up the solution producer to join results from all the open goals
           val newSubderivations = children.map(child =>
-            Subderivation(child.subgoals ++ moreGoals, join(child.kont, subderiv.kont)))
+            Subderivation(child.subgoals ++ moreGoals, child.kont >> subderiv.kont))
           // Add new subderivations to the worklist and process
           processWorkList(newSubderivations ++ rest)
         }

@@ -89,7 +89,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         if SMTSolving.sat(pre && cond)
         newPre = goal.pre.copy(phi = goal.pre.phi && cond)
         newGoal = goal.spawnChild(newPre)
-      } yield Subderivation(List(newGoal), StmtProducer(1, stmts => Guarded(cond, stmts.head), "abduce-branch"))
+      } yield Subderivation(List(newGoal),
+        StmtProducer(1, liftToSolutions(stmts => Guarded(cond, stmts.head)), "abduce-branch"))
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre.phi

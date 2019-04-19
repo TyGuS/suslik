@@ -88,7 +88,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val postFootprint = Set(deriv.postIndex.lastIndexOf(hPost))
           val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
           val newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
-          List(Subderivation(List(newGoal), idProducer(toString)))
+          val kont = idProducer(toString) >> extractHelper(goal)
+          List(Subderivation(List(newGoal), kont))
         }
       }
     }

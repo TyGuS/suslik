@@ -8,7 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.Rules._
+import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
 
 /**
   * Unfolding rules deal with predicates and recursion.
@@ -24,17 +24,19 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: open]"
 
-    private def kont(selectors: Seq[PFormula]): StmtProducer = StmtProducer(
+    // Produces a conditional that branches on the selectors
+    private def branchProducer(selectors: Seq[PFormula]): StmtProducer = StmtProducer (
       selectors.length,
-      stmts => {
+      liftToSolutions (stmts => {
         if (stmts.length == 1) stmts.head else {
           val cond_branches = selectors.zip(stmts).reverse
           val ctail = cond_branches.tail
           val finalBranch = cond_branches.head._2
           ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
         }
-      },
-      "open")
+      }),
+      "open"
+    )
 
 
     private def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
@@ -69,12 +71,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
       for {
-        h <- goal.pre.sigma.chunks
-        s <- mkInductiveSubGoals(goal, h) match {
+        heaplet <- goal.pre.sigma.chunks
+        s <- mkInductiveSubGoals(goal, heaplet) match {
           case None => None
-          case Some((selGoals, h)) =>
+          case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
-            Some(Subderivation(subGoals, kont(selectors)))
+            val kont = branchProducer(selectors) >> extractHelper(goal)
+            Some(Subderivation(subGoals, kont))
         }
       } yield s
     }
@@ -120,7 +123,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Check that the goal's subheap had at leas one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l), toString)
+        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l), toString) >> extractHelper(goal)
         Subderivation(List(callGoal), kont)
       }
     }
@@ -165,6 +168,17 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: abduce-call]"
 
+    // Producer that sequentially composes results of the n write goals
+    def writeGoalsProducer(n: Int): StmtProducer = StmtProducer(
+      n + 1,
+      liftToSolutions (stmts => {
+        val writes = stmts.take(n)
+        val rest = stmts.drop(n).head
+        writes.foldRight(rest) { case (w, r) => SeqComp(w, r) }
+      }),
+      "abduce-call"
+    )
+
     // TODO: refactor common parts with CallRule
     def apply(goal: Goal): Seq[Subderivation] = {
       val allCands = goal.companionCandidates.reverse
@@ -194,17 +208,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if writeGoalsOpt.nonEmpty
       } yield {
         val writeGoals = writeGoalsOpt.toList
-        val n = writeGoals.length
-        val producer = StmtProducer(n + 1,
-          stmts => {
-            val writes = stmts.take(n)
-            val rest = stmts.drop(n).head
-            writes.foldRight(rest) { case (w, r) => SeqComp(w, r) }
-          },
-        "abduce-call")
+        val kont = writeGoalsProducer(writeGoals.length)  >> extractHelper(goal)
 
         val subGoals = writeGoals ++ List(restGoal)
-        Subderivation(subGoals, producer)
+        Subderivation(subGoals, kont)
       }
     }
 
@@ -292,8 +299,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
+            val kont = idProducer("close") >> extractHelper(goal)
 
-            Subderivation(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), idProducer("close"))
+            Subderivation(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont)
           }
           subDerivations
         case _ => Nil

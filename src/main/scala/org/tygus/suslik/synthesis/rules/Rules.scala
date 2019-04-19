@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.PrettyPrinting
-import org.tygus.suslik.language.Statements.{SeqComp, Solution, Statement}
+import org.tygus.suslik.language.Statements.{Procedure, SeqComp, Solution, Statement}
 import org.tygus.suslik.logic.{Heaplet, PureLogicUtils, SApp}
 import org.tygus.suslik.logic.Specifications.{Derivation, Goal, RuleApplication}
 
@@ -11,40 +11,80 @@ object Rules {
     * from solutions of its sub-problems
     */
   case class StmtProducer (arity: Int,
-                           fn: Seq[Statement] => Statement,
-                           ruleName: String) extends RuleUtils {
+                           fn: Seq[Solution] => Solution,
+                           source: String) extends RuleUtils {
     val exceptionQualifier: String = "producer"
 
     def apply(children: Seq[Solution]): Solution = {
-      ruleAssert(children.lengthCompare(arity) == 0, s"Rule $ruleName expects $arity premise(s) and got ${children.length}")
-      val (stmts, helpers) = children.unzip
-      val stmt = fn(stmts)
-      val allHelpers = helpers.toList.flatten
-
-      (stmt,allHelpers)
+      ruleAssert(children.lengthCompare(arity) == 0, s"Producer $source expects $arity children and got ${children.length}")
+      fn(children)
     }
+
+    /**
+      * Producer transformer that sequences two producers:
+      * the resulting producer first applies p1 to a prefix of child solutions,
+      * then applies p2 to the result of p1 and a suffix of child solutions
+      */
+    def >>(p: StmtProducer): StmtProducer = StmtProducer (
+      this.arity + p.arity - 1,
+      sols => {
+        val (sols1, sols2) = sols.splitAt(this.arity)
+        val sol = this.fn(sols1)
+        p.fn(sol +: sols2)
+      },
+      s"join-${this.source}-${p.source}"
+    )
   }
 
-  def idProducer(rulename: String): StmtProducer =
-    StmtProducer(1, _.head, rulename)
+  def liftToSolutions(f: Seq[Statement] => Statement)(arg: Seq[Solution]): Solution = {
+    val (stmts, helpers) = arg.unzip
+    val stmt = f(stmts)
+    val allHelpers = helpers.toList.flatten
+    (stmt,allHelpers)
+  }
 
-  def constProducer(s: Statement, rulename: String): StmtProducer =
-    StmtProducer(0, _ => s, rulename)
+  /**
+    * Identity producer: returns the first child solution unchanged
+    */
+  def idProducer(source: String): StmtProducer =
+    StmtProducer(1, _.head, source)
 
-  def prepend(s: Statement, rulename: String): StmtProducer =
-    StmtProducer(1, stmts => {SeqComp(s, stmts.head).simplify}, rulename)
+  /**
+    * Constant producer: ignored child solutions and returns s
+    */
+  def constProducer(s: Statement, source: String): StmtProducer =
+    StmtProducer(0, liftToSolutions(_ => s), source)
 
-  def append(s: Statement, rulename: String): StmtProducer =
-    StmtProducer(1, stmts => {SeqComp(stmts.head, s).simplify}, rulename)
+  /**
+    * Producer that prepends s to the first child solution
+    */
+  def prepend(s: Statement, source: String): StmtProducer =
+    StmtProducer(1, liftToSolutions(stmts => {SeqComp(s, stmts.head).simplify}), source)
 
-  def join(kont1: StmtProducer, kont2: StmtProducer): StmtProducer = StmtProducer (
-    kont1.arity + kont2.arity - 1,
-    stmts => {
-      val (stmts1, stmts2) = stmts.splitAt(kont1.arity)
-      val stmt = kont1.fn(stmts1)
-      kont2.fn(stmt +: stmts2)
+  /**
+    * Producer that appends s to the first child solution
+    */
+  def append(s: Statement, source: String): StmtProducer =
+    StmtProducer(1, liftToSolutions(stmts => {SeqComp(stmts.head, s).simplify}), source)
+
+  /**
+    * Producer that checks if the child solution has backlinks to its goal,
+    * and if so produces a helper call and a new helper
+    */
+  def extractHelper(goal: Goal): StmtProducer = StmtProducer (
+    1,
+    sols => {
+      val (stmt, helpers) = sols.head
+      if (stmt.companions.contains(goal.label)) {
+        val f = goal.toFunSpec
+        val newHelper = Procedure(f.name, f.rType, f.params, stmt)
+        (goal.toCall, newHelper :: helpers)
+      } else
+        (stmt, helpers)
     },
-    s"join-${kont1.ruleName}-${kont2.ruleName}")
+    s"helper"
+  )
+
 
   /**
     * An incomplete derivation:

@@ -44,9 +44,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val preFootprint = Set(deriv.preIndex.lastIndexOf(t))
         val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
-
         val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
-        Subderivation(List(newGoal), idProducer(toString))
+        val kont = idProducer(toString) >> extractHelper(goal)
+        Subderivation(List(newGoal), kont)
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
       val ord = new Ordering[(Int, RuleApplication)] {
