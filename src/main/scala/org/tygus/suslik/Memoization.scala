@@ -9,23 +9,22 @@ import scala.collection.mutable
 
 trait Memoization {
 
-  type ResultMap = mutable.Map[(Goal, List[SynthesisRule]), (Option[Solution], Int)]
+  type ResultMap = mutable.Map[(Goal), (Option[Solution], Int)]
 
   def runWithMemo(goal: Goal,
                   savedResults: ResultMap,
                   stats: SynStats,
-                  rules: List[SynthesisRule],
                   res: => Option[Solution]): Option[Solution] = {
     if (!goal.env.config.memoization) {
       res
-    } else if (savedResults.contains(goal, rules)) { //
-      val (res, recalled_count) = savedResults(goal, rules)
-      savedResults((goal, rules)) = (res, recalled_count + 1)
+    } else if (savedResults.contains(goal)) { //
+      val (res, recalled_count) = savedResults(goal)
+      savedResults(goal) = (res, recalled_count + 1)
       logMemoization(stats, res)
       res
     } else {
       logMemoization(stats, res)
-      savedResults((goal, rules)) = (res, 0)
+      savedResults((goal)) = (res, 0)
       res
     }
   }

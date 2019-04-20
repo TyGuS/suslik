@@ -36,7 +36,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
     val stats = new SynStats()
     SMTSolving.init()
     try {
-      synthesize(goal, config.startingDepth)(stats = stats, rules = nextRules(goal, config.startingDepth)) match {
+      synthesize(goal, config.startingDepth)(stats = stats) match {
         case Some((body, helpers)) =>
           val main = Procedure(name, tp, formals, body)
           Some(main :: helpers, stats)
@@ -52,17 +52,15 @@ trait Synthesis extends SepLogicUtils with Memoization {
   }
 
   protected def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
-                          (stats: SynStats,
-                           rules: List[SynthesisRule])
+                          (stats: SynStats)
                           (implicit ind: Int = 0,
                            savedResults: ResultMap = mutable.Map.empty): Option[Solution] = {
-    lazy val res: Option[Solution] = synthesizeInner(goal, depth)(stats, rules)(ind)
-    runWithMemo(goal, savedResults, stats, rules, res)
+    lazy val res: Option[Solution] = synthesizeInner(goal, depth)(stats)(ind)
+    runWithMemo(goal, savedResults, stats, res)
   }
 
   private def synthesizeInner(goal: Goal, depth: Int)
-                             (stats: SynStats,
-                              rules: List[SynthesisRule])
+                             (stats: SynStats)
                              (implicit ind: Int = 0): Option[Solution] = {
     implicit val config: SynConfig = goal.env.config
 
@@ -123,7 +121,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
           import util.control.Breaks._
           breakable {
             for {subgoal <- s.subgoals} {
-              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1) match {
+              synthesize(subgoal, depth - 1)(stats)(ind + 1) match {
                 case Some(s) => results.append(s)
                 case _ => break
               }
@@ -226,7 +224,7 @@ trait Synthesis extends SepLogicUtils with Memoization {
         }
     }
 
-    tryRules(rules)
+    tryRules(nextRules(goal, depth))
   }
 
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i

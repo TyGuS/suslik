@@ -168,7 +168,6 @@ object Specifications {
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
-      s"${label.pp}\n" +
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
         s"${pre.pp}\n${post.pp}"
 
