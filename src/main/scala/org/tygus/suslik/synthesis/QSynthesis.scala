@@ -2,11 +2,11 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis.rules.RuleUtils
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
 
 import scala.Console._
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 /**
@@ -25,7 +25,8 @@ trait QSynthesis extends Synthesis {
     processWorkList(worklist)(stats, goal.env.config, ind)
   }
 
-  protected def processWorkList(worklist: Seq[Subderivation])
+  @tailrec
+  private def processWorkList(worklist: Seq[Subderivation])
                             (implicit
                              stats: SynStats,
                              config: SynConfig,
@@ -44,10 +45,12 @@ trait QSynthesis extends Synthesis {
         // No more subderivations to try: synthesis failed
         None
       case subderiv +: rest => subderiv.subgoals match {
+        // Otherwise pick a subderivation to expand
         case Nil =>
           // This subderivation has no open goals: synthesis succeeded, build the solution
           Some(subderiv.kont(Nil))
-        case goal :: moreGoals => { // This subderivation has open goals: pick one to expand
+        case goal :: moreGoals => {
+          // Otherwise, expand the first open goal
           printLog(List((s"Goal to expand: ${goal.label.pp}", Console.BLUE)))
           if (config.printEnv) {
             printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
@@ -57,7 +60,15 @@ trait QSynthesis extends Synthesis {
           // Apply all possible rules to the current goal to get a list of alternatives,
           // each of which can have multiple open goals
           val rules = nextRules(goal, 0)
-          val children = applyRules(rules)(goal, stats, config, ind)
+          val children =
+            if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
+            else applyRules(rules)(goal, stats, config, ind)
+
+          if (children.isEmpty) {
+            stats.bumpUpBacktracing()
+            printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          }
+
           // To turn those alternatives into valid subderivations,
           // add the rest of the open goals from the current subderivation,
           // and set up the solution producer to join results from all the open goals
@@ -73,49 +84,51 @@ trait QSynthesis extends Synthesis {
   protected def applyRules(rules: List[SynthesisRule])(implicit goal: Goal,
                                                        stats: SynStats,
                                                        config: SynConfig,
-                                                       ind: Int): Seq[Subderivation] = rules match {
-      case Nil => Vector() // No more rules to apply: done expanding the goal
-      case r :: rs =>
-        val goalStr = s"$r: "
-        // Invoke the rule
-        val allChildren = r(goal)
-        // Filter out out-of-order children (if commute optimization is enabled)
+                                                       ind: Int): Seq[Subderivation] = rules match
+  {
+    case Nil => Vector() // No more rules to apply: done expanding the goal
+    case r :: rs =>
+      val goalStr = s"$r: "
+      // Invoke the rule
+      val allChildren = r(goal)
+      // Filter out children that contain out-of-order goals
+      val children = if (config.commute) {
+        allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
+      } else allChildren
 
-        // Filter out subderivations that violate rule ordering
-        def goalInOrder(g: Goal): Boolean = {
-          g.deriv.outOfOrder(allRules(goal)) match {
-            case None => true
-            case Some(app) =>
-              //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-              //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-              printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
-              false
-          }
-        }
-
-        val children = if (config.commute)
-          allChildren.filter(sub => sub.subgoals.forall(goalInOrder))
-        else
-          allChildren
-
-
-        if (children.isEmpty) {
-          // Rule not applicable: try other rules
-          printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)
-          applyRules(rs)
+      if (children.isEmpty) {
+        // Rule not applicable: try other rules
+        printLog(List((s"${goalStr}FAIL", BLACK)), isFail = true)
+        applyRules(rs)
+      } else {
+        // Rule applicable: try all possible sub-derivations
+        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
+        val succ = s"SUCCESS at depth $ind, ${children.size} alternative(s) [$subSizes]"
+        printLog(List((s"$goalStr$GREEN$succ", BLACK)))
+        stats.bumpUpSuccessfulRuleApp()
+        if (config.invert && r.isInstanceOf[InvertibleRule]) {
+          // The rule is invertible: do not try other rules on this goal
+          children
         } else {
-          // Rule applicable: try all possible sub-derivations
-          val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
-          val succ = s"SUCCESS at depth $ind, ${children.size} alternative(s) [$subSizes]"
-          printLog(List((s"$goalStr$GREEN$succ", BLACK)))
-          stats.bumpUpSuccessfulRuleApp()
-          if (config.invert && r.isInstanceOf[InvertibleRule]) {
-            // The rule is invertible: do not try other rules on this goal
-            children
-          } else {
-            // Both this and other rules apply
-            children ++ applyRules(rs)
-          }
+          // Both this and other rules apply
+          children ++ applyRules(rs)
         }
+      }
   }
+
+  // Is current goal supposed to appear before g?
+  def goalOutOfOrder(g: Goal)(implicit goal: Goal,
+                           stats: SynStats,
+                           config: SynConfig,
+                           ind: Int): Boolean = {
+    g.deriv.outOfOrder(allRules(goal)) match {
+      case None => false
+      case Some(app) =>
+        //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
+        //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
+        printLog(List((s"${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
+        true
+    }
+  }
+
 }

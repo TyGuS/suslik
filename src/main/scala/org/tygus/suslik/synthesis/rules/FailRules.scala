@@ -35,7 +35,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       if (!SMTSolving.sat(pre && post))
-        List(Subderivation(Nil, constProducer(Magic, "post-inconsistent"))) // post inconsistent: only magic can save us
+        // post inconsistent with pre
+        List(Subderivation(List(goal.unsolvableChild), idProducer("post-inconsistent")))
       else
         Nil
     }
@@ -53,7 +54,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       val universalPost = mkConjunction(post.conjuncts.filterNot(p => p.vars.exists(goal.isExistential)))
       if (!SMTSolving.valid(pre ==> universalPost))
-        List(Subderivation(Nil, constProducer(Magic, "post-invalid"))) // universal post not implies by pre: only magic can save us
+        // universal post not implies by pre
+        List(Subderivation(List(goal.unsolvableChild), idProducer("post-invalid")))
       else
         Nil
     }
@@ -103,7 +105,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal, pre, universalPost)
         if (guarded.isEmpty)
           if (goal.env.config.fail)
-            List(Subderivation(Nil, constProducer(Magic, "abduce-branch"))) // pre doesn't imply post: only magic can save us
+            List(Subderivation(List(goal.unsolvableChild), idProducer("abduce-branch-fail"))) // pre doesn't imply post: only magic can save us
           else
             Nil // would like to return Magic, but fail optimization is disabled
         else guarded
@@ -123,7 +125,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
             Nil
           else
-            List(Subderivation(Nil, constProducer(Magic, "heap-unreachable"))) // spatial parts do not match: only magic can save us
+            List(Subderivation(List(goal.unsolvableChild), idProducer("heap-unreachable"))) // spatial parts do not match: only magic can save us
         case _ => Nil // does not apply if we could still alloc or free
       }
 

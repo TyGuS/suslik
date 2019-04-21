@@ -231,6 +231,12 @@ object Specifications {
         this.fname, this.label.bumpUp(childId), Some(this), env, newDeriv)
     }
 
+    // Goal that is eagerly recognized by the search as unsolvable
+    def unsolvableChild: Goal = spawnChild(post = Assertion(pFalse, SFormula(Nil)))
+
+    // Is this goal unsolvable and should be discarded?
+    def isUnsolvable: Boolean = post.phi == pFalse
+
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 
     def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates

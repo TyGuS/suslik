@@ -23,9 +23,6 @@ object Statements {
           case Error =>
             builder.append(mkSpaces(offset))
             builder.append(s"error;\n")
-          case Magic =>
-            builder.append(mkSpaces(offset))
-            builder.append(s"magic;\n")
           case Malloc(to, _, sz) =>
             // Ignore type
             builder.append(mkSpaces(offset))
@@ -79,7 +76,6 @@ object Statements {
       def collector(acc: Set[R])(st: Statement): Set[R] = st match {
         case Skip => acc
         case Error => acc
-        case Magic => acc
         case Store(to, off, e) =>
           acc ++ to.collect(p) ++ e.collect(p)
         case Load(_, _, from, off) =>
@@ -109,7 +105,6 @@ object Statements {
     def size: Int = this match {
       case Skip => 0
       case Error => 1
-      case Magic => 1
       case Store(to, off, e) => 1 + to.size + e.size
       case Load(to, _, from, _) => 1 + to.size + from.size
       case Malloc(to, _, _) => 1 + to.size
@@ -135,9 +130,6 @@ object Statements {
 
   // assert false;
   case object Error extends Statement
-
-  // assume false;
-  case object Magic extends Statement
 
   // let to = malloc(n); rest
   case class Malloc(to: Var, tpe: SSLType, sz: Int = 1) extends Statement

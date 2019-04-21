@@ -88,9 +88,6 @@ trait Synthesis extends SepLogicUtils with Memoization {
           case Seq(a, as@_*) =>
             if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
             solveSubgoals(a) match {
-              case Some((Magic, _)) =>
-                stats.bumpUpBacktracing()
-                tryAlternatives(as, altIndex + 1) // This alternative is inconsistent: try other alternatives
               case Some(res) =>
                 stats.bumpUpLastingSuccess()
                 Some(res) // This alternative succeeded
@@ -186,6 +183,11 @@ trait Synthesis extends SepLogicUtils with Memoization {
 //          }
 
 
+        // This goal is explicitly unsolvable: give up
+        if (goal.isUnsolvable) {
+          stats.bumpUpBacktracing()
+          return None
+        }
         // Invoke the rule
         val allSubderivations = r(goal)
         val goalStr = s"$r: "
