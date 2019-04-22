@@ -7,6 +7,7 @@ import org.tygus.suslik.language.Statements.Load
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
@@ -162,9 +163,20 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
-        case None => throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
+        case None => {
+          throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
+        }
         case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
-          val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
+          val subst_pre = pre.subst(a, to)
+          val subst_post = post.subst(a, to)
+          val new_pre = subst_pre.copy(phi = subst_pre.phi &&  (to |=| a))
+          val new_post= subst_post.copy(phi = subst_post.phi &&  (to |=| a))
+          val subGoal = goal.copy(pre = new_pre, post = new_post).addProgramVar(to, tpy)
+//          val subGoal = goal.copy(pre.copy(phi = pre.phi && (to |=| a) ), post = post.copy(phi = post.phi && (to |=| a))).addProgramVar(to, tpy)
+          subGoal
+        case Some(PointsTo(`from`, `offset`, a)) =>
+          //          val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
+          val subGoal = goal.copy(pre.copy(phi = pre.phi && (to |=| a) ), post = post.copy(phi = post.phi && (to |=| a))).addProgramVar(to, tpy)
           subGoal
         case Some(h) =>
           throw SynthesisException(cmd.pp + s" Read rule matched unexpected heaplet ${h.pp}")
@@ -218,20 +230,16 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findBlockAndChunks(isExistBlock, _ => true, goal.post.sigma)
     }
 
-    def symbolicExecution(goal: Goal, params:Malloc): Goal = {
-      val Malloc(y, tpy, sz) = params
+    def symbolicExecution(goal: Goal, cmd:Malloc): Goal = {
+      val Malloc(y, tpy, sz) = cmd
       val pre = goal.pre
       val post = goal.post
-      val gamma = goal.gamma
-      val deriv = goal.deriv
-
-//      val y = generateFreshVar(goal, x.name)
+      symExecAssert(!goal.vars.contains(y), cmd.pp + s"variable ${y.name} is already used.")
 
       val freshChunks = for {
         off <- 0 until sz
         z = generateFreshVar(goal)
-      } // yield PointsTo(y, off, z)
-        yield PointsTo(y, off, IntConst(666))
+      } yield PointsTo(y, off, IntConst(666))
 //      val freshBlock = Block(x, sz).subst(x, y)
       val freshBlock = Block(y, sz)
       val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
@@ -300,14 +308,25 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
     }
 
+    def findNamedHeaplets(goal: Goal, name:Var): Option[(Block, Seq[Heaplet])] = {
+      // Heaplets have no ghosts
+      def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
+      def noGhostsAndIsBlock(h: Heaplet): Boolean = h match {
+        case b@Block(loc, sz) => noGhosts(b) && SMTSolving.valid(goal.pre.phi ==> (loc |=| name)) // todo: remember var values instead of solving SMT
+        case _ => false
+      }
+
+      findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
+    }
+
     def symbolicExecution(goal:Goal, cmd:Free): Goal ={
       val pre = goal.pre
       val deriv = goal.deriv
       val Free(x) = cmd
 
-      findTargetHeaplets(goal) match {
+      findNamedHeaplets(goal, x) match {
         case None => throw SynthesisException("command " + cmd.pp + " is invalid")
-        case Some((h@Block(`x`, _), pts)) =>
+        case Some((h@Block(_, _), pts)) =>
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
           // Collecting the footprint
