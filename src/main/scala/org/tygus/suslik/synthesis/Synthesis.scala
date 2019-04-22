@@ -30,6 +30,18 @@ trait Synthesis extends SepLogicUtils {
 
   def allRules(goal: Goal): List[SynthesisRule]
 
+  val operationalRules: Set[SynthesisRule] = Set(
+    AllocRule,
+    FreeRule,
+    WriteRule,
+    ReadRule,
+    CallRule
+  )
+
+  def entailmentCheckRules(goal: Goal): List[SynthesisRule] = {
+    ((allRules(goal).toSet -- operationalRules) - UnfoldingRules.InductionRule).toList
+  }
+
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
   val memo = new Memoization
@@ -184,8 +196,7 @@ trait Synthesis extends SepLogicUtils {
       try {
         for (corrGoal <- correctness_goals) {
           val solution =
-          // todo: change rules set here to non-operational only-----v
-            synthesize(corrGoal, config.startingDepth)(stats = stats, rules = nextRules(corrGoal, config.startingDepth+1))
+            synthesize(corrGoal, config.startingDepth)(stats = stats, rules = entailmentCheckRules(corrGoal))
           if(!solution.contains(Skip) ){
             return Some(Procedure(goal.fname, tp, formals, Error), stats)
           }
