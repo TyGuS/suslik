@@ -152,7 +152,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def symbolicExecution(goal:Goal, cmd:Call):Goal = {
       val Call(to, fun, given_args) = cmd
-      symExecAssert(given_args.flatMap(_.vars).toSet.subsetOf(goal.vars), cmd.pp + " Parameters are not defined.")
+      symExecAssert(given_args.flatMap(_.vars).toSet.subsetOf(goal.programVars.toSet), cmd.pp + " Parameters are not defined.")
       symExecAssert(goal.env.functions.contains(fun.name), cmd.pp + " Function is not defined.")
       val _f = goal.env.functions(fun.name)
       symExecAssert(_f.params.size == given_args.size, cmd.pp + s" Function ${_f.name} takes ${_f.params.size} arguments, but ${given_args.size} given.")
