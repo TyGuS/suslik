@@ -101,7 +101,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       findHeaplet(matchingHeaplet, pre.sigma) match {
-        case None => throw SynthesisException(cmd.pp + "  <--- memory is not yet allocated in this address")
+        case None => throw SynthesisException(cmd.pp + "  Memory is not yet allocated in this address")
         case Some(h@PointsTo(`to`, `offset`, _)) =>
           val newPre = Assertion(pre.phi, (pre.sigma - h) ** PointsTo(to, offset, new_val))
           val subGoal = goal.copy(pre = newPre)
@@ -163,12 +163,12 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
-        case None => throw SynthesisException(cmd.pp + " <--- invalid command: right part is not defined.")
+        case None => throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
         case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
           val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
           subGoal
         case Some(h) =>
-          throw SynthesisException(cmd.pp + s" <--- Read rule matched unexpected heaplet ${h.pp}")
+          throw SynthesisException(cmd.pp + s" Read rule matched unexpected heaplet ${h.pp}")
       }
     }
 

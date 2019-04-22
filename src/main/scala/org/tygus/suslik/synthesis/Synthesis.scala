@@ -8,6 +8,7 @@ import org.tygus.suslik.logic.{SApp, _}
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule, ReadRule, WriteRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule
 import org.tygus.suslik.util.OtherUtil.Accumulator
 import org.tygus.suslik.util.{SynLogging, SynStats}
 
@@ -91,7 +92,7 @@ trait Synthesis extends SepLogicUtils {
     case cmd: Free => FreeRule.symbolicExecution(spec, cmd)
     case cmd: Store => WriteRule.symbolicExecution(spec, cmd)
     case cmd: Load => ReadRule.symbolicExecution(spec, cmd)
-    case cmd: Call => ???
+    case cmd: Call => CallRule.symbolicExecution(spec, cmd)
     case cmd: SubGoal => ??? // should be same as call with that signature
     case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")
     case cmd: If => throw SynthesisException("Found if-then-else in the middle of the program. if-then-else is currently allowed only in the end.")
