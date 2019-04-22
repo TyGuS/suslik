@@ -91,7 +91,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       })
       // check that expression is defined during the execution
       for(v<-vars_in_new_val){
-        // todo: I'm not sure if programVars is the right set to check it
         symExecAssert(goal.isProgramVar(v), s"Variable `${v.pp}` is read before defined.")
       }
 

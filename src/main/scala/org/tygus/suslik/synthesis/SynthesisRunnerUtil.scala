@@ -64,7 +64,7 @@ trait SynthesisRunnerUtil {
     }
 
     def parseSus = {
-      val hasDescr = lines.head.trim.startsWith("/*") // todo:support multiline descr
+      val hasDescr = lines.head.trim.startsWith("/*") // todo:support multiline descriptions
       val desc = if(hasDescr) lines.head.trim else ""
 
       val j = lines.indexWhere(_.trim.startsWith(testSeparator))

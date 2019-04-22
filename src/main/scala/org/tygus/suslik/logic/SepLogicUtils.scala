@@ -59,7 +59,7 @@ trait SepLogicUtils extends PureLogicUtils {
       case Some(h) =>
         None // todo: is this correct?
       // For example find heaplet can stop at PointsTo, not reach the block and return None.
-      // I think there should be findHeaplet(pBlock and isBlock, sigma)
+      // I think there should be findHeaplet(pBlock and isBlock, sigma) match { ...
 
     }
   }

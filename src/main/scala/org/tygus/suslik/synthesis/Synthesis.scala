@@ -172,7 +172,7 @@ trait Synthesis extends SepLogicUtils {
   def synthesizeProcNoInduction(goal:Goal, env: Environment, funSketch:Statement, stats:SynStats, tp:SSLType, formals:Formals):Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config
     val subGoalsAcc = new Accumulator[Goal]()
-    val corrGoalsAcc = new Accumulator[Goal]()
+    val corrGoalsAcc = new Accumulator[Goal]() // goals, where emp must be correct answer
     val specifiedBody = propagatePre(goal, funSketch.resolveOverloading(goal.gamma), subGoalsAcc, corrGoalsAcc)
     val subGoals = subGoalsAcc.get
     val correctness_goals = corrGoalsAcc.get
