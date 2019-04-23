@@ -94,7 +94,7 @@ trait Synthesis extends SepLogicUtils {
   }
 
   // Returns the goal after application of the statement
-  // TODO: check every rule for soundness: 1. Don't read ghosts, 2. update ProgramVars
+  // TODO: check every rule for soundness: 1. Don't read ghosts, 2. updates ProgramVars 3. behaves according to paper
   def modifyPre(spec:Goal, statement:Statement):Goal = statement match {
     case Skip => spec
     case Hole => throw SynthesisException(Hole.pp + " is not allowed here")
@@ -115,49 +115,53 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
+
+  // Propagates assertions from precondition to holes, converting them into subgoals
+  // collects subgoals into synthesis_goals_acc
+  // correctness_goals_acc collects goals, that must be completed without any code
   def propagatePre(spec: Goal,
                    funSketch: Statement,
                    synthesis_goals_acc: Accumulator[Goal],
-                   correctness_goals_acc:Accumulator[Goal]): Statement=
-  try{
-    val (head, tail) = cutHead(funSketch)
-    val new_head = head match{
-      case Hole =>
-        if(tail.isDefined){
-          throw SynthesisException("Found hole in the middle of the program. Holes are currently allowed only in the end.")
-        }
-        SubGoal(spec)
-      case other => other
-    }
-    if(tail.isDefined){
-      val tail_goal:Goal = modifyPre(spec, head)
-      val new_tail = propagatePre(tail_goal, tail.get, synthesis_goals_acc, correctness_goals_acc)
-      SeqComp(new_head, new_tail)
-    }else{
-      new_head match{
-        case sg@SubGoal(g) => {
-          synthesis_goals_acc.put(g)
-          sg
-        }
-        case If(cond, tb,eb) =>
-          If(cond,
-            propagatePre(modifyPre(spec, Guarded(cond, tb)), tb, synthesis_goals_acc, correctness_goals_acc),
-            propagatePre(modifyPre(spec, Guarded(cond.not, eb)), eb, synthesis_goals_acc, correctness_goals_acc)
-          )
-        case other => {
-          val correctness_goal:Goal = modifyPre(spec, head)
-          correctness_goals_acc.put(correctness_goal)
-          other
+                   correctness_goals_acc: Accumulator[Goal]): Statement =
+    try {
+      val (head, tail) = cutHead(funSketch)
+      val new_head = head match {
+        case Hole =>
+          if (tail.isDefined) {
+            throw SynthesisException("Found hole in the middle of the program. Holes are currently allowed only in the end.")
+          }
+          SubGoal(spec)
+        case other => other
+      }
+      if (tail.isDefined) {
+        val tail_spec: Goal = modifyPre(spec, head)
+        val new_tail = propagatePre(tail_spec, tail.get, synthesis_goals_acc, correctness_goals_acc)
+        SeqComp(new_head, new_tail)
+      } else {
+        new_head match {
+          case sg@SubGoal(g) => {
+            synthesis_goals_acc.put(g)
+            sg
+          }
+          case If(cond, tb, eb) =>
+            If(cond,
+              propagatePre(modifyPre(spec, Guarded(cond, tb)), tb, synthesis_goals_acc, correctness_goals_acc),
+              propagatePre(modifyPre(spec, Guarded(cond.not, eb)), eb, synthesis_goals_acc, correctness_goals_acc)
+            )
+          case other => {
+            val correctness_goal: Goal = modifyPre(spec, head)
+            correctness_goals_acc.put(correctness_goal)
+            other
+          }
         }
       }
     }
-  }
-  catch{
-    case SymbolicExecutionError(why) => {
-      printlnErr(why)
-      Error
+    catch {
+      case SymbolicExecutionError(why) => {
+        printlnErr(why)
+        Error
+      }
     }
-  }
 
 
 

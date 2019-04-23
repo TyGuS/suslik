@@ -154,7 +154,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: read]"
 
     /* let to = *(from + offset) */
-    def symbolicExecution(goal:Goal, cmd:Load):Goal = {
+    def symbolicExecution_trying_to_be_smart(goal:Goal, cmd:Load):Goal = {
       val pre = goal.pre
       val post = goal.post
       val Load(to, tpy, from, offset) = cmd
@@ -182,6 +182,48 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           throw SynthesisException(cmd.pp + s" Read rule matched unexpected heaplet ${h.pp}")
       }
     }
+
+    /* let to = *(from + offset) */
+    def symbolicExecution_subst(goal:Goal, cmd:Load):Goal = {
+      val pre = goal.pre
+      val post = goal.post
+      val Load(to, tpy, from, offset) = cmd
+      def isMatchingHeaplet: Heaplet => Boolean = {
+        case PointsTo(`from`, `offset`, _) => true
+        case _ => false
+      }
+      findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
+        case None => throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
+        case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
+          val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
+          subGoal
+        case Some(h) =>
+          throw SynthesisException(cmd.pp + s" Read rule matched unexpected heaplet ${h.pp}")
+      }
+    }
+
+    /* let to = *(from + offset) */
+    def symbolicExecution_phi(goal:Goal, cmd:Load):Goal = {
+      val pre = goal.pre
+      val post = goal.post
+      val Load(to, tpy, from, offset) = cmd
+      def isMatchingHeaplet: Heaplet => Boolean = {
+        case PointsTo(`from`, `offset`, _) => true
+        case _ => false
+      }
+      findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
+        case None => throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
+        case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
+          val subGoal = goal.copy(pre.copy(phi=pre.phi && (to |=| a)), post = post.copy(phi=post.phi && (to |=| a))).addProgramVar(to, tpy)
+          subGoal
+        case Some(h) =>
+          throw SynthesisException(cmd.pp + s" Read rule matched unexpected heaplet ${h.pp}")
+      }
+    }
+
+//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_trying_to_be_smart
+//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_subst
+    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
@@ -239,7 +281,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val freshChunks = for {
         off <- 0 until sz
         z = generateFreshVar(goal)
-      } yield PointsTo(y, off, IntConst(666))
+      } yield PointsTo(y, off, generateFreshVar(goal))
 //      val freshBlock = Block(x, sz).subst(x, y)
       val freshBlock = Block(y, sz)
       val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
@@ -316,7 +358,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
 
-      findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
+      findBlockAndChunks(noGhostsAndIsBlock, _ => true, goal.pre.sigma)
     }
 
     def symbolicExecution(goal:Goal, cmd:Free): Goal ={
