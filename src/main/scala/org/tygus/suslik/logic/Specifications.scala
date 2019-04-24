@@ -239,6 +239,8 @@ object Specifications {
     // Is this goal unsolvable and should be discarded?
     def isUnsolvable: Boolean = post.phi == pFalse
 
+    def isTopLevel: Boolean = label == topLabel
+
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 
     def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates

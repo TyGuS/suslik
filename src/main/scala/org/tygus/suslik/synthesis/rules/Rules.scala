@@ -75,7 +75,7 @@ object Rules {
     1,
     sols => {
       val (stmt, helpers) = sols.head
-      if (stmt.companions.contains(goal.label)) {
+      if (stmt.companions.contains(goal.label) && !goal.isTopLevel) {
         val f = goal.toFunSpec
         val newHelper = Procedure(f.name, f.rType, f.params, stmt)
         (goal.toCall, newHelper :: helpers)
