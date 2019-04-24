@@ -2,6 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.synthesis.rules.FailRules
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
 
@@ -51,7 +52,7 @@ trait QSynthesis extends Synthesis {
           Some(subderiv.kont(Nil))
         case goal :: moreGoals => {
           // Otherwise, expand the first open goal
-          printLog(List((s"Goal to expand: ${goal.label.pp}", Console.BLUE)))
+          printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.ancestors.length})", Console.BLUE)))
           if (config.printEnv) {
             printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
           }
@@ -69,11 +70,12 @@ trait QSynthesis extends Synthesis {
             printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
           }
 
-          // To turn those alternatives into valid subderivations,
-          // add the rest of the open goals from the current subderivation,
-          // and set up the solution producer to join results from all the open goals
-          val newSubderivations = children.map(child =>
-            Subderivation(child.subgoals ++ moreGoals, child.kont >> subderiv.kont))
+          val newSubderivations = children.map(child => {
+            // To turn a child into a valid subderivation,
+            // add the rest of the open goals from the current subderivation,
+            // and set up the solution producer to join results from all the open goals
+            Subderivation(child.subgoals ++ moreGoals, child.kont >> subderiv.kont)
+          })
           // Add new subderivations to the worklist and process
           processWorkList(newSubderivations ++ rest)
         }
@@ -103,7 +105,7 @@ trait QSynthesis extends Synthesis {
       } else {
         // Rule applicable: try all possible sub-derivations
         val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
-        val succ = s"SUCCESS at depth $ind, ${children.size} alternative(s) [$subSizes]"
+        val succ = s"SUCCESS, ${children.size} alternative(s) [$subSizes]"
         printLog(List((s"$goalStr$GREEN$succ", BLACK)))
         stats.bumpUpSuccessfulRuleApp()
         if (config.invert && r.isInstanceOf[InvertibleRule]) {
@@ -130,5 +132,4 @@ trait QSynthesis extends Synthesis {
         true
     }
   }
-
 }

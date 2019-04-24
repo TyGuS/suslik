@@ -174,8 +174,10 @@ object Specifications {
     def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
       Assertion(simplify(post.phi), post.sigma))
 
+    lazy val universalPost: PFormula = mkConjunction(post.phi.conjuncts.filterNot(p => p.vars.exists(this.isExistential)))
+
     // Ancestors of this goal in the derivation (root last)
-    def ancestors: List[Goal] = parent match {
+    lazy val ancestors: List[Goal] = parent match {
       case None => Nil
       case Some(p) => p :: p.ancestors
     }

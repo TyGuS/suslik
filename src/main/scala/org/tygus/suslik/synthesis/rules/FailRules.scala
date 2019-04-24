@@ -1,8 +1,8 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.{Expr, PFormula}
+import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.{Ident, IntType}
-import org.tygus.suslik.language.Statements.{Guarded, Magic}
+import org.tygus.suslik.language.Statements.{Guarded, If}
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
@@ -42,18 +42,13 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
-
   // Short-circuits failure if universal part of post is too strong
   object PostInvalid extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Fail: post-invalid]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      val pre = goal.pre.phi
-      val post = goal.post.phi
-
       // If precondition does not contain predicates, we can't get get new facts from anywhere
-      val universalPost = mkConjunction(post.conjuncts.filterNot(p => p.vars.exists(goal.isExistential)))
-      if (!SMTSolving.valid(pre ==> universalPost))
+      if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
         // universal post not implies by pre
         List(Subderivation(List(goal.unsolvableChild), idProducer("post-invalid")))
       else
@@ -61,7 +56,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
-  object AbduceBranch extends SynthesisRule with FlatPhase {
+  object AbduceBranch extends SynthesisRule with FlatPhase with InvertibleRule {
 
     override def toString: Ident = "[Fail: abduce-branch]"
 
@@ -84,30 +79,46 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       } yield simplify(mkConjunction(subset.toList))
     }
 
-    def guardedCandidates(goal: Goal, pre: PFormula, post: PFormula): Seq[Subderivation] =
+    /**
+      * Find the earliest ancestor of goal
+      * that is still valid and has all variables from vars
+      */
+    def findBranchPoint(vars: Set[Var], goal: Goal, valid: Boolean): Option[Goal] = goal.parent match {
+      case None => if (valid) Some(goal) else None // goal is root: return itself if valid
+      case Some(pGoal) =>
+        if (vars.subsetOf(pGoal.programVars.toSet)) {
+          // Parent goal has all variables from vars: recurse
+          val pCons = SMTSolving.valid(pGoal.pre.phi ==> pGoal.universalPost)
+          findBranchPoint(vars, pGoal, pCons)
+        } else if (valid) Some(goal) else None // one of vars undefined in the goal: return itself if valid
+    }
+
+    def guardedCandidates(goal: Goal): Seq[Subderivation] =
       for {
         cond <- condCandidates(goal)
-        if SMTSolving.valid((pre && cond) ==> post)
+        pre = goal.pre.phi
+        if SMTSolving.valid((pre && cond) ==> goal.universalPost)
         if SMTSolving.sat(pre && cond)
-        newPre = goal.pre.copy(phi = goal.pre.phi && cond)
-        newGoal = goal.spawnChild(newPre)
-      } yield Subderivation(List(newGoal),
-        StmtProducer(1, liftToSolutions(stmts => Guarded(cond, stmts.head)), "abduce-branch"))
+        bGoal <- findBranchPoint(cond.vars, goal, false)
+        thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi && cond), childId = Some(0))
+        elseGoal = goal.spawnChild(
+          pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
+          post = bGoal.post,
+          gamma = bGoal.gamma,
+          programVars = bGoal.programVars,
+          childId = Some(1))
+      } yield Subderivation(List(thenGoal, elseGoal),
+        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label)), "abduce-branch"))
 
     def apply(goal: Goal): Seq[Subderivation] = {
-      val pre = goal.pre.phi
-      val post = goal.post.phi
-
-      val universalPost = mkConjunction(post.conjuncts.filterNot(p => p.vars.exists(goal.isExistential)))
-      if (SMTSolving.valid(pre ==> universalPost))
+      if (SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
         Nil // valid so far, nothing to say
       else {
-        val guarded = guardedCandidates(goal, pre, universalPost)
+        val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
-          if (goal.env.config.fail)
-            List(Subderivation(List(goal.unsolvableChild), idProducer("abduce-branch-fail"))) // pre doesn't imply post: only magic can save us
-          else
-            Nil // would like to return Magic, but fail optimization is disabled
+          // Abduction failed
+          if (goal.env.config.fail) List(Subderivation(List(goal.unsolvableChild), idProducer("abduce-branch-fail"))) // pre doesn't imply post: goal is unsolvable
+          else Nil // fail optimization is disabled, so pretend this rule doesn't apply
         else guarded
       }
     }

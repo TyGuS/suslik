@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.PrettyPrinting
-import org.tygus.suslik.language.Statements.{Procedure, SeqComp, Solution, Statement}
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.{Heaplet, PureLogicUtils, SApp}
 import org.tygus.suslik.logic.Specifications.{Derivation, Goal, RuleApplication}
 
@@ -82,9 +82,19 @@ object Rules {
       } else
         (stmt, helpers)
     },
-    s"helper"
+    "helper"
   )
 
+  def handleGuard(goal: Goal): StmtProducer = StmtProducer (
+    1,
+    liftToSolutions(stmts => {stmts.head match {
+      case g@Guarded(cond, body, els, l) =>
+        if (goal.label == l) If(cond, body, els) // Current goal is the branching point: create conditional
+        else g // Haven't reached the branching point yet: propagate guarded statement
+      case stmt => stmt
+    }}),
+    "handleGuard"
+  )
 
   /**
     * An incomplete derivation:
