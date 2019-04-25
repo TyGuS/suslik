@@ -201,46 +201,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           if goal.getType(ex).conformsTo(Some(goal.getType(v)))
           sigma = Map(ex -> v)
           newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-          val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+          kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
         } yield Subderivation(List(newGoal), kont)
       } else Nil
     }
   }
-
-  /*
-           (GV(Post) / GV(Pre)) * GV(R) = Ø
-          Γ ; {φ ; P} ; {ψ ; Q} ---> S
-    ---------------------------------------- [*-intro]
-      Γ ; {φ ; P * R} ; {ψ ; Q * R} ---> S
-
-
-    This is the former [frame] rule
-   */
-
-  object StarIntro extends SynthesisRule with AnyPhase {
-    override def toString: String = "[Sub: *-intro]"
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-
-      val pre = goal.pre
-      val post = goal.post
-      val boundVars = goal.universals
-      val deriv = goal.deriv
-      val foundFrames = SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
-      val alternatives = for {
-        FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <- foundFrames
-
-        newPre = Assertion(pre.phi, newPreSigma)
-        newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        preFootprint = preFrame.chunks.map(p => deriv.preIndex.lastIndexOf(p)).toSet
-        postFootprint = postFrame.chunks.map(p => deriv.postIndex.lastIndexOf(p)).toSet
-        ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-        newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
-      } yield {
-        Subderivation(List(newGoal), idProducer(toString))
-      }
-      sortAlternativesByFootprint(alternatives)
-    }
-  }
-
 }

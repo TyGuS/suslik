@@ -136,6 +136,13 @@ object Specifications {
     }
   }
 
+  /**
+    * A label uniquely identifies a goal within a derivation tree (but not among alternative derivations!)
+    * Here depths represents how deep we should go down a linear segment of a derivation tree
+    * and children represents which branch to take at each fork.
+    * For example, a label ([2, 1], [0]) means go 2 steps down from the root, take 0-th child, then go 1 more step down.
+    * This label is pretty-printed as "2-0.1"
+    */
   case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting {
     override def pp: String = {
       val d :: ds = depths.reverse
@@ -145,10 +152,13 @@ object Specifications {
     def bumpUp(childId: Option[Int]): GoalLabel = {
       childId match {
         case None => {
+          // Derivation is not branching: simply increase the latest depth
           val x :: xs = depths
           this.copy(depths = (x + 1) :: xs)
         }
-        case Some(c) => GoalLabel(0 :: depths, c :: children)
+        case Some(c) =>
+          // Derivation is branching: record which branch we are taking and reset depth
+          GoalLabel(0 :: depths, c :: children)
       }
     }
   }
@@ -192,7 +202,7 @@ object Specifications {
 
     // Turn this goal into a helper function specification
     def toFunSpec: FunSpec = {
-      val name = this.fname + this.label.pp
+      val name = this.fname + this.label.pp.replaceAll("[^A-Za-z0-9]", "");
       FunSpec(name, VoidType, this.formals, this.pre, this.post)
     }
 
