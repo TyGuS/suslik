@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.Memoization
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -9,14 +8,13 @@ import org.tygus.suslik.util.{SynLogging, SynStats}
 import org.tygus.suslik.synthesis.rules.Rules._
 
 import scala.Console._
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.annotation.tailrec
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis extends SepLogicUtils with Memoization {
+trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
 
@@ -53,180 +51,120 @@ trait Synthesis extends SepLogicUtils with Memoization {
 
   protected def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
                           (stats: SynStats)
-                          (implicit ind: Int = 0,
-                           savedResults: ResultMap = mutable.Map.empty): Option[Solution] = {
-    lazy val res: Option[Solution] = synthesizeInner(goal, depth)(stats)(ind)
-    runWithMemo(goal, savedResults, stats, res)
+                          (implicit ind: Int = 0): Option[Solution] = {
+    // Initialize worklist with a single subderivation
+    // whose sole open goal is the top-level goal
+    val worklist = Vector(Subderivation(List(goal), idProducer("init")))
+    processWorkList(worklist)(stats, goal.env.config, ind)
   }
 
-  private def synthesizeInner(goal: Goal, depth: Int)
-                             (stats: SynStats)
-                             (implicit ind: Int = 0): Option[Solution] = {
-    implicit val config: SynConfig = goal.env.config
+  @tailrec
+  private def processWorkList(worklist: Seq[Subderivation])
+                             (implicit
+                              stats: SynStats,
+                              config: SynConfig,
+                              ind: Int): Option[Solution] = {
 
-    if (config.printEnv) {
-      printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
-    }
-    printLog(List((s"${goal.pp}", Console.BLUE)))
-
+    // Check for timeouts
     val currentTime = System.currentTimeMillis()
     if (currentTime - config.startTime > config.timeOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
     }
 
-    if (depth < 0) {
-      printLog(List(("Reached maximum depth.", RED)))
-      return None
+    val sz = worklist.length
+    printLog(List((s"\nWorklist size: $sz", Console.YELLOW)))
+    stats.updateMaxWLSize(sz)
+
+    worklist match {
+      case Nil =>
+        // No more subderivations to try: synthesis failed
+        None
+      case subderiv +: rest => subderiv.subgoals match {
+        // Otherwise pick a subderivation to expand
+        case Nil =>
+          // This subderivation has no open goals: synthesis succeeded, build the solution
+          Some(subderiv.kont(Nil))
+        case goal :: moreGoals => {
+          // Otherwise, expand the first open goal
+          printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.ancestors.length})", Console.BLUE)))
+          if (config.printEnv) {
+            printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+          }
+          printLog(List((s"${goal.pp}", Console.BLUE)))
+
+          // Apply all possible rules to the current goal to get a list of alternatives,
+          // each of which can have multiple open goals
+          val rules = nextRules(goal, 0)
+          val children =
+            if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
+            else applyRules(rules)(goal, stats, config, ind)
+
+          if (children.isEmpty) {
+            stats.bumpUpBacktracing()
+            printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          }
+
+          val newSubderivations = children.map(child => {
+            // To turn a child into a valid subderivation,
+            // add the rest of the open goals from the current subderivation,
+            // and set up the solution producer to join results from all the open goals
+            Subderivation(child.subgoals ++ moreGoals, child.kont >> subderiv.kont)
+          })
+          // Add new subderivations to the worklist and process
+          processWorkList(newSubderivations ++ rest)
+        }
+      }
     }
+  }
 
-    def tryRules(rules: List[SynthesisRule]): Option[Solution] = rules match {
-      case Nil => None
-      case r :: rs =>
+  protected def applyRules(rules: List[SynthesisRule])(implicit goal: Goal,
+                                                       stats: SynStats,
+                                                       config: SynConfig,
+                                                       ind: Int): Seq[Subderivation] = rules match
+  {
+    case Nil => Vector() // No more rules to apply: done expanding the goal
+    case r :: rs =>
+      val goalStr = s"$r: "
+      // Invoke the rule
+      val allChildren = r(goal)
+      // Filter out children that contain out-of-order goals
+      val children = if (config.commute) {
+        allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
+      } else allChildren
 
-        // Try alternative sub-derivations after applying `r`
-        def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Solution] = alts match {
-          case Seq(a, as@_*) =>
-            if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
-            solveSubgoals(a) match {
-              case Some(res) =>
-                stats.bumpUpLastingSuccess()
-                Some(res) // This alternative succeeded
-              case None =>
-                stats.bumpUpBacktracing()
-                tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
-            }
-          case Seq() =>
-            // All alternatives have failed
-            if (config.invert && r.isInstanceOf[InvertibleRule]) {
-              // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
-              printLog(List((s"${r.toString} All sub-derivations failed: invertible rule, do not backtrack.", MAGENTA)))
-              None
-            } else {
-              // Backtrack application of this rule
-              stats.bumpUpBacktracing()
-              printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
-              tryRules(rs)
-            }
-        }
-
-        // Solve all sub-goals in a sub-derivation
-        def solveSubgoals(s: Subderivation): Option[Solution] = {
-
-          // Optimization: if one of the subgoals failed, to not try the rest!
-          // <ugly-imperative-code>
-          val results = new ListBuffer[Solution]
-          import util.control.Breaks._
-          breakable {
-            for {subgoal <- s.subgoals} {
-              synthesize(subgoal, depth - 1)(stats)(ind + 1) match {
-                case Some(s) => results.append(s)
-                case _ => break
-              }
-            }
-          }
-          // </ugly-imperative-code>
-
-          // TODO: why did we need this line before?
-          //          val successes = for (r <- results) yield r
-          if (results.size < s.subgoals.size)
-          // One of the sub-goals failed: this sub-derivation fails
-            None
-          else {
-            val (stmt, helpers) = s.kont(results)
-            if (stmt.companions.contains(goal.label) && goal.label != topLabel) {
-              // Current goal is a non-top-level companion: extract a helper
-              val f = goal.toFunSpec
-              val newHelper = Procedure(f.name, f.rType, f.params, stmt)
-              Some((goal.toCall, newHelper :: helpers))
-            } else
-              Some((stmt, helpers))
-
-            //            val (stmts, helpers) = results.unzip
-//            handleGuard(s, stmts.toList) match {
-//              case None => None
-//              case Some((stmt, helpers2)) =>
-//                val allHelpers = helpers.toList.flatten ++ helpers2
-//                if (stmt.companions.contains(goal.label) && goal.label != topLabel) {
-//                  // Current goal is a non-top-level companion: extract a helper
-//                  val f = goal.toFunSpec
-//                  val newHelper = Procedure(f.name, f.rType, f.params, stmt)
-//                  Some((goal.toCall, newHelper :: allHelpers))
-//                } else
-//                  Some((stmt, allHelpers))
-//            }
-
-          }
-        }
-
-        // If stmts is a single guarded statement:
-        // if possible, propagate guard to the result of the current goal,
-        // otherwise, try to synthesize the else branch and fail if that fails
-//        def handleGuard(s: Subderivation, stmts: List[Statement]): Option[Solution] =
-//          stmts match {
-//            case Guarded(cond, thn) :: Nil =>
-//              s.kont((stmts, Nil))._1 match {
-//                case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
-//                  Some(g, Nil)
-//                case _ => // Cannot propagate: try to synthesize else branch
-//                  val goal = s.subgoals.head
-//                  val newPre = goal.pre.copy(phi = goal.pre.phi && cond.not)
-//                  // Set starting depth to current depth: new subgoal will start at its own starting depth
-//                  // to disallow producing guarded statements
-//                  val newConfig = goal.env.config.copy(startingDepth = depth)
-//                  val newG = goal.spawnChild(newPre, env = goal.env.copy(config = newConfig))
-//                  synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
-//                    case Some((els, helpers)) => Some(s.kont(List(If(cond, thn, els)), helpers)) // successfully synthesized else
-//                    case _ => None // failed to synthesize else
-//                  }
-//              }
-//            case _ => Some(s.kont.fn(stmts, Nil))
-//          }
-
-
-        // This goal is explicitly unsolvable: give up
-        if (goal.isUnsolvable) {
-          stats.bumpUpBacktracing()
-          return None
-        }
-        // Invoke the rule
-        val allSubderivations = r(goal)
-        val goalStr = s"$r: "
-
-        // Filter out subderivations that violate rule ordering
-        def goalInOrder(g: Goal): Boolean = {
-          g.deriv.outOfOrder(allRules(goal)) match {
-            case None => true
-            case Some(app) =>
-              //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-              //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-              printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
-              false
-          }
-        }
-
-        val subderivations = if (config.commute)
-          allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
-        else
-          allSubderivations
-
-        if (subderivations.isEmpty) {
-          // Rule not applicable: try the rest
-          printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)
-          tryRules(rs)
+      if (children.isEmpty) {
+        // Rule not applicable: try other rules
+        printLog(List((s"${goalStr}FAIL", BLACK)), isFail = true)
+        applyRules(rs)
+      } else {
+        // Rule applicable: try all possible sub-derivations
+        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
+        val succ = s"SUCCESS, ${children.size} alternative(s) [$subSizes]"
+        printLog(List((s"$goalStr$GREEN$succ", BLACK)))
+        stats.bumpUpRuleApps()
+        if (config.invert && r.isInstanceOf[InvertibleRule]) {
+          // The rule is invertible: do not try other rules on this goal
+          children
         } else {
-          // Rule applicable: try all possible sub-derivations
-          val subSizes = subderivations.map(s => s"${s.subgoals.size} sub-goal(s)").mkString(", ")
-          val succ = s"SUCCESS at depth $ind, ${subderivations.size} alternative(s) [$subSizes]"
-          printLog(List((s"$goalStr$GREEN$succ", BLACK)))
-          stats.bumpUpSuccessfulRuleApp()
-          if (subderivations.size > 1) {
-            printLog(List((s"Trying alternative sub-derivation 1:", CYAN)))
-          }
-          tryAlternatives(subderivations, 0)
+          // Both this and other rules apply
+          children ++ applyRules(rs)
         }
-    }
+      }
+  }
 
-    tryRules(nextRules(goal, depth))
+  // Is current goal supposed to appear before g?
+  def goalOutOfOrder(g: Goal)(implicit goal: Goal,
+                              stats: SynStats,
+                              config: SynConfig,
+                              ind: Int): Boolean = {
+    g.deriv.outOfOrder(allRules(goal)) match {
+      case None => false
+      case Some(app) =>
+        //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
+        //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
+        printLog(List((s"${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
+        true
+    }
   }
 
   private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i

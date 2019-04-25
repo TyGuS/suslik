@@ -8,7 +8,7 @@ import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import org.tygus.suslik.synthesis.rules._
 import org.tygus.suslik.util.SynLogging
 
-class PhasedSynthesis(implicit val log: SynLogging) extends QSynthesis {
+class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   {
     // Warm-up the SMT solver on start-up to avoid future delays
