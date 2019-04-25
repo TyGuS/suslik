@@ -136,17 +136,19 @@ object Specifications {
     }
   }
 
-  case class GoalLabel(labels: List[Int]) extends PrettyPrinting {
-    override def pp: String = labels match {
-      case List(0) => ""
-      case _ => labels.reverse.map(_.toString).mkString
+  case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting {
+    override def pp: String = {
+      val d :: ds = depths.reverse
+      d.toString ++ children.reverse.zip(ds).map(x => "-" + x._1.toString + "." + x._2.toString).mkString
     }
 
     def bumpUp(childId: Option[Int]): GoalLabel = {
-      val x :: xs = labels
       childId match {
-        case None => GoalLabel((x + 1) :: xs)
-        case Some(c) => GoalLabel(0 :: (x + c) :: xs)
+        case None => {
+          val x :: xs = depths
+          this.copy(depths = (x + 1) :: xs)
+        }
+        case Some(c) => GoalLabel(0 :: depths, c :: children)
       }
     }
   }
@@ -185,7 +187,7 @@ object Specifications {
     // Ancestors before progress was last made
     def companionCandidates: List[Goal] = {
       // TODO: this is a bit of a hack, only works because Open is the only rule that branches
-      ancestors.dropWhile(_.label.labels.length == this.label.labels.length)
+      ancestors.dropWhile(_.label.depths.length == this.label.depths.length)
     }
 
     // Turn this goal into a helper function specification
@@ -268,8 +270,7 @@ object Specifications {
 
     def isExistential(x: Var): Boolean = existentials.contains(x)
 
-    def addProgramVar(v: Var, t: SSLType): Goal =
-      this.spawnChild(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
+    def addProgramVar(v: Var, t: SSLType): Goal = this.copy(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
 
     def getType(x: Var): SSLType = {
       gamma.get(x) match {
@@ -299,7 +300,7 @@ object Specifications {
   }
 
   // Label of the top-level goal
-  def topLabel: GoalLabel = GoalLabel(List(0))
+  def topLabel: GoalLabel = GoalLabel(List(0), List())
 
   def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
     val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environment: derived from the formals

@@ -232,13 +232,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // val preFootprintToReplace = ptsToReplace.map(p => goal.deriv.preIndex.indexOf(p)).toSet
       // val ruleApp = saveApplication((preFootprintToReplace, Set.empty), goal.deriv)
       val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
-      val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites))
+      val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites), childId = Some(0))
 
       if (ptsToReplace.isEmpty) return (None, remainingGoal)
 
       val smallWriteGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
       val smallWriteGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
-      val smallWritesGoal = goal.spawnChild(pre = smallWriteGoalPre, post = smallWriteGoalPost)
+      val smallWritesGoal = goal.spawnChild(pre = smallWriteGoalPre, post = smallWriteGoalPost, childId = Some(1))
 
       (Some(smallWritesGoal), remainingGoal)
     }

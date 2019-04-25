@@ -104,8 +104,7 @@ object Rules {
   case class Subderivation(subgoals: Seq[Goal], kont: StmtProducer)
     extends PrettyPrinting with PureLogicUtils {
 
-    override def pp: String =
-      s"${subgoals.size} subgoal(s):\n${subgoals.map { g => s"${g.env.pp}${g.pp}" }.mkString("\n")}"
+    override def pp: String = s"[${subgoals.map(_.label.pp).mkString(", ")}]"
   }
 
   /**
