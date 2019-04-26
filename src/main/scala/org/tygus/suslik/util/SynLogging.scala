@@ -64,6 +64,7 @@ class SynStats {
   private var backtracking: Int = 0
   private var ruleApps: Int = 0
   private var maxWLSize: Int = 0
+  private var maxDepth: Int = 0
 
   def bumpUpBacktracing() {
     backtracking = backtracking + 1
@@ -77,9 +78,14 @@ class SynStats {
     maxWLSize = maxWLSize.max(sz)
   }
 
+  def updateMaxDepth(d: Int): Unit = {
+    maxDepth = maxDepth.max(d)
+  }
+
   def numBack: Int = backtracking
   def numApps : Int = ruleApps
   def maxWorklistSize: Int = maxWLSize
+  def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
 }
 

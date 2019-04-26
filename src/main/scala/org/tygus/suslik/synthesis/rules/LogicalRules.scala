@@ -72,7 +72,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       def isSuitable(hPost: Heaplet): Boolean = !hPost.vars.exists(goal.isExistential) && heapletFilter(hPost)
       def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && isSuitable(hPost)

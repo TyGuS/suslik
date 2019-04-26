@@ -47,6 +47,12 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
     case SApp(_, args, _) => args.map(_.size).sum
   }
 
+  def cost: Int = this match {
+    case PointsTo(_, _, _) => 1
+    case Block(_, _) => 0
+    case SApp(_, _, _) => 10
+  }
+
 }
 
 /**
@@ -208,21 +214,13 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
     findMatchingHeaplets(_ => true, isMatch, this, other) match {
       case None => 0
-      case Some((l, r)) => 1 + (this - l).similarity(other - r)
-    }
-  }
-
-  // How many heaplets are different between the two formulas?
-  def distance(other: SFormula): Int = {
-    def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)
-
-    findMatchingHeaplets(_ => true, isMatch, this, other) match {
-      case None => this.chunks.length + other.chunks.length
-      case Some((l, r)) => (this - l).distance(other - r)
+      case Some((l, r)) => l.cost + (this - l).similarity(other - r)
     }
   }
 
   // Size of the formula (in AST nodes)
   def size: Int = chunks.map(_.size).sum
+
+  def cost: Int = chunks.map(_.cost).sum
 }
 

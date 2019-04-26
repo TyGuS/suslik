@@ -80,10 +80,10 @@ object Specifications {
     // TODO: take into account distance between pure parts
     def similarity(other: Assertion): Int = this.sigma.similarity(other.sigma)
 
-    def distance(other: Assertion): Int = this.sigma.distance(other.sigma)
-
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
+
+    def cost: Int = sigma.cost
   }
 
   case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int), cost: Int)
@@ -110,7 +110,7 @@ object Specifications {
   }
 
 
-  case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
+  case class History(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
     extends PrettyPrinting {
     override def pp: String =
       s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
@@ -175,7 +175,7 @@ object Specifications {
                   label: GoalLabel, // unique id within the derivation
                   parent: Option[Goal], // parent goal in the derivation
                   env: Environment, // predicates and components
-                  deriv: Derivation)
+                  hist: History)
 
     extends PrettyPrinting with PureLogicUtils {
 
@@ -196,13 +196,13 @@ object Specifications {
 
     // Ancestors before progress was last made
     def companionCandidates: List[Goal] = {
-      // TODO: this is a bit of a hack, only works because Open is the only rule that branches
+      // TODO: actually sufficient to consider everything before last open
       ancestors.dropWhile(_.label.depths.length == this.label.depths.length)
     }
 
     // Turn this goal into a helper function specification
     def toFunSpec: FunSpec = {
-      val name = this.fname + this.label.pp.replaceAll("[^A-Za-z0-9]", "");
+      val name = this.fname + this.label.pp.replaceAll("[^A-Za-z0-9]", "").tail
       FunSpec(name, VoidType, this.formals, this.pre, this.post)
     }
 
@@ -228,21 +228,21 @@ object Specifications {
         index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks).sortBy(_.rank)
       }
 
-      val d = this.deriv
-      val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
+      val d = this.hist
+      val newHist = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
         postIndex = appendNewChunks(this.post, post, d.postIndex),
         applications = newRuleApp.toList ++ d.applications)
 
       // Sort heaplets from old to new and simplify pure parts
-      val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newDeriv.preIndex.lastIndexOf(h)))
-      val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newDeriv.postIndex.lastIndexOf(h)))
+      val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newHist.preIndex.lastIndexOf(h)))
+      val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newHist.postIndex.lastIndexOf(h)))
       val preSorted = Assertion(simplify(pre.phi), newPreSigma)
       val postSorted = Assertion(simplify(post.phi), newPostSigma)
       val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
 
       Goal(preSorted, postSorted,
         gammaFinal, programVars, newUniversalGhosts,
-        this.fname, this.label.bumpUp(childId), Some(this), env, newDeriv)
+        this.fname, this.label.bumpUp(childId), Some(this), env, newHist)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -258,7 +258,7 @@ object Specifications {
     def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates
 
     // All variables this goal has ever used
-    def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ programVars
+    def vars: Set[Var] = hist.preIndex.flatMap(_.vars).toSet ++ hist.postIndex.flatMap(_.vars).toSet ++ programVars
 
     // All universally-quantified variables this goal has ever used
     def allUniversals: Set[Var] = universalGhosts ++ programVars
@@ -291,12 +291,20 @@ object Specifications {
 
     def formals: Formals = programVars.map(v => (getType(v), v))
 
-    def similarity: Int = pre.similarity(post)
+    def depth: Int = ancestors.length
 
-    def distance: Int = pre.distance(post)
+    def similarity: Int = pre.similarity(post)
 
     // Size of the specification in this goal (in AST nodes)
     def specSize: Int = pre.size + post.size
+
+    /**
+      * Cost of a goal:
+      * Larger goals are more expensive to solve;
+      * deeper goals are more expensive since the lead to larger programs (?);
+      * goals where pre and post are similar are less expensive
+      */
+    lazy val cost: Int = pre.cost + post.cost - similarity + depth
   }
 
   def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
@@ -319,7 +327,7 @@ object Specifications {
     val post1 = post.resolveOverloading(gamma)
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre1.vars -- formalNames
-    val emptyDerivation = Derivation(pre1.sigma.chunks, post1.sigma.chunks)
+    val emptyDerivation = History(pre1.sigma.chunks, post1.sigma.chunks)
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
       fname, topLabel, None, env.resolveOverloading(), emptyDerivation).simplifyPure

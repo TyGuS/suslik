@@ -97,6 +97,7 @@ trait SynthesisRunnerUtil {
           testPrintln(s"Number of backtrackings ${stats.numBack}")
           testPrintln(s"Total rule applications: ${stats.numApps}")
           testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
+          testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
           testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
           testPrintln(result)
           testPrintln("-----------------------------------------------------")

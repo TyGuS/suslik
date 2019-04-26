@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis.rules
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.{Heaplet, PureLogicUtils, SApp}
-import org.tygus.suslik.logic.Specifications.{Derivation, Goal, RuleApplication}
+import org.tygus.suslik.logic.Specifications.{History, Goal, RuleApplication}
 
 object Rules {
   /**
@@ -68,6 +68,12 @@ object Rules {
     StmtProducer(1, liftToSolutions(stmts => {SeqComp(stmts.head, s).simplify}), source)
 
   /**
+    * Producer that sequentially composes results of two goals
+    */
+  def seqComp(source: String): StmtProducer =
+    StmtProducer(2, liftToSolutions (stmts => {SeqComp(stmts.head, stmts.last).simplify}), source)
+
+  /**
     * Producer that checks if the child solution has backlinks to its goal,
     * and if so produces a helper call and a new helper
     */
@@ -104,7 +110,12 @@ object Rules {
   case class Subderivation(subgoals: Seq[Goal], kont: StmtProducer)
     extends PrettyPrinting with PureLogicUtils {
 
-    override def pp: String = s"[${subgoals.map(_.label.pp).mkString(", ")}]"
+    override def pp: String = s"[${subgoals.map(_.label.pp).mkString(", ")}]($cost)"
+
+    /**
+      * Cost of a subderivation
+      */
+    lazy val cost: Int = subgoals.map(_.cost).sum
   }
 
   /**
@@ -120,7 +131,7 @@ object Rules {
     def enabled(goal: Goal): Boolean
 
     def saveApplication(footprint: (Set[Int], Set[Int]),
-                        currentDeriv: Derivation,
+                        currentDeriv: History,
                         cost: Int = 0): RuleApplication =
       RuleApplication(this, footprint, (currentDeriv.preIndex.length, currentDeriv.postIndex.length), cost)
   }
@@ -161,7 +172,7 @@ object Rules {
   // by the footprint of their latest rule application,
   // so that sequential applications of the rule are unlikely to cause out-of-order derivations
   def sortAlternativesByFootprint(alts: Seq[Subderivation]): Seq[Subderivation] = {
-    alts.sortBy(_.subgoals.head.deriv.applications.head)
+    alts.sortBy(_.subgoals.head.hist.applications.head)
   }
 
   def nubBy[A,B](l:List[A], p:A=>B):List[A] =

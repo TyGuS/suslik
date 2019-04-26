@@ -120,7 +120,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
-        // Check that the goal's subheap had at leas one unfolding
+        // Check that the goal's subheap had at least one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l), toString) >> handleGuard(goal) >> extractHelper(goal)
@@ -132,8 +132,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * Make a call goal for `f` with a given precondition
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
-      val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.lastIndexOf(p)).toSet
-      val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
+      val preFootprint = callSubPre.sigma.chunks.map(p => goal.hist.preIndex.lastIndexOf(p)).toSet
+      val ruleApp = saveApplication((preFootprint, Set.empty), goal.hist)
       val callPost = f.post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
         // To avoid more than one application of a library function
@@ -168,17 +168,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: abduce-call]"
 
-    // Producer that sequentially composes results of the n write goals
-    def writeGoalsProducer(n: Int): StmtProducer = StmtProducer(
-      n + 1,
-      liftToSolutions (stmts => {
-        val writes = stmts.take(n)
-        val rest = stmts.drop(n).head
-        writes.foldRight(rest) { case (w, r) => SeqComp(w, r) }
-      }),
-      "abduce-call"
-    )
-
     // TODO: refactor common parts with CallRule
     def apply(goal: Goal): Seq[Subderivation] = {
       val allCands = goal.companionCandidates.reverse
@@ -187,13 +176,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         goal.env.functions.values // components
       for {
         _f <- fpecs
-        // Make a "relaxed" substitution for the spec and for with it
-        (f, exSub) = _f.refreshExistentials(goal.vars).relaxFunSpec
-        //        (_, _funSpec) <- goal.env.functions // TODO: add components
+        // Make a "relaxed" substitution for the spec
+        fStrict = _f.refreshExistentials(goal.vars)
+        (f, exSub) = fStrict.relaxFunSpec
 
         lilHeap = f.pre.sigma
         largHeap = goal.pre.sigma
-        matchingHeaps = findLargestMatchingHeap(lilHeap, largHeap)
+        matchingHeaps = findLargestMatchingHeap(f.pre.sigma, largHeap)
         largPreSubHeap <- matchingHeaps
         callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
 
@@ -204,18 +193,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
         if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
-        (writeGoalsOpt, restGoal) = writesAndRestGoals(actualSub, relaxedSub, f, goal)
-        if writeGoalsOpt.nonEmpty
+        (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
-        val writeGoals = writeGoalsOpt.toList
-        val kont = writeGoalsProducer(writeGoals.length) >> handleGuard(goal) >> extractHelper(goal)
-
-        val subGoals = writeGoals ++ List(restGoal)
-        Subderivation(subGoals, kont)
+        val kont = seqComp("abduce-call") >> handleGuard(goal) >> extractHelper(goal)
+        Subderivation(List(writeGoal, remainingGoal), kont)
       }
     }
 
-    def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): (Option[Goal], Goal) = {
+    def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): Option[(Goal, Goal)] = {
       val ptss = f.pre.sigma.ptss // raw points-to assertions
       val (ptsToReplace, ptsToObtain) = (for {
         p@PointsTo(x@Var(_), off, e) <- ptss
@@ -228,19 +213,18 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         (pToReplace, pToObtain)
       }).unzip
 
-
+      val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
+      if (ptsToReplace.isEmpty) None // No writes required
+      else {
+        // Writes required
+        val writeGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
+        val writeGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
+        val writesGoal = goal.spawnChild(pre = writeGoalPre, post = writeGoalPost, childId = Some(0))
+        val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites), childId = Some(1))
+        Some((writesGoal, remainingGoal))
+      }
       // val preFootprintToReplace = ptsToReplace.map(p => goal.deriv.preIndex.indexOf(p)).toSet
       // val ruleApp = saveApplication((preFootprintToReplace, Set.empty), goal.deriv)
-      val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
-      val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites), childId = Some(0))
-
-      if (ptsToReplace.isEmpty) return (None, remainingGoal)
-
-      val smallWriteGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
-      val smallWriteGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
-      val smallWritesGoal = goal.spawnChild(pre = smallWriteGoalPre, post = smallWriteGoalPost, childId = Some(1))
-
-      (Some(smallWritesGoal), remainingGoal)
     }
   }
 
@@ -260,7 +244,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[Subderivation] = {
       val post = goal.post
       val env = goal.env
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {

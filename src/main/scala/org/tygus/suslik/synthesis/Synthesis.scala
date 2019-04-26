@@ -34,12 +34,12 @@ trait Synthesis extends SepLogicUtils {
     val stats = new SynStats()
     SMTSolving.init()
     try {
-      synthesize(goal, config.startingDepth)(stats = stats) match {
+      synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
           val main = Procedure(name, tp, formals, body)
           Some(main :: helpers, stats)
         case None =>
-          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = ${config.startingDepth}.")
+          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
           None
       }
     } catch {
@@ -49,7 +49,7 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
-  protected def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
+  protected def synthesize(goal: Goal)
                           (stats: SynStats)
                           (implicit ind: Int = 0): Option[Solution] = {
     // Initialize worklist with a single subderivation
@@ -86,7 +86,8 @@ trait Synthesis extends SepLogicUtils {
           Some(subderiv.kont(Nil))
         case goal :: moreGoals => {
           // Otherwise, expand the first open goal
-          printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.ancestors.length})", Console.BLUE)))
+          printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
+          stats.updateMaxDepth(goal.depth)
           if (config.printEnv) {
             printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
           }
@@ -110,8 +111,10 @@ trait Synthesis extends SepLogicUtils {
             // and set up the solution producer to join results from all the open goals
             Subderivation(child.subgoals ++ moreGoals, child.kont >> subderiv.kont)
           })
-          // Add new subderivations to the worklist and process
-          processWorkList(newSubderivations ++ rest)
+          // Add new subderivations to the worklist, sort by cost and process
+          val newWorkList_ = newSubderivations ++ rest
+          val newWorkList = if (config.depthFirst) newWorkList_ else newWorkList_.sortBy(_.cost)
+          processWorkList(newWorkList)
         }
       }
     }
@@ -138,8 +141,8 @@ trait Synthesis extends SepLogicUtils {
         applyRules(rs)
       } else {
         // Rule applicable: try all possible sub-derivations
-        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
-        val succ = s"SUCCESS, ${children.size} alternative(s) [$subSizes]"
+//        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
+        val succ = s"SUCCESS, ${children.size} alternative(s): ${children.map(_.pp).mkString(", ")}"
         printLog(List((s"$goalStr$GREEN$succ", BLACK)))
         stats.bumpUpRuleApps()
         if (config.invert && r.isInstanceOf[InvertibleRule]) {
@@ -157,12 +160,12 @@ trait Synthesis extends SepLogicUtils {
                               stats: SynStats,
                               config: SynConfig,
                               ind: Int): Boolean = {
-    g.deriv.outOfOrder(allRules(goal)) match {
+    g.hist.outOfOrder(allRules(goal)) match {
       case None => false
       case Some(app) =>
         //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
         //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-        printLog(List((s"${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
+        printLog(List((s"${RED}Alternative ${g.hist.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
         true
     }
   }

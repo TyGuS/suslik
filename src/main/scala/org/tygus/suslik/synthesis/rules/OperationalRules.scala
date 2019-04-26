@@ -169,7 +169,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       findTargetHeaplets(goal) match {
         case None => Nil
@@ -217,7 +217,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       findTargetHeaplets(goal) match {
         case None => Nil

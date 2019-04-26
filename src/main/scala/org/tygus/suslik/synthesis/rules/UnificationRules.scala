@@ -5,10 +5,9 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
-import org.tygus.suslik.logic.unification.SpatialUnification.{FrameChoppingResult, tryUnify}
+import org.tygus.suslik.logic.unification.{PureUnification}
+import org.tygus.suslik.logic.unification.SpatialUnification.tryUnify
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -29,7 +28,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
 
@@ -56,7 +55,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         }
       }
       val derivations = nubBy[Subderivation, Assertion](alternatives, sub => sub.subgoals.head.post)
-      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.deriv.applications.head))(ord)
+      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.hist.applications.head))(ord)
     }
   }
 
