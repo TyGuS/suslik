@@ -18,6 +18,8 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec7 = "{(42 < b) \\/ (b < 40); x :-> b } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
   val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(loc x, loc y) {true ; x :-> b ** (x + 1) :-> a}"
   val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
+  val spec10 = "{ r :-> x ** [lseg(x, S)] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
+  val spec11 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
   import log._
@@ -28,6 +30,13 @@ class GoalParserTests extends FunSpec with Matchers {
     // So far, just assert that the result is a success
     assert(result.successful, result)
     println(result.get.pp)
+  }
+
+  def parseWithListPredicate(test : String) {
+    val listPred = "predicate lseg(loc x, set s) {\n|  x == 0 => { s =i {} ; emp }\n" +
+      "|  not (x == 0) => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }\n}"
+
+    parseSimpleSpec(listPred + test)
   }
 
   describe("Parser for SSL specs") {
@@ -65,6 +74,14 @@ class GoalParserTests extends FunSpec with Matchers {
 
     it("should parse malloc blocks") {
       parseSimpleSpec(spec9)
+    }
+
+    it("should parse immutable predicates") {
+      parseWithListPredicate(spec10)
+    }
+
+    it("should parse immutable points-to") {
+      parseWithListPredicate(spec10)
     }
   }
 

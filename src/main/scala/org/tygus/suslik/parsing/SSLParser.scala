@@ -98,9 +98,14 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
           ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args) }
       )
 
+  def immutableHeaplet : Parser[Heaplet] = { // changing this from ImmHeaplet seems ill-advised
+    "[" ~> heaplet <~ "]" ^^ ImmHeaplet
+    heaplet ^^ {h => h}
+  }
+
   def sigma: Parser[SFormula] = (
       "emp" ^^^ SFormula(Nil)
-          ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
+          ||| repsep(immutableHeaplet, "**") ^^ { hs => SFormula(hs) }
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
