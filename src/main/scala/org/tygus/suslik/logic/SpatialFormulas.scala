@@ -6,10 +6,17 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.synthesis.SynthesisException
 import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 
+trait Immutable {
+  this: Heaplet =>
+  override val isMutable = false
+}
+
 /**
   * Separation logic fragment
   */
 sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
+
+  val isMutable = true;
 
   def resolveOverloading(gamma: Gamma):Heaplet
 
@@ -143,26 +150,6 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
 }
 
-/*
- * Immutable heaplet
- */
-case class ImmHeaplet(heaplet : Heaplet) extends Heaplet { // TODO this is bad!!! it shouldn't extend Heaplet
-  def retrieve() : Heaplet = heaplet;
-  override def resolveOverloading(gamma: Gamma): Heaplet = heaplet.resolveOverloading(gamma)
-
-  override def pp : String = {
-    var mutable = heaplet.pp
-    s"[%mutable]"
-  }
-
-  override def |-(other: Heaplet): Boolean = heaplet.|-(other)
-
-  override def resolve(gamma: Gamma, env: Environment): Option[Gamma] = heaplet.resolve(gamma, env)
-
-  override def rank: Int = heaplet.rank
-
-  override def subst(sigma: Map[Var, language.Expressions.PFormula]): Heaplet = heaplet.subst(sigma)
-}
 
 case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
   def resolveOverloading(gamma: Gamma): SFormula = {this.copy(chunks=chunks.map(_.resolveOverloading(gamma)))}
