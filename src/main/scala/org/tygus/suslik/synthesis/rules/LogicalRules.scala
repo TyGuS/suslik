@@ -201,7 +201,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   ------------------------------------------------ [subst-L]
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
-  object SubstLeft extends SynthesisRule with FlatPhase with InvertibleRule {
+  object SubstLeft extends SynthesisRule with FlatPhase /*with InvertibleRule*/ {
+    // todo:  fix it. It is actually invertible, but we need to keep in mind that
+    // it may happen that one variable is from programVars, and the other is not.
     override def toString: String = "[Norm: subst-L]"
 
     def apply(goal: Goal): Seq[Subderivation] = {

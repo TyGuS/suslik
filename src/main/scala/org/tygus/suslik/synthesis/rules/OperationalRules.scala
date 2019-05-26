@@ -221,9 +221,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_trying_to_be_smart
+    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_trying_to_be_smart
 //    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_subst
-    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi
+//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre

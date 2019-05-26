@@ -15,7 +15,7 @@ case class SynConfig(
                       startingDepth: Int        = 100,
                       maxOpenDepth: Int         = 1,
                       maxCloseDepth: Int        = 1,
-                      branchAbduction: Boolean  = false,
+                      branchAbduction: Boolean  = true,
                       phased: Boolean           = true,
                       invert: Boolean           = true,
                       fail: Boolean             = true,
@@ -29,7 +29,7 @@ case class SynConfig(
                       assertSuccess: Boolean    = true,
                       logToFile: Boolean        = true,
                       memoization: Boolean        = true,
-                      timeOut: Long             = DEFAULT_TIMEOUT,
+                      timeOut: Long             = DEFAULT_TIMEOUT*100,
                       inputFormat: InputFormat = dotSyn
                     ) extends PrettyPrinting {
 
