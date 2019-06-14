@@ -12,7 +12,7 @@ void min2(loc r, int x, int y)
 ###
 
 void min2 (loc r, int x, int y) {
-  if (y <= x) {
+  if (true && y <= x) {
     *r = y;
   } else {
     *r = x;

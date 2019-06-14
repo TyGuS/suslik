@@ -71,16 +71,16 @@ class HolesTests extends FunSpec with Matchers with SynthesisRunnerUtil  {
       val expectedBody = """  let yyy = *y;
                              <??
                                int yyy, loc x, loc y |-
-                               {true ; x :-> a ** y :-> yyy}
-                               {true ; y :-> a ** x :-> yyy}
+                               {true && yyy == b; x :-> a ** y :-> yyy}
+                               {true && yyy == b; y :-> a ** x :-> yyy}
                              ??>"""
       assertEqualExceptWhitespace(specifiedBody.pp, expectedBody)
       assert(correctness_goals.isEmpty)
       assert(subGoals.size == 1)
       assertEqualExceptWhitespace(subGoals.head.pp, """
                                      int yyy, loc x, loc y |-
-                                     {true ; x :-> a ** y :-> yyy}
-                                     {true ; y :-> a ** x :-> yyy}""")
+                                     {true && yyy == b; x :-> a ** y :-> yyy}
+                                     {true && yyy == b; y :-> a ** x :-> yyy}""")
     }
   }
 

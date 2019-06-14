@@ -184,6 +184,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
 
     /* let to = *(from + offset) */
+    /* Substitute to by new value */
     def symbolicExecution_subst(goal:Goal, cmd:Load):Goal = {
       val pre = goal.pre
       val post = goal.post
@@ -203,6 +204,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
 
     /* let to = *(from + offset) */
+    /* Puts additional clause `to == *(from + offset)` in pure part, adds `to` to program vars */
     def symbolicExecution_phi(goal:Goal, cmd:Load):Goal = {
       val pre = goal.pre
       val post = goal.post
@@ -213,7 +215,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
         case None => throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
-        case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
+        case Some(PointsTo(`from`, `offset`, a@Var(_))) => // todo:why var?
           val subGoal = goal.copy(pre.copy(phi=pre.phi && (to |=| a)), post = post.copy(phi=post.phi && (to |=| a))).addProgramVar(to, tpy)
           subGoal
         case Some(h) =>
@@ -232,7 +234,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(x@Var(_), _, a@Var(_)) =>
-          goal.isGhost(a) && !goal.isGhost(x)
+           !goal.isGhost(x) && goal.isGhost(a)
         case _ => false
       }
 

@@ -193,6 +193,8 @@ trait Synthesis extends SepLogicUtils {
     val subGoals = subGoalsAcc.get
     val correctness_goals = corrGoalsAcc.get
 
+    println("Propagated synthesis goal:")
+    println(specifiedBody.pp)
 
     if (specifiedBody == Error) {
       Some(Procedure(goal.fname, tp, formals, Error), stats)

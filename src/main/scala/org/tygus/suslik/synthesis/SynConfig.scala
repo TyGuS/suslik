@@ -15,7 +15,7 @@ case class SynConfig(
                       startingDepth: Int        = 100,
                       maxOpenDepth: Int         = 1,
                       maxCloseDepth: Int        = 1,
-                      branchAbduction: Boolean  = true,
+                      branchAbduction: Boolean  = false,
                       phased: Boolean           = true,
                       invert: Boolean           = true,
                       fail: Boolean             = true,
