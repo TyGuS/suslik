@@ -1,3 +1,11 @@
+Only free next seg
+
+###
+
 { [x,2] ** x :> y ** x:+1 :-> aList ** lseg(aList, s)}
+
   void freeNext(loc x)
+
 { x:-> y ** x+1 :-> 0 }
+
+###
