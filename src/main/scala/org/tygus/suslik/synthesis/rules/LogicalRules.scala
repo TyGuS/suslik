@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident, IntType}
+import org.tygus.suslik.language.{Ident, IntType, SSLType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -43,6 +43,38 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   }
 
   /*
+
+    -------------------------------- [emp]
+    Γ ; {φ ; [Σ]} ; {emp} ---> skip
+
+    Axiom: Readonly spatial only and pure is valid -> emit skip
+
+  */
+  object ReadOnlyEmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
+
+    override def toString: Ident = "[Sub: emp]"
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+      val pre = goal.pre
+      val post = goal.post
+
+      if (isReadonly(pre.sigma) && post.sigma.isEmp && // heaps are empty
+        goal.existentials.isEmpty && // no existentials
+        SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post
+        List(Subderivation(Nil, _ => Skip)) // we are done
+      else Nil
+    }
+
+    def isReadonly(heap: SFormula): Boolean = {
+      heap.chunks.foldLeft[Boolean](true)((acc, h) =>
+        if (h.isMutable) false
+        else acc)
+      }
+    }
+
+
+
+    /*
   --------------------------------------- [inconsistency]
   Γ ; {φ ∧ l ≠ l ; P} ; {ψ ; Q} ---> emp
 
@@ -242,6 +274,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
 
+      // TODO what if program vars are linked to immutables?
       val varCandidates = goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)
 
       lazy val subs: List[Subst] = for {

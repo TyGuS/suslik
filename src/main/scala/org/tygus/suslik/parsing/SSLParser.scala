@@ -100,9 +100,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   // TODo this is what I would consider gross, but
   // can't think of a better way at thie time
   def heaplet(immutable : Boolean): Parser[Heaplet] = (
-      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => if (immutable) PointsTo(Var(a), o, b) else new PointsTo(Var(a), o, b) with Immutable }
-          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => if (immutable) Block(Var(a), Integer.parseInt(s)) else new  Block(Var(a), Integer.parseInt(s)) with Immutable}
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => if (immutable) SApp(name, args) else new SApp(name, args) }
+      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => if (immutable) new PointsTo(Var(a), o, b) with Immutable else PointsTo(Var(a), o, b) }
+          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => if (immutable) new Block(Var(a), Integer.parseInt(s)) with Immutable else Block(Var(a), Integer.parseInt(s))}
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => if (immutable) new SApp(name, args) with Immutable else SApp(name, args) }
       )
 
   def sigma: Parser[SFormula] = (

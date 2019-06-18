@@ -48,6 +48,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.Inconsistency,
     if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
 //    LogicalRules.SubstLeftVar,
+    OperationalRules.ReadOnlyReadRule,
     OperationalRules.ReadRule,
 //    OperationalRules.AllocRule,
   )

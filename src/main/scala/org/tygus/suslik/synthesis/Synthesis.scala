@@ -35,6 +35,7 @@ trait Synthesis extends SepLogicUtils {
     // Cleanup the memo table
     memo.cleanup()
     val FunSpec(name, tp, formals, pre, post) = funGoal
+    // TODO make sure immutability is preserved
     val goal = makeNewGoal(pre, post, formals, name, env)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
     val stats = new SynStats()

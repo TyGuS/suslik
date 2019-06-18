@@ -43,16 +43,33 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          // TODO if the predicate was immutable, must ensure the pieces are also
+
           val sbst = params.map(_._2).zip(args).toMap
+          // other things?
           val remainingChunks = pre.sigma.chunks.filter(_ != h)
           val newGoals = for {
+            // each clause is like a case of a one-of
             InductiveClause(_sel, _asn) <- clauses
             sel = _sel.subst(sbst)
             asn = _asn.subst(sbst)
             constraints = asn.phi
             body = asn.sigma
+            // if our heaplet was not immutable, our opening must be immutable also
+            // TODO abstract away or refactor into method
+            predChunks = if (!h.isMutable) {
+              body.chunks.map {
+                case SApp(a, b, c) => new SApp(a, b, c) with Immutable
+                case PointsTo(a, b, c) => new PointsTo(a, b, c) with Immutable
+                case Block(a, b) => new Block(a, b) with Immutable
+              }
+            } else {
+                body.chunks
+            }
+
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
-            _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
+            _newPreSigma1 = SFormula(predChunks).bumpUpSAppTags()
+            // we don't care about other heaps in the pre/post, only these
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
           } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)))
@@ -134,6 +151,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       for {
         a <- preApps
         newEnv = mkIndHyp(goal, a)
+        // TODO immutability
         newGoal = goal.copy(env = newEnv)
       } yield Subderivation(Seq(newGoal), pureKont(toString))
     }

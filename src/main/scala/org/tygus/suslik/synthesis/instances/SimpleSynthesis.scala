@@ -37,6 +37,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.Inconsistency,
     UnificationRules.SubstRight,
 
+    OperationalRules.ReadOnlyReadRule,
     OperationalRules.ReadRule,
     UnfoldingRules.Open,
 

@@ -47,6 +47,11 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
         case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
+          if (!hl.isMutable) {
+            return Nil
+            // Do not write if points-to is immutable
+          }
+
           if (e1 == e2) {
             return Nil
           } // Do not write if RHSs are the same
@@ -91,6 +96,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findHeaplet(noGhosts, post.sigma) match {
         case None => Nil
         case Some(h@PointsTo(x@Var(_), offset, l)) =>
+
+          // Cannot write to immutable heaplets
+          if (!h.isMutable) return Nil
 
           // Same heaplet in pre: no point in writing
           if (pre.sigma.chunks.contains(h)) return Nil
@@ -146,6 +154,49 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   }
 
   /*
+  Read-only read rule: create a fresh typed read from a readonly heaplet
+
+        y is fresh   Γ,y ; [y/A]{φ ; x -> A * P} ; [y/A]{ψ ; Q} ---> S
+      ---------------------------------------------------------------- [read]
+             Γ ; {φ ; x.f -> A * P} ; {ψ ; Q} ---> let y := *x.f ; S
+  */
+  object ReadOnlyReadRule extends SynthesisRule with AnyPhase with InvertibleRule {
+
+    // TODO what even is the functional difference we've created here?
+    override def toString: Ident = "[Op: readonly read]"
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+      val pre = goal.pre
+      val post = goal.post
+      val gamma = goal.gamma
+
+      def isGhostPoints: Heaplet => Boolean = {
+        case PointsTo(x@Var(_), _, a@Var(_)) =>
+          goal.isGhost(a) && !goal.isGhost(x)
+        case _ => false
+      }
+
+      findHeaplet(isGhostPoints, goal.pre.sigma) match {
+        case None => Nil
+        case Some(h@PointsTo(x@Var(_), offset, a@Var(_))) =>
+          if (h.isMutable) {
+            Nil
+          }
+
+          val y = generateFreshVar(goal, a.name)
+          val tpy = goal.getType(a)
+
+          val subGoal = goal.copy(pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
+          val kont: StmtProducer = prepend(Load(y, tpy, x, offset), toString)
+          List(Subderivation(List(subGoal), kont))
+        case Some(h) =>
+          ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
+          Nil
+      }
+    }
+  }
+
+  /*
   Alloc rule: allocate memory for an existential block
 
            X ∈ GV(post) / GV (pre)        y, Ai fresh
@@ -153,7 +204,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
      -------------------------------------------------------------- [alloc]
      Γ ; {φ ; P} ; {ψ ; block(X, n) * Q} ---> let y = malloc(n); S
   */
-  object AllocRule extends SynthesisRule with FlatPhase {
+  object AllocRule extends SynthesisRule with FlatPhase { // TODO should we guard?
     override def toString: Ident = "[Op: alloc]"
 
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
@@ -223,6 +274,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findTargetHeaplets(goal) match {
         case None => Nil
         case Some((h@Block(x@Var(_), _), pts)) =>
+          // should not be allowed if the target heaplet is immutable
+        if (!h.isMutable) Nil
+
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
           // Collecting the footprint

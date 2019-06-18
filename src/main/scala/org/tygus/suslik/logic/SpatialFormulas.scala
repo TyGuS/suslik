@@ -9,6 +9,9 @@ import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 trait Immutable {
   this: Heaplet =>
   override val isMutable = false
+  // TODO add [] around immutables when printing
+
+  // TODO fix resolve so that it carries over immutability 
 }
 
 /**
@@ -16,7 +19,7 @@ trait Immutable {
   */
 sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
 
-  val isMutable = true;
+  val isMutable = true
 
   def resolveOverloading(gamma: Gamma):Heaplet
 
@@ -63,7 +66,12 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    this.copy(loc = loc.resolveOverloading(gamma), value=value.resolveOverloading(gamma))
+  // TODO this logic must be repeated, so there must be a better way
+    if (this.isMutable) {
+      this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
+    } else {
+      new PointsTo(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma)) with Immutable
+    }
 
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
@@ -71,7 +79,11 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet =
-    PointsTo(loc.subst(sigma), offset, value.subst(sigma))
+    if (this.isMutable) {
+      PointsTo(loc.subst(sigma), offset, value.subst(sigma))
+    } else {
+      new PointsTo(loc.subst(sigma), offset, value.subst(sigma)) with Immutable
+    }
 
   def |-(other: Heaplet): Boolean = other match {
     case PointsTo(_loc, _offset, _value) => this.loc == _loc && this.offset == _offset && this.value == _value
@@ -93,14 +105,24 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   */
 case class Block(loc: Expr, sz: Int) extends Heaplet {
 
-  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(loc=loc.resolveOverloading(gamma))
+  override def resolveOverloading(gamma: Gamma): Heaplet =
+    if (this.isMutable) {
+      this.copy(loc=loc.resolveOverloading(gamma))
+    } else {
+      new Block(loc = loc.resolveOverloading(gamma), sz) with Immutable
+    }
 
   override def pp: Ident = {
     s"[${loc.pp}, $sz]"
   }
 
+  // TODO no way there isn't a better way of extending the immutable behaviour
   def subst(sigma: Map[Var, Expr]): Heaplet = {
-    Block(loc.subst(sigma), sz)
+    if (this.isMutable) {
+      Block(loc.subst(sigma), sz)
+    } else {
+      new Block(loc.subst(sigma), sz) with Immutable
+    }
   }
 
   def |-(other: Heaplet): Boolean = false
@@ -115,7 +137,12 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   */
 case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extends Heaplet {
 
-  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args=args.map(_.resolveOverloading(gamma)))
+  override def resolveOverloading(gamma: Gamma): Heaplet =
+    if (this.isMutable) {
+      this.copy(args=args.map(_.resolveOverloading(gamma)))
+    } else {
+      new SApp(pred, args=args.map(_.resolveOverloading(gamma)), tag) with Immutable
+    }
 
   override def pp: String = {
     val ppTag : Option[Int] => String = {
@@ -126,7 +153,12 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
     s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
+  def subst(sigma: Map[Var, Expr]): Heaplet = //this.copy(args = args.map(_.subst(sigma)))
+  if (this.isMutable) {
+    this.copy(args = args.map(_.subst(sigma)))
+  } else {
+    new SApp(pred, args=args.map(_.subst(sigma)), tag) with Immutable
+  }
 
   def |-(other: Heaplet): Boolean = false
 
@@ -147,15 +179,23 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
 
   def rank: Int = 0
 
-  override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
+  // TODO really terrible that we have to keep repeating this logic
+  override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
+    if (this.isMutable) {
+      this.copy(tag = f(this.tag))
+    } else {
+      new SApp(pred, args, tag = f(this.tag)) with Immutable
+    }
 }
 
 
 case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
+  // TODO immutable
   def resolveOverloading(gamma: Gamma): SFormula = {this.copy(chunks=chunks.map(_.resolveOverloading(gamma)))}
 
   override def pp: Ident = if (chunks.isEmpty) "emp" else chunks.map(_.pp).mkString(" ** ")
 
+  // Changing it here is the wrong approach. I need to change it when it's created...
   def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b
 
   def apps: List[SApp] = for (b@SApp(_, _, _) <- chunks) yield b
@@ -210,6 +250,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     })
   }
 
+  // TODO does immutability matter?
   // How many heaplets do the two formulas have in common?
   def similarity(other: SFormula): Int = {
     def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)

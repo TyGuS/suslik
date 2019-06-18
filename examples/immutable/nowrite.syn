@@ -1,0 +1,9 @@
+###
+
+{ [x :-> a] ** y :-> b }
+
+  void copy(loc x, loc y)
+
+{ y :-> a }
+
+###
