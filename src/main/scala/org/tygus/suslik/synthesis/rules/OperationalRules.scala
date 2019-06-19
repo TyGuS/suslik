@@ -37,7 +37,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@(Var(_)), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@(Var(_)), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -46,7 +46,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@(PointsTo(x@Var(_), offset, e1)), hr@(PointsTo(_, _, e2)))) =>
+        case Some((hl@(PointsTo(x@Var(_), offset, e1, _)), hr@(PointsTo(_, _, e2, _)))) =>
           if (!hl.isMutable) {
             return Nil
             // Do not write if points-to is immutable
@@ -89,13 +89,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
       findHeaplet(noGhosts, post.sigma) match {
         case None => Nil
-        case Some(h@PointsTo(x@Var(_), offset, l)) =>
+        case Some(h@PointsTo(x@Var(_), offset, l, _)) =>
 
           // Cannot write to immutable heaplets
           if (!h.isMutable) return Nil
@@ -132,18 +132,18 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val gamma = goal.gamma
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, a@Var(_)) =>
+        case PointsTo(x@Var(_), _, a@Var(_), _) =>
           goal.isGhost(a) && !goal.isGhost(x)
         case _ => false
       }
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
-        case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
+        case Some(PointsTo(x@Var(_), offset, a@Var(_), _)) =>
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
 
-          val subGoal = goal.copy(pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
+          val subGoal = goal.copy(pre = pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
           val kont: StmtProducer = prepend(Load(y, tpy, x, offset), toString)
           List(Subderivation(List(subGoal), kont))
         case Some(h) =>
@@ -171,14 +171,14 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val gamma = goal.gamma
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, a@Var(_)) =>
+        case PointsTo(x@Var(_), _, a@Var(_), _) =>
           goal.isGhost(a) && !goal.isGhost(x)
         case _ => false
       }
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
-        case Some(h@PointsTo(x@Var(_), offset, a@Var(_))) =>
+        case Some(h@PointsTo(x@Var(_), offset, a@Var(_), _)) =>
           if (h.isMutable) {
             Nil
           }
@@ -209,7 +209,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       def isExistBlock: Heaplet => Boolean = {
-        case Block(x@Var(_), _) => goal.isExistential(x)
+        case Block(x@Var(_), _, _) => goal.isExistential(x)
         case _ => false
       }
 
@@ -225,7 +225,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findTargetHeaplets(goal) match {
         case None => Nil
-        case Some((h@Block(x@Var(_), sz), pts)) =>
+        case Some((h@Block(x@Var(_), sz, _), pts)) =>
           val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
@@ -273,7 +273,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findTargetHeaplets(goal) match {
         case None => Nil
-        case Some((h@Block(x@Var(_), _), pts)) =>
+        case Some((h@Block(x@Var(_), _, _), pts)) =>
           // should not be allowed if the target heaplet is immutable
         if (!h.isMutable) Nil
 

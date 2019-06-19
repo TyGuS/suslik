@@ -93,16 +93,16 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   }
 
   def immutableheaplet : Parser[Heaplet] = (
-    "[" ~> heaplet(true) <~ "]"
-    ||| heaplet(false)
+    "[" ~> heaplet(false) <~ "]"
+    ||| heaplet(true)
   )
 
   // TODo this is what I would consider gross, but
   // can't think of a better way at thie time
-  def heaplet(immutable : Boolean): Parser[Heaplet] = (
-      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => if (immutable) new PointsTo(Var(a), o, b) with Immutable else PointsTo(Var(a), o, b) }
-          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => if (immutable) new Block(Var(a), Integer.parseInt(s)) with Immutable else Block(Var(a), Integer.parseInt(s))}
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => if (immutable) new SApp(name, args) with Immutable else SApp(name, args) }
+  def heaplet(mutable : Boolean): Parser[Heaplet] = (
+      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b, mutable) }
+          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s), mutable)}
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args, isMutable = mutable) }
       )
 
   def sigma: Parser[SFormula] = (

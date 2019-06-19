@@ -40,7 +40,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       h match {
-        case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
+        case SApp(pred, args, Some(t), mut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           // TODO if the predicate was immutable, must ensure the pieces are also
@@ -56,15 +56,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             constraints = asn.phi
             body = asn.sigma
             // if our heaplet was not immutable, our opening must be immutable also
-            // TODO abstract away or refactor into method
-            predChunks = if (!h.isMutable) {
-              body.chunks.map {
-                case SApp(a, b, c) => new SApp(a, b, c) with Immutable
-                case PointsTo(a, b, c) => new PointsTo(a, b, c) with Immutable
-                case Block(a, b) => new Block(a, b) with Immutable
-              }
+            predChunks = if (h.isImmutable) {
+              body.chunks.map (c => c.mkImmutable)
             } else {
-                body.chunks
+              body.chunks
             }
 
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
@@ -72,7 +67,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // we don't care about other heaps in the pre/post, only these
             _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
             newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
-          } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)))
+          } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)): Goal)
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
@@ -118,9 +113,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       // Re-tagging all predicate occurrences, so the inductive argument
       // would be tagged with Some(1), and everyone else with None(1)
-      val SApp(pname, xs, t) = h
+      val SApp(pname, xs, t, _) = h
       val matcher: Heaplet => Boolean = {
-        case SApp(x, ys, q) => x == pname && ys == xs
+        case SApp(x, ys, q, _) => x == pname && ys == xs
         case _ => false
       }
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
@@ -143,7 +138,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       val apps = preApps ++ goal.post.sigma.apps
       val noInductionOrUnfoldings = apps.forall {
-        case SApp(_, _, t) => t.contains(0)
+        case SApp(_, _, t, _) => t.contains(0)
       }
 
       if (!noInductionOrUnfoldings) return Nil
@@ -270,11 +265,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): (Option[Goal], Goal) = {
       val ptss = f.pre.sigma.ptss // raw points-to assertions
       val (ptsToReplace, ptsToObtain) = (for {
-        p@PointsTo(x@Var(_), off, e) <- ptss
+        p@PointsTo(x@Var(_), off, e, _) <- ptss
         if actualSub.contains(x)
         if e.subst(relaxedSub) != e.subst(actualSub)
         actualSource = x.subst(actualSub)
-        pToReplace <- goal.pre.sigma.ptss.find { case PointsTo(y, off1, _) => y == actualSource && off == off1 }
+        pToReplace <- goal.pre.sigma.ptss.find { case PointsTo(y, off1, _, _) => y == actualSource && off == off1 }
         pToObtain = PointsTo(actualSource, off, e.subst(actualSub))
       } yield {
         (pToReplace, pToObtain)
@@ -322,13 +317,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {
         h match {
-          case SApp(_, _, Some(t)) => t > env.config.maxCloseDepth
+          case SApp(_, _, Some(t), _) => t > env.config.maxCloseDepth
           case _ => false
         }
       }
 
       def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
-        case SApp(pred, args, Some(t)) =>
+        case SApp(pred, args, Some(t), _) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),

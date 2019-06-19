@@ -151,7 +151,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       def findPointers(a: Assertion): Set[Expr] = {
         val cs = conjuncts(a.phi)
         // All pointers
-        val allPointers = (for (PointsTo(l, _, _) <- a.sigma.chunks) yield l).toSet
+        val allPointers = (for (PointsTo(l, _, _, _) <- a.sigma.chunks) yield l).toSet
         allPointers.filter(
           x => !cs.contains(x |/=| NilPtr) && !cs.contains(NilPtr |/=| x)
         )
@@ -192,7 +192,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[PFormula] = {
       val cs = conjuncts(p)
-      val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
+      val ptrs = (for (PointsTo(x, _, _, _) <- s.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = for (x <- ptrs; y <- ptrs if x != y) yield (x, y)
       val newPairs = pairs.filter {

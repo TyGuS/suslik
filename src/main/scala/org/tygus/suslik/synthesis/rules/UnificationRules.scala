@@ -146,13 +146,13 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val post = goal.post
 
       def isSuitable: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, v@Var(_)) =>
+        case PointsTo(x@Var(_), _, v@Var(_), _) =>
           !goal.isGhost(x) && goal.isExistential(v) && LanguageUtils.isNotDefaultFreshVar(v)
         case _ => false
       }
 
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -163,7 +163,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
+        case Some((hl@PointsTo(x@Var(_), offset, _, _), hr@PointsTo(_, _, m@Var(_), _))) =>
           for {
             // Try variables from the context
             l <- goal.programVars.toList

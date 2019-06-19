@@ -38,7 +38,7 @@ trait SepLogicUtils extends PureLogicUtils {
     slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
-      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+      case PointsTo(y, off, _, _) => pt.loc == y && pt.offset == off
       case _ => false
     }
   }
@@ -52,7 +52,7 @@ trait SepLogicUtils extends PureLogicUtils {
                          sigma: SFormula): Option[(Block, Seq[Heaplet])] = {
     findHeaplet(pBlock, sigma) match {
       case None => None
-      case Some(h@Block(x@Var(_), sz)) =>
+      case Some(h@Block(x@Var(_), sz, _)) =>
         val pts = for (off <- 0 until sz) yield
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
         Some((h, pts.flatten))
@@ -67,23 +67,23 @@ trait SepLogicUtils extends PureLogicUtils {
   def findLargestMatchingHeap(small: SFormula, large: SFormula): Seq[SFormula] = {
 
     def findMatchingFor(h: Heaplet, stuff: Seq[Heaplet]): Seq[Heaplet] = h match {
-      case Block(loc, sz) => stuff.filter {
-        case Block(_, _sz) => sz == _sz
+      case Block(loc, sz, _) => stuff.filter {
+        case Block(_, _sz, _) => sz == _sz
         case _ => false
       }
-      case PointsTo(loc, offset, value) =>
+      case PointsTo(loc, offset, value, _) =>
         def hasBlockForLoc(_loc: Expr) = stuff.exists {
-          case Block(_loc1, _) => _loc == _loc1
+          case Block(_loc1, _, _) => _loc == _loc1
           case _ => false
         }
 
         stuff.filter {
-          case PointsTo(_loc, _offset, _value) => offset == _offset // && !hasBlockForLoc(_loc)
+          case PointsTo(_loc, _offset, _value, _) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
-      case SApp(pred, args, tag) => stuff.filter {
-        case SApp(_pred, _args, _tag) =>
-          _pred == pred && args.length == _args.length && tag == _tag
+      case SApp(pred, args, tag, mut) => stuff.filter {
+        case SApp(_pred, _args, _tag, _mut) =>
+          _pred == pred && args.length == _args.length && tag == _tag && mut == _mut
         case _ => false
       }
     }
@@ -103,10 +103,10 @@ trait SepLogicUtils extends PureLogicUtils {
 
   def findBlockRootedSubHeap(b: Block, sf: SFormula): Option[SFormula] = {
     if (!sf.chunks.contains(b)) return None
-    val Block(x, sz) = b
+    val Block(x, sz, _) = b
     if (!x.isInstanceOf[Var]) return None
-    val ps = for {p@PointsTo(y, o, _) <- sf.chunks if x == y} yield p
-    val offsets = ps.map { case PointsTo(_, o, _) => o }.sorted
+    val ps = for {p@PointsTo(y, o, _, _) <- sf.chunks if x == y} yield p
+    val offsets = ps.map { case PointsTo(_, o, _, _) => o }.sorted
     val goodChunks = offsets.size == sz && // All offsets are present
         offsets.distinct.size == offsets.size && // No repetitions
         offsets.forall(o => o < sz) // all smaller than sz

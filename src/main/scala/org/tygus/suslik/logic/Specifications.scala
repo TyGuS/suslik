@@ -43,7 +43,7 @@ object Specifications {
       val ptss = sigma.ptss
       val (_, sub, newPtss) =
         ptss.foldRight((Set.empty: Set[Var], Map.empty: Subst, Nil: List[PointsTo])) {
-          case (p@PointsTo(x, off, e), z@(taken, sbst, acc)) =>
+          case (p@PointsTo(x, off, e, _), z@(taken, sbst, acc)) =>
             // Only relax if the pure part is not affected!
             if (e.vars.intersect(phi.vars).isEmpty) {
               val freshName = LanguageUtils.generateFreshExistential(taken)
@@ -153,9 +153,6 @@ object Specifications {
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
         s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
 
-    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
-      Assertion(simplify(post.phi), post.sigma))
-
     def copy(pre: Assertion = this.pre,
              post: Assertion = this.post,
              gamma: Gamma = this.gamma,
@@ -184,6 +181,9 @@ object Specifications {
 
       Goal(preSorted, postSorted, gammaFinal, programVars, newUniversalGhosts, this.fname, env, newDeriv)
     }
+
+    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
+      Assertion(simplify(post.phi), post.sigma))
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 

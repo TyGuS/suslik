@@ -1,37 +1,52 @@
 package org.tygus.suslik.logic
 
-import org.tygus.suslik.language
-import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
 import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 
-trait Immutable {
-  this: Heaplet =>
-  override val isMutable = false
-  // TODO add [] around immutables when printing
-
-  // TODO fix resolve so that it carries over immutability 
-}
+//trait Immutable {
+//  this: Heaplet =>
+//  override val isMutable = false
+//  // TODO add [] around immutables when printing
+//
+//  // TODO fix resolve so that it carries over immutability 
+//}
 
 /**
   * Separation logic fragment
   */
 sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
+  
+  def isMutable: Boolean
+  
+  def isImmutable: Boolean = !isMutable
+  
+  def mkImmutable : Heaplet 
 
-  val isMutable = true
+  //  def mkImmutable(): this.type = {
+  //    mut = false
+  //    this
+  //  }
+  //
+  //  def mkMutable(): this.type = {
+  //    mut = true
+  //    this
+  //  }
+  //  
+  //  def isMutable: Boolean = mut
 
-  def resolveOverloading(gamma: Gamma):Heaplet
+  def resolveOverloading(gamma: Gamma): Heaplet
 
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
     def collector(acc: Set[R])(h: Heaplet): Set[R] = h match {
-      case PointsTo(v, offset, value) =>
+      case PointsTo(v, offset, value, _) =>
         val acc1 = if (p(v)) acc + v.asInstanceOf[R] else acc
         acc1 ++ value.collect(p)
-      case Block(v, sz) =>
+      case Block(v, sz, _) =>
         if (p(v)) acc + v.asInstanceOf[R] else acc
-      case SApp(_, args, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
+      case SApp(_, args, _, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
     }
 
     collector(Set.empty)(this)
@@ -53,9 +68,9 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   // Size of the heaplet (in AST nodes)
   def size: Int = this match {
-    case PointsTo(loc, _, value) => 1 + loc.size + value.size
-    case Block(loc, _) => 1 + loc.size
-    case SApp(_, args, _) => args.map(_.size).sum
+    case PointsTo(loc, _, value, _) => 1 + loc.size + value.size
+    case Block(loc, _, _) => 1 + loc.size
+    case SApp(_, args, _, _) => args.map(_.size).sum
   }
 
 }
@@ -63,15 +78,12 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 /**
   * var + offset :-> value
   */
-case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
+case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
+                    isMutable: Boolean = true) extends Heaplet {
 
-  override def resolveOverloading(gamma: Gamma): Heaplet =
-  // TODO this logic must be repeated, so there must be a better way
-    if (this.isMutable) {
-      this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
-    } else {
-      new PointsTo(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma)) with Immutable
-    }
+  override def resolveOverloading(gamma: Gamma): PointsTo = {
+    this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
+  }
 
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
@@ -79,14 +91,12 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet =
-    if (this.isMutable) {
-      PointsTo(loc.subst(sigma), offset, value.subst(sigma))
-    } else {
-      new PointsTo(loc.subst(sigma), offset, value.subst(sigma)) with Immutable
-    }
+    PointsTo(loc.subst(sigma), offset, value.subst(sigma), isMutable)
 
   def |-(other: Heaplet): Boolean = other match {
-    case PointsTo(_loc, _offset, _value) => this.loc == _loc && this.offset == _offset && this.value == _value
+    case PointsTo(_loc, _offset, _value, _mut) =>
+      this.loc == _loc && this.offset == _offset && this.value == _value &&
+        this.isMutable == _mut
     case _ => false
   }
 
@@ -98,32 +108,26 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   }
 
   def rank: Int = 2
+
+  override def mkImmutable = this.copy(isMutable = false)
 }
 
 /**
   * block(var, size)
   */
-case class Block(loc: Expr, sz: Int) extends Heaplet {
+case class Block(loc: Expr, sz: Int, isMutable: Boolean = true) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    if (this.isMutable) {
-      this.copy(loc=loc.resolveOverloading(gamma))
-    } else {
-      new Block(loc = loc.resolveOverloading(gamma), sz) with Immutable
-    }
+    this.copy(loc = loc.resolveOverloading(gamma))
 
   override def pp: Ident = {
     s"[${loc.pp}, $sz]"
   }
 
   // TODO no way there isn't a better way of extending the immutable behaviour
-  def subst(sigma: Map[Var, Expr]): Heaplet = {
-    if (this.isMutable) {
-      Block(loc.subst(sigma), sz)
-    } else {
-      new Block(loc.subst(sigma), sz) with Immutable
-    }
-  }
+  def subst(sigma: Map[Var, Expr]): Heaplet = Block(loc.subst(sigma), sz)
+  
+  override def mkImmutable = this.copy(isMutable = false)
 
   def |-(other: Heaplet): Boolean = false
 
@@ -135,17 +139,13 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), isMutable: Boolean = true) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    if (this.isMutable) {
-      this.copy(args=args.map(_.resolveOverloading(gamma)))
-    } else {
-      new SApp(pred, args=args.map(_.resolveOverloading(gamma)), tag) with Immutable
-    }
+    this.copy(args = args.map(_.resolveOverloading(gamma)))
 
   override def pp: String = {
-    val ppTag : Option[Int] => String = {
+    val ppTag: Option[Int] => String = {
       case None => "[-]" // "[\uD83D\uDD12]" // "locked"
       case Some(0) => "" // Default tag
       case Some(t) => s"[$t]"
@@ -153,27 +153,24 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
     s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = //this.copy(args = args.map(_.subst(sigma)))
-  if (this.isMutable) {
-    this.copy(args = args.map(_.subst(sigma)))
-  } else {
-    new SApp(pred, args=args.map(_.subst(sigma)), tag) with Immutable
-  }
+  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
+
+  override def mkImmutable = this.copy(isMutable = false)
 
   def |-(other: Heaplet): Boolean = false
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
-    if (!(env.predicates contains  pred)){
-      throw SynthesisException( s"predicate $pred is undefined")
+    if (!(env.predicates contains pred)) {
+      throw SynthesisException(s"predicate $pred is undefined")
     }
     val formals = env.predicates(pred).params
 
     if (formals.length == args.length) {
-      (formals, args).zipped.foldLeft[Option[Gamma]](Some(gamma))
-      { case (go, (formal, actual)) => go match {
-              case None => None
-              case Some(g) => actual.resolve(g, Some(formal._1))
-            }}
+      (formals, args).zipped.foldLeft[Option[Gamma]](Some(gamma)) { case (go, (formal, actual)) => go match {
+        case None => None
+        case Some(g) => actual.resolve(g, Some(formal._1))
+      }
+      }
     } else None
   }
 
@@ -181,26 +178,24 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
 
   // TODO really terrible that we have to keep repeating this logic
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
-    if (this.isMutable) {
-      this.copy(tag = f(this.tag))
-    } else {
-      new SApp(pred, args, tag = f(this.tag)) with Immutable
-    }
+    this.copy(tag = f(this.tag))
 }
 
 
 case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
   // TODO immutable
-  def resolveOverloading(gamma: Gamma): SFormula = {this.copy(chunks=chunks.map(_.resolveOverloading(gamma)))}
+  def resolveOverloading(gamma: Gamma): SFormula = {
+    this.copy(chunks = chunks.map(_.resolveOverloading(gamma)))
+  }
 
   override def pp: Ident = if (chunks.isEmpty) "emp" else chunks.map(_.pp).mkString(" ** ")
 
   // Changing it here is the wrong approach. I need to change it when it's created...
-  def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b
+  def blocks: List[Block] = for (b@Block(_, _, _) <- chunks) yield b
 
-  def apps: List[SApp] = for (b@SApp(_, _, _) <- chunks) yield b
+  def apps: List[SApp] = for (b@SApp(_, _, _, _) <- chunks) yield b
 
-  def ptss: List[PointsTo] = for (b@PointsTo(_, _, _) <- chunks) yield b
+  def ptss: List[PointsTo] = for (b@PointsTo(_, _, _, _) <- chunks) yield b
 
   def subst(sigma: Map[Var, Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
 
@@ -213,16 +208,16 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     * Change tags for applications, to avoind re-applying the rule
     */
   def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h ) )
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h))
 
   def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h ) )
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h))
 
   def moveToLevel2(cond: Heaplet => Boolean = _ => true): SFormula =
     setUpSAppTags(2, cond)
 
   def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h ) )
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h))
 
   def isEmp: Boolean = chunks.isEmpty
 

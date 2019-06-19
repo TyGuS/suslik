@@ -30,8 +30,8 @@ object SpatialUnification extends UnificationBase {
                tagsMatter: Boolean = true): Seq[Subst] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
-      case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
-        if (o1 != o2) Nil else {
+      case (PointsTo(x@Var(_), o1, y, m1), PointsTo(a@Var(_), o2, b, m2)) =>
+        if (o1 != o2 || m1 != m2) Nil else {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
           val sbst = for {
@@ -44,17 +44,18 @@ object SpatialUnification extends UnificationBase {
           }
           sbst.toList
         }
-      case (Block(x1@Var(_), s1), Block(x2@Var(_), s2)) =>
-        if (s1 != s2) Nil else {
+      case (Block(x1@Var(_), s1, m1), Block(x2@Var(_), s2, m2)) =>
+        if (s1 != s2 || m1 != m2) Nil else {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource).toList
         }
-      case (SApp(p1, es1, targetTag), SApp(p2, es2, sourceTag)) =>
+      case (SApp(p1, es1, targetTag, m1), SApp(p2, es2, sourceTag, m2)) =>
         // Only unify predicates with variables as arguments
         // if es2.forall(_.isInstanceOf[Var])
 
         if (p1 != p2 || es1.size != es2.size ||
-            (targetTag != sourceTag && tagsMatter)) Nil
+          m1 != m2 ||
+          (targetTag != sourceTag && tagsMatter)) Nil
 
         else {
           val pairs = es1.zip(es2)
@@ -93,7 +94,7 @@ object SpatialUnification extends UnificationBase {
     // Check matching blocks
     val checkMatchingBlocks = (bs1: List[Heaplet], bs2: List[Heaplet]) =>
       bs1.forall {
-        case Block(_, s1) => bs2.exists { case Block(_, s2) => s1 == s2; case _ => false }
+        case Block(_, s1, m1) => bs2.exists { case Block(_, s2, m2) => s1 == s2 && m1 == m2; case _ => false }
         case _ => false
       }
 
@@ -102,8 +103,8 @@ object SpatialUnification extends UnificationBase {
     // Check matching blocks
     val checkMatchingApps = (as1: List[Heaplet], as2: List[Heaplet]) =>
       as1.forall {
-        case SApp(x1, xs1, _) =>
-          as2.exists { case SApp(x2, xs2, _) => x1 == x2 && xs1.size == xs2.size; case _ => false }
+        case SApp(x1, xs1, _, m1) =>
+          as2.exists { case SApp(x2, xs2, _, m2) => x1 == x2 && xs1.size == xs2.size && m1 == m2; case _ => false }
         case _ => false
       }
     if (!checkMatchingApps(as1, as2) || !checkMatchingApps(as2, as1)) return false
@@ -126,14 +127,14 @@ object SpatialUnification extends UnificationBase {
     val _tr = target - p
     val _sr = source.subst(sub) - p
     if (_tr.chunks.length == target.chunks.length - 1 &&
-        _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
+      _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
     else None
   }
 
   private def removeSAppIgnoringTag(sf: SFormula, h: SApp) = h match {
-    case SApp(p, args, _) =>
+    case SApp(p, args, _, m1) =>
       val newChunks = sf.chunks.filterNot {
-        case SApp(p1, args1, _) => p1 == p && args1 == args
+        case SApp(p1, args1, _, m2) => p1 == p && args1 == args && m1 == m2
         case _ => false
       }
       sf.copy(chunks = newChunks)
@@ -143,7 +144,7 @@ object SpatialUnification extends UnificationBase {
     val _tr = removeSAppIgnoringTag(target, tFrame)
     val _sr = removeSAppIgnoringTag(source.subst(sub), tFrame)
     if (_tr.chunks.length == target.chunks.length - 1 &&
-        _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
+      _sr.chunks.length == source.chunks.length - 1) Some((_sr, _tr))
     else None
   }
 
@@ -173,16 +174,16 @@ object SpatialUnification extends UnificationBase {
     // Strip as much from the two formulas as possible,
     // and unify in the process, delivering the new substitution
     def stripper(sf: Heaplet, tf: Heaplet, sub: Subst): Option[FrameChoppingResult] = tf match {
-      case p@PointsTo(_, _, _) =>
+      case p@PointsTo(_, _, _, _) =>
         removeSingleChunk(source, target, p, sub).map {
           case (sr, tr) => FrameChoppingResult(sr, SFormula(List(sf)), tr, SFormula(List(tf)), sub)
         }
 
-      case h@SApp(_, _, _) => removeSAppChunk(source, target, h, sub).map {
+      case h@SApp(_, _, _, _) => removeSAppChunk(source, target, h, sub).map {
         case (sr, tr) => FrameChoppingResult(sr, SFormula(List(sf)), tr, SFormula(List(tf)), sub)
       }
 
-      case b@Block(_, _) =>
+      case b@Block(_, _, _) =>
         frameFromCommonBlock(source, target, b, boundVars, sub).flatMap {
           case (sr, tr, tfsub, _sub) =>
             assert(sf.isInstanceOf[Block], s"Matching source-frame should be block: ${sf.pp}")
