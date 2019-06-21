@@ -12,6 +12,7 @@ void swap(loc x, loc y)
   let ar = *a;
   *c = d;
   let cr = *c;
+  let cr2 = *c;
   free(a);
   free(b);
   free(c);
@@ -29,6 +30,7 @@ void swap (loc x, loc y) {
   let ar = *a;
   *c = d;
   let cr = *c;
+  let cr2 = *c;
   free(a);
   free(b);
   free(c);

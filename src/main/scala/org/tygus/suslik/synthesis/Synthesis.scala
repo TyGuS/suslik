@@ -94,16 +94,20 @@ trait Synthesis extends SepLogicUtils {
   }
 
   // Returns the goal after application of the statement
-  // TODO: check every rule for soundness: 1. Don't read ghosts, 2. updates ProgramVars 3. behaves according to paper
+  // TODO: check every rule for soundness:
+  //  1. Don't read ghosts,
+  //  2. updates ProgramVars
+  //  3. behaves according to paper
+  //  4. Heaplet lookup isn't syntactic, but also looks for heaplets with another name, but same address wrt pure part
   def modifyPre(spec:Goal, statement:Statement):Goal = statement match {
     case Skip => spec
     case Hole => throw SynthesisException(Hole.pp + " is not allowed here")
     case Error => throw SynthesisException(Error.pp + " is not allowed here")
     case Magic => throw SynthesisException(Magic.pp + " is not allowed here")
     case cmd: Malloc => AllocRule.symbolicExecution(spec, cmd)
-    case cmd: Free => FreeRule.symbolicExecution(spec, cmd)
+    case cmd: Free => FreeRule.symbolicExecution(spec, cmd) // 4 OK,
     case cmd: Store => WriteRule.symbolicExecution(spec, cmd)
-    case cmd: Load => ReadRule.symbolicExecution(spec, cmd)
+    case cmd: Load => ReadRule.symbolicExecution(spec, cmd) // 4 OK,
     case cmd: Call => CallRule.symbolicExecution(spec, cmd)
     case cmd: SubGoal => ??? // should be same as call with that signature
     case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")

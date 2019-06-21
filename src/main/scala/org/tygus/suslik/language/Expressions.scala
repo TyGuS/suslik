@@ -282,6 +282,7 @@ object Expressions {
 
     // Convenience operators for building expressions
     def |=| (other: Expr): Expr = BinaryExpr(OpEq, this, other)
+    def |+| (other: Expr): Expr = BinaryExpr(OpPlus, this, other)
     def |===| (other: Expr): Expr = OverloadedBinaryExpr(OpOverloadedEq, this, other)
     def |/=| (other: Expr): Expr = (this |=| other).not
     def |/===| (other: Expr): Expr = (this |===| other).not

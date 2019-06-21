@@ -154,27 +154,37 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Op: read]"
 
     /* let to = *(from + offset) */
+    /* if *(from + offset) is var, then substitute and update pure part,
+       else only update pure part.
+       No problems found so far
+    * */
     def symbolicExecution_trying_to_be_smart(goal:Goal, cmd:Load):Goal = {
       val pre = goal.pre
       val post = goal.post
       val Load(to, tpy, from, offset) = cmd
+      if(goal.gamma.contains(to)){
+        throw SymbolicExecutionError(cmd.pp + s" Invalid command:  value `${to.pp}` is already defined.")
+      }
       def isMatchingHeaplet: Heaplet => Boolean = {
-        case PointsTo(`from`, `offset`, _) => true
+        case PointsTo(heaplet_from, h_offset, _) =>
+          SMTSolving.valid(goal.pre.phi ==> ((heaplet_from |+| IntConst(h_offset)) |=| (from |+| IntConst(offset))))
         case _ => false
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
         case None => {
-          throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
+          throw SymbolicExecutionError(cmd.pp + " Invalid command: right part is not defined.")
         }
-        case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
-          val subst_pre = pre.subst(a, to)
-          val subst_post = post.subst(a, to)
-          val new_pre = subst_pre.copy(phi = subst_pre.phi &&  (to |=| a))
-          val new_post= subst_post.copy(phi = subst_post.phi &&  (to |=| a))
+        case Some(PointsTo(_, _, value@Var(_))) =>
+          // substitute, and update pure part
+          val subst_pre = pre.subst(value, to)
+          val subst_post = post.subst(value, to)
+          val new_pre = subst_pre.copy(phi = subst_pre.phi &&  (to |=| value))
+          val new_post= subst_post.copy(phi = subst_post.phi &&  (to |=| value))
           val subGoal = goal.copy(pre = new_pre, post = new_post).addProgramVar(to, tpy)
 //          val subGoal = goal.copy(pre.copy(phi = pre.phi && (to |=| a) ), post = post.copy(phi = post.phi && (to |=| a))).addProgramVar(to, tpy)
           subGoal
-        case Some(PointsTo(`from`, `offset`, a)) =>
+        case Some(PointsTo(_, _, a)) =>
+          // only update pure part
           //          val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
           val subGoal = goal.copy(pre.copy(phi = pre.phi && (to |=| a) ), post = post.copy(phi = post.phi && (to |=| a))).addProgramVar(to, tpy)
           subGoal
@@ -184,18 +194,27 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
 
     /* let to = *(from + offset) */
-    /* Substitute to by new value */
+    /* Substitute to by new value
+    * Problem: it destroys vars. For example, in program
+      len x = *w
+      let y = *w
+      let z = *x <--- error, because previous line destroyed x
+    * */
     def symbolicExecution_subst(goal:Goal, cmd:Load):Goal = {
       val pre = goal.pre
       val post = goal.post
       val Load(to, tpy, from, offset) = cmd
+      if(goal.gamma.contains(to)){
+        throw SymbolicExecutionError(cmd.pp + s" Invalid command:  value `${to.pp}` is already defined.")
+      }
       def isMatchingHeaplet: Heaplet => Boolean = {
-        case PointsTo(`from`, `offset`, _) => true
+        case PointsTo(heaplet_from, h_offset, _) =>
+          SMTSolving.valid(goal.pre.phi ==> ((heaplet_from |+| IntConst(h_offset)) |=| (from |+| IntConst(offset))))
         case _ => false
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
-        case None => throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
-        case Some(PointsTo(`from`, `offset`, a@Var(_))) =>
+        case None => throw SymbolicExecutionError(cmd.pp + " Invalid command: right part is not defined.")
+        case Some(PointsTo(_, _, a@Var(_))) =>
           val subGoal = goal.copy(pre.subst(a, to), post = post.subst(a, to)).addProgramVar(to, tpy)
           subGoal
         case Some(h) =>
@@ -204,18 +223,26 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
 
     /* let to = *(from + offset) */
-    /* Puts additional clause `to == *(from + offset)` in pure part, adds `to` to program vars */
+    /* Puts additional clause `to == *(from + offset)` in pure part, adds `to` to program vars
+    * problem 1: this new var might be unused during synthesis, and `let to = *(from + offset)` can be synthesized again
+    * problem 2: computations take forever (sorted list: insert an element with holes 631 sec)
+    * (Both solved by modified read rule `&& ! alreadyLoaded(a)`)
+    * */
     def symbolicExecution_phi(goal:Goal, cmd:Load):Goal = {
       val pre = goal.pre
       val post = goal.post
       val Load(to, tpy, from, offset) = cmd
+      if(goal.gamma.contains(to)){
+        throw SymbolicExecutionError(cmd.pp + s" Invalid command:  value `${to.pp}` is already defined.")
+      }
       def isMatchingHeaplet: Heaplet => Boolean = {
-        case PointsTo(`from`, `offset`, _) => true
+        case PointsTo(heaplet_from, h_offset, _) =>
+          SMTSolving.valid(goal.pre.phi ==> ((heaplet_from |+| IntConst(h_offset)) |=| (from |+| IntConst(offset))))
         case _ => false
       }
       findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
-        case None => throw SynthesisException(cmd.pp + " Invalid command: right part is not defined.")
-        case Some(PointsTo(`from`, `offset`, a@Var(_))) => // todo:why var?
+        case None => throw SymbolicExecutionError(cmd.pp + " Invalid command: right part is not defined.")
+        case Some(PointsTo(_, _, a)) =>
           val subGoal = goal.copy(pre.copy(phi=pre.phi && (to |=| a)), post = post.copy(phi=post.phi && (to |=| a))).addProgramVar(to, tpy)
           subGoal
         case Some(h) =>
@@ -223,18 +250,22 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_trying_to_be_smart
+//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_trying_to_be_smart
 //    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_subst
-//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi
+    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
 
+      def alreadyLoaded(a:Var): Boolean = {
+        goal.programVars.exists(b => SMTSolving.valid(goal.pre.phi ==> (a |=| b)))
+      }
+
       def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(x@Var(_), _, a@Var(_)) =>
-           !goal.isGhost(x) && goal.isGhost(a)
+           !goal.isGhost(x) && goal.isGhost(a) && ! alreadyLoaded(a)
         case _ => false
       }
 
@@ -356,7 +387,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
       def noGhostsAndIsBlock(h: Heaplet): Boolean = h match {
-        case b@Block(loc, sz) => noGhosts(b) && SMTSolving.valid(goal.pre.phi ==> (loc |=| name)) // todo: remember var values instead of solving SMT
+        case b@Block(loc, sz) => noGhosts(b) && SMTSolving.valid(goal.pre.phi ==> (loc |=| name))
         case _ => false
       }
 
@@ -369,7 +400,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val Free(x) = cmd
 
       findNamedHeaplets(goal, x) match {
-        case None => throw SynthesisException("command " + cmd.pp + " is invalid")
+        case None => throw SymbolicExecutionError("command " + cmd.pp + " is invalid")
         case Some((h@Block(_, _), pts)) =>
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
