@@ -58,6 +58,7 @@ trait Synthesis extends SepLogicUtils {
     case other => (other, None)
   }
 
+  // todo delete(?)
   def unrollSAppsWherePossible(initial_assertion: Assertion, goal:Goal):Assertion = {
     val sigma = initial_assertion.sigma
     val phi = initial_assertion.phi
@@ -99,20 +100,21 @@ trait Synthesis extends SepLogicUtils {
   //  2. updates ProgramVars
   //  3. behaves according to paper
   //  4. Heaplet lookup isn't syntactic, but also looks for heaplets with another name, but same address wrt pure part
+  //  5. Don't redefine
   def modifyPre(spec:Goal, statement:Statement):Goal = statement match {
     case Skip => spec
     case Hole => throw SynthesisException(Hole.pp + " is not allowed here")
     case Error => throw SynthesisException(Error.pp + " is not allowed here")
     case Magic => throw SynthesisException(Magic.pp + " is not allowed here")
-    case cmd: Malloc => AllocRule.symbolicExecution(spec, cmd)
-    case cmd: Free => FreeRule.symbolicExecution(spec, cmd) // 4 OK,
-    case cmd: Store => WriteRule.symbolicExecution(spec, cmd)
-    case cmd: Load => ReadRule.symbolicExecution(spec, cmd) // 4 OK,
-    case cmd: Call => CallRule.symbolicExecution(spec, cmd)
+    case cmd: Malloc => AllocRule.symbolicExecution(spec, cmd) // OK: 1, 2, 4, 5 Check: 3
+    case cmd: Free => FreeRule.symbolicExecution(spec, cmd) // OK: 1,2,3,5 Wrong: 4
+    case cmd: Store => WriteRule.symbolicExecution(spec, cmd) // OK: 1,2,3,4,5
+    case cmd: Load => ReadRule.symbolicExecution(spec, cmd) // OK: 1,2,3,4,5
+    case cmd: Call => CallRule.symbolicExecution(spec, cmd) // OK: 1, check: everything, because I dont understand its code
     case cmd: SubGoal => ??? // should be same as call with that signature
     case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")
     case cmd: If => throw SynthesisException("Found if-then-else in the middle of the program. if-then-else is currently allowed only in the end.")
-    case Guarded(cond, _) => {
+    case Guarded(cond, _) => { // todo: why is it here?
       val newPhi = spec.pre.phi && cond
       val newPre = unrollSAppsWherePossible(Assertion(newPhi, spec.pre.sigma), spec)
       spec.copy(pre = newPre)

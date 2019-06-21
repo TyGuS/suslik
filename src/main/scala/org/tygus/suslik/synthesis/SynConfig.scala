@@ -28,7 +28,7 @@ case class SynConfig(
                       printEnv: Boolean         = false,
                       assertSuccess: Boolean    = true,
                       logToFile: Boolean        = true,
-                      memoization: Boolean        = true,
+                      memoization: Boolean        = false,
                       timeOut: Long             = DEFAULT_TIMEOUT*100,
                       inputFormat: InputFormat = dotSyn
                     ) extends PrettyPrinting {

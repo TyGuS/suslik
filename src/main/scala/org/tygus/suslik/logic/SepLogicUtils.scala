@@ -38,7 +38,9 @@ trait SepLogicUtils extends PureLogicUtils {
     slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
-      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off // todo: wrong. Should check
+        // SMTSolving.valid( phi ==> ((y |+|off) |=|(pt.loc |+| pt.offset )) )
+        // not (?) important for synthesis, but important for symbolic execution
       case _ => false
     }
   }
