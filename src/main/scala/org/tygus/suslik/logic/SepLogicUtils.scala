@@ -83,7 +83,7 @@ trait SepLogicUtils extends PureLogicUtils {
         }
       case SApp(pred, args, tag, mut) => stuff.filter {
         case SApp(_pred, _args, _tag, _mut) =>
-          _pred == pred && args.length == _args.length && tag == _tag && mut == _mut
+          _pred == pred && args.length == _args.length && tag == _tag /*&& mut == _mut*/
         case _ => false
       }
     }

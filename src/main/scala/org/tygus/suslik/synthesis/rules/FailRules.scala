@@ -122,6 +122,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case (None, None) =>
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
             Nil
+          // TODO will we always reach ReadOnlyEmpty before this rule?
+          else if (goal.pre.sigma.chunks.foldLeft[Boolean](true)((acc, h) =>
+            if (h.isMutable) false
+            else acc)) Nil
           else
             List(Subderivation(Nil, _ => Magic)) // spatial parts do not match: only magic can save us
         case _ => Nil // does not apply if we could still alloc or free
