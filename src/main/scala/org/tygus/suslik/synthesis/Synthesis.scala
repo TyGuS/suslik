@@ -1,12 +1,13 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.Memoization
+import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.{SApp, _}
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule, ReadRule, WriteRule}
+import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule
 import org.tygus.suslik.util.OtherUtil.Accumulator
@@ -100,7 +101,7 @@ trait Synthesis extends SepLogicUtils {
   //  3. behaves according to paper
   //  4. Heaplet lookup isn't syntactic, but also looks for heaplets with another name, but same address wrt pure part
   //  5. Don't redefine
-  def modifyPre(spec:Goal, statement:Statement):Goal = statement match {
+  def modifyPre(spec: Goal, statement: Statement): Goal = statement match {
     case Skip => spec
     case Hole => throw SynthesisException(Hole.pp + " is not allowed here")
     case Error => throw SynthesisException(Error.pp + " is not allowed here")
@@ -114,6 +115,14 @@ trait Synthesis extends SepLogicUtils {
     case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")
     case cmd: If => throw SynthesisException("Found if-then-else in the middle of the program. if-then-else is currently allowed only in the end.")
     case Guarded(cond, _) => { // needed for `propagatePre` in if statement
+      // OK: 1, 2, 4, 5. Not according to paper: this code unfolds predicates,
+      val vars_in_cond: Set[Var] = cond.collect({
+        case Var(_) => true
+        case _ => false
+      })
+      for (v <- vars_in_cond) {
+        symExecAssert(spec.isProgramVar(v), s"value `${v.pp}` is read before defined.")
+      }
       val newPhi = spec.pre.phi && cond
       val newPre = unrollSAppsWherePossible(Assertion(newPhi, spec.pre.sigma), spec)
       spec.copy(pre = newPre)
