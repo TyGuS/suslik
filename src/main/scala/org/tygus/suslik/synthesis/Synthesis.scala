@@ -39,7 +39,7 @@ trait Synthesis extends SepLogicUtils {
   )
 
   def entailmentCheckRules(goal: Goal): List[SynthesisRule] = {
-    ((allRules(goal).toSet -- operationalRules) - UnfoldingRules.InductionRule).toList
+    allRules(goal).filter(r => !operationalRules.contains(r) && r != UnfoldingRules.InductionRule) // Seems order matters
   }
 
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
