@@ -228,6 +228,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     * (Both solved by augmenting synthesis read rule with `&& ! alreadyLoaded(a)`)
     * complies with `Symbolic Execution with Separation Logic` paper
     * http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.64.2006&rep=rep1&type=pdf
+    * problem 3: it doesn't transform the heap in the same way as synthesis does ==> can't call functions sometimes.
+    * "sorted list: insert an element complete prog" fails
+    * (not solved)
     * */
     def symbolicExecution_phi(goal:Goal, cmd:Load):Goal = {
       val pre = goal.pre
@@ -249,9 +252,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_trying_to_be_smart
+    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi_and_subst_if_can
 //    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_subst
-    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi
+//    def symbolicExecution: (Goal, Load) => Goal = symbolicExecution_phi
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
@@ -375,6 +378,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
 
+//      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma) // todo: this line makes synthesis 2x faster, but seems wrong. See comment in `findBlockAndChunks`
       findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
     }
 
