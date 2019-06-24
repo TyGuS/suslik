@@ -40,7 +40,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       h match {
-        case SApp(pred, args, Some(t), _) if t < env.config.maxOpenDepth =>
+        case SApp(pred, args, Some(t), mut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           // TODO if the predicate was immutable, must ensure the pieces are also
