@@ -210,6 +210,7 @@ trait Synthesis extends SepLogicUtils {
           val solution =
             synthesize(corrGoal, config.startingDepth)(stats = stats, rules = entailmentCheckRules(corrGoal))
           if(!solution.contains(Skip) ){
+            printlnErr(s"Correctness goal \n${corrGoal.pp} \nfailed: expected Skip, got:\n$solution")
             return Some(Procedure(goal.fname, tp, formals, Error), stats)
           }
         }
