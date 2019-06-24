@@ -31,7 +31,7 @@ object SpatialUnification extends UnificationBase {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y, m1), PointsTo(a@Var(_), o2, b, m2)) =>
-        if (o1 != o2 /*|| m1 != m2*/) Nil else {
+        if (o1 != o2 || m1 != m2) Nil else {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
           val sbst = for {
@@ -45,7 +45,7 @@ object SpatialUnification extends UnificationBase {
           sbst.toList
         }
       case (Block(x1@Var(_), s1, m1), Block(x2@Var(_), s2, m2)) =>
-        if (s1 != s2 /*|| m1 != m2*/) Nil else {
+        if (s1 != s2 || m1 != m2) Nil else {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource).toList
         }
@@ -54,7 +54,7 @@ object SpatialUnification extends UnificationBase {
         // if es2.forall(_.isInstanceOf[Var])
 
         if (p1 != p2 || es1.size != es2.size ||
-          /*m1 != m2 ||*/
+          m1 != m2 ||
           (targetTag != sourceTag && tagsMatter)) Nil
 
         else {
@@ -94,7 +94,7 @@ object SpatialUnification extends UnificationBase {
     // Check matching blocks
     val checkMatchingBlocks = (bs1: List[Heaplet], bs2: List[Heaplet]) =>
       bs1.forall {
-        case Block(_, s1, m1) => bs2.exists { case Block(_, s2, m2) => s1 == s2 /*&& m1 == m2*/; case _ => false }
+        case Block(_, s1, m1) => bs2.exists { case Block(_, s2, m2) => s1 == s2 && m1 == m2; case _ => false }
         case _ => false
       }
 
@@ -104,7 +104,7 @@ object SpatialUnification extends UnificationBase {
     val checkMatchingApps = (as1: List[Heaplet], as2: List[Heaplet]) =>
       as1.forall {
         case SApp(x1, xs1, _, m1) =>
-          as2.exists { case SApp(x2, xs2, _, m2) => x1 == x2 && xs1.size == xs2.size /*&& m1 == m2*/; case _ => false }
+          as2.exists { case SApp(x2, xs2, _, m2) => x1 == x2 && xs1.size == xs2.size && m1 == m2; case _ => false }
         case _ => false
       }
     if (!checkMatchingApps(as1, as2) || !checkMatchingApps(as2, as1)) return false
@@ -134,7 +134,7 @@ object SpatialUnification extends UnificationBase {
   private def removeSAppIgnoringTag(sf: SFormula, h: SApp) = h match {
     case SApp(p, args, _, m1) =>
       val newChunks = sf.chunks.filterNot {
-        case SApp(p1, args1, _, m2) => p1 == p && args1 == args /*&& m1 == m2*/
+        case SApp(p1, args1, _, m2) => p1 == p && args1 == args && m1 == m2
         case _ => false
       }
       sf.copy(chunks = newChunks)
