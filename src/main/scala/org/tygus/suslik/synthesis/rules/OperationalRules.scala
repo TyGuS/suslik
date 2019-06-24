@@ -180,7 +180,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some(h@PointsTo(x@Var(_), offset, a@Var(_), _)) =>
           if (h.isMutable) {
-            Nil
+            return Nil
           }
 
           val y = generateFreshVar(goal, a.name)
@@ -275,7 +275,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some((h@Block(x@Var(_), _, _), pts)) =>
           // should not be allowed if the target heaplet is immutable
-        if (!h.isMutable) Nil
+        if (h.isImmutable) return Nil
 
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
