@@ -9,17 +9,21 @@ void fr(loc f)
   *a = a;
   let b = *a; /* b == a */
   *b = a;
+  *(b+1) = b+1;
+  let c = *(b+1);
+  *c = c;
   free(b);
-  ??
 }
 
 ###
 
-void fr(loc f)
-{
+void fr(loc f) {
   let a = malloc(3);
   *a = a;
   let b = *a; /* b == a */
   *b = a;
+  *(b+1) = b+1;
+  let c = *(b+1);
+  *c = c;
   free(b);
 }
