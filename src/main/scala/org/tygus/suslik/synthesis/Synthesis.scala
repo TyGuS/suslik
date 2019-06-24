@@ -58,7 +58,6 @@ trait Synthesis extends SepLogicUtils {
     case other => (other, None)
   }
 
-  // todo delete(?)
   def unrollSAppsWherePossible(initial_assertion: Assertion, goal:Goal):Assertion = {
     val sigma = initial_assertion.sigma
     val phi = initial_assertion.phi
@@ -114,7 +113,7 @@ trait Synthesis extends SepLogicUtils {
     case cmd: SubGoal => ??? // should be same as call with that signature
     case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")
     case cmd: If => throw SynthesisException("Found if-then-else in the middle of the program. if-then-else is currently allowed only in the end.")
-    case Guarded(cond, _) => { // todo: why is it here?
+    case Guarded(cond, _) => { // needed for `propagatePre` in if statement
       val newPhi = spec.pre.phi && cond
       val newPre = unrollSAppsWherePossible(Assertion(newPhi, spec.pre.sigma), spec)
       spec.copy(pre = newPre)

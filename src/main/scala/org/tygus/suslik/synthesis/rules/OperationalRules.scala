@@ -378,8 +378,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
 
-//      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma) // todo: this line makes synthesis 2x faster, but seems wrong. See comment in `findBlockAndChunks`
-      findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
+      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma) // todo: when memoization is off, this line makes synthesis 2x faster, but seems wrong. See comment in `findBlockAndChunks`
+//      findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
     }
 
     def findNamedHeaplets(goal: Goal, name:Var): Option[(Block, Seq[Heaplet])] = {
