@@ -58,6 +58,8 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
+  def lhsVars : Set[Var]
+
   def rank: Int
 
   def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this
@@ -111,6 +113,11 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
   def rank: Int = 2
 
   override def mkImmutable = this.copy(isMutable = false)
+
+  override def lhsVars: Set[Var] = loc match {
+    case elems: Var => Set[Var](elems)
+    case _ => Set.empty[Var]
+  }
 }
 
 /**
@@ -136,6 +143,11 @@ case class Block(loc: Expr, sz: Int, isMutable: Boolean = true) extends Heaplet 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
 
   def rank: Int = 1
+
+  override def lhsVars: Set[Var] = loc match {
+    case elems: Var => Set[Var](elems)
+    case _ => Set.empty[Var]
+  }
 }
 
 /**
@@ -178,6 +190,12 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), isMuta
   }
 
   def rank: Int = 0
+
+  override def lhsVars: Set[Var] = args.foldLeft[Set[Var]](Set.empty[Var])((acc : Set[Var], arg : Expr) => arg match {
+    case elems: Var => acc ++ Set[Var](elems)
+    case _ => acc
+  })
+
 
   // TODO really terrible that we have to keep repeating this logic
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =

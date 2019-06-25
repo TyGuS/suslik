@@ -322,6 +322,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         }
       }
 
+      def hasImmutablePreCounterpart(h : Heaplet) : Boolean = {
+        goal.pre.sigma.chunks.foldLeft[Boolean](true)((acc: Boolean, h1 : Heaplet) =>
+          if (h.lhsVars.intersect(h1.lhsVars).nonEmpty) { acc && h1.isImmutable } else acc)
+      }
+
       def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
         case SApp(pred, args, Some(t), _) =>
           if (t >= env.config.maxCloseDepth) return Nil
@@ -348,7 +353,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // Closes should be immutable also
             // but this shouldn't be a regular case
             // need to check if the corresponding usages in pre are immuatable
-            predChunks = if (h.isImmutable || goal.pre.sigma.chunks.foldLeft[Boolean](true)((acc: Boolean, h1 : Heaplet) => if (h.vars.intersect(h1.vars).nonEmpty) { acc && h1.isImmutable } else acc && true)) {
+            predChunks = if (h.isImmutable || hasImmutablePreCounterpart(h)) {
               actualBody.copy(actualBody.chunks.map (c => c.mkImmutable))
             } else {
               actualBody
