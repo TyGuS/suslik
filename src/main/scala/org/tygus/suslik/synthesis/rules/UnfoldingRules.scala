@@ -344,10 +344,20 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
 //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+
+            // Closes should be immutable also
+            // but this shouldn't be a regular case
+            // need to check if the corresponding usages in pre are immuatable
+            predChunks = if (h.isImmutable || goal.pre.sigma.chunks.foldLeft[Boolean](true)((acc: Boolean, h1 : Heaplet) => if (h.vars.intersect(h1.vars).nonEmpty) { acc && h1.isImmutable } else acc && true)) {
+              actualBody.copy(actualBody.chunks.map (c => c.mkImmutable))
+            } else {
+              actualBody
+            }
+
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = mkConjunction(List(actualSelector, post.phi, actualConstraints))
-            val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
+            val newPost = Assertion(newPhi, goal.post.sigma ** predChunks - h)
 
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
