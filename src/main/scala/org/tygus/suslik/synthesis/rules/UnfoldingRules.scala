@@ -353,7 +353,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // Closes should be immutable also
             // but this shouldn't be a regular case
             // need to check if the corresponding usages in pre are immuatable
-            predChunks = if (h.isImmutable || hasImmutablePreCounterpart(h)) {
+            predChunks = if (h.isImmutable) {//|| hasImmutablePreCounterpart(h)) {
               actualBody.copy(actualBody.chunks.map (c => c.mkImmutable))
             } else {
               actualBody
