@@ -1,0 +1,6 @@
+should be able to synthesize an empty program with constant footprint
+###
+{true; x :-> a} void foo(loc x) {true ; x :-> a}
+###
+void foo (loc x) {
+}

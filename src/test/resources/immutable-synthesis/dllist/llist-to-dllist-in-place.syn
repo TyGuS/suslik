@@ -1,0 +1,18 @@
+should be able to convert a doubly-linked list to single-linked list
+
+#######
+
+{ true ; lseg_extra(x, s)}
+void sll_to_dll(loc x)
+{ true ; dllseg(x, z, s)}
+
+#######
+
+void sll_to_dll (loc x) {
+  if (x == 0) {
+  } else {
+    let nxt2 = *(x + 1);
+    sll_to_dll(nxt2);
+    set_prev(nxt2, x);
+  }
+}

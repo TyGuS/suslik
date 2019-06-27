@@ -1,0 +1,12 @@
+should be able to synthesize programs with non-trivial lists
+
+#####
+
+{true ; r :-> x ** lseg(x, 0, S)}
+  void list_skip(loc x, loc r)
+{true ; r :-> x ** lseg(x, 0, S) }
+
+###
+
+void list_skip (loc x, loc r) {
+}

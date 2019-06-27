@@ -1,0 +1,13 @@
+should handle nil-values in the pure part
+
+###
+
+{ y == z  /\  z == 0 ; x :-> y ** y :-> z}
+void foo(loc x, loc y)
+{ x == 55 ; emp }
+
+###
+
+void foo (loc x, loc y) {
+  error;
+}

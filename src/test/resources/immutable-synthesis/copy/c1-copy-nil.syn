@@ -1,0 +1,12 @@
+Step 1: x-list is Nil, nothing to do here
+
+#####
+
+{ x == 0  /\  S =i {} ; r :-> x ** lseg(x, 0, S) }
+void list_copy(loc r)
+{ true ; r :-> y ** lseg(x, 0, S) ** lseg(y, 0, S) }
+
+#####
+
+void list_copy (loc r) {
+}

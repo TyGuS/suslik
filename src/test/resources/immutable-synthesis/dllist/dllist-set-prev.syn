@@ -1,0 +1,16 @@
+should be able to set the previous pointer of a doubly-linked list
+
+#######
+
+{ true; (prev + 1) :-> x ** dllseg(x, z, s) }
+void set_prev(loc x, loc prev)
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)}
+
+#######
+
+void set_prev (loc x, loc prev) {
+  if (x == 0) {
+  } else {
+    *(x + 2) = prev;
+  }
+}

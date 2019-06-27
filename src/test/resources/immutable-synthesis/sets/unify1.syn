@@ -1,0 +1,12 @@
+Should solve the unification with empty sets
+
+#####
+
+{ S =i {v2} ++ S1 /\ S1 =i {} ; emp}
+void foo (int v)
+{ S =i {v2} ++ S11  /\  S11 =i {} ; emp}
+
+#####
+
+void foo (int v) {
+}

@@ -1,0 +1,15 @@
+predicate lseg(loc x, loc y, int len) {
+|  x == y        => { len == 0 ; emp }
+|  not (x == y)  => { len == 1 + len1 /\ 0 <= len1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y, len1) }
+}
+
+predicate tree0(loc x) {
+|  x == 0        => {emp}
+|  not (x == 0)  => {[x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree0(l) ** tree0(r)}
+}
+
+predicate treeN(loc x, int n) {
+|  x == 0        => {n == 0 ; emp}
+|  not (x == 0)  => { n == n1 + n2  /\  0 <= n1  /\  0 <= n2 ;
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
+}

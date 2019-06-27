@@ -1,0 +1,25 @@
+predicate tree(loc x) {
+|  x == 0        => {emp}
+|  not (x == 0)  => {[x, 3] ** x :-> 0 ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l) ** tree(r)}
+}
+
+predicate tree_elem(loc x, int e) {
+|  x == 0        => {emp}
+|  not (x == 0)  => {[x, 3] ** x :-> e ** (x + 1) :-> l ** (x + 2) :-> r ** tree_elem(l, e) ** tree_elem(r, e)}
+}
+
+predicate treeN(loc x, int n) {
+|  x == 0        => { n == 0 ; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 ;
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
+}
+
+predicate treeS(loc x, set s) {
+|  x == 0        => {s =i {}; emp}
+|  not (x == 0)  => {s =i {v} ++ s1 ++ s2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeS(l, s1) ** treeS(r, s2)}
+}
+
+predicate lseg(loc x, loc y) {
+|  x == y        => {emp}
+|  not (x == y)  => {[x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, y)}
+}

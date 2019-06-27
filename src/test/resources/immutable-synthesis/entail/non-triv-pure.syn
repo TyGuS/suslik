@@ -1,0 +1,6 @@
+should be able to synthesize an empty program for a non-trivial pure part
+###
+{ x == x  /\  y == x ; x :-> y} void bar(loc x, int y) { (x == x) /\ ((x == y) /\ true) ; x :-> y}
+###
+void bar (loc x, int y) {
+}

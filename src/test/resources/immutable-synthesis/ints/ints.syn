@@ -1,0 +1,15 @@
+should be able to handle simple assertions about integers
+
+###
+
+{ x < y ; r :-> 0 }
+
+void maxish(loc r, int x, int y)
+
+{ x <= m  /\  y <= m; r :-> m }
+
+###
+
+void maxish (loc r, int x, int y) {
+  *r = y;
+}

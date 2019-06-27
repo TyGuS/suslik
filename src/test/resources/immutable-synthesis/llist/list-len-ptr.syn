@@ -1,0 +1,21 @@
+should be able to synthesize list length from the root pointer
+
+#####
+
+{0 <= n ; r :-> x ** lsegn(x, 0, n) }
+void list_len(loc r)
+{true ; r :-> n ** lsegn(x, 0, n) }
+
+#####
+
+void list_len (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    list_len(r);
+    let len12 = *r;
+    *r = 1 + len12;
+  }
+}

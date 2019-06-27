@@ -1,0 +1,8 @@
+ambiguity
+#####
+predicate ambiguous(loc x, set s) {
+| x == 0 => { www==www ; emp }
+}
+
+{true ; emp} void foo (int v) {a==a ; ambiguous(q,w)}
+#####

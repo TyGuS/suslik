@@ -1,0 +1,8 @@
+should be able to discharge trivial equalities in the precondition
+###
+{ z == 5  /\  x == x ; x :-> y ** y :-> z}
+void foo(loc x, loc y)
+{ true ; y :-> 5 ** x :-> y}
+###
+void foo (loc x, loc y) {
+}

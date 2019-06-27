@@ -1,0 +1,8 @@
+should be able to synthesize a two-pointer constant-assigning procedure
+###
+{true; x :-> 1 ** y :-> 2} void bar(loc x, loc y) {true ; y :-> 239 ** x :-> 43}
+###
+void bar (loc x, loc y) {
+  *x = 43;
+  *y = 239;
+}

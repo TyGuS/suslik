@@ -1,0 +1,15 @@
+should be able to reason with singleton sets
+
+#####
+
+{ not (e == 0) ; x :-> a }
+
+void add(loc x, int e)
+
+{ e in {r} /\ not (0 in ({r} ++ {r})) ; x :-> r }
+
+######
+
+void add (loc x, int e) {
+  *x = e;
+}

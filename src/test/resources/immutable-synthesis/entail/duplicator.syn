@@ -1,0 +1,18 @@
+should be able to synthesize a duplicator
+
+###
+
+{ [x,1] ** x :-> a ** r :-> b }
+void duplicate(loc x, loc r)
+{ r :-> z ** z :-> a ** z + 1 :-> a ** [z,2] }
+
+###
+
+void duplicate (loc x, loc r) {
+  let a2 = *x;
+  let z2 = malloc(2);
+  *r = z2;
+  *z2 = a2;
+  *(z2 + 1) = a2;
+  free(x);
+}

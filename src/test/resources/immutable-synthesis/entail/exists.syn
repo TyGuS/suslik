@@ -1,0 +1,8 @@
+should be able to synthesize existentials in the post
+###
+{ true ; x :-> e}
+void foo (loc x)
+{ true ; x :-> a}
+###
+void foo (loc x) {
+}

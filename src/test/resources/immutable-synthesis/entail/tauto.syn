@@ -1,0 +1,7 @@
+should be able to get rid of tautologies in the post
+###
+{ y == x ; x :-> a } void bar(loc x, loc y) { (x == x) /\ (x == y) ; x :-> 4 }
+###
+void bar (loc x, loc y) {
+  *y = 4;
+}

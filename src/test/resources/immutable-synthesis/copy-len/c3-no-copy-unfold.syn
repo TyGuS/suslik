@@ -1,0 +1,16 @@
+Step 3: Recognise the same list in the post - II
+
+#####
+
+{ len == 1 + len1  /\  0 <= len1 ;
+  [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, len1)}
+
+void list_copy(loc x)
+
+{ len == 1 + len2  /\  0 <= len2 ;
+ [x, 2] ** x :-> w ** (x + 1) :-> nxt1 ** lseg(nxt1, 0, len2)}
+
+#####
+
+void list_copy (loc x) {
+}

@@ -1,0 +1,17 @@
+lemma: connected list segments
+
+#####
+
+{true ; lseg(x, y) ** lseg(y, 0)}
+void lemma (loc x, loc y)
+{true ; lseg(x, 0) }
+
+#####
+
+void lemma (loc x, loc y) {
+  if (x == y) {
+  } else {
+    let nxt2 = *(x + 1);
+    lemma(nxt2, y);
+  }
+}

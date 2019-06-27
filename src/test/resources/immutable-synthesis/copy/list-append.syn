@@ -1,0 +1,22 @@
+should be able to synthesize trivial list append
+
+#####
+
+{ r :-> x ** lseg(x, 0, s1) ** lseg(y, 0, s2)}
+void list_append(loc r, loc y)
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)}
+
+#####
+
+void list_append (loc r, loc y) {
+  let x2 = *r;
+  if (y == 0) {
+  } else {
+    let nxt2 = *(y + 1);
+    *r = nxt2;
+    list_append(r, x2);
+    let z12 = *r;
+    *(y + 1) = z12;
+    *r = y;
+  }
+}

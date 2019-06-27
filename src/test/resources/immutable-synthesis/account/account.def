@@ -1,0 +1,3 @@
+predicate account(loc x, int amount, int limit) {
+|  true  =>  { x :-> limit ** (x + 1) :-> amount ** [x, 2] }
+}

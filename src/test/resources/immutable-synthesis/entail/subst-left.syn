@@ -1,0 +1,8 @@
+should be able to substitute equalities
+###
+{ 5 == z  /\  y == a ; x :-> y ** y :-> z}
+void foo (loc x, loc y)
+{ x == x  /\  a == y  /\  true ; y :-> 5 ** x :-> y}
+###
+void foo (loc x, loc y) {
+}

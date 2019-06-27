@@ -1,0 +1,6 @@
+inc_or_dec
+#####
+{r :-> was}
+void inc_or_dec(loc r, bool should_inc)
+{ (should_inc /\ (ret == was + 1 )) \/ (not should_inc /\ (ret == was - 1)); r :-> ret}
+#####

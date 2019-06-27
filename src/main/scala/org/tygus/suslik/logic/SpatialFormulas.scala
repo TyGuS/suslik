@@ -135,7 +135,7 @@ case class Block(loc: Expr, sz: Int, isMutable: Boolean = true) extends Heaplet 
 
   // TODO no way there isn't a better way of extending the immutable behaviour
   def subst(sigma: Map[Var, Expr]): Heaplet = Block(loc.subst(sigma), sz, isMutable)
-  
+
   override def mkImmutable = this.copy(isMutable = false)
 
   def |-(other: Heaplet): Boolean = false

@@ -1,0 +1,16 @@
+Step 3: Recognise the same list in the post - II
+
+#####
+
+{ S =i {v} ++ S1 ;
+  [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, S1)}
+
+void list_copy(loc x)
+
+{S  =i  {w} ++ S3 ;
+ [x, 2] ** x :-> w ** (x + 1) :-> nxt1 ** lseg(nxt1, 0, S3)}
+
+#####
+
+void list_copy (loc x) {
+}
