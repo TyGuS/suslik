@@ -6,6 +6,6 @@ Copy a linked list
 
   void listcopy(loc r)
 
-{ true ; r :-> y ** lseg(y, S) }
+{ true ; r :-> y ** lseg(y, S) ** [lseg(x,S)]@A}
 
 #####

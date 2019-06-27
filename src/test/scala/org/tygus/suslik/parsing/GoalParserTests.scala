@@ -20,6 +20,7 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
   val spec10 = "{ r :-> x ** [lseg(x, S)] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
   val spec11 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
+  val spec12 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** [lseg(x, S)]@A ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
   import log._
@@ -81,7 +82,11 @@ class GoalParserTests extends FunSpec with Matchers {
     }
 
     it("should parse immutable points-to") {
-      parseWithListPredicate(spec10)
+      parseWithListPredicate(spec11)
+    }
+
+    it("should parse heap with absent") {
+      parseWithListPredicate(spec12)
     }
   }
 
