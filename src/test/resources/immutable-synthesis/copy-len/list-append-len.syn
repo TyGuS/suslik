@@ -1,12 +1,18 @@
 should be able to synthesize trivial list append
 
+TODO investigate -- either fails or take longer depending on which list is immutable
 #####
 
-{ 0 <= n ; r :-> x ** lseg(x, 0, n) ** lseg(y, 0, m)}
-void list_append(loc r, loc y)
-{ k == n + m ; r :-> z ** lseg(z, 0, k)}
+{ 0 <= n ; lseg(y, 0, n) ** lseg(x, 0, m)}
+void list_append(loc y, loc x)
+{ true  ; lseg(x, 0, k)}
 
 #####
+
+{ 0 <= n ; lseg(x, 0, n) ** [lseg(y, 0, m)] }
+void list_append(loc y, loc x)
+{ r = 2*n /\ s = r - 1  ; lseg(x, 0, n-1) ** (x+s) :-> - ** (x+r) :-> y }
+
 
 void list_append (loc r, loc y) {
   let x2 = *r;
@@ -20,3 +26,13 @@ void list_append (loc r, loc y) {
     *r = y;
   }
 }
+
+Successfully synthesised in 1018 milliseconds:
+Number of backtrackings 92
+Lasting successful rule applications: 45
+Total successful rule applications: 96
+Final size of SMT cache: 150
+Number of saved negative results: 52
+Number of saved positive results: 45
+Number of recalled negative results: 0
+Number of recalled positive results: 0

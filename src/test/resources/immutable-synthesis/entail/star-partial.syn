@@ -7,3 +7,5 @@ void foo (loc x, loc y)
 void foo (loc x, loc y) {
   error;
 }
+
+TODO also don't think immutable should help here

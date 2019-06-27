@@ -2,7 +2,7 @@ should be able to synthesize trivial list append
 
 #####
 
-{ r :-> x ** lseg(x, 0, s1) ** lseg(y, 0, s2)}
+{ r :-> x ** [lseg(x, 0, s1)] ** lseg(y, 0, s2)}
 void list_append(loc r, loc y)
 { s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)}
 

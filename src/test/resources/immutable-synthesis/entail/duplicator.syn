@@ -2,11 +2,62 @@ should be able to synthesize a duplicator
 
 ###
 
-{ [x,1] ** x :-> a ** r :-> b }
+{ [x,1] ** [x :-> a] ** r :-> b }
 void duplicate(loc x, loc r)
 { r :-> z ** z :-> a ** z + 1 :-> a ** [z,2] }
 
 ###
+
+void duplicate (loc x, loc r) {
+  let a2 = *x;
+  let z2 = malloc(2);
+  *r = z2;
+  *z2 = a2;
+  *(z2 + 1) = a2;
+  free(x);
+}
+
+original
+Successfully synthesised in 273 milliseconds:
+Number of backtrackings 16
+Lasting successful rule applications: 13
+Total successful rule applications: 23
+Final size of SMT cache: 10
+Number of saved negative results: 8
+Number of saved positive results: 13
+Number of recalled negative results: 1
+Number of recalled positive results: 0
+
+
+{ [[x,1]] ** [x :-> a] ** r :-> b }
+Successfully synthesised in 225 milliseconds:
+Number of backtrackings 4
+Lasting successful rule applications: 12
+Total successful rule applications: 15
+Final size of SMT cache: 8
+Number of saved negative results: 2
+Number of saved positive results: 12
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void duplicate (loc x, loc r) {
+  let a2 = *x;
+  let z2 = malloc(2);
+  *r = z2;
+  *z2 = a2;
+  *(z2 + 1) = a2;
+}
+
+{ [x,1] ** [x :-> a] ** r :-> b }
+Successfully synthesised in 241 milliseconds:
+Number of backtrackings 4
+Lasting successful rule applications: 13
+Total successful rule applications: 16
+Final size of SMT cache: 8
+Number of saved negative results: 2
+Number of saved positive results: 13
+Number of recalled negative results: 0
+Number of recalled positive results: 0
 
 void duplicate (loc x, loc r) {
   let a2 = *x;

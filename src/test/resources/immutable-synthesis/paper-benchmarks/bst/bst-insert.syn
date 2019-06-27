@@ -1,6 +1,8 @@
 # -b true -c 2
 binary search tree: insert an element
 
+more fine-grained immutability
+TODO insert this - it tends to fail
 #####
 
 {0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** bst(x, n, lo, hi) }

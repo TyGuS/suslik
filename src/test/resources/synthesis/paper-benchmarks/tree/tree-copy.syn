@@ -2,9 +2,9 @@ should be able to synthesize a tree copy (with elements)
 
 #####
 
-{true ; r :-> x ** tree(x, s)}
+{true ; tree(x, s) ** r :-> x }
 void tree_copy(loc r)
-{true ; r :-> y ** tree(x, s) ** tree(y, s) }
+{true ; r :-> y ** tree(y, s)  ** tree(x, s)}
 
 #####
 
@@ -31,3 +31,14 @@ void tree_copy (loc r) {
     *x2 = v2;
   }
 }
+
+
+Successfully synthesised in 1631 milliseconds:
+Number of backtrackings 433
+Lasting successful rule applications: 50
+Total successful rule applications: 309
+Final size of SMT cache: 211
+Number of saved negative results: 199
+Number of saved positive results: 50
+Number of recalled negative results: 7
+Number of recalled positive results: 0

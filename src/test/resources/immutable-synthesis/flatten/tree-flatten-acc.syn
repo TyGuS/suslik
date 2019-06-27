@@ -1,5 +1,5 @@
 should be able to flatten the tree into a list given a list accumulator
-
+TODO same problem as other flatten
 ####
 
 { true ; tree(x, s) ** z :-> y ** lseg(y, 0, acc)}

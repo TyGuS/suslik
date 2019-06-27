@@ -2,9 +2,9 @@ should be able to synthesize list copy
 
 #####
 
-{true ; r :-> blank ** lseg(x, 0, s)}
+{true ; r :-> blank ** [lseg(x, 0, s)]}
 void list_copy(loc r, loc x)
-{true ; r :-> y ** lseg(x, 0, s) ** lseg(y, 0, s) }
+{true ; r :-> y ** lseg(y, 0, s) }
 
 #####
 

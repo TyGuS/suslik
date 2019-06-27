@@ -2,11 +2,57 @@ should be able to synthesize list length from the root pointer
 
 #####
 
-{0 <= n ; r :-> x ** lsegn(x, 0, n) }
+{0 <= n ; r :-> x ** [lsegn(x, 0, n)] }
 void list_len(loc r)
-{true ; r :-> n ** lsegn(x, 0, n) }
+{true ; r :-> n }
 
 #####
+
+void list_len (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    list_len(r);
+    let len12 = *r;
+    *r = 1 + len12;
+  }
+}
+
+Successfully synthesised in 606 milliseconds:
+Number of backtrackings 4
+Lasting successful rule applications: 29
+Total successful rule applications: 31
+Final size of SMT cache: 74
+Number of saved negative results: 2
+Number of saved positive results: 29
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void list_len (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    list_len(r);
+    let len12 = *r;
+    *r = 1 + len12;
+  }
+}
+
+vs immutable
+
+Successfully synthesised in 473 milliseconds:
+Number of backtrackings 0
+Lasting successful rule applications: 20
+Total successful rule applications: 20
+Final size of SMT cache: 45
+Number of saved negative results: 0
+Number of saved positive results: 20
+Number of recalled negative results: 0
+Number of recalled positive results: 0
 
 void list_len (loc r) {
   let x2 = *r;

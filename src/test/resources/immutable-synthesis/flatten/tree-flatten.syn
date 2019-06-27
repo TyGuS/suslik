@@ -29,3 +29,15 @@ void tree_flatten (loc z) {
     *y3 = v2;
   }
 }
+
+Successfully synthesised in 1264 milliseconds:
+Number of backtrackings 32
+Lasting successful rule applications: 38
+Total successful rule applications: 57
+Final size of SMT cache: 270
+Number of saved negative results: 15
+Number of saved positive results: 38
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+TODO can we do it faster? need to alloc and dealloc

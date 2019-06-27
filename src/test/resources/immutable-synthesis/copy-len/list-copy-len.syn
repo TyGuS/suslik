@@ -2,11 +2,46 @@ should be able to synthesize list copy
 
 #####
 
-{0 <= n ; r :-> a ** lseg(x, 0, n)}
+{0 <= n ; r :-> a ** [lseg(x, 0, n)]}
 void list_copy(loc r, loc x)
-{true ; r :-> y ** lseg(x, 0, n) ** lseg(y, 0, n) }
+{true ; r :-> y ** lseg(y, 0, n) }
 
 #####
+
+void list_copy (loc r, loc x) {
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let nxt2 = *(x + 1);
+    list_copy(r, nxt2);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *r = y2;
+    *(y2 + 1) = y12;
+  }
+}
+
+Successfully synthesised in 1004 milliseconds:
+Number of backtrackings 16
+Lasting successful rule applications: 37
+Total successful rule applications: 46
+Final size of SMT cache: 97
+Number of saved negative results: 9
+Number of saved positive results: 37
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+vs immutable:
+
+Successfully synthesised in 746 milliseconds:
+Number of backtrackings 8
+Lasting successful rule applications: 28
+Total successful rule applications: 33
+Final size of SMT cache: 90
+Number of saved negative results: 5
+Number of saved positive results: 28
+Number of recalled negative results: 0
+Number of recalled positive results: 0
 
 void list_copy (loc r, loc x) {
   if (x == 0) {

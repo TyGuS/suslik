@@ -1,12 +1,42 @@
 should be able to set the previous pointer of a doubly-linked list
 
+is even finer-grained immutability possible?
 #######
 
-{ true; (prev + 1) :-> x ** dllseg(x, z, s) }
+{ true; [(prev + 1) :-> x] ** dllseg(x, z, s) }
 void set_prev(loc x, loc prev)
-{ true; (prev + 1) :-> x ** dllseg(x, prev, s)}
+{ true; dllseg(x, prev, s)}
 
 #######
+
+void set_prev (loc x, loc prev) {
+  if (x == 0) {
+  } else {
+    *(x + 2) = prev;
+  }
+}
+
+Successfully synthesised in 736 milliseconds:
+Number of backtrackings 2
+Lasting successful rule applications: 21
+Total successful rule applications: 22
+Final size of SMT cache: 43
+Number of saved negative results: 1
+Number of saved positive results: 21
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+vs immutable
+
+Successfully synthesised in 460 milliseconds:
+Number of backtrackings 2
+Lasting successful rule applications: 17
+Total successful rule applications: 18
+Final size of SMT cache: 41
+Number of saved negative results: 1
+Number of saved positive results: 17
+Number of recalled negative results: 0
+Number of recalled positive results: 0
 
 void set_prev (loc x, loc prev) {
   if (x == 0) {

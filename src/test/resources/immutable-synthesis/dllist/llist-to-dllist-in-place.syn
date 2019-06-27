@@ -1,8 +1,10 @@
-should be able to convert a doubly-linked list to single-linked list
+should be able to convert a singly-linked list to doubly-linked list
 
+finger-grained immutability
+how can we propagate it?
 #######
 
-{ true ; lseg_extra(x, s)}
+{ s =i {v} ++ s1 ; [[x, 3]] ** [x :-> v] ** [(x + 1) :-> nxt] ** (x + 2) :-> extra ** lseg_extra(nxt, s1) }
 void sll_to_dll(loc x)
 { true ; dllseg(x, z, s)}
 

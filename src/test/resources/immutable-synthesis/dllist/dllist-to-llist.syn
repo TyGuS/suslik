@@ -1,5 +1,6 @@
 should be able to convert a doubly-linked list to single-linked list
 
+TODO is this possible? it seems we need to create and destroy nodes
 #######
 
 { true ; f :-> x ** dllseg(x, z, s)}

@@ -3,6 +3,7 @@ Add a head to a list and close the predicate
 
 Produces a wrong result so far
 
+TODO investigate failure
 #####
 
 {S =i {v} ++ S1 ;

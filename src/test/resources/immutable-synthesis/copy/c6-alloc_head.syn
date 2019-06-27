@@ -8,11 +8,12 @@ TODO should be able to add some more find-grained granularity...
 {S =i {v} ++ {w} ++ S1 ; r :-> t3 ** [[t3, 2]] ** [t3 :-> w] ** t3 + 1 :-> nxt ** [lseg(nxt, 0, S1)] }
 #####
 
-{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S) }
+{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S1) }
 
 void list_copy(loc r, int v, loc t3)
 
 {true; r :-> y ** lseg(y, 0, S)}
+
 
 #####
 

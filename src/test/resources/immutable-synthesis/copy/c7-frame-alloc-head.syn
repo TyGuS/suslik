@@ -3,10 +3,11 @@ Add a head to a list
 
 Produces a wrong result so far
 
+TODo investigate failure
 #####
 
 {S =i {v} ++ S1 ;
-   [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, S1) **
+   [[x, 2]] ** [x :-> v] ** [(x + 1) :-> nxt] ** [lseg(nxt, 0, S1)] **
    r :-> t3 **
    lseg(t3, 0, S1) }
 
