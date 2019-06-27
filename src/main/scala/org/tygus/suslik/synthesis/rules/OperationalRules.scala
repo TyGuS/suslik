@@ -154,49 +154,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   }
 
   /*
-  Read-only read rule: create a fresh typed read from a readonly heaplet
-
-        y is fresh   Γ,y ; [y/A]{φ ; x -> A * P} ; [y/A]{ψ ; Q} ---> S
-      ---------------------------------------------------------------- [read]
-             Γ ; {φ ; x.f -> A * P} ; {ψ ; Q} ---> let y := *x.f ; S
-  */
-  object ReadOnlyReadRule extends SynthesisRule with AnyPhase with InvertibleRule {
-
-    // TODO what even is the functional difference we've created here?
-    override def toString: Ident = "[Op: readonly read]"
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-      val pre = goal.pre
-      val post = goal.post
-      val gamma = goal.gamma
-
-      def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, a@Var(_), _) =>
-          goal.isGhost(a) && !goal.isGhost(x)
-        case _ => false
-      }
-
-      findHeaplet(isGhostPoints, goal.pre.sigma) match {
-        case None => Nil
-        case Some(h@PointsTo(x@Var(_), offset, a@Var(_), _)) =>
-          if (h.isMutable) {
-            return Nil
-          }
-
-          val y = generateFreshVar(goal, a.name)
-          val tpy = goal.getType(a)
-
-          val subGoal = goal.copy(pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
-          val kont: StmtProducer = prepend(Load(y, tpy, x, offset), toString)
-          List(Subderivation(List(subGoal), kont))
-        case Some(h) =>
-          ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
-          Nil
-      }
-    }
-  }
-
-  /*
   Alloc rule: allocate memory for an existential block
 
            X ∈ GV(post) / GV (pre)        y, Ai fresh

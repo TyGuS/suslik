@@ -32,6 +32,10 @@ object MTag extends Enumeration {
     case (x, _) => x
   }
 
+  def isMutable(tag: Value) = tag == MTag.Mut
+  def isImutable(tag: Value) = tag == MTag.Imm
+  def isAbsent(tag: Value) = tag == MTag.Abs
+
 }
 
 /**
@@ -41,9 +45,9 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   
   def mut: MTag.Value
 
-  def isMutable: Boolean = mut == MTag.Mut
-
-  def isImmutable: Boolean = !isMutable
+  def isMutable: Boolean = MTag.isMutable(mut)
+  def isImmutable: Boolean = MTag.isImutable(mut)
+  def isAbsent: Boolean = MTag.isAbsent(mut)
 
   def mkImmutable: Heaplet
 

@@ -50,7 +50,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     Axiom: Readonly spatial only and pure is valid -> emit skip
 
   */
-  object ReadOnlyEmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
+  object AbsentEmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
 
     override def toString: Ident = "[Sub: emp]"
 
@@ -58,17 +58,17 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      if (isReadonly(pre.sigma) && post.sigma.isEmp && // heaps are empty
+      if (isAbsent(pre.sigma) && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty && // no existentials
         SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post
         List(Subderivation(Nil, _ => Skip)) // we are done
       else Nil
     }
 
-    def isReadonly(heap: SFormula): Boolean = {
+    def isAbsent(heap: SFormula): Boolean = {
       heap.chunks.foldLeft[Boolean](true)((acc, h) =>
-        if (h.isMutable) false
-        else acc)
+        if (h.isAbsent) acc
+        else false)
       }
     }
 
