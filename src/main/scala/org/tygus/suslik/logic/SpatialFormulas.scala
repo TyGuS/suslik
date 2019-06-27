@@ -13,16 +13,39 @@ import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 //  // TODO fix resolve so that it carries over immutability 
 //}
 
+object MTag extends Enumeration {
+  type MutabilityTag = Value
+  val Mut, Imm, Abs = Value
+
+  def pre(t1: Value, t2: Value): Boolean = (t1, t2) match {
+    case (Mut, _) => true
+    case (_, Abs) => true
+    case (x, y) if x == y => true
+    case _ => false
+  }
+  
+  def lub(t1: Value, t2: Value) = (t1, t2) match {
+    case (Mut, x) => x
+    case (x, Mut) => x
+    case (_, Abs) => Abs
+    case (Abs, _) => Abs
+    case (x, _) => x
+  }
+
+}
+
 /**
   * Separation logic fragment
   */
 sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
   
-  def isMutable: Boolean
-  
+  def mut: MTag.Value
+
+  def isMutable: Boolean = mut == MTag.Mut
+
   def isImmutable: Boolean = !isMutable
-  
-  def mkImmutable : Heaplet 
+
+  def mkImmutable: Heaplet
 
   //  def mkImmutable(): this.type = {
   //    mut = false
@@ -58,7 +81,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
-  def lhsVars : Set[Var]
+  def lhsVars: Set[Var]
 
   def rank: Int
 
@@ -81,7 +104,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   * var + offset :-> value
   */
 case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
-                    isMutable: Boolean = true) extends Heaplet {
+                    mut: MTag.Value = MTag.Mut) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): PointsTo = {
     this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
@@ -94,12 +117,13 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet =
-    PointsTo(loc.subst(sigma), offset, value.subst(sigma), isMutable)
+    PointsTo(loc.subst(sigma), offset, value.subst(sigma), mut)
 
+  // TODO [Immutability] Take that partial order for mutability tags into the account
   def |-(other: Heaplet): Boolean = other match {
     case PointsTo(_loc, _offset, _value, _mut) =>
       this.loc == _loc && this.offset == _offset && this.value == _value &&
-        this.isMutable == _mut
+        this.mut == _mut
     case _ => false
   }
 
@@ -112,7 +136,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
 
   def rank: Int = 2
 
-  override def mkImmutable = this.copy(isMutable = false)
+  override def mkImmutable = this.copy(mut = MTag.Imm)
 
   override def lhsVars: Set[Var] = loc match {
     case elems: Var => Set[Var](elems)
@@ -123,7 +147,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
 /**
   * block(var, size)
   */
-case class Block(loc: Expr, sz: Int, isMutable: Boolean = true) extends Heaplet {
+case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(loc = loc.resolveOverloading(gamma))
@@ -134,9 +158,9 @@ case class Block(loc: Expr, sz: Int, isMutable: Boolean = true) extends Heaplet 
   }
 
   // TODO no way there isn't a better way of extending the immutable behaviour
-  def subst(sigma: Map[Var, Expr]): Heaplet = Block(loc.subst(sigma), sz, isMutable)
+  def subst(sigma: Map[Var, Expr]): Heaplet = Block(loc.subst(sigma), sz, mut)
 
-  override def mkImmutable = this.copy(isMutable = false)
+  override def mkImmutable = this.copy(mut = MTag.Imm)
 
   def |-(other: Heaplet): Boolean = false
 
@@ -153,7 +177,7 @@ case class Block(loc: Expr, sz: Int, isMutable: Boolean = true) extends Heaplet 
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), isMutable: Boolean = true) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(args = args.map(_.resolveOverloading(gamma)))
@@ -170,7 +194,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), isMuta
 
   def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
 
-  override def mkImmutable = this.copy(isMutable = false)
+  override def mkImmutable = this.copy(mut = MTag.Imm)
 
   def |-(other: Heaplet): Boolean = false
 
@@ -191,7 +215,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), isMuta
 
   def rank: Int = 0
 
-  override def lhsVars: Set[Var] = args.foldLeft[Set[Var]](Set.empty[Var])((acc : Set[Var], arg : Expr) => arg match {
+  override def lhsVars: Set[Var] = args.foldLeft[Set[Var]](Set.empty[Var])((acc: Set[Var], arg: Expr) => arg match {
     case elems: Var => acc ++ Set[Var](elems)
     case _ => acc
   })

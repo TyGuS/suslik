@@ -93,16 +93,17 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   }
 
   def immutableheaplet : Parser[Heaplet] = (
-    "[" ~> heaplet(false) <~ "]"
-    ||| heaplet(true)
+    "[" ~> heaplet(MTag.Imm) <~ "]"
+    ||| "[" ~> heaplet(MTag.Abs) <~ "]@A"
+    ||| heaplet(MTag.Mut)
   )
 
   // TODo this is what I would consider gross, but
   // can't think of a better way at thie time
-  def heaplet(mutable : Boolean): Parser[Heaplet] = (
+  def heaplet(mutable : MTag.Value): Parser[Heaplet] = (
       (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b, mutable) }
           ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s), mutable)}
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args, isMutable = mutable) }
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args, mut = mutable) }
       )
 
   def sigma: Parser[SFormula] = (

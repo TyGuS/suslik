@@ -23,15 +23,20 @@ object SpatialUnification extends UnificationBase {
     *
     * If successful, returns a substitution from `source`'tFrame fresh variables to `target`'tFrame variables
     */
+
+  // TODO [Immutability] Take that partial order for mutability tags into the account
   def tryUnify(target: UAtom, source: UAtom,
                nonFreeInSource: Set[Var],
                // Take the application level tags into the account
                // should be ignored when used from the *-intro rule
                tagsMatter: Boolean = true): Seq[Subst] = {
+    import MTag._
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y, m1), PointsTo(a@Var(_), o2, b, m2)) =>
-        if (o1 != o2 || m1 != m2) Nil else {
+        if (o1 != o2 ||
+          !pre(m1, m2)
+        ) Nil else {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
           val sbst = for {
@@ -45,7 +50,7 @@ object SpatialUnification extends UnificationBase {
           sbst.toList
         }
       case (Block(x1@Var(_), s1, m1), Block(x2@Var(_), s2, m2)) =>
-        if (s1 != s2 || m1 != m2) Nil else {
+        if (s1 != s2 || !pre(m1, m2)) Nil else {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource).toList
         }
@@ -54,7 +59,7 @@ object SpatialUnification extends UnificationBase {
         // if es2.forall(_.isInstanceOf[Var])
 
         if (p1 != p2 || es1.size != es2.size ||
-          m1 != m2 ||
+          !pre(m1, m2) ||
           (targetTag != sourceTag && tagsMatter)) Nil
 
         else {
@@ -90,11 +95,13 @@ object SpatialUnification extends UnificationBase {
     if (ps1.size != ps2.size) return false
     if (bs1.size != bs2.size) return false
     if (as1.size != as2.size) return false
+    import MTag._
 
     // Check matching blocks
     val checkMatchingBlocks = (bs1: List[Heaplet], bs2: List[Heaplet]) =>
       bs1.forall {
-        case Block(_, s1, m1) => bs2.exists { case Block(_, s2, m2) => s1 == s2 && m1 == m2; case _ => false }
+        case Block(_, s1, m1) => bs2.exists { case Block(_, s2, m2) => s1 == s2 && 
+          pre(m1, m2); case _ => false }
         case _ => false
       }
 
@@ -104,7 +111,8 @@ object SpatialUnification extends UnificationBase {
     val checkMatchingApps = (as1: List[Heaplet], as2: List[Heaplet]) =>
       as1.forall {
         case SApp(x1, xs1, _, m1) =>
-          as2.exists { case SApp(x2, xs2, _, m2) => x1 == x2 && xs1.size == xs2.size && m1 == m2; case _ => false }
+          as2.exists { case SApp(x2, xs2, _, m2) => x1 == x2 && xs1.size == xs2.size &&
+            pre(m1, m2); case _ => false }
         case _ => false
       }
     if (!checkMatchingApps(as1, as2) || !checkMatchingApps(as2, as1)) return false
@@ -169,6 +177,7 @@ object SpatialUnification extends UnificationBase {
     }
   }
 
+  // TODO: [Immutability] Make sure that the correct permissions are restored
   def removeCommonFrame(source: SFormula, target: SFormula, boundVars: Set[Var]): Seq[FrameChoppingResult] = {
 
     // Strip as much from the two formulas as possible,
