@@ -117,7 +117,9 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
     val overall = s"$head :-> ${value.pp}"
-    if (isImmutable) s"[$overall]" else overall
+    if (isImmutable) s"[$overall]"
+    else if (isAbsent) s"[$overall]@A"
+    else overall
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet =
@@ -158,7 +160,9 @@ case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet
 
   override def pp: Ident = {
     val overall = s"[${loc.pp}, $sz]"
-    if (isImmutable) s"[$overall]" else overall
+    if (isImmutable) s"[$overall]"
+    else if (isAbsent) s"[$overall]@A"
+    else overall
   }
 
   // TODO no way there isn't a better way of extending the immutable behaviour
@@ -193,7 +197,9 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), mut: M
       case Some(t) => s"[$t]"
     }
     val overall = s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
-    if (isImmutable) s"[$overall]" else overall
+    if (isImmutable) s"[$overall]"
+    else if (isAbsent) s"[$overall]@A"
+    else overall
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))

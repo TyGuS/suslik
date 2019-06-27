@@ -97,7 +97,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some(h@PointsTo(x@Var(_), offset, l, _)) =>
 
-          // Cannot write to immutable heaplets
+          // Cannot write to immutable or absent heaplets
           if (!h.isMutable) return Nil
 
           // Same heaplet in pre: no point in writing
@@ -139,7 +139,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
-        case Some(PointsTo(x@Var(_), offset, a@Var(_), _)) =>
+        case Some(h@PointsTo(x@Var(_), offset, a@Var(_), _)) =>
+          if (h.isAbsent) return Nil
+
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
 
@@ -232,7 +234,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some((h@Block(x@Var(_), _, _), pts)) =>
           // should not be allowed if the target heaplet is immutable
-        if (h.isImmutable) return Nil
+          if (!h.isMutable) return Nil
 
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
