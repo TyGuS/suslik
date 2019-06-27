@@ -4,9 +4,11 @@ Add a head to a list
 Produces a seemingly right result, but takes sooper-long.
 Serves as an example of a problem with closing.
 
+TODO should be able to add some more find-grained granularity...
+{S =i {v} ++ {w} ++ S1 ; r :-> t3 ** [[t3, 2]] ** [t3 :-> w] ** t3 + 1 :-> nxt ** [lseg(nxt, 0, S1)] }
 #####
 
-{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S1) }
+{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S) }
 
 void list_copy(loc r, int v, loc t3)
 

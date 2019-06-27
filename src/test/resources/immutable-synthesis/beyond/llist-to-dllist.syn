@@ -2,9 +2,10 @@ should be able to convert a signly-linked list to a double-linked list
 currently fails because this requires allocation before call (or open);
 can be fixed by interleaving phases or moving alloc to an earlier phase
 
+TODO can also implement fine-grained immutability
 #######
 
-{ true ; f :-> x ** lseg(x, s)}
+{  s =i {v} ++  s1 ; f :-> x ** [x,2] ** x:->v ** x+1 :-> nxt ** lseg(nxt, s1) }
 void sll_to_dll(loc f)
 { true ;  f :-> i ** dllseg(i, z, s)}
 

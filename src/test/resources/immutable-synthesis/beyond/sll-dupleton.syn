@@ -1,6 +1,7 @@
 #. this -c 3
 singly-linked list: construct a list with two elements
 
+TODO ??? can't make immutable?
 #####
 
 { true ; ret :-> a }
