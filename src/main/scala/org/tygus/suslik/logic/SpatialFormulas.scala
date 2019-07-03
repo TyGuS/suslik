@@ -32,9 +32,31 @@ object MTag extends Enumeration {
     case (x, _) => x
   }
 
-  def isMutable(tag: Value) = tag == MTag.Mut
-  def isImutable(tag: Value) = tag == MTag.Imm
-  def isAbsent(tag: Value) = tag == MTag.Abs
+  def glb(t1: Value, t2: Value) = (t1, t2) match {
+    case (Mut, _) => Mut
+    case (_, Mut) => Mut
+    case (x, Abs) => x
+    case (Abs, x) => x
+    case (x, _) => x
+  }
+
+  def residue(have: Value, need: Value) : MTag.Value = (have, need) match {
+//    case (Imm, Imm) => Imm
+//    case (x, y) if x == y => Abs
+//    case (_, Abs) => have
+//    case (Mut, Imm) => Mut
+
+    case (Mut, Mut) => Abs
+    case (Mut, _) => Mut // weird case of Mut, Imm
+    //case (Mut, Imm) => Abs // proper calculus
+    case (Imm, Imm) => Imm
+    case (x, Abs) => x
+    case _ => Abs // disallowed cases, e.g. Imm, Mut TODO [Immutability]
+  }
+
+  def isMutable(tag: Value): Boolean = tag == MTag.Mut
+  def isImutable(tag: Value): Boolean = tag == MTag.Imm
+  def isAbsent(tag: Value): Boolean = tag == MTag.Abs
 
 }
 

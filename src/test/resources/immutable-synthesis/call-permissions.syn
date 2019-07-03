@@ -1,0 +1,17 @@
+attempt to synthesize call
+
+#####
+predicate lseg(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }
+}
+
+{ true ; [ r :-> x ] ** s :-> y ** s + 1 :-> nxt ** lseg(nxt, S1) }
+    void copy_random(loc x, loc t)
+{ z == x; [ r :-> x ]@A **  s :-> x ** s + 1 :-> nxt ** lseg(nxt, S1)}
+
+{ true ; r :-> x ** t :-> y }
+    void random(loc r, loc t)
+{ true ; r :-> x ** lseg(z,S) }
+
+#####

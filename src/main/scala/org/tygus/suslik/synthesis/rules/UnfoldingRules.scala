@@ -39,6 +39,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val env = goal.env
 
+     //if (h.isAbsent) return None // TODO [Immutability] correct?
+
       h match {
         case SApp(pred, args, Some(t), mut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
@@ -193,16 +195,79 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * Make a call goal for `f` with a given precondition
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
+
+      //val diff = f.post.sigma.chunks.foldLeft[Set[Heaplet]](Set.empty[Heaplet])((acc : Set[Heaplet], h: Heaplet) =>
+      //if (f.pre.sigma.chunks.contains(h)) acc + h else acc) // post &~ pre (set difference)
+
       val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.lastIndexOf(p)).toSet
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
+
+      /* added starts */
+      val callPre = f.pre.subst(sub)
+      // todo don't need a diff -- it's fine to apply to all heaplets
+      //val diff = callPost.sigma.chunks.filterNot(callPre.sigma.chunks.toSet)
+      //val diffEtc = SFormula(f.post.sigma.chunks.filterNot(f.pre.sigma.chunks.toSet))
+      //diffEtc.subst(sub)
+      //val diff = diffEtc.chunks
+
+      val permissionedCallPost = SFormula(callPost.sigma.chunks.map((h : Heaplet) => {
+        //if (diff.contains(h)) {
+          // we need to find the corresponding heaplet in the callSubPre and f.pre
+          // the pre and post should use the same variables
+          def findCorrespondingHeaplets[T <: Heaplet](inner : Heaplet): Boolean =
+            h match {
+              case _ : PointsTo => inner.isInstanceOf[PointsTo] && inner.vars == h.vars
+              case _ : Block => inner.isInstanceOf[Block] && inner.vars == h.vars
+              case _ : SApp => inner.isInstanceOf[SApp] && inner.vars == h.vars
+            }
+
+          val callSubPreSubbed : SFormula = callSubPre.sigma subst sub
+
+          val allPreHeapSubbed = callPre.sigma.chunks.filter(findCorrespondingHeaplets)
+          if (allPreHeapSubbed.nonEmpty) {
+            val preHeap = allPreHeapSubbed.head // assumung only one
+            // there should be a matching one, otherwise synthesis would fail
+            // TODO
+            val allCallSubPreHeapSubbed = callSubPreSubbed.chunks.filter(findCorrespondingHeaplets) // assuming only one
+            if (allCallSubPreHeapSubbed.nonEmpty) {
+              val preHeapSubbed = allCallSubPreHeapSubbed.head
+
+              // TODO [Immutability] pre is backwards
+              // h should be weaker or equal to i.e. abs < imm < mut than the preheap
+              assert(MTag.pre(preHeap.mut, h.mut)) // make sure that the returned permission is equal to or weaker than
+
+              val newPermission = MTag.glb(MTag.residue(preHeapSubbed.mut, preHeap.mut), h.mut)
+              h match {
+                case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = newPermission)
+                case Block(a, b, c) => Block(a, b, mut = newPermission)
+                case SApp(a, b, c, d) => SApp(a, b, c, mut = newPermission)
+                case _ => h
+              }
+            } else h
+          } else h
+      //  } else h
+      }))
+
+      /* added ends */
+
       val newEnv = if (f.name == goal.fname) goal.env else {
         // To avoind more than one application of a library function
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
-      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
-      val addedChunks2 = callPost.sigma.lockSAppTags()
+
+      // check for each heaplet which matches against something in the call pre
+      // update the post(?)
+
+
+//      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
+//      val addedChunks2 = callPost.sigma.lockSAppTags()
+
+      val addedChunks1 = permissionedCallPost.bumpUpSAppTags()
+      val addedChunks2 = permissionedCallPost.lockSAppTags()
+
+
       // Here we return two options for added chunks:
       // (a) with bumped tags
       // (b) with locked tags
@@ -348,7 +413,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualConstraints = actualAssertion.phi
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
-//             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+            //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
 
             // Closes should be immutable also
             // but this shouldn't be a regular case
