@@ -1,5 +1,6 @@
 package org.tygus.suslik.logic
 
+import org.tygus.suslik.language
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
@@ -95,7 +96,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
         acc1 ++ value.collect(p)
       case Block(v, sz, _) =>
         if (p(v)) acc + v.asInstanceOf[R] else acc
-      case SApp(_, args, _, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
+      case SApp(_, args, _, _, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
     }
 
     collector(Set.empty)(this)
@@ -121,7 +122,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   def size: Int = this match {
     case PointsTo(loc, _, value, _) => 1 + loc.size + value.size
     case Block(loc, _, _) => 1 + loc.size
-    case SApp(_, args, _, _) => args.map(_.size).sum
+    case SApp(_, args, _, _, _) => args.map(_.size).sum
   }
 
 }
@@ -207,10 +208,10 @@ case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[language.Expressions.PFormula], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut, submut: List[MTag.Value]) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    this.copy(args = args.map(_.resolveOverloading(gamma)))
+    this.copy(args = args.map(_.resolveOverloading(gamma)), submut = List.empty[MTag.Value])
 
   override def pp: String = {
     val ppTag: Option[Int] => String = {
@@ -224,9 +225,9 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), mut: M
     else overall
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
+  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = List.empty[MTag.Value])
 
-  override def mkImmutable = this.copy(mut = MTag.Imm)
+  override def mkImmutable = this.copy(mut = MTag.Imm, submut = List.empty[MTag.Value])
 
   def |-(other: Heaplet): Boolean = false
 
@@ -255,7 +256,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), mut: M
 
   // TODO really terrible that we have to keep repeating this logic
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
-    this.copy(tag = f(this.tag))
+    this.copy(tag = f(this.tag), submut = List.empty[MTag.Value])
 }
 
 
@@ -270,7 +271,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   // Changing it here is the wrong approach. I need to change it when it's created...
   def blocks: List[Block] = for (b@Block(_, _, _) <- chunks) yield b
 
-  def apps: List[SApp] = for (b@SApp(_, _, _, _) <- chunks) yield b
+  def apps: List[SApp] = for (b@SApp(_, _, _, _, _) <- chunks) yield b
 
   def ptss: List[PointsTo] = for (b@PointsTo(_, _, _, _) <- chunks) yield b
 

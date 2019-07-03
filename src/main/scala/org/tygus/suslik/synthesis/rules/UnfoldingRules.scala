@@ -42,7 +42,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
      //if (h.isAbsent) return None // TODO [Immutability] correct?
 
       h match {
-        case SApp(pred, args, Some(t), mut) if t < env.config.maxOpenDepth =>
+        case SApp(pred, args, Some(t), mut, submut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           // TODO if the predicate was immutable, must ensure the pieces are also
@@ -59,6 +59,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             body = asn.sigma
             // if our heaplet was not immutable, our opening must be immutable also
             predChunks = if (h.isImmutable) {
+              // TODO zip with the sapp
               body.chunks.map (c => c.mkImmutable)
             } else {
               body.chunks
@@ -115,9 +116,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       // Re-tagging all predicate occurrences, so the inductive argument
       // would be tagged with Some(1), and everyone else with None(1)
-      val SApp(pname, xs, t, _) = h
+      val SApp(pname, xs, t, _, _) = h
       val matcher: Heaplet => Boolean = {
-        case SApp(x, ys, q, _) => x == pname && ys == xs
+        case SApp(x, ys, q, _, _) => x == pname && ys == xs
         case _ => false
       }
       val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
@@ -140,7 +141,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       val apps = preApps ++ goal.post.sigma.apps
       val noInductionOrUnfoldings = apps.forall {
-        case SApp(_, _, t, _) => t.contains(0)
+        case SApp(_, _, t, _, _) => t.contains(0)
       }
 
       if (!noInductionOrUnfoldings) return Nil
@@ -241,7 +242,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
               h match {
                 case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = newPermission)
                 case Block(a, b, c) => Block(a, b, mut = newPermission)
-                case SApp(a, b, c, d) => SApp(a, b, c, mut = newPermission)
+                case SApp(a, b, c, d, e) => SApp(a, b, c, mut = newPermission, e)
                 case _ => h
               }
             } else h
@@ -382,7 +383,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {
         h match {
-          case SApp(_, _, Some(t), _) => t > env.config.maxCloseDepth
+          case SApp(_, _, Some(t), _, _) => t > env.config.maxCloseDepth
           case _ => false
         }
       }
@@ -393,7 +394,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
 
       def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
-        case SApp(pred, args, Some(t), _) =>
+        case SApp(pred, args, Some(t), _, _) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
