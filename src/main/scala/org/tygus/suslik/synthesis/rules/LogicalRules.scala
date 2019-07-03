@@ -7,6 +7,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.LogicalRules.AbsentEmpRule.isAbsent
 
 /**
   * Logical rules simplify specs and terminate the derivation;
@@ -58,7 +59,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      if (isAbsent(pre.sigma) && post.sigma.isEmp && // heaps are empty
+      // TODO [Immutability] illegal but need to quickly fix
+      if (((isAbsent(pre.sigma) && post.sigma.isEmp) || isAbsent(post.sigma) && isImmutable(pre.sigma)) && // heaps are empty
         goal.existentials.isEmpty && // no existentials
         SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post
         List(Subderivation(Nil, _ => Skip)) // we are done
@@ -67,10 +69,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def isImmutable(heap: SFormula): Boolean = {
       heap.chunks.foldLeft[Boolean](true)((acc, h) =>
-        if (h.isAbsent) acc
+        if (h.isImmutable) acc
         else false)
     }
-  }
 
     def isAbsent(heap: SFormula): Boolean = {
       heap.chunks.foldLeft[Boolean](true)((acc, h) =>

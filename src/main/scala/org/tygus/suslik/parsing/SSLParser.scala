@@ -101,24 +101,18 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def heaplet(mutable : MTag.Value): Parser[Heaplet] = (
       (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b, mutable) }
           ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s), mutable)}
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")")
-        //~ (opt("[" ~> rep1sep(perm, ",")) <~ "]")
-        ^^ { case name ~ args
-        //~ perms
-      => SApp(name, args, mut = mutable, submut =
-        None) }
-        //perms) }
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("[" ~> rep1sep(log(perm)("perm"), ",") <~ "]") ^^ { case name ~ args ~ perms => SApp(name, args, mut = mutable, submut = perms) }
   )
 
   def perm : Parser[MTag.Value] = (
-    "Imm" ^^ { _ => MTag.Imm }
-    ||| "Mut" ^^ { _ => MTag.Mut }
-    ||| "Abs" ^^ { _ => MTag.Abs }
+    "imm" ^^^ MTag.Imm
+    ||| "mut" ^^^ MTag.Mut
+    ||| "abs" ^^^ MTag.Abs
   )
 
   def sigma: Parser[SFormula] = (
       "emp" ^^^ SFormula(Nil)
-          ||| repsep(immutableheaplet, "**") ^^ { hs => SFormula(hs) }
+          ||| repsep(log(immutableheaplet)("immutableheaplet"), "**") ^^ { hs => SFormula(hs) }
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
@@ -163,4 +157,6 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def parseUnificationGoal(input: String): ParseResult[UnificationGoal] = parse(uGoal)(input)
 
   def parseGoal(input: String): ParseResult[Program] = parse(program)(input)
+
 }
+

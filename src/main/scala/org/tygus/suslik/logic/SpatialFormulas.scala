@@ -208,10 +208,10 @@ case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut, submut: Option[List[MTag.Value]]) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut, submut: Option[List[MTag.Value]] = None) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    this.copy(args = args.map(_.resolveOverloading(gamma)), submut = None)
+    this.copy(args = args.map(_.resolveOverloading(gamma)), submut = submut)
 
   override def pp: String = {
     val ppTag: Option[Int] => String = {
@@ -222,12 +222,13 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
     val overall = s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
     if (isImmutable) s"[$overall]"
     else if (isAbsent) s"[$overall]@A"
+    else if (submut.nonEmpty) s"$overall[${submut.get}]"
     else overall
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = None)
+  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = submut)
 
-  override def mkImmutable = this.copy(mut = MTag.Imm, submut = None)
+  override def mkImmutable = this.copy(mut = MTag.Imm, submut = submut)
 
   def |-(other: Heaplet): Boolean = false
 
@@ -256,7 +257,7 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
 
   // TODO really terrible that we have to keep repeating this logic
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
-    this.copy(tag = f(this.tag), submut = None)
+    this.copy(tag = f(this.tag), submut = submut)
 
   def applyFineGrainedTags(hs : List[Heaplet]) : List[Heaplet] = {
     submut match {
@@ -273,7 +274,7 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
         (hs, submut).zipped.map((h, p) => h match {
           case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = p)
           case Block(a, b, c) => Block(a, b, mut = p)
-          case SApp(a, b, c, d, e) => SApp(a, b, c, mut = p, None)
+          case SApp(a, b, c, d, e) => SApp(a, b, c, mut = p, e)
         })
       }
     case None => hs // TODO ????

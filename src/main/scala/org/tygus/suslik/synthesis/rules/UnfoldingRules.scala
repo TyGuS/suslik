@@ -242,7 +242,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
               h match {
                 case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = newPermission)
                 case Block(a, b, c) => Block(a, b, mut = newPermission)
-                case SApp(a, b, c, d, e) => SApp(a, b, c, mut = newPermission, None)
+                case SApp(a, b, c, d, e) => SApp(a, b, c, mut = newPermission, e)
                 case _ => h
               }
             } else h
