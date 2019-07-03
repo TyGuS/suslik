@@ -65,6 +65,13 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else Nil
     }
 
+    def isImmutable(heap: SFormula): Boolean = {
+      heap.chunks.foldLeft[Boolean](true)((acc, h) =>
+        if (h.isAbsent) acc
+        else false)
+    }
+  }
+
     def isAbsent(heap: SFormula): Boolean = {
       heap.chunks.foldLeft[Boolean](true)((acc, h) =>
         if (h.isAbsent) acc

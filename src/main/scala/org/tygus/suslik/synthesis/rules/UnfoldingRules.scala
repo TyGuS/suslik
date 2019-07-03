@@ -42,7 +42,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
      //if (h.isAbsent) return None // TODO [Immutability] correct?
 
       h match {
-        case SApp(pred, args, Some(t), mut, submut) if t < env.config.maxOpenDepth =>
+        case x@SApp(pred, args, Some(t), mut, submut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           // TODO if the predicate was immutable, must ensure the pieces are also
@@ -58,11 +58,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             constraints = asn.phi
             body = asn.sigma
             // if our heaplet was not immutable, our opening must be immutable also
-            predChunks = if (h.isImmutable) {
+            predChunks = if (h.isImmutable && x.submut.isEmpty) {
               // TODO zip with the sapp
               body.chunks.map (c => c.mkImmutable)
             } else {
-              body.chunks
+              x.applyFineGrainedTags(body.chunks)
             }
 
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
@@ -242,7 +242,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
               h match {
                 case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = newPermission)
                 case Block(a, b, c) => Block(a, b, mut = newPermission)
-                case SApp(a, b, c, d, e) => SApp(a, b, c, mut = newPermission, e)
+                case SApp(a, b, c, d, e) => SApp(a, b, c, mut = newPermission, None)
                 case _ => h
               }
             } else h

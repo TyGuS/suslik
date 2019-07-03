@@ -10,6 +10,8 @@ We can use fine-grained immutability
 ###
 [x, 2] ** x :-> 1 ** (x + 1) :-> nxt **
 
+[Abs, Mut, Abs, Mut]
+
 void morph_llist (loc x, loc y) {
   if (x == y) {
   } else {

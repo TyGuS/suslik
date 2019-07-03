@@ -21,6 +21,7 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec10 = "{ r :-> x ** [lseg(x, S)] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
   val spec11 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
   val spec12 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** [lseg(x, S)]@A ** lseg(y, S) }"
+  val spec13 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** [lseg(x, S)[Imm, Mut]]@A ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
   import log._
@@ -87,6 +88,10 @@ class GoalParserTests extends FunSpec with Matchers {
 
     it("should parse heap with absent") {
       parseWithListPredicate(spec12)
+    }
+
+    it("should parse heap with sapp tags") {
+      parseWithListPredicate(spec13)
     }
   }
 

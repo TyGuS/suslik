@@ -208,10 +208,10 @@ case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[language.Expressions.PFormula], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut, submut: List[MTag.Value]) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut, submut: Option[List[MTag.Value]]) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    this.copy(args = args.map(_.resolveOverloading(gamma)), submut = List.empty[MTag.Value])
+    this.copy(args = args.map(_.resolveOverloading(gamma)), submut = None)
 
   override def pp: String = {
     val ppTag: Option[Int] => String = {
@@ -225,9 +225,9 @@ case class SApp(pred: Ident, args: Seq[language.Expressions.PFormula], tag: Opti
     else overall
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = List.empty[MTag.Value])
+  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = None)
 
-  override def mkImmutable = this.copy(mut = MTag.Imm, submut = List.empty[MTag.Value])
+  override def mkImmutable = this.copy(mut = MTag.Imm, submut = None)
 
   def |-(other: Heaplet): Boolean = false
 
@@ -256,7 +256,29 @@ case class SApp(pred: Ident, args: Seq[language.Expressions.PFormula], tag: Opti
 
   // TODO really terrible that we have to keep repeating this logic
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
-    this.copy(tag = f(this.tag), submut = List.empty[MTag.Value])
+    this.copy(tag = f(this.tag), submut = None)
+
+  def applyFineGrainedTags(hs : List[Heaplet]) : List[Heaplet] = {
+    submut match {
+      case Some(submut) => {
+        if (submut.length < hs.length) {
+          val extraPerms: List[MTag.Value] = List.fill(hs.length - submut.length)(MTag.Mut)
+          val perms = List.concat(submut, extraPerms)
+        } else {
+          val perms = submut
+        }
+
+        // TODO need to deal with SFormulas having both mut and submut
+        // and whether we can expand it
+        (hs, submut).zipped.map((h, p) => h match {
+          case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = p)
+          case Block(a, b, c) => Block(a, b, mut = p)
+          case SApp(a, b, c, d, e) => SApp(a, b, c, mut = p, None)
+        })
+      }
+    case None => hs // TODO ????
+    }
+  }
 }
 
 
