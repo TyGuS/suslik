@@ -81,9 +81,9 @@ trait SepLogicUtils extends PureLogicUtils {
           case PointsTo(_loc, _offset, _value, _) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
-      case SApp(pred, args, tag, mut) => stuff.filter {
-        case SApp(_pred, _args, _tag, _mut) =>
-          _pred == pred && args.length == _args.length && tag == _tag && mut == _mut
+      case SApp(pred, args, tag, mut, submut) => stuff.filter {
+        case SApp(_pred, _args, _tag, _mut, _submut) =>
+          _pred == pred && args.length == _args.length && tag == _tag && mut == _mut && submut == _submut
         case _ => false
       }
     }

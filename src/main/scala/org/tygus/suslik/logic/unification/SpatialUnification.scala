@@ -54,7 +54,7 @@ object SpatialUnification extends UnificationBase {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource).toList
         }
-      case (SApp(p1, es1, targetTag, m1), SApp(p2, es2, sourceTag, m2)) =>
+      case (SApp(p1, es1, targetTag, m1, sm1), SApp(p2, es2, sourceTag, m2, sm2)) =>
         // Only unify predicates with variables as arguments
         // if es2.forall(_.isInstanceOf[Var])
 
@@ -110,8 +110,8 @@ object SpatialUnification extends UnificationBase {
     // Check matching blocks
     val checkMatchingApps = (as1: List[Heaplet], as2: List[Heaplet]) =>
       as1.forall {
-        case SApp(x1, xs1, _, m1) =>
-          as2.exists { case SApp(x2, xs2, _, m2) => x1 == x2 && xs1.size == xs2.size &&
+        case SApp(x1, xs1, _, m1, sm1) =>
+          as2.exists { case SApp(x2, xs2, _, m2, sm2) => x1 == x2 && xs1.size == xs2.size &&
             pre(m1, m2); case _ => false }
         case _ => false
       }
@@ -140,9 +140,9 @@ object SpatialUnification extends UnificationBase {
   }
 
   private def removeSAppIgnoringTag(sf: SFormula, h: SApp) = h match {
-    case SApp(p, args, _, m1) =>
+    case SApp(p, args, _, m1, sm1) =>
       val newChunks = sf.chunks.filterNot {
-        case SApp(p1, args1, _, m2) => p1 == p && args1 == args && m1 == m2
+        case SApp(p1, args1, _, m2, sm2) => p1 == p && args1 == args && m1 == m2 && sm1 == sm2
         case _ => false
       }
       sf.copy(chunks = newChunks)
@@ -188,7 +188,7 @@ object SpatialUnification extends UnificationBase {
           case (sr, tr) => FrameChoppingResult(sr, SFormula(List(sf)), tr, SFormula(List(tf)), sub)
         }
 
-      case h@SApp(_, _, _, _) => removeSAppChunk(source, target, h, sub).map {
+      case h@SApp(_, _, _, _, _) => removeSAppChunk(source, target, h, sub).map {
         case (sr, tr) => FrameChoppingResult(sr, SFormula(List(sf)), tr, SFormula(List(tf)), sub)
       }
 

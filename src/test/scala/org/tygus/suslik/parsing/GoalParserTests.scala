@@ -21,7 +21,7 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec10 = "{ r :-> x ** [lseg(x, S)] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
   val spec11 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
   val spec12 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** [lseg(x, S)]@A ** lseg(y, S) }"
-  val spec13 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** [lseg(x, S)[imm, mut]]@A ** lseg(y, S) }"
+  val spec13 = "{ [r :-> x] ** lseg(x, S)[imm, imm] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[abs, abs] ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
   import log._
@@ -37,6 +37,13 @@ class GoalParserTests extends FunSpec with Matchers {
   def parseWithListPredicate(test : String) {
     val listPred = "predicate lseg(loc x, set s) {\n|  x == 0 => { s =i {} ; emp }\n" +
       "|  not (x == 0) => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }\n}"
+
+    parseSimpleSpec(listPred + test)
+  }
+
+  def parseWithComplexPermissions(test : String) {
+    val listPred = "predicate lseg(loc x, set s)[0,1] {\n|  x == 0 => { s =i {} ; emp }\n" +
+      "|  not (x == 0) => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[{0},{1}] }\n}"
 
     parseSimpleSpec(listPred + test)
   }
@@ -91,7 +98,7 @@ class GoalParserTests extends FunSpec with Matchers {
     }
 
     it("should parse heap with sapp tags") {
-      parseWithListPredicate(spec13)
+      parseWithComplexPermissions(spec13)
     }
   }
 

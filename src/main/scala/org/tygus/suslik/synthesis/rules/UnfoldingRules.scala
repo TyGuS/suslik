@@ -394,7 +394,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
 
       def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
-        case SApp(pred, args, Some(t), _, _) =>
+        case x@SApp(pred, args, Some(t), _, _) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
@@ -422,7 +422,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             predChunks = if (h.isImmutable) {//|| hasImmutablePreCounterpart(h)) {
               actualBody.copy(actualBody.chunks.map (c => c.mkImmutable))
             } else {
-              actualBody
+              actualBody.copy(x.applyFineGrainedTags(actualBody.chunks))
             }
 
           } yield {

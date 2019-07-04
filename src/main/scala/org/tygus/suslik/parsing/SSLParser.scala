@@ -108,6 +108,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     "imm" ^^^ MTag.Imm
     ||| "mut" ^^^ MTag.Mut
     ||| "abs" ^^^ MTag.Abs
+    ||| intLiteral ^^^ MTag.
   )
 
   def sigma: Parser[SFormula] = (

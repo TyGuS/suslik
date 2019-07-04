@@ -16,7 +16,7 @@ import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 
 object MTag extends Enumeration {
   type MutabilityTag = Value
-  val Mut, Imm, Abs = Value
+  val Mut, Imm, Abs, U = Value
 
   def pre(t1: Value, t2: Value): Boolean = (t1, t2) match {
     case (Mut, _) => true
@@ -272,9 +272,9 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
         // TODO need to deal with SFormulas having both mut and submut
         // and whether we can expand it
         (hs, submut).zipped.map((h, p) => h match {
-          case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = p)
-          case Block(a, b, c) => Block(a, b, mut = p)
-          case SApp(a, b, c, d, e) => SApp(a, b, c, mut = p, e)
+          case PointsTo(a, b, c, d) => PointsTo(a, b, c, p)
+          case Block(a, b, c) => Block(a, b, p)
+          case SApp(a, b, c, d, e) => SApp(a, b, c, p, e)
         })
       }
     case None => hs // TODO ????
