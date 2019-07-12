@@ -155,6 +155,26 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
   }
 
+  object GiveUpOwnershipRule extends SynthesisRule with AnyPhase with InvertibleRule {
+
+    override def toString: Ident = "[Op: give-up-ownership]"
+
+    def apply(goal: Goal): Seq[Subderivation] = {
+      val pre = goal.pre
+      val post = goal.post
+      val gamma = goal.gamma
+
+      findHeaplet(h => h.isImmutable, goal.pre.sigma) match {
+        case None => Nil
+        case Some(h) =>
+          val y = h.changeMut(Abs)
+          val subGoal = goal.copy(post = post.copy(sigma = post.sigma.replace(h, y)))
+          val kont: StmtProducer = prepend(Ghost, toString)
+          List(Subderivation(List(subGoal), kont))
+      }
+    }
+  }
+
   /*
   Alloc rule: allocate memory for an existential block
 

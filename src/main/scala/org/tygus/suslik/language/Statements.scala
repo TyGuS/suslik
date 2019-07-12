@@ -19,6 +19,7 @@ object Statements {
       def build(s: Statement, offset: Int = 2): Unit = {
         s match {
           case Skip =>
+          case Ghost =>
           case Error =>
             builder.append(mkSpaces(offset))
             builder.append(s"error;\n")
@@ -77,6 +78,7 @@ object Statements {
 
       def collector(acc: Set[R])(st: Statement): Set[R] = st match {
         case Skip => acc
+        case Ghost => acc
         case Error => acc
         case Magic => acc
         case Store(to, off, e) =>
@@ -107,6 +109,7 @@ object Statements {
     // Statement size in AST nodes
     def size: Int = this match {
       case Skip => 0
+      case Ghost => 0
       case Error => 1
       case Magic => 1
       case Store(to, off, e) => 1 + to.size + e.size
@@ -122,6 +125,9 @@ object Statements {
 
   // skip;
   case object Skip extends Statement
+
+  // ghost
+  case object Ghost extends Statement // TODO [Immutability] unsure if necessary
 
   // assert false;
   case object Error extends Statement

@@ -346,6 +346,9 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def subst(sigma: Map[Var, Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
 
+  def replace(original: Heaplet, fresh: Heaplet) : SFormula =
+    copy(chunks diff List(original) ++ List(fresh))
+
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
     chunks.foldLeft(Set.empty[R])((a, h) => a ++ h.collectE(p))

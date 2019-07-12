@@ -48,6 +48,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.Inconsistency,
     if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
 //    LogicalRules.SubstLeftVar,
+
     OperationalRules.ReadRule,
 //    OperationalRules.AllocRule,
   )
@@ -60,6 +61,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.AbduceCall,
     UnfoldingRules.Close,
+    OperationalRules.GiveUpOwnershipRule, // TODO [Immutability] which order?
   )
 
   def flatPhaseRules(config: SynConfig): List[SynthesisRule] = List(
