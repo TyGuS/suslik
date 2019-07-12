@@ -1,15 +1,18 @@
 
-
-###
-
 predicate lseg(loc x, set s) {
 |  x == 0        => { s =i {} ; emp }
-|  not (x == 0)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[{0}, {1}] }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[0, 1] }
+}
+###
+
+predicate lseg(loc x, set s)[0,1] {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[0, 1] }
 }
 
 
-{true; [[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, y)[imm, mut] }
+{[[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, s)[imm, mut] }
   void emit_skip(loc x, loc y)
-{true; [[x, 2]]@A ** x :-> 1 ** [(x + 1) :-> nxt]@A ** lseg(nxt, y)[abs, mut] }
+{[[x, 2]]@A ** x :-> 0 ** [(x + 1) :-> nxt]@A ** lseg(nxt, s)[abs, mut] }
 
 ###

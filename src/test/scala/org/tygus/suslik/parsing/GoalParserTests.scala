@@ -43,7 +43,7 @@ class GoalParserTests extends FunSpec with Matchers {
 
   def parseWithComplexPermissions(test : String) {
     val listPred = "predicate lseg(loc x, set s)[0,1] {\n|  x == 0 => { s =i {} ; emp }\n" +
-      "|  not (x == 0) => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[{0},{1}] }\n}"
+      "|  not (x == 0) => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[0,1] }\n}"
 
     parseSimpleSpec(listPred + test)
   }

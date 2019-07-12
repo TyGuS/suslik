@@ -45,7 +45,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case x@SApp(pred, args, Some(t), mut, submut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
-          // TODO if the predicate was immutable, must ensure the pieces are also
+
+          // here, we should check the params and change their tags... all of them
+          // params need to be U(n) TODO [Immutability]
+          // hm, we got the body from the predicate, so...
 
           val sbst = params.map(_._2).zip(args).toMap
           // other things?
@@ -59,7 +62,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             body = asn.sigma
             // if our heaplet was not immutable, our opening must be immutable also
             predChunks = if (h.isImmutable && x.submut.isEmpty) {
-              // TODO zip with the sapp
+
               body.chunks.map (c => c.mkImmutable)
             } else {
               x.applyFineGrainedTags(body.chunks)
@@ -75,6 +78,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
+          // TODo can absents be ghosts?
           if (noGhosts) Some((newGoals, h)) else None
         case _ => None
       }

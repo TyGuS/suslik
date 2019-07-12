@@ -3,11 +3,19 @@ should be able to morph a linked list
 We can use fine-grained immutability
 ###
 
+
+{true; lseg(x, y) }
+  void morph_llist(loc x, loc y)
+{true; lseg1(x, y) }
+
+
+###
+
+
+
 {true; [[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, y) }
   void morph_llist(loc x, loc y)
 {true; [[x, 2]]@A ** x :-> 1 ** [(x + 1) :-> nxt]@A ** lseg(nxt, y)[abs, mut, abs, mut] }
-
-###
 
 
 {true; [[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, y) }

@@ -14,18 +14,44 @@ import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 //  // TODO fix resolve so that it carries over immutability 
 //}
 
+/*
 object MTag extends Enumeration {
-  type MutabilityTag = Value
+  type MutabilityTag = Either[Value, Integer]
   val Mut, Imm, Abs, U = Value
+*/
 
-  def pre(t1: Value, t2: Value): Boolean = (t1, t2) match {
+  sealed /*case class*/ trait MTag
+
+  case object Mut extends MTag
+  case object Imm extends MTag
+  case object Abs extends MTag
+  case class U(tag : Integer) extends MTag
+
+
+  object MTag {
+
+    def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]]) : Boolean = (s1, s2) match {
+      case (Some(a), Some(b)) => a.zip(b).forall({ case (a,b) => (a,b) match {
+        //case (_, U(m)) => true
+        //case (U(n), _) => true
+        case (x, y) => x == y
+        case (_, _) => false} })
+      case (None, None) => true
+      case _ => false
+    }
+
+// TODO what's the correct way?
+  // need to reduce I to A
+  def pre(t1: MTag, t2: MTag): Boolean = (t1, t2) match {
+    //case (_, U(n)) => true // TODO [Immutability] not sure if this is always the case. can you unify U tags? or do you always expand? you should be expanding...
+    //case (U(n), _) => true // TODO [Immutability] not sure if this is always the case
     case (Mut, _) => true
     case (_, Abs) => true
     case (x, y) if x == y => true
     case _ => false
   }
-  
-  def lub(t1: Value, t2: Value) = (t1, t2) match {
+
+  def lub(t1: MTag, t2: MTag) = (t1, t2) match {
     case (Mut, x) => x
     case (x, Mut) => x
     case (_, Abs) => Abs
@@ -33,7 +59,7 @@ object MTag extends Enumeration {
     case (x, _) => x
   }
 
-  def glb(t1: Value, t2: Value) = (t1, t2) match {
+  def glb(t1: MTag, t2: MTag) = (t1, t2) match {
     case (Mut, _) => Mut
     case (_, Mut) => Mut
     case (x, Abs) => x
@@ -41,7 +67,7 @@ object MTag extends Enumeration {
     case (x, _) => x
   }
 
-  def residue(have: Value, need: Value) : MTag.Value = (have, need) match {
+  def residue(have: MTag, need: MTag) : MTag = (have, need) match {
 //    case (Imm, Imm) => Imm
 //    case (x, y) if x == y => Abs
 //    case (_, Abs) => have
@@ -55,9 +81,10 @@ object MTag extends Enumeration {
     case _ => Abs // disallowed cases, e.g. Imm, Mut TODO [Immutability]
   }
 
-  def isMutable(tag: Value): Boolean = tag == MTag.Mut
-  def isImutable(tag: Value): Boolean = tag == MTag.Imm
-  def isAbsent(tag: Value): Boolean = tag == MTag.Abs
+  def isMutable(tag: MTag): Boolean = tag == Mut
+  def isImutable(tag: MTag): Boolean = tag == Imm
+  def isAbsent(tag: MTag): Boolean = tag == Abs
+  def isNumeric(tag: MTag): Boolean = tag.isInstanceOf[U]
 
 }
 
@@ -66,11 +93,15 @@ object MTag extends Enumeration {
   */
 sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
   
-  def mut: MTag.Value
+  def mut: MTag
 
   def isMutable: Boolean = MTag.isMutable(mut)
   def isImmutable: Boolean = MTag.isImutable(mut)
   def isAbsent: Boolean = MTag.isAbsent(mut)
+  def isNumeric: Boolean = MTag.isNumeric(mut)
+  def changeMut(mut : MTag) : Heaplet
+
+  def makeUnknown(numberTag : Integer): Heaplet
 
   def mkImmutable: Heaplet
 
@@ -131,7 +162,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   * var + offset :-> value
   */
 case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
-                    mut: MTag.Value = MTag.Mut) extends Heaplet {
+                    mut: MTag = Mut) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): PointsTo = {
     this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
@@ -142,6 +173,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
     val overall = s"$head :-> ${value.pp}"
     if (isImmutable) s"[$overall]"
     else if (isAbsent) s"[$overall]@A"
+    else if (isNumeric) s"[$overall]@${mut.asInstanceOf[U].tag}"
     else overall
   }
 
@@ -165,18 +197,22 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
 
   def rank: Int = 2
 
-  override def mkImmutable = this.copy(mut = MTag.Imm)
+  override def mkImmutable = this.copy(mut = Imm)
+
+  override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 
   override def lhsVars: Set[Var] = loc match {
     case elems: Var => Set[Var](elems)
     case _ => Set.empty[Var]
   }
+
+  override def changeMut(mut : MTag): Heaplet = this.copy(mut = mut)
 }
 
 /**
   * block(var, size)
   */
-case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet {
+case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(loc = loc.resolveOverloading(gamma))
@@ -185,13 +221,16 @@ case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet
     val overall = s"[${loc.pp}, $sz]"
     if (isImmutable) s"[$overall]"
     else if (isAbsent) s"[$overall]@A"
+    else if (isNumeric) s"[$overall]@${mut.asInstanceOf[U].tag}"
+    //else if (mut == MTag.U) s"[$overall]@${mut.tag}"
     else overall
   }
 
   // TODO no way there isn't a better way of extending the immutable behaviour
   def subst(sigma: Map[Var, Expr]): Heaplet = Block(loc.subst(sigma), sz, mut)
 
-  override def mkImmutable = this.copy(mut = MTag.Imm)
+  override def mkImmutable = this.copy(mut = Imm)
+  override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 
   def |-(other: Heaplet): Boolean = false
 
@@ -203,12 +242,14 @@ case class Block(loc: Expr, sz: Int, mut: MTag.Value = MTag.Mut) extends Heaplet
     case elems: Var => Set[Var](elems)
     case _ => Set.empty[Var]
   }
+
+  override def changeMut(mut : MTag): Heaplet = this.copy(mut = mut)
 }
 
 /**
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag.Value = MTag.Mut, submut: Option[List[MTag.Value]] = None) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag = Mut, submut: Option[List[MTag]] = None) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(args = args.map(_.resolveOverloading(gamma)), submut = submut)
@@ -228,7 +269,11 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
 
   def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = submut)
 
-  override def mkImmutable = this.copy(mut = MTag.Imm, submut = submut)
+  override def mkImmutable = this.copy(mut = Imm, submut = submut)
+
+  override def changeMut(mut : MTag): Heaplet = this.copy(mut = mut)
+
+  override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 
   def |-(other: Heaplet): Boolean = false
 
@@ -255,29 +300,30 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
   })
 
 
-  // TODO really terrible that we have to keep repeating this logic
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
     this.copy(tag = f(this.tag), submut = submut)
 
   def applyFineGrainedTags(hs : List[Heaplet]) : List[Heaplet] = {
     submut match {
-      case Some(submut) => {
-        if (submut.length < hs.length) {
-          val extraPerms: List[MTag.Value] = List.fill(hs.length - submut.length)(MTag.Mut)
-          val perms = List.concat(submut, extraPerms)
+      case Some(muts) => {
+        if (muts.length < hs.length) {
+          // TODO [Immutability] should really fail
         } else {
-          val perms = submut
+          val perms = muts
         }
 
-        // TODO need to deal with SFormulas having both mut and submut
-        // and whether we can expand it
-        (hs, submut).zipped.map((h, p) => h match {
-          case PointsTo(a, b, c, d) => PointsTo(a, b, c, p)
-          case Block(a, b, c) => Block(a, b, p)
-          case SApp(a, b, c, d, e) => SApp(a, b, c, p, e)
-        })
+        // what is it tagged with?
+        // get the tag of U
+        // just compare to predicate...
+        hs.map {
+          case SApp(a, b, c, d, e) => SApp(a, b, c, d, submut) // replace list
+          case h => h.mut match {
+            case U(n: Integer) => h.changeMut(muts(n))
+          } // TODO [Immutability] relies on starting with 0, need to reinforce it?
+          case h => h
+        }
       }
-    case None => hs // TODO ????
+      case None => hs // TODO should still be mutable?
     }
   }
 }

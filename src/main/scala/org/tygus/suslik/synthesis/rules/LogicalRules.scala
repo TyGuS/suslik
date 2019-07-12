@@ -59,7 +59,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      // TODO [Immutability] illegal but need to quickly fix
+      // TODO [Immutability] illegal but need to quickly fix. use unify instead
       if (((isAbsent(pre.sigma) && post.sigma.isEmp) || isAbsent(post.sigma) && isImmutable(pre.sigma)) && // heaps are empty
         goal.existentials.isEmpty && // no existentials
         SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post

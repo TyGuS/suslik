@@ -1,0 +1,26 @@
+
+###
+
+predicate lseg(loc x, loc y) {
+|  x == y        => {emp}
+|  not (x == y)  => {[[x, 2]]@0 ** [x :-> 0]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, y)[0,1]}
+}
+
+predicate lseg1(loc x, loc y) {
+|  x == y        => {emp}
+|  not (x == y)  => {[[x, 2]]@0 ** [x :-> 1]@1 ** [(x + 1) :-> nxt]@0 ** lseg1(nxt, y)[0,1]}
+}
+
+
+{lseg(x, y)[imm, mut] }
+  void morph(loc x, loc y)
+{lseg1(x, y)[abs, mut] }
+
+###
+
+
+
+
+{[[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, s)[imm, mut] }
+  void morph(loc x)
+{[[x, 2]]@A ** x :-> 1 ** [(x + 1) :-> nxt]@A ** lseg1(nxt, s)[abs, mut] }

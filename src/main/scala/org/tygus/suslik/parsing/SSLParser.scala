@@ -86,34 +86,35 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def identWithOffset: Parser[(Ident, Int)] = {
     val ov = ident ~ opt("+" ~> numericLit)
-    ("(" ~> ov <~ ")" | ov) ^^ { case i ~ o =>
+    ("(" ~> log(ov)("ov") <~ ")" | ov) ^^ { case i ~ o =>
       val off = Math.max(Integer.parseInt(o.getOrElse("0")), 0)
       (i, off)
     }
   }
 
   def immutableheaplet : Parser[Heaplet] = (
-    "[" ~> heaplet(MTag.Abs) <~ "]@A"
-    ||| "[" ~> heaplet(MTag.Imm) <~ "]"
-    ||| heaplet(MTag.Mut)
+    "[" ~> log(heaplet(Abs))("absent heaplet") <~ "]@A"
+      ||| ("[" ~> log(heaplet(Mut))("numeric heaplet") <~ "]@") ~ numericLit ^^ { case h ~ n => h.makeUnknown(Integer.parseInt(n)) } // later change permission
+    ||| "[" ~> log(heaplet(Imm))("immutable heaplet") <~ "]"
+    ||| log(heaplet(Mut))("mutable heaplet")
   )
 
-  def heaplet(mutable : MTag.Value): Parser[Heaplet] = (
+  def heaplet(mutable : MTag): Parser[Heaplet] = (
       (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b, mutable) }
           ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s), mutable)}
           ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("[" ~> rep1sep(log(perm)("perm"), ",") <~ "]") ^^ { case name ~ args ~ perms => SApp(name, args, mut = mutable, submut = perms) }
   )
 
-  def perm : Parser[MTag.Value] = (
-    "imm" ^^^ MTag.Imm
-    ||| "mut" ^^^ MTag.Mut
-    ||| "abs" ^^^ MTag.Abs
-    ||| intLiteral ^^^ MTag.
+  def perm : Parser[MTag] = (
+    "imm" ^^^ Imm
+    ||| "mut" ^^^ Mut
+    ||| "abs" ^^^ Abs
+    ||| numericLit ^^ (n => U(Integer.parseInt(n)))
   )
 
   def sigma: Parser[SFormula] = (
       "emp" ^^^ SFormula(Nil)
-          ||| repsep(log(immutableheaplet)("immutableheaplet"), "**") ^^ { hs => SFormula(hs) }
+          ||| repsep(log(immutableheaplet)("permission heaplet"), "**") ^^ { hs => SFormula(hs) }
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
@@ -124,10 +125,11 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def indClause: Parser[InductiveClause] =
     expr ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(p, a) }
 
+  // TODO [Immutability] enforce list somewhere i.e. make the numbers match up with inputs
   def indPredicate: Parser[InductivePredicate] =
-    ("predicate" ~> ident) ~ ("(" ~> repsep(formal, ",") <~ ")") ~
+    ("predicate" ~> ident) ~ ("(" ~> repsep(formal, ",") <~ ")") ~ (opt("[" ~> repsep(perm, ",") <~ "]")) ~
         (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ formals ~ clauses => InductivePredicate(name, formals, clauses)
+      case name ~ formals ~ perms ~ clauses => InductivePredicate(name, formals, clauses)
     }
 
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {

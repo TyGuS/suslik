@@ -2,15 +2,11 @@ Copy a linked list
 
 ###
 
-{ true ; [lseg(x,S)]}
-void absent(loc x)
-{true; [lseg(x,S)]@A}
-
-{ r :-> x ** [lseg(x, S)] }
+{[lseg(x, S)] }
 
   void listcopy(loc r)
 
-{ true ; r :-> y ** lseg(y, S) ** [lseg(x,S)]@A}
+{ true ; lseg(y, S) ** [lseg(x,S)]@A}
 
 #####
 
