@@ -299,6 +299,12 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
     case _ => acc
   })
 
+  // An application is absent also if all its constituents are absent
+  override def isAbsent: Boolean = {
+    if (submut.nonEmpty) false
+    val sms : List[MTag] = submut.get
+    mut == Abs || sms.forall(m => MTag.isAbsent(m))
+  }
 
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
     this.copy(tag = f(this.tag), submut = submut)
@@ -319,11 +325,12 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
           case SApp(a, b, c, d, e) => SApp(a, b, c, d, submut) // replace list
           case h => h.mut match {
             case U(n: Integer) => h.changeMut(muts(n))
+            case _ => h
           } // TODO [Immutability] relies on starting with 0, need to reinforce it?
-          case h => h
         }
       }
-      case None => hs // TODO should still be mutable?
+      // if None, then just treat as mut and keep going
+      case None => copy(submut = Some((0 to hs.length).map(_ => Mut).toList)).applyFineGrainedTags(hs)
     }
   }
 }
@@ -347,7 +354,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   def subst(sigma: Map[Var, Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
 
   def replace(original: Heaplet, fresh: Heaplet) : SFormula =
-    copy(chunks diff List(original) ++ List(fresh))
+    copy((fresh :: chunks) diff List(original))
 
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {

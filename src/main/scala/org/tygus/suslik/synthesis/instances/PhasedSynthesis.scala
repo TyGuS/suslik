@@ -61,7 +61,6 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.AbduceCall,
     UnfoldingRules.Close,
-    OperationalRules.GiveUpOwnershipRule, // TODO [Immutability] which order?
   )
 
   def flatPhaseRules(config: SynConfig): List[SynthesisRule] = List(
@@ -80,6 +79,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     OperationalRules.FreeRule,
     if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
 
+    OperationalRules.GiveUpOwnershipRule, // TODO [Immutability] which order? lol causes ridiculous residue
     UnificationRules.PureUnify,
     UnificationRules.Pick,
     UnificationRules.PickFromEnvRule,

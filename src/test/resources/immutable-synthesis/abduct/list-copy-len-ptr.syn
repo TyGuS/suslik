@@ -2,11 +2,24 @@ should be able to synthesize list copy from a pointer to the head
 
 #####
 
-{0 <= n ; r :-> x ** [lseg(x, 0, n)]}
+{0 <= n ; r :-> x ** lseg(x, 0, n)[imm,imm]}
 void list_copy(loc r)
-{true ; r :-> y ** lseg(y, 0, n) }
+{true ; r :-> y ** lseg(y, 0, n)[mut, mut] ** lseg(x,0,n)[abs, abs] }
+
 
 #####
+
+
+{0 <= n ; r :-> x ** lseg(x, 0, n)[imm, imm]}
+void list_copy(loc r)
+{true ; r :-> y ** lseg(y, 0, n)[mut, mut] ** lseg(x,0,n)[abs, abs] }
+
+
+{0 <= n ; r :-> x ** lseg(x, 0, n)[imm, imm]}
+void list_copy(loc r)
+{true ; r :-> y ** lseg(y, 0, n)[mut, mut] ** lseg(x,0,n)[abs, abs] }
+
+** lseg(x,0,n)[abs, abs]
 
 void list_copy (loc r) {
   let x2 = *r;

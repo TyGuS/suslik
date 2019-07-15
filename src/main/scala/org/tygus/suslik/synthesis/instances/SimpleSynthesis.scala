@@ -53,7 +53,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.AbduceCall,
 
     UnfoldingRules.Close,
-    OperationalRules.GiveUpOwnershipRule,
+    //OperationalRules.GiveUpOwnershipRule,
 
     // Noninvertible operational rules
     // OperationalRules.WriteRuleOld,

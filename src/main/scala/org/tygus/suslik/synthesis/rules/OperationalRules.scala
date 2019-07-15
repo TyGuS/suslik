@@ -155,7 +155,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  object GiveUpOwnershipRule extends SynthesisRule with AnyPhase with InvertibleRule {
+  object GiveUpOwnershipRule extends SynthesisRule with AnyPhase { //with InvertibleRule {
 
     override def toString: Ident = "[Op: give-up-ownership]"
 
@@ -168,9 +168,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some(h) =>
           val y = h.changeMut(Abs)
-          val subGoal = goal.copy(post = post.copy(sigma = post.sigma.replace(h, y)))
-          val kont: StmtProducer = prepend(Ghost, toString)
-          List(Subderivation(List(subGoal), kont))
+          if (goal.post.sigma.chunks.contains(y)) {
+            val subGoal = goal.copy(pre = pre.copy(sigma = pre.sigma.replace(h, y)))
+            val kont: StmtProducer = prepend(Ghost, toString)
+            List(Subderivation(List(subGoal), kont))
+          } else {
+            Nil
+          }
       }
     }
   }
