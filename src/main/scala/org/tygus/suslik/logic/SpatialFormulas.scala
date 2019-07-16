@@ -300,11 +300,11 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
   })
 
   // An application is absent also if all its constituents are absent
-  override def isAbsent: Boolean = {
-    if (submut.nonEmpty) false
-    val sms : List[MTag] = submut.get
-    mut == Abs || sms.forall(m => MTag.isAbsent(m))
-  }
+//  override def isAbsent: Boolean = {
+//    if (submut.nonEmpty) false
+//    val sms : List[MTag] = submut.get
+//    mut == Abs || sms.forall(m => MTag.isAbsent(m))
+//  }
 
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
     this.copy(tag = f(this.tag), submut = submut)
@@ -330,7 +330,7 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
         }
       }
       // if None, then just treat as mut and keep going
-      case None => copy(submut = Some((0 to hs.length).map(_ => Mut).toList)).applyFineGrainedTags(hs)
+      case None => hs.map(h => if (h.isNumeric) { h.changeMut(mut) } else { h })//copy(submut = Some((0 to hs.length).map(_ => Mut).toList)).applyFineGrainedTags(hs)
     }
   }
 }
