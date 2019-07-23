@@ -51,28 +51,13 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def varParser: Parser[Var] = ident ^^ Var
 
   def unOpParser: Parser[UnOp] =
-    "not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus
+    "not" ^^^ OpNot
 
-  // TODO: remove legacy ++, --, =i, /\, \/, <=i
-  def termOpParser: Parser[OverloadedBinOp] = (
-    ("++" ||| "+") ^^^ OpOverloadedPlus
-      ||| ("--" ||| "-") ^^^ OpOverloadedMinus
-      ||| "*" ^^^ OpOverloadedStar
-    )
+  def termOpParser: Parser[OverloadedBinOp] = "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion ||| "--" ^^^ OpDiff
 
-  def relOpParser: Parser[OverloadedBinOp] = (
-    "<" ^^^ OpLt
-      ||| "!=" ^^^ OpNotEqual
-      ||| ("==" | "=i") ^^^ OpOverloadedEq
-      ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq
-      ||| "in" ^^^ OpIn
-    )
+  def relOpParser: Parser[OverloadedBinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpOverloadedEq ||| "=i" ^^^ OpOverloadedEq ||| "<=i" ^^^ OpSubset ||| "in" ^^^ OpIn
 
-  def logOpParser: Parser[OverloadedBinOp] = (
-    ("\\/" | "||") ^^^ OpOr
-      ||| ("/\\" | "&&") ^^^ OpAnd
-      ||| "==>" ^^^ OpImplication
-    )
+  def logOpParser: Parser[OverloadedBinOp] = ("\\/"|"||") ^^^ OpOr ||| ("/\\"|"&&") ^^^ OpAnd
 
   def binOpParser(p: Parser[OverloadedBinOp]): Parser[(Expr, Expr) => Expr] = {
     p ^^ { op => (l, r) => OverloadedBinaryExpr(op, l, r) }
@@ -119,7 +104,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
-    case Some(p) ~ s => Assertion(desugar(p), s)
+    case Some(p) ~ s => Assertion(p, s)
     case None ~ s => Assertion(pTrue, s)
   }
 
@@ -136,15 +121,13 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case params ~ formula => UnificationGoal(formula, params.toSet)
   }
 
-  def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]" ^^ (x => x)
-
-  def goalFunction: Parser[FunSpec] = varsDeclaration.? ~ assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case vars_decl ~ pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
+  def goalFunction: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
+    case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
   }
 
   def program: Parser[Program] = repAll(indPredicate | goalFunction) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
-    val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
+    val fs = for (f@FunSpec(_, _, _, _, _) <- pfs) yield f
     if (fs.isEmpty){
       throw SynthesisException("Parsing failed. No single function spec is provided.")
     }
