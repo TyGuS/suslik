@@ -1,0 +1,33 @@
+/* insertion_sort complete prog */
+void srtl_insert (loc x, loc r)
+{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtl(x, n, lo, hi) }
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1) }
+
+void insertion_sort_free (loc x, loc r)
+{ 0 <= n ; r :-> 0 ** sll(x, n, lo, hi) }
+{ true ; r :-> y ** srtl(y, n, lo, hi) }
+{
+  if (x == 0) {
+  } else {
+    let nxt2 = *(x + 1);
+    insertion_sort_free(nxt2, r);
+    let y12 = *r;
+    srtl_insert(y12, x);
+    let y22 = *x;
+    *r = y22;
+    free(x);
+  }
+}
+###
+void insertion_sort_free (loc x, loc r) {
+  if (x == 0) {
+  } else {
+    let nxt2 = *(x + 1);
+    insertion_sort_free(nxt2, r);
+    let y12 = *r;
+    srtl_insert(y12, x);
+    let y22 = *x;
+    *r = y22;
+    free(x);
+  }
+}

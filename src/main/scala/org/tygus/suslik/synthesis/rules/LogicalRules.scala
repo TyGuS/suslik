@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident, IntType}
+import org.tygus.suslik.language.{Expressions, Ident, IntType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -202,9 +202,11 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
   object SubstLeft extends SynthesisRule with FlatPhase with InvertibleRule {
+    // todo:  fix it. It is actually invertible, but we need to keep in mind that
+    // it may happen that one variable is from programVars, and the other is not.
     override def toString: String = "[Norm: subst-L]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply_broken(goal: Goal): Seq[Subderivation] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
@@ -213,9 +215,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
         // This messes with hypothesis unify:
-//        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
-          //TODO: discuss and enable
-//        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
+        //        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
+        //TODO: discuss and enable
+        //        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, p1) match {
         case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
@@ -226,10 +228,50 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.copy(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-            List(Subderivation(List(newGoal), pureKont(toString)))
+          List(Subderivation(List(newGoal), pureKont(toString)))
         case _ => Nil
       }
     }
+
+    def apply_fixed(goal: Goal): Seq[Subderivation] = {
+      val p1 = goal.pre.phi
+      val s1 = goal.pre.sigma
+      val p2 = goal.post.phi
+      val s2 = goal.post.sigma
+
+      def substituted(x: Var, l: Expressions.PFormula, rest1: List[PFormula]) = {
+        val _p1 = mkConjunction(rest1).subst(x, l)
+        val _s1 = s1.subst(x, l)
+        val _p2 = p2.subst(x, l)
+        val _s2 = s2.subst(x, l)
+        val newGoal = goal.copy(
+          Assertion(_p1, _s1),
+          Assertion(_p2, _s2))
+        List(Subderivation(List(newGoal), pureKont(toString)))
+      }
+
+      findConjunctAndRest({
+        case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
+        case BinaryExpr(OpEq, v1, v2@Var(_)) => v1 != v2
+        // This messes with hypothesis unify:
+//        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
+          //TODO: discuss and enable
+//        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
+        case _ => false
+      }, p1) match {
+        case Some((BinaryExpr(_, x@Var(_), l), rest1))
+          // can't substitute program var by not program var
+          if (l match{case vl@Var(_) => !(goal.isProgramVar(x) && !goal.isProgramVar(vl))  case _ => true}) =>
+          substituted(x, l, rest1)
+        case Some((BinaryExpr(_, l, x@Var(_)), rest1)) // the new condition isn't symmetric, so we match twice
+          // can't substitute program var by not program var
+          if (l match{case vl@Var(_) => !(goal.isProgramVar(x) && !goal.isProgramVar(vl)) case _ => true}) =>
+          substituted(x, l, rest1)
+        case _ => Nil
+      }
+    }
+
+    def apply(goal: Goal): Seq[Subderivation] = apply_fixed(goal)
   }
 
   // This rule has to come after inconsistency

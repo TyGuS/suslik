@@ -1,0 +1,27 @@
+/* read doesn't destroy vars 2 */
+
+void nop(loc x, loc y)
+{}
+{}
+{
+  let c = malloc(1);
+  let d = malloc(1);
+  *d = c;
+  *c = d;
+  let cr = *c;
+  let dr = *d;
+  free(d);
+  free(c);
+}
+
+###
+void nop (loc x, loc y) {
+  let c = malloc(1);
+  let d = malloc(1);
+  *d = c;
+  *c = d;
+  let cr = *c;
+  let dr = *d;
+  free(d);
+  free(c);
+}

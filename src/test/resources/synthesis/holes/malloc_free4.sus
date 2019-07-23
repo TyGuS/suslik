@@ -1,0 +1,38 @@
+/* read doesn't destroy vars */
+
+void swap(loc x, loc y)
+{}
+{}
+{
+  let a = malloc(1);
+  let b = malloc(1);
+  let c = malloc(1);
+  let d = malloc(1);
+  *a = b;
+  let ar = *a;
+  *c = d;
+  let cr = *c;
+  let cr2 = *c;
+  free(a);
+  free(b);
+  free(c);
+  free(cr);
+}
+
+###
+
+void swap (loc x, loc y) {
+  let a = malloc(1);
+  let b = malloc(1);
+  let c = malloc(1);
+  let d = malloc(1);
+  *a = b;
+  let ar = *a;
+  *c = d;
+  let cr = *c;
+  let cr2 = *c;
+  free(a);
+  free(b);
+  free(c);
+  free(cr);
+}

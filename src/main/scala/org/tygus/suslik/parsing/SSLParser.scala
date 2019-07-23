@@ -1,11 +1,13 @@
 package org.tygus.suslik.parsing
 
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.SynthesisException
+
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -51,13 +53,30 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def varParser: Parser[Var] = ident ^^ Var
 
   def unOpParser: Parser[UnOp] =
-    "not" ^^^ OpNot
+    "not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus
 
-  def termOpParser: Parser[OverloadedBinOp] = "+" ^^^ OpPlus ||| "-" ^^^ OpMinus ||| "++" ^^^ OpUnion ||| "--" ^^^ OpDiff
+  // TODO: remove legacy ++, --, =i, /\, \/, <=i
+  def termOpParser: Parser[OverloadedBinOp] = (
+    ("++" ||| "+") ^^^ OpOverloadedPlus
+      ||| ("--" ||| "-") ^^^ OpOverloadedMinus
+      ||| "*" ^^^ OpOverloadedStar
+    )
 
-  def relOpParser: Parser[OverloadedBinOp] = "<=" ^^^ OpLeq ||| "<" ^^^ OpLt ||| "==" ^^^ OpOverloadedEq ||| "=i" ^^^ OpOverloadedEq ||| "<=i" ^^^ OpSubset ||| "in" ^^^ OpIn
+  def relOpParser: Parser[OverloadedBinOp] = (
+    "<" ^^^ OpLt
+      ||| ">" ^^^ OpGt
+      ||| ">=" ^^^ OpGeq
+      ||| "!=" ^^^ OpNotEqual
+      ||| ("==" | "=i") ^^^ OpOverloadedEq
+      ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq
+      ||| "in" ^^^ OpIn
+    )
 
-  def logOpParser: Parser[OverloadedBinOp] = ("\\/"|"||") ^^^ OpOr ||| ("/\\"|"&&") ^^^ OpAnd
+  def logOpParser: Parser[OverloadedBinOp] = (
+    ("\\/" | "||") ^^^ OpOr
+      ||| ("/\\" | "&&") ^^^ OpAnd
+      ||| "==>" ^^^ OpImplication
+    )
 
   def binOpParser(p: Parser[OverloadedBinOp]): Parser[(Expr, Expr) => Expr] = {
     p ^^ { op => (l, r) => OverloadedBinaryExpr(op, l, r) }
@@ -104,7 +123,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
-    case Some(p) ~ s => Assertion(p, s)
+    case Some(p) ~ s => Assertion(desugar(p), s)
     case None ~ s => Assertion(pTrue, s)
   }
 
@@ -121,19 +140,86 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case params ~ formula => UnificationGoal(formula, params.toSet)
   }
 
-  def goalFunction: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ formals ~ post => FunSpec(name, tpe, formals, pre, post)
+  def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]"
+
+  def goalFunctionSYN: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ^^ {
+    case pre ~ tpe ~ name ~ formals ~ vars_decl ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
   }
 
-  def program: Parser[Program] = repAll(indPredicate | goalFunction) ^^ { pfs =>
+  def nonGoalFunction: Parser[FunSpec] =  typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ~ assertion ^^ {
+    case  tpe ~ name ~ formals  ~ vars_decl ~ pre ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
+  }
+
+  def statementParser:Parser[Statement] = (
+    ("??" ^^^ Hole)
+      ||| ("error" ~> ";" ^^^ Statements.Error)
+      ||| ("magic" ~> ";" ^^^ Magic)
+      // Malloc
+      ||| "let" ~> varParser ~ ("=" ~> "malloc" ~> "(" ~> numericLit <~ ")" ~> ";") ^^ {
+        case variable ~ number_str => Malloc(variable, IntType, Integer.parseInt(number_str)) // todo: maybe not ignore type here
+      }
+      ||| ("free" ~> "(" ~> varParser <~ ")" ~> ";") ^^ Free
+      // Store
+      ||| "*" ~> varParser ~ ("=" ~> expr <~ ";") ^^ {
+        case variable ~ e => Store(variable, 0, desugar(e))
+      }
+      ||| ("*" ~> "(" ~> varParser <~ "+") ~ numericLit ~ (")" ~> "=" ~> expr <~ ";") ^^ {
+        case variable ~ offset_str ~ e => Store(variable, Integer.parseInt(offset_str), desugar(e))
+      }
+      // Load
+      ||| ("let" ~> varParser) ~ ("=" ~> "*" ~> varParser <~ ";") ^^ {
+        case to ~ from => Load(to, IntType, from) // todo: maybe not ignore type here
+      }
+      ||| ("let" ~> varParser <~ "=" <~ "*" <~ "(") ~ (varParser <~ "+") ~ (numericLit <~ ")" <~ ";") ^^ {
+        case to ~ from ~ offset_str => Load(to, IntType, from, Integer.parseInt(offset_str)) // todo: maybe not ignore type here
+      }
+      // Call
+      ||| varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
+        case fun ~ args => Call(None, fun, args.map(desugar))
+      }
+      ||| typeParser ~ (varParser <~ "=") ~ varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
+        case tpe ~ to ~ fun ~ args => Call(Some((to, tpe)), fun, args.map(desugar))
+      }
+      // if
+      ||| ("if" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}") ~ ("else" ~> "{" ~> codeWithHoles <~ "}") ^^ {
+        case cond ~ tb ~ eb => If(desugar(cond), tb, eb)
+      }
+      // Guarded
+      ||| ("assume" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}")  ^^ {
+        case cond ~ body => Guarded(desugar(cond), body)
+      }
+    )
+
+  def codeWithHoles:Parser[Statement] = rep(statementParser) ^^ (seq => if(seq.nonEmpty) seq.reduceRight(SeqComp) else Skip)
+
+
+  def goalFunctionV1: Parser[GoalContainer] =  nonGoalFunction ~ ("{" ~> codeWithHoles <~ "}") ^^ {
+    case goal ~ body => GoalContainer(goal, body)
+  }
+
+  def programSUS: Parser[Program] = repAll(indPredicate | (goalFunctionV1 ||| nonGoalFunction)) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
-    val fs = for (f@FunSpec(_, _, _, _, _) <- pfs) yield f
+    val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
+    val goals = for (gc@GoalContainer(_, _) <- pfs) yield gc
+    if (goals.isEmpty) {
+      throw SynthesisException("Parsing failed: no single goal spec is provided.")
+    }
+    if (goals.size > 1) {
+      throw SynthesisException("Parsing failed: more than one goal is provided.")
+    }
+    val goal = goals.last
+    Program(ps, fs, goal)
+  }
+
+  def programSYN: Parser[Program] = repAll(indPredicate | goalFunctionSYN) ^^ { pfs =>
+    val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
+    val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
     if (fs.isEmpty){
       throw SynthesisException("Parsing failed. No single function spec is provided.")
     }
     val goal = fs.last
     val funs = fs.take(fs.length - 1)
-    Program(ps, funs, goal)
+    Program(ps, funs, GoalContainer(goal, Hole))
   }
 
   def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {
@@ -144,5 +230,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def parseUnificationGoal(input: String): ParseResult[UnificationGoal] = parse(uGoal)(input)
 
-  def parseGoal(input: String): ParseResult[Program] = parse(program)(input)
+  def parseGoalSYN(input: String): ParseResult[Program] = parse(programSYN)(input)
+  def parseGoalSUS(input: String): ParseResult[Program] = parse(programSUS)(input)
+  def parseGoal = parseGoalSYN _
 }

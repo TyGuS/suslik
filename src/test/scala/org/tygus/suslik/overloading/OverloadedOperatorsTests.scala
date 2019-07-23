@@ -1,4 +1,4 @@
-package org.tygus.suslik.synthesis
+package org.tygus.suslik.overloading
 
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.Var
@@ -7,6 +7,7 @@ import org.tygus.suslik.logic.Resolver.resolveProgram
 import org.tygus.suslik.logic.Specifications.makeNewGoal
 import org.tygus.suslik.logic._
 import org.tygus.suslik.parsing.SSLParser
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 
 /**
@@ -24,13 +25,13 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
       throw SynthesisException(s"Failed to parse the input:\n$res")
     }
     val prog = res.get
-    val (specs, env) = resolveProgram(prog)
+    val (specs, env, body) = resolveProgram(prog)
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
     }
     val spec = specs.head
-    val FunSpec(name, _, formals, pre, post) = spec
-    val goal = makeNewGoal(pre, post, formals, name, env)
+    val FunSpec(name, _, formals, pre, post, var_types) = spec
+    val goal = makeNewGoal(pre, post, formals, name, env, var_types)
     goal
   }
 
@@ -86,8 +87,8 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
     }
   }
 
-  describe("Overloaded equality tests") {
-    runAllTestsFromDir("overloaded-equality")
+  describe("Overloaded operators tests") {
+    runAllTestsFromDir("overloaded-ops")
   }
 
 }

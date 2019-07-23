@@ -1,18 +1,20 @@
 package org.tygus.suslik.logic
 
+import org.tygus.suslik.language.Statements.Statement
+
 object Resolver {
 
   /**
     * Collect program declarations into an environment
     * TODO: type checking
     */
-  def resolveProgram(prog: Program): (Seq [FunSpec], Environment) = {
+  def resolveProgram(prog: Program): (Seq [FunSpec], Environment, Statement) = {
     val Program(preds, funs, goal) = prog
     val funMap = funs.map(fs => fs.name -> setUpAuxiliaryFunction(fs)).toMap
     val predMap = preds.map(ps => ps.name -> ps).toMap
 
     val time0 = System.currentTimeMillis()
-    (List(goal), Environment(predMap, funMap, startTime = time0))
+    (List(goal.spec), Environment(predMap, funMap, startTime = time0), goal.body)
   }
 
   def setUpAuxiliaryFunction(fs: FunSpec) : FunSpec = {

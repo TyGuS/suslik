@@ -6,6 +6,10 @@ import org.tygus.suslik.language.PrettyPrinting
   * @author Ilya Sergey
   */
 
+sealed trait InputFormat
+case object dotSyn extends InputFormat
+case object dotSus extends InputFormat
+
 case class SynConfig(
                       // Synthesis params
                       startingDepth: Int        = 100,
@@ -22,10 +26,11 @@ case class SynConfig(
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
                       printEnv: Boolean         = false,
-                      assertSuccess: Boolean    = false,
+                      assertSuccess: Boolean    = true,
                       logToFile: Boolean        = true,
                       memoization: Boolean        = true,
-                      timeOut: Long             = DEFAULT_TIMEOUT
+                      timeOut: Long             = DEFAULT_TIMEOUT*100,
+                      inputFormat: InputFormat = dotSyn
                     ) extends PrettyPrinting {
 
   override def pp: String =
@@ -42,5 +47,6 @@ case class SynConfig(
 case class SynTimeOutException(msg: String) extends Exception(msg)
 
 case class SynthesisException(msg: String) extends Exception(msg)
+case class SymbolicExecutionError(msg: String) extends Exception(msg)
 
 

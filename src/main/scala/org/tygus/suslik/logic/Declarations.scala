@@ -4,6 +4,7 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.language.SSLType
+import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.synthesis.SynConfig
 import org.tygus.suslik.synthesis._
 
@@ -23,7 +24,7 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
   * @param rType function return type
   */
 case class FunSpec(name: Ident, rType: SSLType, params: Formals,
-                   pre: Assertion, post: Assertion) extends TopLevelDeclaration {
+                   pre: Assertion, post: Assertion, var_decl: Formals = Nil) extends TopLevelDeclaration {
 
   def resolveOverloading(env:Environment):FunSpec = {
     val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
@@ -32,9 +33,13 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
   }
 
   override def pp: String = {
-    s"${pre.pp}\n${rType.pp} " +
-        s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")})\n" +
-        s"${post.pp}"
+    (""
+      + s"${rType.pp} "
+      + s"$name(${params.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) "
+      + s"[${var_decl.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}]\n"
+      + s"${pre.pp}\n"
+      + s"${post.pp}"
+      )
   }
 
 
@@ -165,14 +170,18 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
 
 }
 
+
+case class GoalContainer(spec: FunSpec, body: Statement)
+
 /**
   * Program: for now just a sequence of declarations
   */
 case class Program(predicates: Seq[InductivePredicate],
                    funs: Seq[FunSpec],
-                   goal: FunSpec) extends PrettyPrinting {
+                   goal: GoalContainer) extends PrettyPrinting {
   override def pp: String = predicates.map(_.pp).mkString("\n\n") ++ funs.map(_.pp).mkString("\n\n")
 }
+
 
 
 /**

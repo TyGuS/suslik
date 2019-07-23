@@ -55,18 +55,37 @@ trait PureLogicUtils {
     case UnaryExpr(OpNot, BinaryExpr(OpOr, left, right)) => propagate_not(left.not) && propagate_not(right.not)
     case UnaryExpr(OpNot, BoolConst(true)) => pFalse
     case UnaryExpr(OpNot, BoolConst(false)) => pTrue
-    case UnaryExpr(op, e1) if op  != OpNot => UnaryExpr(op, propagate_not(e1))
+      
+    // Propagate further
+    case UnaryExpr(op, e1) => UnaryExpr(op, propagate_not(e1))
     case BinaryExpr(op, left, right) => BinaryExpr(op, propagate_not(left), propagate_not(right))
-    case _ => e
+    case OverloadedBinaryExpr(op, e1, e2) => OverloadedBinaryExpr(op, propagate_not(e1), propagate_not(e2))
+    case _:IntConst => e
+    case _:BoolConst => e
+    case _:Var => e
+    case IfThenElse(e1,e2,e3) => IfThenElse(propagate_not(e1),propagate_not(e2), propagate_not(e3))
+    case SetLiteral(args) => SetLiteral(args.map(propagate_not))
   }
 
   def desugar(e: Expr): Expr = e match {
       // Bi-implication usually ends up not being in CNF, so it is not very useful
 //    case BinaryExpr(OpBoolEq, e1, e2) => desugar(e1) <==> desugar(e2)
-//
-//    case BinaryExpr(op, e1, e2) => BinaryExpr(op, desugar(e1), desugar(e2))
-//    case UnaryExpr(op, e1) => UnaryExpr(op, desugar(e1))
-    case _ => e
+    case UnaryExpr(OpUnaryMinus, arg) => BinaryExpr(OpMinus, IntConst(0), desugar(arg))
+    case OverloadedBinaryExpr(OpNotEqual, e1, e2)  => desugar(e1) |/===| desugar(e2)
+    case OverloadedBinaryExpr(OpGt, e1, e2)  => OverloadedBinaryExpr(OpLt, desugar(e2), desugar(e1))
+    case OverloadedBinaryExpr(OpGeq, e1, e2)  => OverloadedBinaryExpr(OpLeq, desugar(e2), desugar(e1))
+    case BinaryExpr(OpImplication, e1, e2)           => desugar(e1) ==> desugar(e2)
+    case OverloadedBinaryExpr(OpImplication, e1, e2) => desugar(e1) ==> desugar(e2)
+
+      // Propagate further
+    case BinaryExpr(op, e1, e2) => BinaryExpr(op, desugar(e1), desugar(e2))
+    case OverloadedBinaryExpr(op, e1, e2) => OverloadedBinaryExpr(op, desugar(e1), desugar(e2))
+    case UnaryExpr(op, e1) => UnaryExpr(op, desugar(e1))
+    case _:IntConst => e
+    case _:BoolConst => e
+    case _:Var => e
+    case IfThenElse(e1,e2,e3) => IfThenElse(desugar(e1),desugar(e2), desugar(e3))
+    case SetLiteral(args) => SetLiteral(args.map(desugar))
   }
 
   def propperify(e: Expr): Expr = propagate_not(desugar(e))

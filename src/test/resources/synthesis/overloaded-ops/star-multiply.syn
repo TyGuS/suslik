@@ -1,0 +1,10 @@
+star overloading
+#####
+{r :->  was}
+void star(int a, int b, loc r)
+{ res == x * y && x == a && y == b; r :-> res}
+#####
+
+void star (int a, int b, loc r) {
+  *r = a * b;
+}

@@ -38,7 +38,9 @@ trait SepLogicUtils extends PureLogicUtils {
     slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
-      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off // todo: wrong. Should check
+        // SMTSolving.valid( phi ==> ((y |+|off) |=|(pt.loc |+| pt.offset )) )
+        // not (?) important for synthesis, but important for symbolic execution
       case _ => false
     }
   }
@@ -57,7 +59,10 @@ trait SepLogicUtils extends PureLogicUtils {
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
         Some((h, pts.flatten))
       case Some(h) =>
-        None
+        None // todo: is this correct?
+      // For example find heaplet can stop at PointsTo, not reach the block and return None.
+      // I think there should be findHeaplet(pBlock and isBlock, sigma) match { ...
+
     }
   }
 

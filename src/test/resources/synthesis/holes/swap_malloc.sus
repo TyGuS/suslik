@@ -1,0 +1,45 @@
+/* swap and malloc free combination */
+
+void swap(loc xs, loc ys)
+{ xs :-> as ** ys :-> bs }
+{ xs :-> bs ** ys :-> as }
+{
+    let a = malloc(1);
+    let b = malloc(1);
+    let c = malloc(1);
+    let d = malloc(1);
+    *a = b;
+    let ar = *a;
+    *c = d;
+    let cr = *c;
+    free(a);
+    free(b);
+    free(c);
+    free(cr);
+    let yy = *ys;
+    let xx = *xs;
+    *xs = yy;
+    ??
+}
+
+
+###
+
+void swap (loc xs, loc ys) {
+  let a = malloc(1);
+  let b = malloc(1);
+  let c = malloc(1);
+  let d = malloc(1);
+  *a = b;
+  let ar = *a;
+  *c = d;
+  let cr = *c;
+  free(a);
+  free(b);
+  free(c);
+  free(cr);
+  let yy = *ys;
+  let xx = *xs;
+  *xs = yy;
+  *ys = xx;
+}

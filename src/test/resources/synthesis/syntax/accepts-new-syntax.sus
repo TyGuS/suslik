@@ -1,0 +1,16 @@
+/* syntax V1 */
+
+void typing() [bool a]
+{a==b; emp}
+{ b == true \/ true; emp}
+{??}
+
+void vvvvvv(int a, int b, loc r)
+[int a, int b]
+{a!=b; r :->was}
+{ res != a; r:-> res}
+
+###
+
+void typing () {
+}

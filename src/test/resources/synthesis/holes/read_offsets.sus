@@ -1,0 +1,24 @@
+/* read manages to reason about offsets */
+
+void nop(loc x, loc y)
+{}
+{}
+{
+  let a = malloc(3);
+  let b = malloc(1);
+  *b = a+1;
+  let c = *b;       /* c == a+1*/
+  let d = *(c+1);   /* let d = *(a+1+1);*/
+  ??
+}
+
+###
+void nop (loc x, loc y) {
+  let a = malloc(3);
+  let b = malloc(1);
+  *b = a + 1;
+  let c = *b;
+  let d = *(c + 1);
+  free(a);
+  free(b);
+}

@@ -1,0 +1,10 @@
+type helper
+#####
+
+{a==b; emp}
+void typing() [bool a, int k]
+{ b == true \/ true; emp}
+#####
+
+void typing () {
+}

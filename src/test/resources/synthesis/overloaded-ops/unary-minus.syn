@@ -1,0 +1,11 @@
+unary minus is not overloaded, but let it be in this folder
+#####
+
+{true; r :->  was}
+void star(int b, loc r)
+{ res == -b; r :-> res}
+#####
+
+void star (int b, loc r) {
+  *r = 0 - b;
+}

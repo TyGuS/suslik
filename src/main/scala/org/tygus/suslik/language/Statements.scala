@@ -1,5 +1,8 @@
 package org.tygus.suslik.language
 
+import org.tygus.suslik.logic.{FunSpec, Gamma}
+import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.synthesis.Subderivation
 import org.tygus.suslik.util.StringUtil._
 
 /**
@@ -19,6 +22,9 @@ object Statements {
       def build(s: Statement, offset: Int = 2): Unit = {
         s match {
           case Skip =>
+          case Hole =>
+            builder.append(mkSpaces(offset))
+            builder.append(s"??\n")
           case Error =>
             builder.append(mkSpaces(offset))
             builder.append(s"error;\n")
@@ -43,13 +49,16 @@ object Statements {
             builder.append(s"let ${to.pp} = *$f;\n")
           case Call(tt, fun, args) =>
             builder.append(mkSpaces(offset))
+            val function_call = s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n"
             tt match {
               case Some(tpe) =>
-                builder.append(s"${tpe._2.pp} ${tpe._1.pp} = " +
-                    s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n")
+                builder.append(s"${tpe._2.pp} ${tpe._1.pp} = " + function_call)
               case None =>
-                builder.append(s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n")
+                builder.append(function_call)
             }
+          case SubGoal(subgoal) =>
+            val subgoal_str = "<??\n" + withOffset(subgoal.pp, 2) + "\n??>"
+            builder.append(withOffset(subgoal_str, offset) + "\n")
           case SeqComp(s1,s2) =>
             build(s1, offset)
             build(s2, offset)
@@ -77,8 +86,10 @@ object Statements {
 
       def collector(acc: Set[R])(st: Statement): Set[R] = st match {
         case Skip => acc
+        case Hole => acc
         case Error => acc
         case Magic => acc
+        case SubGoal(g) => acc // todo: this is actually incorrect
         case Store(to, off, e) =>
           acc ++ to.collect(p) ++ e.collect(p)
         case Load(_, _, from, off) =>
@@ -102,11 +113,15 @@ object Statements {
       collector(Set.empty)(this)
     }
 
-    def usedVars: Set[Var] = collectE(_.isInstanceOf[Var])
+    def usedVars: Set[Var] = this match{
+      case SubGoal(g) => g.programVars.toSet // todo: this looks like a crutch
+      case _ => collectE(_.isInstanceOf[Var])
+    }
 
     // Statement size in AST nodes
     def size: Int = this match {
       case Skip => 0
+      case Hole => 1
       case Error => 1
       case Magic => 1
       case Store(to, off, e) => 1 + to.size + e.size
@@ -114,14 +129,58 @@ object Statements {
       case Malloc(to, _, _) => 1 + to.size
       case Free(x) => 1 + x.size
       case Call(_, fun, args) => 1 + args.map(_.size).sum
+      case SubGoal(_) => 1 // todo: idk if it is correct
       case SeqComp(s1,s2) => s1.size + s2.size
       case If(cond, tb, eb) => 1 + cond.size + tb.size + eb.size
       case Guarded(cond, b) => 1 + cond.size + b.size
     }
+
+    def replace(target:Statement, replacement:Statement):Statement = this match {
+      case `target` => replacement
+
+      case stmt@Skip => stmt
+      case stmt@Hole => stmt
+      case stmt@Error => stmt
+      case stmt@Magic => stmt
+      case stmt:Store => stmt
+      case stmt:Load => stmt
+      case stmt:Malloc => stmt
+      case stmt:Free => stmt
+      case stmt:Call => stmt
+      case stmt:SubGoal => stmt
+
+      // propagate
+      case SeqComp(s1,s2) => SeqComp(s1.replace(target,replacement), s2.replace(target, replacement))
+      case If(cond, tb, eb) => If(cond, tb.replace(target, replacement), eb.replace(target, replacement))
+      case Guarded(cond, b) =>  Guarded(cond, b.replace(target, replacement))
+    }
+
+    def resolveOverloading(gamma:Gamma):Statement = this match {
+      case SeqComp(s1,s2)=> SeqComp(
+        s1.resolveOverloading(gamma),
+        s2.resolveOverloading(gamma)
+      )
+      case If(cond, tb, eb) => If(
+        cond.resolveOverloading(gamma),
+        tb.resolveOverloading(gamma),
+        eb.resolveOverloading(gamma)
+      )
+      case Guarded(cond, body) => Guarded(
+        cond.resolveOverloading(gamma),
+        body.resolveOverloading(gamma)
+      )
+      case cmd:Store => cmd.copy(e = cmd.e.resolveOverloading(gamma))
+      case cmd:Call => cmd.copy(args = cmd.args.map({e => e.resolveOverloading(gamma)}))
+      case other => other
+    }
+
   }
 
   // skip;
   case object Skip extends Statement
+
+  // ?? Hole without pre- post- conditions
+  case object Hole extends Statement
 
   // assert false;
   case object Error extends Statement
@@ -146,6 +205,8 @@ object Statements {
   // or
   // let to = f(args); rest
   case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr]) extends Statement
+
+  case class SubGoal(goal:Goal) extends Statement
 
   case class SeqComp(s1: Statement, s2: Statement) extends Statement {
     def simplify: Statement = {

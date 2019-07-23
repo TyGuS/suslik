@@ -19,8 +19,10 @@ trait SynthesisRunnerUtil {
 
   val testSeparator = "###"
   val testExtension = "syn"
+  val sketchExtension = "sus"
   val defExtension = "def"
   val paramPrefix = "#"
+  val noOutputCheck = "nope"
 
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
@@ -33,28 +35,51 @@ trait SynthesisRunnerUtil {
   
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
+    val format = testFilePath match{
+      case s if s.endsWith(testExtension) => dotSyn
+      case s if s.endsWith(sketchExtension) => dotSus
+    }
     // The path is counted from the rout
     val allLines = Source.fromFile(file).getLines.toList
     val (params, lines) =
       if (allLines.nonEmpty && allLines.head.startsWith(paramPrefix)) {
         (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' '), initialParams), allLines.tail)
       } else (initialParams, allLines)
-    val i = lines.indexWhere(_.trim.contains(testSeparator))
-    val (l1, l2) = lines.splitAt(i)
-    val fname = removeSuffix(file.getName, s".$testExtension")
-    val dirName = file.getParentFile.getName
-    val description = if (l1.isEmpty) "Testing synthesis" else l1.mkString("\n").trim
-    // The first part is the description
-    val testName = s"$dirName/$fname"
-    val desc = s"[$testName] $description"
 
-    val remainder = l2.tail
-    // The remainder is the input and output
-    val j = remainder.indexWhere(_.trim.startsWith(testSeparator))
-    val (l3, l4) = remainder.splitAt(j)
-    val input = l3.mkString(" ").trim
-    val output = l4.tail.mkString("\n").trim
-    (testName, desc, input, output, params)
+    def parseSyn = {
+      val i = lines.indexWhere(_.trim.contains(testSeparator))
+      val (testDescr, _ :: specAndSrc) = lines.splitAt(i) // a::b matches head `a` and tail `b`
+      val fname = removeSuffix(file.getName, s".$testExtension")
+      val dirName = file.getParentFile.getName
+      val description = if (testDescr.isEmpty) "Testing synthesis" else testDescr.mkString("\n").trim
+      // The first part is the description
+      val testName = s"$dirName/$fname"
+      val desc = s"[$testName] $description"
+
+      val j = specAndSrc.indexWhere(_.trim.startsWith(testSeparator))
+      val (spec, expectedSrc) = specAndSrc.splitAt(j)
+      val input = spec.mkString(" ").trim
+      val output = expectedSrc.tail.mkString("\n").trim
+      (testName, desc, input, output, params.copy(inputFormat = format))
+    }
+
+    def parseSus = {
+      val hasDescr = lines.head.trim.startsWith("/*") // todo:support multiline descriptions
+      val desc = if(hasDescr) lines.head.trim else ""
+
+      val j = lines.indexWhere(_.trim.startsWith(testSeparator))
+      val (spec, expectedSrc) = lines.splitAt(j)
+
+      val input = spec.mkString(" ").trim
+      val testName = testFilePath
+      val output = expectedSrc.tail.mkString("\n").trim
+      (testName, desc, input, output, params.copy(inputFormat = format))
+    }
+
+    format match {
+      case `dotSyn` => parseSyn
+      case `dotSus` => parseSus
+    }
   }
 
   def synthesizeFromFile(dir: String, testName: String): Unit = {
@@ -62,16 +87,19 @@ trait SynthesisRunnerUtil {
     synthesizeFromSpec(testName, in, out, params)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) : Unit = {
+  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig) : Unit = {
     val parser = new SSLParser
-    val res = parser.parseGoal(text)
+    val res = params.inputFormat match {
+      case `dotSyn` => parser.parseGoalSYN(text)
+      case `dotSus` => parser.parseGoalSUS(text)
+    }
     if (!res.successful) {
       throw SynthesisException(s"Failed to parse the input:\n$res")
     }
 
     val prog = res.get
     // assert(prog.predicates.nonEmpty)
-    val (specs, env) = resolveProgram(prog)
+    val (specs, env, body) = resolveProgram(prog)
 
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
@@ -79,7 +107,7 @@ trait SynthesisRunnerUtil {
 
     val spec = specs.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(spec, env.copy(config = params))
+    val sresult = synthesizeProc(spec, env.copy(config = params), body)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
@@ -106,7 +134,7 @@ trait SynthesisRunnerUtil {
         } else {
           println(result)
         }
-        if (out != "nope") {
+        if (out != noOutputCheck) {
           val tt = out.trim.lines.toList
           val res = result.trim.lines.toList
           if (params.assertSuccess && res != tt) {
@@ -135,7 +163,9 @@ trait SynthesisRunnerUtil {
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
-      val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
+      val tests = testDir.listFiles.filter(f => f.isFile
+        && (f.getName.endsWith(s".$testExtension") ||
+            f.getName.endsWith(s".$sketchExtension"))).toList
       for (f <- tests) {
         val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
         val fullInput = List(defs, in).mkString("\n")
@@ -161,7 +191,9 @@ trait SynthesisRunnerUtil {
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
-      val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
+      val tests = testDir.listFiles.filter(f => f.isFile
+        && (f.getName.endsWith(s".$testExtension") ||
+            f.getName.endsWith(s".$sketchExtension"))).toList
       tests.find(f => f.getName == fname) match {
         case Some(f) =>
           val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)

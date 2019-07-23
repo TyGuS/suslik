@@ -222,6 +222,14 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
     }
   }
 
+  def is_subheap_of(other: SFormula):Boolean = {
+    similarity(other) == this.chunks.length
+  }
+
+  def replace(what:SFormula, replacement:SFormula): SFormula ={
+    (this - what.chunks) ** replacement
+  }
+
   // Size of the formula (in AST nodes)
   def size: Int = chunks.map(_.size).sum
 }

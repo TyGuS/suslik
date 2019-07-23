@@ -1,10 +1,16 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.Memoization
+import org.tygus.suslik.language.Expressions.Var
+import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic._
+import org.tygus.suslik.logic.{SApp, _}
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.rules.OperationalRules._
+import org.tygus.suslik.synthesis.rules.UnfoldingRules
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule
+import org.tygus.suslik.util.OtherUtil.Accumulator
 import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
@@ -25,17 +31,234 @@ trait Synthesis extends SepLogicUtils {
 
   def allRules(goal: Goal): List[SynthesisRule]
 
+  val operationalRules: Set[SynthesisRule] = Set(
+    AllocRule,
+    FreeRule,
+    WriteRule,
+    ReadRule,
+    CallRule
+  )
+
+  def entailmentCheckRules(goal: Goal): List[SynthesisRule] = {
+    allRules(goal).filter(r => !operationalRules.contains(r) && r != UnfoldingRules.InductionRule) // Seems order matters
+  }
+
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
   val memo = new Memoization
 
-  def synthesizeProc(funGoal: FunSpec, env: Environment):
+  def cutHead(prog: Statement): (Statement, Option[Statement]) = prog match {
+    case SeqComp(s1, s2) => {
+      val (head, tail_first) = cutHead(s1)
+      if (tail_first.isDefined) {
+        (head, Some(SeqComp(tail_first.get, s2)))
+      } else {
+        (head, Some(s2))
+      }
+    }
+    case other => (other, None)
+  }
+
+  def unrollSAppsWherePossible(initial_assertion: Assertion, goal:Goal):Assertion = {
+    val sigma = initial_assertion.sigma
+    val phi = initial_assertion.phi
+
+    val sapp = sigma.chunks.find({case _:SApp => true case _ => false})
+    if(sapp.isEmpty){
+      initial_assertion
+    }else{
+      // borrowed from Open rule
+      val SApp(pred, args, _) = sapp.get
+      val remainingChunks = sigma.chunks.filter(_ != sapp.get)
+      val env = goal.env
+      assert(env.predicates.contains(pred), s"Undefined predicate: $pred")
+      val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+      val sbst = params.map(_._2).zip(args).toMap
+      lazy val possible_unrollings = for{
+        InductiveClause(_sel, _asn) <- clauses
+        sel = _sel.subst(sbst)
+        asn = _asn.subst(sbst)
+        constraints = asn.phi
+        body = asn.sigma
+        if SMTSolving.valid(phi ==> sel)
+        newPhi = phi && constraints
+        _newSigma1 = SFormula(body.chunks).bumpUpSAppTags() // todo: what is bumpUpSAppTags for?
+        _newSigma2 = SFormula(remainingChunks).lockSAppTags() // todo: what is lockSAppTags for?
+        newSigma = SFormula(_newSigma1.chunks ++ _newSigma2.chunks)
+      } yield Assertion(newPhi, newSigma)
+      if(possible_unrollings.nonEmpty){
+        unrollSAppsWherePossible(possible_unrollings.head, goal) // todo: is it finite?
+      }else{
+        initial_assertion
+      }
+    }
+  }
+
+  // Returns the goal after application of the statement
+  // TODO: check every rule for soundness:
+  //  1. Don't read ghosts,
+  //  2. updates ProgramVars
+  //  3. behaves according to paper
+  //  4. Heaplet lookup isn't syntactic, but also looks for heaplets with another name, but same address wrt pure part
+  //  5. Don't redefine
+  def modifyPre(spec: Goal, statement: Statement): Goal = statement match {
+    case Skip => spec
+    case Hole => throw SynthesisException(Hole.pp + " is not allowed here")
+    case Error => throw SynthesisException(Error.pp + " is not allowed here")
+    case Magic => throw SynthesisException(Magic.pp + " is not allowed here")
+    case cmd: Malloc => AllocRule.symbolicExecution(spec, cmd) // OK: 1, 2, 4, 5 Check: 3
+    case cmd: Free => FreeRule.symbolicExecution(spec, cmd) // OK: 1,2,3,5 Wrong: 4
+    case cmd: Store => WriteRule.symbolicExecution(spec, cmd) // OK: 1,2,3,4,5
+    case cmd: Load => ReadRule.symbolicExecution(spec, cmd) // OK: 1,2,3,4,5
+    case cmd: Call => CallRule.symbolicExecution(spec, cmd) // OK: 1, check: everything, because I dont understand its code
+    case cmd: SubGoal => ??? // should be same as call with that signature
+    case cmd: SeqComp => throw SynthesisException("Unexpected SeqComp")
+    case cmd: If => throw SynthesisException("Found if-then-else in the middle of the program. if-then-else is currently allowed only in the end.")
+    case Guarded(cond, _) => { // needed for `propagatePre` in if statement
+      // OK: 1, 2, 4, 5. Not according to paper: this code unfolds predicates,
+      val vars_in_cond: Set[Var] = cond.collect({
+        case Var(_) => true
+        case _ => false
+      })
+      for (v <- vars_in_cond) {
+        symExecAssert(spec.isProgramVar(v), s"value `${v.pp}` is read before defined.")
+      }
+      val newPhi = spec.pre.phi && cond
+      val newPre = unrollSAppsWherePossible(Assertion(newPhi, spec.pre.sigma), spec)
+      spec.copy(pre = newPre)
+    }
+  }
+
+
+  // Propagates assertions from precondition to holes, converting them into subgoals
+  // collects subgoals into synthesis_goals_acc
+  // correctness_goals_acc collects goals, that must be completed without any code
+  def propagatePre(spec: Goal,
+                   funSketch: Statement,
+                   synthesis_goals_acc: Accumulator[Goal],
+                   correctness_goals_acc: Accumulator[Goal]): Statement =
+    try {
+      val (head, tail) = cutHead(funSketch)
+      val new_head = head match {
+        case Hole =>
+          if (tail.isDefined) {
+            throw SynthesisException("Found hole in the middle of the program. Holes are currently allowed only in the end.")
+          }
+          SubGoal(spec)
+        case other => other
+      }
+      if (tail.isDefined) {
+        val tail_spec: Goal = modifyPre(spec, head)
+        val new_tail = propagatePre(tail_spec, tail.get, synthesis_goals_acc, correctness_goals_acc)
+        SeqComp(new_head, new_tail)
+      } else {
+        new_head match {
+          case sg@SubGoal(g) => {
+            synthesis_goals_acc.put(g)
+            sg
+          }
+          case If(cond, tb, eb) =>
+            If(cond,
+              propagatePre(modifyPre(spec, Guarded(cond, tb)), tb, synthesis_goals_acc, correctness_goals_acc),
+              propagatePre(modifyPre(spec, Guarded(cond.not, eb)), eb, synthesis_goals_acc, correctness_goals_acc)
+            )
+          case other => {
+            val correctness_goal: Goal = modifyPre(spec, head)
+            correctness_goals_acc.put(correctness_goal)
+            other
+          }
+        }
+      }
+    }
+    catch {
+      case SymbolicExecutionError(why) => {
+        printlnErr(why)
+        Error
+      }
+    }
+
+
+
+// synthesizeProgramFromSketch
+  def synthesizeProc(funGoal: FunSpec, env: Environment, funSketch:Statement):Option[(Procedure, SynStats)] ={
+    implicit val config: SynConfig = env.config
+    // Cleanup the memo table
+    memo.cleanup()
+    val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
+    val initial_goal = makeNewGoal(pre, post, formals, name, env, var_decl)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${initial_goal.pp}\n", Console.BLUE)))(i = 0, config)
+
+    val inductive_derivations = UnfoldingRules.InductionRule(initial_goal)
+    val stats = new SynStats()
+    SMTSolving.init()
+
+    val subgoals = inductive_derivations.map({x => x.subgoals.head}) ++ List(initial_goal)
+    val answers = subgoals.view
+      .map({goal => synthesizeProcNoInduction(goal, env, funSketch, stats, tp, formals)})
+      .collectFirst {case Some(x) => x}
+    answers
+  }
+
+  def synthesizeProcNoInduction(goal:Goal, env: Environment, funSketch:Statement, stats:SynStats, tp:SSLType, formals:Formals):Option[(Procedure, SynStats)] = {
+    implicit val config: SynConfig = env.config
+    val subGoalsAcc = new Accumulator[Goal]()
+    val corrGoalsAcc = new Accumulator[Goal]() // goals, where emp must be correct answer
+    val specifiedBody = propagatePre(goal, funSketch.resolveOverloading(goal.gamma), subGoalsAcc, corrGoalsAcc)
+    val subGoals = subGoalsAcc.get
+    val correctness_goals = corrGoalsAcc.get
+
+    println("Propagated synthesis goal:")
+    println(specifiedBody.pp)
+
+    if (specifiedBody == Error) {
+      Some(Procedure(goal.fname, tp, formals, Error), stats)
+    } else {
+      try {
+        for (corrGoal <- correctness_goals) {
+          val solution =
+            synthesize(corrGoal, config.startingDepth)(stats = stats, rules = entailmentCheckRules(corrGoal))
+          if(!solution.contains(Skip) ){
+            printlnErr(s"Correctness goal \n${corrGoal.pp} \nfailed: expected Skip, got:\n$solution")
+            return Some(Procedure(goal.fname, tp, formals, Error), stats)
+          }
+        }
+        var completeFunction: Option[Statement] = Some(specifiedBody)
+        for (subGoal <- subGoals) {
+          if (completeFunction.isDefined) {
+            val solution = synthesize(subGoal, config.startingDepth)(stats = stats, rules = nextRules(subGoal, config.startingDepth+1))
+            completeFunction = solution match {
+              case Some(sol) => Some(completeFunction.get.replace(SubGoal(subGoal), sol))
+              case _ =>
+                printlnErr(s"Deductive synthesis failed for the subgoal\n ${subGoal.pp},\n depth = ${config.startingDepth}.")
+                None
+            }
+          }
+        }
+
+        completeFunction match {
+          case Some(body) =>
+            val proc = Procedure(goal.fname, tp, formals, body)
+            Some((proc, stats))
+          case None =>
+            printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = ${config.startingDepth}.")
+            None
+        }
+      } catch {
+        case SynTimeOutException(msg) =>
+          printlnErr(msg)
+          None
+      }
+    }
+  }
+
+
+  def synthesizeProc_old(funGoal: FunSpec, env: Environment):
   Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config
     // Cleanup the memo table
     memo.cleanup()
-    val FunSpec(name, tp, formals, pre, post) = funGoal
-    val goal = makeNewGoal(pre, post, formals, name, env)
+    val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
+    val goal = makeNewGoal(pre, post, formals, name, env, var_decl)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
     val stats = new SynStats()
     SMTSolving.init()

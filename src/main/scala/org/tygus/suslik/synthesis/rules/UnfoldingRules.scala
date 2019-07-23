@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.OperationalRules.symExecAssert
 
 /**
   * Unfolding rules deal with predicates and recursion.
@@ -149,6 +150,42 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: call]"
 
+    def symbolicExecution(goal:Goal, cmd:Call):Goal = {
+      val Call(to, fun, given_args) = cmd
+      symExecAssert(given_args.flatMap(_.vars).toSet.subsetOf(goal.programVars.toSet), cmd.pp + " Parameters are not defined.")
+      symExecAssert(goal.env.functions.contains(fun.name), cmd.pp + " Function is not defined.")
+      val _f = goal.env.functions(fun.name)
+      symExecAssert(_f.params.size == given_args.size, cmd.pp + s" Function ${_f.name} takes ${_f.params.size} arguments, but ${given_args.size} given.")
+      val f = _f.refreshExistentials(goal.vars)
+
+      val lilHeap = f.pre.sigma
+      val largHeap = goal.pre.sigma
+
+      val subgoals = for {
+        // Find all subsets of the goal's pre that might be unified
+        largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+        callSubPre = goal.pre.copy(sigma = largSubHeap)
+
+        // Try to unify f's precondition and found goal pre's subheaps
+        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
+        target = UnificationGoal(callSubPre, goal.programVars.toSet)
+        sub <- {
+          SpatialUnification.unify(target, source).toList
+        }
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+        args = f.params.map { case (_, x) => x.subst(sub) }
+        if args.toSet == given_args.asInstanceOf[Seq[Var]].toSet // todo: find a better way
+//        _ = assert(args == given_args, cmd.pp + " Unification is unsound.")
+        if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+        callGoal <- mkCallGoal(f, sub, callSubPre, goal, also_gen_locked = false)
+      } yield {
+        callGoal
+      }
+      symExecAssert(subgoals.nonEmpty, cmd.pp + " function can't be called.")
+      assert(subgoals.size == 1, cmd.pp + " Ambiguity in program behavior.")
+      subgoals.head
+    }
+
     def apply(goal: Goal): Seq[Subderivation] = {
       (for {
         (_, _f) <- goal.env.functions
@@ -179,7 +216,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     /**
       * Make a call goal for `f` with a given precondition
       */
-    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
+    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal, also_gen_locked :Boolean = true): List[Goal] = {
       val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.lastIndexOf(p)).toSet
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
@@ -188,8 +225,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
-      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
-      val addedChunks2 = callPost.sigma.lockSAppTags()
+      val addedChunksBumpedSApp = callPost.sigma.bumpUpSAppTags()
+      val addedChunksLockedSApp = callPost.sigma.lockSAppTags()
       // Here we return two options for added chunks:
       // (a) with bumped tags
       // (b) with locked tags
@@ -197,7 +234,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // The latter enables application of the same recursive function (tree-flatten-acc),
       // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
       for {
-        acs <- List(addedChunks1, addedChunks2)
+        acs <- if (also_gen_locked) {
+          List(addedChunksBumpedSApp, addedChunksLockedSApp)
+        } else {
+          List(addedChunksBumpedSApp)
+        }
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
         callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp), env = newEnv)
