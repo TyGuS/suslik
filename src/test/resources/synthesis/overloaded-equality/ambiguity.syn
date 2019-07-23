@@ -6,5 +6,3 @@ predicate ambiguous(loc x, set s) {
 
 {true ; emp} void foo (int v) {a==a ; ambiguous(q,w)}
 #####
-void foo (int v) {
-}
