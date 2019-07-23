@@ -5,3 +5,6 @@ wow, it works. (Doesn't work if I remove bool b parameter)
 void notnot(loc r, bool b)
 { c == (not not c);emp}
 #####
+
+void notnot (loc r, bool b) {
+}
