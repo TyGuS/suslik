@@ -1,9 +1,8 @@
 should be able to initialize a linked list
 ###
-
-{ true; sll(x, s) }
+{ true; sll(x, s)[imm, mut, imm] }
   void sll_init(loc x, int v)
-{ s1 <=i {v} ; sll(x, s1) }
+{ s1 <=i {v} ; sll(x, s1)[abs, mut, abs] }
 
 ###
 
@@ -15,3 +14,14 @@ void sll_init (loc x, int v) {
     *x = v;
   }
 }
+
+
+Successfully synthesised in 281 milliseconds:
+Number of backtrackings 0
+Lasting successful rule applications: 8
+Total successful rule applications: 8
+Final size of SMT cache: 17
+Number of saved negative results: 0
+Number of saved positive results: 8
+Number of recalled negative results: 0
+Number of recalled positive results: 0

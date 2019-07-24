@@ -1,6 +1,7 @@
 Step 8:
 Add a head to a list and close the predicate
 
+TODO
 #####
 
 { len == 1 + len1  /\  0 <= len1 ;

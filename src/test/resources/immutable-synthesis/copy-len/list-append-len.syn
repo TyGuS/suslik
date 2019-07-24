@@ -1,11 +1,11 @@
 should be able to synthesize trivial list append
 
-TODO investigate -- either fails or take longer depending on which list is immutable
+TODO how do we collapse two lists with two different permissions into one?
 #####
 
-{ 0 <= n ; lseg(y, 0, n) ** lseg(x, 0, m)}
+{ 0 <= n ; lseg(y, 0, n)[imm, imm, mut] ** lseg(x, 0, m)[imm, imm, mut]}
 void list_append(loc y, loc x)
-{ true  ; lseg(x, 0, k)}
+{ true  ; lseg(x, 0, k)[abs, abs, mut]}
 
 #####
 

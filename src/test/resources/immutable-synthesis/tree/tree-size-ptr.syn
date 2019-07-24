@@ -3,9 +3,15 @@ should be able to synthesize tree size from the root pointer
 #####
 
 
+<<<<<<< HEAD
 {0 <= n ; r :-> x ** treeN(x, n) }
 void tree_size(loc r)
 {true ; r :-> n ** treeN(x, n) }
+=======
+{0 <= n ; r :-> x ** treeN(x, n)[imm, imm, imm, imm] }
+void tree_size(loc r)
+{true ; r :-> n ** treeN(x, n)[abs, abs, abs, abs] }
+>>>>>>> 6551f85... Changes to tests
 
 #####
 

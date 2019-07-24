@@ -1,7 +1,9 @@
 should be able to deallocate a linked list
+
+
 ###
 
-{ true; sll(x, s) }
+{ true; sll(x, s)[mut, mut, mut] }
   void sll_free(loc x)
 { true ; emp }
 

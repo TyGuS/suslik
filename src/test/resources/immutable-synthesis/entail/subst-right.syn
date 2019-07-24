@@ -2,7 +2,7 @@ should be able to synthesize existentials in the post
 ###
 { z == 5; [x :-> y] ** y :-> z}
 void foo (loc x, loc y)
-{ 5 == a  /\  x == x ; y :-> a}
+{ 5 == a  /\  x == x ;  [x :-> y]@A ** y :-> a}
 ###
 void foo (loc x, loc y) {
 }

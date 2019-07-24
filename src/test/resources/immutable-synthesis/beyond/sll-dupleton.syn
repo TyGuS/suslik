@@ -1,12 +1,14 @@
-#. this -c 3
+
 singly-linked list: construct a list with two elements
+
+#. this -c 3
 
 TODO ??? can't make immutable?
 #####
 
 { true ; ret :-> a }
 void sll_dupleton (int x, int y, loc ret)
-{ len == 2  /\  elems =i {x, y} ; ret :-> z ** sll(z, len, elems) }
+{ len == 2  /\  elems =i {x, y} ; ret :-> z ** sll(z, len, elems)[mut, mut, mut] }
 
 #####
 
@@ -16,3 +18,8 @@ void sll_dupleton (int x, loc ret) {
   *(y2 + 1) = 0;
   *ret = y2;
 }
+
+
+{ true; (prev + 1) :-> x ** dllseg(x, z, s)[imm, imm, imm, mut] }
+void set_prev(loc x, loc prev)
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)[abs, abs, abs, mut]}

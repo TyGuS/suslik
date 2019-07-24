@@ -2,9 +2,15 @@ lemma: connected list segments
 
 #####
 
+<<<<<<< HEAD
 {true ; lseg(x, y) ** lseg(y, 0)}
 void lemma (loc x, loc y)
 {true ; lseg(x, 0) }
+=======
+{true ; lseg(x, y)[imm, imm, mut] ** lseg(y, 0)[imm, imm, mut]}
+void lemma (loc x, loc y)
+{true ; lseg(x, 0)[imm, imm, mut] }
+>>>>>>> 6551f85... Changes to tests
 
 #####
 
@@ -14,4 +20,18 @@ void lemma (loc x, loc y) {
     let nxt2 = *(x + 1);
     lemma(nxt2, y);
   }
+<<<<<<< HEAD
 }
+=======
+}
+
+Successfully synthesised in 407 milliseconds:
+Number of backtrackings 2
+Lasting successful rule applications: 17
+Total successful rule applications: 18
+Final size of SMT cache: 32
+Number of saved negative results: 1
+Number of saved positive results: 17
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+>>>>>>> 6551f85... Changes to tests

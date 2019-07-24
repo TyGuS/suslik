@@ -2,9 +2,9 @@ should be able to synthesize list length from the root pointer
 
 #####
 
-{0 <= n ; r :-> x ** [lsegn(x, 0, n)] }
+{0 <= n ; r :-> x ** lsegn(x, 0, n)[imm, imm, imm] }
 void list_len(loc r)
-{true ; r :-> n }
+{true ; r :-> n ** lsegn(x, 0, n)[abs, abs, abs]}
 
 #####
 
@@ -42,7 +42,7 @@ void list_len (loc r) {
   }
 }
 
-vs immutable
+vs not including the list in the post
 
 Successfully synthesised in 473 milliseconds:
 Number of backtrackings 0
@@ -65,3 +65,29 @@ void list_len (loc r) {
     *r = 1 + len12;
   }
 }
+
+with abs
+Successfully synthesised in 551 milliseconds:
+Number of backtrackings 2
+Lasting successful rule applications: 32
+Total successful rule applications: 33
+Final size of SMT cache: 73
+Number of saved negative results: 1
+Number of saved positive results: 32
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void list_len (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    list_len(r);
+    let len12 = *r;
+    *r = 1 + len12;
+  }
+}
+
+
+with imm

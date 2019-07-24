@@ -1,9 +1,15 @@
 should be able to morhp a tree
 ###
 
+<<<<<<< HEAD
 {true; tree(x)}
   void morhp_tree(loc x, int i)
 {true ; tree_elem(x, i) }
+=======
+{true; tree(x)[imm, mut, imm, imm]}
+  void morhp_tree(loc x, int i)
+{true ; tree_elem(x, i)[abs, mut, abs, abs] }
+>>>>>>> 6551f85... Changes to tests
 
 ###
 

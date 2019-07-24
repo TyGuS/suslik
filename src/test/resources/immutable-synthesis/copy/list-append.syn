@@ -2,11 +2,23 @@ should be able to synthesize trivial list append
 
 #####
 
-{ r :-> x ** [lseg(x, 0, s1)] ** lseg(y, 0, s2)}
-void list_append(loc r, loc y)
-{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)}
+{ lseg(x, 0, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut]}
+void list_append(loc x, loc y)
+{ lseg(x, y, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut]}
 
 #####
+
+
+{ lseg(x, 0, s1)[imm, imm, mut] ** lseg(y, 0, s2)[imm, imm, imm]}
+void list_append(loc x, loc y)
+{ s =i s1 ++ s2; lseg(x, y, s1)[imm, imm, mut] ** lseg(y, 0, s2)[imm, imm, imm]}
+
+{ r :-> x ** lseg(x, 0, s1)[imm, imm, mut] ** lseg(y, 0, s2)[imm, imm, mut]}
+void list_append(loc r, loc y)
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[imm, imm, mut]}
+
+ # I guess it won't unify
+
 
 void list_append (loc r, loc y) {
   let x2 = *r;

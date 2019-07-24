@@ -3,12 +3,26 @@ should be able to synthesize tree size
 #####
 
 
+<<<<<<< HEAD
 {0 <= n ; r :-> 0 ** treeN(x, n) }
 void tree_size(loc x, loc r)
 {true ; r :-> n ** treeN(x, n) }
 
 #####
 
+=======
+{0 <= n ; r :-> 0 ** treeN(x, n)[imm, imm, imm, imm] }
+void tree_size(loc x, loc r)
+{true ; r :-> n ** treeN(x, n)[abs, abs, abs, abs] }
+
+#####
+
+
+{0 <= n ; r :-> 0 ** treeN(x, n)[imm, imm, imm, imm] }
+void tree_size(loc x, loc r)
+{true ; r :-> n ** treeN(x, n)[abs, abs, abs, abs] }
+
+>>>>>>> 6551f85... Changes to tests
 void tree_size (loc x, loc r) {
   if (x == 0) {
   } else {
@@ -23,4 +37,29 @@ void tree_size (loc x, loc r) {
     *(x + 2) = l2;
     *r = 1 + n12 + n22;
   }
+<<<<<<< HEAD
 }
+=======
+}
+imm:
+Successfully synthesised in 836 milliseconds:
+Number of backtrackings 2
+Lasting successful rule applications: 38
+Total successful rule applications: 39
+Final size of SMT cache: 131
+Number of saved negative results: 1
+Number of saved positive results: 38
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+mut:
+Successfully synthesised in 806 milliseconds:
+Number of backtrackings 14
+Lasting successful rule applications: 34
+Total successful rule applications: 40
+Final size of SMT cache: 135
+Number of saved negative results: 8
+Number of saved positive results: 34
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+>>>>>>> 6551f85... Changes to tests

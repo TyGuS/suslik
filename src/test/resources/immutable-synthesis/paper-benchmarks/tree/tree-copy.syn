@@ -2,9 +2,15 @@ should be able to synthesize a tree copy (with elements)
 
 #####
 
+<<<<<<< HEAD
 {true ; r :-> x ** tree(x, s)}
 void tree_copy(loc r)
 {true ; r :-> y ** tree(x, s) ** tree(y, s) }
+=======
+{true ; r :-> x ** tree(x, s)[imm, imm, imm, imm]}
+void tree_copy(loc r)
+{true ; r :-> y ** tree(x, s)[abs, abs, abs, abs] ** tree(y, s)[mut, mut, mut, mut] }
+>>>>>>> 6551f85... Changes to tests
 
 #####
 

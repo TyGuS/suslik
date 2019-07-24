@@ -82,7 +82,7 @@ object MTag extends Enumeration {
   }
 
   def isMutable(tag: MTag): Boolean = tag == Mut
-  def isImutable(tag: MTag): Boolean = tag == Imm
+  def isImmutable(tag: MTag): Boolean = tag == Imm
   def isAbsent(tag: MTag): Boolean = tag == Abs
   def isNumeric(tag: MTag): Boolean = tag.isInstanceOf[U]
 
@@ -96,7 +96,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   def mut: MTag
 
   def isMutable: Boolean = MTag.isMutable(mut)
-  def isImmutable: Boolean = MTag.isImutable(mut)
+  def isImmutable: Boolean = MTag.isImmutable(mut)
   def isAbsent: Boolean = MTag.isAbsent(mut)
   def isNumeric: Boolean = MTag.isNumeric(mut)
   def changeMut(mut : MTag) : Heaplet
@@ -251,6 +251,26 @@ case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
   */
 case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag = Mut, submut: Option[List[MTag]] = None) extends Heaplet {
 
+  override def isImmutable(): Boolean = {
+    if (submut.nonEmpty) {
+      submut.get.foldLeft[Boolean](true)((acc, tag) =>
+        if (MTag.isImmutable(tag)) acc
+        else false)
+    } else {
+      MTag.isImmutable(mut)
+    }
+  }
+
+  override def isAbsent(): Boolean = {
+    if (submut.nonEmpty) {
+      submut.get.foldLeft[Boolean](true)((acc, tag) =>
+        if (MTag.isAbsent(tag)) acc
+        else false)
+    } else {
+      MTag.isAbsent(mut)
+    }
+  }
+
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(args = args.map(_.resolveOverloading(gamma)), submut = submut)
 
@@ -261,9 +281,9 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
       case Some(t) => s"[$t]"
     }
     val overall = s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
-    if (isImmutable) s"[$overall]"
+    if (submut.nonEmpty) s"$overall[${submut.get}]"
+    else if (isImmutable) s"[$overall]"
     else if (isAbsent) s"[$overall]@A"
-    else if (submut.nonEmpty) s"$overall[${submut.get}]"
     else overall
   }
 

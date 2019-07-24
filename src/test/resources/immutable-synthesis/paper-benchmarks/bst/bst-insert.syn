@@ -5,9 +5,9 @@ more fine-grained immutability
 TODO insert this - it tends to fail
 #####
 
-{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** bst(x, n, lo, hi) }
+{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** bst(x, n, lo, hi)[mut, mut, mut, mut] }
 void bst_insert (loc x, loc r)
-{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** bst(y, n1, lo1, hi1) }
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** bst(y, n1, lo1, hi1)[mut, mut, mut, mut] }
 
 #####
 
@@ -36,3 +36,14 @@ void bst_insert (loc x, loc r) {
     }
   }
 }
+
+
+Successfully synthesised in 28085 milliseconds:
+Number of backtrackings 17663
+Lasting successful rule applications: 87
+Total successful rule applications: 8959
+Final size of SMT cache: 4699
+Number of saved negative results: 6487
+Number of saved positive results: 87
+Number of recalled negative results: 876
+Number of recalled positive results: 0

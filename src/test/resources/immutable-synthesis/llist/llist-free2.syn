@@ -2,9 +2,9 @@ should be able to deallocate a linked list in the presence of another list
 TODO I'm actually surprised the immutable version doesn't work
 ###
 
-{true; [lseg (a, b)] ** lseg(x, y)}
+{true; lseg(x, y)[mut, mut, mut] ** lseg (a, b)[imm, imm, imm]}
   void free_llist2 (loc x, loc y, loc a, loc b)
-{true ; emp }
+{true ; lseg (a, b)[abs, abs, abs] }
 
 ###
 
@@ -38,3 +38,4 @@ void free_llist2 (loc x, loc y, loc a, loc b) {
 
 vs immutable
 
+        A

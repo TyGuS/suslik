@@ -2,9 +2,15 @@ singly-linked list: max
 
 #####
 
+<<<<<<< HEAD
 {true ; ret :-> a ** sll(x, n, lo, hi) }
 void sll_max (loc x, loc ret)
 {true ; ret :-> hi ** sll(x, n, lo, hi) }
+=======
+{true ; ret :-> a ** sll(x, n, lo, hi)[imm, imm, imm] }
+void sll_max (loc x, loc ret)
+{true ; ret :-> hi ** sll(x, n, lo, hi)[abs, abs, abs] }
+>>>>>>> 6551f85... Changes to tests
 
 #####
 

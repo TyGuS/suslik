@@ -5,9 +5,9 @@ can be fixed by interleaving phases or moving alloc to an earlier phase
 TODO can also implement fine-grained immutability
 #######
 
-{  s =i {v} ++  s1 ; f :-> x ** [x,2] ** x:->v ** x+1 :-> nxt ** lseg(nxt, s1) }
+{  s =i {v} ++  s1 ; f :-> x ** lseg(x, s1)[mut, mut, mut, mut] }
 void sll_to_dll(loc f)
-{ true ;  f :-> i ** dllseg(i, z, s)}
+{ true ;  f :-> i ** dllseg(i, z, s)[mut, mut, mut, mut]}
 
 #######
 
@@ -28,4 +28,9 @@ void sll_to_dll (loc f) {
     *i2 = v2;
     *f = i2;
   }
+
 }
+
+{ true; (prev + 1) :-> x ** dllseg(x, z, s)[imm, imm, imm, mut] }
+void set_prev(loc x, loc prev)
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)[abs, abs, abs, mut]}

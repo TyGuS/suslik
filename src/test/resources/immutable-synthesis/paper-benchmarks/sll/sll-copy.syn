@@ -2,9 +2,9 @@ should be able to synthesize list copy
 
 #####
 
-{true ; r :-> x ** sll(x, s)}
+{true ; r :-> x ** sll(x, s)[imm, imm, imm]}
 void sll_copy(loc r)
-{true ; r :-> y ** sll(x, s) ** sll(y, s) }
+{true ; r :-> y ** sll(x, s)[abs, abs, abs] ** sll(y, s)[mut, mut, mut] }
 
 #####
 
@@ -24,3 +24,13 @@ void sll_copy (loc r) {
     *y2 = v2;
   }
 }
+
+Successfully synthesised in 665 milliseconds:
+Number of backtrackings 27
+Lasting successful rule applications: 41
+Total successful rule applications: 58
+Final size of SMT cache: 80
+Number of saved negative results: 11
+Number of saved positive results: 41
+Number of recalled negative results: 0
+Number of recalled positive results: 0

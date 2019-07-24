@@ -1,10 +1,12 @@
 Step 1: x-list is Nil, nothing to do here
 
+
+TODO a little concerning that this still works with mut, mut
 #####
 
-{ x == 0  /\  S =i {} ; r :-> x ** [lseg(x, 0, S)] }
+{ x == 0  /\  S =i {} ; r :-> x ** lseg(x, 0, S)[imm, imm, imm] }
 void list_copy(loc r)
-{ true ; r :-> y ** lseg(y, 0, S) }
+{ true ; r :-> y ** lseg(y, 0, S)[mut, mut, mut] }
 
 #####
 

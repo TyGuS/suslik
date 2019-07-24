@@ -2,9 +2,15 @@ singly-linked list: length
 
 #####
 
+<<<<<<< HEAD
 {0 <= n ; ret :-> a ** sll(x, n, lo, hi) }
 void sll_len (loc x, loc ret)
 {true ; ret :-> n ** sll(x, n, lo, hi) }
+=======
+{0 <= n ; ret :-> a ** sll(x, n, lo, hi)[imm, imm, imm] }
+void sll_len (loc x, loc ret)
+{true ; ret :-> n ** sll(x, n, lo, hi)[abs, abs, abs] }
+>>>>>>> 6551f85... Changes to tests
 
 #####
 
