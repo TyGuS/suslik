@@ -13,9 +13,6 @@ abstract class SynthesisRule extends PureLogicUtils {
   // Apply the rule and get all possible sub-derivations
   def apply(goal: Goal): Seq[Subderivation]
 
-  // Is the rule enabled on this goal?
-  def enabled(goal: Goal): Boolean
-
   def saveApplication(footprint: (Set[Int], Set[Int]),
                       currentDeriv: Derivation,
                       cost: Int = 0): RuleApplication =
@@ -31,24 +28,15 @@ abstract class SynthesisRule extends PureLogicUtils {
 trait InvertibleRule
 
 trait AnyPhase {
-  def enabled(goal: Goal): Boolean = true
 }
 
 trait UnfoldingPhase {
-  def enabled(goal: Goal): Boolean = {
-    goal.hasPredicates
-  }
-
   def heapletFilter(h: Heaplet): Boolean = {
     h.isInstanceOf[SApp]
   }
 }
 
 trait FlatPhase {
-  def enabled(goal: Goal): Boolean = {
-    !goal.hasPredicates
-  }
-
   def heapletFilter(h: Heaplet): Boolean = {
     true
   }
