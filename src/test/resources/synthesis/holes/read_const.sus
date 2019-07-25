@@ -11,8 +11,4 @@ void swap(loc x, loc y)
 }
 
 ###
-void swap (loc x, loc y) {
-  let yy = *y;
-  let xx = *x;
-  error;
-}
+ERROR

@@ -2,6 +2,7 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisRule
 
@@ -73,7 +74,7 @@ object Specifications {
     }
 
     def resolveOverloading(gamma: Gamma): Assertion = {
-      this.copy(phi = phi.resolveOverloading(gamma), sigma=sigma.resolveOverloading(gamma))
+      this.copy(phi = phi.resolveOverloading(gamma), sigma = sigma.resolveOverloading(gamma))
     }
 
     // TODO: take into account distance between pure parts
@@ -145,13 +146,14 @@ object Specifications {
                   universalGhosts: Set[Var],
                   fname: String,
                   env: Environment,
+                  sketch: Statement,
                   deriv: Derivation)
 
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
-        s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
+        s"${pre.pp}\n${sketch.pp}${post.pp}" // + s"\n${deriv.pp}"
 
     def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
       Assertion(simplify(post.phi), post.sigma))
@@ -161,6 +163,7 @@ object Specifications {
              gamma: Gamma = this.gamma,
              programVars: List[Var] = this.programVars,
              env: Environment = this.env,
+             sketch: Statement = this.sketch,
              newRuleApp: Option[RuleApplication] = None): Goal = {
 
       // Resolve types
@@ -182,7 +185,7 @@ object Specifications {
       val postSorted = Assertion(simplify(post.phi), newPostSigma)
       val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
 
-      Goal(preSorted, postSorted, gammaFinal, programVars, newUniversalGhosts, this.fname, env, newDeriv)
+      Goal(preSorted, postSorted, gammaFinal, programVars, newUniversalGhosts, this.fname, env, sketch, newDeriv)
     }
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
@@ -242,12 +245,20 @@ object Specifications {
     }
   }
 
-  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment, vars_decl:Formals): Goal = {
+  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment, sketch: Statement, vars_decl:Formals): Goal = {
     val gamma0 = (formals.map({ case (t, v) => (v, t) })++vars_decl.map({ case (t, v) => (v, t) })).toMap // initial environemnt: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre.vars -- formalNames
     val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, formalNames, ghostUniversals, fname, env.resolveOverloading(), emptyDerivation).simplifyPure
+    Goal(pre.resolveOverloading(gamma),
+      post.resolveOverloading(gamma),
+      gamma,
+      formalNames,
+      ghostUniversals,
+      fname,
+      env.resolveOverloading(),
+      sketch.resolveOverloading(gamma),
+      emptyDerivation).simplifyPure
   }
 }

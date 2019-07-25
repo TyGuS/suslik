@@ -12,6 +12,4 @@ void if_ghost (loc x)
   }
 }
 ###
-void if_ghost (loc x) {
-  error;
-}
+ERROR

@@ -37,6 +37,14 @@ trait RuleUtils {
       SeqComp(rest, s).simplify
     }
 
+  // Same as prepend but do not simplify s away, because it comes from the sketch
+  def prependFromSketch(s: Statement, rulename: String): StmtProducer =
+    stmts => {
+      ruleAssert(stmts.lengthCompare(1) == 0, s"Rule $rulename expects 1 premise and got ${stmts.length}")
+      val rest = stmts.head
+      SeqComp(s, rest)
+    }
+
 
   // Sort a sequence of alternative subderivations (where every subderivation contains a single goal)
   // by the footprint of their latest rule application,

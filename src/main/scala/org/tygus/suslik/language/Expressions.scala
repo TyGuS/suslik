@@ -379,7 +379,7 @@ object Expressions {
       case _ => 1
     }
 
-    def resolveOverloading(gamma: Gamma) :Expr= this match {
+    def resolveOverloading(gamma: Gamma): Expr = this match {
       case expr: OverloadedBinaryExpr =>
         BinaryExpr(
           expr.inferConcreteOp(gamma),

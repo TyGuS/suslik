@@ -1,6 +1,7 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.logic._
 

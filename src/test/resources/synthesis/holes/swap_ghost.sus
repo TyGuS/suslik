@@ -9,8 +9,5 @@ void swap(loc x, loc y)
 }
 
 ###
-
-void swap (loc x, loc y) {
-  error;
-}
+ERROR
 

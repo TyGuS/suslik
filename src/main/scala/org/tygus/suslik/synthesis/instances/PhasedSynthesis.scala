@@ -2,6 +2,7 @@ package org.tygus.suslik.synthesis.instances
 
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.smt.SMTSolving.sat
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules._
@@ -18,13 +19,15 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   def allRules(goal: Goal): List[SynthesisRule] = {
     val config = goal.env.config
-    topLevelRules ++ anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
+    topLevelRules ++ symbolicExecutionRules(config) ++ anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
   }
 
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] = {
     val config = goal.env.config
     if (depth == config.startingDepth)
       allRules(goal)
+    else if (goal.sketch != Hole)
+      symbolicExecutionRules(config)
     else if (!config.phased)
     // Phase distinction is disabled: use all non top-level rules
       anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
@@ -50,6 +53,26 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 //    LogicalRules.SubstLeftVar,
     OperationalRules.ReadRule,
 //    OperationalRules.AllocRule,
+  )
+
+  def symbolicExecutionRules(config: SynConfig):  List[SynthesisRule] = List(
+    SymbolicExecutionRules.GuidedRead,
+    SymbolicExecutionRules.GuidedWrite,
+    SymbolicExecutionRules.GuidedAlloc,
+    SymbolicExecutionRules.GuidedFree,
+    LogicalRules.EmpRule,
+    LogicalRules.StarPartial,
+    LogicalRules.NilNotLval,
+    LogicalRules.Inconsistency,
+    LogicalRules.SubstLeftVar,
+    LogicalRules.FrameUnfolding,
+//    UnfoldingRules.Open,
+//    UnificationRules.HeapUnifyUnfolding,
+//    UnfoldingRules.Close,
+    LogicalRules.SubstLeft,
+//    UnificationRules.SubstRight,
+    LogicalRules.FrameFlat,
+//    UnificationRules.PureUnify
   )
 
   def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = List(

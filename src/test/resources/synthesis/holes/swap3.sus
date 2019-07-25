@@ -5,7 +5,7 @@ void swap(loc x, loc y)
 { x :-> b ** y :-> a }
 {
     let yy = *y;
-    let www = malloc(123);
+    let www = malloc(2);
     let xx = *x;
     *x = yy;
     ??
@@ -15,7 +15,7 @@ void swap(loc x, loc y)
 
 void swap (loc x, loc y) {
   let yy = *y;
-  let www = malloc(123);
+  let www = malloc(2);
   let xx = *x;
   *x = yy;
   *y = xx;

@@ -113,7 +113,7 @@ object Statements {
       collector(Set.empty)(this)
     }
 
-    def usedVars: Set[Var] = this match{
+    def usedVars: Set[Var] = this match {
       case SubGoal(g) => g.programVars.toSet // todo: this looks like a crutch
       case _ => collectE(_.isInstanceOf[Var])
     }
@@ -135,27 +135,31 @@ object Statements {
       case Guarded(cond, b) => 1 + cond.size + b.size
     }
 
-    def replace(target:Statement, replacement:Statement):Statement = this match {
-      case `target` => replacement
-
-      case stmt@Skip => stmt
-      case stmt@Hole => stmt
-      case stmt@Error => stmt
-      case stmt@Magic => stmt
-      case stmt:Store => stmt
-      case stmt:Load => stmt
-      case stmt:Malloc => stmt
-      case stmt:Free => stmt
-      case stmt:Call => stmt
-      case stmt:SubGoal => stmt
-
-      // propagate
-      case SeqComp(s1,s2) => SeqComp(s1.replace(target,replacement), s2.replace(target, replacement))
-      case If(cond, tb, eb) => If(cond, tb.replace(target, replacement), eb.replace(target, replacement))
-      case Guarded(cond, b) =>  Guarded(cond, b.replace(target, replacement))
+    // todo: remove this
+    def cutHead: (Statement, Option[Statement]) = this match {
+      case SeqComp(s1, s2) => {
+        val (head, tail_first) = s1.cutHead
+        if (tail_first.isDefined) {
+          (head, Some(SeqComp(tail_first.get, s2)))
+        } else {
+          (head, Some(s2))
+        }
+      }
+      case other => (other, None)
     }
 
-    def resolveOverloading(gamma:Gamma):Statement = this match {
+    def uncons: (Statement, Statement) = this match {
+      case SeqComp(s1, s2) => {
+        val (head, tail) = s1.uncons
+        tail match {
+          case Skip => (head, s2)
+          case _ => (head, SeqComp(tail, s2))
+        }
+      }
+      case other => (other, Skip)
+    }
+
+    def resolveOverloading(gamma:Gamma): Statement = this match {
       case SeqComp(s1,s2)=> SeqComp(
         s1.resolveOverloading(gamma),
         s2.resolveOverloading(gamma)

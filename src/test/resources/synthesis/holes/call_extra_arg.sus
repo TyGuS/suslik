@@ -19,10 +19,4 @@ void insertion_sort_free (loc x, loc r)
   }
 }
 ###
-void insertion_sort_free (loc x, loc r) {
-  if (x == 0) {
-  } else {
-    let nxt2 = *(x + 1);
-    error;
-  }
-}
+ERROR

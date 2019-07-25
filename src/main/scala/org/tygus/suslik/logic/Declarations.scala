@@ -26,10 +26,10 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
 case class FunSpec(name: Ident, rType: SSLType, params: Formals,
                    pre: Assertion, post: Assertion, var_decl: Formals = Nil) extends TopLevelDeclaration {
 
-  def resolveOverloading(env:Environment):FunSpec = {
-    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
+  def resolveOverloading(env: Environment): FunSpec = {
+    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
-    this.copy(pre=pre.resolveOverloading(gamma), post=post.resolveOverloading(gamma))
+    this.copy(pre = pre.resolveOverloading(gamma), post = post.resolveOverloading(gamma))
   }
 
   override def pp: String = {

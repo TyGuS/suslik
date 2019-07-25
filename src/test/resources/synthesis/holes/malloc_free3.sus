@@ -10,8 +10,4 @@ void nop(loc x, loc y)
 }
 
 ###
-
-void nop (loc x, loc y) {
-  let yy = malloc(15);
-  error;
-}
+ERROR

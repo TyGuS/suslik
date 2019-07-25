@@ -146,7 +146,6 @@ trait SynthesisRunnerUtil {
     }
   }
 
-
   def getDefs(defFiles: List[File]): String = {
     if (defFiles.isEmpty) return ""
     assert(defFiles.size == 1, "More than one file with definitions in the folder")

@@ -31,7 +31,7 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
     }
     val spec = specs.head
     val FunSpec(name, _, formals, pre, post, var_types) = spec
-    val goal = makeNewGoal(pre, post, formals, name, env, var_types)
+    val goal = makeNewGoal(pre, post, formals, name, env, body, var_types)
     goal
   }
 
