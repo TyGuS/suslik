@@ -56,9 +56,6 @@ object Statements {
               case None =>
                 builder.append(function_call)
             }
-          case SubGoal(subgoal) =>
-            val subgoal_str = "<??\n" + withOffset(subgoal.pp, 2) + "\n??>"
-            builder.append(withOffset(subgoal_str, offset) + "\n")
           case SeqComp(s1,s2) =>
             build(s1, offset)
             build(s2, offset)
@@ -89,7 +86,6 @@ object Statements {
         case Hole => acc
         case Error => acc
         case Magic => acc
-        case SubGoal(g) => acc // todo: this is actually incorrect
         case Store(to, off, e) =>
           acc ++ to.collect(p) ++ e.collect(p)
         case Load(_, _, from, off) =>
@@ -114,7 +110,6 @@ object Statements {
     }
 
     def usedVars: Set[Var] = this match {
-      case SubGoal(g) => g.programVars.toSet // todo: this looks like a crutch
       case _ => collectE(_.isInstanceOf[Var])
     }
 
@@ -129,23 +124,9 @@ object Statements {
       case Malloc(to, _, _) => 1 + to.size
       case Free(x) => 1 + x.size
       case Call(_, fun, args) => 1 + args.map(_.size).sum
-      case SubGoal(_) => 1 // todo: idk if it is correct
       case SeqComp(s1,s2) => s1.size + s2.size
       case If(cond, tb, eb) => 1 + cond.size + tb.size + eb.size
       case Guarded(cond, b) => 1 + cond.size + b.size
-    }
-
-    // todo: remove this
-    def cutHead: (Statement, Option[Statement]) = this match {
-      case SeqComp(s1, s2) => {
-        val (head, tail_first) = s1.cutHead
-        if (tail_first.isDefined) {
-          (head, Some(SeqComp(tail_first.get, s2)))
-        } else {
-          (head, Some(s2))
-        }
-      }
-      case other => (other, None)
     }
 
     def uncons: (Statement, Statement) = this match {
@@ -209,8 +190,6 @@ object Statements {
   // or
   // let to = f(args); rest
   case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr]) extends Statement
-
-  case class SubGoal(goal:Goal) extends Statement
 
   case class SeqComp(s1: Statement, s2: Statement) extends Statement {
     def simplify: Statement = {

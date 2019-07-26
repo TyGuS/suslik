@@ -19,24 +19,27 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   def allRules(goal: Goal): List[SynthesisRule] = {
     val config = goal.env.config
-    topLevelRules ++ symbolicExecutionRules(config) ++ anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
+    topLevelRules ++ anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
   }
 
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] = {
     val config = goal.env.config
-    if (depth == config.startingDepth)
-      allRules(goal)
-    else if (goal.sketch != Hole)
-      symbolicExecutionRules(config)
-    else if (!config.phased)
-    // Phase distinction is disabled: use all non top-level rules
-      anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
-    else if (goal.hasPredicates)
-    // Unfolding phase
-      anyPhaseRules(config) ++ unfoldingPhaseRules(config)
-    else
-    // Flat phase
-      anyPhaseRules(config) ++ flatPhaseRules(config)
+    val rules = {
+      if (goal.sketch != Hole)
+      // Until we encounter a hole, symbolically execute the sketch
+        symbolicExecutionRules(config)
+      else if (!config.phased)
+      // Phase distinction is disabled: use all non top-level rules
+        anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
+      else if (goal.hasPredicates)
+      // Unfolding phase
+        anyPhaseRules(config) ++ unfoldingPhaseRules(config)
+      else
+      // Flat phase
+        anyPhaseRules(config) ++ flatPhaseRules(config)
+    }
+    if (depth == config.startingDepth) topLevelRules ++ rules
+    else rules
   }
 
 
