@@ -8,7 +8,12 @@ import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.SymbolicExecutionRules.GuidedFree.{findNamedHeaplets, toString}
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule.{saveApplication, toString}
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.Open.mkConjunction
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.{findLargestMatchingHeap, prepend, ruleAssert, symExecAssert}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
@@ -239,8 +244,6 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
       case (cmd@Free(x), rest) => {
         val pre = goal.pre
-        val deriv = goal.deriv
-        val Free(x) = cmd
         symExecAssert(goal.programVars.contains(x), cmd.pp + s"value `${x.name}` is not defined.")
         // todo: make findNamedHeaplets find parts with different name but equal values wrt pure part
         findNamedHeaplets(goal, x) match {
@@ -257,4 +260,87 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
+  object GuidedCallRule extends SynthesisRule with UnfoldingPhase {
+
+    override def toString: Ident = "[SE: call]"
+
+    def apply(goal:Goal): Seq[Subderivation] = goal.sketch.uncons match {
+      case (cmd@Call(to, fun, given_args), rest) => {
+        symExecAssert(given_args.flatMap(_.vars).toSet.subsetOf(goal.programVars.toSet), cmd.pp + " Parameters are not defined.")
+        symExecAssert(goal.env.functions.contains(fun.name), cmd.pp + " Function is not defined.")
+        val _f = goal.env.functions(fun.name)
+        symExecAssert(_f.params.size == given_args.size, cmd.pp + s" Function ${_f.name} takes ${_f.params.size} arguments, but ${given_args.size} given.")
+        val f = _f.refreshExistentials(goal.vars)
+
+        val lilHeap = f.pre.sigma
+        val largHeap = goal.pre.sigma
+
+        val subgoals = for {
+          // Find all subsets of the goal's pre that might be unified
+          largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+          callSubPre = goal.pre.copy(sigma = largSubHeap)
+
+          // Try to unify f's precondition and found goal pre's subheaps
+          source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
+          target = UnificationGoal(callSubPre, goal.programVars.toSet)
+          sub <- {
+            SpatialUnification.unify(target, source).toList
+          }
+          if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+          args = f.params.map { case (_, x) => x.subst(sub) }
+          if args.toSet == given_args.asInstanceOf[Seq[Var]].toSet // todo: find a better way
+          //        _ = assert(args == given_args, cmd.pp + " Unification is unsound.")
+          if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+          callGoal <- UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal, also_gen_locked = false)
+        } yield {
+          callGoal.copy(sketch = rest)
+        }
+        symExecAssert(subgoals.nonEmpty, cmd.pp + " function can't be called.")
+        assert(subgoals.size == 1, "Unexpected: function call produced multiple subgoals: " + cmd.pp)
+        List(Subderivation(subgoals, prepend(cmd, toString)))
+      }
+      case _ => Nil
+    }
+
+  }
+
+  object Conditional extends SynthesisRule with InvertibleRule {
+
+    override def toString: Ident = "[SE: cond]"
+
+    private def kont(cond: Expr): StmtProducer = stmts => {
+      ruleAssert(stmts.length == 2, s"Conditional rule expected two subgoals got ${stmts.length}")
+      If(cond, stmts.head, stmts.last)
+    }
+
+
+    def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
+      case (cmd@If(cond, tb, eb), Skip) => {
+        val pre = goal.pre
+        val thenGoal = goal.copy(Assertion(pre.phi && cond, pre.sigma), sketch = tb)
+        val elseGoal = goal.copy(Assertion(pre.phi && cond.not, pre.sigma), sketch = eb)
+        List(Subderivation(List(thenGoal, elseGoal), kont(cond)))
+      }
+      case (cmd@If(cond, tb, eb), _) => {
+        throw SynthesisException("Found conditional in the middle of the program. Conditionals only allowed at the end.")
+      }
+      case _ => Nil
+    }
+  }
+
+
+  object Open extends SynthesisRule with InvertibleRule {
+
+    override def toString: Ident = "[SE: open]"
+
+    // Like the synthesis version of open,
+    // but selects a single case, whose selector is implied by the precondition
+    def apply(goal: Goal): Seq[Subderivation] = {
+      for {
+        h <- goal.pre.sigma.chunks
+        (selector, subgoal) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).getOrElse(Nil)
+        if SMTSolving.valid(goal.pre.phi ==> selector)
+      } yield Subderivation(List(subgoal), pureKont(toString))
+    }
+  }
 }

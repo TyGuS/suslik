@@ -164,7 +164,7 @@ trait Synthesis extends SepLogicUtils {
         Error
       }
     }
-  
+
   def synthesizeProc(spec: FunSpec, env: Environment, sketch: Statement): Option[(Procedure, SynStats)] = {
     implicit val config: SynConfig = env.config
     // Cleanup the memo table

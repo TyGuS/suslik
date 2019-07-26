@@ -8,7 +8,6 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.OperationalRules.symExecAssert
 
 /**
   * Unfolding rules deal with predicates and recursion.
@@ -36,7 +35,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    private def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
+    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[Seq[(PFormula, Goal)]] = {
       val pre = goal.pre
       val env = goal.env
 
@@ -61,7 +60,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
-          if (noGhosts) Some((newGoals, h)) else None
+          if (noGhosts) Some(newGoals) else None
         case _ => None
       }
     }
@@ -71,7 +70,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         h <- goal.pre.sigma.chunks
         s <- mkInductiveSubGoals(goal, h) match {
           case None => None
-          case Some((selGoals, h)) =>
+          case Some(selGoals) =>
             val (selectors, subGoals) = selGoals.unzip
             Some(Subderivation(subGoals, kont(selectors)))
         }
@@ -245,6 +244,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       } yield callGoal
     }
   }
+
   /*
    * The rule implementing a limited form of abduction:
    * Relaxes the function by replacing some of the points-to values by ghosts to allow for more unifications
@@ -332,11 +332,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: close]"
 
-    private val kont: StmtProducer = stmts => {
-      ruleAssert(stmts.lengthCompare(1) == 0, s"Close rule expected 1 premise and got ${stmts.length}")
-      stmts.head
-    }
-
     def apply(goal: Goal): Seq[Subderivation] = {
       val post = goal.post
       val env = goal.env
@@ -380,7 +375,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-            Subderivation(List(goal.copy(post = newPost, newRuleApp = Some(ruleApp))), kont)
+            Subderivation(List(goal.copy(post = newPost, newRuleApp = Some(ruleApp))), pureKont(toString))
           }
           subDerivations
         case _ => Nil

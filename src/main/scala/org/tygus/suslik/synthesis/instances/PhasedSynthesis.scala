@@ -56,23 +56,30 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
   )
 
   def symbolicExecutionRules(config: SynConfig):  List[SynthesisRule] = List(
+    SymbolicExecutionRules.Open,
     SymbolicExecutionRules.GuidedRead,
     SymbolicExecutionRules.GuidedWrite,
     SymbolicExecutionRules.GuidedAlloc,
     SymbolicExecutionRules.GuidedFree,
+    SymbolicExecutionRules.Conditional,
+    SymbolicExecutionRules.GuidedCallRule,
     LogicalRules.EmpRule,
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
+    if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
     LogicalRules.SubstLeftVar,
     LogicalRules.FrameUnfolding,
-//    UnfoldingRules.Open,
-//    UnificationRules.HeapUnifyUnfolding,
-//    UnfoldingRules.Close,
+    UnificationRules.HeapUnifyUnfolding,
+    UnfoldingRules.Close,
     LogicalRules.SubstLeft,
-//    UnificationRules.SubstRight,
+    UnificationRules.SubstRight,
     LogicalRules.FrameFlat,
-//    UnificationRules.PureUnify
+    UnificationRules.HeapUnifyFlat,
+    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
+    UnificationRules.PureUnify,
+    UnificationRules.Pick,
+    UnificationRules.PickFromEnvRule
   )
 
   def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
