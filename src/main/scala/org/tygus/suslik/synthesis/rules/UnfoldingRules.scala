@@ -220,7 +220,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
       val callPost = f.post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
-        // To avoind more than one application of a library function
+        // To avoid more than one application of a library function
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }

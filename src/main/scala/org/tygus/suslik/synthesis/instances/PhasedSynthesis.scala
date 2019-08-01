@@ -65,7 +65,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     SymbolicExecutionRules.GuidedAlloc,
     SymbolicExecutionRules.GuidedFree,
     SymbolicExecutionRules.Conditional,
-    SymbolicExecutionRules.GuidedCallRule,
+    SymbolicExecutionRules.GuidedCall,
     LogicalRules.EmpRule,
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
