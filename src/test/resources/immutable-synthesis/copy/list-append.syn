@@ -2,11 +2,16 @@ should be able to synthesize trivial list append
 
 #####
 
-{ lseg(x, 0, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut]}
-void list_append(loc x, loc y)
-{ lseg(x, y, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut]}
+{ lseg(x, 0, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut] ** r :-> y }
+void list_append(loc x, loc r)
+{  lseg(x, y, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut] ** r :-> x}
 
 #####
+
+
+{ lseg(x, z, s1)[mut, mut, mut] ** [z,2] ** z :-> w ** (z+1):-> 0 ** lseg(y, 0, s2)[mut, mut, mut] }
+void list_append(loc x, loc y)
+{ lseg(x, z, s1)[mut, mut, mut] ** [z,2] ** z :-> w ** (z+1):-> y ** lseg(y, 0, s2)[mut, mut, mut]}
 
 
 { lseg(x, 0, s1)[imm, imm, mut] ** lseg(y, 0, s2)[imm, imm, imm]}
