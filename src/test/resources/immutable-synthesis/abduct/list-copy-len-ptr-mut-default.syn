@@ -10,16 +10,16 @@ void list_copy(loc r)
 #####
 
 
-{0 <= n ; r :-> x ** lseg(x, 0, n)[imm, imm]}
+{0 <= n ; r :-> x ** lseg(x, 0, n)[I@a, I@b]}
 void list_copy(loc r)
-{true ; r :-> y ** lseg(y, 0, n)[mut, mut] ** lseg(x,0,n)[abs, abs] }
+{true ; r :-> y ** lseg(y, 0, n)[M, M] ** lseg(x,0,n)[I@a, I@b] }
 
 
-{0 <= n ; r :-> x ** lseg(x, 0, n)[imm, imm]}
+{0 <= n ; r :-> x ** lseg(x, 0, n)[I@a, I@b]}
 void list_copy(loc r)
-{true ; r :-> y ** lseg(y, 0, n)[mut, mut] ** lseg(x,0,n)[abs, abs] }
+{true ; r :-> y ** lseg(y, 0, n)[M, M] ** lseg(x,0,n)[I@a, I@b] }
 
-** lseg(x,0,n)[abs, abs]
+** lseg(x,0,n)[I@a, I@b]
 
 void list_copy (loc r) {
   let x2 = *r;

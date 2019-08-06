@@ -10,8 +10,8 @@ predicate lseg1(loc x, loc y) {
 |  not (x == y)  => {[[x, 2]]@0 ** [x :-> 1]@1 ** [(x + 1) :-> nxt]@0 ** lseg1(nxt, y)[0,1]}
 }
 
-{lseg(x, s)[imm, mut] }
+{lseg(x, s)[I, M] }
   void emit_skip(loc x)
-{lseg1(x, s)[mut, mut] }
+{lseg1(x, s)[M, M] }
 
 ###

@@ -7,9 +7,9 @@ lemma: connected list segments
 void lemma (loc x, loc y)
 {true ; lseg(x, 0) }
 =======
-{true ; lseg(x, y)[imm, imm, mut] ** lseg(y, 0)[imm, imm, mut]}
+{true ; lseg(x, y)[I, I, M] ** lseg(y, 0)[I, I, M]}
 void lemma (loc x, loc y)
-{true ; lseg(x, 0)[imm, imm, mut] }
+{true ; lseg(x, 0)[I, I, M] }
 >>>>>>> 6551f85... Changes to tests
 
 #####

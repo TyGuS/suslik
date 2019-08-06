@@ -2,15 +2,9 @@ should be able to synthesize a tree copy (with preserving length)
 
 #####
 
-<<<<<<< HEAD
-{true ; r :-> 0 ** treeN(x, n)}
+{true ; r :-> 0 ** treeN(x, n)[I@a, I@b, I@c, I@d]}
 void tree_copy(loc x, loc r)
-{true ; r :-> y ** treeN(x, n) ** treeN(y, n) }
-=======
-{true ; r :-> 0 ** treeN(x, n)[imm, imm, imm, imm]}
-void tree_copy(loc x, loc r)
-{true ; r :-> y ** treeN(x, n)[abs, abs, abs, abs] ** treeN(y, n)[mut, mut, mut, mut] }
->>>>>>> 6551f85... Changes to tests
+{true ; r :-> y ** treeN(x, n)[I@a, I@b, I@c, I@d] ** treeN(y, n)[M, M, M, M] }
 
 #####
 

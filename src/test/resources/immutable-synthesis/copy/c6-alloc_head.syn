@@ -7,16 +7,16 @@ Serves as an example of a problem with closing.
 
 TODO not correct
 
-{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S1)[mut, mut] }
+{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S1)[M, M] }
 
 {S =i {v} ++ {w} ++ S1 ; r :-> t3 ** [[t3, 2]] ** [t3 :-> w] ** t3 + 1 :-> nxt ** [lseg(nxt, 0, S1)] }
 #####
 
-{true ; r :-> t3 ** lseg(t3, 0, S1)[imm, imm, imm] }
+{true ; r :-> t3 ** lseg(t3, 0, S1)[I@a, I@b, I@c] }
 
 void list_copy(loc r, int v, loc t3)
 
-{true; r :-> y ** [y,2] ** y:-> v ** y+1:->t3 ** lseg(t3, 0, S1)[abs, abs, abs]}
+{true; r :-> y ** [y,2] ** y:-> v ** y+1:->t3 ** lseg(t3, 0, S1)[I@a, I@b, I@c]}
 
 
 #####

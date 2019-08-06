@@ -2,9 +2,9 @@ should be able to synthesize list length from the root pointer
 
 #####
 
-{0 <= n ; r :-> x ** lsegn(x, 0, n)[imm, imm, imm] }
+{0 <= n ; r :-> x ** lsegn(x, 0, n)[I@a, I@b, I@c] }
 void list_len(loc r)
-{true ; r :-> n ** lsegn(x, 0, n)[abs, abs, abs]}
+{true ; r :-> n ** lsegn(x, 0, n)[I@a, I@b, I@c]}
 
 #####
 

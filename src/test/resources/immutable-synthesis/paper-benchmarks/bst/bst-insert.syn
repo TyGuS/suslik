@@ -5,9 +5,9 @@ more fine-grained immutability
 TODO insert this - it tends to fail
 #####
 
-{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** bst(x, n, lo, hi)[mut, mut, mut, mut] }
+{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** bst(x, n, lo, hi)[M, M, M, M] }
 void bst_insert (loc x, loc r)
-{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** bst(y, n1, lo1, hi1)[mut, mut, mut, mut] }
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** bst(y, n1, lo1, hi1)[M, M, M, M] }
 
 #####
 

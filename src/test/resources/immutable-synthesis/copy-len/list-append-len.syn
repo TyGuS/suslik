@@ -3,9 +3,9 @@ should be able to synthesize trivial list append
 TODO how do we collapse two lists with two different permissions into one?
 #####
 
-{ 0 <= n ; lseg(y, 0, n)[imm, imm, mut] ** lseg(x, 0, m)[imm, imm, mut]}
+{ 0 <= n ; lseg(y, 0, n)[I@a, I@b, M] ** lseg(x, 0, m)[I@a, I@b, M]}
 void list_append(loc y, loc x)
-{ true  ; lseg(x, 0, k)[abs, abs, mut]}
+{ true  ; lseg(x, 0, k)[I@a, I@b, M]}
 
 #####
 

@@ -1,8 +1,8 @@
 should be able to initialize a linked list
 ###
-{ true; sll(x, s)[imm, mut, imm] }
+{ true; sll(x, s)[I@a, M, I@b] }
   void sll_init(loc x, int v)
-{ s1 <=i {v} ; sll(x, s1)[abs, mut, abs] }
+{ s1 <=i {v} ; sll(x, s1)[I@a, M, I@b] }
 
 ###
 

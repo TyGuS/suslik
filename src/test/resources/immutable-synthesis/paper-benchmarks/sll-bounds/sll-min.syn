@@ -2,15 +2,9 @@ singly-linked list: min
 
 #####
 
-<<<<<<< HEAD
-{true ; ret :-> a ** sll(x, n, lo, hi) }
+{true ; ret :-> a ** sll(x, n, lo, hi)[I@a, I@b, I@c] }
 void sll_min (loc x, loc ret)
-{true ; ret :-> lo ** sll(x, n, lo, hi) }
-=======
-{true ; ret :-> a ** sll(x, n, lo, hi)[imm, imm, imm] }
-void sll_min (loc x, loc ret)
-{true ; ret :-> lo ** sll(x, n, lo, hi)[abs, abs, abs] }
->>>>>>> 6551f85... Changes to tests
+{true ; ret :-> lo ** sll(x, n, lo, hi)[I@a, I@b, I@c] }
 
 #####
 

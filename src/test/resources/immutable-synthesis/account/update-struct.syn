@@ -3,9 +3,9 @@ should be able to update structs
 TODO fine-grained immutability possible here
 ###
 
-{true; x :-> y ** account(y, bal, lim)[imm, mut, imm]}
+{true; x :-> y ** account(y, bal, lim)[I@a, M, I@b]}
 void deposit(loc x, int amount)
-{newBal == bal + amount ; x :-> y ** account(y, newBal, lim)[abs, mut, abs] }
+{newBal == bal + amount ; x :-> y ** account(y, newBal, lim)[I@a, M, I@b] }
 >>>>>>> 6551f85... Changes to tests
 
 ###

@@ -7,20 +7,20 @@ TODO which parts to make immuable
 #####
 
 { len == 1 + len1  /\  0 <= len1 ;
-   [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, len1)[imm, imm, imm] **
+   [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, 0, len1)[I@a, I@b, I@c] **
    r :-> t3 **
-   lseg(t3, 0, len1)[imm, imm, imm]}
+   lseg(t3, 0, len1)[I@a, I@b, I@c]}
 
 void list_copy(loc r, int v, loc t3)
 
 {true; r :-> Y ** lseg(Y, 0, len) **
-       [x, 2] ** x :-> w ** (x + 1) :-> nxt1 ** lseg(nxt1, 0, len3)[abs, abs, abs] }
+       [x, 2] ** x :-> w ** (x + 1) :-> nxt1 ** lseg(nxt1, 0, len3)[I@a, I@b, I@c] }
 
 #####
 
 
 {true; r :-> Y ** lseg(Y, 0, len) **
-       [x, 2] ** x :-> w ** (x + 1) :-> nxt1 ** lseg(nxt1, 0, len3)[abs, abs, abs] }
+       [x, 2] ** x :-> w ** (x + 1) :-> nxt1 ** lseg(nxt1, 0, len3)[I@a, I@b, I@c] }
 
 void list_copy (loc r, int v, loc t3) {
   let Y2 = malloc(2);

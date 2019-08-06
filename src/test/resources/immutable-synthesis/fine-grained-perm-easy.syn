@@ -12,15 +12,15 @@ predicate lseg1(loc x, loc y) {
 }
 
 
-{lseg(x, y)[imm, mut] }
+{lseg(x, y)[I@a, M] }
   void morph(loc x, loc y)
-{lseg1(x, y)[abs, mut] }
+{lseg1(x, y)[I@a, M] }
 
 ###
 
 
 
 
-{[[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, s)[imm, mut] }
+{[[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, s)[I@a, M] }
   void morph(loc x)
-{[[x, 2]]@A ** x :-> 1 ** [(x + 1) :-> nxt]@A ** lseg1(nxt, s)[abs, mut] }
+{[[x, 2]]@A ** x :-> 1 ** [(x + 1) :-> nxt]@A ** lseg1(nxt, s)[I@a, M] }

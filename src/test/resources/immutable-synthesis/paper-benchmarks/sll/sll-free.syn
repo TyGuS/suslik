@@ -3,7 +3,7 @@ should be able to deallocate a linked list
 
 ###
 
-{ true; sll(x, s)[mut, mut, mut] }
+{ true; sll(x, s)[M, M, M] }
   void sll_free(loc x)
 { true ; emp }
 

@@ -14,6 +14,6 @@ predicate lseg_extra(loc x, set s) {
 |  not (x == 0)  => { s =i {v} ++ s1 ; [[x, 3]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** [(x + 2) :-> extra]@3 ** lseg_extra(nxt, s1)[0,1,2,3] }
 }
 
-{ true; (prev + 1) :-> x ** dllseg(x, z, s)[imm, imm, imm, mut] }
+{ true; (prev + 1) :-> x ** dllseg(x, z, s)[I@a, I@b, I@c, M] }
 void set_prev(loc x, loc prev)
-{ true; (prev + 1) :-> x ** dllseg(x, prev, s)[abs, abs, abs, mut]}
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)[I@a, I@b, I@c, M]}

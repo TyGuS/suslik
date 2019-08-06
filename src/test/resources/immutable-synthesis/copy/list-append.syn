@@ -2,25 +2,25 @@ should be able to synthesize trivial list append
 
 #####
 
-{ lseg(x, 0, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut] ** r :-> y }
+{ lseg(x, 0, s1)[M, M, M] ** lseg(y, 0, s2)[M, M, M] ** r :-> y }
 void list_append(loc x, loc r)
-{  lseg(x, y, s1)[mut, mut, mut] ** lseg(y, 0, s2)[mut, mut, mut] ** r :-> x}
+{  lseg(x, y, s1)[M, M, M] ** lseg(y, 0, s2)[M, M, M] ** r :-> x}
 
 #####
 
 
-{ lseg(x, z, s1)[mut, mut, mut] ** [z,2] ** z :-> w ** (z+1):-> 0 ** lseg(y, 0, s2)[mut, mut, mut] }
+{ lseg(x, z, s1)[M, M, M] ** [z,2] ** z :-> w ** (z+1):-> 0 ** lseg(y, 0, s2)[M, M, M] }
 void list_append(loc x, loc y)
-{ lseg(x, z, s1)[mut, mut, mut] ** [z,2] ** z :-> w ** (z+1):-> y ** lseg(y, 0, s2)[mut, mut, mut]}
+{ lseg(x, z, s1)[M, M, M] ** [z,2] ** z :-> w ** (z+1):-> y ** lseg(y, 0, s2)[M, M, M]}
 
 
-{ lseg(x, 0, s1)[imm, imm, mut] ** lseg(y, 0, s2)[imm, imm, imm]}
+{ lseg(x, 0, s1)[I, I, M] ** lseg(y, 0, s2)[I, I, I]}
 void list_append(loc x, loc y)
-{ s =i s1 ++ s2; lseg(x, y, s1)[imm, imm, mut] ** lseg(y, 0, s2)[imm, imm, imm]}
+{ s =i s1 ++ s2; lseg(x, y, s1)[I, I, M] ** lseg(y, 0, s2)[I, I, I]}
 
-{ r :-> x ** lseg(x, 0, s1)[imm, imm, mut] ** lseg(y, 0, s2)[imm, imm, mut]}
+{ r :-> x ** lseg(x, 0, s1)[I, I, M] ** lseg(y, 0, s2)[I, I, M]}
 void list_append(loc r, loc y)
-{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[imm, imm, mut]}
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[I, I, M]}
 
  # I guess it won't unify
 
