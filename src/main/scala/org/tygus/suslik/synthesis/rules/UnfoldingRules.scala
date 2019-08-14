@@ -238,11 +238,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             if (allCallSubPreHeapSubbed.nonEmpty) {
               val preHeapSubbed = allCallSubPreHeapSubbed.head
 
-              // TODO [Immutability] pre is backwards
               // h should be weaker or equal to i.e. abs < imm < mut than the preheap
               assert(MTag.pre(preHeap.mut, h.mut)) // make sure that the returned permission is equal to or weaker than
 
-              val newPermission = MTag.glb(MTag.residue(preHeapSubbed.mut, preHeap.mut), h.mut)
+              // TODO using the post here
+              // will unify later?
+              val newPermission = MTag.demote(preHeapSubbed.mut, preHeap.mut);
               h match {
                 case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = newPermission)
                 case Block(a, b, c) => Block(a, b, mut = newPermission)

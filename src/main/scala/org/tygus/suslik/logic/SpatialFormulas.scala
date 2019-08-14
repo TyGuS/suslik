@@ -1,5 +1,6 @@
 package org.tygus.suslik.logic
 
+import org.tygus.suslik
 import org.tygus.suslik.language
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language._
@@ -11,7 +12,7 @@ import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 //  override val isMutable = false
 //  // TODO add [] around immutables when printing
 //
-//  // TODO fix resolve so that it carries over immutability 
+//  // TODO fix resolve so that it carries over immutability
 //}
 
 /*
@@ -20,70 +21,55 @@ object MTag extends Enumeration {
   val Mut, Imm, Abs, U = Value
 */
 
-  sealed /*case class*/ trait MTag
+sealed /*case class*/ trait MTag
 
-  case object Mut extends MTag
-  case object Imm extends MTag
-  case object Abs extends MTag
-  case class U(tag : Integer) extends MTag
+case object Mut extends MTag
+case object Imm extends MTag
+// TODO this OOP relation is weird
+case class Imm(tag: MTag) extends MTag
+case class ImmVar(tag: Var) extends MTag with Substitutable[MTag] {
+  override def subst(sigma: Map[Var, suslik.language.Expressions.PFormula]): MTag = ???
+}
+case class U(tag : Integer) extends MTag
 
 
-  object MTag {
+object MTag {
 
-    def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]]) : Boolean = (s1, s2) match {
-      case (Some(a), Some(b)) => a.zip(b).forall({ case (a,b) => (a,b) match {
-        //case (_, U(m)) => true
-        //case (U(n), _) => true
-        case (x, y) => x == y
-        case (_, _) => false} })
-      case (None, None) => true
-      case _ => false
-    }
+  def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]]) : Boolean = (s1, s2) match {
+    case (Some(a), Some(b)) => a.zip(b).forall({ case (a,b) => (a,b) match {
+      //case (_, U(m)) => true
+      //case (U(n), _) => true
+      case (x, y) => x == y
+      case (_, _) => false} })
+    case (None, None) => true
+    case _ => false
+  }
 
-// TODO what's the correct way?
+  // TODO what's the correct way?
+  // TODO not clear what is the subsumption relation
   // need to reduce I to A
   def pre(t1: MTag, t2: MTag): Boolean = (t1, t2) match {
     //case (_, U(n)) => true // TODO [Immutability] not sure if this is always the case. can you unify U tags? or do you always expand? you should be expanding...
     //case (U(n), _) => true // TODO [Immutability] not sure if this is always the case
     case (Mut, _) => true
-    case (_, Abs) => true
+    case (_, Imm(x)) => true
     case (x, y) if x == y => true
     case _ => false
   }
 
-  def lub(t1: MTag, t2: MTag) = (t1, t2) match {
-    case (Mut, x) => x
-    case (x, Mut) => x
-    case (_, Abs) => Abs
-    case (Abs, _) => Abs
-    case (x, _) => x
+  def demote(have: MTag, need:MTag ) : MTag = need match {
+    case Imm => Imm(have)
+    case _ => need
   }
 
-  def glb(t1: MTag, t2: MTag) = (t1, t2) match {
-    case (Mut, _) => Mut
-    case (_, Mut) => Mut
-    case (x, Abs) => x
-    case (Abs, x) => x
-    case (x, _) => x
-  }
-
-  def residue(have: MTag, need: MTag) : MTag = (have, need) match {
-//    case (Imm, Imm) => Imm
-//    case (x, y) if x == y => Abs
-//    case (_, Abs) => have
-//    case (Mut, Imm) => Mut
-
-    case (Mut, Mut) => Abs
-    case (Mut, _) => Mut // weird case of Mut, Imm
-    //case (Mut, Imm) => Abs // proper calculus
-    case (Imm, Imm) => Imm
-    case (x, Abs) => x
-    case _ => Abs // disallowed cases, e.g. Imm, Mut TODO [Immutability]
+  def unify(have:MTag, need:MTag) : MTag = (have, need) match {
+    case (h, Imm(x: MTag)) => { if (x == h) h else null } // TODO cannot unify...
   }
 
   def isMutable(tag: MTag): Boolean = tag == Mut
   def isImmutable(tag: MTag): Boolean = tag == Imm
-  def isAbsent(tag: MTag): Boolean = tag == Abs
+  // TODO
+  def isAbsent(tag: MTag): Boolean = tag == Imm(Mut)
   def isNumeric(tag: MTag): Boolean = tag.isInstanceOf[U]
 
 }
@@ -92,7 +78,7 @@ object MTag extends Enumeration {
   * Separation logic fragment
   */
 sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
-  
+
   def mut: MTag
 
   def isMutable: Boolean = MTag.isMutable(mut)
@@ -320,11 +306,11 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
   })
 
   // An application is absent also if all its constituents are absent
-//  override def isAbsent: Boolean = {
-//    if (submut.nonEmpty) false
-//    val sms : List[MTag] = submut.get
-//    mut == Abs || sms.forall(m => MTag.isAbsent(m))
-//  }
+  //  override def isAbsent: Boolean = {
+  //    if (submut.nonEmpty) false
+  //    val sms : List[MTag] = submut.get
+  //    mut == Abs || sms.forall(m => MTag.isAbsent(m))
+  //  }
 
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
     this.copy(tag = f(this.tag), submut = submut)

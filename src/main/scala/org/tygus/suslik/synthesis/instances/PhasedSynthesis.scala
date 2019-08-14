@@ -79,7 +79,6 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     OperationalRules.FreeRule,
     if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
 
-    OperationalRules.GiveUpOwnershipRule, // TODO [Immutability] which order? lol causes ridiculous residue
     UnificationRules.PureUnify,
     UnificationRules.Pick,
     UnificationRules.PickFromEnvRule,

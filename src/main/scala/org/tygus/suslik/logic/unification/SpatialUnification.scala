@@ -24,7 +24,7 @@ object SpatialUnification extends UnificationBase {
     * If successful, returns a substitution from `source`'tFrame fresh variables to `target`'tFrame variables
     */
 
-  // TODO [Immutability] Take that partial order for mutability tags into the account
+  // TODO [Immutability] use regular var to MTag substitution
   def tryUnify(target: UAtom, source: UAtom,
                nonFreeInSource: Set[Var],
                // Take the application level tags into the account

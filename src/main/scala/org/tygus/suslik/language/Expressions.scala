@@ -339,6 +339,8 @@ object Expressions {
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(BoolType)
   }
 
+
+
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
