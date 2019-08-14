@@ -20,14 +20,17 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
   val spec10 = "{ r :-> x ** [lseg(x, S)] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
   val spec11 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
-  val spec12 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** [lseg(x, S)]@A ** lseg(y, S) }"
-  val spec13 = "{ [r :-> x] ** lseg(x, S)[I@a, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@a, I@b] ** lseg(y, S) }"
+  val spec12 = "{ [r :-> x] ** lseg(x, S)[M, M] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, M] ** lseg(y, S) }"
+  //val spec12 = "{ [r :-> x] ** lseg(x, S)[I@a, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@a, I@b] ** lseg(y, S) }"
+  val spec13 = "{ [r :-> x] ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, I@b] ** lseg(y, S) }"
+  // TODO need to convinct necessary 
+  val spec14 = "{ [r :-> x] ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@b, I@(I@M)] ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
   import log._
 
   def parseSimpleSpec(text: String) {
-    val parser = new SSLParser
+     val parser = new SSLParser
     val result = parser.parseGoal(text)
     // So far, just assert that the result is a success
     assert(result.successful, result)
@@ -93,12 +96,16 @@ class GoalParserTests extends FunSpec with Matchers {
       parseWithListPredicate(spec11)
     }
 
-    it("should parse heap with absent") {
-      parseWithListPredicate(spec12)
+    it("should parse heap with sapp tags") {
+      parseWithComplexPermissions(spec12)
     }
 
-    it("should parse heap with sapp tags") {
+    it("should parse heap with mixed immutable params") {
       parseWithComplexPermissions(spec13)
+    }
+
+    it("should parse heap with nested immutable params") {
+      parseWithComplexPermissions(spec14)
     }
   }
 
