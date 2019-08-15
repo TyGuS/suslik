@@ -1,6 +1,7 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.Gamma
+import org.tygus.suslik.language
+import org.tygus.suslik.logic.{Gamma, MTag}
 import org.tygus.suslik.synthesis.SynthesisException
 
 /**
@@ -301,7 +302,7 @@ object Expressions {
   case class Var(name: String) extends Expr {
     override def pp: String = name
 
-    def subst(sigma: Map[Var, Expr]): Expr =
+    def subst(sigma: Substitution): Expr =
       sigma.getOrElse(this, this)
 
     def refresh(taken: Set[Var]): Var = {
@@ -321,7 +322,7 @@ object Expressions {
   // Program-level constant
   sealed abstract class Const(value: Any) extends Expr {
     override def pp: String = value.toString
-    def subst(sigma: Map[Var, Expr]): Expr = this
+    def subst(sigma: Substitution): Expr = this
   }
 
   case class IntConst(value: Integer) extends Const(value) {
@@ -342,7 +343,7 @@ object Expressions {
 
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
-    def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+    def subst(sigma: Substitution): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
@@ -350,7 +351,7 @@ object Expressions {
   }
 
   case class OverloadedBinaryExpr(overloaded_op: OverloadedBinOp, left: Expr, right: Expr) extends Expr {
-    def subst(sigma: Map[Var, Expr]): Expr = OverloadedBinaryExpr(overloaded_op, left.subst(sigma), right.subst(sigma))
+    def subst(sigma: Substitution): Expr = OverloadedBinaryExpr(overloaded_op, left.subst(sigma), right.subst(sigma))
     override def level: Int = overloaded_op.level
     override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
@@ -405,7 +406,7 @@ object Expressions {
   }
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
-    def subst(sigma: Map[Var, Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
+    def subst(sigma: Substitution): Expr = UnaryExpr(op, arg.subst(sigma))
 
     override def level = 5
     override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
@@ -414,14 +415,14 @@ object Expressions {
 
   case class SetLiteral(elems: List[Expr]) extends Expr {
     override def pp: String = s"{${elems.map(_.pp).mkString(", ")}}"
-    override def subst(sigma: Map[Var, Expr]): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
+    override def subst(sigma: Substitution): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(IntSetType)
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
     override def level: Int = 0
     override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
-    override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
+    override def subst(sigma: Substitution): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = left.getType(gamma)
   }
 

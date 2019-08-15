@@ -220,6 +220,7 @@ trait PureLogicUtils {
     * @param bound bound identifiers
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
+  // TODO [Immutability] wrap in Substituiton here -- but it loses the Var, Var specificity
   def refreshVars(vs: List[Var], bound: Set[Var]): Map[Var, Var] = {
 
     def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] =

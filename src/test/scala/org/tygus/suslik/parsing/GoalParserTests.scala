@@ -23,7 +23,7 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec12 = "{ [r :-> x] ** lseg(x, S)[M, M] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, M] ** lseg(y, S) }"
   //val spec12 = "{ [r :-> x] ** lseg(x, S)[I@a, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@a, I@b] ** lseg(y, S) }"
   val spec13 = "{ [r :-> x] ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, I@b] ** lseg(y, S) }"
-  // TODO need to convinct necessary 
+  // TODO not necessary to parse
   val spec14 = "{ [r :-> x] ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@b, I@(I@M)] ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
@@ -104,9 +104,9 @@ class GoalParserTests extends FunSpec with Matchers {
       parseWithComplexPermissions(spec13)
     }
 
-    it("should parse heap with nested immutable params") {
-      parseWithComplexPermissions(spec14)
-    }
+//    it("should parse heap with nested immutable params") {
+//      parseWithComplexPermissions(spec14)
+//    }
   }
 
 

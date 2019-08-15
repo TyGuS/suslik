@@ -27,9 +27,9 @@ case object Mut extends MTag
 case object Imm extends MTag
 // TODO this OOP relation is weird
 case class Imm(tag: MTag) extends MTag
-case class ImmVar(tag: Var) extends MTag with Substitutable[MTag] {
-  override def subst(sigma: Map[Var, suslik.language.Expressions.PFormula]): MTag = ???
-}
+case class ImmVar(tag: Var) extends MTag //with Substitutable[MTag] {
+  //override def subst(sigma: Map[Var, suslik.language.Expressions.PFormula]): MTag = ???
+//}
 case class U(tag : Integer) extends MTag
 
 
@@ -163,7 +163,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
     else overall
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet =
+  def subst(sigma: Substitution): Heaplet =
     PointsTo(loc.subst(sigma), offset, value.subst(sigma), mut)
 
   // TODO [Immutability] Take that partial order for mutability tags into the account
@@ -213,7 +213,7 @@ case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
   }
 
   // TODO no way there isn't a better way of extending the immutable behaviour
-  def subst(sigma: Map[Var, Expr]): Heaplet = Block(loc.subst(sigma), sz, mut)
+  def subst(sigma: Substitution): Heaplet = Block(loc.subst(sigma), sz, mut)
 
   override def mkImmutable = this.copy(mut = Imm)
   override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
@@ -273,7 +273,7 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
     else overall
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = submut)
+  def subst(sigma: Substitution): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = submut)
 
   override def mkImmutable = this.copy(mut = Imm, submut = submut)
 
@@ -357,7 +357,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def ptss: List[PointsTo] = for (b@PointsTo(_, _, _, _) <- chunks) yield b
 
-  def subst(sigma: Map[Var, Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
+  def subst(sigma: Substitution): SFormula = SFormula(chunks.map(_.subst(sigma)))
 
   def replace(original: Heaplet, fresh: Heaplet) : SFormula =
     copy((fresh :: chunks) diff List(original))

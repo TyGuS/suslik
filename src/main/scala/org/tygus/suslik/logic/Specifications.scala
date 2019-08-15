@@ -28,7 +28,7 @@ object Specifications {
 
     def hasPredicates: Boolean = sigma.chunks.exists(_.isInstanceOf[SApp])
 
-    def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
+    def subst(s: Substitution): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
       val freshSubst = refreshVars(this.vars.toList, bound)
