@@ -58,6 +58,10 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     this.copy(pre = newPre, post = newPost)
   }
 
+  def checkVariableMutabilityTags(): Unit = {
+    assert (post.mutabilityVariables.subsetOf(pre.mutabilityVariables))
+  }
+
 }
 
 /**

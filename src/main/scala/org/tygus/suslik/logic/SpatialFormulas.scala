@@ -66,11 +66,16 @@ object MTag {
     case (h, Imm(x: MTag)) => { if (x == h) h else null } // TODO cannot unify...
   }
 
+  def substitutable(have: MTag, need: MTag): Boolean = (have, need) match {
+    case (h, Imm(x: MTag)) => { if (x == h) true else false } // TODO cannot unify...
+    case _ => false
+  }
+
   def isMutable(tag: MTag): Boolean = tag == Mut
   def isImmutable(tag: MTag): Boolean = tag == Imm
-  // TODO
-  def isAbsent(tag: MTag): Boolean = tag == Imm(Mut)
   def isNumeric(tag: MTag): Boolean = tag.isInstanceOf[U]
+
+  def isVariable(tag: MTag): Boolean = tag.isInstanceOf[ImmVar]
 
 }
 
@@ -83,7 +88,6 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def isMutable: Boolean = MTag.isMutable(mut)
   def isImmutable: Boolean = MTag.isImmutable(mut)
-  def isAbsent: Boolean = MTag.isAbsent(mut)
   def isNumeric: Boolean = MTag.isNumeric(mut)
   def changeMut(mut : MTag) : Heaplet
 
@@ -158,7 +162,6 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
     val overall = s"$head :-> ${value.pp}"
     if (isImmutable) s"[$overall]"
-    else if (isAbsent) s"[$overall]@A"
     else if (isNumeric) s"[$overall]@${mut.asInstanceOf[U].tag}"
     else overall
   }
@@ -206,7 +209,6 @@ case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
   override def pp: Ident = {
     val overall = s"[${loc.pp}, $sz]"
     if (isImmutable) s"[$overall]"
-    else if (isAbsent) s"[$overall]@A"
     else if (isNumeric) s"[$overall]@${mut.asInstanceOf[U].tag}"
     //else if (mut == MTag.U) s"[$overall]@${mut.tag}"
     else overall
@@ -246,16 +248,16 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
       MTag.isImmutable(mut)
     }
   }
-
-  override def isAbsent(): Boolean = {
-    if (submut.nonEmpty) {
-      submut.get.foldLeft[Boolean](true)((acc, tag) =>
-        if (MTag.isAbsent(tag)) acc
-        else false)
-    } else {
-      MTag.isAbsent(mut)
-    }
-  }
+//
+//  override def isAbsent(): Boolean = {
+//    if (submut.nonEmpty) {
+//      submut.get.foldLeft[Boolean](true)((acc, tag) =>
+//        if (MTag.isAbsent(tag)) acc
+//        else false)
+//    } else {
+//      MTag.isAbsent(mut)
+//    }
+//  }
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(args = args.map(_.resolveOverloading(gamma)), submut = submut)
@@ -269,7 +271,6 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
     val overall = s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
     if (submut.nonEmpty) s"$overall[${submut.get}]"
     else if (isImmutable) s"[$overall]"
-    else if (isAbsent) s"[$overall]@A"
     else overall
   }
 
@@ -417,6 +418,10 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
       case None => 0
       case Some((l, r)) => 1 + (this - l).similarity(other - r)
     }
+  }
+
+  def mutabilityVars(): Set[Var] = {
+    chunks.foldLeft(Set.empty[Var])((acc: Set[Var], h: Heaplet) => h.mut match { case ImmVar(x) => acc + x })
   }
 
   // How many heaplets are different between the two formulas?

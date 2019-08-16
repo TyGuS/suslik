@@ -94,7 +94,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def immutableheaplet : Parser[Heaplet] = (
     ("[" ~> log(heaplet(Mut))("numeric heaplet") <~ ("]" ~ "@")) ~ numericLit ^^ { case h ~ n => h.makeUnknown(Integer.parseInt(n)) } // later change permission
-    ||| "[" ~> log(heaplet(Imm))("immutable heaplet") <~ "]"
+    ||| ("[" ~> log(heaplet(Mut))("immutable heaplet") <~ ("]" ~ "@")) ~ perm ^^ { case h ~ m => h.changeMut(m) }// TODO [Immutability] get rid of the bare I eventually
     ||| log(heaplet(Mut))("mutable heaplet")
   )
 
@@ -107,7 +107,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def perm : Parser[MTag] = (
     "M" ^^^ Mut
       ||| (("I" ~ "@") ~> ident) ^^ (s => ImmVar(Var(s)))
-      ||| (("I" ~ "@") ~> perm) ^^ (p => Imm(p))
+      ||| ("I" ~ "@" ~ "M") ^^ (p => Imm(Mut))
       ||| numericLit ^^ (n => U(Integer.parseInt(n)))
   )
 

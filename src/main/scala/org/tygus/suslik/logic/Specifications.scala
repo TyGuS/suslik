@@ -83,6 +83,10 @@ object Specifications {
 
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
+
+    def mutabilityVariables() : Set[Var] = {
+      sigma.mutabilityVars()
+    }
   }
 
   case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int), cost: Int)

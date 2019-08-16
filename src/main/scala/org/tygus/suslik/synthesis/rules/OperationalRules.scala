@@ -140,7 +140,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
         case Some(h@PointsTo(x@Var(_), offset, a@Var(_), _)) =>
-          if (h.isAbsent) return Nil
 
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)

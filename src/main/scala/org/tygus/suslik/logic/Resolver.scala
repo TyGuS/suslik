@@ -21,6 +21,8 @@ object Resolver {
     // A temporary solution is to kick this function out of the environment, once used
     val newPre = fs.pre.moveToLevel2()
     val newPost = fs.post.lockSAppTags()
+
+    fs.checkVariableMutabilityTags()
     fs.copy(pre = newPre, post = newPost)
   }
 }

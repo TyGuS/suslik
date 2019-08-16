@@ -32,10 +32,11 @@ object SpatialUnification extends UnificationBase {
                tagsMatter: Boolean = true): Seq[Subst] = {
     import MTag._
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
+
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y, m1), PointsTo(a@Var(_), o2, b, m2)) =>
         if (o1 != o2 ||
-          !pre(m1, m2)
+          (!pre(m1, m2) && !MTag.substitutable(m1, m2))
         ) Nil else {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
@@ -50,7 +51,7 @@ object SpatialUnification extends UnificationBase {
           sbst.toList
         }
       case (Block(x1@Var(_), s1, m1), Block(x2@Var(_), s2, m2)) =>
-        if (s1 != s2 || !pre(m1, m2)) Nil else {
+        if (s1 != s2 || (!pre(m1, m2) && !MTag.substitutable(m1, m2))) Nil else {
           assert(nonFreeInSource.contains(x1))
           genSubst(x1, x2, nonFreeInSource).toList
         }
@@ -59,7 +60,7 @@ object SpatialUnification extends UnificationBase {
         // if es2.forall(_.isInstanceOf[Var])
 
         if (p1 != p2 || es1.size != es2.size ||
-          !pre(m1, m2) ||
+          (!pre(m1, m2) && !MTag.substitutable(m1, m2)) ||
           (targetTag != sourceTag && tagsMatter)) Nil
 
         else {

@@ -18,13 +18,13 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec7 = "{(42 < b) \\/ (b < 40); x :-> b } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
   val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(loc x, loc y) {true ; x :-> b ** (x + 1) :-> a}"
   val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
-  val spec10 = "{ r :-> x ** [lseg(x, S)] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
-  val spec11 = "{ [r :-> x] ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
-  val spec12 = "{ [r :-> x] ** lseg(x, S)[M, M] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, M] ** lseg(y, S) }"
+  val spec10 = "{ [r :-> x]@M ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
+  val spec11 = "{ r :-> x ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
+  val spec12 = "{ r :-> x ** lseg(x, S)[M, M] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, M] ** lseg(y, S) }"
   //val spec12 = "{ [r :-> x] ** lseg(x, S)[I@a, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@a, I@b] ** lseg(y, S) }"
-  val spec13 = "{ [r :-> x] ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, I@b] ** lseg(y, S) }"
+  val spec13 = "{ r :-> x ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, I@b] ** lseg(y, S) }"
   // TODO not necessary to parse
-  val spec14 = "{ [r :-> x] ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@b, I@(I@M)] ** lseg(y, S) }"
+  val spec14 = "{ r :-> x ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@b, I@(I@M)] ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
   import log._
