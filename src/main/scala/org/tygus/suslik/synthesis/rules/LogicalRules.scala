@@ -50,15 +50,13 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     Axiom: Readonly spatial only and pure is valid -> emit skip
 
   */
-  object AbsentEmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
+  object ImmutableEmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
 
     override def toString: Ident = "[Sub: emp]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
       val post = goal.post
-
-      // TODO [Immutability] need to make it so that... all post should be matched
 
       if (isImmutable(pre.sigma) && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty && // no existentials

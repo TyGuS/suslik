@@ -11,8 +11,10 @@ predicate lseg(loc x, set s)[0,1] {
 }
 
 
-{[x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
+{[x, 2]@I@M ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
   void emit_skip(loc x, loc y)
-{[x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
+{[x, 2]@I@M ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
 
 ###
+
+ TODO why doesn't substituting work in the expected manner?

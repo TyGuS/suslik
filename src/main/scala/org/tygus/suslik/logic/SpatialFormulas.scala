@@ -421,7 +421,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   }
 
   def mutabilityVars(): Set[Var] = {
-    chunks.foldLeft(Set.empty[Var])((acc: Set[Var], h: Heaplet) => h.mut match { case ImmVar(x) => acc + x })
+    chunks.foldLeft(Set.empty[Var])((acc: Set[Var], h: Heaplet) => h.mut match { case ImmVar(x) => acc + x case _ => acc })
   }
 
   // How many heaplets are different between the two formulas?

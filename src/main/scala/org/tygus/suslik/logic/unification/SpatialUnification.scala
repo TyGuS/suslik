@@ -41,19 +41,25 @@ object SpatialUnification extends UnificationBase {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
           val sbst = for {
-            m1 <- genSubst(x, a, nonFreeInSource)
-            _v2 = b.subst(m1)
-            m2 <- genSubst(y, _v2, nonFreeInSource)
+            d1 <- genSubst(x, a, nonFreeInSource)
+            _v2 = b.subst(d1)
+            d2 <- genSubst(y, _v2, nonFreeInSource)
           } yield {
-            assertNoOverlap(m1, m2)
-            m1 ++ m2
+            assertNoOverlap(d1, d2)
+            d1 ++ d2
           }
-          sbst.toList
+          // if... make substitution for tag here
+
+          if (m1 != m2) {
+            (sbst ++ genSubstMut(m1, m2, nonFreeInSource)).toList
+          } else {
+            sbst.toList
+          }
         }
       case (Block(x1@Var(_), s1, m1), Block(x2@Var(_), s2, m2)) =>
         if (s1 != s2 || (!pre(m1, m2) && !MTag.substitutable(m1, m2))) Nil else {
           assert(nonFreeInSource.contains(x1))
-          genSubst(x1, x2, nonFreeInSource).toList
+          (genSubst(x1, x2, nonFreeInSource) ++ genSubstMut(m1, m2, nonFreeInSource)).toList
         }
       case (SApp(p1, es1, targetTag, m1, sm1), SApp(p2, es2, sourceTag, m2, sm2)) =>
         // Only unify predicates with variables as arguments

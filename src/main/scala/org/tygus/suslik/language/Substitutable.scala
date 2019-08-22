@@ -9,7 +9,7 @@ import org.tygus.suslik.logic.MTag
 
 trait Substitutable[+A] {
 
-  // Variable substitution
+   // Variable substitution
   def subst(x: Var, by: Expr) : A = {
     this.subst(Substitution(Map.empty[Var,Expr] + (x -> by), Map.empty))
   }
@@ -19,6 +19,7 @@ trait Substitutable[+A] {
   def subst(m: Map[Var, Expr]) : A = {
     this.subst(Substitution(m))
   }
+
 }
 
 case class Substitution(exprMapping : Map[Var, Expr] =  Map.empty[Var, Expr],

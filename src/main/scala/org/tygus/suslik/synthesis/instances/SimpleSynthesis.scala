@@ -29,7 +29,7 @@ class SimpleSynthesis(implicit val log: SynLogging) extends Synthesis {
   val everyDayRules: List[SynthesisRule] = List(
     // Terminal
     LogicalRules.EmpRule,
-    LogicalRules.AbsentEmpRule,
+    LogicalRules.ImmutableEmpRule,
 
     // Normalization rules
     LogicalRules.StarPartial,

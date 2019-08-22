@@ -2,7 +2,6 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.synthesis.SynConfig
 
 /**
   * Utilities for pure formulae
@@ -14,20 +13,22 @@ trait PureLogicUtils {
   /*
   Substitutions
    */
+  //type Subst = Map[Var, Expr]
+//  type Subst[A] = Map[Var, Substitutable[A]]
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
 
-  def emptySubst: Subst = Map.empty
+  def emptySubst[A]: Subst = Map.empty
 
-  protected def assertNoOverlap(sbst1: Subst, sbst2: Subst) {
+  protected def assertNoOverlap[A](sbst1: Subst, sbst2: Subst) {
     assert(sbst1.keySet.intersect(sbst2.keySet).isEmpty, s"Two substitutions overlap:\n:$sbst1\n$sbst2")
   }
 
-  def compose(subst1: SubstVar, subst2: Subst): Subst = {
+  def compose[A](subst1: SubstVar, subst2: Subst): Subst = {
     subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
   }
 
-  def compose1(subst1: Subst, subst2: Subst): Subst =
+  def compose1[A](subst1: Subst, subst2: Subst): Subst =
     subst1.map {
       case (k, v) => k -> (v match {
         case w@Var(_) => subst2.getOrElse(w, v)
@@ -40,7 +41,7 @@ trait PureLogicUtils {
     s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
   }
 
-  def agreeOnSameKeys(m1: Subst, m2: Subst): Boolean = {
+  def agreeOnSameKeys[A](m1: Subst, m2: Subst): Boolean = {
     val common = m1.keySet.intersect(m2.keySet)
     common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
   }

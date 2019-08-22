@@ -3,7 +3,7 @@ package org.tygus.suslik.logic.unification
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.Substitutable
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
+import org.tygus.suslik.logic.{ImmVar, MTag, PureLogicUtils, SepLogicUtils}
 
 /**
   * Base engine for unification, both for spatial and for pure parts
@@ -58,7 +58,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       val sParams = freshSource.params
       val sGhosts = freshSource.ghosts
       assert(sParams.intersect(sGhosts).isEmpty, s"Non empty sets: $sParams, $sGhosts")
-      sbst.forall { case (from, to) =>
+      sbst.forall { case (from, to: Expr) =>
         // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
         (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
             // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
@@ -136,6 +136,14 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     if (to == from) Some(Map.empty) // Handling constants etc
     else from match {
       case _from@Var(_) if !taken.contains(_from) => Some(Map(_from -> to))
+      case _ => None
+    }
+  }
+
+  protected def genSubstMut(to: MTag, from: MTag, taken: Set[Var]): Option[Subst] = {
+    if (to == from) Some(Map.empty) // Handling constants etc
+    else from match {
+      //case _from@ImmVar(x) if !taken.contains(x) => Some(Map(x -> to))
       case _ => None
     }
   }
