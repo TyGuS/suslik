@@ -1,6 +1,7 @@
 package org.tygus.suslik.logic.unification
 
 import org.tygus.suslik.language.Expressions.Var
+import org.tygus.suslik.language.Substitution
 import org.tygus.suslik.logic.{SFormula, _}
 import org.tygus.suslik.logic.Specifications._
 
@@ -14,7 +15,7 @@ object SpatialUnification extends UnificationBase {
   val precise: Boolean = true
 
 
-  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst] =
+  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Substitution] =
     tryUnify(target, source, nonFreeInSource, tagsMatter = true)
 
   /**
@@ -29,7 +30,7 @@ object SpatialUnification extends UnificationBase {
                nonFreeInSource: Set[Var],
                // Take the application level tags into the account
                // should be ignored when used from the *-intro rule
-               tagsMatter: Boolean = true): Seq[Subst] = {
+               tagsMatter: Boolean = true): Seq[Substitution] = {
     import MTag._
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
 
@@ -72,7 +73,7 @@ object SpatialUnification extends UnificationBase {
         else {
           val pairs = es1.zip(es2)
           // Collect the mapping from the predicate parameters
-          pairs.foldLeft(Some(Map.empty): Option[Subst]) {
+          pairs.foldLeft(Some(Substitution()): Option[Substitution]) {
             case (opt, (x1, x2)) => opt match {
               case None => None
               case Some(acc) =>
@@ -136,9 +137,9 @@ object SpatialUnification extends UnificationBase {
 
   sealed case class FrameChoppingResult(sRemaining: SFormula, sFrame: SFormula,
                                         tRemaining: SFormula, tFrame: SFormula,
-                                        sub: Subst)
+                                        sub: Substitution)
 
-  private def removeSingleChunk(source: SFormula, target: SFormula, p: Heaplet, sub: Subst) = {
+  private def removeSingleChunk(source: SFormula, target: SFormula, p: Heaplet, sub: Substitution) = {
     val _tr = target - p
     val _sr = source.subst(sub) - p
     if (_tr.chunks.length == target.chunks.length - 1 &&
@@ -155,7 +156,7 @@ object SpatialUnification extends UnificationBase {
       sf.copy(chunks = newChunks)
   }
 
-  private def removeSAppChunk(source: SFormula, target: SFormula, tFrame: SApp, sub: Subst) = {
+  private def removeSAppChunk(source: SFormula, target: SFormula, tFrame: SApp, sub: Substitution) = {
     val _tr = removeSAppIgnoringTag(target, tFrame)
     val _sr = removeSAppIgnoringTag(source.subst(sub), tFrame)
     if (_tr.chunks.length == target.chunks.length - 1 &&
@@ -164,7 +165,7 @@ object SpatialUnification extends UnificationBase {
   }
 
   private def frameFromCommonBlock(source: SFormula, target: SFormula,
-                                   b: Block, boundVars: Set[Var], sub: Subst): Option[(SFormula, SFormula, SFormula, Subst)] = {
+                                   b: Block, boundVars: Set[Var], sub: Substitution): Option[(SFormula, SFormula, SFormula, Substitution)] = {
     val sourceSubst = source.subst(sub)
     if (!target.chunks.contains(b) || !sourceSubst.chunks.contains(b)) return None
     // Assuming b.loc is Var, as otherwise the previous method would return None
@@ -189,7 +190,7 @@ object SpatialUnification extends UnificationBase {
 
     // Strip as much from the two formulas as possible,
     // and unify in the process, delivering the new substitution
-    def stripper(sf: Heaplet, tf: Heaplet, sub: Subst): Option[FrameChoppingResult] = tf match {
+    def stripper(sf: Heaplet, tf: Heaplet, sub: Substitution): Option[FrameChoppingResult] = tf match {
       case p@PointsTo(_, _, _, _) =>
         removeSingleChunk(source, target, p, sub).map {
           case (sr, tr) => FrameChoppingResult(sr, SFormula(List(sf)), tr, SFormula(List(tf)), sub)

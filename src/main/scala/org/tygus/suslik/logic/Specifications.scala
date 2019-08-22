@@ -39,16 +39,16 @@ object Specifications {
       * For all pointers x :-> v, changes v to a fresh variable $ex.
       * Returns a substitution from $ex to v.
       */
-    def relaxPTSImages: (Assertion, Subst) = {
+    def relaxPTSImages: (Assertion, Substitution) = {
       val ptss = sigma.ptss
       val (_, sub, newPtss) =
-        ptss.foldRight((Set.empty: Set[Var], Map.empty: Subst, Nil: List[PointsTo])) {
+        ptss.foldRight((Set.empty: Set[Var], Substitution(): Substitution, Nil: List[PointsTo])) {
           case (p@PointsTo(x, off, e, _), z@(taken, sbst, acc)) =>
             // Only relax if the pure part is not affected!
             if (e.vars.intersect(phi.vars).isEmpty) {
               val freshName = LanguageUtils.generateFreshExistential(taken)
               val taken1 = taken + freshName
-              val sub1 = sbst + (freshName -> e)
+              val sub1 = sbst + (freshName, e)
               (taken1, sub1, PointsTo(x, off, freshName) :: acc)
             } else (taken, sbst, p :: acc)
         }

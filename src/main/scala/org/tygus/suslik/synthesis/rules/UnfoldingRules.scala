@@ -199,7 +199,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     /**
       * Make a call goal for `f` with a given precondition
       */
-    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
+    def mkCallGoal(f: FunSpec, sub: Substitution, callSubPre: Assertion, goal: Goal): List[Goal] = {
 
       //val diff = f.post.sigma.chunks.foldLeft[Set[Heaplet]](Set.empty[Heaplet])((acc : Set[Heaplet], h: Heaplet) =>
       //if (f.pre.sigma.chunks.contains(h)) acc + h else acc) // post &~ pre (set difference)
@@ -315,7 +315,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
-        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keyset.contains(k) } ++ compose1(exSub, relaxedSub)
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoalsOpt, restGoal) = writesAndRestGoals(actualSub, relaxedSub, f, goal)
         if writeGoalsOpt.nonEmpty
@@ -333,7 +333,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }).toSeq
     }
 
-    def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): (Option[Goal], Goal) = {
+    def writesAndRestGoals(actualSub: Substitution, relaxedSub: Substitution, f: FunSpec, goal: Goal): (Option[Goal], Goal) = {
       val ptss = f.pre.sigma.ptss // raw points-to assertions
       val (ptsToReplace, ptsToObtain) = (for {
         p@PointsTo(x@Var(_), off, e, _) <- ptss

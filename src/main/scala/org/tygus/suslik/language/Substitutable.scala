@@ -33,6 +33,10 @@ case class Substitution(exprMapping : Map[Var, Expr] =  Map.empty[Var, Expr],
     Substitution(exprMapping, mutMapping + (v -> m))
   }
 
+  def ++(o: Substitution) : Substitution = {
+    Substitution(exprMapping ++ o.exprMapping, mutMapping ++ o.mutMapping)
+  }
+
   def getOrElse(key: Var, default: Expr): Expr = {
     exprMapping.getOrElse(key, default)
   }
@@ -40,6 +44,38 @@ case class Substitution(exprMapping : Map[Var, Expr] =  Map.empty[Var, Expr],
   def getOrElse(key: Var, default: MTag): MTag = {
     mutMapping.getOrElse(key, default)
   }
+
+  def keyset(): Set[Var] = {
+    exprMapping.keySet ++ mutMapping.keySet
+  }
+
+  def overlap(o: Substitution): Boolean = {
+    exprMapping.keySet.intersect(o.exprMapping.keySet).isEmpty &&
+      mutMapping.keySet.intersect(o.mutMapping.keySet).isEmpty
+  }
+
+  def contains(x: Var): Boolean = {
+    exprMapping.contains(x) || mutMapping.contains(x)
+  }
+
+  def filterNot[A](p: ((Var, Any)) => Boolean ): Substitution = { // TODO [Immutability] Any is terrible
+    Substitution(exprMapping.filterNot(p), mutMapping.filterNot(p))
+  }
+
+  def sameValueAt(k: Var, o: Substitution): Boolean = {
+    if (exprMapping.isDefinedAt(k)) {
+      exprMapping(k) == o.exprMapping(k)
+    } else if (mutMapping.isDefinedAt(k)) {
+      mutMapping(k) == o.mutMapping(k)
+    } else false
+  }
+
+  // TODO [Immutability] could probably abstract these generic types of operations
+  // with and and or operations
+  def isDefinedAt(k: Var): Boolean = {
+    exprMapping.isDefinedAt(k) || mutMapping.isDefinedAt(k)
+  }
+
 }
 /*
 

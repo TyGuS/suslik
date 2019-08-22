@@ -46,7 +46,7 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
 
   def relaxFunSpec = {
     val (relaxedPre, sub) = pre.relaxPTSImages
-    val reversedSub = for ((k, v@Var(_)) <- sub) yield v -> k
+    val reversedSub = for ((k, v@Var(_)) <- sub.exprMapping) yield v -> k // TODO [Immutability]nothing would satisfy this...
     val relaxedPost = post.subst(reversedSub)
     (this.copy(pre = relaxedPre, post = relaxedPost), sub)
   }

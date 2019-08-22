@@ -21,16 +21,36 @@ object MTag extends Enumeration {
   val Mut, Imm, Abs, U = Value
 */
 
-sealed /*case class*/ trait MTag
+sealed /*case class*/ trait MTag {
+  def pp(): String
+}
 
-case object Mut extends MTag
-case object Imm extends MTag
+case object Mut extends MTag {
+  def pp(): String = {
+    "Mut"
+  }
+}
+case object Imm extends MTag {
+  def pp(): String = {
+    "Imm"
+  }
+}
 // TODO this OOP relation is weird
-case class Imm(tag: MTag) extends MTag
-case class ImmVar(tag: Var) extends MTag //with Substitutable[MTag] {
-  //override def subst(sigma: Map[Var, suslik.language.Expressions.PFormula]): MTag = ???
-//}
-case class U(tag : Integer) extends MTag
+case class Imm(tag: MTag) extends MTag {
+  def pp(): String = {
+    s"Imm@${tag.pp}"
+  }
+}
+case class ImmVar(tag: Var) extends MTag {
+  def pp(): String = {
+    s"Imm@${tag.pp}"
+  }
+}
+case class U(tag : Integer) extends MTag {
+  def pp(): String = {
+    s"@$tag"
+  }
+}
 
 
 object MTag {

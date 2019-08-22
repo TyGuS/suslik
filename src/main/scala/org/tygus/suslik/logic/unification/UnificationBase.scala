@@ -1,7 +1,7 @@
 package org.tygus.suslik.logic.unification
 
 import org.tygus.suslik.language.Expressions.{Expr, Var}
-import org.tygus.suslik.language.Substitutable
+import org.tygus.suslik.language.{Substitutable, Substitution}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.{ImmVar, MTag, PureLogicUtils, SepLogicUtils}
 
@@ -17,7 +17,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
   // match all target chunks (no leftovers) -- true for spatial case
   val precise: Boolean
 
-  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst]
+  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Substitution]
 
   protected def extractChunks(goal: UnificationGoal): List[UAtom]
 
@@ -33,7 +33,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     */
   def unify(target: UnificationGoal, source: UnificationGoal,
             boundInBoth: Set[Var] = Set.empty,
-            needRefreshing: Boolean = true): Option[Subst] = {
+            needRefreshing: Boolean = true): Option[Substitution] = {
     // Make sure that all variables in target are fresh wrt. source
     val (freshSource, freshSubst) =
       if (needRefreshing) refreshSource(target, source)
@@ -51,14 +51,14 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     /**
       * Check that substitution does not substitutes ghosts for params
       */
-    def checkSubstWF(sbst: Subst) = {
+    def checkSubstWF(sbst: Substitution) = {
       val tParams = target.params
       val tGhosts = target.ghosts
       assert(tParams.intersect(tGhosts).isEmpty, s"Non empty sets: $tParams, $tGhosts")
       val sParams = freshSource.params
       val sGhosts = freshSource.ghosts
       assert(sParams.intersect(sGhosts).isEmpty, s"Non empty sets: $sParams, $sGhosts")
-      sbst.forall { case (from, to: Expr) =>
+      sbst.exprMapping.forall { case (from, to: Expr) =>
         // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
         (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
             // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
@@ -70,7 +70,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       * Tries to find amongst chunks a heaplet h', which can be unified with the heaplet h.
       * If successful, returns a substitution and a list of remaining heaplets
       */
-    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Option[(Subst, List[UAtom])] = {
+    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Option[(Substitution, List[UAtom])] = {
       val iter = sourceChunks.iterator
       while (iter.hasNext) {
         val candidate = iter.next()
@@ -86,7 +86,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     }
 
     // Invariant: none of the keys in acc are present in sourceChunks
-    def unifyGo(targetChunks: List[UAtom], sourceChunks: List[UAtom], acc: Subst): Option[Subst] = targetChunks match {
+    def unifyGo(targetChunks: List[UAtom], sourceChunks: List[UAtom], acc: Substitution): Option[Substitution] = targetChunks match {
       case Nil =>
         // No more source chunks to unify
         if (sourceChunks.isEmpty) Some(acc) else None
@@ -107,7 +107,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     val iter = targetChunks.permutations
     while (iter.hasNext) {
       val tChunks = iter.next()
-      unifyGo(tChunks, sourceChunks, Map.empty) match {
+      unifyGo(tChunks, sourceChunks, Substitution()) match {
         case Some(newSubst) =>
           // Returns the first good substitution, doesn't try all of them!
           val newAssertion = source.formula.subst(newSubst)
@@ -132,18 +132,18 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     (UnificationGoal(freshSourceFormula, freshParams), freshSubst)
   }
 
-  protected def genSubst(to: Expr, from: Expr, taken: Set[Var]): Option[Subst] = {
-    if (to == from) Some(Map.empty) // Handling constants etc
+  protected def genSubst(to: Expr, from: Expr, taken: Set[Var]): Option[Substitution] = {
+    if (to == from) Some(Substitution()) // Handling constants etc
     else from match {
-      case _from@Var(_) if !taken.contains(_from) => Some(Map(_from -> to))
+      case _from@Var(_) if !taken.contains(_from) => Some(Substitution(Map(_from -> to)))
       case _ => None
     }
   }
 
-  protected def genSubstMut(to: MTag, from: MTag, taken: Set[Var]): Option[Subst] = {
-    if (to == from) Some(Map.empty) // Handling constants etc
+  protected def genSubstMut(to: MTag, from: MTag, taken: Set[Var]): Option[Substitution] = {
+    if (to == from) Some(Substitution()) // Handling constants etc
     else from match {
-      //case _from@ImmVar(x) if !taken.contains(x) => Some(Map(x -> to))
+      case _from@ImmVar(x) if !taken.contains(x) => Some(Substitution(Map.empty, Map(x -> to)))
       case _ => None
     }
   }
@@ -151,7 +151,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 }
 
 /**
-  * A parameterized formula, for which unification produces the substitution
+  * A parameterized formula, for which unification produces the Substitutionitution
   */
 case class UnificationGoal(formula: Assertion, params: Set[Var]) {
   def ghosts: Set[Var] = formula.vars -- params

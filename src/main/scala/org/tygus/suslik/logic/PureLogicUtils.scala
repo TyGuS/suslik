@@ -2,6 +2,7 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Substitution
 
 /**
   * Utilities for pure formulae
@@ -9,41 +10,44 @@ import org.tygus.suslik.language.Expressions._
   * @author Nadia Polikarpova, Ilya Sergey
   */
 trait PureLogicUtils {
+  // TODO Substitution has a mut part which doesn't make sense in this context.
 
   /*
-  Substitutions
+  Substitutionitutions
    */
-  //type Subst = Map[Var, Expr]
+  //type Substitution = Map[Var, Expr]
 //  type Subst[A] = Map[Var, Substitutable[A]]
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
 
   def emptySubst[A]: Subst = Map.empty
 
-  protected def assertNoOverlap[A](sbst1: Subst, sbst2: Subst) {
-    assert(sbst1.keySet.intersect(sbst2.keySet).isEmpty, s"Two substitutions overlap:\n:$sbst1\n$sbst2")
+  protected def assertNoOverlap[A](sbst1: Substitution, sbst2: Substitution) {
+    assert(sbst1.overlap(sbst2), s"Two substitutions overlap:\n:$sbst1\n$sbst2")
   }
 
-  def compose[A](subst1: SubstVar, subst2: Subst): Subst = {
-    subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
+  def compose[A](subst1: SubstVar, subst2: Substitution): Substitution = {
+    Substitution(subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }) // TODO not sure how to compose tags
   }
 
-  def compose1[A](subst1: Subst, subst2: Subst): Subst =
-    subst1.map {
+  def compose1[A](subst1: Substitution, subst2: Substitution): Substitution =
+    Substitution(
+      subst1.exprMapping.map {
       case (k, v) => k -> (v match {
-        case w@Var(_) => subst2.getOrElse(w, v)
+        case w@Var(_) => subst2.exprMapping.getOrElse(w, v)
         case _ => v
       })
-    }
+    }, subst1.mutMapping) // TODO how to merge mutmappings
 
 
-  def ppSubst(m: Subst): String = {
-    s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
+  def ppSubst(m: Substitution): String = {
+    s"{${m.exprMapping.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}" +
+      s"${m.mutMapping.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
   }
 
-  def agreeOnSameKeys[A](m1: Subst, m2: Subst): Boolean = {
-    val common = m1.keySet.intersect(m2.keySet)
-    common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
+  def agreeOnSameKeys[A](m1: Substitution, m2: Substitution): Boolean = {
+    val common = m1.keyset.intersect(m2.keyset)
+    common.forall(k => m1.sameValueAt(k, m2))
   }
 
   /**
