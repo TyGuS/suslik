@@ -1,45 +1,25 @@
 predicate tree(loc x) {
 |  x == 0        => {emp}
-<<<<<<< HEAD
-|  not (x == 0)  => {[x, 3] ** x :-> 0 ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l) ** tree(r)}
-=======
 |  not (x == 0)  => {[[x, 3]]@0 ** [x :-> 0]@1 ** [(x + 1) :-> l]@2 ** [(x + 2) :-> r]@3 ** tree(l)[0,1,2,3] ** tree(r)[0,1,2,3]}
->>>>>>> 6551f85... Changes to tests
 }
 
 predicate tree_elem(loc x, int e) {
 |  x == 0        => {emp}
-<<<<<<< HEAD
-|  not (x == 0)  => {[x, 3] ** x :-> e ** (x + 1) :-> l ** (x + 2) :-> r ** tree_elem(l, e) ** tree_elem(r, e)}
-=======
 |  not (x == 0)  => {[[x, 3]]@0 ** [x :-> e]@1 ** [(x + 1) :-> l]@2 ** [(x + 2) :-> r]@3 ** tree_elem(l, e)[0,1,2,3] ** tree_elem(r, e)[0,1,2,3]}
->>>>>>> 6551f85... Changes to tests
 }
 
 predicate treeN(loc x, int n) {
 |  x == 0        => { n == 0 ; emp }
 |  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 ;
-<<<<<<< HEAD
-                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
-=======
                      [[x, 3]]@0 ** [x :-> v]@1 ** [(x + 1) :-> l]@2 ** [(x + 2) :-> r]@3 ** treeN(l, n1)[0,1,2,3] ** treeN(r, n2)[0,1,2,3]}
->>>>>>> 6551f85... Changes to tests
 }
 
 predicate treeS(loc x, set s) {
 |  x == 0        => {s =i {}; emp}
-<<<<<<< HEAD
-|  not (x == 0)  => {s =i {v} ++ s1 ++ s2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeS(l, s1) ** treeS(r, s2)}
-=======
 |  not (x == 0)  => {s =i {v} ++ s1 ++ s2 ; [[x, 3]]@0 ** [x :-> v]@1 ** [(x + 1) :-> l]@2 ** [(x + 2) :-> r]@3 ** treeS(l, n1)[0,1,2,3] ** treeS(r, n2)[0,1,2,3]}
->>>>>>> 6551f85... Changes to tests
 }
 
 predicate lseg(loc x, loc y) {
 |  x == y        => {emp}
-<<<<<<< HEAD
-|  not (x == y)  => {[x, 2] ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, y)}
-=======
 |  not (x == y)  => {[[x, 2]]@0 ** [x :-> 0]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y)[0,1,2]}
->>>>>>> 6551f85... Changes to tests
 }
