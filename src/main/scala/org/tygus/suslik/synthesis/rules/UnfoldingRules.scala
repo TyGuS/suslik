@@ -44,7 +44,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       h match {
         case x@SApp(pred, args, Some(t), mut, submut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          val predicate = env.predicates(pred)
+          val InductivePredicate(_, params, clauses) = predicate.refreshExistentials(goal.vars)
 
           // here, we should check the params and change their tags... all of them
           // params need to be U(n) TODO [Immutability]
@@ -61,12 +62,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             constraints = asn.phi
             body = asn.sigma
             // if our heaplet was not immutable, our opening must be immutable also
-            predChunks = if (h.isImmutable && x.submut.isEmpty) {
 
-              body.chunks.map (c => c.mkImmutable)
-            } else {
-              x.applyFineGrainedTags(body.chunks)
-            }
+
+            predChunks =
+              // Instantiate immutability tag in a clause's body via client-side annotations
+              x.applyFineGrainedTags(x.submut.getOrElse(Nil), body.chunks)
 
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             _newPreSigma1 = SFormula(predChunks).bumpUpSAppTags()
