@@ -2,7 +2,7 @@ should be able to synthesize a duplicator
 
 ###
 
-{ [x,1] ** [x :-> a] ** r :-> b }
+{ [x,1] ** [x :-> a]@I@M ** r :-> b }
 void duplicate(loc x, loc r)
 { r :-> z ** z :-> a ** z + 1 :-> a ** [z,2] }
 

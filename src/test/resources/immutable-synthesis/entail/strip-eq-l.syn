@@ -1,8 +1,8 @@
 should be able to discharge trivial equalities in the precondition
 ###
-{ z == 5  /\  x == x ; [x :-> y] ** y :-> z}
+{ z == 5  /\  x == x ; [x :-> y]@I@a ** y :-> z}
 void foo(loc x, loc y)
-{ true ; [x :-> y]@A ** y :-> 5 }
+{ true ; [x :-> y]@I@a ** y :-> 5 }
 ###
 void foo (loc x, loc y) {
 }

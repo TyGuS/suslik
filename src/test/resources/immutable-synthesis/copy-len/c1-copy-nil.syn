@@ -2,9 +2,9 @@ Step 1: x-list is Nil, nothing to do here
 
 #####
 
-{x == 0  /\  len == 0 ; r :-> x ** [lseg(x, 0, len)]}
+{x == 0  /\  len == 0 ; r :-> x ** lseg(x, 0, len)[I@a, I@b, I@c]}
 void list_copy(loc r)
-{true ; r :-> y ** lseg(y, 0, len) }
+{true ; r :-> y ** lseg(y, 0, len) ** lseg(x, 0, len)[I@a, I@b, I@c] }
 
 #####
 

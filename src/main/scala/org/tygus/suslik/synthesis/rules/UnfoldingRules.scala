@@ -64,9 +64,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // if our heaplet was not immutable, our opening must be immutable also
 
 
-            predChunks =
+            predChunks = //if (h.isImmutable && submut.isEmpty) {
+              //body.chunks.map (c => c.mkImmutable)
+            //} else {
               // Instantiate immutability tag in a clause's body via client-side annotations
-              x.applyFineGrainedTags(x.submut.getOrElse(Nil), body.chunks)
+              x.applyFineGrainedTags(x.submut, body.chunks)
+            //}
 
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             _newPreSigma1 = SFormula(predChunks).bumpUpSAppTags()
@@ -421,14 +424,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // If we unfolded too much: back out
             //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
 
-            // Closes should be immutable also
-            // but this shouldn't be a regular case
-            // need to check if the corresponding usages in pre are immuatable
-            predChunks = if (h.isImmutable) {//|| hasImmutablePreCounterpart(h)) {
-              actualBody.copy(actualBody.chunks.map (c => c.mkImmutable))
-            } else {
-              actualBody.copy(x.applyFineGrainedTags(actualBody.chunks))
-            }
+            predChunks = //if (h.isImmutable && x.submut.isEmpty) {
+              //actualBody.copy(actualBody.chunks.map (c => c.mkImmutable))
+            //} else {
+              actualBody.copy(x.applyFineGrainedTags(x.submut, actualBody.chunks))
+            //}
 
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)

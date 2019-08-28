@@ -1,8 +1,8 @@
 should be able to synthesize existentials in the post
 ###
-{ z == 5; [x :-> y] ** y :-> z}
+{ z == 5; [x :-> y]@I@a ** y :-> z}
 void foo (loc x, loc y)
-{ 5 == a  /\  x == x ;  [x :-> y]@A ** y :-> a}
+{ 5 == a  /\  x == x ;  [x :-> y]@I@a ** y :-> a}
 ###
 void foo (loc x, loc y) {
 }

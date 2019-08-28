@@ -67,7 +67,7 @@ object SpatialUnification extends UnificationBase {
         // if es2.forall(_.isInstanceOf[Var])
 
         if (p1 != p2 || es1.size != es2.size ||
-          (!pre(m1, m2) && !MTag.substitutable(m1, m2)) ||
+          (!pre(m1, m2) && !MTag.checkLists(sm1, sm2)) ||
           (targetTag != sourceTag && tagsMatter)) Nil
 
         else {

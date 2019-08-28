@@ -21,33 +21,32 @@ object MTag extends Enumeration {
   val Mut, Imm, Abs, U = Value
 */
 
-sealed /*case class*/ trait MTag {
-  def pp(): String
+sealed /*case class*/ trait MTag extends PrettyPrinting {
 }
 
 case object Mut extends MTag {
-  def pp(): String = {
-    "Mut"
+  override def pp(): String = {
+    "M"
   }
 }
 case object Imm extends MTag {
-  def pp(): String = {
-    "Imm"
+  override def pp(): String = {
+    "I"
   }
 }
 // TODO this OOP relation is weird
 case class Imm(tag: MTag) extends MTag {
-  def pp(): String = {
-    s"Imm@${tag.pp}"
+  override def pp(): String = {
+    s"I@${tag.pp}"
   }
 }
 case class ImmVar(tag: Var) extends MTag {
-  def pp(): String = {
-    s"Imm@${tag.pp}"
+  override def pp(): String = {
+    s"I@${tag.name}"
   }
 }
 case class U(tag : Integer) extends MTag {
-  def pp(): String = {
+  override def pp(): String = {
     s"@$tag"
   }
 }
@@ -56,11 +55,12 @@ case class U(tag : Integer) extends MTag {
 object MTag {
 
   def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]]) : Boolean = (s1, s2) match {
-    case (Some(a), Some(b)) => a.zip(b).forall({ case (a,b) => (a,b) match {
+    case (Some(a), Some(b)) => a.zip(b).forall{ case (x: MTag, y: MTag) => MTag.pre(x,y)}
+      //{ case (a,b) => (a,b) match {
       //case (_, U(m)) => true
       //case (U(n), _) => true
-      case (x, y) => x == y
-      case (_, _) => false} })
+      //case (x, y) => x == y
+      //case (_, _) => false} })
     case (None, None) => true
     case _ => false
   }
@@ -77,22 +77,18 @@ object MTag {
     case _ => false
   }
 
-  def demote(have: MTag, need:MTag ) : MTag = need match {
+  def demote(have: MTag, need: MTag) : MTag = need match {
     case Imm => Imm(have)
     case _ => need
   }
-
-  def unify(have:MTag, need:MTag) : MTag = (have, need) match {
-    case (h, Imm(x: MTag)) => { if (x == h) h else null } // TODO cannot unify...
-  }
-
   def substitutable(have: MTag, need: MTag): Boolean = (have, need) match {
     case (h, Imm(x: MTag)) => { if (x == h) true else false } // TODO cannot unify...
     case _ => false
   }
 
   def isMutable(tag: MTag): Boolean = tag == Mut
-  def isImmutable(tag: MTag): Boolean = tag == Imm
+  def isImmutable(tag: MTag): Boolean = tag == Imm || tag.isInstanceOf[ImmVar]
+  def isImmVar(tag: MTag): Boolean = tag.isInstanceOf[ImmVar]
   def isNumeric(tag: MTag): Boolean = tag.isInstanceOf[U]
 
   def isVariable(tag: MTag): Boolean = tag.isInstanceOf[ImmVar]
@@ -108,8 +104,9 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def isMutable: Boolean = MTag.isMutable(mut)
   def isImmutable: Boolean = MTag.isImmutable(mut)
+  def isImmVar : Boolean = MTag.isImmVar(mut)
   def isNumeric: Boolean = MTag.isNumeric(mut)
-  def changeMut(mut : MTag) : Heaplet
+  def withMut(mut : MTag) : Heaplet
 
   def makeUnknown(numberTag : Integer): Heaplet
 
@@ -124,7 +121,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   //    mut = true
   //    this
   //  }
-  //  
+  //
   //  def isMutable: Boolean = mut
 
   def resolveOverloading(gamma: Gamma): Heaplet
@@ -181,7 +178,8 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
     val overall = s"$head :-> ${value.pp}"
-    if (isImmutable) s"[$overall]"
+    if (isImmVar) s"[$overall]@I@${mut.asInstanceOf[ImmVar].tag.name}"
+    else if (isImmutable) s"[$overall]"
     else if (isNumeric) s"[$overall]@${mut.asInstanceOf[U].tag}"
     else overall
   }
@@ -215,7 +213,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
     case _ => Set.empty[Var]
   }
 
-  override def changeMut(mut : MTag): Heaplet = this.copy(mut = mut)
+  override def withMut(mut : MTag): Heaplet = this.copy(mut = mut)
 }
 
 /**
@@ -251,13 +249,25 @@ case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
     case _ => Set.empty[Var]
   }
 
-  override def changeMut(mut : MTag): Heaplet = this.copy(mut = mut)
+  override def withMut(mut : MTag): Heaplet = this.copy(mut = mut)
 }
 
 /**
   * Predicate application
   */
 case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag = Mut, submut: Option[List[MTag]] = None) extends Heaplet {
+
+  override def equals(o:Any) = o match {
+    case SApp(`pred`, `args`, `tag`, `mut`, _submut) => submut match {
+      case None => mut == Mut
+      case submut => true
+    }
+    case _ => false
+  }
+
+  // TODO [Immutability] necessary?
+  override def hashCode = (pred, args, tag, mut, submut).##
+
 
   override def isImmutable(): Boolean = {
     if (submut.nonEmpty) {
@@ -268,16 +278,6 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
       MTag.isImmutable(mut)
     }
   }
-//
-//  override def isAbsent(): Boolean = {
-//    if (submut.nonEmpty) {
-//      submut.get.foldLeft[Boolean](true)((acc, tag) =>
-//        if (MTag.isAbsent(tag)) acc
-//        else false)
-//    } else {
-//      MTag.isAbsent(mut)
-//    }
-//  }
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(args = args.map(_.resolveOverloading(gamma)), submut = submut)
@@ -289,7 +289,7 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
       case Some(t) => s"[$t]"
     }
     val overall = s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
-    if (submut.nonEmpty) s"$overall[${submut.get}]"
+    if (submut.nonEmpty) s"$overall[${submut.get.drop(1).foldLeft(submut.get(0).pp)((acc, t) => acc + "," + t.pp)}]"
     else if (isImmutable) s"[$overall]"
     else overall
   }
@@ -298,7 +298,7 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
 
   override def mkImmutable = this.copy(mut = Imm, submut = submut)
 
-  override def changeMut(mut : MTag): Heaplet = this.copy(mut = mut)
+  override def withMut(mut : MTag): Heaplet = this.copy(mut = mut, submut = submut)
 
   override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 
@@ -326,45 +326,28 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
     case _ => acc
   })
 
-  // An application is absent also if all its constituents are absent
-  //  override def isAbsent: Boolean = {
-  //    if (submut.nonEmpty) false
-  //    val sms : List[MTag] = submut.get
-  //    mut == Abs || sms.forall(m => MTag.isAbsent(m))
-  //  }
-
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet =
     this.copy(tag = f(this.tag), submut = submut)
 
-  def applyFineGrainedTags(hs : List[Heaplet]) : List[Heaplet] = {
-    submut match {
-      case Some(muts) => {
-        if (muts.length < hs.length) {
-          // TODO [Immutability] should really fail
-        } else {
-          val perms = muts
-        }
+  def applyFineGrainedTags(mutOpt: Option[List[MTag]], hs: List[Heaplet]): List[Heaplet] = {
+    val muts = (i: Int) => mutOpt match {
+      case Some(mutz) => mutz(i)
+      case None => Mut
+    }
 
-        // what is it tagged with?
-        // get the tag of U
-        // just compare to predicate...
-        hs.map {
-          case SApp(a, b, c, d, e) => SApp(a, b, c, d, submut) // replace list
-          case h => h.mut match {
-            case U(n: Integer) => h.changeMut(muts(n))
-            case _ => h
-          } // TODO [Immutability] relies on starting with 0, need to reinforce it?
-        }
-      }
-      // if None, then just treat as mut and keep going
-      case None => hs.map(h => if (h.isNumeric) { h.changeMut(mut) } else { h })//copy(submut = Some((0 to hs.length).map(_ => Mut).toList)).applyFineGrainedTags(hs)
+    hs.map {
+      case SApp(a, b, c, d, e) => SApp(a, b, c, d, submut) // weird edge cases live here where the second SApp might have a different overall mutability
+      case h => h.mut match {
+        case U(n: Integer) => h.withMut(muts(n))
+        case _ => h
+      } // TODO [Immutability] relies on starting with 0, need to reinforce it?
     }
   }
 }
 
 
+
 case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
-  // TODO immutable
   def resolveOverloading(gamma: Gamma): SFormula = {
     this.copy(chunks = chunks.map(_.resolveOverloading(gamma)))
   }

@@ -8,7 +8,7 @@ TODO ??? can't make immutable?
 
 { true ; ret :-> a }
 void sll_dupleton (int x, int y, loc ret)
-{ len == 2  /\  elems =i {x, y} ; ret :-> z ** sll(z, len, elems)[M, M, M] }
+{ len == 2  /\  elems =i {x, y} ; ret :-> z ** sll(z, len, elems) }
 
 #####
 

@@ -8,6 +8,6 @@ predicate tree(loc x, set s) {
 |  not (x == 0)  => {s =i {v} ++ s1 ++ s2; [[x, 3]]@0 ** [x :-> v]@1 ** [(x + 1) :-> l]@2 ** [(x + 2) :-> r]@3 ** tree(l, s1)[0,1,2,3] ** tree(r, s2)[0,1,2,3]}
 }
 
-{ r :-> x ** lseg(x, 0, s1)[I, I, M] ** lseg(y, 0, s2)[I@a, I@b, M]}
+{ r :-> x ** lseg(x, 0, s1)[I@c, I@d, M] ** lseg(y, 0, s2)[I@a, I@b, M]}
 void list_append(loc r, loc y)
 { s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[I@a, I@b, M]}

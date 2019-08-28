@@ -1,13 +1,10 @@
 should be able to set the previous pointer of a doubly-linked list
 
-is even finer-grained immutability possible?
-
-TODO :(
 #######
 
-{ true; (prev + 1) :-> x ** dllseg(x, z, s)[M, M, M, M] }
+{ true; (prev + 1) :-> x ** dllseg(x, z, s)[I@a, I@b, I@c, M] }
 void set_prev(loc x, loc prev)
-{ true; dllseg(x, prev, s)[M, M, M, M] }
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)[I@a, I@b, I@c, M]}
 
 #######
 
