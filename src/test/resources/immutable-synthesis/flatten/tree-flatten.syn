@@ -2,9 +2,9 @@ should be able to flatten the tree into a list given an auxiliary function for l
 
 ####
 
-{ true ; z :-> x ** tree(x, s)[M, M, M, M]}
+{ true ; z :-> x ** tree(x, s)}
 void tree_flatten(loc z)
-{ true ;  z :-> y ** lseg(y, 0, s)[M, M, M]}
+{ true ;  z :-> y ** lseg(y, 0, s)}
 
 ####
 

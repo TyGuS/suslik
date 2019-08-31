@@ -2,9 +2,9 @@ should be able to synthesize trivial list append
 
 #####
 
-{ r :-> x ** lseg(x, 0, s1)[I@a, I@b, M] ** lseg(y, 0, s2)[I@a, I@b, I@c]}
+{ r :-> x ** lseg(x, 0, s1)[I@a, I@b, M] ** lseg(y, 0, s2)[I@a, I@b, M]}
 void list_append(loc r, loc y)
-{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[I@a, I@b, I@c]}
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[I@a, I@b, M]}
 
 #####
 

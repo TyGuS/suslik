@@ -141,7 +141,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
   }
 
   protected def genSubstMut(to: MTag, from: MTag, taken: Set[Var]): Option[Substitution] = {
-    if (to == from) Some(Substitution()) // Handling constants etc
+    if (to == from) None
     else from match {
       case _from@ImmVar(x) if !taken.contains(x) => Some(Substitution(Map.empty, Map(x -> to)))
       case _ => None

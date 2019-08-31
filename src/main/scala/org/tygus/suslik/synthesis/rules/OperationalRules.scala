@@ -46,8 +46,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@(PointsTo(x@Var(_), offset, e1, _)), hr@(PointsTo(_, _, e2, _)))) =>
-          if (!hl.isMutable) {
+        case Some((hl@(PointsTo(x@Var(_), offset, e1, m1)), hr@(PointsTo(_, _, e2, m2)))) =>
+          if (!hl.isMutable || m1 != m2) {
             return Nil
             // Do not write if points-to is immutable
           }

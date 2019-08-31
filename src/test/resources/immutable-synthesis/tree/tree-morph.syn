@@ -1,19 +1,19 @@
-should be able to morhp a tree
+should be able to morph a tree
 ###
 
 {true; tree(x)[I@a, M, I@b, I@c]}
-  void morhp_tree(loc x, int i)
+  void morph_tree(loc x, int i)
 {true ; tree_elem(x, i)[I@a, M, I@b, I@c] }
 
 ###
 
-void morhp_tree (loc x, int i) {
+void morph_tree (loc x, int i) {
   if (x == 0) {
   } else {
     let l2 = *(x + 1);
     let r2 = *(x + 2);
-    morhp_tree(l2, i);
-    morhp_tree(r2, i);
+    morph_tree(l2, i);
+    morph_tree(r2, i);
     *x = i;
     *(x + 1) = r2;
     *(x + 2) = l2;

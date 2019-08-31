@@ -86,22 +86,22 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def identWithOffset: Parser[(Ident, Int)] = {
     val ov = ident ~ opt("+" ~> numericLit)
-    ("(" ~> log(ov)("ov") <~ ")" | ov) ^^ { case i ~ o =>
+    ("(" ~> ov <~ ")" | ov) ^^ { case i ~ o =>
       val off = Math.max(Integer.parseInt(o.getOrElse("0")), 0)
       (i, off)
     }
   }
 
   def immutableheaplet : Parser[Heaplet] = (
-    ("[" ~> log(heaplet(Mut))("numeric heaplet") <~ ("]" ~ "@")) ~ numericLit ^^ { case h ~ n => h.makeUnknown(Integer.parseInt(n)) } // later change permission
-    ||| ("[" ~> log(heaplet(Mut))("immutable heaplet") <~ ("]" ~ "@")) ~ perm ^^ { case h ~ m => h.withMut(m) }// TODO [Immutability] get rid of the bare I eventually
-    ||| log(heaplet(Mut))("mutable heaplet")
+    ("[" ~> heaplet(Mut) <~ ("]" ~ "@")) ~ numericLit ^^ { case h ~ n => h.makeUnknown(Integer.parseInt(n)) } // later change permission
+    ||| ("[" ~> heaplet(Mut) <~ ("]" ~ "@")) ~ perm ^^ { case h ~ m => h.withMut(m) }// TODO [Immutability] get rid of the bare I eventually
+    ||| heaplet(Mut)
   )
 
   def heaplet(mutable : MTag): Parser[Heaplet] = (
       (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b, mutable) }
           ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s), mutable)}
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("[" ~> rep1sep(log(perm)("perm"), ",") <~ "]") ^^ { case name ~ args ~ perms => SApp(name, args, mut = mutable, submut = perms) }
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("[" ~> rep1sep(perm, ",") <~ "]") ^^ { case name ~ args ~ perms => SApp(name, args, mut = mutable, submut = perms) }
   )
 
   def perm : Parser[MTag] = (
@@ -113,7 +113,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def sigma: Parser[SFormula] = (
       "emp" ^^^ SFormula(Nil)
-          ||| repsep(log(immutableheaplet)("permission heaplet"), "**") ^^ { hs => SFormula(hs) }
+          ||| repsep(immutableheaplet, "**") ^^ { hs => SFormula(hs) }
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {

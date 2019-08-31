@@ -1,19 +1,19 @@
-
+Currently not working and not even sure what the goal was here
 predicate lseg(loc x, set s) {
 |  x == 0        => { s =i {} ; emp }
 |  not (x == 0)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[0, 1] }
 }
 ###
 
-predicate lseg(loc x, set s)[0,1] {
+predicate lseg(loc x, set s) {
 |  x == 0        => { s =i {} ; emp }
 |  not (x == 0)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[0, 1] }
 }
 
 
-{[x, 2]@I@M ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
+{[[x, 2]]@I@M ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
   void emit_skip(loc x, loc y)
-{[x, 2]@I@M ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
+{[[x, 2]]@I@M ** x :-> 0 ** (x + 1) :-> nxt ** lseg(nxt, s)[I@a, M] }
 
 ###
 

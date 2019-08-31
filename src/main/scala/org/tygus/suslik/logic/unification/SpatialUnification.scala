@@ -72,8 +72,9 @@ object SpatialUnification extends UnificationBase {
 
         else {
           val pairs = es1.zip(es2)
+
           // Collect the mapping from the predicate parameters
-          pairs.foldLeft(Some(Substitution()): Option[Substitution]) {
+          (pairs.foldLeft(Some(Substitution()): Option[Substitution]) {
             case (opt, (x1, x2)) => opt match {
               case None => None
               case Some(acc) =>
@@ -84,7 +85,25 @@ object SpatialUnification extends UnificationBase {
                   case None => None
                 }
             }
-          }.toList
+          }
+          ++
+            ((sm1, sm2) match {
+              case (Some(mut1), Some(mut2)) =>
+                val mutZip : List[(MTag, MTag)] = mut1.zip(mut2)
+                if (mut1.forall{case a => !MTag.isMutable(a)} || mut2.forall{case a => !MTag.isMutable(a)}) None
+                mutZip.foldLeft(Some(Substitution()): Option[Substitution]) {
+                  case (opt, (hmut, hmut2)) => opt match {
+                    case None => None
+                    case Some(acc) =>
+                      genSubstMut(hmut, hmut2, nonFreeInSource) match {
+                        case Some(sbst) =>
+                          assertNoOverlap(acc, sbst)
+                          Some(acc ++ sbst)
+                        case None => None
+                      }
+                  }
+                }
+              case (_, _) => None})).toList
         }
       case _ => Nil
     }

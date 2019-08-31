@@ -21,34 +21,45 @@ object MTag extends Enumeration {
   val Mut, Imm, Abs, U = Value
 */
 
-sealed /*case class*/ trait MTag extends PrettyPrinting {
+sealed /*case class*/ trait MTag extends PrettyPrinting with Substitutable[MTag] {
 }
 
 case object Mut extends MTag {
   override def pp(): String = {
     "M"
   }
+
+  override def subst(substitution: Substitution): MTag = Mut
 }
 case object Imm extends MTag {
   override def pp(): String = {
     "I"
   }
+
+  override def subst(substitution: Substitution): MTag = Imm
 }
 // TODO this OOP relation is weird
 case class Imm(tag: MTag) extends MTag {
   override def pp(): String = {
     s"I@${tag.pp}"
   }
+
+  override def subst(substitution: Substitution): MTag = Imm(tag)
 }
 case class ImmVar(tag: Var) extends MTag {
   override def pp(): String = {
     s"I@${tag.name}"
   }
+
+  override def subst(substitution: Substitution): MTag = substitution.mutMapping.getOrElse(tag, ImmVar(tag))
 }
 case class U(tag : Integer) extends MTag {
   override def pp(): String = {
     s"@$tag"
   }
+
+  // TODO [Immutability] may want to make this Substitution-based also?
+  override def subst(substitution: Substitution): MTag = U(tag)
 }
 
 
@@ -87,8 +98,7 @@ object MTag {
   }
 
   def isMutable(tag: MTag): Boolean = tag == Mut
-  def isImmutable(tag: MTag): Boolean = tag == Imm || tag.isInstanceOf[ImmVar]
-  def isImmVar(tag: MTag): Boolean = tag.isInstanceOf[ImmVar]
+  def isImmutable(tag: MTag): Boolean = tag.isInstanceOf[ImmVar]
   def isNumeric(tag: MTag): Boolean = tag.isInstanceOf[U]
 
   def isVariable(tag: MTag): Boolean = tag.isInstanceOf[ImmVar]
@@ -104,25 +114,10 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def isMutable: Boolean = MTag.isMutable(mut)
   def isImmutable: Boolean = MTag.isImmutable(mut)
-  def isImmVar : Boolean = MTag.isImmVar(mut)
   def isNumeric: Boolean = MTag.isNumeric(mut)
   def withMut(mut : MTag) : Heaplet
 
   def makeUnknown(numberTag : Integer): Heaplet
-
-  def mkImmutable: Heaplet
-
-  //  def mkImmutable(): this.type = {
-  //    mut = false
-  //    this
-  //  }
-  //
-  //  def mkMutable(): this.type = {
-  //    mut = true
-  //    this
-  //  }
-  //
-  //  def isMutable: Boolean = mut
 
   def resolveOverloading(gamma: Gamma): Heaplet
 
@@ -178,14 +173,13 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
     val overall = s"$head :-> ${value.pp}"
-    if (isImmVar) s"[$overall]@I@${mut.asInstanceOf[ImmVar].tag.name}"
-    else if (isImmutable) s"[$overall]"
+    if (isImmutable) s"[$overall]@I@${mut.asInstanceOf[ImmVar].tag.name}"
     else if (isNumeric) s"[$overall]@${mut.asInstanceOf[U].tag}"
     else overall
   }
 
   def subst(sigma: Substitution): Heaplet =
-    PointsTo(loc.subst(sigma), offset, value.subst(sigma), mut)
+    PointsTo(loc.subst(sigma), offset, value.subst(sigma), mut.subst(sigma))
 
   // TODO [Immutability] Take that partial order for mutability tags into the account
   def |-(other: Heaplet): Boolean = other match {
@@ -203,8 +197,6 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
   }
 
   def rank: Int = 2
-
-  override def mkImmutable = this.copy(mut = Imm)
 
   override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 
@@ -232,10 +224,8 @@ case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
     else overall
   }
 
-  // TODO no way there isn't a better way of extending the immutable behaviour
-  def subst(sigma: Substitution): Heaplet = Block(loc.subst(sigma), sz, mut)
+  def subst(sigma: Substitution): Heaplet = Block(loc.subst(sigma), sz, mut.subst(sigma))
 
-  override def mkImmutable = this.copy(mut = Imm)
   override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 
   def |-(other: Heaplet): Boolean = false
@@ -294,9 +284,8 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
     else overall
   }
 
-  def subst(sigma: Substitution): Heaplet = this.copy(args = args.map(_.subst(sigma)), submut = submut)
-
-  override def mkImmutable = this.copy(mut = Imm, submut = submut)
+  def subst(sigma: Substitution): Heaplet = this.copy(args = args.map(_.subst(sigma)),
+    submut = submut match { case Some(mut) => Some(mut.map{ case m: MTag => m.subst(sigma) }.toList) case None => None })
 
   override def withMut(mut : MTag): Heaplet = this.copy(mut = mut, submut = submut)
 

@@ -7,5 +7,3 @@ predicate lseg2(loc x, set s) {
 |  x == 0        => { s =i {} ; emp }
 |  not (x == 0)  => { s =i {v} ++ s1 ; [[x, 3]]@0 ** [x :-> v]@1 ** [(x + 1) :-> v + 1]@2 ** [(x + 2) :-> nxt]@3 ** lseg2(nxt, s1)[0,1,2,3] }
 }
-
-todo but it doesn't make sense for any of these to be immutable
