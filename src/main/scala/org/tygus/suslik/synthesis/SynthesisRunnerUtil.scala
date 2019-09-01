@@ -71,6 +71,9 @@ trait SynthesisRunnerUtil {
 
     val prog = res.get
     // assert(prog.predicates.nonEmpty)
+   if (prog.goal.mutabilityTagsAreNotDefined) {
+    throw SynthesisException("Mutability variable in post not present in pre")
+   }
     val (specs, env) = resolveProgram(prog)
 
     if (specs.lengthCompare(1) != 0) {

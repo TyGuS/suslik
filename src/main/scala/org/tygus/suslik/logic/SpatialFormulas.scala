@@ -332,6 +332,13 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
       } // TODO [Immutability] relies on starting with 0, need to reinforce it?
     }
   }
+
+  def mutabilityVars() : Set[Var] =
+    submut match {
+      case Some(muts) => muts.foldLeft(Set.empty[Var])((acc: Set[Var], mut: MTag) => mut match { case ImmVar(x) => acc + x case _ => acc })
+      case None => Set.empty[Var]
+    }
+
 }
 
 
@@ -413,7 +420,11 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   }
 
   def mutabilityVars(): Set[Var] = {
-    chunks.foldLeft(Set.empty[Var])((acc: Set[Var], h: Heaplet) => h.mut match { case ImmVar(x) => acc + x case _ => acc })
+    chunks.foldLeft(Set.empty[Var])((acc: Set[Var], h: Heaplet) =>
+      h match {
+        case x: SApp => x.mutabilityVars() ++ acc
+        case y => y.mut match { case ImmVar(x) => acc + x case _ => acc }
+      })
   }
 
   // How many heaplets are different between the two formulas?

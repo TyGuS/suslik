@@ -22,7 +22,7 @@ object Resolver {
     val newPre = fs.pre.moveToLevel2()
     val newPost = fs.post.lockSAppTags()
 
-    fs.checkVariableMutabilityTags()
+    fs.mutabilityTagsAreNotDefined()
     fs.copy(pre = newPre, post = newPost)
   }
 }

@@ -58,8 +58,9 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     this.copy(pre = newPre, post = newPost)
   }
 
-  def checkVariableMutabilityTags(): Unit = {
-    assert (post.mutabilityVariables.subsetOf(pre.mutabilityVariables))
+  def mutabilityTagsAreNotDefined(): Boolean = {
+    // there is some tag in the post that is not in the pre
+    pre.mutabilityVariables.subsetOf(post.mutabilityVariables)
   }
 
 }
