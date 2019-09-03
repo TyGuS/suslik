@@ -7,11 +7,11 @@ predicate lseg(loc x, loc y, set s) {
 |  not (x == y)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y, s1)[0,1, 2] }
 }
 
-{ r :-> x ** lseg(x, 0, n)[I@a, I@b, I@c]}
+{ r :-> x ** lseg(x, 0, n)[M, M, M]}
 
 void list_copy(loc r, loc x)
 
-{true ; r :-> y ** lseg(y, 0, n)[M, M, M] ** lseg(x, 0, n)[I@a, I@b, I@c]}
+{true ; r :-> y ** lseg(y, 0, n)[M, M, M] ** lseg(x, 0, n)[M, M, M]}
 
 
 #####

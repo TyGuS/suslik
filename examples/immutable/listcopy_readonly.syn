@@ -2,7 +2,7 @@ Copy a linked list
 
 ###
 
-{[lseg(x, S)] }
+{lseg(x, S) }
 
   void listcopy(loc r)
 

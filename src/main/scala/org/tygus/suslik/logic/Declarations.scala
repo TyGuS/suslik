@@ -60,7 +60,7 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
 
   def mutabilityTagsAreNotDefined(): Boolean = {
     // there is some tag in the post that is not in the pre
-    pre.mutabilityVariables.subsetOf(post.mutabilityVariables)
+    (post.mutabilityVariables -- pre.mutabilityVariables).nonEmpty
   }
 
 }
