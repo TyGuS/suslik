@@ -196,7 +196,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr,
     } yield gamma2
   }
 
-  def rank: Int = 2
+  def rank: Int = if (isImmutable) 5 else 10
 
   override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 
@@ -232,7 +232,7 @@ case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
 
-  def rank: Int = 1
+  def rank: Int = if (isImmutable) 4 else 8
 
   override def lhsVars: Set[Var] = loc match {
     case elems: Var => Set[Var](elems)

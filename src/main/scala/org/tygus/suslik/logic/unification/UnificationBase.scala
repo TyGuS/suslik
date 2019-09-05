@@ -97,7 +97,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
           case None => None
           // Could not find a matching heaplet
           case Some((sbst, scsUpdated)) =>
-            assertNoOverlap(acc, sbst)
+            assertNoConflict(acc, sbst)
             unifyGo(tcss, scsUpdated, acc ++ sbst)
         }
     }

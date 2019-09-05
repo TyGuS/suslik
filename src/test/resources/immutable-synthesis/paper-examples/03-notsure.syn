@@ -1,9 +1,9 @@
 Example (3) from the paper (notSure)
 
 ###
-{true ; x :-> a ** y :-> b ** a :-> 0}
+{true ; [x :-> a]@M ** [y :-> b]@I@a}
 void notSure (loc x, loc y)
-{true ; x :-> a ** y :-> c ** c :-> 0}
+{true ; [x :-> a]@M ** [y :-> z]@I@a}
 
 ###
 

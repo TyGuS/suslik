@@ -22,8 +22,8 @@ trait PureLogicUtils {
 
   def emptySubst[A]: Subst = Map.empty
 
-  protected def assertNoOverlap[A](sbst1: Substitution, sbst2: Substitution) {
-    assert(sbst1.overlap(sbst2), s"Two substitutions overlap:\n:$sbst1\n$sbst2")
+  protected def assertNoConflict[A](sbst1: Substitution, sbst2: Substitution) {
+    assert(sbst1.noConflict(sbst2), s"Two substitutions overlap:\n:$sbst1\n$sbst2")
   }
 
   def compose[A](subst1: SubstVar, subst2: Substitution): Substitution = {

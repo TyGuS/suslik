@@ -49,9 +49,8 @@ case class Substitution(exprMapping : Map[Var, Expr] =  Map.empty[Var, Expr],
     exprMapping.keySet ++ mutMapping.keySet
   }
 
-  def overlap(o: Substitution): Boolean = {
-    exprMapping.keySet.intersect(o.exprMapping.keySet).isEmpty &&
-      mutMapping.keySet.intersect(o.mutMapping.keySet).isEmpty
+  def noConflict(o: Substitution): Boolean = {
+    exprMapping.keySet.intersect(o.mutMapping.keySet).isEmpty
   }
 
   def contains(x: Var): Boolean = {

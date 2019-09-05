@@ -46,7 +46,7 @@ object SpatialUnification extends UnificationBase {
             _v2 = b.subst(d1)
             d2 <- genSubst(y, _v2, nonFreeInSource)
           } yield {
-            assertNoOverlap(d1, d2)
+            assertNoConflict(d1, d2)
             d1 ++ d2
           }
           // if... make substitution for tag here
@@ -80,7 +80,7 @@ object SpatialUnification extends UnificationBase {
               case Some(acc) =>
                 genSubst(x1, x2, nonFreeInSource) match {
                   case Some(sbst) =>
-                    assertNoOverlap(acc, sbst)
+                    assertNoConflict(acc, sbst)
                     Some(acc ++ sbst)
                   case None => None
                 }
@@ -97,7 +97,7 @@ object SpatialUnification extends UnificationBase {
                     case Some(acc) =>
                       genSubstMut(hmut, hmut2, nonFreeInSource) match {
                         case Some(sbst) =>
-                          assertNoOverlap(acc, sbst)
+                          assertNoConflict(acc, sbst)
                           Some(acc ++ sbst)
                         case None => None
                       }
