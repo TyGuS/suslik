@@ -300,11 +300,9 @@ object Specifications {
 
     /**
       * Cost of a goal:
-      * Larger goals are more expensive to solve;
-      * deeper goals are more expensive since the lead to larger programs (?);
-      * goals where pre and post are similar are less expensive
+      * for now just the number of heaplets in pre and post
       */
-    lazy val cost: Int = pre.cost + post.cost - similarity + depth
+    lazy val cost: Int = pre.cost + post.cost
   }
 
   def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {

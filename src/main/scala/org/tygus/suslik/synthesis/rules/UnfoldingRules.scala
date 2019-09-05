@@ -69,7 +69,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       for {
         heaplet <- goal.pre.sigma.chunks
         s <- mkInductiveSubGoals(goal, heaplet) match {
@@ -77,7 +77,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
             val kont = branchProducer(selectors) >> handleGuard(goal) >> extractHelper(goal)
-            Some(Subderivation(subGoals, kont))
+            Some(RuleResult(subGoals, kont))
         }
       } yield s
     }
@@ -94,7 +94,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: call]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       // look at all proper ancestors starting from the root
       // and try to find a companion
       // (If auxiliary abduction is disabled, only look at the root)
@@ -124,7 +124,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l), toString) >> handleGuard(goal) >> extractHelper(goal)
-        Subderivation(List(callGoal), kont)
+        RuleResult(List(callGoal), kont)
       }
     }
 
@@ -169,7 +169,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "[Unfold: abduce-call]"
 
     // TODO: refactor common parts with CallRule
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val allCands = goal.companionCandidates.reverse
       val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
       val fpecs = cands.map(_.toFunSpec) ++ // companions
@@ -196,7 +196,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
         val kont = seqComp("abduce-call") >> handleGuard(goal) >> extractHelper(goal)
-        Subderivation(List(writeGoal, remainingGoal), kont)
+        RuleResult(List(writeGoal, remainingGoal), kont)
       }
     }
 
@@ -241,7 +241,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Unfold: close]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val post = goal.post
       val env = goal.env
       val deriv = goal.hist
@@ -254,7 +254,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         }
       }
 
-      def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
+      def heapletResults(h: Heaplet): Seq[RuleResult] = h match {
         case SApp(pred, args, Some(t)) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
@@ -285,7 +285,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
             val kont = idProducer("close") >> handleGuard(goal) >> extractHelper(goal)
 
-            Subderivation(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont)
+            RuleResult(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont)
           }
           subDerivations
         case _ => Nil

@@ -34,6 +34,14 @@ object Rules {
       },
       s"join-${this.source}-${p.source}"
     )
+
+    def partApply(s: Solution): StmtProducer = StmtProducer (
+      this.arity - 1,
+      sols => {
+        this.apply(s +: sols)
+      },
+      s"apply-${this.source}"
+    )
   }
 
   def liftToSolutions(f: Seq[Statement] => Statement)(arg: Seq[Solution]): Solution = {
@@ -103,19 +111,14 @@ object Rules {
   )
 
   /**
-    * An incomplete derivation:
-    * consists of sub-goals (open leaves of the derivation) and
+    * Result of a rule application:
+    * sub-goals to be solved and
     * a statement producer that assembles the sub-goal results
     */
-  case class Subderivation(subgoals: Seq[Goal], kont: StmtProducer)
+  case class RuleResult(subgoals: Seq[Goal], kont: StmtProducer)
     extends PrettyPrinting with PureLogicUtils {
 
-    override def pp: String = s"[${subgoals.map(_.label.pp).mkString(", ")}]($cost)"
-
-    /**
-      * Cost of a subderivation
-      */
-    lazy val cost: Int = subgoals.map(_.cost).sum
+    override def pp: String = s"[${subgoals.map(_.label.pp).mkString(", ")}]"
   }
 
   /**
@@ -125,7 +128,7 @@ object Rules {
     */
   abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get all possible sub-derivations
-    def apply(goal: Goal): Seq[Subderivation]
+    def apply(goal: Goal): Seq[RuleResult]
 
     // Is the rule enabled on this goal?
     def enabled(goal: Goal): Boolean
@@ -171,7 +174,7 @@ object Rules {
   // Sort a sequence of alternative subderivations (where every subderivation contains a single goal)
   // by the footprint of their latest rule application,
   // so that sequential applications of the rule are unlikely to cause out-of-order derivations
-  def sortAlternativesByFootprint(alts: Seq[Subderivation]): Seq[Subderivation] = {
+  def sortAlternativesByFootprint(alts: Seq[RuleResult]): Seq[RuleResult] = {
     alts.sortBy(_.subgoals.head.hist.applications.head)
   }
 

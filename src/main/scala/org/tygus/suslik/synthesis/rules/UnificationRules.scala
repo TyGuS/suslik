@@ -25,7 +25,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
       val deriv = goal.hist
@@ -45,7 +45,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
         val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
         val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
-        Subderivation(List(newGoal), kont)
+        RuleResult(List(newGoal), kont)
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
       val ord = new Ordering[(Int, RuleApplication)] {
@@ -54,7 +54,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           if (c1 != 0) c1 else x._2.compare(y._2)
         }
       }
-      val derivations = nubBy[Subderivation, Assertion](alternatives, sub => sub.subgoals.head.post)
+      val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
       derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.hist.applications.head))(ord)
     }
   }
@@ -76,7 +76,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   object SubstRight extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Norm: subst-R]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
 
@@ -100,7 +100,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _s2 = s2.subst(x, e)
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
           val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
-          List(Subderivation(List(newGoal), kont))
+          List(RuleResult(List(newGoal), kont))
         case _ => Nil
       }
     }
@@ -118,7 +118,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   object PureUnify extends SynthesisRule with FlatPhase {
     override def toString: String = "[Norm: pure-unify]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       // get post conjuncts with existentials
       val postConjuncts = goal.post.phi.conjuncts.filter(p => p.vars.exists(goal.isExistential))
       val preConjuncts = goal.pre.phi.conjuncts
@@ -129,7 +129,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
-      } yield Subderivation(List(newGoal), kont)
+      } yield RuleResult(List(newGoal), kont)
     }
   }
 
@@ -142,7 +142,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
     override def toString: Ident = "[Op: write-from-env]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       val pre = goal.pre
       val post = goal.post
@@ -173,7 +173,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
             subGoal = goal.spawnChild(newPre, post.subst(m, l))
             kont = prepend(Store(x, offset, l), toString) >> handleGuard(goal) >> extractHelper(goal)
-          } yield Subderivation(List(subGoal), kont)
+          } yield RuleResult(List(subGoal), kont)
         case Some((hl, hr)) =>
           ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -190,7 +190,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   object Pick extends SynthesisRule with FlatPhase {
     override def toString: String = "[Sub: pick]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
         // This is a rule of last resort so only apply when heaps are empty
@@ -201,7 +201,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           sigma = Map(ex -> v)
           newGoal = goal.spawnChild(post = goal.post.subst(sigma))
           kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
-        } yield Subderivation(List(newGoal), kont)
+        } yield RuleResult(List(newGoal), kont)
       } else Nil
     }
   }

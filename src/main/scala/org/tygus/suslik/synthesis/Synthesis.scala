@@ -22,6 +22,7 @@ trait Synthesis extends SepLogicUtils {
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
+
   def allRules(goal: Goal): List[SynthesisRule]
 
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
@@ -52,40 +53,19 @@ trait Synthesis extends SepLogicUtils {
   protected def synthesize(goal: Goal)
                           (stats: SynStats)
                           (implicit ind: Int = 0): Option[Solution] = {
-    // Initialize worklist with a single subderivation
-    // whose sole open goal is the top-level goal
-    val worklist = Vector(Subderivation(List(goal), idProducer("init")))
-    processWorkList(worklist)(stats, goal.env.config, ind)
+    // Initialize worktree: root or-node containing the top-level goal
+    val worktree = OrNode("", goal, Nil) // Vector(RuleResult(List(goal), idProducer("init")))
+    worktree.process(stats, goal.env.config, ind)
   }
 
-  @tailrec
-  private def processWorkList(worklist: Seq[Subderivation])
-                             (implicit
-                              stats: SynStats,
-                              config: SynConfig,
-                              ind: Int): Option[Solution] = {
+  case class OrNode(label: String, goal: Goal, children: Seq[AndNode], parent: Option[AndNode] = None) {
 
-    // Check for timeouts
-    val currentTime = System.currentTimeMillis()
-    if (currentTime - config.startTime > config.timeOut) {
-      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
-    }
-
-    val sz = worklist.length
-    printLog(List((s"\nWorklist ($sz): ${worklist.map(_.pp).mkString(" ")}", Console.YELLOW)))
-    stats.updateMaxWLSize(sz)
-
-    worklist match {
-      case Nil =>
-        // No more subderivations to try: synthesis failed
-        None
-      case subderiv +: rest => subderiv.subgoals match {
-        // Otherwise pick a subderivation to expand
-        case Nil =>
-          // This subderivation has no open goals: synthesis succeeded, build the solution
-          Some(subderiv.kont(Nil))
-        case goal :: moreGoals => {
-          // Otherwise, expand the first open goal
+    @tailrec final def process(implicit
+                stats: SynStats,
+                config: SynConfig,
+                ind: Int): Option[Solution] = children match {
+        case c +: rest => c.copy(parent = Some(this.copy(children = rest))).process // This is an internal node: recurse
+        case Nil => { // this is a leaf: expand
           printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
           stats.updateMaxDepth(goal.depth)
           if (config.printEnv) {
@@ -96,34 +76,145 @@ trait Synthesis extends SepLogicUtils {
           // Apply all possible rules to the current goal to get a list of alternatives,
           // each of which can have multiple open goals
           val rules = nextRules(goal, 0)
-          val children =
+          val results =
             if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
             else applyRules(rules)(goal, stats, config, ind)
 
-          if (children.isEmpty) {
+          if (results.isEmpty) { // This is a dead-end: backtrack
             stats.bumpUpBacktracing()
             printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+            fail match { // Check if there are unexplored alternatives left
+              case None => None           // No: synthesis fails
+              case Some(p) => p.process   // Yes: process the next alternative
+            }
+          } else { // Goal has been expanded: grow the search tree
+            val newChildren = results.zipWithIndex.map { case (res, i) => AndNode(i.toString + label,  res.kont,
+              res.subgoals.zipWithIndex.map{case (g, j) => OrNode(j.toString + i.toString + label, g, Nil)})}
+            copy(children = newChildren).process
           }
+        }
+      }
 
-          val newSubderivations = children.map(child => {
-            // To turn a child into a valid subderivation,
-            // add the rest of the open goals from the current subderivation,
-            // and set up the solution producer to join results from all the open goals
-            Subderivation(child.subgoals ++ moreGoals, child.kont >> subderiv.kont)
-          })
-          // Add new subderivations to the worklist, sort by cost and process
-          val newWorkList_ = newSubderivations ++ rest
-          val newWorkList = if (config.depthFirst) newWorkList_ else newWorkList_.sortBy(_.cost)
-          processWorkList(newWorkList)
+    def fail: Option[OrNode] = parent match {
+      case Some(p) => p.fail
+      case None => None
+    }
+
+    def succeed(s: Solution): Either[AndNode, Solution] = parent match {
+      case None => Right(s)
+      case Some(p) => {
+        if (p.children.isEmpty) {
+          p.succeed(p.kont(List(s)))
+        } else {
+          Left(p.copy(kont = p.kont.partApply(s)))
         }
       }
     }
   }
 
+  case class AndNode(label: String, kont: StmtProducer, children: Seq[OrNode], parent: Option[OrNode] = None) {
+    @tailrec final def process(implicit
+                stats: SynStats,
+                config: SynConfig,
+                ind: Int): Option[Solution] = children match {
+        case c +: rest => c.copy(parent = Some(this.copy(children = rest))).process // This is an internal node: recurse // There are open subgoals, so solve the first one
+        case Nil => succeed(kont(Nil)) match { // No open subgoals: synthesis of this an-node suceeds
+          case Left(n) => n.process
+          case Right(sol) => Some(sol)
+        }
+      }
+
+    // TODO: also handle case where this is not the first child
+    def fail: Option[OrNode] = parent match {
+      case Some(p) => {
+        if (p.children.isEmpty) {
+          // This was the last alternative: delete parent too
+          p.fail
+        } else {
+          // Parent has other alternatives: just delete me
+          Some(p)
+        }
+      }
+      case None =>
+        assert(false, "Found active and-node with an empty parent")
+        None
+    }
+
+    def succeed(s: Solution): Either[AndNode, Solution] = parent match {
+      case Some(p) => p.succeed(s)
+      case None =>
+        assert(false, "Found active and-node with an empty parent")
+        Left(this)
+    }
+  }
+
+
+//  @tailrec
+//  private def processWorkList(worktree: OrNode)
+//                             (implicit
+//                              stats: SynStats,
+//                              config: SynConfig,
+//                              ind: Int): Option[Solution] = {
+//
+//    // Check for timeouts
+//    val currentTime = System.currentTimeMillis()
+//    if (currentTime - config.startTime > config.timeOut) {
+//      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
+//    }
+//
+//    val sz = worklist.length
+//    printLog(List((s"\nWorklist ($sz): ${worklist.map(_.pp).mkString(" ")}", Console.YELLOW)))
+//    stats.updateMaxWLSize(sz)
+//
+//    worklist match {
+//      case Nil =>
+//        // No more subderivations to try: synthesis failed
+//        None
+//      case subderiv +: rest => subderiv.subgoals match {
+//        // Otherwise pick a subderivation to expand
+//        case Nil =>
+//          // This subderivation has no open goals: synthesis succeeded, build the solution
+//          Some(subderiv.kont(Nil))
+//        case goal :: moreGoals => {
+//          // Otherwise, expand the first open goal
+//          printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
+//          stats.updateMaxDepth(goal.depth)
+//          if (config.printEnv) {
+//            printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+//          }
+//          printLog(List((s"${goal.pp}", Console.BLUE)))
+//
+//          // Apply all possible rules to the current goal to get a list of alternatives,
+//          // each of which can have multiple open goals
+//          val rules = nextRules(goal, 0)
+//          val children =
+//            if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
+//            else applyRules(rules)(goal, stats, config, ind)
+//
+//          if (children.isEmpty) {
+//            stats.bumpUpBacktracing()
+//            printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+//          }
+//
+//          val newSubderivations = children.map(child => {
+//            // To turn a child into a valid subderivation,
+//            // add the rest of the open goals from the current subderivation,
+//            // and set up the solution producer to join results from all the open goals
+//            RuleResult(child.subgoals ++ moreGoals, child.kont >> subderiv.kont)
+//          })
+//          // Add new subderivations to the worklist, sort by cost and process
+//          val newWorkList = newSubderivations ++ rest
+////          val newWorkList = if (config.depthFirst) newWorkList_ else newWorkList_.sortBy(_.cost)
+//          processWorkList(newWorkList)
+//        }
+//      }
+//    }
+//  }
+
   protected def applyRules(rules: List[SynthesisRule])(implicit goal: Goal,
                                                        stats: SynStats,
                                                        config: SynConfig,
-                                                       ind: Int): Seq[Subderivation] = rules match
+                                                       ind: Int): Seq[RuleResult] = rules match
   {
     case Nil => Vector() // No more rules to apply: done expanding the goal
     case r :: rs =>
