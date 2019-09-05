@@ -170,6 +170,8 @@ trait Synthesis extends SepLogicUtils {
 
 
         // Invoke the rule
+        
+        val c = goal.post.sigma.chunks.isEmpty
         val allSubderivations = r(goal)
         val goalStr = s"$r: "
 

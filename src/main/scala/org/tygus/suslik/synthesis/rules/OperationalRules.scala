@@ -234,7 +234,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some((h@Block(x@Var(_), _, _), pts)) =>
           // should not be allowed if the target heaplet is immutable
-          if (!h.isMutable) return Nil
+          if (!h.isMutable || pts.exists(z => !z.isMutable)) return Nil
 
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 

@@ -58,7 +58,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      if (isImmutable(pre.sigma) && post.sigma.isEmp && // heaps are empty
+      if (pre.sigma.isEmp && 
+        post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty && // no existentials
         SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post
         List(Subderivation(Nil, _ => Skip)) // we are done
