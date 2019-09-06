@@ -53,163 +53,135 @@ trait Synthesis extends SepLogicUtils {
   protected def synthesize(goal: Goal)
                           (stats: SynStats)
                           (implicit ind: Int = 0): Option[Solution] = {
-    // Initialize worktree: root or-node containing the top-level goal
-    val worktree = OrNode("", goal, Nil) // Vector(RuleResult(List(goal), idProducer("init")))
-    worktree.process(stats, goal.env.config, ind)
+    // Initialize worklist: root or-node containing the top-level goal
+    val worklist = List(OrNode("", goal, None))
+    processWorkList(worklist)(stats, goal.env.config, ind)
   }
 
-  case class OrNode(label: String, goal: Goal, children: Seq[AndNode], parent: Option[AndNode] = None) {
-
-    @tailrec final def process(implicit
-                stats: SynStats,
-                config: SynConfig,
-                ind: Int): Option[Solution] = children match {
-        case c +: rest => c.copy(parent = Some(this.copy(children = rest))).process // This is an internal node: recurse
-        case Nil => { // this is a leaf: expand
-          printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
-          stats.updateMaxDepth(goal.depth)
-          if (config.printEnv) {
-            printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
-          }
-          printLog(List((s"${goal.pp}", Console.BLUE)))
-
-          // Apply all possible rules to the current goal to get a list of alternatives,
-          // each of which can have multiple open goals
-          val rules = nextRules(goal, 0)
-          val results =
-            if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
-            else applyRules(rules)(goal, stats, config, ind)
-
-          if (results.isEmpty) { // This is a dead-end: backtrack
-            stats.bumpUpBacktracing()
-            printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-            fail match { // Check if there are unexplored alternatives left
-              case None => None           // No: synthesis fails
-              case Some(p) => p.process   // Yes: process the next alternative
-            }
-          } else { // Goal has been expanded: grow the search tree
-            val newChildren = results.zipWithIndex.map { case (res, i) => AndNode(i.toString + label,  res.kont,
-              res.subgoals.zipWithIndex.map{case (g, j) => OrNode(j.toString + i.toString + label, g, Nil)})}
-            copy(children = newChildren).process
-          }
-        }
+  case class OrNode(label: String, goal: Goal, parent: Option[AndNode]) {
+    // Does this node have a ancestor with label l?
+    def hasAncestor(l: String): Boolean =
+      if (label == l) true
+      else if (label.length < l.length) false
+      else parent match {
+        // this node cannot be the root, because label.lengh > l.length
+        case Some(p) => p.hasAncestor(l)
       }
 
-    def fail: Option[OrNode] = parent match {
-      case Some(p) => p.fail
-      case None => None
+    // Replace the ancestor labeled l with newAN
+    def replaceAncestor(l: String, n: AndNode): OrNode = parent match {
+      case None => this
+      case Some(p) =>
+        if (p.label == l) copy(parent = Some(n))
+        else if (p.label.length <= l.length) this
+        else p.parent.replaceAncestor(l, n)
     }
 
-    def succeed(s: Solution): Either[AndNode, Solution] = parent match {
-      case None => Right(s)
-      case Some(p) => {
-        if (p.children.isEmpty) {
-          p.succeed(p.kont(List(s)))
-        } else {
-          Left(p.copy(kont = p.kont.partApply(s)))
+    // This node has failed: prune siblings from worklist
+    def fail(wl: List[OrNode]): List[OrNode] = parent match {
+      case None => wl // this is the root; wl must already be empty
+      case Some(an) => { // a subgoal has failed: prune all other descendants of an
+        wl.filterNot(_.hasAncestor(an.label))
+      }
+    }
+
+    // This node has succeeded: update worklist or return solution
+    def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = parent match {
+      case None => Right(s) // this is the root: synthesis succeeded
+      case Some(an) => { // a subgoal has succeeded
+        val newWL = wl.filterNot(_.hasAncestor(label)) // prune all my descendants from worklist
+        // Check if an has more open subgoals:
+        if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
+          an.parent.succeed(an.kont(List(s)), newWL)
+        } else { // there are other open subgoals: partially apply and replace in descendants
+          val newAN = an.copy(kont = an.kont.partApply(s))
+          Left(newWL.map(_.replaceAncestor(an.label, newAN)))
         }
       }
     }
   }
 
-  case class AndNode(label: String, kont: StmtProducer, children: Seq[OrNode], parent: Option[OrNode] = None) {
-    @tailrec final def process(implicit
-                stats: SynStats,
-                config: SynConfig,
-                ind: Int): Option[Solution] = children match {
-        case c +: rest => c.copy(parent = Some(this.copy(children = rest))).process // This is an internal node: recurse // There are open subgoals, so solve the first one
-        case Nil => succeed(kont(Nil)) match { // No open subgoals: synthesis of this an-node suceeds
-          case Left(n) => n.process
-          case Right(sol) => Some(sol)
-        }
-      }
+  case class AndNode(label: String, kont: StmtProducer, parent: OrNode) {
+    // Does this node have a ancestor with label l?
+    def hasAncestor(l: String): Boolean =
+      if (label == l) true
+      else if (label.length < l.length) false
+      else parent.hasAncestor(l)
+  }
 
-    // TODO: also handle case where this is not the first child
-    def fail: Option[OrNode] = parent match {
-      case Some(p) => {
-        if (p.children.isEmpty) {
-          // This was the last alternative: delete parent too
-          p.fail
-        } else {
-          // Parent has other alternatives: just delete me
-          Some(p)
-        }
-      }
-      case None =>
-        assert(false, "Found active and-node with an empty parent")
+  @tailrec final def processWorkList(worklist: List[OrNode])
+                                    (implicit
+                                     stats: SynStats,
+                                     config: SynConfig,
+                                     ind: Int): Option[Solution] = {
+
+    // Check for timeouts
+    val currentTime = System.currentTimeMillis()
+    if (currentTime - config.startTime > config.timeOut) {
+      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
+    }
+
+    val sz = worklist.length
+    printLog(List((s"\nWorklist ($sz): ${worklist.map(_.label).mkString(" ")}", Console.YELLOW)))
+    stats.updateMaxWLSize(sz)
+
+    worklist match {
+      case Nil => // No more goals to try: synthesis failed
         None
-    }
+      case node :: rest => {
+        val goal = node.goal
+        printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
+        stats.updateMaxDepth(goal.depth)
+        if (config.printEnv) {
+          printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+        }
+        printLog(List((s"${goal.pp}", Console.BLUE)))
 
-    def succeed(s: Solution): Either[AndNode, Solution] = parent match {
-      case Some(p) => p.succeed(s)
-      case None =>
-        assert(false, "Found active and-node with an empty parent")
-        Left(this)
+        // Apply all possible rules to the current goal to get a list of alternatives,
+        // each of which can have multiple open goals
+        val rules = nextRules(goal, 0)
+        val expansions =
+          if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
+          else applyRules(rules)(goal, stats, config, ind)
+
+        if (expansions.isEmpty) {
+          stats.bumpUpBacktracing()
+          printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          val newWorkList = node.fail(rest)
+          processWorkList(newWorkList)
+        } else {
+          collectResults(node, expansions) match {
+            case Right(sol) => {
+              node.succeed(sol, rest) match {
+                case Right(sol) => Some(sol)
+                case Left(newWorkList) => processWorkList(newWorkList)
+              }
+            }
+            case Left(nodes) => {
+              val newWorkList = nodes ++ rest
+              processWorkList(newWorkList)
+            }
+          }
+        }
+      }
     }
   }
 
-
-//  @tailrec
-//  private def processWorkList(worktree: OrNode)
-//                             (implicit
-//                              stats: SynStats,
-//                              config: SynConfig,
-//                              ind: Int): Option[Solution] = {
-//
-//    // Check for timeouts
-//    val currentTime = System.currentTimeMillis()
-//    if (currentTime - config.startTime > config.timeOut) {
-//      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
-//    }
-//
-//    val sz = worklist.length
-//    printLog(List((s"\nWorklist ($sz): ${worklist.map(_.pp).mkString(" ")}", Console.YELLOW)))
-//    stats.updateMaxWLSize(sz)
-//
-//    worklist match {
-//      case Nil =>
-//        // No more subderivations to try: synthesis failed
-//        None
-//      case subderiv +: rest => subderiv.subgoals match {
-//        // Otherwise pick a subderivation to expand
-//        case Nil =>
-//          // This subderivation has no open goals: synthesis succeeded, build the solution
-//          Some(subderiv.kont(Nil))
-//        case goal :: moreGoals => {
-//          // Otherwise, expand the first open goal
-//          printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
-//          stats.updateMaxDepth(goal.depth)
-//          if (config.printEnv) {
-//            printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
-//          }
-//          printLog(List((s"${goal.pp}", Console.BLUE)))
-//
-//          // Apply all possible rules to the current goal to get a list of alternatives,
-//          // each of which can have multiple open goals
-//          val rules = nextRules(goal, 0)
-//          val children =
-//            if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
-//            else applyRules(rules)(goal, stats, config, ind)
-//
-//          if (children.isEmpty) {
-//            stats.bumpUpBacktracing()
-//            printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-//          }
-//
-//          val newSubderivations = children.map(child => {
-//            // To turn a child into a valid subderivation,
-//            // add the rest of the open goals from the current subderivation,
-//            // and set up the solution producer to join results from all the open goals
-//            RuleResult(child.subgoals ++ moreGoals, child.kont >> subderiv.kont)
-//          })
-//          // Add new subderivations to the worklist, sort by cost and process
-//          val newWorkList = newSubderivations ++ rest
-////          val newWorkList = if (config.depthFirst) newWorkList_ else newWorkList_.sortBy(_.cost)
-//          processWorkList(newWorkList)
-//        }
-//      }
-//    }
-//  }
+  def collectResults(node: OrNode, expansions: Seq[RuleResult]): Either[List[OrNode], Solution] = expansions match {
+    case Nil => Left(Nil)
+    case e +: es =>
+      if (e.subgoals.isEmpty) {
+        // Expansion with no premises: synthesis of this node succeeded
+        Right(e.kont(Nil))
+      } else {
+        val andNode = AndNode(expansions.length.toString + node.label,  e.kont, node)
+        val newOrNodes = e.subgoals.zipWithIndex.map{ case (g, j) => OrNode(j.toString + andNode.label, g, Some(andNode))}
+        collectResults(node, es) match {
+          case Left(nodes) => Left(newOrNodes.toList ++ nodes)
+          case Right(sol) => Right(sol)
+        }
+      }
+  }
 
   protected def applyRules(rules: List[SynthesisRule])(implicit goal: Goal,
                                                        stats: SynStats,
