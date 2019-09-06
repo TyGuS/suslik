@@ -35,6 +35,9 @@ object Rules {
       s"join-${this.source}-${p.source}"
     )
 
+    /**
+      * Producer that results form partially applying this producer to s
+      */
     def partApply(s: Solution): StmtProducer = StmtProducer (
       this.arity - 1,
       sols => {

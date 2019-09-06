@@ -137,50 +137,37 @@ trait Synthesis extends SepLogicUtils {
         }
         printLog(List((s"${goal.pp}", Console.BLUE)))
 
-        // Apply all possible rules to the current goal to get a list of alternatives,
-        // each of which can have multiple open goals
+        // Apply all possible rules to the current goal to get a list of alternative expansions,
+        // each of which can have multiple open subgoals
         val rules = nextRules(goal, 0)
         val expansions =
           if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
           else applyRules(rules)(goal, stats, config, ind)
 
         if (expansions.isEmpty) {
+          // This is a dead-end: prune worklist and try something else
           stats.bumpUpBacktracing()
           printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-          val newWorkList = node.fail(rest)
-          processWorkList(newWorkList)
+          processWorkList(node.fail(rest))
         } else {
-          collectResults(node, expansions) match {
-            case Right(sol) => {
-              node.succeed(sol, rest) match {
-                case Right(sol) => Some(sol)
-                case Left(newWorkList) => processWorkList(newWorkList)
-              }
+          // Check if any of the expansions is a terminal
+          expansions.find(_.subgoals.isEmpty) match {
+            case Some(e) => node.succeed(e.kont(Nil), rest) match { // e is a terminal: this node suceeded
+              case Right(sol) => Some(sol) // No more open subgoals in this derivation: synthesis suceeded
+              case Left(newWorkList) => processWorkList(newWorkList) // More open goals: continue
             }
-            case Left(nodes) => {
-              val newWorkList = nodes ++ rest
-              processWorkList(newWorkList)
+            case None => { // no terminals: add all expansions to worklist
+              val newNodes = for {
+                (e, i) <- expansions.zipWithIndex
+                andNode = AndNode(i.toString + node.label, e.kont, node)
+                (g, j) <- e.subgoals.zipWithIndex
+              } yield OrNode(j.toString + andNode.label, g, Some(andNode))
+              processWorkList(newNodes.toList ++ rest)
             }
           }
         }
       }
     }
-  }
-
-  def collectResults(node: OrNode, expansions: Seq[RuleResult]): Either[List[OrNode], Solution] = expansions match {
-    case Nil => Left(Nil)
-    case e +: es =>
-      if (e.subgoals.isEmpty) {
-        // Expansion with no premises: synthesis of this node succeeded
-        Right(e.kont(Nil))
-      } else {
-        val andNode = AndNode(expansions.length.toString + node.label,  e.kont, node)
-        val newOrNodes = e.subgoals.zipWithIndex.map{ case (g, j) => OrNode(j.toString + andNode.label, g, Some(andNode))}
-        collectResults(node, es) match {
-          case Left(nodes) => Left(newOrNodes.toList ++ nodes)
-          case Right(sol) => Right(sol)
-        }
-      }
   }
 
   protected def applyRules(rules: List[SynthesisRule])(implicit goal: Goal,
