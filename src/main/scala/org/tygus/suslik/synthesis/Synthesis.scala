@@ -31,7 +31,7 @@ trait Synthesis extends SepLogicUtils {
     implicit val config: SynConfig = env.config
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = topLevelGoal(pre, post, formals, name, env)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))
     val stats = new SynStats()
     SMTSolving.init()
     try {
@@ -51,11 +51,10 @@ trait Synthesis extends SepLogicUtils {
   }
 
   protected def synthesize(goal: Goal)
-                          (stats: SynStats)
-                          (implicit ind: Int = 0): Option[Solution] = {
+                          (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
     val worklist = List(OrNode("", goal, None))
-    processWorkList(worklist)(stats, goal.env.config, ind)
+    processWorkList(worklist)(stats, goal.env.config)
   }
 
   case class OrNode(label: String, goal: Goal, parent: Option[AndNode]) {
@@ -112,9 +111,7 @@ trait Synthesis extends SepLogicUtils {
   @tailrec final def processWorkList(worklist: List[OrNode])
                                     (implicit
                                      stats: SynStats,
-                                     config: SynConfig,
-                                     ind: Int): Option[Solution] = {
-
+                                     config: SynConfig): Option[Solution] = {
     // Check for timeouts
     val currentTime = System.currentTimeMillis()
     if (currentTime - config.startTime > config.timeOut) {
@@ -122,7 +119,7 @@ trait Synthesis extends SepLogicUtils {
     }
 
     val sz = worklist.length
-    printLog(List((s"\nWorklist ($sz): ${worklist.map(_.label).mkString(" ")}", Console.YELLOW)))
+    printLog(List((s"Worklist ($sz): ${worklist.map(_.goal.label.pp).mkString(" ")}", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     worklist match {
@@ -130,6 +127,7 @@ trait Synthesis extends SepLogicUtils {
         None
       case node :: rest => {
         val goal = node.goal
+        implicit val ind = goal.depth
         printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
         stats.updateMaxDepth(goal.depth)
         if (config.printEnv) {
@@ -173,43 +171,45 @@ trait Synthesis extends SepLogicUtils {
   protected def applyRules(rules: List[SynthesisRule])(implicit goal: Goal,
                                                        stats: SynStats,
                                                        config: SynConfig,
-                                                       ind: Int): Seq[RuleResult] = rules match
-  {
-    case Nil => Vector() // No more rules to apply: done expanding the goal
-    case r :: rs =>
-      val goalStr = s"$r: "
-      // Invoke the rule
-      val allChildren = r(goal)
-      // Filter out children that contain out-of-order goals
-      val children = if (config.commute) {
-        allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
-      } else allChildren
+                                                       ind: Int): Seq[RuleResult] = {
+    implicit val ind = goal.depth
+    rules match {
+      case Nil => Vector() // No more rules to apply: done expanding the goal
+      case r :: rs =>
+        val goalStr = s"$r: "
+        // Invoke the rule
+        val allChildren = r(goal)
+        // Filter out children that contain out-of-order goals
+        val children = if (config.commute) {
+          allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
+        } else allChildren
 
-      if (children.isEmpty) {
-        // Rule not applicable: try other rules
-        printLog(List((s"${goalStr}FAIL", BLACK)), isFail = true)
-        applyRules(rs)
-      } else {
-        // Rule applicable: try all possible sub-derivations
-//        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
-        val succ = s"SUCCESS, ${children.size} alternative(s): ${children.map(_.pp).mkString(", ")}"
-        printLog(List((s"$goalStr$GREEN$succ", BLACK)))
-        stats.bumpUpRuleApps()
-        if (config.invert && r.isInstanceOf[InvertibleRule]) {
-          // The rule is invertible: do not try other rules on this goal
-          children
+        if (children.isEmpty) {
+          // Rule not applicable: try other rules
+          printLog(List((s"${goalStr}FAIL", BLACK)), isFail = true)
+          applyRules(rs)
         } else {
-          // Both this and other rules apply
-          children ++ applyRules(rs)
+          // Rule applicable: try all possible sub-derivations
+          //        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
+          val succ = s"SUCCESS, ${children.size} alternative(s): ${children.map(_.pp).mkString(", ")}"
+          printLog(List((s"$goalStr$GREEN$succ", BLACK)))
+          stats.bumpUpRuleApps()
+          if (config.invert && r.isInstanceOf[InvertibleRule]) {
+            // The rule is invertible: do not try other rules on this goal
+            children
+          } else {
+            // Both this and other rules apply
+            children ++ applyRules(rs)
+          }
         }
-      }
+    }
   }
 
   // Is current goal supposed to appear before g?
   def goalOutOfOrder(g: Goal)(implicit goal: Goal,
                               stats: SynStats,
-                              config: SynConfig,
-                              ind: Int): Boolean = {
+                              config: SynConfig): Boolean = {
+    implicit val ind = goal.depth
     g.hist.outOfOrder(allRules(goal)) match {
       case None => false
       case Some(app) =>
@@ -220,10 +220,10 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
-  private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
+  private def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "|  " * ind
 
   protected def printLog(sc: List[(String, String)], isFail: Boolean = false)
-                      (implicit i: Int, config: SynConfig): Unit = {
+                      (implicit config: SynConfig, ind: Int = 0): Unit = {
     if (config.printDerivations) {
       if (!isFail || config.printFailed) {
         for ((s, c) <- sc if s.trim.length > 0) {
