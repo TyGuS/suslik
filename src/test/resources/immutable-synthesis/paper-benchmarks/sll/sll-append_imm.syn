@@ -1,0 +1,31 @@
+singly-linked list: append
+
+#####
+
+{true ; sll(x1, s1)[I@a, I@b, M] ** sll(x2, s2)[I@a, I@b, M] ** ret :-> x2}
+void sll_append (loc x1, loc ret)
+{s =i s1 ++ s2 ; sll(y, s)[I@a, I@b, M] ** ret :-> y }
+
+#####
+
+{true ; sll(x1, s1)[I@a,I@b,M] ** sll(x2, s2)[I@a,I@b,M] ** ret :-> x2}
+void sll_append(loc x1, loc ret)
+{s == s1 ++ s2 ; sll(y, s)[I@a,I@b,M] ** ret :-> y}
+
+Successfully synthesised in 1260 milliseconds:
+Number of backtrackings 8
+Total rule applications: 77
+Maximum worklist size: 20
+Maximum goal depth: 21
+Final size of SMT cache: 191
+
+void sll_append (loc x1, loc ret) {
+  if (x1 == 0) {
+  } else {
+    let nxt2 = *(x1 + 1);
+    sll_append(nxt2, ret);
+    let y12 = *ret;
+    *(x1 + 1) = y12;
+    *ret = x1;
+  }
+}
