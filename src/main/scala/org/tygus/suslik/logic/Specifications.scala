@@ -92,10 +92,13 @@ object Specifications {
       s"${this.rule} ${this.timestamp} ${this.footprint} with cost ${this.cost}"
 
     // Does this rule application commute with a previous application prev?
-    // Yes if my footprint only includes chunks that existed before prev was applied
+    // Yes if my footprint only includes chunks that existed before prev was applied (so I could be applied before prev)
+    // and our footprints are disjoint (so prev can be applied after me)
     def commutesWith(prev: RuleApplication): Boolean = {
       this.footprint._1.forall(i => i < prev.timestamp._1) &&
-        this.footprint._2.forall(i => i < prev.timestamp._2)
+        this.footprint._2.forall(i => i < prev.timestamp._2) &&
+          prev.footprint._1.intersect(this.footprint._1).isEmpty &&
+            prev.footprint._2.intersect(this.footprint._2).isEmpty
     }
 
     // Rule applications are ordered by cost and then by footprint;

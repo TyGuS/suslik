@@ -136,7 +136,6 @@ object Expressions {
     def rType: SSLType = IntSetType
   }
 
-
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
 
     // Type-coercing visitor (yikes!)
@@ -279,6 +278,18 @@ object Expressions {
       case SetLiteral(elems) => 1 + elems.map(_.size).sum
       case IfThenElse(cond, l, r) => 1 + cond.size + l.size + r.size
       case _ => 1
+    }
+
+    // Should this atomic formula be a candidate for pure unification?
+    // For now, only allow set relations
+    def allowUnify: Boolean = this match {
+      case BinaryExpr(op, _, _) => op match {
+        case OpSetEq => true
+        case OpIn => true
+        case OpSubset => true
+        case _ => false
+      }
+      case _ => false
     }
 
     // Compute conjuncts once

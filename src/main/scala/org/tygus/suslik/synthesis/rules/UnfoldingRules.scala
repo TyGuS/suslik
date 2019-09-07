@@ -48,7 +48,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.map(_._2).zip(args).toMap
-          val remainingChunks = pre.sigma.chunks.filter(_ != h)
+          val remainingSigma = pre.sigma - h
           val newGoals = for {
             c@InductiveClause(_sel, _asn) <- clauses
             sel = _sel.subst(sbst)
@@ -58,7 +58,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             // The tags in the body should be one more than in the current application:
             _newPreSigma1 = SFormula(body.chunks).setUpSAppTags(t + 1)
-            newPreSigma = SFormula(_newPreSigma1.chunks ++ remainingChunks)
+            newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading

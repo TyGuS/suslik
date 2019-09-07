@@ -79,8 +79,13 @@ trait Synthesis extends SepLogicUtils {
     // This node has failed: prune siblings from worklist
     def fail(wl: List[OrNode]): List[OrNode] = parent match {
       case None => wl // this is the root; wl must already be empty
-      case Some(an) => { // a subgoal has failed: prune all other descendants of an
-        wl.filterNot(_.hasAncestor(an.label))
+      case Some(an) => { // a subgoal has failed
+        val newWL = wl.filterNot(_.hasAncestor(an.label)) // prune all other descendants of an
+        if (newWL.exists(_.hasAncestor(an.parent.label))) { // does my grandparent have other open alternatives?
+          newWL
+        } else {
+          an.parent.fail(newWL)
+        }
       }
     }
 
