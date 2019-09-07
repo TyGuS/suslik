@@ -4,7 +4,7 @@ sorted list: insert an element
 #####
 
 {0 <= k /\ k <= 7000 ; 
-          r :-> z ** [z :-> k]@I@a ** [(z + 1) :-> 0]@M ** [[z, 2]]@I@a ** 
+          r :-> z ** [z :-> k]@I@a ** [(z + 1) :-> 0]@I@a ** [[z, 2]]@I@a ** 
            isrtl_nolen(x, lo, hi)[I@a, I@a, M] }
 void srtl_insert (loc x, loc r)
 {lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; 
