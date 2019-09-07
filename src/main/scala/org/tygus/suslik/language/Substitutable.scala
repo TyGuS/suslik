@@ -57,8 +57,14 @@ case class Substitution(exprMapping : Map[Var, Expr] =  Map.empty[Var, Expr],
     exprMapping.contains(x) || mutMapping.contains(x)
   }
 
-  def filterNot[A](p: ((Var, Any)) => Boolean ): Substitution = { // TODO [Immutability] Any is terrible
-    Substitution(exprMapping.filterNot(p), mutMapping.filterNot(p))
+
+  def filter[A](p: ((Var, Any)) => Boolean ): Substitution = { 
+    Substitution(exprMapping.filter(p), mutMapping.filter(p))
+  }
+
+
+  def filterNot[A](p: ((Var, Any)) => Boolean ): Substitution = { 
+    filter{case (k : Var, v: Any) => !p((k, v))}
   }
 
   def sameValueAt(k: Var, o: Substitution): Boolean = {

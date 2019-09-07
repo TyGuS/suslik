@@ -1,0 +1,12 @@
+# -x true
+Deallocate a linked list
+
+###
+
+{true; lseg(x)}
+  void listfree(loc x)
+{true ; emp }
+
+###
+
+

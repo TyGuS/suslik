@@ -1,0 +1,26 @@
+# -x true
+Deallocate two linked lists (needs listfree as an auxiliary, unless we can pass emp as a list)
+
+###
+
+{true; lseg(x) ** lseg(y)}
+  void listfree2(loc x, loc y)
+{true ; emp }
+
+###
+
+void listfree2 (loc x, loc y) {
+  if (x == 0) {
+    if (y == 0) {
+    } else {
+      let nxt2 = *y;
+      rec3(x, nxt2);
+      free(y);
+    }
+  } else {
+    let nxt2 = *x;
+    listfree2(nxt2, y);
+    free(x);
+  }
+}
+

@@ -1,0 +1,10 @@
+# -x true
+Deallocate two trees
+
+###
+
+{true; tree(x) ** tree(y)}
+  void treefree2(loc x, loc y)
+{true ; emp }
+
+###

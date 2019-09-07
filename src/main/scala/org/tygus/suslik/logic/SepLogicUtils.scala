@@ -61,8 +61,30 @@ trait SepLogicUtils extends PureLogicUtils {
     }
   }
 
+  def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
+    //    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
+    //      case (Some(x), Some(y)) => x - y
+    //      case _ => 0
+    //    }
+
+    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = lilTag.getOrElse(0) - largTag.getOrElse(0)
+
+    val pairTags = for {
+      SApp(name, args, t, _, _) <- adaptedFunPre.chunks
+      SApp(_name, _args, _t, _, _) <- goalSubHeap.chunks.find {
+        case SApp(_name, _args, _, _, _) => _name == name && _args == args
+        case _ => false
+      }
+    } yield (t, _t)
+    val comparisons = pairTags.map { case (t, s) => compareTags(t, s) }
+    val allGeq = comparisons.forall(_ <= 0)
+    val atLeastOneLarger = comparisons.exists(_ < 0)
+    allGeq && atLeastOneLarger
+  }
+
+
   /**
-    * Find the set of sub-formalas of `large` that `small` might possibly by unified with.
+    * Find the set of sub-formulas of `large` that `small` might possibly by unified with.
     */
   def findLargestMatchingHeap(small: SFormula, large: SFormula): Seq[SFormula] = {
 
@@ -83,7 +105,8 @@ trait SepLogicUtils extends PureLogicUtils {
         }
       case SApp(pred, args, tag, mut, submut) => stuff.filter {
         case SApp(_pred, _args, _tag, _mut, _submut) =>
-          _pred == pred && args.length == _args.length && tag == _tag && mut == _mut && MTag.checkLists(submut, _submut) // TODO [Immutability]
+          _pred == pred && args.length == _args.length &&
+            tag == _tag && mut == _mut && MTag.checkLists(submut, _submut) // TODO [Immutability]
         case _ => false
       }
     }
@@ -108,8 +131,8 @@ trait SepLogicUtils extends PureLogicUtils {
     val ps = for {p@PointsTo(y, o, _, _) <- sf.chunks if x == y} yield p
     val offsets = ps.map { case PointsTo(_, o, _, _) => o }.sorted
     val goodChunks = offsets.size == sz && // All offsets are present
-        offsets.distinct.size == offsets.size && // No repetitions
-        offsets.forall(o => o < sz) // all smaller than sz
+      offsets.distinct.size == offsets.size && // No repetitions
+      offsets.forall(o => o < sz) // all smaller than sz
     if (goodChunks) Some(SFormula(b :: ps)) else None
   }
 

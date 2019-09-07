@@ -4,7 +4,7 @@ import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Resolver.resolveProgram
-import org.tygus.suslik.logic.Specifications.makeNewGoal
+import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
@@ -30,9 +30,10 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
     }
     val spec = specs.head
     val FunSpec(name, _, formals, pre, post) = spec
-    val goal = makeNewGoal(pre, post, formals, name, env)
+    val goal = topLevelGoal(pre, post, formals, name, env)
     goal
   }
+
 
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =

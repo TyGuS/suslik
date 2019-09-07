@@ -4,6 +4,7 @@ import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.smt.SMTSolving.sat
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import org.tygus.suslik.synthesis.rules._
 import org.tygus.suslik.util.SynLogging
 
@@ -18,16 +19,14 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   def allRules(goal: Goal): List[SynthesisRule] = {
     val config = goal.env.config
-    topLevelRules ++ anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
+    anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
   }
 
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] = {
     val config = goal.env.config
-    if (depth == config.startingDepth)
-      allRules(goal)
-    else if (!config.phased)
+    if (!config.phased)
     // Phase distinction is disabled: use all non top-level rules
-      anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
+      allRules(goal)
     else if (goal.hasPredicates)
     // Unfolding phase
       anyPhaseRules(config) ++ unfoldingPhaseRules(config)
@@ -36,10 +35,6 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
       anyPhaseRules(config) ++ flatPhaseRules(config)
   }
 
-
-  def topLevelRules: List[SynthesisRule] = List(
-    UnfoldingRules.InductionRule,
-  )
 
   def anyPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
     // Normalization rules

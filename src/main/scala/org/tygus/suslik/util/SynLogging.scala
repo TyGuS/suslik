@@ -4,7 +4,8 @@ import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.{SynConfig, SynthesisRule}
+import org.tygus.suslik.synthesis.{SynConfig}
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import scalaz.DList
 
 /**
@@ -61,55 +62,32 @@ object SynLogLevels {
 
 class SynStats {
   private var backtracking: Int = 0
-  private var successful: Int = 0
-  private var lasting: Int = 0
-  private var saved_results_positive: Int = 0
-  private var saved_results_negative: Int = 0
-  private var recalled_results_positive: Int = 0
-  private var recalled_results_negative: Int = 0
+  private var ruleApps: Int = 0
+  private var maxWLSize: Int = 0
+  private var maxDepth: Int = 0
 
   def bumpUpBacktracing() {
     backtracking = backtracking + 1
   }
 
-  def bumpUpSuccessfulRuleApp() {
-    successful = successful + 1
+  def bumpUpRuleApps() {
+    ruleApps = ruleApps + 1
   }
 
-  def bumpUpLastingSuccess() {
-    lasting = lasting + 1
+  def updateMaxWLSize(sz: Int): Unit = {
+    maxWLSize = maxWLSize.max(sz)
   }
 
-  def bumpUpSavedResultsNegative() {
-    saved_results_negative += 1
+  def updateMaxDepth(d: Int): Unit = {
+    maxDepth = maxDepth.max(d)
   }
-  def bumpUpRecalledResultsNegative() {
-    recalled_results_negative += 1
-  }
-
-  def bumpUpSavedResultsPositive() {
-    saved_results_positive +=  1
-  }
-  def bumpUpRecalledResultsPositive() {
-    recalled_results_positive +=  1
-  }
-
 
   def numBack: Int = backtracking
-  def numSucc : Int = successful
-  def numLasting : Int = lasting
-  def numSavedResultsPositive : Int = saved_results_positive
-  def numRecalledResultsPositive : Int = recalled_results_positive
-  def numSavedResultsNegative : Int = saved_results_negative
-  def numRecalledResultsNegative : Int = recalled_results_negative
+  def numApps : Int = ruleApps
+  def maxWorklistSize: Int = maxWLSize
+  def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
-  var total_goals_saved = 0
-
 }
-
-abstract sealed class SynCertificate
-case class SynAxiom(goal: Goal, rule: SynthesisRule) extends SynCertificate
-case class SynTree(subgoals: Seq[SynCertificate]) extends SynCertificate
 
 // TODO: refactor me to make more customizable
 object SynStatUtil {
@@ -119,7 +97,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n"
+    List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Applications", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
 
   def init(config: SynConfig){
     if (config.logToFile) {
@@ -132,11 +110,11 @@ object SynStatUtil {
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
       try f(resource) finally resource.close()
 
-  def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(Procedure, SynStats)]): Unit = {
+  def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(List[Procedure], SynStats)]): Unit = {
     if (config.logToFile) {
       val statRow = (stats match {
-        case Some((proc, st)) => List(proc.body.size, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
-        case None => DList.replicate(4, "FAIL").toList
+        case Some((procs, st)) => List(procs.map(_.body.size).sum, st.numBack, st.numApps, st.maxWorklistSize, st.smtCacheSize)
+        case None => DList.replicate(5, "FAIL").toList
       }).mkString(", ")
 
       val specSize = spec.pre.size + spec.post.size

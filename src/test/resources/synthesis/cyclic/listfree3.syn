@@ -1,0 +1,32 @@
+# -x true
+Deallocate three linked lists
+
+###
+
+{true; lseg(x) ** lseg(y) ** lseg(z)}
+  void listfree3(loc x, loc y, loc z)
+{true ; emp }
+
+###
+
+void listfree2 (loc x, loc y, loc z) {
+  if (x == 0) {
+    if (y == 0) {
+      if (z == 0) {
+      } else {
+        let nxt2 = *z;
+        rec5(x, y, nxt2);
+        free(z);
+      }
+    } else {
+      let nxt2 = *y;
+      rec3(x, nxt2, z);
+      free(y);
+    }
+  } else {
+    let nxt2 = *x;
+    listfree2(nxt2, z, y);
+    free(x);
+  }
+}
+

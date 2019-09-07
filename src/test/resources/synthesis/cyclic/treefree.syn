@@ -1,0 +1,10 @@
+# -x true
+Deallocate a tree
+
+###
+
+{true; tree(x)}
+  void treefree(loc x)
+{true ; emp }
+
+###

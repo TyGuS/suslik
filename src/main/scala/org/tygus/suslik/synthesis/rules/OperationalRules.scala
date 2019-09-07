@@ -1,12 +1,11 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.LanguageUtils.generateFreshVar
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * Operational rules emit statement that operate of flat parts of the heap.
@@ -31,13 +30,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write-old]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@(Var(_)), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -46,22 +45,22 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@(PointsTo(x@Var(_), offset, e1, m1)), hr@(PointsTo(_, _, e2, m2)))) =>
+        case Some((hl@PointsTo(x@Var(_), offset, e1, m1), hr@PointsTo(_, _, e2, m2))) =>
+          if (e1 == e2) {
+            return Nil
+          } // Do not write if RHSs are the same
+
           if (!hl.isMutable || m1 != m2) {
             return Nil
             // Do not write if points-to is immutable
           }
 
-          if (e1 == e2) {
-            return Nil
-          } // Do not write if RHSs are the same
-
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
-          val subGoal = goal.copy(newPre, newPost)
-          val kont: StmtProducer = prepend(Store(x, offset, e2), toString)
+          val subGoal = goal.spawnChild(newPre, newPost)
+          val kont: StmtProducer = prepend(Store(x, offset, e2), toString) >> handleGuard(goal) >> extractHelper(goal)
 
-          List(Subderivation(List(subGoal), kont))
+          List(RuleResult(List(subGoal), kont))
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -82,7 +81,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: write]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       val pre = goal.pre
       val post = goal.post
@@ -106,9 +105,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val y = generateFreshVar(goal)
 
           val newPost = Assertion(post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
-          val subGoal = goal.copy(post = newPost)
-          val kont: StmtProducer = append(Store(x, offset, l), toString)
-          List(Subderivation(List(subGoal), kont))
+          val subGoal = goal.spawnChild(post = newPost)
+          val kont: StmtProducer = append(Store(x, offset, l), toString) >> handleGuard(goal) >> extractHelper(goal)
+          List(RuleResult(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -126,7 +125,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "[Op: read]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
@@ -144,9 +143,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
 
-          val subGoal = goal.copy(pre = pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
-          val kont: StmtProducer = prepend(Load(y, tpy, x, offset), toString)
-          List(Subderivation(List(subGoal), kont))
+          val subGoal = goal.spawnChild(pre.subst(a, y), post = post.subst(a, y)).addProgramVar(y,tpy)
+          val kont: StmtProducer = prepend(Load(y, tpy, x, offset), toString) >> handleGuard(goal) >> extractHelper(goal)
+          List(RuleResult(List(subGoal), kont))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -175,12 +174,12 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findBlockAndChunks(isExistBlock, _ => true, goal.post.sigma)
     }
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       val pre = goal.pre
       val post = goal.post
       val gamma = goal.gamma
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       findTargetHeaplets(goal) match {
         case None => Nil
@@ -199,9 +198,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val postFootprint = pts.map(p => deriv.postIndex.lastIndexOf(p)).toSet + deriv.postIndex.lastIndexOf(h)
           val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
 
-          val subGoal = goal.copy(newPre, post.subst(x, y), newRuleApp = Some(ruleApp)).addProgramVar(y, tpy)
-          val kont: StmtProducer = prepend(Malloc(y, tpy, sz), toString)
-          List(Subderivation(List(subGoal), kont))
+          val subGoal = goal.spawnChild(newPre, post.subst(x, y), newRuleApp = Some(ruleApp)).addProgramVar(y, tpy)
+          val kont: StmtProducer = prepend(Malloc(y, tpy, sz), toString) >> handleGuard(goal) >> extractHelper(goal)
+          List(RuleResult(List(subGoal), kont))
         case _ => Nil
       }
     }
@@ -226,9 +225,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
     }
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       findTargetHeaplets(goal) match {
         case None => Nil
@@ -242,10 +241,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val preFootprint = pts.map(p => deriv.preIndex.lastIndexOf(p)).toSet + deriv.preIndex.lastIndexOf(h)
           val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
 
-          val subGoal = goal.copy(newPre, newRuleApp = Some(ruleApp))
-          val kont: StmtProducer = prepend(Free(x), toString)
+          val subGoal = goal.spawnChild(newPre, newRuleApp = Some(ruleApp))
+          val kont: StmtProducer = prepend(Free(x), toString) >> handleGuard(goal) >> extractHelper(goal)
 
-          List(Subderivation(List(subGoal), kont))
+          List(RuleResult(List(subGoal), kont))
         case Some(_) => Nil
       }
     }

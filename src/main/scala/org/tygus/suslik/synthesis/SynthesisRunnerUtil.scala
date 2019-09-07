@@ -82,28 +82,26 @@ trait SynthesisRunnerUtil {
 
     val spec = specs.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(spec, env.copy(config = params))
+    val config = params.copy(startTime = time1)
+    val sresult = synthesizeProc(spec, env.copy(config = config))
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
     SynStatUtil.log(testName, delta, params, spec, sresult)
 
     sresult match {
-      case Some((rr, stats)) =>
-        val result = rr.pp
+      case Some((procs, stats)) =>
+        val result = procs.map(_.pp).mkString
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
           testPrintln(s"${spec.pp}\n", Console.BLUE)
           testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
           testPrintln(s"Number of backtrackings ${stats.numBack}")
-          testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
-          testPrintln(s"Total successful rule applications: ${stats.numSucc}")
+          testPrintln(s"Total rule applications: ${stats.numApps}")
+          testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
+          testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
           testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
-          testPrintln(s"Number of saved negative results: ${stats.numSavedResultsNegative}")
-          testPrintln(s"Number of saved positive results: ${stats.numSavedResultsPositive}")
-          testPrintln(s"Number of recalled negative results: ${stats.numRecalledResultsNegative}")
-          testPrintln(s"Number of recalled positive results: ${stats.numRecalledResultsPositive}")
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
         } else {

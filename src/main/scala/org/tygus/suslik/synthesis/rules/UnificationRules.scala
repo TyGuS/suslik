@@ -5,10 +5,10 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
-import org.tygus.suslik.logic.unification.SpatialUnification.{FrameChoppingResult, tryUnify}
+import org.tygus.suslik.logic.unification.{PureUnification}
+import org.tygus.suslik.logic.unification.SpatialUnification.tryUnify
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * The goal of unification rules is to eliminate existentials
@@ -25,10 +25,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.deriv
+      val deriv = goal.hist
 
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
 
@@ -44,9 +44,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val preFootprint = Set(deriv.preIndex.lastIndexOf(t))
         val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
-
-        val newGoal = goal.copy(post = newPost, newRuleApp = Some(ruleApp))
-        Subderivation(List(newGoal), pureKont(toString))
+        val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
+        val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+        RuleResult(List(newGoal), kont)
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
       val ord = new Ordering[(Int, RuleApplication)] {
@@ -55,8 +55,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           if (c1 != 0) c1 else x._2.compare(y._2)
         }
       }
-      val derivations = nubBy[Subderivation, Assertion](alternatives, sub => sub.subgoals.head.post)
-      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.deriv.applications.head))(ord)
+      val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
+      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.hist.applications.head))(ord)
     }
   }
 
@@ -77,7 +77,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   object SubstRight extends SynthesisRule with FlatPhase with InvertibleRule {
     override def toString: String = "[Norm: subst-R]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
 
@@ -99,8 +99,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           }
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
-          val newGoal = goal.copy(post = Assertion(_p2, _s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
+          val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+          List(RuleResult(List(newGoal), kont))
         case _ => Nil
       }
     }
@@ -118,17 +119,18 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   object PureUnify extends SynthesisRule with FlatPhase {
     override def toString: String = "[Norm: pure-unify]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       // get post conjuncts with existentials
-      val postConjuncts = conjuncts(goal.post.phi).filter(p => p.vars.exists(goal.isExistential))
-      val preConjuncts = conjuncts(goal.pre.phi)
+      val postConjuncts = goal.post.phi.conjuncts.filter(p => p.vars.exists(goal.isExistential) && p.allowUnify)
+      val preConjuncts = goal.pre.phi.conjuncts.filter(p => p.allowUnify)
 
       for {
         s <- postConjuncts
         t <- preConjuncts
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
-        newGoal = goal.copy(post = goal.post.subst(sigma))
-      } yield Subderivation(List(newGoal), pureKont(toString))
+        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+        kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+      } yield RuleResult(List(newGoal), kont)
     }
   }
 
@@ -141,7 +143,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
     override def toString: Ident = "[Op: write-from-env]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       val pre = goal.pre
       val post = goal.post
@@ -170,9 +172,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
             l <- goal.programVars.toList
             if goal.gamma(l).conformsTo(Some(IntType))
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
-            subGoal = goal.copy(newPre, post.subst(m, l))
-            kont = prepend(Store(x, offset, l), toString)
-          } yield Subderivation(List(subGoal), kont)
+            subGoal = goal.spawnChild(newPre, post.subst(m, l))
+            kont = prepend(Store(x, offset, l), toString) >> handleGuard(goal) >> extractHelper(goal)
+          } yield RuleResult(List(subGoal), kont)
         case Some((hl, hr)) =>
           ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -189,7 +191,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   object Pick extends SynthesisRule with FlatPhase {
     override def toString: String = "[Sub: pick]"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
         // This is a rule of last resort so only apply when heaps are empty
@@ -198,46 +200,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           v <- goal.universals.toList
           if goal.getType(ex).conformsTo(Some(goal.getType(v)))
           sigma = Map(ex -> v)
-          newGoal = goal.copy(post = goal.post.subst(sigma))
-        } yield Subderivation(List(newGoal), pureKont(toString))
+          newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+          kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+        } yield RuleResult(List(newGoal), kont)
       } else Nil
     }
   }
-
-  /*
-           (GV(Post) / GV(Pre)) * GV(R) = Ø
-          Γ ; {φ ; P} ; {ψ ; Q} ---> S
-    ---------------------------------------- [*-intro]
-      Γ ; {φ ; P * R} ; {ψ ; Q * R} ---> S
-
-
-    This is the former [frame] rule
-   */
-
-  object StarIntro extends SynthesisRule with AnyPhase {
-    override def toString: String = "[Sub: *-intro]"
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-
-      val pre = goal.pre
-      val post = goal.post
-      val boundVars = goal.universals
-      val deriv = goal.deriv
-      val foundFrames = SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
-      val alternatives = for {
-        FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <- foundFrames
-
-        newPre = Assertion(pre.phi, newPreSigma)
-        newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        preFootprint = preFrame.chunks.map(p => deriv.preIndex.lastIndexOf(p)).toSet
-        postFootprint = postFrame.chunks.map(p => deriv.postIndex.lastIndexOf(p)).toSet
-        ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-        newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-      } yield {
-        Subderivation(List(newGoal), pureKont(toString))
-      }
-      sortAlternativesByFootprint(alternatives)
-    }
-  }
-
 }

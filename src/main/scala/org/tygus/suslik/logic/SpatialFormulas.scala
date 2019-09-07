@@ -158,6 +158,12 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
     case SApp(_, args, _, _, _) => args.map(_.size).sum
   }
 
+  def cost: Int = this match {
+    case PointsTo(_, _, _, _) => 1
+    case Block(_, _, _) => 0
+    case SApp(_, _, _, _, _) => 10
+  }
+
 }
 
 /**
@@ -368,7 +374,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   }
 
   /**
-    * Change tags for applications, to avoind re-applying the rule
+    * Change tags for applications, to avoid re-applying the rule
     */
   def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h))
@@ -376,8 +382,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h))
 
-  def moveToLevel2(cond: Heaplet => Boolean = _ => true): SFormula =
-    setUpSAppTags(2, cond)
+  def setToNegative(cond: Heaplet => Boolean = _ => true): SFormula =
+    setUpSAppTags(-1, cond)
 
   def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h))
@@ -415,7 +421,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
     findMatchingHeaplets(_ => true, isMatch, this, other) match {
       case None => 0
-      case Some((l, r)) => 1 + (this - l).similarity(other - r)
+      case Some((l, r)) => l.cost + (this - l).similarity(other - r)
     }
   }
 
@@ -439,5 +445,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   // Size of the formula (in AST nodes)
   def size: Int = chunks.map(_.size).sum
+
+  def cost: Int = chunks.map(_.cost).sum
 }
 

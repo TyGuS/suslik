@@ -2,8 +2,9 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
-import org.tygus.suslik.synthesis.SynthesisRule
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 
 import scala.math.Ordering.Implicits._
 
@@ -59,8 +60,8 @@ object Specifications {
     def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
 
-    def moveToLevel2(cond: Heaplet => Boolean = _ => true): Assertion =
-      this.copy(sigma = this.sigma.moveToLevel2(cond))
+    def setToNegative(cond: Heaplet => Boolean = _ => true): Assertion =
+      this.copy(sigma = this.sigma.setToNegative(cond))
 
     def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.lockSAppTags(cond))
@@ -73,13 +74,11 @@ object Specifications {
     }
 
     def resolveOverloading(gamma: Gamma): Assertion = {
-      this.copy(phi = phi.resolveOverloading(gamma), sigma=sigma.resolveOverloading(gamma))
+      this.copy(phi = phi.resolveOverloading(gamma), sigma = sigma.resolveOverloading(gamma))
     }
 
     // TODO: take into account distance between pure parts
     def similarity(other: Assertion): Int = this.sigma.similarity(other.sigma)
-
-    def distance(other: Assertion): Int = this.sigma.distance(other.sigma)
 
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
@@ -87,6 +86,8 @@ object Specifications {
     def mutabilityVariables() : Set[Var] = {
       sigma.mutabilityVars()
     }
+
+    def cost: Int = sigma.cost
   }
 
   case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int), cost: Int)
@@ -95,10 +96,13 @@ object Specifications {
       s"${this.rule} ${this.timestamp} ${this.footprint} with cost ${this.cost}"
 
     // Does this rule application commute with a previous application prev?
-    // Yes if my footprint only includes chunks that existed before prev was applied
+    // Yes if my footprint only includes chunks that existed before prev was applied (so I could be applied before prev)
+    // and our footprints are disjoint (so prev can be applied after me)
     def commutesWith(prev: RuleApplication): Boolean = {
       this.footprint._1.forall(i => i < prev.timestamp._1) &&
-        this.footprint._2.forall(i => i < prev.timestamp._2)
+        this.footprint._2.forall(i => i < prev.timestamp._2) &&
+          prev.footprint._1.intersect(this.footprint._1).isEmpty &&
+            prev.footprint._2.intersect(this.footprint._2).isEmpty
     }
 
     // Rule applications are ordered by cost and then by footprint;
@@ -113,7 +117,7 @@ object Specifications {
   }
 
 
-  case class Derivation(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
+  case class History(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
     extends PrettyPrinting {
     override def pp: String =
       s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
@@ -140,29 +144,88 @@ object Specifications {
   }
 
   /**
+    * A label uniquely identifies a goal within a derivation tree (but not among alternative derivations!)
+    * Here depths represents how deep we should go down a linear segment of a derivation tree
+    * and children represents which branch to take at each fork.
+    * For example, a label ([2, 1], [0]) means go 2 steps down from the root, take 0-th child, then go 1 more step down.
+    * This label is pretty-printed as "2-0.1"
+    */
+  case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting {
+    override def pp: String = {
+      val d :: ds = depths.reverse
+      d.toString ++ children.reverse.zip(ds).map(x => "-" + x._1.toString + "." + x._2.toString).mkString
+    }
+
+    def bumpUp(childId: Option[Int]): GoalLabel = {
+      childId match {
+        case None => {
+          // Derivation is not branching: simply increase the latest depth
+          val x :: xs = depths
+          this.copy(depths = (x + 1) :: xs)
+        }
+        case Some(c) =>
+          // Derivation is branching: record which branch we are taking and reset depth
+          GoalLabel(0 :: depths, c :: children)
+      }
+    }
+  }
+
+  /**
     * Main class for contextual Hoare-style specifications
     */
   case class Goal(pre: Assertion,
                   post: Assertion,
-                  gamma: Gamma,
-                  programVars: List[Var],
-                  universalGhosts: Set[Var],
-                  fname: String,
-                  env: Environment,
-                  deriv: Derivation)
+                  gamma: Gamma, // types of all variables (program, universal, and existential)
+                  programVars: List[Var], // program-level variables
+                  universalGhosts: Set[Var], // universally quantified ghost variables
+                  fname: String, // top-level function name
+                  label: GoalLabel, // unique id within the derivation
+                  parent: Option[Goal], // parent goal in the derivation
+                  env: Environment, // predicates and components
+                  hist: History)
 
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
-        s"${pre.pp}\n${post.pp}" // + s"\n${deriv.pp}"
+        s"${pre.pp}\n${post.pp}"
 
-    def copy(pre: Assertion = this.pre,
-             post: Assertion = this.post,
-             gamma: Gamma = this.gamma,
-             programVars: List[Var] = this.programVars,
-             env: Environment = this.env,
-             newRuleApp: Option[RuleApplication] = None): Goal = {
+    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
+      Assertion(simplify(post.phi), post.sigma))
+
+    lazy val universalPost: PFormula = mkConjunction(post.phi.conjuncts.filterNot(p => p.vars.exists(this.isExistential)))
+
+    // Ancestors of this goal in the derivation (root last)
+    lazy val ancestors: List[Goal] = parent match {
+      case None => Nil
+      case Some(p) => p :: p.ancestors
+    }
+
+    // Ancestors before progress was last made
+    def companionCandidates: List[Goal] = {
+      // TODO: actually sufficient to consider everything before last open
+      ancestors.dropWhile(_.label.depths.length == this.label.depths.length)
+    }
+
+    // Turn this goal into a helper function specification
+    def toFunSpec: FunSpec = {
+      val name = this.fname + this.label.pp.replaceAll("[^A-Za-z0-9]", "").tail
+      FunSpec(name, VoidType, this.formals, this.pre, this.post)
+    }
+
+    // Turn this goal into a helper function call
+    def toCall: Statement = {
+      val f = this.toFunSpec
+      Call(None, Var(f.name), f.params.map(_._2), None)
+    }
+
+    def spawnChild(pre: Assertion = this.pre,
+                   post: Assertion = this.post,
+                   gamma: Gamma = this.gamma,
+                   programVars: List[Var] = this.programVars,
+                   childId: Option[Int] = None,
+                   env: Environment = this.env,
+                   newRuleApp: Option[RuleApplication] = None): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -171,30 +234,38 @@ object Specifications {
       def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
         index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks).sortBy(_.rank)
       }
-      val d = this.deriv
-      val newDeriv = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
+
+      val d = this.hist
+      val newHist = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
         postIndex = appendNewChunks(this.post, post, d.postIndex),
         applications = newRuleApp.toList ++ d.applications)
 
       // Sort heaplets from old to new and simplify pure parts
-      val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newDeriv.preIndex.lastIndexOf(h)))
-      val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newDeriv.postIndex.lastIndexOf(h)))
+      val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newHist.preIndex.lastIndexOf(h)))
+      val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newHist.postIndex.lastIndexOf(h)))
       val preSorted = Assertion(simplify(pre.phi), newPreSigma)
       val postSorted = Assertion(simplify(post.phi), newPostSigma)
       val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
 
-      Goal(preSorted, postSorted, gammaFinal, programVars, newUniversalGhosts, this.fname, env, newDeriv)
+      Goal(preSorted, postSorted,
+        gammaFinal, programVars, newUniversalGhosts,
+        this.fname, this.label.bumpUp(childId), Some(this), env, newHist)
     }
 
-    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
-      Assertion(simplify(post.phi), post.sigma))
+    // Goal that is eagerly recognized by the search as unsolvable
+    def unsolvableChild: Goal = spawnChild(post = Assertion(pFalse, SFormula(Nil)))
+
+    // Is this goal unsolvable and should be discarded?
+    def isUnsolvable: Boolean = post.phi == pFalse
+
+    def isTopLevel: Boolean = label == topLabel
 
     def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
 
     def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates
 
     // All variables this goal has ever used
-    def vars: Set[Var] = deriv.preIndex.flatMap(_.vars).toSet ++ deriv.postIndex.flatMap(_.vars).toSet ++ programVars
+    def vars: Set[Var] = hist.preIndex.flatMap(_.vars).toSet ++ hist.postIndex.flatMap(_.vars).toSet ++ programVars
 
     // All universally-quantified variables this goal has ever used
     def allUniversals: Set[Var] = universalGhosts ++ programVars
@@ -216,8 +287,7 @@ object Specifications {
 
     def isExistential(x: Var): Boolean = existentials.contains(x)
 
-    def addProgramVar(v: Var, t: SSLType): Goal =
-      this.copy(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
+    def addProgramVar(v: Var, t: SSLType): Goal = this.copy(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
 
     def getType(x: Var): SSLType = {
       gamma.get(x) match {
@@ -228,12 +298,18 @@ object Specifications {
 
     def formals: Formals = programVars.map(v => (getType(v), v))
 
-    def similarity: Int = pre.similarity(post)
+    def depth: Int = ancestors.length
 
-    def distance: Int = pre.distance(post)
+    def similarity: Int = pre.similarity(post)
 
     // Size of the specification in this goal (in AST nodes)
     def specSize: Int = pre.size + post.size
+
+    /**
+      * Cost of a goal:
+      * for now just the number of heaplets in pre and post
+      */
+    lazy val cost: Int = pre.cost + post.cost
   }
 
   def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
@@ -246,12 +322,20 @@ object Specifications {
     }
   }
 
-  def makeNewGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
-    val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
+  // Label of the top-level goal
+  def topLabel: GoalLabel = GoalLabel(List(0), List())
+
+  def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
+    val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
+    val pre1 = pre.resolveOverloading(gamma)
+    val post1 = post.resolveOverloading(gamma)
     val formalNames = formals.map(_._2)
-    val ghostUniversals = pre.vars -- formalNames
-    val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
-    Goal(pre.resolveOverloading(gamma), post.resolveOverloading(gamma), gamma, formalNames, ghostUniversals, fname, env.resolveOverloading(), emptyDerivation).simplifyPure
+    val ghostUniversals = pre1.vars -- formalNames
+    val emptyDerivation = History(pre1.sigma.chunks, post1.sigma.chunks)
+    Goal(pre1, post1,
+      gamma, formalNames, ghostUniversals,
+      fname, topLabel, None, env.resolveOverloading(), emptyDerivation).simplifyPure
   }
+
 }
