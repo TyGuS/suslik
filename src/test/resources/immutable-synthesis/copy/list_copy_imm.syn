@@ -1,0 +1,10 @@
+should be able to synthesize list copy
+
+#####
+
+{true ; r :-> x ** lseg0(x, s)[I@a,I@b,I@c]}
+void list_copy(loc r)
+{true ; r :-> y ** lseg0(x, s)[I@a,I@b,I@c] ** lseg0(y, s)[M,M,M] }
+
+#####
+

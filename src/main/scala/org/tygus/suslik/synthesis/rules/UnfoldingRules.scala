@@ -66,16 +66,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // if our heaplet was not immutable, our opening must be immutable also
 
 
-            predChunks = //if (h.isImmutable && submut.isEmpty) {
-              //body.chunks.map (c => c.mkImmutable)
-            //} else {
-              // Instantiate immutability tag in a clause's body via client-side annotations
-              x.applyFineGrainedTags(x.submut, body.chunks)
-            //}
-
+            // Adapt immutability for the clause to be substituted to the precondition
+            predChunks = x.applyFineGrainedTags(x.submut, body.chunks)
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             // The tags in the body should be one more than in the current application:
-            _newPreSigma1 = SFormula(body.chunks).setUpSAppTags(t + 1)
+            _newPreSigma1 = SFormula(predChunks).setUpSAppTags(t + 1)
             newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
