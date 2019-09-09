@@ -43,8 +43,7 @@ object SpatialUnification extends UnificationBase {
           assert(y.vars.forall(nonFreeInSource.contains))
           val sbst = for {
             d1 <- genSubst(x, a, nonFreeInSource)
-            _v2 = b.subst(d1)
-            d2 <- genSubst(y, _v2, nonFreeInSource)
+            d2 <- genSubst(y, b.subst(d1), nonFreeInSource)
           } yield {
             assertNoConflict(d1, d2)
             d1 ++ d2
@@ -52,7 +51,11 @@ object SpatialUnification extends UnificationBase {
           // if... make substitution for tag here
 
           if (m1 != m2) {
-            (sbst ++ genSubstMut(m1, m2, nonFreeInSource)).toList
+            val sb = for {
+              d1 <- sbst
+              d2 <- genSubstMut(m1, m2, nonFreeInSource)
+            } yield d1 ++ d2
+            sb.toList
           } else {
             sbst.toList
           }

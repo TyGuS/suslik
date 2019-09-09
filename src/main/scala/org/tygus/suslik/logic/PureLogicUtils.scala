@@ -27,7 +27,9 @@ trait PureLogicUtils {
   }
 
   def compose[A](subst1: SubstVar, subst2: Substitution): Substitution = {
-    Substitution(subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }) // TODO not sure how to compose tags
+    Substitution(subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) },
+      subst2.mutMapping)
+    // TODO [Tag Substitution] potential bug when name clashes for mtags substitutions
   }
 
   def compose1[A](subst1: Substitution, subst2: Substitution): Substitution =
@@ -37,7 +39,7 @@ trait PureLogicUtils {
         case w@Var(_) => subst2.exprMapping.getOrElse(w, v)
         case _ => v
       })
-    }, subst1.mutMapping) // TODO how to merge mutmappings
+    }, subst1.mutMapping) // TODO [Tag Substitution] how to merge mutmappings
 
 
   def ppSubst(m: Substitution): String = {

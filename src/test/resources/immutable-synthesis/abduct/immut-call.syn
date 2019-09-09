@@ -1,0 +1,14 @@
+should be able to synthesize list copy from a pointer to the head
+
+#####
+
+{[s :-> x]@I@c ** lseg(x, 0, n)}
+void foo(loc s)
+{[s :-> x]@I@c}
+
+{[r :-> z]@M ** lseg(z, 0, n)}
+void list_copy(loc r, loc y)
+{[r :-> z]@M}
+
+#####
+

@@ -205,19 +205,21 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
 //      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
       val addedChunks2 = callPost.sigma.lockSAppTags()
+      // TODO: substitute tags
       // Here we return two options for added chunks:
       // (a) with bumped tags
       // (b) with locked tags
       // The former enables applications of other functions (tree-flatten)
       // The latter enables application of the same recursive function (tree-flatten-acc),
       // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
-      for {
+      val goals = for {
 //        acs <- List(addedChunks1, addedChunks2)
         acs <- List(addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
         callGoal = goal.spawnChild(restPre, newRuleApp = Some(ruleApp), env = newEnv)
       } yield callGoal
+      goals
     }
   }
 

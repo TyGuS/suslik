@@ -2,9 +2,9 @@ should be able to synthesize list copy from a pointer to the head
 
 #####
 
-{0 <= n ; r :-> x ** lseg(x, 0, n)[I@a,I@b]}
+{0 <= n ; [r :-> x]@I@c ** lseg(x, 0, n)[I@a,I@b]}
 void list_copy(loc r)
-{true ; r :-> y ** lseg(y, 0, n)[M, M] ** lseg(x,0,n)[I@a, I@b] }
+{true ; [r :-> y]@I@c ** lseg(y, 0, n)[M, M] ** lseg(x,0,n)[I@a, I@b] }
 
 
 #####
