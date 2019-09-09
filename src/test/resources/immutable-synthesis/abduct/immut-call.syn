@@ -7,7 +7,7 @@ void foo(loc s)
 {[s :-> x]@I@c}
 
 {[r :-> z]@M ** lseg(z, 0, n)}
-void list_copy(loc r, loc y)
+void list_copy(loc r)
 {[r :-> z]@M}
 
 #####
