@@ -22,7 +22,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   object Open extends SynthesisRule with UnfoldingPhase {
 
-    override def toString: Ident = "[Unfold: open]"
+    override def toString: Ident = "Open"
 
     // Produces a conditional that branches on the selectors
     private def branchProducer(selectors: Seq[PFormula]): StmtProducer = StmtProducer (
@@ -34,8 +34,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val finalBranch = cond_branches.head._2
           ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
         }
-      }),
-      "open"
+      })
     )
 
 
@@ -77,7 +76,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
             val kont = branchProducer(selectors) >> handleGuard(goal) >> extractHelper(goal)
-            Some(RuleResult(subGoals, kont))
+            Some(RuleResult(subGoals, kont, toString))
         }
       } yield s
     }
@@ -92,7 +91,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   object CallRule extends SynthesisRule with UnfoldingPhase {
 
-    override def toString: Ident = "[Unfold: call]"
+    override def toString: Ident = "Call"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       // look at all proper ancestors starting from the root
@@ -123,8 +122,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Check that the goal's subheap had at least one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l), toString) >> handleGuard(goal) >> extractHelper(goal)
-        RuleResult(List(callGoal), kont)
+        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
+        RuleResult(List(callGoal), kont, toString)
       }
     }
 
@@ -166,7 +165,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    */
   object AbduceCall extends SynthesisRule with UnfoldingPhase {
 
-    override def toString: Ident = "[Unfold: abduce-call]"
+    override def toString: Ident = "AbduceCall"
 
     // TODO: refactor common parts with CallRule
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -195,8 +194,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
-        val kont = seqComp("abduce-call") >> handleGuard(goal) >> extractHelper(goal)
-        RuleResult(List(writeGoal, remainingGoal), kont)
+        val kont = seqComp >> handleGuard(goal) >> extractHelper(goal)
+        RuleResult(List(writeGoal, remainingGoal), kont, toString)
       }
     }
 
@@ -239,7 +238,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    */
   object Close extends SynthesisRule with UnfoldingPhase {
 
-    override def toString: Ident = "[Unfold: close]"
+    override def toString: Ident = "Close"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val post = goal.post
@@ -283,9 +282,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
-            val kont = idProducer("close") >> handleGuard(goal) >> extractHelper(goal)
+            val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
-            RuleResult(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont)
+            RuleResult(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont, toString)
           }
           subDerivations
         case _ => Nil

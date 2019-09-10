@@ -28,7 +28,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   */
   object EmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
 
-    override def toString: Ident = "[Sub: emp]"
+    override def toString: Ident = "Emp"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
@@ -37,7 +37,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty &&             // no existentials
         SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
-        List(RuleResult(Nil, constProducer(Skip, "Emp")))      // we are done
+        List(RuleResult(Nil, constProducer(Skip), toString))      // we are done
       else Nil
     }
   }
@@ -49,14 +49,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   The other axiom: pre is inconsistent -> emit error
   */
   object Inconsistency extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Norm: inconsistency]"
+    override def toString: String = "Inconsistency"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre.phi
       val post = goal.post.phi
 
       if (!SMTSolving.sat(pre))
-        List(RuleResult(Nil, constProducer(Error, "inconsistency"))) // pre inconsistent: return error
+        List(RuleResult(Nil, constProducer(Error), toString)) // pre inconsistent: return error
       else
         Nil
     }
@@ -88,19 +88,19 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val postFootprint = Set(deriv.postIndex.lastIndexOf(hPost))
           val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
           val newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
-          val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
-          List(RuleResult(List(newGoal), kont))
+          val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+          List(RuleResult(List(newGoal), kont, toString))
         }
       }
     }
   }
 
   object FrameUnfolding extends Frame with UnfoldingPhase {
-    override def toString: String = "[Sub: frame-unfold]"
+    override def toString: String = "FrameUnfold"
   }
 
   object FrameFlat extends Frame with FlatPhase with InvertibleRule {
-    override def toString: String = "[Sub: frame-flat]"
+    override def toString: String = "FrameFlat"
   }
 
 
@@ -112,7 +112,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   */
 
   object NilNotLval extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Norm: nil-not-lval]"
+    override def toString: String = "NilNotLval"
 
     def apply(goal: Goal): Seq[RuleResult] = {
 
@@ -144,8 +144,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
-        val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
-        List(RuleResult(List(newGoal), kont))
+        val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+        List(RuleResult(List(newGoal), kont, toString))
       }
     }
   }
@@ -157,7 +157,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * y.f -> l' * P} ; {ψ ; Q} ---> S
    */
   object StarPartial extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Norm: *-partial]"
+    override def toString: String = "*Partial"
 
     def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[PFormula] = {
       val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
@@ -174,20 +174,20 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val s1 = goal.pre.sigma
       val s2 = goal.post.sigma
-      val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
       (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, goal.existentials)) match {
           // TODO: make sure it's complete to include post, otherwise revert to pre only
         case (None, None) => Nil
         case (Some(p1), None) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
-          List(RuleResult(List(newGoal), kont))
+          List(RuleResult(List(newGoal), kont, toString))
         case (None, Some(p2)) =>
           val newGoal = goal.spawnChild(post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont))
+          List(RuleResult(List(newGoal), kont, toString))
         case (Some(p1), Some(p2)) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1), post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont))
+          List(RuleResult(List(newGoal), kont, toString))
 //        case (None, _) => Nil
 //        case (Some(p1), _) =>
 //          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
@@ -203,14 +203,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
   object SubstLeft extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Norm: subst-L]"
+    override def toString: String = "SubstL"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
-      val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
@@ -228,7 +228,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-            List(RuleResult(List(newGoal), kont))
+            List(RuleResult(List(newGoal), kont, toString))
         case _ => Nil
       }
     }
@@ -236,14 +236,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   // This rule has to come after inconsistency
   object SubstLeftVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
-    override def toString: String = "[Norm: subst-L-var]"
+    override def toString: String = "SubstLVar"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
-      val kont = idProducer(toString) >> handleGuard(goal) >> extractHelper(goal)
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
       val varCandidates = goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)
 
@@ -264,7 +264,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-          List(RuleResult(List(newGoal), kont))
+          List(RuleResult(List(newGoal), kont, toString))
       }
     }
   }

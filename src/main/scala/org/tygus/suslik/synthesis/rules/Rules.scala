@@ -11,12 +11,11 @@ object Rules {
     * from solutions of its sub-problems
     */
   case class StmtProducer (arity: Int,
-                           fn: Seq[Solution] => Solution,
-                           source: String) extends RuleUtils {
+                           fn: Seq[Solution] => Solution) extends RuleUtils {
     val exceptionQualifier: String = "producer"
 
     def apply(children: Seq[Solution]): Solution = {
-      ruleAssert(children.lengthCompare(arity) == 0, s"Producer $source expects $arity children and got ${children.length}")
+      ruleAssert(children.lengthCompare(arity) == 0, s"Producer expects $arity children and got ${children.length}")
       fn(children)
     }
 
@@ -31,8 +30,7 @@ object Rules {
         val (sols1, sols2) = sols.splitAt(this.arity)
         val sol = this.fn(sols1)
         p.fn(sol +: sols2)
-      },
-      s"join-${this.source}-${p.source}"
+      }
     )
 
     /**
@@ -42,8 +40,7 @@ object Rules {
       this.arity - 1,
       sols => {
         this.apply(s +: sols)
-      },
-      s"apply-${this.source}"
+      }
     )
   }
 
@@ -57,32 +54,32 @@ object Rules {
   /**
     * Identity producer: returns the first child solution unchanged
     */
-  def idProducer(source: String): StmtProducer =
-    StmtProducer(1, _.head, source)
+  def idProducer: StmtProducer =
+    StmtProducer(1, _.head)
 
   /**
     * Constant producer: ignored child solutions and returns s
     */
-  def constProducer(s: Statement, source: String): StmtProducer =
-    StmtProducer(0, liftToSolutions(_ => s), source)
+  def constProducer(s: Statement): StmtProducer =
+    StmtProducer(0, liftToSolutions(_ => s))
 
   /**
     * Producer that prepends s to the first child solution
     */
-  def prepend(s: Statement, source: String): StmtProducer =
-    StmtProducer(1, liftToSolutions(stmts => {SeqComp(s, stmts.head).simplify}), source)
+  def prepend(s: Statement): StmtProducer =
+    StmtProducer(1, liftToSolutions(stmts => {SeqComp(s, stmts.head).simplify}))
 
   /**
     * Producer that appends s to the first child solution
     */
-  def append(s: Statement, source: String): StmtProducer =
-    StmtProducer(1, liftToSolutions(stmts => {SeqComp(stmts.head, s).simplify}), source)
+  def append(s: Statement): StmtProducer =
+    StmtProducer(1, liftToSolutions(stmts => {SeqComp(stmts.head, s).simplify}))
 
   /**
     * Producer that sequentially composes results of two goals
     */
-  def seqComp(source: String): StmtProducer =
-    StmtProducer(2, liftToSolutions (stmts => {SeqComp(stmts.head, stmts.last).simplify}), source)
+  def seqComp: StmtProducer =
+    StmtProducer(2, liftToSolutions (stmts => {SeqComp(stmts.head, stmts.last).simplify}))
 
   /**
     * Producer that checks if the child solution has backlinks to its goal,
@@ -98,8 +95,7 @@ object Rules {
         (goal.toCall, newHelper :: helpers)
       } else
         (stmt, helpers)
-    },
-    "helper"
+    }
   )
 
   def handleGuard(goal: Goal): StmtProducer = StmtProducer (
@@ -109,8 +105,7 @@ object Rules {
         if (goal.label == l) If(cond, body, els) // Current goal is the branching point: create conditional
         else g // Haven't reached the branching point yet: propagate guarded statement
       case stmt => stmt
-    }}),
-    "handleGuard"
+    }})
   )
 
   /**
@@ -118,10 +113,10 @@ object Rules {
     * sub-goals to be solved and
     * a statement producer that assembles the sub-goal results
     */
-  case class RuleResult(subgoals: Seq[Goal], kont: StmtProducer)
+  case class RuleResult(subgoals: Seq[Goal], kont: StmtProducer, label: String)
     extends PrettyPrinting with PureLogicUtils {
 
-    override def pp: String = s"[${subgoals.map(_.label.pp).mkString(", ")}]"
+    override def pp: String = label // s"[${subgoals.map(_.label.pp).mkString(", ")}]"
   }
 
   /**

@@ -21,14 +21,14 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   // Noop rule: never applies (used to replace disabled rules)
   object Noop extends SynthesisRule with AnyPhase {
-    override def toString: String = "[Fail: noop]"
+    override def toString: String = "Noop"
 
     def apply(goal: Goal): Seq[RuleResult] = Nil
   }
 
   // Short-circuits failure if pure post is inconsistent with the pre
   object PostInconsistent extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Fail: post-inconsistent]"
+    override def toString: String = "PostInconsistent"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre.phi
@@ -36,7 +36,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       if (!SMTSolving.sat(pre && post))
         // post inconsistent with pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer("post-inconsistent")))
+        List(RuleResult(List(goal.unsolvableChild), idProducer, toString))
       else
         Nil
     }
@@ -44,21 +44,20 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   // Short-circuits failure if universal part of post is too strong
   object PostInvalid extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Fail: post-invalid]"
+    override def toString: String = "PostInvalid"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
         // universal post not implies by pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer("post-invalid")))
+        List(RuleResult(List(goal.unsolvableChild), idProducer, toString))
       else
         Nil
     }
   }
 
   object AbduceBranch extends SynthesisRule with FlatPhase with InvertibleRule {
-
-    override def toString: Ident = "[Fail: abduce-branch]"
+    override def toString: String = "AbduceBranch"
 
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
@@ -108,7 +107,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           programVars = bGoal.programVars,
           childId = Some(1))
       } yield RuleResult(List(thenGoal, elseGoal),
-        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label)), "abduce-branch"))
+        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))),
+        toString)
 
     def apply(goal: Goal): Seq[RuleResult] = {
       if (SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
@@ -117,7 +117,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
           // Abduction failed
-          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer("abduce-branch-fail"))) // pre doesn't imply post: goal is unsolvable
+          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer, toString)) // pre doesn't imply post: goal is unsolvable
           else Nil // fail optimization is disabled, so pretend this rule doesn't apply
         else guarded
       }
@@ -128,7 +128,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   // Short-circuits failure if spatial post doesn't match pre
   // This rule is only applicable if alloc and free aren't
   object HeapUnreachable extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Fail: heap-unreachable]"
+    override def toString: String = "HeapUnreachable"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       (AllocRule.findTargetHeaplets(goal), FreeRule.findTargetHeaplets(goal)) match {
@@ -136,7 +136,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
             Nil
           else
-            List(RuleResult(List(goal.unsolvableChild), idProducer("heap-unreachable"))) // spatial parts do not match: only magic can save us
+            List(RuleResult(List(goal.unsolvableChild), idProducer, toString)) // spatial parts do not match: only magic can save us
         case _ => Nil // does not apply if we could still alloc or free
       }
 
