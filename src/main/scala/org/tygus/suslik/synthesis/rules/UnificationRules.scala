@@ -36,7 +36,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         s <- postCandidates
         t <- pre.sigma.chunks.sortBy(_.rank)
         // TODO create appropriate substitutions
-        sub <- tryUnify(t, s, goal.universals, false)
+        sub <- tryUnify(t, s, goal.universals, tagsMatter = false, _ == _)
         newPostSigma = post.sigma.subst(sub)
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
@@ -85,8 +85,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
-          // TODO: discuss and enable
-//        case BinaryExpr(OpBoolEq, l, r) => isExsistVar(l) || isExsistVar(r)
+        // TODO: discuss and enable
+        //        case BinaryExpr(OpBoolEq, l, r) => isExsistVar(l) || isExsistVar(r)
         // TODO [sets]: Can we enable this?
         case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false
@@ -206,4 +206,5 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       } else Nil
     }
   }
+
 }

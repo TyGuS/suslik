@@ -70,7 +70,8 @@ trait Synthesis extends SepLogicUtils {
     }
 
     val sz = worklist.length
-    printLog(List((s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
+    val workListLog = s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}"
+    printLog(List((workListLog, Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     worklist match {
