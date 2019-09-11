@@ -163,6 +163,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))
     }.text("enable memoization; default: true")
 
+    opt[Boolean](name="prioImm").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(prioImm = b))
+    }.text("imm aware rule prioritization; default: false")
+
+
 
     help("help").text("prints this usage text")
 

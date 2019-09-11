@@ -46,17 +46,24 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
         val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
         val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-        RuleResult(List(newGoal), kont, toString)
+        (RuleResult(List(newGoal), kont, toString), t.rank)
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
-      val ord = new Ordering[(Int, RuleApplication)] {
-        def compare(x: (Int, RuleApplication), y: (Int, RuleApplication)): Int = {
+      val ord = new Ordering[(Int, Int, RuleApplication)] {
+        def compare(x: (Int, Int, RuleApplication), y: (Int, Int, RuleApplication)): Int = {
           val c1 = x._1.compare(y._1)
-          if (c1 != 0) c1 else x._2.compare(y._2)
-        }
+          if (c1 != 0) c1
+          else {
+            val c2 = x._2.compare(y._2)
+            //TODO [immutability] add config.prioImm in the scope of apply to enable/disable imm sensitive cost (just a hack, to upgrade it to rule if it has impact)
+            if(c2 != 0 && false) c2
+            else x._3.compare(y._3)
+          }}
       }
-      val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
-      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.hist.applications.head))(ord)
+      val derivations = nubBy[(RuleResult,Int), Assertion](alternatives, sub => sub._1.subgoals.head.post)
+      val derivations_s = derivations.sortBy(s => (-s._1.subgoals.head.similarity, s._2, s._1.subgoals.head.hist.applications.head))(ord)
+      val (res_derivations,_) = derivations_s.unzip
+      res_derivations
     }
   }
 
