@@ -26,7 +26,8 @@ case class SynConfig(
                       assertSuccess: Boolean    = false,
                       logToFile: Boolean        = true,
                       memoization: Boolean      = true,
-                      prioImm: Boolean          = true,
+                      prioImm: Boolean          = false,
+                      imm: Boolean              = true,
                       timeOut: Long             = 120000,
                       // Global state
                       startTime: Long           = 0

@@ -59,7 +59,7 @@ trait SynthesisRunnerUtil {
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig): Unit = {
-    val parser = new SSLParser
+    val parser = new SSLParser(params)
     val res = parser.parseGoal(text)
     if (!res.successful) {
       throw SynthesisException(s"Failed to parse the input:\n$res")

@@ -55,8 +55,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           if (c1 != 0) c1
           else {
             val c2 = x._2.compare(y._2)
-            //TODO [immutability] add config.prioImm in the scope of apply to enable/disable imm sensitive cost (just a hack, to upgrade it to rule if it has impact)
-            if(c2 != 0 && false) c2
+            //TODO [immutability] enable/disable imm sensitive cost (just a hack, to upgrade it to rule if it has impact)
+            if(c2 != 0 && goal.env.config.prioImm) c2
             else x._3.compare(y._3)
           }}
       }

@@ -5,12 +5,13 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis.SynthesisException
+import org.tygus.suslik.synthesis.{SynthesisException,defaultConfig,SynConfig}
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-class SSLParser extends StandardTokenParsers with SepLogicUtils {
+
+class SSLParser (config: SynConfig = defaultConfig) extends StandardTokenParsers with SepLogicUtils {
 
   // Modified repN
   def repAll[T](p: => Parser[T]): Parser[List[T]] =
@@ -94,14 +95,15 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def immutableheaplet : Parser[Heaplet] = (
     ("[" ~> heaplet(Mut) <~ ("]" ~ "@")) ~ numericLit ^^ { case h ~ n => h.makeUnknown(Integer.parseInt(n)) } // later change permission
-    ||| ("[" ~> heaplet(Mut) <~ ("]" ~ "@")) ~ perm ^^ { case h ~ m => h.withMut(m) }// TODO [Immutability] get rid of the bare I eventually
+    ||| ("[" ~> heaplet(Mut) <~ ("]" ~ "@")) ~ perm ^^   { case h ~ m => h.setMut(m)(config) }// TODO [Immutability] get rid of the bare I eventually
     ||| heaplet(Mut)
   )
 
   def heaplet(mutable : MTag): Parser[Heaplet] = (
-      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b, mutable) }
-          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s), mutable)}
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("[" ~> rep1sep(perm, ",") <~ "]") ^^ { case name ~ args ~ perms => SApp(name, args, mut = mutable, submut = perms) }
+      (identWithOffset <~ ":->") ~ expr ^^                   { case (a, o) ~ b => PointsTo(Var(a), o, b).setMut(mutable)(config) }
+          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)).setMut(mutable)(config)}
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("[" ~> rep1sep(perm, ",") <~ "]") ^^
+                                                             { case name ~ args ~ perms => SApp(name, args).setMut(mutable,perms)(config)}
   )
 
   def perm : Parser[MTag] = (

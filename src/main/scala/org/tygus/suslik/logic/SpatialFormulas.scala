@@ -6,6 +6,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
 import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
+import org.tygus.suslik.synthesis.SynConfig
 
 //trait Immutable {
 //  this: Heaplet =>
@@ -160,6 +161,14 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
     case SApp(_, _, _, _, _) => 10
   }
 
+  def defaultMut: MTag = Mut
+
+  def setMut(mut : MTag)(implicit params: SynConfig) : Heaplet ={
+    if(params.imm) withMut(mut)
+    else withMut(defaultMut)
+  }
+
+
 }
 
 /**
@@ -290,6 +299,13 @@ case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mu
     submut = submut match { case Some(mut) => Some(mut.map{ case m: MTag => m.subst(sigma) }.toList) case None => None })
 
   override def withMut(mut : MTag): Heaplet = this.copy(mut = mut, submut = submut)
+
+  def withMut(mut : MTag,submut: Option[List[MTag]]): Heaplet = this.copy(mut = mut, submut = submut)
+
+  def setMut(mut : MTag, mparams: Option[List[MTag]])(implicit params: SynConfig) : Heaplet ={
+    if(params.imm) withMut(mut,mparams)
+    else withMut(defaultMut,None)
+  }
 
   override def makeUnknown(numberTag: Integer): Heaplet = this.copy(mut = U(numberTag))
 

@@ -167,6 +167,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(prioImm = b))
     }.text("imm aware rule prioritization; default: false")
 
+    opt[Boolean](name="imm").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(imm = b))
+    }.text("immutability aware specification; default: true")
 
 
     help("help").text("prints this usage text")
