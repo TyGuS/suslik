@@ -1,7 +1,0 @@
-predicate account(loc x, int amount, int limit) {
-<<<<<<< HEAD
-|  true  =>  { x :-> limit ** (x + 1) :-> amount ** [x, 2] }
-=======
-|  true  =>  { [x :-> limit]@0 ** [(x + 1) :-> amount]@1 ** [[x, 2]]@2 }
->>>>>>> 6551f85... Changes to tests
-}

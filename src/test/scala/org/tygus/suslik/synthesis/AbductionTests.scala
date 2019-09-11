@@ -17,7 +17,7 @@ class AbductionTests extends FunSpec with Matchers with SynthesisRunnerUtil {
     }
 
   describe("SL-based synthesizer with abductor for hypothesis preconditions") {
-    runAllTestsFromDir("abduct")
+    runAllTestsFromDir("abduce")
   }
 
 }

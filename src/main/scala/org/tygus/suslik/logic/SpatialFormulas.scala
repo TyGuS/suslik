@@ -65,13 +65,9 @@ case class U(tag : Integer) extends MTag {
 
 object MTag {
 
-  def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]]) : Boolean = (s1, s2) match {
-    case (Some(a), Some(b)) => a.zip(b).forall{ case (x: MTag, y: MTag) => MTag.pre(x,y)}
-      //{ case (a,b) => (a,b) match {
-      //case (_, U(m)) => true
-      //case (U(n), _) => true
-      //case (x, y) => x == y
-      //case (_, _) => false} })
+  def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]],
+                 immTagCompare: (MTag, MTag) => Boolean = MTag.pre) : Boolean = (s1, s2) match {
+    case (Some(a), Some(b)) => a.zip(b).forall{ case (x: MTag, y: MTag) => immTagCompare(x,y)}
     case (None, None) => true
     case _ => false
   }

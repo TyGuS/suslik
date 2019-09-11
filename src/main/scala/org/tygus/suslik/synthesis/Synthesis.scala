@@ -4,6 +4,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.util.{SynLogging, SynStats}
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -54,65 +55,8 @@ trait Synthesis extends SepLogicUtils {
   protected def synthesize(goal: Goal)
                           (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
-    val worklist = List(OrNode("", goal, None))
+    val worklist = List(OrNode(Vector(), goal, None))
     processWorkList(worklist)(stats, goal.env.config)
-  }
-
-  case class OrNode(label: String, goal: Goal, parent: Option[AndNode]) {
-    // Does this node have a ancestor with label l?
-    def hasAncestor(l: String): Boolean =
-      if (label == l) true
-      else if (label.length < l.length) false
-      else parent match {
-        // this node cannot be the root, because label.lengh > l.length
-        case Some(p) => p.hasAncestor(l)
-        case None => throw SynthesisException("This cannot happen in OrNode")
-      }
-
-    // Replace the ancestor labeled l with newAN
-    def replaceAncestor(l: String, n: AndNode): OrNode = parent match {
-      case None => this
-      case Some(p) =>
-        if (p.label == l) copy(parent = Some(n))
-        else if (p.label.length <= l.length) this
-        else p.parent.replaceAncestor(l, n)
-    }
-
-    // This node has failed: prune siblings from worklist
-    def fail(wl: List[OrNode]): List[OrNode] = parent match {
-      case None => wl // this is the root; wl must already be empty
-      case Some(an) => { // a subgoal has failed
-        val newWL = wl.filterNot(_.hasAncestor(an.label)) // prune all other descendants of an
-        if (newWL.exists(_.hasAncestor(an.parent.label))) { // does my grandparent have other open alternatives?
-          newWL
-        } else {
-          an.parent.fail(newWL)
-        }
-      }
-    }
-
-    // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = parent match {
-      case None => Right(s) // this is the root: synthesis succeeded
-      case Some(an) => { // a subgoal has succeeded
-        val newWL = wl.filterNot(_.hasAncestor(label)) // prune all my descendants from worklist
-        // Check if an has more open subgoals:
-        if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
-          an.parent.succeed(an.kont(List(s)), newWL)
-        } else { // there are other open subgoals: partially apply and replace in descendants
-          val newAN = an.copy(kont = an.kont.partApply(s))
-          Left(newWL.map(_.replaceAncestor(an.label, newAN)))
-        }
-      }
-    }
-  }
-
-  case class AndNode(label: String, kont: StmtProducer, parent: OrNode) {
-    // Does this node have a ancestor with label l?
-    def hasAncestor(l: String): Boolean =
-      if (label == l) true
-      else if (label.length < l.length) false
-      else parent.hasAncestor(l)
   }
 
   @tailrec final def processWorkList(worklist: List[OrNode])
@@ -126,7 +70,8 @@ trait Synthesis extends SepLogicUtils {
     }
 
     val sz = worklist.length
-    printLog(List((s"Worklist ($sz): ${worklist.map(_.goal.label.pp).mkString(" ")}", Console.YELLOW)))
+    val workListLog = s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}"
+    printLog(List((workListLog, Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     worklist match {
@@ -135,7 +80,6 @@ trait Synthesis extends SepLogicUtils {
       case node :: rest => {
         val goal = node.goal
         implicit val ind = goal.depth
-        printLog(List((s"Goal to expand: ${goal.label.pp} (depth: ${goal.depth})", Console.BLUE)))
         stats.updateMaxDepth(goal.depth)
         if (config.printEnv) {
           printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
@@ -164,9 +108,12 @@ trait Synthesis extends SepLogicUtils {
             case None => { // no terminals: add all expansions to worklist
               val newNodes = for {
                 (e, i) <- expansions.zipWithIndex
-                andNode = AndNode(i.toString + node.label, e.kont, node)
-                (g, j) <- e.subgoals.zipWithIndex
-              } yield OrNode(j.toString + andNode.label, g, Some(andNode))
+                alternatives = expansions.filter(_.label == e.label)
+                altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
+                andNode = AndNode(i +: node.id, e.kont, node, e.label ++ altLabel)
+                (g, j) <- if (e.subgoals.size == 1) List((e.subgoals.head, -1)) // this is here only for logging
+                            else e.subgoals.zipWithIndex
+              } yield OrNode(j +: andNode.id, g, Some(andNode))
               processWorkList(newNodes.toList ++ rest)
             }
           }
@@ -187,6 +134,8 @@ trait Synthesis extends SepLogicUtils {
         // Invoke the rule
         val allChildren = r(goal)
         // Filter out children that contain out-of-order goals
+        
+        // TODO [Commute]: This is a commute optimisation that affects completeness 
         val children = if (config.commute) {
           allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
         } else allChildren
@@ -198,7 +147,7 @@ trait Synthesis extends SepLogicUtils {
         } else {
           // Rule applicable: try all possible sub-derivations
           //        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
-          val succ = s"SUCCESS, ${children.size} alternative(s): ${children.map(_.pp).mkString(", ")}"
+          val succ = s"SUCCESS, ${children.size} alternative(s)" // TODO: print consume set?
           printLog(List((s"$goalStr$GREEN$succ", BLACK)))
           stats.bumpUpRuleApps()
           if (config.invert && r.isInstanceOf[InvertibleRule]) {

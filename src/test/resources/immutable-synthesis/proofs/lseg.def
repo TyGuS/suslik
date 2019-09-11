@@ -1,8 +1,0 @@
-predicate lseg(loc x, loc y) {
-|  x == y        => { true ; emp }
-<<<<<<< HEAD
-|  not (x == y)  => { true ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, y) }
-=======
-|  not (x == y)  => { true ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y)[0,1,2] }
->>>>>>> 6551f85... Changes to tests
-}

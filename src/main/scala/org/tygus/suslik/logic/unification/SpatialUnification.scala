@@ -2,8 +2,7 @@ package org.tygus.suslik.logic.unification
 
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Substitution
-import org.tygus.suslik.logic.{SFormula, _}
-import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.logic._
 
 /**
   * @author Ilya Sergey
@@ -23,28 +22,30 @@ object SpatialUnification extends UnificationBase {
     * variables that are either free or in `nonFreeInSource`.
     *
     * If successful, returns a substitution from `source`'tFrame fresh variables to `target`'tFrame variables
+    *
+    * @param immTagCompare a way to compar immutability tags when unifying. For example:
+    *                      - when unifying pre/post should be strict equality
+    *                      - when unifying for a function call, it should be MTag.pre
     */
-
-  // TODO [Immutability] use regular var to MTag substitution
   def tryUnify(target: UAtom, source: UAtom,
                nonFreeInSource: Set[Var],
                // Take the application level tags into the account
                // should be ignored when used from the *-intro rule
-               tagsMatter: Boolean = true): Seq[Substitution] = {
-    import MTag._
+               tagsMatter: Boolean = true,
+               //  
+               immTagCompare: (MTag, MTag) => Boolean = MTag.pre): Seq[Substitution] = {
     assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
 
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y, m1), PointsTo(a@Var(_), o2, b, m2)) =>
         if (o1 != o2 ||
-          (!pre(m1, m2) && !MTag.substitutable(m1, m2))
+          (!immTagCompare(m1, m2) && !MTag.substitutable(m1, m2))
         ) Nil else {
           assert(nonFreeInSource.contains(x))
           assert(y.vars.forall(nonFreeInSource.contains))
           val sbst = for {
             d1 <- genSubst(x, a, nonFreeInSource)
-            _v2 = b.subst(d1)
-            d2 <- genSubst(y, _v2, nonFreeInSource)
+            d2 <- genSubst(y, b.subst(d1), nonFreeInSource)
           } yield {
             assertNoConflict(d1, d2)
             d1 ++ d2
@@ -52,13 +53,17 @@ object SpatialUnification extends UnificationBase {
           // if... make substitution for tag here
 
           if (m1 != m2) {
-            (sbst ++ genSubstMut(m1, m2, nonFreeInSource)).toList
+            val sb = for {
+              d1 <- sbst
+              d2 <- genSubstMut(m1, m2, nonFreeInSource)
+            } yield d1 ++ d2
+            sb.toList
           } else {
             sbst.toList
           }
         }
       case (Block(x1@Var(_), s1, m1), Block(x2@Var(_), s2, m2)) =>
-        if (s1 != s2 || (!pre(m1, m2) && !MTag.substitutable(m1, m2))) Nil else {
+        if (s1 != s2 || (!immTagCompare(m1, m2) && !MTag.substitutable(m1, m2))) Nil else {
           assert(nonFreeInSource.contains(x1))
           (genSubst(x1, x2, nonFreeInSource) ++ genSubstMut(m1, m2, nonFreeInSource)).toList
         }
@@ -67,7 +72,8 @@ object SpatialUnification extends UnificationBase {
         // if es2.forall(_.isInstanceOf[Var])
 
         if (p1 != p2 || es1.size != es2.size ||
-          (!pre(m1, m2) && !MTag.checkLists(sm1, sm2)) ||
+          !immTagCompare(m1, m2) || 
+          !MTag.checkLists(sm1, sm2, immTagCompare) ||
           (targetTag != sourceTag && tagsMatter)) Nil
 
         else {
@@ -86,11 +92,11 @@ object SpatialUnification extends UnificationBase {
                 }
             }
           }
-          ++
+            ++
             ((sm1, sm2) match {
               case (Some(mut1), Some(mut2)) =>
-                val mutZip : List[(MTag, MTag)] = mut1.zip(mut2)
-                if (mut1.forall{case a => !MTag.isMutable(a)} || mut2.forall{case a => !MTag.isMutable(a)}) None
+                val mutZip: List[(MTag, MTag)] = mut1.zip(mut2)
+                if (mut1.forall { case a => !MTag.isMutable(a) } || mut2.forall { case a => !MTag.isMutable(a) }) None
                 mutZip.foldLeft(Some(Substitution()): Option[Substitution]) {
                   case (opt, (hmut, hmut2)) => opt match {
                     case None => None
@@ -103,7 +109,8 @@ object SpatialUnification extends UnificationBase {
                       }
                   }
                 }
-              case (_, _) => None})).toList
+              case (_, _) => None
+            })).toList
         }
       case _ => Nil
     }
@@ -127,8 +134,10 @@ object SpatialUnification extends UnificationBase {
     // Check matching blocks
     val checkMatchingBlocks = (bs1: List[Heaplet], bs2: List[Heaplet]) =>
       bs1.forall {
-        case Block(_, s1, m1) => bs2.exists { case Block(_, s2, m2) => s1 == s2 && 
-          pre(m1, m2); case _ => false }
+        case Block(_, s1, m1) => bs2.exists { case Block(_, s2, m2) => s1 == s2 &&
+          pre(m1, m2);
+        case _ => false
+        }
         case _ => false
       }
 
@@ -139,7 +148,9 @@ object SpatialUnification extends UnificationBase {
       as1.forall {
         case SApp(x1, xs1, _, m1, sm1) =>
           as2.exists { case SApp(x2, xs2, _, m2, sm2) => x1 == x2 && xs1.size == xs2.size &&
-            pre(m1, m2); case _ => false }
+            pre(m1, m2);
+          case _ => false
+          }
         case _ => false
       }
     if (!checkMatchingApps(as1, as2) || !checkMatchingApps(as2, as1)) return false

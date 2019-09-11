@@ -74,8 +74,9 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       val iter = sourceChunks.iterator
       while (iter.hasNext) {
         val candidate = iter.next()
+        val substitutions = tryUnify(tc, candidate, takenVars)
         for {
-          sbst <- tryUnify(tc, candidate, takenVars)
+          sbst <- substitutions
           if checkSubstWF(sbst)
         } {
           val remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
@@ -123,6 +124,8 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
     unifyGo(targetChunks, sourceChunks, Substitution(Map.empty, Map.empty)) match {
       case Some(newSubst) =>
         // Returns the first good substitution, doesn't try all of them!
+        
+        // TODO [Tag Substitution]: Doesn't work correctly for mutability tags
         val composition = compose(freshSubst, newSubst)
         /* [Handling spatial-based unification]
           Sometimes, there are parameters of the function spec, that are not present in the spatial part.
