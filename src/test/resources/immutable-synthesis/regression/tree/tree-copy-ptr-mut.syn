@@ -1,11 +1,10 @@
-should be able to synthesize a tree copy
+should be able to synthesize a tree copy (with elements)
 
 #####
 
-{0 <= n ; r :-> x ** treeN(x, n)[I@a, I@b, I@c, I@d]}
+{true ; r :-> x ** treeS(x, s)}
 void tree_copy(loc r)
-{true ; r :-> y ** treeN(x, n)[I@a, I@b, I@c, I@d] ** treeN(y, n)[M, M, M, M] }
-
+{true ; r :-> y ** treeS(x, s) ** treeS(y, s)[M, M, M, M] }
 
 #####
 
@@ -13,6 +12,7 @@ void tree_copy (loc r) {
   let x2 = *r;
   if (x2 == 0) {
   } else {
+    let v2 = *x2;
     let l2 = *(x2 + 1);
     let r12 = *(x2 + 2);
     *r = l2;
@@ -22,10 +22,10 @@ void tree_copy (loc r) {
     tree_copy(x2);
     let y22 = *x2;
     let y3 = malloc(3);
-    *(x2 + 1) = y12;
-    *(x2 + 2) = y22;
     *r = y3;
-    *(y3 + 1) = l2;
-    *(y3 + 2) = r12;
+    *(y3 + 1) = y12;
+    *(y3 + 2) = y22;
+    *y3 = v2;
+    *x2 = v2;
   }
 }
