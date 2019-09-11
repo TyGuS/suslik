@@ -29,7 +29,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * -a, --assert <value>          check that the synthesized result against the expected one; default: false
     * -c, --maxCloseDepth <value>   maximum unfolding depth in the post-condition; default: 1
     * -o, --maxOpenDepth <value>    maximum unfolding depth in the pre-condition; default: 1
-    * -b, --branchAbduction <value> abduct conditional branches; default: false
+    * -b, --branchAbduction <value> abduce conditional branches; default: false
     * -f, --printFailed <value>     print failed rule applications; default: false
     *
     * --help                        prints the help reference

@@ -14,7 +14,8 @@ import scala.io.Source
 
 trait SynthesisRunnerUtil {
 
-  implicit val log : SynLogging = SynLogLevels.Test
+  implicit val log: SynLogging = SynLogLevels.Test
+
   import log._
 
   val testSeparator = "###"
@@ -30,7 +31,7 @@ trait SynthesisRunnerUtil {
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit
 
   import synthesis._
-  
+
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
     // The path is counted from the rout
@@ -57,12 +58,7 @@ trait SynthesisRunnerUtil {
     (testName, desc, input, output, params)
   }
 
-  def synthesizeFromFile(dir: String, testName: String): Unit = {
-    val (_, desc, in, out, params) = getDescInputOutput(testName)
-    synthesizeFromSpec(testName, in, out, params)
-  }
-
-  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig) : Unit = {
+  def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig): Unit = {
     val parser = new SSLParser
     val res = parser.parseGoal(text)
     if (!res.successful) {
@@ -71,9 +67,9 @@ trait SynthesisRunnerUtil {
 
     val prog = res.get
     // assert(prog.predicates.nonEmpty)
-   if (prog.goal.mutabilityTagsAreNotDefined) {
-    throw SynthesisException("Mutability variable in post not present in pre")
-   }
+    if (prog.goal.mutabilityTagsAreNotDefined) {
+      throw SynthesisException("Mutability variable in post not present in pre")
+    }
     val (specs, env) = resolveProgram(prog)
 
     if (specs.lengthCompare(1) != 0) {
@@ -136,7 +132,10 @@ trait SynthesisRunnerUtil {
       // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       // Get specs
-      val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$testExtension")).toList
+      val tests = testDir.listFiles.filter(f => f
+        .isFile &&
+        f.getName.endsWith(s".$testExtension") &&
+        !f.getName.startsWith("_")).toList
       for (f <- tests) {
         val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
         val fullInput = List(defs, in).mkString("\n")

@@ -3,7 +3,7 @@
 
 predicate lseg(loc x, loc y) {
 |  x == y        => {emp}
-|  not (x == y)  => {[[x, 2]]@0 ** [x :-> 0]@1 ** [(x + 1) :-> nxt]@0 ** lseg1(nxt, y)[0,1]}
+|  not (x == y)  => {[[x, 2]]@0 ** [x :-> 0]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, y)[0,1]}
 }
 predicate lseg1(loc x, loc y) {
 |  x == y        => {emp}

@@ -41,47 +41,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else Nil
     }
   }
-
+  
   /*
-
-    -------------------------------- [emp]
-    Γ ; {φ ; [Σ]} ; {emp} ---> skip
-
-    Axiom: Readonly spatial only and pure is valid -> emit skip
-
-  */
-  object ImmutableEmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
-
-    override def toString: Ident = "[Sub: emp]"
-
-    def apply(goal: Goal): Seq[RuleResult] = {
-      val pre = goal.pre
-      val post = goal.post
-
-      if (pre.sigma.isEmp && 
-        post.sigma.isEmp && // heaps are empty
-        goal.existentials.isEmpty && // no existentials
-        SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post
-        List(RuleResult(Nil, constProducer(Skip, "ImmutableEmpRule"))) // we are done
-      else Nil
-    }
-
-    def isImmutable(heap: SFormula): Boolean = {
-      heap.chunks.foldLeft[Boolean](true)((acc, h) =>
-        if (h.isImmutable) acc
-        else false)
-    }
-
-//    def isAbsent(heap: SFormula): Boolean = {
-//      heap.chunks.foldLeft[Boolean](true)((acc, h) =>
-//        if (h.isAbsent) acc
-//        else false)
-//      }
-    }
-
-
-
-    /*
   --------------------------------------- [inconsistency]
   Γ ; {φ ∧ l ≠ l ; P} ; {ψ ; Q} ---> emp
 
