@@ -13,20 +13,20 @@ class ImmutabilityFixMeTests extends FunSpec with Matchers with SynthesisRunnerU
       synthesizeFromSpec(testName, in, out, params)
     }
 
-  describe("failing-examples") {
-    runAllTestsFromDir("../immutable-synthesis/fixme/failing-examples")
-  }
+  //  describe("failing-examples") {
+  //    runAllTestsFromDir("../immutable-synthesis/fixme/failing-examples")
+  //  }
 
   describe("flatten") {
     runAllTestsFromDir("../immutable-synthesis/fixme/flatten")
-  }
-
-  describe("questionable") {
-    runAllTestsFromDir("../immutable-synthesis/fixme/questionable")
   }
 
   describe("tree") {
     runAllTestsFromDir("../immutable-synthesis/fixme/tree")
   }
 
+  describe("questionable") {
+    runAllTestsFromDir("../immutable-synthesis/fixme/questionable")
+  }
+  
 }
