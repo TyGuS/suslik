@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis.rules
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.{Heaplet, PureLogicUtils, SApp}
-import org.tygus.suslik.logic.Specifications.{History, Goal, RuleApplication}
+import org.tygus.suslik.logic.Specifications.{Footprint, Goal, History, RuleApplication}
 
 object Rules {
   /**
@@ -113,7 +113,7 @@ object Rules {
     * sub-goals to be solved and
     * a statement producer that assembles the sub-goal results
     */
-  case class RuleResult(subgoals: Seq[Goal], kont: StmtProducer, label: String)
+  case class RuleResult(subgoals: Seq[Goal], kont: StmtProducer, consume: Footprint, label: String)
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String = label // s"[${subgoals.map(_.label.pp).mkString(", ")}]"

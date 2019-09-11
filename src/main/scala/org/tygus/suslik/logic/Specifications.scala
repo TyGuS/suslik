@@ -8,7 +8,7 @@ import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 
 import scala.math.Ordering.Implicits._
 
-object Specifications {
+object Specifications extends SepLogicUtils {
 
   case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
     with PureLogicUtils {
@@ -85,6 +85,18 @@ object Specifications {
 
     def cost: Int = sigma.cost
   }
+
+  /**
+    * Spatial pre-post pair; used to determine independence of rule applications.
+    */
+  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting  {
+    def +(other: Footprint): Footprint = Footprint(pre + other.pre, post + other.post)
+    def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
+
+    override def pp: String = s"{${pre.pp}}{${post.pp}}"
+  }
+
+  def emptyFootprint: Footprint = Footprint(emp, emp)
 
   case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int), cost: Int)
     extends PrettyPrinting with Ordered[RuleApplication] {
@@ -215,6 +227,8 @@ object Specifications {
       Call(None, Var(f.name), f.params.map(_._2), None)
     }
 
+    def allHeaplets: Footprint = Footprint(pre.sigma, post.sigma)
+
     def spawnChild(pre: Assertion = this.pre,
                    post: Assertion = this.post,
                    gamma: Gamma = this.gamma,
@@ -249,7 +263,7 @@ object Specifications {
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
-    def unsolvableChild: Goal = spawnChild(post = Assertion(pFalse, SFormula(Nil)))
+    def unsolvableChild: Goal = spawnChild(post = Assertion(pFalse, emp))
 
     // Is this goal unsolvable and should be discarded?
     def isUnsolvable: Boolean = post.phi == pFalse
@@ -282,8 +296,6 @@ object Specifications {
     def isProgramVar(x: Var): Boolean = programVars.contains(x)
 
     def isExistential(x: Var): Boolean = existentials.contains(x)
-
-    def addProgramVar(v: Var, t: SSLType): Goal = this.copy(gamma = this.gamma + (v -> t), programVars = v :: this.programVars)
 
     def getType(x: Var): SSLType = {
       gamma.get(x) match {

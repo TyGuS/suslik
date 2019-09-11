@@ -184,20 +184,20 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def isEmp: Boolean = chunks.isEmpty
 
+  // Add h to chunks (multiset semantics)
   def **(h: Heaplet): SFormula = SFormula(h :: chunks)
 
+  // Add all chunks from other (multiset semantics)
   def **(other: SFormula): SFormula = SFormula(chunks ++ other.chunks)
 
-  def -(h: Heaplet): SFormula = {
-    val cnt = chunks.count(_ == h)
-    // Remove just once!
-    SFormula(chunks.filterNot(elm => elm == h) ++ (for (i <- 0 to (cnt - 2)) yield h))
-  }
+  // Remove h from this formula (multiset semantics)
+  def -(h: Heaplet): SFormula = SFormula(chunks.diff(List(h)))
 
-  def -(hs: Seq[Heaplet]): SFormula = {
-    val hSet = hs.toSet
-    SFormula(chunks.filterNot(elm => hSet.contains(elm)))
-  }
+  // Remove all chunks present in other (multiset semantics)
+  def -(other: SFormula): SFormula = SFormula(chunks.diff(other.chunks))
+
+  // Add chunks from other (set semantics)
+  def +(other: SFormula): SFormula = SFormula((chunks ++ other.chunks).distinct)
 
   def vars: List[Var] = chunks.flatMap(_.vars)
 

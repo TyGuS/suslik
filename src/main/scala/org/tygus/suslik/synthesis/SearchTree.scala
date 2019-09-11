@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements.Solution
-import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 import org.tygus.suslik.synthesis.rules.Rules.StmtProducer
 
 /**
@@ -12,7 +12,7 @@ object SearchTree {
 
   type NodeId = Vector[Int]
 
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode]) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], produce: Footprint) {
     // Does this node have a ancestor with label l?
     def hasAncestor(l: Vector[Int]): Boolean =
       if (id == l) true
@@ -75,7 +75,7 @@ object SearchTree {
     }
   }
 
-  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, ruleLabel: String) {
+  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, consume: Footprint, ruleLabel: String) {
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true

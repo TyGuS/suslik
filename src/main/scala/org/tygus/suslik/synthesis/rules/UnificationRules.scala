@@ -45,7 +45,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
         val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
         val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-        RuleResult(List(newGoal), kont, toString)
+        RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), toString)
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
       val ord = new Ordering[(Int, RuleApplication)] {
@@ -100,7 +100,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _s2 = s2.subst(x, e)
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
           val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-          List(RuleResult(List(newGoal), kont, toString))
+          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, toString))
         case _ => Nil
       }
     }
@@ -129,7 +129,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, toString)
+      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, toString)
     }
   }
 
@@ -173,7 +173,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
             subGoal = goal.spawnChild(newPre, post.subst(m, l))
             kont = prepend(Store(x, offset, l)) >> handleGuard(goal) >> extractHelper(goal)
-          } yield RuleResult(List(subGoal), kont, toString)
+          } yield RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, toString)
         case Some((hl, hr)) =>
           ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -201,7 +201,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           sigma = Map(ex -> v)
           newGoal = goal.spawnChild(post = goal.post.subst(sigma))
           kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-        } yield RuleResult(List(newGoal), kont, toString)
+        } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, toString)
       } else Nil
     }
   }

@@ -14,6 +14,9 @@ trait SepLogicUtils extends PureLogicUtils {
 
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
 
+  def emp: SFormula = SFormula(Nil)
+  def singletonHeap(h:Heaplet): SFormula = SFormula(List(h))
+
   /**
     * Get the heaplet satisfying the predicate
     */

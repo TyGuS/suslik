@@ -54,7 +54,7 @@ trait Synthesis extends SepLogicUtils {
   protected def synthesize(goal: Goal)
                           (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
-    val worklist = List(OrNode(Vector(), goal, None))
+    val worklist = List(OrNode(Vector(), goal, None, goal.allHeaplets))
     processWorkList(worklist)(stats, goal.env.config)
   }
 
@@ -110,10 +110,10 @@ trait Synthesis extends SepLogicUtils {
                 (e, i) <- expansions.zipWithIndex
                 alternatives = expansions.filter(_.label == e.label)
                 altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
-                andNode = AndNode(i +: node.id, e.kont, node, e.label ++ altLabel)
+                andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.label ++ altLabel)
                 (g, j) <- if (e.subgoals.size == 1) List((e.subgoals.head, -1)) // this is here only for logging
                             else e.subgoals.zipWithIndex
-              } yield OrNode(j +: andNode.id, g, Some(andNode))
+              } yield OrNode(j +: andNode.id, g, Some(andNode), g.allHeaplets - (goal.allHeaplets - e.consume))
               processWorkList(newNodes.toList ++ rest)
             }
           }
@@ -145,7 +145,7 @@ trait Synthesis extends SepLogicUtils {
         } else {
           // Rule applicable: try all possible sub-derivations
           //        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
-          val succ = s"SUCCESS, ${children.size} alternative(s)" // TODO: print consume set?
+          val succ = s"SUCCESS, ${children.size} alternative(s): ${children.map(_.consume.pp).mkString(" ")}"
           printLog(List((s"$goalStr$GREEN$succ", BLACK)))
           stats.bumpUpRuleApps()
           if (config.invert && r.isInstanceOf[InvertibleRule]) {
