@@ -134,6 +134,8 @@ trait Synthesis extends SepLogicUtils {
         // Invoke the rule
         val allChildren = r(goal)
         // Filter out children that contain out-of-order goals
+        
+        // TODO [Commute]: This is a commute optimisation that affects completeness 
         val children = if (config.commute) {
           allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
         } else allChildren
