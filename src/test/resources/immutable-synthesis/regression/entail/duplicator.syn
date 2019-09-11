@@ -2,7 +2,11 @@ should be able to synthesize a duplicator
 
 ###
 
+<<<<<<< HEAD:src/test/resources/immutable-synthesis/entail/duplicator.syn
+{ [x,1] ** x :-> a ** r :-> b }
+=======
 { [x,1] ** [x :-> a]@M ** r :-> b }
+>>>>>>> fd870634f9cf9a3367d29546a13833aa4c6376a3:src/test/resources/immutable-synthesis/regression/entail/duplicator.syn
 void duplicate(loc x, loc r)
 { r :-> z ** z :-> a ** z + 1 :-> a ** [z,2] }
 
