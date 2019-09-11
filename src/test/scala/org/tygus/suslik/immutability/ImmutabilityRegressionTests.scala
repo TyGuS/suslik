@@ -62,7 +62,7 @@ class ImmutabilityRegressionTests extends FunSpec with Matchers with SynthesisRu
   }
   
   describe("tree") {
-    runAllTestsFromDir("../immutable-synthesis/regression/llist")
+    runAllTestsFromDir("../immutable-synthesis/regression/tree")
   }
 
 }
