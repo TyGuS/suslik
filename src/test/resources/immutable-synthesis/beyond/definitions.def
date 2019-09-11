@@ -15,7 +15,13 @@ predicate sll(loc x, int len, set s) {
 |  not (x == 0)  => {  len == 1 + len1 /\ s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** sll(nxt, len1, s1)[0,1,2] }
 }
 
-{ true; (prev + 1) :-> x ** dllseg(x, z, s)[M, M, M, M] }
+predicate bst(loc x, int sz, int lo, int hi) {
+|  x == 0        => { sz == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == 0)  => { sz == 1 + sz1 + sz2  /\  0 <= sz1 /\  0 <= sz2  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi2 <= v ? v : hi2) /\ 0 <= v /\ v <= 7 /\ hi1 <= v /\ v <= lo2 ;
+                      [[x, 3]]@0 ** [x :-> v]@1 ** [(x + 1) :-> l]@2 ** [(x + 2) :-> r]@3 ** bst(l, sz1, lo1, hi1)[0,1,2,3] ** bst(r, sz2, lo2, hi2)[0,1,2,3]  }
+}
+
+{ true; (prev + 1) :-> x ** dllseg(x, z, s)[I@a, I@b, I@c, M] }
 void set_prev(loc x, loc prev)
-{ true; (prev + 1) :-> x ** dllseg(x, prev, s)[M, M, M, M]}
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)[I@a, I@b, I@c, M]}
 

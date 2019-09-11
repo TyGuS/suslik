@@ -2,15 +2,6 @@ should be able to synthesize tree size
 
 #####
 
-
-<<<<<<< HEAD
-{0 <= n ; r :-> 0 ** treeN(x, n) }
-void tree_size(loc x, loc r)
-{true ; r :-> n ** treeN(x, n) }
-
-#####
-
-=======
 {0 <= n ; r :-> 0 ** treeN(x, n)[I@a, I@b, I@c, I@d] }
 void tree_size(loc x, loc r)
 {true ; r :-> n ** treeN(x, n)[I@a, I@b, I@c, I@d] }
@@ -22,7 +13,7 @@ void tree_size(loc x, loc r)
 void tree_size(loc x, loc r)
 {true ; r :-> n ** treeN(x, n)[I@a, I@b, I@c, I@d] }
 
->>>>>>> 6551f85... Changes to tests
+
 void tree_size (loc x, loc r) {
   if (x == 0) {
   } else {
@@ -37,9 +28,6 @@ void tree_size (loc x, loc r) {
     *(x + 2) = l2;
     *r = 1 + n12 + n22;
   }
-<<<<<<< HEAD
-}
-=======
 }
 imm:
 Successfully synthesised in 836 milliseconds:
@@ -62,4 +50,3 @@ Number of saved negative results: 8
 Number of saved positive results: 34
 Number of recalled negative results: 0
 Number of recalled positive results: 0
->>>>>>> 6551f85... Changes to tests
