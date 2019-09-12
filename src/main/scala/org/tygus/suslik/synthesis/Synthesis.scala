@@ -130,7 +130,6 @@ trait Synthesis extends SepLogicUtils {
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
-        val goalStr = s"$r: "
         // Invoke the rule
         val allChildren = r(goal)
         // Filter out children that contain out-of-order goals
@@ -140,13 +139,16 @@ trait Synthesis extends SepLogicUtils {
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules
-          printLog(List((s"${goalStr}FAIL", BLACK)), isFail = true)
+          printLog(List((s"$r FAIL", BLACK)), isFail = true)
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
           //        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
-          val succ = s"SUCCESS, ${children.size} alternative(s): ${children.map(_.consume.pp).mkString(" ")}"
-          printLog(List((s"$goalStr$GREEN$succ", BLACK)))
+          val childFootprints = children.map(c => s"$GREEN{${c.consume.pre.pp}}$MAGENTA{${c.consume.post.pp}}$BLACK")
+          printLog(List((s"$r (${children.size}): ${childFootprints.head}", BLACK)))
+          for {c <- childFootprints.tail}
+            printLog(List((c, BLACK)))(config = config, ind = goal.depth + 1)
+
           stats.bumpUpRuleApps()
           if (config.invert && r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal
