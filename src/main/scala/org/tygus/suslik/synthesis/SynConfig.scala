@@ -15,7 +15,7 @@ case class SynConfig(
                       phased: Boolean           = true,
                       invert: Boolean           = true,
                       fail: Boolean             = true,
-                      commute: Boolean          = true,
+                      commute: Boolean          = false,
                       depthFirst: Boolean       = true,
                       // Timeout and logging
                       printStats: Boolean       = true,

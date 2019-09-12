@@ -1,0 +1,16 @@
+sorted list: prepend an element
+
+#####
+
+{0 <= n  /\ 0 <= k /\ k <= 7 /\ k <= lo ; r :-> a ** srtl(x, n, lo, hi)[I@a,I@b,I@c] }
+void srtl_prepend (loc x, int k, loc r)
+{ r :-> y ** [y,2] ** y :-> k ** (y+1) :-> x ** srtl(x, n, lo, hi)[I@a,I@b,I@c] }
+
+#####
+
+void srtl_prepend (loc x, int k, loc r) {
+  let y2 = malloc(2);
+  *r = y2;
+  *(y2 + 1) = x;
+  *y2 = k;
+}

@@ -258,6 +258,7 @@ case class Block(loc: Expr, sz: Int, mut: MTag = Mut) extends Heaplet {
   */
 case class SApp(pred: Ident, args: Seq[PFormula], tag: Option[Int] = Some(0), mut: MTag = Mut, submut: Option[List[MTag]] = None) extends Heaplet {
 
+  // TODO [Immutability] check if below is correct, the submut is ignored.
   override def equals(o:Any) = o match {
     case SApp(`pred`, `args`, `tag`, `mut`, _submut) => submut match {
       case None => mut == Mut
