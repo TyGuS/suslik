@@ -10,6 +10,7 @@ import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil, de
 class ImmutabilityPaperBenchamarksTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
+  val PATH: String = "../immutable-synthesis/paper-benchmarks/"
 
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
@@ -17,31 +18,63 @@ class ImmutabilityPaperBenchamarksTests extends FunSpec with Matchers with Synth
       synthesizeFromSpec(testName, in, out, params)
     }
 
-//  keep only those categories which are already annotated with imm
+  // ***********************************************************
+  // LL: the predicate definitions includes linked list definition
+  // ***********************************************************
 
-//  describe("bst") {
-//    runAllTestsFromDir("../immutable-synthesis/regression/paper-benchmarks/old/bst")
-//  }
+  describe("bst") {
+    runAllTestsFromDir(PATH + "old/ll/bst")
+  }
 
   describe("ints") {
     // NOTHING iSPECIAL WITH THIS BENCHMARK
-    runAllTestsFromDir("../immutable-synthesis/regression/paper-benchmarks/old/ints")
+    runAllTestsFromDir(PATH + "old/ll/ints")
   }
 
   describe("sll") {
-    runAllTestsFromDir("../immutable-synthesis/regression/paper-benchmarks/old/sll")
+    runAllTestsFromDir(PATH + "old/ll/sll")
   }
 
   describe("sll-bounds") {
-    runAllTestsFromDir("../immutable-synthesis/regression/paper-benchmarks/old/sll-bounds")
+    runAllTestsFromDir(PATH + "old/ll/sll-bounds")
   }
 
   describe("srtl") {
-    runAllTestsFromDir("../immutable-synthesis/regression/paper-benchmarks/old/srtl")
+    runAllTestsFromDir(PATH + "old/ll/srtl")
   }
 
   describe("tree") {
-    runAllTestsFromDir("../immutable-synthesis/regression/paper-benchmarks/old/tree")
+    runAllTestsFromDir(PATH + "old/ll/tree")
+  }
+
+  // ***********************************************************
+  // LSEG: the predicate definitions includes linked list segments
+  // ***********************************************************
+
+
+    describe("bst") {
+      runAllTestsFromDir(PATH + "old/ll/bst")
+    }
+
+  describe("ints") {
+    // NOTHING iSPECIAL WITH THIS BENCHMARK
+    runAllTestsFromDir(PATH + "old/lseg/ints")
+  }
+
+  describe("sll") {
+    runAllTestsFromDir(PATH + "old/lseg/sll")
+  }
+
+  describe("sll-bounds") {
+    runAllTestsFromDir(PATH + "old/lseg/sll-bounds")
+  }
+
+  describe("srtl") {
+    runAllTestsFromDir(PATH + "old/lseg/srtl")
+  }
+
+  describe("tree") {
+    runAllTestsFromDir(PATH + "old/lseg/tree")
   }
 
 }

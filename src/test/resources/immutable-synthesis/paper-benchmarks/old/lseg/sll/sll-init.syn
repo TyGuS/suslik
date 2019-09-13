@@ -1,0 +1,17 @@
+should be able to initialize a linked list
+###
+
+{ true; lseg(x, 0, s)[I@a,M,I@b] }
+  void sll_init(loc x, int v)
+{ s1 <=i {v} ; lseg(x, 0, s1)[I@a,M,I@b] }
+
+###
+
+void sll_init (loc x, int v) {
+  if (x == 0) {
+  } else {
+    let nxt2 = *(x + 1);
+    sll_init(nxt2, v);
+    *x = v;
+  }
+}

@@ -1,0 +1,26 @@
+sorted list: insert an element
+
+#####
+
+{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtl(x, z, n, lo, hi)[M,M,M] }
+void srtl_insert (loc x, loc r)
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, z, n1, lo1, hi1)[M,M,M] }
+
+{ 0 <= n ; r :-> 0 ** lseg(x, z, n, lo, hi)[M,M,M] }
+void insertion_sort_free (loc x, loc z, loc r)
+{ true ; r :-> y ** srtl(y, zz, n, lo, hi)[M,M,M] }
+
+#####
+
+void insertion_sort_free (loc x, loc z, loc r) {
+  if (x == z) {
+  } else {
+    let nxt2 = *(x + 1);
+    insertion_sort_free(nxt2, z, r);
+    let y12 = *r;
+    srtl_insert(y12, x);
+    let y22 = *x;
+    *r = y22;
+    free(x);
+  }
+}

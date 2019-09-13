@@ -10,8 +10,7 @@ import csv
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
 TIMEOUT      = '-t=120000'                                        # Timeout option for suslik
-TEST_DIR     = 'src/test/resources/immutable-synthesis/regression/paper-benchmarks/old/'   # Root directory for the tests
-VARIANTS     = ['phased', 'invert', 'fail', 'commute', 'none']    # Configurations
+TEST_DIR     = 'src/test/resources/immutable-synthesis/paper-benchmarks/old/ll/'   # Root directory for the tests
 #CONFIG       = [('def', '')]                                     # Run with default configuration
 CONFIG       = [('imm', '--imm true'),('mut', '--imm false')]     # Configurations -  add an empty string for default configuration
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
@@ -74,7 +73,6 @@ class SynthesisResult:
     self.time = time                                      # Synthesis time (seconds)
     self.spec_size = spec_size                            # Cumulative specification size (in AST nodes)
     self.code_size = code_size                            # Cumulative synthesized code size (in AST nodes)
-    self.variant_times = {var : -3.0 for var in VARIANTS} # Synthesis times for SuSLik variants:
     self.backtracking = backtracking                      # The number of times the synthesizer backtracked
     self.rules = rules                                    # The number of rules applied by the synthesizer
       
@@ -172,7 +170,6 @@ def store_result(name, time, spec_size, code_size, backtracking, rules, variant 
 def cmdline():
   import argparse
   a = argparse.ArgumentParser()
-  a.add_argument('--unopt', action='store_true')
   a.add_argument('--tiny', action='store_true')
   a.add_argument('--stats',action='store_true')
   return a.parse_args()          
@@ -182,12 +179,7 @@ if __name__ == '__main__':
   
   if os.path.isfile(RESULTS):        
     os.remove(RESULTS)
-    
-  if cl_opts.unopt:
-    variants = VARIANTS
-  else:
-    variants = []
-    
+
   if cl_opts.tiny:
     groups = ALL_BENCHMARKS[0:1]
   else:
@@ -204,5 +196,35 @@ if __name__ == '__main__':
 
   write_stats()
 
-  
+#################
+#  PERFORMANCE  #
+#################
+# BPATH = [("old-ll":   'src/test/resources/immutable-synthesis/paper-benchmarks/old/ll/'),
+#          ("old-lseg": 'src/test/resources/immutable-synthesis/paper-benchmarks/old/lseg/'),
+#          ("robust":   'src/test/resources/immutable-synthesis/paper-benchmarks/old/lseg/'),
+#         ]
+#
+# METACONFIG = [('def', '')]
+#
+# CONFIG = [('imm', '--imm true'),
+#           ('mut', '--imm false')
+#          ]
 
+
+#################
+#  ROBUSTNESS   #
+#################
+# BPATH = [("old-ll":   'src/test/resources/immutable-synthesis/paper-benchmarks/old/ll/'),
+#          ("old-lseg": 'src/test/resources/immutable-synthesis/paper-benchmarks/old/lseg/'),
+#          ("robust":   'src/test/resources/immutable-synthesis/paper-benchmarks/old/lseg/'),
+#         ]
+#
+# METACONFIG = [('imm', '--imm true'),
+#               ('mut', '--imm false')
+#              ]
+#
+# CONFIG = [('comm', '--commute true'),
+#           ('comm', '--commute false'),
+#           ('iprio', '--prioImm true'),
+#           ('iprio', '--prioImm false'),
+#          ]

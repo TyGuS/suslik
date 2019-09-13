@@ -1,0 +1,21 @@
+singly-linked list: min
+
+#####
+
+{true ; ret :-> a ** lseg(x, z, n, lo, hi)[I@a,I@b,I@c] }
+void sll_min (loc x, loc z, loc ret)
+{true ; ret :-> lo ** lseg(x, z, n, lo, hi)[I@a,I@b,I@c] }
+
+#####
+
+void sll_min (loc x, loc z, loc ret) {
+  if (x == z) {
+    *ret = 7;
+  } else {
+    let v2 = *x;
+    let nxt2 = *(x + 1);
+    sll_min(nxt2, z, ret);
+    let lo12 = *ret;
+    *ret = v2 <= lo12 ? v2 : lo12;
+  }
+}

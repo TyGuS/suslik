@@ -1,0 +1,76 @@
+should be able to synthesize a tree copy (with elements)
+
+#####
+
+{true ; tree(x, s)[I@a,I@b,I@c,I@d] ** r :-> x }
+void tree_copy(loc r)
+{true ; r :-> y ** tree(y, s)  ** tree(x, s)[I@a,I@b,I@c,I@d]}
+
+#####
+
+================
+-- imm true
+================
+
+Successfully synthesised in 1529 milliseconds:
+Number of backtrackings 10
+Total rule applications: 89
+Maximum worklist size: 63
+Maximum goal depth: 42
+Final size of SMT cache: 139
+
+void tree_copy (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let l2 = *(x2 + 1);
+    let r12 = *(x2 + 2);
+    *r = l2;
+    tree_copy(r);
+    let y12 = *r;
+    *r = r12;
+    tree_copy(r);
+    let y22 = *r;
+    let y3 = malloc(3);
+    *r = y3;
+    *(y3 + 1) = y12;
+    *(y3 + 2) = y22;
+    *y3 = v2;
+  }
+}
+
+================
+-- imm false
+================
+
+Successfully synthesised in 7838 milliseconds:
+Number of backtrackings 1222
+Total rule applications: 2679
+Maximum worklist size: 89
+Maximum goal depth: 42
+Final size of SMT cache: 173
+
+void tree_copy (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let l2 = *(x2 + 1);
+    let r12 = *(x2 + 2);
+    *r = l2;
+    tree_copy(r);
+    let y12 = *r;
+    *x2 = r12;
+    tree_copy(x2);
+    let y22 = *x2;
+    let y3 = malloc(3);
+    *(x2 + 1) = y12;
+    *(x2 + 2) = y22;
+    *r = y3;
+    *(y3 + 1) = l2;
+    *(y3 + 2) = r12;
+    *y3 = v2;
+    *x2 = v2;
+  }
+}

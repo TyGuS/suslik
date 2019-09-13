@@ -1,0 +1,5 @@
+predicate lseg(loc x, loc y, int len, int lo, int hi) {
+|  x == y        => { len == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y, len1, lo1, hi1)[0,1,2] }
+}
