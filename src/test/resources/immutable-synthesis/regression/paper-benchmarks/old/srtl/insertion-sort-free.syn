@@ -1,14 +1,14 @@
 sorted list: insert an element
-TODO Immutability free(x) should not be allows with I@a
+
 #####
 
-{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtl(x, n, lo, hi)[I@a,I@b,M] }
+{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtl(x, n, lo, hi)[M,M,M] }
 void srtl_insert (loc x, loc r)
-{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1)[I@a,I@b,M] }
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1)[M,M,M] }
 
-{ 0 <= n ; r :-> 0 ** sll(x, n, lo, hi)[I@a,I@b,M] }
+{ 0 <= n ; r :-> 0 ** sll(x, n, lo, hi)[M,M,M] }
 void insertion_sort_free (loc x, loc r)
-{ true ; r :-> y ** srtl(y, n, lo, hi)[I@a,I@b,M] }
+{ true ; r :-> y ** srtl(y, n, lo, hi)[M,M,M] }
 
 #####
 

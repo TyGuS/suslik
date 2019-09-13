@@ -1,11 +1,13 @@
 should be able to synthesize tree size
 
+Immutability: tree length has spurious writes when commute is enabled and imm is disabled (--commute true, --imm false)
+when commute is disabled, the code has no spurious writes w & w/o imm
 #####
 
 
-{0 <= n ; r :-> 0 ** treeN(x, n) }
+{0 <= n ; r :-> 0 ** treeN(x, n)[I@a,I@b,I@c,I@d] }
 void tree_size(loc x, loc r)
-{true ; r :-> n ** treeN(x, n) }
+{true ; r :-> n ** treeN(x, n)[I@a,I@b,I@c,I@d] }
 
 #####
 

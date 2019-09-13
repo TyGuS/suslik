@@ -1,10 +1,12 @@
 should be able to flatten the tree into a list given an auxiliary function for list appending
 
+TODO Immutability: to check why this loops with imm
+
 ####
 
-{true ; sll(x1, s1) ** sll(x2, s2) ** ret :-> x2}
+{true ; sll(x1, s1)[I@a,I@b,M] ** sll(x2, s2)[I@a,I@b,M] ** ret :-> x2}
 void sll_append (loc x1, loc ret)
-{s =i s1 ++ s2 ; sll(y, s) ** ret :-> y }
+{s =i s1 ++ s2 ; sll(y, s)[I@a,I@b,M] ** ret :-> y }
 
 { true ; z :-> x ** tree(x, s)}
 void tree_flatten(loc z)

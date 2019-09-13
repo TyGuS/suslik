@@ -1,11 +1,19 @@
 #. -b true
 singly-linked list: delete all occurrences of x
 
+TODO Immutability: should free be allowed when the block is @M but the corresponding points-to is @I?
+If the answer to the above is YES, the the synthesis with this spec should go through (notice the I@a)
+
+{true ; sll(x, s)[M,I@a,M] ** ret :-> a}
+void sll_delete_all (loc x, loc ret)
+{s1 =i s -- {a} ; sll(y, s1)[M,I@a,M] ** ret :-> y }
+
+
 #####
 
-{true ; sll(x, s) ** ret :-> a}
+{true ; sll(x, s)[M,M,M] ** ret :-> a}
 void sll_delete_all (loc x, loc ret)
-{s1 =i s -- {a} ; sll(y, s1) ** ret :-> y }
+{s1 =i s -- {a} ; sll(y, s1)[M,M,M] ** ret :-> y }
 
 #####
 

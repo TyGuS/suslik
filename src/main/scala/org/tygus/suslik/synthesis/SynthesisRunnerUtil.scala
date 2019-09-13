@@ -104,8 +104,8 @@ trait SynthesisRunnerUtil {
           println(result)
         }
         if (out != "nope") {
-          val tt = out.trim.lines.toList
-          val res = result.trim.lines.toList
+          val tt = out.trim.linesIterator.toList
+          val res = result.trim.linesIterator.toList
           if (params.assertSuccess && res != tt) {
             throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
           }

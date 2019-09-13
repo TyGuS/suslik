@@ -2,9 +2,9 @@ should be able to synthesize a tree copy (with elements)
 
 #####
 
-{true ; tree(x, s) ** r :-> x }
+{true ; tree(x, s)[I@a,I@b,I@c,I@d] ** r :-> x }
 void tree_copy(loc r)
-{true ; r :-> y ** tree(y, s)  ** tree(x, s)}
+{true ; r :-> y ** tree(y, s)  ** tree(x, s)[I@a,I@b,I@c,I@d]}
 
 #####
 

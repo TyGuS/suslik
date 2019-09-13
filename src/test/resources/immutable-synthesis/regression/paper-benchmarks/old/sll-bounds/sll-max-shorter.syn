@@ -1,17 +1,18 @@
 singly-linked list: max
+This is a slightly more concise version of the sll-max.syn (no size property)
 
 #####
 
-predicate sll(loc x, int len, int lo, int hi) {
-|  x == 0        => { len == 0  /\  lo == 7  /\  hi == 0 ; emp }
-|  not (x == 0)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
-                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** sll(nxt, len1, lo1, hi1)[0,1,2] }
+predicate sll(loc x, int lo, int hi) {
+|  x == 0        => { lo == 7  /\  hi == 0 ; emp }
+|  not (x == 0)  => { lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** sll(nxt, lo1, hi1)[0,1,2] }
 }
 
 
-{true ; ret :-> a ** sll(x, n, lo, hi)[I@a,I@b,I@c] }
+{true ; ret :-> a ** sll(x, lo, hi)[I@a,I@b,I@c] }
 void sll_max (loc x, loc ret)
-{true ; ret :-> hi ** sll(x, n, lo, hi)[I@a,I@b,I@c] }
+{true ; ret :-> hi ** sll(x, lo, hi)[I@a,I@b,I@c] }
 
 #####
 
