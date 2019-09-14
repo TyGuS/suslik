@@ -1,0 +1,37 @@
+should be able to synthesize tree size
+
+TODO Immutability: tree length has spurious writes when commute is enabled and imm is disabled (--commute true, --imm false)
+when commute is disabled, the code has no spurious writes w & w/o imm
+
+[Candidate for ROBUST SYNTHESIS]
+#####
+
+
+{0 <= n ; r :-> x ** treeN(x, n)[I@a,I@b,I@c,I@d] }
+void tree_size(loc r)
+{true ; r :-> n ** treeN(x, n)[I@a,I@b,I@c,I@d] }
+
+#####
+
+Successfully synthesised in 1469 milliseconds:
+Number of backtrackings 2
+Total rule applications: 52
+Maximum worklist size: 21
+Maximum goal depth: 30
+Final size of SMT cache: 178
+
+void tree_size (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let l2 = *(x2 + 1);
+    let r12 = *(x2 + 2);
+    *r = l2;
+    tree_size(r);
+    let n12 = *r;
+    *r = r12;
+    tree_size(r);
+    let n22 = *r;
+    *r = 1 + n12 + n22;
+  }
+}

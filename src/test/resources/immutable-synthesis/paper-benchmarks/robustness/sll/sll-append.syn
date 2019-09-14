@@ -1,0 +1,20 @@
+singly-linked list: append
+
+#####
+
+{true ; lseg(x1, 0, s1)[I@a,I@b,M] ** lseg(x2, 0, s2)[I@a,I@b,M] ** ret :-> x2}
+void sll_append (loc x1, loc z1, loc ret)
+{s =i s1 ++ s2 ; lseg(y, 0, s)[I@a,I@b,M] ** ret :-> y }
+
+#####
+
+void sll_append (loc x1, loc z1, loc ret) {
+  if (x1 == z1) {
+  } else {
+    let nxt2 = *(x1 + 1);
+    sll_append(nxt2, z1, ret);
+    let y12 = *ret;
+    *(x1 + 1) = y12;
+    *ret = x1;
+  }
+}

@@ -6,13 +6,13 @@ void insertion_sort (loc x, loc r)
 
 #####
 
-{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtl(x, zzz, n, lo, hi)[I@a,M,I@b] }
+{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtlN(x, zzz, n, lo, hi)[I@a,M,I@b] }
 void srtl_insert (loc x, loc r)
-{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, zzz, n1, lo1, hi1)[I@a,M,I@b] }
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtlN(y, zzz, n1, lo1, hi1)[I@a,M,I@b] }
 
-{ 0 <= n ; r :-> 0 ** lseg (x, z, n, lo, hi)[I@a,M,I@b] }
+{ 0 <= n ; r :-> 0 ** lsegN(x, z, n, lo, hi)[I@a,M,I@b] }
 void insertion_sort (loc x, loc z, loc r)
-{ true ; r :-> y ** lseg(x, z, n, lo, hi)[I@a,M,I@b] ** srtl(y, zz, n, lo, hi)[I@a,M,I@b]  }
+{ true ; r :-> y ** lsegN(x, z, n, lo, hi)[I@a,M,I@b] ** srtlN(y, zz, n, lo, hi)[I@a,M,I@b]  }
 
 #####
 

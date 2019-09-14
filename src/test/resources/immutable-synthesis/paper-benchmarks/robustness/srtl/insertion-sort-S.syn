@@ -1,0 +1,27 @@
+sorted list: insert an element
+
+#####
+
+{ 0 <= k /\ k <= 7 ; r :-> k ** srtlS(x, zzz, s, lo, hi)[I@a,M,I@b] }
+void srtl_insert (loc x, loc r)
+{s1 =i s ++ {k} /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtlS(y, zzz, s1, lo1, hi1)[I@a,M,I@b] }
+
+{ r :-> 0 ** lsegS(x, z, s, lo, hi)[I@a,M,I@b] }
+void insertion_sort (loc x, loc z, loc r)
+{ true ; r :-> y ** lsegS(x, z, s, lo, hi)[I@a,M,I@b] ** srtlS(y, zz, s, lo, hi)[I@a,M,I@b]  }
+
+#####
+
+void insertion_sort (loc x, loc z, loc r) {
+  if (x == z) {
+  } else {
+    let nxt2 = *(x + 1);
+    let v2 = *x;
+    insertion_sort(nxt2, z, r);
+    let y12 = *r;
+    srtl_insert(y12, x);
+    let y22 = *x;
+    *r = y22;
+    *x = v2;
+  }
+}

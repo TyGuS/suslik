@@ -1,0 +1,30 @@
+should be able to synthesize tree size
+
+TODO Immutability: tree length has spurious writes when commute is enabled and imm is disabled (--commute true, --imm false)
+when commute is disabled, the code has no spurious writes w & w/o imm
+
+[Candidate for ROBUST SYNTHESIS]
+#####
+
+
+{0 <= n ; r :-> 0 ** treeNS(x, n, s)[I@a,I@b,I@c,I@d] }
+void tree_size(loc x, loc r)
+{true ; r :-> n ** treeNS(x, n, s)[I@a,I@b,I@c,I@d] }
+
+#####
+
+void tree_size (loc x, loc r) {
+  if (x == 0) {
+  } else {
+    let l2 = *(x + 1);
+    let r12 = *(x + 2);
+    tree_size(l2, r);
+    let n12 = *r;
+    *x = 0;
+    tree_size(r12, x);
+    let n22 = *x;
+    *(x + 1) = r12;
+    *(x + 2) = l2;
+    *r = 1 + n12 + n22;
+  }
+}

@@ -2,7 +2,7 @@ should be able to synthesize a tree copy (with elements)
 
 #####
 
-{true ; treeN(x, n)[I@a,I@b,I@c,I@d] ** r :-> x }
+{true ; r :-> x ** treeN(x, n)[I@a,I@b,I@c,I@d]  }
 void tree_copy(loc r)
 {true ; r :-> y ** treeN(y, n)  ** treeN(x, n)[I@a,I@b,I@c,I@d]}
 
