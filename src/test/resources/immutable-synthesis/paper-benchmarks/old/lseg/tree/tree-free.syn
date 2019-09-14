@@ -1,7 +1,7 @@
 should be able to deallocate a tree
 ###
 
-{true; tree(x, s)}
+{true; tree(x)}
   void tree_free(loc x)
 {true ; emp }
 

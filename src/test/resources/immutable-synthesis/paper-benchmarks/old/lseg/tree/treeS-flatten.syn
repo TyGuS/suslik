@@ -8,7 +8,7 @@ TODO Immutability: to check why this loops with imm
 void sll_append (loc x1, loc ret)
 {s =i s1 ++ s2 ; lseg(y, 0, s)[I@a,I@b,M] ** ret :-> y }
 
-{ true ; z :-> x ** tree(x, s)}
+{ true ; z :-> x ** treeS(x, s)}
 void tree_flatten(loc z)
 { true ;  z :-> y ** lseg(y, 0, s)}
 

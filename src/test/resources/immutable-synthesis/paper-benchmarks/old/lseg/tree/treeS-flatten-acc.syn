@@ -2,7 +2,7 @@ should be able to flatten the tree into a list given a list accumulator
 
 ####
 
-{ true ; tree(x, s)[M,M,M,M] ** z :-> y ** lseg(y, 0, acc)[M,M,M]}
+{ true ; treeS(x, s)[M,M,M,M] ** z :-> y ** lseg(y, 0, acc)[M,M,M]}
 void tree_flatten(loc x, loc z)
 { s1 =i s ++ acc;  z :-> t ** lseg(t, 0, s1)[M,M,M]}
 
