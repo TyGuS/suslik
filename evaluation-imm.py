@@ -34,8 +34,8 @@ RESULTS1     = 'evaluation-utils/all_results1'                     # Output file
 PATH2        = "robustness/"
 METACONFIG2  = [ ('imm', '--imm true'), ('mut', '--imm false') ]
 CONFIG2      = [ ('commute', '--commute true'), ('no-commute', '--commute false'), ('prioImm', '--prioImm true')  ]
-STATS2       = 'evaluation-utils/all_stats1.csv'                   # Output file with all the stats
-RESULTS2     = 'evaluation-utils/all_results1'                     # Output file with synthesis results
+STATS2       = 'evaluation-utils/all_stats2.csv'                   # Output file with all the stats
+RESULTS2     = 'evaluation-utils/all_results2'                     # Output file with synthesis results
 
 
 
@@ -68,11 +68,12 @@ class Benchmark:
   def __str__(self):
     return self.name + ': ' + self.description + ' with results: ' + self.res
 
-  def run_benchmark(self, file, args, result_file):
+  def run_benchmark(self, file, args, results_file):
     '''Runs single benchmark/file'''
-    fargs = filter(None, args)
-    with open(result_file, "a") as outfile:
-      print 'Running ' + file + ' ' + (' '.join(fargs))
+    self.res = None
+    fargs = list(filter(None, args))
+    with open(results_file, "at") as outfile:
+      print ('Running ' + file + ' ' + (' '.join(fargs)))
       call([JAVA8, '-jar', SUSLIK_JAR, file, TIMEOUT] + fargs, stdout=outfile)
       self.res = read_csv()
       return self.res # returns a SynthesisResult object
@@ -85,23 +86,23 @@ class BenchmarkGroup:
   def __init__(self, name, benchmarks):
     self.name       = name          # Id
     self.benchmarks = benchmarks    # List of benchmarks in this group
-    self.res        = dict()        # string -> (SynthesisResult object): maps the name of each benchmark to
-                                    # the result of running the respective benchmark
-
 
   def __str__(self):
-    return self.name + ': ' + self.res
+    return self.name + ': ' +  ('\n'.join([self.res[b.name] for b in self.benchmarks]))
 
-  def run_group(self, result_file, args = []):
+  # returns a dict of type string -> (SynthesisResult object) which maps
+  # the name of each benchmark to the result of running the respective benchmark
+  def run_group(self, results_file, args = []):
     '''Runs all the benchmarks in one group'''
+    res = dict()
     for b in self.benchmarks:
       test = TEST_DIR + b.name
       testFileName = test + '.syn'
       if not os.path.isfile(testFileName):
-        print "Test file not found:", testFileName
+        print ("Test file not found:", testFileName)
       else:
-        self.res[b.name] = b.run_benchmark(testFileName, args, result_file)
-    return self.res
+        res[b.name] = b.run_benchmark(testFileName, args, results_file)
+    return res
 
 
 ###################################################################
@@ -112,18 +113,17 @@ class Config:
     self.name    = conf[0]              # Config ID
     self.args    = conf[1].split(' ')   # Config arguments
     self.groups  = groups               # Benchmarks Groups
-    self.res     = dict()               # string -> (string-> (BenchmarkGroup object)): maps the name of each benchmark
+    self.res     = dict()               # string -> (string-> (SynthesisResult object)): maps the name of each benchmark
                                         # group to the result of running the benchmarks in the respective group
 
   def __str__(self):
-    return self.name + ': ' + self.res
+    return self.name + ': ' +  ('\n'.join([self.res[group.name] for group in self.groups]))
 
   def run_config(self, meta_args, results_file = RESULTS):
     '''Runs all the groups with one configuration'''
-    print '>>>', self.name
+    print ('>>>', self.name)
     for group in self.groups:
       self.res[group.name] = group.run_group(results_file, meta_args + self.args) # a map from filename to result
-    print 'len of res: ', len(self.res)
     return self.res  # a map from groups to result
 
 
@@ -135,23 +135,34 @@ class MetaConfig:
     self.name    = metaconf[0]              # MetaConfig ID
     self.args    = metaconf[1].split(' ')   # MetaConfig arguments
     self.configs = configs                  # All the configs which are benchmarked
-    self.res     = dict()                   # string -> (string -> (string-> (BenchmarkGroup object)))
+    self.res     = dict()                   # string -> (string -> (string-> (SynthesisResult object)))
                                             # maps the name of the metaconfig to the result of running the other configs
 
   def __str__(self):
-    return self.name + ': ' + self.res
+    return self.name + ': ' + ('\n'.join([self.res[conf[0]] for conf in self.configs]))
 
   def run_metaconfig(self, groups, results_file = RESULTS):
     '''Runs all the configs assuming the current meta-configuration'''
-    print '***********'
-    print '***********'
-    print '**', self.name
-    print '***********'
-    print '***********'
+    print ('***********')
+    print ('**', self.name)
+    print ('***********')
     for conf in self.configs:
       cnf = Config(groups, conf)
-      self.res[cnf.name] = cnf.run_config(self.args, results_file)
+      res_conf  = cnf.run_config(self.args, results_file)
+      self.res[conf[0]] = res_conf
     return self.res  # a dictionary from group to result of running the whole group
+
+
+###################################################################
+
+
+def evaluate(metaconfigs, configs, groups, results_file):
+  '''Test all the configurations defined in METACONFIG + CONFIG '''
+  results = dict()
+  for metaconf in metaconfigs:
+      cnf = MetaConfig(configs, metaconf)
+      results[metaconf[0]] = cnf.run_metaconfig(groups, results_file)
+  return results
 
 
 ###################################################################
@@ -179,7 +190,7 @@ ALL_BENCHMARKS = [
     Benchmark(PATH1 + 'srtl/insertion-sort-S', 'insertion sort (val)'),
     Benchmark(PATH1 + 'srtl/insertion-sort-NS', 'insertion sort (len,val)'),
     ]),
-  BenchmarkGroup("Tree", [
+   BenchmarkGroup("Tree", [
     Benchmark(PATH1 + 'tree/tree-size-N', 'size (len)'),
     Benchmark(PATH1 + 'tree/tree-size-NS', 'size (len,val)'),
     Benchmark(PATH1 + 'tree/tree-size-N-unique-ptr', 'size ptr (len)'),
@@ -194,7 +205,7 @@ ALL_BENCHMARKS = [
     Benchmark(PATH1 + 'tree/tree-copy-NS-unique-ptr', 'copy ptr (len,val)'),
     Benchmark(PATH1 + 'tree/tree-flatten-S', 'flatten w/append'),
     Benchmark(PATH1 + 'tree/tree-flatten-acc-S', 'flatten w/acc'),
-    ]),
+     ]),
   BenchmarkGroup("BST", [
     Benchmark(PATH1 + 'bst/bst-insert', 'insert'),
     Benchmark(PATH1 + 'bst/bst-left-rotate', 'rotate left'),
@@ -225,7 +236,7 @@ ROBUSTNESS = [
      Benchmark(PATH2 + 'srtl/insertion-sort-S', 'insertion sort (val)'),
      Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'insertion sort (len,val)'),
      ]),
-   BenchmarkGroup("Tree", [
+    BenchmarkGroup("Tree", [
      Benchmark(PATH2 + 'tree/tree-size-N', 'size (len)'),
      Benchmark(PATH2 + 'tree/tree-size-NS', 'size (len,val)'),
      Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'size ptr (len)'),
@@ -240,7 +251,7 @@ ROBUSTNESS = [
      Benchmark(PATH2 + 'tree/tree-copy-NS-unique-ptr', 'copy ptr (len,val)'),
      Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten w/append'),
      Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten w/acc'),
-     ]),
+      ]),
    BenchmarkGroup("BST", [
      Benchmark(PATH2 + 'bst/bst-insert', 'insert'),
      Benchmark(PATH2 + 'bst/bst-left-rotate', 'rotate left'),
@@ -248,18 +259,9 @@ ROBUSTNESS = [
      ]),
   ]
 
-def evaluate(metaconfigs, configs, groups, result_file):
-  '''Test all the configurations defined in METACONFIG + CONFIG '''
-  results = dict()
-  for conf in metaconfigs:
-      cnf = MetaConfig(configs, conf)
-      results[conf[0]] = cnf.run_metaconfig(groups, result_file)
-  return results
-
-
 def read_csv():
   '''Read stats file into the results dictionary'''
-  with open(CSV_IN, 'rb') as csvfile:
+  with open(CSV_IN, 'rt') as csvfile:
     d = csv.excel
     d.skipinitialspace = True
     statsReader = csv.DictReader(csvfile, dialect = d)
@@ -287,9 +289,13 @@ def format_time(t):
     return '{0:0.1f}'.format(t)
 
 
+  #################
+  #  PERFORMANCE  #
+  #################
+
 def write_stats1(metaconfigs, configs, groups, results,stats_file):
   '''Write stats from dictionary into a file'''
-  with open(stats_file, 'w') as stats:
+  with open(stats_file, 'wt') as stats:
     headings = ['Code','Spec','Time','Backtrackings','Rules']     #configuration dependent headings
     new_headings = dict()
     for header in headings:
@@ -309,18 +315,17 @@ def write_stats1(metaconfigs, configs, groups, results,stats_file):
                     ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
                     ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].rules for conf in configs])) + \
                     '\n'
-                print row
+                print (row + "   ")
                 stats.write(row)
 
+  #################
+  #  ROBUSTNESS   #
+  #################
 
 def write_stats2(metaconfigs, configs, groups, results,stats_file):
   '''Write stats from dictionary into a file'''
-  with open(stats_file, 'w') as stats:
-    headings = ['Code','Spec','Time','Backtrackings','Rules']     #configuration dependent headings
-    new_headings = dict()
-    for header in headings:
-       new_headings[header] = {c[0]: (header + '(' + c[0] + ')') for c in configs}  # creates a header for each conf
-    complete_headings = 'Group, Name,' + ( ','.join([ (",".join([new_headings[header][c[0]] for c in configs])) for header in headings] ))
+  with open(stats_file, 'wt') as stats:
+    complete_headings = 'Group, Name, Meta Config, Assesed Property, ' + ( ','.join([ (",".join([c[0] for c in configs])) for header in headings] ))
     stats.write(complete_headings + '\n')
 
     for group in groups:
@@ -330,40 +335,44 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
             row1 = \
                 group.name +\
                 ',' + b.name +\
+                ',' + meta[0] +\
                 ',' + 'AST size' +\
                 ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].code_size for conf in configs])) + \
                 '\n'
-            print row1
+            print (row1)
             stats.write(row1)
         # Spurious writes (for now needs to be manually added)
         for meta in metaconfigs:
             row2 = \
                 group.name +\
                 ',' + b.name +\
+                ',' + meta[0] +\
                 ',' + 'Spurious writes' +\
                 ',' + (','.join(['' for conf in configs])) + \
                 '\n'
-            print row2
+            print (row2)
             stats.write(row2)
         # the number of backtracking
         for meta in metaconfigs:
             row3 = \
                 group.name +\
                 ',' + b.name +\
+                ',' + meta[0] +\
                 ',' + '#backtrackings' +\
                 ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
                 '\n'
-            print row3
+            print (row3)
             stats.write(row3)
         # the number of rules fired
         for meta in metaconfigs:
             row4 = \
                 group.name +\
                 ',' + b.name +\
+                ',' + meta[0] +\
                 ',' + '#rules' +\
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
+                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].rules for conf in configs])) + \
                 '\n'
-            print row4
+            print (row4)
             stats.write(row4)
 
 
@@ -389,8 +398,9 @@ if __name__ == '__main__':
   if os.path.isfile(RESULTS1):
     os.remove(RESULTS1)
 
-  results = evaluate(METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1)
-  write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results, STATS1)
+  if not(cl_opts.performance):
+      results1 = evaluate(METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1)
+      write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results1, STATS1)
 
   #################
   #  ROBUSTNESS   #
@@ -399,7 +409,8 @@ if __name__ == '__main__':
   if os.path.isfile(RESULTS2):
     os.remove(RESULTS2)
 
-  results = evaluate(METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2)
-  write_stats2(METACONFIG2, CONFIG2, ROBUSTNESS, results, STATS2)
+  if not(cl_opts.robustness):
+      results2 = evaluate(METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2)
+      write_stats2(METACONFIG2, CONFIG2, ROBUSTNESS, results2, STATS2)
 
 

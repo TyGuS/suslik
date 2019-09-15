@@ -68,7 +68,8 @@ object MTag {
 
   def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]],
                  immTagCompare: (MTag, MTag) => Boolean = MTag.pre) : Boolean = (s1, s2) match {
-    case (Some(a), Some(b)) => a.zip(b).forall{ case (x: MTag, y: MTag) => immTagCompare(x,y)}
+    case (Some(a), Some(b)) => val zz = a.zip(b).forall{ case (x: MTag, y: MTag) => immTagCompare(x,y)}
+                               zz
     case (None, None) => true
     case _ => false
   }
