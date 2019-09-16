@@ -98,8 +98,8 @@ object SpatialUnification extends UnificationBase {
               case (Some(mut1), Some(mut2)) =>
                 val mutZip: List[(MTag, MTag)] = mut1.zip(mut2)
                 // TODO [Immutability - Andreea]
-                if (mut1.forall { case a => !MTag.isMutable(a) } || mut2.forall { case a => !MTag.isMutable(a) }) None
-//                if (mut1.forall { case a => MTag.isMutable(a) } && mut2.forall { case a => MTag.isMutable(a) }) None
+                //if (mut1.forall { case a => !MTag.isMutable(a) } || mut2.forall { case a => !MTag.isMutable(a) }) None
+                if (mut1.forall { case a => MTag.isMutable(a) } && mut2.forall { case a => MTag.isMutable(a) }) None
                 else {   mutZip.foldLeft(Some(Substitution()): Option[Substitution]) {
                       case (opt, (hmut, hmut2)) => opt match {
                         case None => None

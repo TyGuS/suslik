@@ -9,3 +9,13 @@ predicate srtl(loc x, loc y, int len, int lo, int hi) {
 |  not (x == y)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ v <= lo1 /\ 0 <= v /\ v <= 7 ;
                       [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** srtl(nxt, y, len1, lo1, hi1)[0,1,2] }
 }
+
+predicate lsegS(loc x, loc y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lsegS(nxt, y, s1)[0,1,2] }
+}
+
+predicate lseg0(loc x, loc y) {
+|  x == y        => { emp }
+|  not (x == y)  => { [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lseg0(nxt, y)[0,1,2] }
+}
