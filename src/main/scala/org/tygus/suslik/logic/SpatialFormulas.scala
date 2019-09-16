@@ -100,6 +100,11 @@ object MTag {
 
   def isVariable(tag: MTag): Boolean = tag.isInstanceOf[ImmVar]
 
+  def getVariable(tag: MTag): List[Var] = tag match  {
+    case ImmVar(v) => List(v)
+    case  _ => List.empty
+  }
+
 }
 
 /**
@@ -120,13 +125,27 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
+
+    /* TODO [Immutability - Andreea] treat imm vars just like any other vars to avoid substitution corner cases through the code*/
+    def icollector(mut: MTag): Set[R] = {
+      val imm_vars = MTag.getVariable(mut)
+      val acc2 = imm_vars.foldLeft(Set.empty: Set[R])((acc: Set[R],v) => if(p(v)) acc + v.asInstanceOf[R] else acc)
+      acc2
+    }
+
     def collector(acc: Set[R])(h: Heaplet): Set[R] = h match {
-      case PointsTo(v, offset, value, _) =>
+      case PointsTo(v, offset, value, mut) =>
         val acc1 = if (p(v)) acc + v.asInstanceOf[R] else acc
-        acc1 ++ value.collect(p)
-      case Block(v, sz, _) =>
-        if (p(v)) acc + v.asInstanceOf[R] else acc
-      case SApp(_, args, _, _, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
+        val acc2 = icollector(mut)
+        acc1 ++ acc2 ++ value.collect(p)
+      case Block(v, sz, mut) =>
+        val acc1 = if (p(v)) acc + v.asInstanceOf[R] else acc
+        val acc2 = icollector(mut)
+        acc1 ++ acc2
+      case SApp(_, args, _, _, gmut) =>
+        val gmut0 = gmut.getOrElse(List.empty)
+        val acc1  = gmut0.foldLeft(Set.empty: Set[R])((acc: Set[R],mut:MTag) => icollector(mut) ++ acc)
+        acc1 ++ args.foldLeft(acc)((a, e) => a ++ e.collect(p))
     }
 
     collector(Set.empty)(this)

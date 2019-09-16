@@ -106,7 +106,7 @@ trait SepLogicUtils extends PureLogicUtils {
       case SApp(pred, args, tag, mut, submut) => stuff.filter {
         case SApp(_pred, _args, _tag, _mut, _submut) =>
           _pred == pred && args.length == _args.length &&
-            mut == _mut && MTag.checkLists(submut, _submut) // TODO [Immutability]
+            mut == _mut && MTag.checkLists(_submut, submut) // TODO [Immutability - Andreea]  these should be reversed since _submut comes from f's pre
         case _ => false
       }
     }

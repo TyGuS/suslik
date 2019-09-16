@@ -80,37 +80,41 @@ object SpatialUnification extends UnificationBase {
           val pairs = es1.zip(es2)
 
           // Collect the mapping from the predicate parameters
-          (pairs.foldLeft(Some(Substitution()): Option[Substitution]) {
-            case (opt, (x1, x2)) => opt match {
-              case None => None
-              case Some(acc) =>
-                genSubst(x1, x2, nonFreeInSource) match {
-                  case Some(sbst) =>
-                    assertNoConflict(acc, sbst)
-                    Some(acc ++ sbst)
-                  case None => None
-                }
+          val sub_param =
+            pairs.foldLeft(Some(Substitution()): Option[Substitution]) {
+              case (opt, (x1, x2)) => opt match {
+                case None => None
+                case Some(acc) =>
+                  genSubst(x1, x2, nonFreeInSource) match {
+                    case Some(sbst) =>
+                      assertNoConflict(acc, sbst)
+                      Some(acc ++ sbst)
+                    case None => None
+                  }
+              }
             }
-          }
-            ++
+          val sub_mut =
             ((sm1, sm2) match {
               case (Some(mut1), Some(mut2)) =>
                 val mutZip: List[(MTag, MTag)] = mut1.zip(mut2)
+                // TODO [Immutability - Andreea]
                 if (mut1.forall { case a => !MTag.isMutable(a) } || mut2.forall { case a => !MTag.isMutable(a) }) None
-                mutZip.foldLeft(Some(Substitution()): Option[Substitution]) {
-                  case (opt, (hmut, hmut2)) => opt match {
-                    case None => None
-                    case Some(acc) =>
-                      genSubstMut(hmut, hmut2, nonFreeInSource) match {
-                        case Some(sbst) =>
-                          assertNoConflict(acc, sbst)
-                          Some(acc ++ sbst)
+//                if (mut1.forall { case a => MTag.isMutable(a) } && mut2.forall { case a => MTag.isMutable(a) }) None
+                else {   mutZip.foldLeft(Some(Substitution()): Option[Substitution]) {
+                      case (opt, (hmut, hmut2)) => opt match {
                         case None => None
+                        case Some(acc) =>
+                          genSubstMut(hmut, hmut2, nonFreeInSource) match {
+                            case Some(sbst) =>
+                              assertNoConflict(acc, sbst)
+                              Some(acc ++ sbst)
+                            case None => None  //Some (acc) // TODO [Immutability - Andreea] - this resets what has been collected in the acc
+                          }
                       }
-                  }
-                }
+                    }}
               case (_, _) => None
-            })).toList
+            })
+          (sub_param ++ sub_mut).toList
         }
       case _ => Nil
     }

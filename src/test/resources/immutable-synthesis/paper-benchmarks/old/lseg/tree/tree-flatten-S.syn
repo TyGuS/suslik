@@ -4,13 +4,13 @@ TODO Immutability: to check why this loops with imm
 
 ####
 
-{true ; lseg(x1, 0, s1)[I@a,I@b,M] ** lseg(x2, 0, s2)[I@a,I@b,M] ** ret :-> x2}
-void sll_append (loc x1, loc ret)
-{s =i s1 ++ s2 ; lseg(y, 0, s)[I@a,I@b,M] ** ret :-> y }
+{true ; lseg(xx1, 0, ss1)[I@a,I@b,M] ** lseg(xx2, 0, ss2)[I@a,I@b,M] ** ret :-> xx2}
+void sll_append (loc xx1, loc ret)
+{ss =i ss1 ++ ss2 ; lseg(yy, 0, ss)[I@a,I@b,M] ** ret :-> yy }
 
-{ true ; z :-> x ** treeS(x, s)}
+{ true ; z :-> x ** treeS(x, s)[M,M,M,M]}
 void tree_flatten(loc z)
-{ true ;  z :-> y ** lseg(y, 0, s)}
+{ true ;  z :-> y ** lseg(y, 0, s)[M,M,M]}
 
 ####
 
