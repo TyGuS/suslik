@@ -2,17 +2,15 @@
 
 #####
 
-{ lsegS(xx, yy, s2)[I@a,I@b,M] ** ret :-> xx}
-void sll_weaken (loc ret, loc yy)
-{ lseg0(xx, yy)[I@a,I@b,M] ** ret :-> xx }
-
-{true ; lseg0(xx1, zz1)[M,M,M] ** lseg0(xx2, 0)[M,M,M] ** ret :-> xx2}
-void sll_append (loc xx1, loc zz1, loc ret)
-{ lseg0(xx2, zz1)[M,M,M] ** ret :-> xx2 }
+{ lsegS(x2, 0, s2)[I@a,I@b,M] ** ret :-> x2}
+void sll_weaken (loc ret)
+{ lseg0(x2, 0)[I@a,I@b,M] ** ret :-> x2 }
 
 {true ; lsegS(x1, z1, s1)[M,M,M] ** lsegS(x2, 0, s2)[M,M,M] ** ret :-> x2}
 void sll_append (loc x1, loc z1, loc ret)
-{ lseg0(x2, z1)[M,M,M] ** ret :-> x2 }
+{ lseg0(y, 0)[M,M,M] ** ret :-> y }
+
+
 
 
 #####

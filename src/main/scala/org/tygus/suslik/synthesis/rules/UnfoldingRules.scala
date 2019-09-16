@@ -146,6 +146,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def mkCallGoal(f: FunSpec, sub: Substitution, callSubPre: Assertion, goal: Goal): List[Goal] = {
       val preFootprint = callSubPre.sigma.chunks.map(p => goal.hist.preIndex.lastIndexOf(p)).toSet
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.hist)
+      // TODO [Immutability Andreea] imm subs are lost by the time it hits this point
       val callPost = f.post.subst(sub)
 
       /* added starts */

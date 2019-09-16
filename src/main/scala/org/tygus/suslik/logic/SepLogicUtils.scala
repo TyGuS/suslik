@@ -72,7 +72,7 @@ trait SepLogicUtils extends PureLogicUtils {
     val pairTags = for {
       SApp(name, args, t, _, _) <- adaptedFunPre.chunks
       SApp(_name, _args, _t, _, _) <- goalSubHeap.chunks.find {
-        case SApp(_name, _args, _, _, _) => _name == name && _args == args
+        case SApp(_name, _args, _, _, _) => _name == name && _args == args  //TODO Immutability: should imm comparison be performed too?
         case _ => false
       }
     } yield (t, _t)

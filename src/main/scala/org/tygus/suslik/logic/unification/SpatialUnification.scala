@@ -108,7 +108,7 @@ object SpatialUnification extends UnificationBase {
                             case Some(sbst) =>
                               assertNoConflict(acc, sbst)
                               Some(acc ++ sbst)
-                            case None => None  //Some (acc) // TODO [Immutability - Andreea] - this resets what has been collected in the acc
+                            case None => Some (acc) // TODO [Immutability - Andreea] - this resets what has been collected in the acc
                           }
                       }
                     }}
