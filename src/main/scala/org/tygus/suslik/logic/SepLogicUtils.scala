@@ -103,10 +103,11 @@ trait SepLogicUtils extends PureLogicUtils {
           case PointsTo(_loc, _offset, _value, _) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
-      case SApp(pred, args, tag, mut, submut) => stuff.filter {
-        case SApp(_pred, _args, _tag, _mut, _submut) =>
+      case SApp(pred, args, tag, mutFrom, submutFrom) => stuff.filter {
+        case SApp(_pred, _args, _tag, _mutTo, _submutTo) =>
           _pred == pred && args.length == _args.length &&
-            mut == _mut && MTag.checkLists(_submut, submut) // TODO [Immutability - Andreea]  these should be reversed since _submut comes from f's pre
+            mutFrom == _mutTo && 
+            MTag.checkLists(_submutTo, submutFrom, expandMissingToMut = true)
         case _ => false
       }
     }

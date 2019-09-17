@@ -121,7 +121,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
         largHeap = goal.pre.sigma
-        largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+        largSubHeap <- {
+          findLargestMatchingHeap(lilHeap, largHeap)
+        }
         callSubPre = goal.pre.copy(sigma = largSubHeap)
 
         // Try to unify f's precondition and found goal pre's subheaps

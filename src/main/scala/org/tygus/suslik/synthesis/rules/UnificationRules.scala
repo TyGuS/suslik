@@ -36,7 +36,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         s <- postCandidates
         t <- pre.sigma.chunks.sortBy(_.rank)
         // TODO create appropriate substitutions
-        sub <- tryUnify(t, s, goal.universals, tagsMatter = false, _ == _)
+        sub <- {
+          tryUnify(t, s, goal.universals, tagsMatter = false, _ == _)
+        }
         newPostSigma = post.sigma.subst(sub)
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)

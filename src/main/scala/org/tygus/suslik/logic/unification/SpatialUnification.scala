@@ -73,7 +73,7 @@ object SpatialUnification extends UnificationBase {
 
         if (p1 != p2 || es1.size != es2.size ||
           !immTagCompare(m1, m2) ||
-          !MTag.checkLists(sm1, sm2, immTagCompare) ||
+          !MTag.checkLists(sm1, sm2, immTagCompare, expandMissingToMut = true) ||
           (targetTag != sourceTag && tagsMatter)) Nil
 
         else {
@@ -92,7 +92,7 @@ object SpatialUnification extends UnificationBase {
               case _ => None
             }
           val sub_mut =
-            (sm1, sm2) match {
+            (MTag.expandWithMuts(sm1, sm2), MTag.expandWithMuts(sm2, sm1)) match {
               case (Some(mut1), Some(mut2)) if mut1.length == mut2.length =>
                 val mutZip: List[(MTag, MTag)] = mut1.zip(mut2)
                 /*

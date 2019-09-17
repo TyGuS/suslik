@@ -65,14 +65,50 @@ case class U(tag : Integer) extends MTag {
 
 
 object MTag {
-
-  def checkLists(s1 : Option[List[MTag]], s2: Option[List[MTag]],
-                 immTagCompare: (MTag, MTag) => Boolean = MTag.pre) : Boolean = (s1, s2) match {
-    case (Some(a), Some(b)) => val zz = a.zip(b).forall{ case (x: MTag, y: MTag) => immTagCompare(x,y)}
-                               zz
+  
+  /**
+    * [Immutability: Expanding missing annotations to lists of Mut]
+    * 
+    * Notice the parameter `immTagCompare` --- it is used when the list of mutability
+    * annotations is missing, but is implicitly assumed to be all-mut. In this case we
+    * populate it with `Mut` basing on the size of the expected `from` annotations, and 
+    * compare as such.
+    * 
+    * Checking if two lists of mutability annotations are compatible for the 
+    * sake of unification and substitution
+    * @param to target mutability annotations (rigid)
+    * @param from source mutability annotations --- typically a subject of substitution
+    * @param immTagCompare a comparison operation determining whether we're checking strict
+    *                      equality or subsumption
+    * @return
+    */
+  def checkLists(to : Option[List[MTag]], from: Option[List[MTag]],
+                 immTagCompare: (MTag, MTag) => Boolean = MTag.pre,
+                 expandMissingToMut: Boolean = false) : Boolean = (to, from) match {
+    case (Some(a), Some(b)) => 
+      a.zip(b).forall { case (x: MTag, y: MTag) => immTagCompare(x, y) }
+    case (to@None, from@Some(b)) if expandMissingToMut =>
+      checkLists(expandWithMuts(to, from), from)
+    case (to@Some(a), from@None) if expandMissingToMut =>
+      checkLists(to, expandWithMuts(from, to))
     case (None, None) => true
     case _ => false
   }
+
+
+  /**
+    * Conditionally expand the list of annotations with `Mut`
+    * @param to the annotations to expand
+    * @param from source annotations
+    * @return
+    */
+  def expandWithMuts(to : Option[List[MTag]], from: Option[List[MTag]]): Option[List[MTag]] =
+    (to, from) match {
+      case (None, z@Some(b)) =>
+        val newToTags = (1 to b.size).toList.map(_ => Mut)
+        Some(newToTags)
+      case _ => to
+    }
 
   // TODO what's the correct way?
   // TODO not clear what is the subsumption relation

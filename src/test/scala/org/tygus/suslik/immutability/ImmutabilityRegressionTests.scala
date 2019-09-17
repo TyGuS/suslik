@@ -48,7 +48,7 @@ class ImmutabilityRegressionTests extends FunSpec with Matchers with SynthesisRu
   describe("simple") {
     runAllTestsFromDir("../immutable-synthesis/regression/simple")
   }
-  
+
   describe("paper-examples") {
     runAllTestsFromDir("../immutable-synthesis/regression/paper-examples")
   }
@@ -60,9 +60,13 @@ class ImmutabilityRegressionTests extends FunSpec with Matchers with SynthesisRu
   describe("srtl") {
     runAllTestsFromDir("../immutable-synthesis/regression/srtl")
   }
-  
+
   describe("tree") {
     runAllTestsFromDir("../immutable-synthesis/regression/tree")
+  }
+
+  describe("flatten") {
+    runAllTestsFromDir("../immutable-synthesis/regression/flatten")
   }
 
 }
