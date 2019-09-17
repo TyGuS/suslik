@@ -6,7 +6,7 @@ import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil, de
 
 class ImmutabilityFixMeTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
-  val synthesis: Synthesis = new PhasedSynthesis
+  def mkSynthesiser: Synthesis = new PhasedSynthesis
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
     it(desc) {

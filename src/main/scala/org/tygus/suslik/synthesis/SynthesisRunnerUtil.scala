@@ -25,12 +25,10 @@ trait SynthesisRunnerUtil {
 
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
-
-  val synthesis: Synthesis
+  
+  def mkSynthesiser: Synthesis
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit
-
-  import synthesis._
 
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
@@ -59,6 +57,10 @@ trait SynthesisRunnerUtil {
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig): Unit = {
+    val synthesis: Synthesis = mkSynthesiser
+
+    import synthesis._
+
     val parser = new SSLParser(params)
     val res = parser.parseGoal(text)
     if (!res.successful) {

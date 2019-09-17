@@ -9,7 +9,7 @@ import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil, de
   */
 class ImmutabilityPaperBenchamarksTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
-  val synthesis: Synthesis = new PhasedSynthesis
+  def mkSynthesiser: Synthesis = new PhasedSynthesis
   val PATH: String = "../immutable-synthesis/paper-benchmarks/"
 
 

@@ -16,7 +16,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   import log._
 
-  val synthesis: Synthesis = new PhasedSynthesis
+  def mkSynthesiser: Synthesis = new PhasedSynthesis
 
   /**
     * Command line args:
