@@ -127,7 +127,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        sub <- SpatialUnification.unify(target, source).toList
+        sub <- {
+          SpatialUnification.unify(target, source).toList
+        }
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)

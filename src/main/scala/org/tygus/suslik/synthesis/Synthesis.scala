@@ -5,9 +5,8 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.SearchTree._
-import org.tygus.suslik.util.{SynLogging, SynStats}
 import org.tygus.suslik.synthesis.rules.Rules._
-import org.tygus.suslik.synthesis.SynConfig
+import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
 import scala.annotation.tailrec

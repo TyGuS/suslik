@@ -72,7 +72,7 @@ object SpatialUnification extends UnificationBase {
         // if es2.forall(_.isInstanceOf[Var])
 
         if (p1 != p2 || es1.size != es2.size ||
-          !immTagCompare(m1, m2) || 
+          !immTagCompare(m1, m2) ||
           !MTag.checkLists(sm1, sm2, immTagCompare) ||
           (targetTag != sourceTag && tagsMatter)) Nil
 
@@ -82,39 +82,46 @@ object SpatialUnification extends UnificationBase {
           // Collect the mapping from the predicate parameters
           val sub_param =
             pairs.foldLeft(Some(Substitution()): Option[Substitution]) {
-              case (opt, (x1, x2)) => opt match {
-                case None => None
-                case Some(acc) =>
-                  genSubst(x1, x2, nonFreeInSource) match {
-                    case Some(sbst) =>
-                      assertNoConflict(acc, sbst)
-                      Some(acc ++ sbst)
-                    case None => None
-                  }
-              }
+              case (Some(acc), (x1, x2)) =>
+                genSubst(x1, x2, nonFreeInSource) match {
+                  case Some(sbst) =>
+                    assertNoConflict(acc, sbst)
+                    Some(acc ++ sbst)
+                  case None => None
+                }
+              case _ => None
             }
           val sub_mut =
-            ((sm1, sm2) match {
-              case (Some(mut1), Some(mut2)) =>
+            (sm1, sm2) match {
+              case (Some(mut1), Some(mut2)) if mut1.length == mut2.length =>
                 val mutZip: List[(MTag, MTag)] = mut1.zip(mut2)
-                // TODO [Immutability - Andreea]
-                //if (mut1.forall { case a => !MTag.isMutable(a) } || mut2.forall { case a => !MTag.isMutable(a) }) None
-                if (mut1.forall { case a => MTag.isMutable(a) } && mut2.forall { case a => MTag.isMutable(a) }) None
-                else {   mutZip.foldLeft(Some(Substitution()): Option[Substitution]) {
-                      case (opt, (hmut, hmut2)) => opt match {
-                        case None => None
-                        case Some(acc) =>
-                          genSubstMut(hmut, hmut2, nonFreeInSource) match {
-                            case Some(sbst) =>
-                              assertNoConflict(acc, sbst)
-                              Some(acc ++ sbst)
-                            case None => None //Some (acc) // TODO [Immutability - Andreea] - this resets what has been collected in the acc
-                          }
-                      }
-                    }}
-              case (_, _) => None
-            })
-          (sub_param ++ sub_mut).toList
+                /*
+                [Immutability] Computing the mutability tag substitution. 
+                The contract here is as follows:
+                If a substitution is possible, then the result of the following 
+                expression is `Some(mSub)`, where `mSub` maps borrowing annotation names
+                to actual mutability annotations. The substitution ignores 
+                Mut -> Mut mappings and trivially succeeds for them. The only case when `None`
+                is returned is if `genSubstMut(to, from, nonFreeInSource)` fails, e.g.,
+                due to unsatisfiable constraint between the already bound names.   
+                 */
+                mutZip.foldLeft(Some(Substitution.empty): Option[Substitution]) {
+                  case (Some(acc), (to, from)) if MTag.pre(to, from) =>
+                    genSubstMut(to, from, nonFreeInSource) match {
+                      case Some(sbst) =>
+                        assertNoConflict(acc, sbst)
+                        Some(acc ++ sbst)
+                      case None => Some(acc)
+                    }
+                  case _ => None
+                }
+              case _ => Some(Substitution.empty)
+            }
+          val finalSub = for {
+            eSub <- sub_param
+            mSub <- sub_mut
+          } yield eSub ++ mSub
+          finalSub.toList
         }
       case _ => Nil
     }

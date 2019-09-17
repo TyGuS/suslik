@@ -22,6 +22,10 @@ trait Substitutable[+A] {
 
 }
 
+object Substitution {
+  def empty: Substitution = Substitution()
+}
+
 case class Substitution(exprMapping : Map[Var, Expr] =  Map.empty[Var, Expr],
                         mutMapping: Map[Var, MTag] = Map.empty[Var, MTag]) {
 
