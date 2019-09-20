@@ -36,6 +36,9 @@ case class SynConfig(
                         * By default they have no meaning, but one can use them to turn on/off some
                         * feature of choice. If more flags are needed, simply add more elements to
                         * the flags list below.
+                        *
+                        * IMPORTANT: remember to remove the flags check from the scala code once done
+                        * with the evaluation, to make sure it does not interfere with future evaluations.
                         */
                       flags: List[Boolean]       = (1 to 8).toList.map( _ => false),
                     ) extends PrettyPrinting {
