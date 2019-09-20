@@ -30,7 +30,14 @@ case class SynConfig(
                       imm: Boolean              = true,
                       timeOut: Long             = 120000,
                       // Global state
-                      startTime: Long           = 0
+                      startTime: Long           = 0,
+                      /**
+                        * [EVALUATION] these dummy `flags` are solely used for the evaluation purposes.
+                        * By default they have no meaning, but one can use them to turn on/off some
+                        * feature of choice. If more flags are needed, simply add more elements to
+                        * the flags list below.
+                        */
+                      flags: List[Boolean]       = (1 to 8).toList.map( _ => false),
                     ) extends PrettyPrinting {
 
   override def pp: String =

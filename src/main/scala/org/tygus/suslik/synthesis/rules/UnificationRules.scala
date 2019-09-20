@@ -32,9 +32,51 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
 
+      def sort(chunks: List[Heaplet]): List[Heaplet] = {
+
+        val flags = goal.env.config.flags
+
+        // RANK (default)
+        if (flags(0))
+          chunks.sortBy(_.rank)
+
+        // RANK (desc)
+        else if (flags(1))
+          chunks.sortBy(-_.rank)
+
+        //  SIZE:
+        else if (flags(2))
+          chunks.sortBy(_.size)
+
+        //  SIZE (desc):
+        else if (flags(3))
+          chunks.sortBy(-_.size)
+
+        //  COST:
+        else if (flags(4))
+          chunks.sortBy(_.cost)
+
+        //  COST (desc):
+        else if (flags(5))
+          chunks.sortBy(-_.cost)
+
+        // points-to ; sapp
+        else if (flags(6))
+          chunks.sortBy(_.name)
+
+        // sapp ; pointsto
+        else if (flags(7))
+          chunks.sortBy(_.name).reverse
+
+        else chunks.sortBy(_.rank)
+      }
+
+
       val alternatives = for {
         s <- postCandidates
-        t <- pre.sigma.chunks.sortBy(_.rank)
+        // at least one eval flag is set
+        t <- if (goal.env.config.flags.contains(true)) sort(pre.sigma.chunks)
+        else pre.sigma.chunks.sortBy(_.rank)
         // TODO create appropriate substitutions
         sub <- {
           tryUnify(t, s, goal.universals, tagsMatter = false, _ == _)
@@ -58,13 +100,15 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           else {
             val c2 = x._2.compare(y._2)
             //TODO [immutability] enable/disable imm sensitive cost (just a hack, to upgrade it to rule if it has impact)
-            if(c2 != 0 && goal.env.config.prioImm) c2
+            if (c2 != 0 && goal.env.config.prioImm) c2
             else x._3.compare(y._3)
-          }}
+          }
+        }
       }
-      val derivations = nubBy[(RuleResult,Int), Assertion](alternatives, sub => sub._1.subgoals.head.post)
-      val derivations_s = derivations.sortBy(s => (-s._1.subgoals.head.similarity, s._2, s._1.subgoals.head.hist.applications.head))(ord)
-      val (res_derivations,_) = derivations_s.unzip
+      val derivations = nubBy[(RuleResult, Int), Assertion](alternatives, sub => sub._1.subgoals.head.post)
+      val derivations_s = if (goal.env.config.flags.contains(true)) derivations
+      else derivations.sortBy(s => (-s._1.subgoals.head.similarity, s._2, s._1.subgoals.head.hist.applications.head))(ord)
+      val (res_derivations, _) = derivations_s.unzip
       res_derivations
     }
   }

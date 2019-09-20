@@ -171,6 +171,18 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(imm = b))
     }.text("immutability aware specification; default: true")
 
+    /**
+      * [EVALUATION] these dummy flags are solely used for the evaluation purposes.
+      * They are populated based on the `flags` list in SynConfig.
+      */
+    val robustness_flags_name = (1 to SynConfig().flags.length).toList.map(a => "flag" + a)
+    robustness_flags_name.foreach(arg_str =>
+      opt[Boolean](name = arg_str).action { (b, rc) =>
+        rc.copy(synConfig = rc.synConfig.copy(
+          flags = rc.synConfig.flags.updated(robustness_flags_name.indexOf(arg_str), b)))
+      }.text("set flags for evaluation; default: false")
+    )
+
 
     help("help").text("prints this usage text")
 

@@ -163,7 +163,10 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
   // Collect certain sub-expressions
   def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
 
-    /* TODO [Immutability - Andreea] treat imm vars just like any other vars to avoid substitution corner cases through the code*/
+
+    /**
+      * [Immutability: Treat imm vars just like any other vars to avoid substitution corner cases through the code. ]
+      */
     def icollector(mut: MTag): Set[R] = {
       val imm_vars = MTag.getVariable(mut)
       val acc2 = imm_vars.foldLeft(Set.empty: Set[R])((acc: Set[R],v) => if(p(v)) acc + v.asInstanceOf[R] else acc)
@@ -215,6 +218,12 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
     case PointsTo(_, _, _, _) => 1
     case Block(_, _, _) => 0
     case SApp(_, _, _, _, _) => 10
+  }
+
+  def name: String = this match {
+    case PointsTo(_, _, _, _) => ""
+    case Block(_, _, _) => ""
+    case SApp(pred, _, _, _, _) => pred
   }
 
   def defaultMut: MTag = Mut

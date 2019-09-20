@@ -33,7 +33,15 @@ RESULTS1     = 'evaluation-utils/all_results1'                     # Output file
 #################
 PATH2        = "robustness/"
 METACONFIG2  = [ ('imm', '--imm true'), ('mut', '--imm false') ]
-CONFIG2      = [ ('commute', '--commute true'), ('no-commute', '--commute false'), ('prioImm', '--prioImm true')  ]
+CONFIG2      = [('rank(def)',''),
+                ('rank(desc)','--flag2 true'),
+                ('size(asc)', '--flag3 true'),
+                ("size(desc)",'--flag4 true'),
+                ('cost',      '--flag5 true'),
+                ('cost(desc)','--flag6 true'),
+                ('sapp(asc)', '--flag7 true'),
+                ('sapp(desc)','--flag8 true')
+               ]
 STATS2       = 'evaluation-utils/all_stats2.csv'                   # Output file with all the stats
 RESULTS2     = 'evaluation-utils/all_results2'                     # Output file with synthesis results
 
@@ -206,11 +214,11 @@ ALL_BENCHMARKS = [
     Benchmark(PATH1 + 'tree/tree-flatten-S', 'flatten w/append'),
     Benchmark(PATH1 + 'tree/tree-flatten-acc-S', 'flatten w/acc'),
      ]),
-  BenchmarkGroup("BST", [
-    Benchmark(PATH1 + 'bst/bst-insert', 'insert'),
-    Benchmark(PATH1 + 'bst/bst-left-rotate', 'rotate left'),
-    Benchmark(PATH1 + 'bst/bst-right-rotate', 'rotate right'),
-    ]),
+#   BenchmarkGroup("BST", [
+#     Benchmark(PATH1 + 'bst/bst-insert', 'insert'),
+#     Benchmark(PATH1 + 'bst/bst-left-rotate', 'rotate left'),
+#     Benchmark(PATH1 + 'bst/bst-right-rotate', 'rotate right'),
+#     ]),
  ]
 
 ROBUSTNESS = [
@@ -252,11 +260,11 @@ ROBUSTNESS = [
      Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten w/append'),
      Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten w/acc'),
       ]),
-   BenchmarkGroup("BST", [
-     Benchmark(PATH2 + 'bst/bst-insert', 'insert'),
-     Benchmark(PATH2 + 'bst/bst-left-rotate', 'rotate left'),
-     Benchmark(PATH2 + 'bst/bst-right-rotate', 'rotate right'),
-     ]),
+#    BenchmarkGroup("BST", [
+#      Benchmark(PATH2 + 'bst/bst-insert', 'insert'),
+#      Benchmark(PATH2 + 'bst/bst-left-rotate', 'rotate left'),
+#      Benchmark(PATH2 + 'bst/bst-right-rotate', 'rotate right'),
+#      ]),
   ]
 
 def read_csv():
