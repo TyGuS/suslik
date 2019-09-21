@@ -1,11 +1,22 @@
-# adapted of evaluation.py
-
 import sys
 from subprocess import call
 import os, os.path
 import platform
 import shutil
 import csv
+
+###
+#
+# @author Andreea Costea
+# adapted of evaluation.py
+#
+# Script for evaluation. For changing the evaluation configuration via the application's
+# arguments, simply modify METACONFIG and/or CONFIG.
+#
+# TODO: currently the properties captured from running a benchmark, such as size, AST, #rule, time, etc,
+# are fixed and hardcoded, and so are their corresponding the headers. Need to parameterize that too.
+#
+###
 
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
@@ -21,30 +32,31 @@ CONFIG       = [DEFCONFIG]                                        # Configuratio
 #################
 #  PERFORMANCE  #
 #################
-PATH1        = "old/lseg/"
-METACONFIG1  = [ ('def', '') ]
-CONFIG1      = [ ('imm', '--imm true'), ('mut', '--imm false') ]
+PATH1        = "old/lseg/"                                         # Along with TEST_DIR gives full path to the benchmarks
+METACONFIG1  = [ DEFCONFIG ]                                       # Meta Configurations
+CONFIG1      = [ ('imm', '--imm true'), ('mut', '--imm false') ]   # Configurations
 STATS1       = 'evaluation-utils/all_stats1.csv'                   # Output file with all the stats
 RESULTS1     = 'evaluation-utils/all_results1'                     # Output file with synthesis results
+LATEX_FILE1  = 'evaluation-utils/table1.tex'                       # Output file for generating a latex table
 
 
 #################
 #  ROBUSTNESS   #
 #################
-PATH2        = "robustness/"
-METACONFIG2  = [ ('imm', '--imm true'), ('mut', '--imm false') ]
-CONFIG2      = [('rank(def)',''),
-                ('rank(desc)','--flag2 true'),
-                ('size(asc)', '--flag3 true'),
-                ("size(desc)",'--flag4 true'),
-                ('cost',      '--flag5 true'),
-                ('cost(desc)','--flag6 true'),
-                ('sapp(asc)', '--flag7 true'),
-                ('sapp(desc)','--flag8 true')
+PATH2        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
+METACONFIG2  = [ ('imm', '--imm true'), ('mut', '--imm false') ]   # Meta Configurations
+CONFIG2      = [('Default',''),                                    # Configurations
+                ('Rank(D)','--flag2 true'),
+                ('Size(A)','--flag3 true'),
+                ('Size(D)','--flag4 true'),
+                ('Cost(A)','--flag5 true'),
+                ('Cost(D)','--flag6 true'),
+                ('Alph(A)','--flag7 true'),
+                ('Alph(D)','--flag8 true')
                ]
 STATS2       = 'evaluation-utils/all_stats2.csv'                   # Output file with all the stats
 RESULTS2     = 'evaluation-utils/all_results2'                     # Output file with synthesis results
-
+LATEX_FILE2  = 'evaluation-utils/table2.tex'                       # Output file for generating a latex table
 
 
 ###################################################################
@@ -176,10 +188,10 @@ def evaluate(metaconfigs, configs, groups, results_file):
 ###################################################################
 
 ALL_BENCHMARKS = [
-  BenchmarkGroup("Integers",  [
-    Benchmark(PATH1 + 'ints/swap', 'swap two'),
-    Benchmark(PATH1 + 'ints/min2', 'min of two'),
-    ]),
+#  BenchmarkGroup("Integers",  [
+#    Benchmark(PATH1 + 'ints/swap', 'swap two'),
+#    Benchmark(PATH1 + 'ints/min2', 'min of two'),
+#    ]),
   BenchmarkGroup("Linked List", [
     Benchmark(PATH1 + 'sll-bounds/sll-len', 'length'),
     Benchmark(PATH1 + 'sll-bounds/sll-max', 'max'),
@@ -222,34 +234,34 @@ ALL_BENCHMARKS = [
  ]
 
 ROBUSTNESS = [
-   BenchmarkGroup("Integers",  [
-     Benchmark(PATH2 + 'ints/swap', 'swap two'),
-     Benchmark(PATH2 + 'ints/min2', 'min of two'),
-     ]),
+#   BenchmarkGroup("Integers",  [
+#     Benchmark(PATH2 + 'ints/swap', 'swap two'),
+#     Benchmark(PATH2 + 'ints/min2', 'min of two'),
+#     ]),
    BenchmarkGroup("Linked List", [
      Benchmark(PATH2 + 'sll-bounds/sll-len', 'length'),
-     Benchmark(PATH2 + 'sll-bounds/sll-max', 'max'),
-     Benchmark(PATH2 + 'sll-bounds/sll-min', 'min'),
-     Benchmark(PATH2 + 'sll/sll-singleton', 'singleton'),
-     Benchmark(PATH2 + 'sll/sll-free', 'dispose'),
-     Benchmark(PATH2 + 'sll/sll-init', 'initialize'),
-     Benchmark(PATH2 + 'sll/sll-copy', 'copy'),
+     # Benchmark(PATH2 + 'sll-bounds/sll-max', 'max'),
+     # Benchmark(PATH2 + 'sll-bounds/sll-min', 'min'),
+     # Benchmark(PATH2 + 'sll/sll-singleton', 'singleton'),
+     # Benchmark(PATH2 + 'sll/sll-free', 'dispose'),
+     # Benchmark(PATH2 + 'sll/sll-init', 'initialize'),
+     # Benchmark(PATH2 + 'sll/sll-copy', 'copy'),
      Benchmark(PATH2 + 'sll/sll-append', 'append'),
      Benchmark(PATH2 + 'sll/sll-delete-all', 'delete'),
      ]),
    BenchmarkGroup("Sorted list", [
-     Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
+     # Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
      Benchmark(PATH2 + 'srtl/srtl-insert', 'insert'),
      Benchmark(PATH2 + 'srtl/insertion-sort-N', 'insertion sort (len)'),
-     Benchmark(PATH2 + 'srtl/insertion-sort-S', 'insertion sort (val)'),
-     Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'insertion sort (len,val)'),
+     # Benchmark(PATH2 + 'srtl/insertion-sort-S', 'insertion sort (val)'),
+     # Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'insertion sort (len,val)'),
      ]),
     BenchmarkGroup("Tree", [
      Benchmark(PATH2 + 'tree/tree-size-N', 'size (len)'),
      Benchmark(PATH2 + 'tree/tree-size-NS', 'size (len,val)'),
      Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'size ptr (len)'),
      Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'size ptr (len,val)'),
-     Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
+     # Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
      Benchmark(PATH2 + 'tree/tree-morph', 'morph'),
      Benchmark(PATH2 + 'tree/tree-copy-N', 'copy (len)'),
      Benchmark(PATH2 + 'tree/tree-copy-S', 'copy (val)'),
@@ -274,12 +286,13 @@ def read_csv():
     d.skipinitialspace = True
     statsReader = csv.DictReader(csvfile, dialect = d)
     row = next(statsReader) #assumes that the csv contains stats about one single file
-    name = row['Name']
-    time = float(row['Time'])/1000
-    spec_size = row['Spec Size']
-    code_size = row['Code Size']
+    # The structure below is dependent on suslik's csv output
+    name         = row['Name']
+    time         = float(row['Time'])/1000
+    spec_size    = row['Spec Size']
+    code_size    = row['Code Size']
     backtracking = row['Backtrackings']
-    rules = row['Applications']
+    rules        = row['Applications']
     syn_res = refine_result(name, time, spec_size, code_size, backtracking, rules)
     return syn_res
 
@@ -289,12 +302,9 @@ def refine_result(name, time, spec_size, code_size, backtracking, rules, variant
   return syn_res
 
 def format_time(t):
-  if t < 0:
-    return '-'
-  if t < 0.1:
-    return '<0.1'
-  else:
-    return '{0:0.1f}'.format(t)
+  if t < 0:   return '-'
+  if t < 0.1: return '<0.1'
+  else:       return '{0:0.1f}'.format(t)
 
 
   #################
@@ -304,27 +314,103 @@ def format_time(t):
 def write_stats1(metaconfigs, configs, groups, results,stats_file):
   '''Write stats from dictionary into a file'''
   with open(stats_file, 'wt') as stats:
-    headings = ['Code','Spec','Time','Backtrackings','Rules']     #configuration dependent headings
+    headings     = ['Code','Spec','Time','Backtrackings','Rules']     #configuration dependent headings
     new_headings = dict()
     for header in headings:
        new_headings[header] = {c[0]: (header + '(' + c[0] + ')') for c in configs}  # creates a header for each conf
-    complete_headings = 'Group, Name,' + ( ','.join([ (",".join([new_headings[header][c[0]] for c in configs])) for header in headings] ))
+    complete_headings = 'Group, Name,' +\
+                        ( ','.join([ (",".join([new_headings[header][c[0]] for c in configs])) for header in headings] ))
     stats.write(complete_headings + '\n')
 
     for group in groups:
       for b in group.benchmarks:
         for meta in metaconfigs:
-                row = \
-                    group.name +\
-                    ',' + b.name +\
-                    ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].code_size for conf in configs])) + \
-                    ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].spec_size for conf in configs])) + \
-                    ',' + (','.join([format_time(results[meta[0]][conf[0]][group.name][b.name].time) for conf in configs])) + \
-                    ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
-                    ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].rules for conf in configs])) + \
-                    '\n'
-                print (row + "   ")
-                stats.write(row)
+          row = \
+                group.name +\
+                ',' + b.description +\
+                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].code_size for conf in configs])) + \
+                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].spec_size for conf in configs])) + \
+                ',' + (','.join([format_time(results[meta[0]][conf[0]][group.name][b.name].time) for conf in configs])) + \
+                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
+                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].rules for conf in configs])) + \
+                '\n'
+          print (row + "   ")
+          stats.write(row)
+
+# Assumptions:
+#  1. each entry in the csv file starts with the group name, followed by the benchmark description
+
+def read_csv_all(stats_file, performance):
+  # saves the results from the stast_file (csv) into
+  # a nested dictionary: group -> (benchmark -> [values list])
+  groups = dict()
+  with open(stats_file, 'rt') as csvfile:
+    reader = csv.reader(csvfile)
+    for row in reader:
+      if not(reader.line_num == 1):
+        if not (row[0] in groups):
+          groups[row[0]] = dict() #(benchmark -> [values list])
+        if not (row[1] in groups[row[0]]):
+          groups[row[0]][row[1]] = []
+
+        if performance: skips = [4,5] #skips the specs columns for the performance table
+        else: skips = []
+
+        values = []
+        for col in range(2,len(row)):
+          if col in skips:
+            continue
+          values.append(row[col])
+        groups[row[0]][row[1]].append(values)
+  return groups
+
+
+# Assumptions:
+#  1. the `results` parameter is a dictionary whose keys are group names.
+
+def write_stats1_tex(configs, results, latex_file):
+    '''Write stats from stats_file into a TEX file'''
+    # with open(stats_file, 'wt') as stats:
+    with open(latex_file, 'wt') as tex:
+        headings = ['AST size','Time','\\#Backtr.','\\#Rules']     #configuration dependent headings
+        len_cols = 2 + len(headings) * len(configs) + 1
+        hhline  = '\\hhline{' + ('=' * len_cols) + '}'
+        prefix  = '\\begin{tabular}{@{} c | c | ' +   ("|".join([ (' c ' * len(configs)) for h in headings])) + ' | c  @{}}\n'
+        postfix = '\\\\ \n ' + hhline + ' \n  \\end{tabular}'
+        complete_headings = '\\multirow{2}{*}{\\head{Group}}' + \
+                            '\n &' + '\\multirow{2}{*}{\\head{Description}}' + \
+                            '\n &' + ('\n & '.join([ ('\\multicolumn{2}{c|}{ \\head{' + h + '} } ') for h in headings])) + \
+                            '\n &' + '{\\head{Stronger}}' + \
+                            '\n \\\\' + \
+                            '\n &' + '' + \
+                            '\n &' + ('&'.join(['&'.join([c[0] for c in configs])] * len(headings))) + \
+                            '\n &' + '{\\head{Guarantees}}' + \
+                            '\n \\\\ ' + \
+                            '\n  ' + hhline + '  \n'
+        entries = []
+        sep =''
+        for grp in sorted(results):
+            if (len(entries) > 0):
+                sep = '\n \\hline \n'
+            benchmarks = results[grp]
+            ln_grp = 0
+            for file in benchmarks:
+                ln_grp  += len(benchmarks[file])
+            entry1_grp  = sep + '\\multirow{' + str(ln_grp) + '}{*}{' + grp + '} '
+            for file in sorted(benchmarks):
+                ln_file = len(benchmarks[file])
+                entry1_file = '\\multirow{' + str(ln_file) + '}{*}{' + file + '} '
+                benchmark = benchmarks[file]
+                entry =          entry1_grp   +\
+                         ' & ' + entry1_file  +\
+                         ' & ' + (' & '.join([ val for val in benchmark[0] ]))
+                entries.append(entry)
+                entry1_grp    = ''
+                for lst in benchmark[1:ln_file]:
+                    entries.append(' &  & & ' + (' & '.join([ val for val in lst ])))
+        entries_final = '\n \\\\ \n '.join([entry for entry in entries])
+        tex.write(prefix + complete_headings + entries_final + postfix)
+
 
   #################
   #  ROBUSTNESS   #
@@ -333,7 +419,7 @@ def write_stats1(metaconfigs, configs, groups, results,stats_file):
 def write_stats2(metaconfigs, configs, groups, results,stats_file):
   '''Write stats from dictionary into a file'''
   with open(stats_file, 'wt') as stats:
-    complete_headings = 'Group, Name, Meta Config, Assesed Property, ' + ( ','.join([ (",".join([c[0] for c in configs]))] ))
+    complete_headings = 'Group, Name, Assesed Property, Meta Config, ' + ( ','.join([ (",".join([c[0] for c in configs]))] ))
     stats.write(complete_headings + '\n')
 
     for group in groups:
@@ -342,9 +428,9 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
         for meta in metaconfigs:
             row1 = \
                 group.name +\
-                ',' + b.name +\
-                ',' + meta[0] +\
+                ',' + b.description +\
                 ',' + 'AST size' +\
+                ',' + meta[0] +\
                 ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].code_size for conf in configs])) + \
                 '\n'
             print (row1)
@@ -353,9 +439,9 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
         for meta in metaconfigs:
             row2 = \
                 group.name +\
-                ',' + b.name +\
-                ',' + meta[0] +\
-                ',' + 'Spurious writes' +\
+                ',' + b.description +\
+                ',' + 'SW' + \
+                ',' + meta[0] + \
                 ',' + (','.join(['' for conf in configs])) + \
                 '\n'
             print (row2)
@@ -364,9 +450,9 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
         for meta in metaconfigs:
             row3 = \
                 group.name +\
-                ',' + b.name +\
-                ',' + meta[0] +\
-                ',' + '#backtrackings' +\
+                ',' + b.description +\
+                ',' + '\\#backtr' + \
+                ',' + meta[0] + \
                 ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
                 '\n'
             print (row3)
@@ -375,14 +461,83 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
         for meta in metaconfigs:
             row4 = \
                 group.name +\
-                ',' + b.name +\
-                ',' + meta[0] +\
-                ',' + '#rules' +\
+                ',' + b.description +\
+                ',' + '\\#rules' + \
+                ',' + meta[0] + \
                 ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].rules for conf in configs])) + \
                 '\n'
             print (row4)
             stats.write(row4)
 
+def write_stats2_tex(metaconfig, configs, results, latex_file):
+    '''Write stats from stats_file into a TEX file'''
+    # with open(stats_file, 'wt') as stats:
+    with open(latex_file, 'wt') as tex:
+        prefix  = '\\begin{tabular}{@{} c | c |  c | c |' +   (' '.join([ ' c ' for c in configs])) + '   @{}}\n'
+        len_cols = 4 + len(configs)
+        hhline  = '\\hhline{' + ('=' * len_cols) + '}'
+        postfix = '\\\\ \n ' + hhline + '  \n  \\end{tabular}'
+        complete_headings = '{\\head{Group}}' + \
+                            '\n &' + '{\\head{Description}}' + \
+                            '\n &' + '{\\head{Property}}' + \
+                            '\n &' + '{\\head{imm/mut}}' + \
+                            '\n &' + ( '&'.join([('\\head{' + c[0] + '}') for c in configs])) + \
+                            '\n \\\\' +\
+                            hhline + ' \n'
+
+        sep_grp     = '\\hline'
+        sep_file    = '\\cline{2 - ' + str(len_cols)  + '} \n' # file separator
+        sep_prop    = '\\cline{3 - ' + str(len_cols)  + '} \n' # property separator
+        sep_line    = '\n \\\\ \n '
+
+        entries     = []
+        pre_grp     = ''
+        pre_prop    = sep_prop
+        line_sep    = sep_line
+
+        for grp in sorted(results):
+            if (len(entries) > 0):
+                pre_grp  = '\n ' + sep_grp + ' \n'  #group separator
+            benchmarks = results[grp]
+            entry1_grp = ''
+            ln_grp = 0
+            for file in benchmarks:
+                ln_grp  += len(benchmarks[file])
+            entry1_grp  = pre_grp + '\\multirow{' + str(ln_grp) + '}{*}{' + grp + '} '
+            for file in benchmarks:
+                pre_file    = sep_file
+                if entry1_grp != '': pre_file = ''
+                ln_file     = len(benchmarks[file])
+                entry1_file = '\\multirow{' + str(ln_file) + '}{*}{' + file + '} '
+                benchmark   = benchmarks[file]
+
+                #first entry per file
+                values1     = benchmark[0]
+                entry1      =    pre_file +\
+                                 entry1_grp   + \
+                                 ' & ' + entry1_file  + \
+                                 ' & ' + '\\multirow{2}{*}{' + values1[0] + '} & '+\
+                                 (' & '.join([ val for val in values1[1:len(values1)] ]))
+                entries.append(entry1)
+                entry1_grp  = ''  # reset grp entry to allow for multirow group
+
+                #second entry per file
+                values2     = benchmark[1]
+                entries.append( ' &  &  & ' + (' & '.join([ val for val in values2[1:len(benchmark[1])] ])))
+
+                # subsequent entries for file `benchmark` paired
+                # to allow cline separation and multirow for each property
+                values      = benchmark[2:ln_file]
+                for lst1,lst2 in zip(values[::2],values[1::2]):
+                    ln_fline = len(benchmark[0])
+                    property_entr = pre_prop +\
+                                    ' &  & ' + '\\multirow{2}{*}{' + lst1[0] + '} & '+\
+                                    (' & '.join([ val for val in lst1[1:ln_fline] ])) +\
+                                    line_sep +\
+                                    ( ' &  & & ' + (' & '.join([ val for val in lst2[1:ln_fline] ])))
+                    entries.append(property_entr)
+        entries_final = line_sep.join([entry for entry in entries])
+        tex.write(prefix + complete_headings + entries_final + postfix)
 
 
 def cmdline():
@@ -392,6 +547,7 @@ def cmdline():
   a.add_argument('--stats',action='store_true')
   a.add_argument('--robustness',action='store_true')     #disables the robustness eval
   a.add_argument('--performance',action='store_true')    #disables the performance eval
+  a.add_argument('--latex',action='store_true')    #disables the performance eval
   return a.parse_args()
 
 if __name__ == '__main__':
@@ -410,6 +566,10 @@ if __name__ == '__main__':
       results1 = evaluate(METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1)
       write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results1, STATS1)
 
+  if (cl_opts.latex):
+    res = read_csv_all(STATS1,True)
+    write_stats1_tex(CONFIG1,res,LATEX_FILE1)
+
   #################
   #  ROBUSTNESS   #
   #################
@@ -421,4 +581,6 @@ if __name__ == '__main__':
       results2 = evaluate(METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2)
       write_stats2(METACONFIG2, CONFIG2, ROBUSTNESS, results2, STATS2)
 
-
+  if (cl_opts.latex):
+    res = read_csv_all(STATS2,False)
+    write_stats2_tex(METACONFIG2,CONFIG2,res,LATEX_FILE2)
