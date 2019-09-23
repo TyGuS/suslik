@@ -10,6 +10,7 @@ import org.tygus.suslik.synthesis.rules.Rules._
 
 import scala.Console._
 import scala.annotation.tailrec
+import scala.collection.mutable
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -18,11 +19,11 @@ import scala.annotation.tailrec
 trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
+  implicit val precursors: PrecursorMap = mutable.Map.empty
 
   import log._
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
-
 
   def allRules(goal: Goal): List[SynthesisRule]
 
@@ -54,7 +55,10 @@ trait Synthesis extends SepLogicUtils {
   protected def synthesize(goal: Goal)
                           (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
-    val worklist = List(OrNode(Vector(), goal, None, goal.allHeaplets))
+    val root = OrNode(Vector(), goal, None, goal.allHeaplets)
+    precursors.clear()
+    precursors(root.id) = Set()
+    val worklist = List(root)
     processWorkList(worklist)(stats, goal.env.config)
   }
 
@@ -72,6 +76,7 @@ trait Synthesis extends SepLogicUtils {
 
     val sz = worklist.length
     printLog(List((s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
+    printLog(List((s"Precursor map (${precursors.size})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     worklist match {
@@ -91,7 +96,7 @@ trait Synthesis extends SepLogicUtils {
         val rules = nextRules(goal, 0)
         val expansions =
           if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
-          else applyRules(rules)(goal, stats, config, ind)
+          else applyRules(rules)(node, stats, config, ind)
 
         if (expansions.isEmpty) {
           // This is a dead-end: prune worklist and try something else
@@ -113,8 +118,27 @@ trait Synthesis extends SepLogicUtils {
                 andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.label ++ altLabel)
                 (g, j) <- if (e.subgoals.size == 1) List((e.subgoals.head, -1)) // this is here only for logging
                             else e.subgoals.zipWithIndex
-              } yield OrNode(j +: andNode.id, g, Some(andNode), g.allHeaplets - (goal.allHeaplets - e.consume))
-              processWorkList(newNodes.toList ++ rest)
+                produce = g.allHeaplets - (goal.allHeaplets - e.consume)
+              } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
+
+              def isSubsumed(n: OrNode): Boolean = {
+                val subsumer = node.commuters(n.transition.consume).find(com => precursors(com.id).contains(n.transition))
+                subsumer match {
+                  case None => false
+                  case Some(s) => {
+                    printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
+                    true
+                  }
+                }
+              }
+              val filteredNodes = newNodes.filterNot(n => isSubsumed(n))
+              for ((n, i) <- newNodes.zipWithIndex) {
+                val precs = newNodes.take(i).map(_.transition).toSet
+                if (filteredNodes.contains(n))
+                  precursors(n.id) = precs
+              }
+
+              processWorkList(filteredNodes.toList ++ rest)
             }
           }
         }
@@ -122,20 +146,24 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
-  protected def applyRules(rules: List[SynthesisRule])(implicit goal: Goal,
+  protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
                                                        stats: SynStats,
                                                        config: SynConfig,
                                                        ind: Int): Seq[RuleResult] = {
+    implicit val goal = node.goal
     implicit val ind = goal.depth
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
         // Invoke the rule
         val allChildren = r(goal)
+
         // Filter out children that contain out-of-order goals
-        val children = if (config.commute) {
-          allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
-        } else allChildren
+        val _ = allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
+        val children = allChildren
+//        val children = if (config.commute) {
+//          allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
+//        } else allChildren
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules
@@ -143,11 +171,11 @@ trait Synthesis extends SepLogicUtils {
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
-          //        val subSizes = children.map(c => s"${c.subgoals.size} sub-goal(s)").mkString(", ")
           val childFootprints = children.map(c => s"$GREEN{${c.consume.pre.pp}}$MAGENTA{${c.consume.post.pp}}$BLACK")
           printLog(List((s"$r (${children.size}): ${childFootprints.head}", BLACK)))
           for {c <- childFootprints.tail}
             printLog(List((c, BLACK)))(config = config, ind = goal.depth + 1)
+
 
           stats.bumpUpRuleApps()
           if (config.invert && r.isInstanceOf[InvertibleRule]) {

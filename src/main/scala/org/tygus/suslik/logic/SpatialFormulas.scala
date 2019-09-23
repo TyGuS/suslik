@@ -199,6 +199,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   // Add chunks from other (set semantics)
   def +(other: SFormula): SFormula = SFormula((chunks ++ other.chunks).distinct)
 
+  def disjoint(other: SFormula): Boolean = chunks.intersect(other.chunks).isEmpty
+
   def vars: List[Var] = chunks.flatMap(_.vars)
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {

@@ -1,17 +1,29 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements.Solution
-import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
+import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.rules.Rules.StmtProducer
+
+import scala.collection.mutable
 
 /**
   * And-or tree that represents the space of all possible derivations
   */
 object SearchTree {
 
+  // Node's position in the search tree
+  // (index of each reflexive ancestor among its siblings; youngest to oldest)
   type NodeId = Vector[Int]
 
+  // For each or-node, transitions that have been tried before
+  // (i.e. transitoins of its older siblings)
+  type PrecursorMap = mutable.Map[NodeId, Set[Transition]]
+
+  /**
+    * Or-node in the search tree;
+    * represents a synthesis goal to solve.
+    * For this node to succeed, one of its children has to succeed.
+    */
   case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], produce: Footprint) {
     // Does this node have a ancestor with label l?
     def hasAncestor(l: Vector[Int]): Boolean =
@@ -32,10 +44,11 @@ object SearchTree {
     }
 
     // This node has failed: prune siblings from worklist
-    def fail(wl: List[OrNode]): List[OrNode] = parent match {
+    def fail(wl: List[OrNode])(implicit precursors: PrecursorMap): List[OrNode] = parent match {
       case None => wl // this is the root; wl must already be empty
       case Some(an) => { // a subgoal has failed
         val newWL = wl.filterNot(_.hasAncestor(an.id)) // prune all other descendants of an
+        precursors.retain((i, _) => !i.endsWith(an.id)) // also prune them from precursor map
         if (newWL.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
           newWL
         } else {
@@ -45,10 +58,11 @@ object SearchTree {
     }
 
     // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = parent match {
+    def succeed(s: Solution, wl: List[OrNode])(implicit precursors: PrecursorMap): Either[List[OrNode], Solution] = parent match {
       case None => Right(s) // this is the root: synthesis succeeded
       case Some(an) => { // a subgoal has succeeded
         val newWL = wl.filterNot(_.hasAncestor(id)) // prune all my descendants from worklist
+        precursors.retain((i, _) => !i.endsWith(this.id)) // also prune them from precursor map
         // Check if an has more open subgoals:
         if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
           an.parent.succeed(an.kont(List(s)), newWL)
@@ -59,10 +73,26 @@ object SearchTree {
       }
     }
 
-    def depth: Int = parent match {
-      case None => 0
-      case Some(p) => p.parent.depth + 1
+    // Or-nodes that are proper ancestors of this nodes in the search tree
+    def ancestors: List[OrNode] = parent match {
+      case None => Nil
+      case Some(p) => {
+        val gp = p.parent
+        gp :: gp.ancestors
+      }
     }
+
+    // Number of proper ancestors
+    def depth: Int = ancestors.length
+
+    // Transition that describes the relationship between this node's goal
+    // and its closest ancestor's goal
+    def transition: Transition = Transition(parent.map(_.consume).getOrElse(emptyFootprint), produce)
+
+    // All (reflexive) ancestors of this node that commute with a transition that consumes newConsume,
+    // i.e. could be placed after this new transition without affecting the resulting goal
+    def commuters(newConsume: Footprint): List[OrNode] =
+      (this :: ancestors).takeWhile(n => (n.transition.consume.disjoint(newConsume) && n.transition.produce.disjoint(newConsume)))
 
     def pp(d: Int = 0): String = parent match {
       case None => "-"
@@ -75,6 +105,11 @@ object SearchTree {
     }
   }
 
+  /**
+    * And-node in the search tree;
+    * represents a set of premises of a rule application, whose result should be combined with kont.
+    * For this node to succeed, all of its children (premises, subgoals) have to succeed.
+    */
   case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, consume: Footprint, ruleLabel: String) {
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
@@ -90,4 +125,5 @@ object SearchTree {
       parentPP ++ ruleLabel
     }
   }
+
 }

@@ -92,8 +92,19 @@ object Specifications extends SepLogicUtils {
   case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting  {
     def +(other: Footprint): Footprint = Footprint(pre + other.pre, post + other.post)
     def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
+    def disjoint(other: Footprint): Boolean = pre.disjoint(other.pre) && post.disjoint(other.post)
 
     override def pp: String = s"{${pre.pp}}{${post.pp}}"
+  }
+
+  /**
+    * A transition between two goals,
+    * represented as a footprint that has been consumed (i.e. removed from the old goal)
+    * and produced (i.e. added to the new goal).
+    * A transition semantically describes a concrete rule application.
+    */
+  case class Transition(consume: Footprint, produce: Footprint) extends PrettyPrinting {
+    override def pp: String = s"${consume.pp} ==> ${produce.pp}"
   }
 
   def emptyFootprint: Footprint = Footprint(emp, emp)
