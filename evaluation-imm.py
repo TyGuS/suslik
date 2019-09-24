@@ -4,6 +4,8 @@ import os, os.path
 import platform
 import shutil
 import csv
+import functools
+import operator
 
 ###
 #
@@ -64,12 +66,12 @@ LATEX_FILE2  = 'evaluation-utils/table2.tex'                       # Output file
 
 class SynthesisResult:
   def __init__(self, name, time, spec_size, code_size, backtracking, rules):
-    self.name         = name              # Benchmark name
-    self.time         = time              # Synthesis time (seconds)
-    self.spec_size    = spec_size         # Cumulative specification size (in AST nodes)
-    self.code_size    = code_size         # Cumulative synthesized code size (in AST nodes)
-    self.backtracking = backtracking      # The number of times the synthesizer backtracked
-    self.rules        = rules             # The number of rules applied by the synthesizer
+    self.name         = name                 # Benchmark name
+    self.time         = float(time)          # Synthesis time (seconds)
+    self.spec_size    = spec_size            # Cumulative specification size (in AST nodes)
+    self.code_size    = code_size            # Cumulative synthesized code size (in AST nodes)
+    self.backtracking = backtracking         # The number of times the synthesizer backtracked
+    self.rules        = rules                # The number of rules applied by the synthesizer
 
 
   def __str__(self):
@@ -175,6 +177,14 @@ class MetaConfig:
 
 ###################################################################
 
+##########
+## misc ##
+##########
+
+def foldl(func, acc, xs):
+  return functools.reduce(func, xs, acc)
+
+##########
 
 def evaluate(metaconfigs, configs, groups, results_file):
   '''Test all the configurations defined in METACONFIG + CONFIG '''
@@ -185,92 +195,79 @@ def evaluate(metaconfigs, configs, groups, results_file):
   return results
 
 
+def evaluate_n_times(n, metaconfigs, configs, groups, results_file):
+  res_lst = []
+  for i in range(n):
+    groups0 = groups.copy()
+    if os.path.isfile(results_file):
+      os.remove(results_file)
+    res_lst.append(evaluate(metaconfigs, configs, groups0, results_file))
+
+  results = res_lst[0].copy()
+
+  # compute mean result
+  for group in groups:
+    for b in group.benchmarks:
+      for meta in metaconfigs:
+        for conf in configs:
+
+          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].code_size,10) for i in range(n)]
+          results[meta[0]][conf[0]][group.name][b.name].code_size = int(foldl(operator.add, 0, lst) / n)
+
+          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].spec_size,10) for i in range(n)]
+          results[meta[0]][conf[0]][group.name][b.name].spec_size = int(foldl(operator.add, 0, lst) / n)
+
+          lst = [float(res_lst[i][meta[0]][conf[0]][group.name][b.name].time) for i in range(n)]
+          results[meta[0]][conf[0]][group.name][b.name].time = foldl(operator.add, 0, lst) / n
+
+          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].backtracking,10) for i in range(n)]
+          results[meta[0]][conf[0]][group.name][b.name].backtracking = int(foldl(operator.add, 0, lst) / n)
+
+          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].rules,10) for i in range(n)]
+          results[meta[0]][conf[0]][group.name][b.name].rules = int(foldl(operator.add, 0, lst) / n)
+
+  return results
+
 ###################################################################
 
 ALL_BENCHMARKS = [
-#  BenchmarkGroup("Integers",  [
-#    Benchmark(PATH1 + 'ints/swap', 'swap two'),
-#    Benchmark(PATH1 + 'ints/min2', 'min of two'),
-#    ]),
-  BenchmarkGroup("Linked List", [
-    Benchmark(PATH1 + 'sll-bounds/sll-len', 'length'),
-    Benchmark(PATH1 + 'sll-bounds/sll-max', 'max'),
-    Benchmark(PATH1 + 'sll-bounds/sll-min', 'min'),
-    Benchmark(PATH1 + 'sll/sll-singleton', 'singleton'),
-    Benchmark(PATH1 + 'sll/sll-free', 'dispose'),
-    Benchmark(PATH1 + 'sll/sll-init', 'initialize'),
-    Benchmark(PATH1 + 'sll/sll-copy', 'copy'),
-    Benchmark(PATH1 + 'sll/sll-append', 'append'),
-    Benchmark(PATH1 + 'sll/sll-delete-all', 'delete'),
-    ]),
-  BenchmarkGroup("Sorted list", [
-    Benchmark(PATH1 + 'srtl/srtl-prepend', 'prepend'),
-    Benchmark(PATH1 + 'srtl/srtl-insert', 'insert'),
-    Benchmark(PATH1 + 'srtl/insertion-sort-N', 'insertion sort (len)'),
-    Benchmark(PATH1 + 'srtl/insertion-sort-S', 'insertion sort (val)'),
-    Benchmark(PATH1 + 'srtl/insertion-sort-NS', 'insertion sort (len,val)'),
-    ]),
-   BenchmarkGroup("Tree", [
-    Benchmark(PATH1 + 'tree/tree-size-N', 'size (len)'),
-    Benchmark(PATH1 + 'tree/tree-size-NS', 'size (len,val)'),
-    Benchmark(PATH1 + 'tree/tree-size-N-unique-ptr', 'size ptr (len)'),
-    Benchmark(PATH1 + 'tree/tree-size-NS-unique-ptr', 'size ptr (len,val)'),
-    Benchmark(PATH1 + 'tree/tree-free', 'dispose'),
-    Benchmark(PATH1 + 'tree/tree-morph', 'morph'),
-    Benchmark(PATH1 + 'tree/tree-copy-N', 'copy (len)'),
-    Benchmark(PATH1 + 'tree/tree-copy-S', 'copy (val)'),
-    Benchmark(PATH1 + 'tree/tree-copy-NS', 'copy (len,val)'),
-    Benchmark(PATH1 + 'tree/tree-copy-N-unique-ptr', 'copy ptr (len)'),
-    Benchmark(PATH1 + 'tree/tree-copy-S-unique-ptr', 'copy ptr (val)'),
-    Benchmark(PATH1 + 'tree/tree-copy-NS-unique-ptr', 'copy ptr (len,val)'),
-    Benchmark(PATH1 + 'tree/tree-flatten-S', 'flatten w/append'),
-    Benchmark(PATH1 + 'tree/tree-flatten-acc-S', 'flatten w/acc'),
-     ]),
-#   BenchmarkGroup("BST", [
-#     Benchmark(PATH1 + 'bst/bst-insert', 'insert'),
-#     Benchmark(PATH1 + 'bst/bst-left-rotate', 'rotate left'),
-#     Benchmark(PATH1 + 'bst/bst-right-rotate', 'rotate right'),
-#     ]),
- ]
-
-ROBUSTNESS = [
 #   BenchmarkGroup("Integers",  [
 #     Benchmark(PATH2 + 'ints/swap', 'swap two'),
 #     Benchmark(PATH2 + 'ints/min2', 'min of two'),
 #     ]),
    BenchmarkGroup("Linked List", [
      Benchmark(PATH2 + 'sll-bounds/sll-len', 'length'),
-     # Benchmark(PATH2 + 'sll-bounds/sll-max', 'max'),
-     # Benchmark(PATH2 + 'sll-bounds/sll-min', 'min'),
-     # Benchmark(PATH2 + 'sll/sll-singleton', 'singleton'),
-     # Benchmark(PATH2 + 'sll/sll-free', 'dispose'),
-     # Benchmark(PATH2 + 'sll/sll-init', 'initialize'),
-     # Benchmark(PATH2 + 'sll/sll-copy', 'copy'),
+     Benchmark(PATH2 + 'sll-bounds/sll-max', 'max'),
+     Benchmark(PATH2 + 'sll-bounds/sll-min', 'min'),
+     Benchmark(PATH2 + 'sll/sll-singleton', 'singleton'),
+     Benchmark(PATH2 + 'sll/sll-free', 'dispose'),
+     Benchmark(PATH2 + 'sll/sll-init', 'init'),
+     Benchmark(PATH2 + 'sll/sll-copy', 'lcopy'),
      Benchmark(PATH2 + 'sll/sll-append', 'append'),
      Benchmark(PATH2 + 'sll/sll-delete-all', 'delete'),
      ]),
    BenchmarkGroup("Sorted list", [
-     # Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
+     Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
      Benchmark(PATH2 + 'srtl/srtl-insert', 'insert'),
-     Benchmark(PATH2 + 'srtl/insertion-sort-N', 'insertion sort (len)'),
-     # Benchmark(PATH2 + 'srtl/insertion-sort-S', 'insertion sort (val)'),
-     # Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'insertion sort (len,val)'),
+     Benchmark(PATH2 + 'srtl/insertion-sort-N', 'ins-sort-len'),
+     Benchmark(PATH2 + 'srtl/insertion-sort-S', 'ins-sort-val'),
+     Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'ins-sort-all'),
      ]),
     BenchmarkGroup("Tree", [
-     Benchmark(PATH2 + 'tree/tree-size-N', 'size (len)'),
-     Benchmark(PATH2 + 'tree/tree-size-NS', 'size (len,val)'),
-     Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'size ptr (len)'),
-     Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'size ptr (len,val)'),
-     # Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
+     Benchmark(PATH2 + 'tree/tree-size-N', 'tsize-len'),
+     Benchmark(PATH2 + 'tree/tree-size-NS', 'tsize-all'),
+     Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'tsize-ptr-len'),
+     Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'tsize-ptr-all'),
+     Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
      Benchmark(PATH2 + 'tree/tree-morph', 'morph'),
-     Benchmark(PATH2 + 'tree/tree-copy-N', 'copy (len)'),
-     Benchmark(PATH2 + 'tree/tree-copy-S', 'copy (val)'),
-     Benchmark(PATH2 + 'tree/tree-copy-NS', 'copy (len,val)'),
-     Benchmark(PATH2 + 'tree/tree-copy-N-unique-ptr', 'copy ptr (len)'),
-     Benchmark(PATH2 + 'tree/tree-copy-S-unique-ptr', 'copy ptr (val)'),
-     Benchmark(PATH2 + 'tree/tree-copy-NS-unique-ptr', 'copy ptr (len,val)'),
-     Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten w/append'),
-     Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten w/acc'),
+     Benchmark(PATH2 + 'tree/tree-copy-N', 'tcopy-len'),
+     Benchmark(PATH2 + 'tree/tree-copy-S', 'tcopy-val'),
+     Benchmark(PATH2 + 'tree/tree-copy-NS', 'tcopy-all'),
+     Benchmark(PATH2 + 'tree/tree-copy-N-unique-ptr', 'tcopy-ptr-len'),
+     Benchmark(PATH2 + 'tree/tree-copy-S-unique-ptr', 'tcopy-ptr-val'),
+     Benchmark(PATH2 + 'tree/tree-copy-NS-unique-ptr', 'tcopy-ptr-all'),
+     Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten-app'),
+     Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten-acc'),
       ]),
 #    BenchmarkGroup("BST", [
 #      Benchmark(PATH2 + 'bst/bst-insert', 'insert'),
@@ -278,6 +275,8 @@ ROBUSTNESS = [
 #      Benchmark(PATH2 + 'bst/bst-right-rotate', 'rotate right'),
 #      ]),
   ]
+
+ROBUSTNESS = ALL_BENCHMARKS.copy()
 
 def read_csv():
   '''Read stats file into the results dictionary'''
@@ -325,14 +324,15 @@ def write_stats1(metaconfigs, configs, groups, results,stats_file):
     for group in groups:
       for b in group.benchmarks:
         for meta in metaconfigs:
+          #print ((results[meta[0]][configs[0][0]][group.name][b.name].rules))
           row = \
                 group.name +\
                 ',' + b.description +\
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].code_size for conf in configs])) + \
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].spec_size for conf in configs])) + \
+                ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].code_size) for conf in configs])) + \
+                ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].spec_size) for conf in configs])) + \
                 ',' + (','.join([format_time(results[meta[0]][conf[0]][group.name][b.name].time) for conf in configs])) + \
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].rules for conf in configs])) + \
+                ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].backtracking) for conf in configs])) + \
+                ',' + (','.join([(str(results[meta[0]][conf[0]][group.name][b.name].rules)) for conf in configs])) +\
                 '\n'
           print (row + "   ")
           stats.write(row)
@@ -431,29 +431,29 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
                 ',' + b.description +\
                 ',' + 'AST size' +\
                 ',' + meta[0] +\
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].code_size for conf in configs])) + \
+                ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].code_size) for conf in configs])) + \
                 '\n'
             print (row1)
             stats.write(row1)
         # Spurious writes (for now needs to be manually added)
-        for meta in metaconfigs:
-            row2 = \
-                group.name +\
-                ',' + b.description +\
-                ',' + 'SW' + \
-                ',' + meta[0] + \
-                ',' + (','.join(['' for conf in configs])) + \
-                '\n'
-            print (row2)
-            stats.write(row2)
-        # the number of backtracking
+        # for meta in metaconfigs:
+        #     row2 = \
+        #         group.name +\
+        #         ',' + b.description +\
+        #         ',' + 'SW' + \
+        #         ',' + meta[0] + \
+        #         ',' + (','.join(['' for conf in configs])) + \
+        #         '\n'
+        #     print (row2)
+        #     stats.write(row2)
+        # # the number of backtracking
         for meta in metaconfigs:
             row3 = \
                 group.name +\
                 ',' + b.description +\
                 ',' + '\\#backtr' + \
                 ',' + meta[0] + \
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].backtracking for conf in configs])) + \
+                ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].backtracking) for conf in configs])) + \
                 '\n'
             print (row3)
             stats.write(row3)
@@ -464,7 +464,7 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
                 ',' + b.description +\
                 ',' + '\\#rules' + \
                 ',' + meta[0] + \
-                ',' + (','.join([results[meta[0]][conf[0]][group.name][b.name].rules for conf in configs])) + \
+                ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].rules) for conf in configs])) + \
                 '\n'
             print (row4)
             stats.write(row4)
@@ -547,23 +547,21 @@ def cmdline():
   a.add_argument('--stats',action='store_true')
   a.add_argument('--robustness',action='store_true')     #disables the robustness eval
   a.add_argument('--performance',action='store_true')    #disables the performance eval
-  a.add_argument('--latex',action='store_true')    #disables the performance eval
+  a.add_argument('--latex',action='store_true')          #generates the latex tables
+  a.add_argument('--n', type=int, default=1)             #every returned value is the mean of n runs
   return a.parse_args()
 
 if __name__ == '__main__':
   cl_opts = cmdline()
-
+  repetitions = cl_opts.n
 
 
   #################
   #  PERFORMANCE  #
   #################
 
-  if os.path.isfile(RESULTS1):
-    os.remove(RESULTS1)
-
   if not(cl_opts.performance):
-      results1 = evaluate(METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1)
+      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1)
       write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results1, STATS1)
 
   if (cl_opts.latex):
@@ -578,7 +576,7 @@ if __name__ == '__main__':
     os.remove(RESULTS2)
 
   if not(cl_opts.robustness):
-      results2 = evaluate(METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2)
+      results2 = evaluate_n_times(repetitions, METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2)
       write_stats2(METACONFIG2, CONFIG2, ROBUSTNESS, results2, STATS2)
 
   if (cl_opts.latex):
