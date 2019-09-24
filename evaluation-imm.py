@@ -47,14 +47,14 @@ LATEX_FILE1  = 'evaluation-utils/table1.tex'                       # Output file
 ####################
 PATH2        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
 METACONFIG2  = [ ('imm', '--imm true --flag9 true'), ('mut', '--imm false --flag9 true') ]   # Meta Configurations
-CONFIG2      = [('Default',''),                                    # Configurations
+CONFIG2      = [#('Default',''),                                    # Configurations
                 ('Rank(D)','--flag2 true'),
-                ('Size(A)','--flag3 true'),
-                ('Size(D)','--flag4 true'),
-                ('Cost(A)','--flag5 true'),
-                ('Cost(D)','--flag6 true'),
-                ('Alph(A)','--flag7 true'),
-                ('Alph(D)','--flag8 true')
+                # ('Size(A)','--flag3 true'),
+                # ('Size(D)','--flag4 true'),
+                # # ('Cost(A)','--flag5 true'),
+                # # ('Cost(D)','--flag6 true'),
+                # ('Alph(A)','--flag7 true'),
+                # ('Alph(D)','--flag8 true')
                ]
 STATS2       = 'evaluation-utils/all_stats2.csv'                   # Output file with all the stats
 RESULTS2     = 'evaluation-utils/all_results2'                     # Output file with synthesis results
@@ -63,15 +63,34 @@ LATEX_FILE2  = 'evaluation-utils/table2.tex'                       # Output file
 ####################
 #  ROBUSTNESS (S)  #
 ####################
-PATH2        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
-METACONFIG2  = [ ('imm', '--imm true --flag10 true'), ('mut', '--imm false --flag10 true') ]   # Meta Configurations
-CONFIG2      = [('Default',''),                                    # Configurations
-                ('WR','--flag1 true'),
-               ]
-STATS2       = 'evaluation-utils/all_stats3.csv'                   # Output file with all the stats
-RESULTS2     = 'evaluation-utils/all_results3'                     # Output file with synthesis results
-LATEX_FILE2  = 'evaluation-utils/table3.tex'                       # Output file for generating a latex table
+PATH3        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
+METACONFIG3  = [ ('imm', '--imm true --flag10 true'), ('mut', '--imm false --flag10 true') ]   # Meta Configurations
+CONFIG3      = [('Default',''),                                    # Configurations
+                ('WR1','--flag11 true'),
+                # ('U1','--flag14 true'),
+              #   ('U2','--flag15 true'),
+              #   ('U3','--flag16 true'),
+              #   ('WR2','--flag12 true'),
+              #   ('WR3','--flag13 true'),
+              ]
+STATS3       = 'evaluation-utils/all_stats3.csv'                   # Output file with all the stats
+STATS4       = 'evaluation-utils/all_stats4.csv'                   # compact stats for the plot
+RESULTS3     = 'evaluation-utils/all_results3'                     # Output file with synthesis results
+LATEX_FILE3  = 'evaluation-utils/table3.tex'                       # Output file for generating a latex table
+SPEC_VAR     = 3
 
+######################
+#  ROBUSTNESS (U+S)  #
+######################
+PATH5        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
+METACONFIG5  = [ ('imm', '--imm true --flag10 true --flag9 true'),
+                 ('mut', '--imm false --flag10 true --flag9 true')
+               ]                                                   # Meta Configurations
+CONFIG5      = [ (a[0] + '-' + b[0], a[1] + ' ' + b[1]) for a in CONFIG3 for b in CONFIG2]
+STATS5       = 'evaluation-utils/all_stats5.csv'                   # Output file with all the stats
+RESULTS5     = 'evaluation-utils/all_results5'                     # Output file with synthesis results
+LATEX_FILE5  = 'evaluation-utils/table5.tex'                       # Output file for generating a latex table
+SPEC_VAR     = 3
 
 ###################################################################
 
@@ -94,9 +113,10 @@ class SynthesisResult:
 
 
 class Benchmark:
-  def __init__(self, name, description):
+  def __init__(self, name, description, categ):
     self.name        = name         # Test file name
     self.description = description  # Description (in the table)
+    self.categ       = categ        # category
     self.res         = None         # the result will be an object of class SynthesisResult
 
   def __str__(self):
@@ -223,20 +243,35 @@ def evaluate_n_times(n, metaconfigs, configs, groups, results_file):
       for meta in metaconfigs:
         for conf in configs:
 
-          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].code_size,10) for i in range(n)]
-          results[meta[0]][conf[0]][group.name][b.name].code_size = int(foldl(operator.add, 0, lst) / n)
+          try:
+            lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].code_size,10) for i in range(n)]
+            results[meta[0]][conf[0]][group.name][b.name].code_size = int(foldl(operator.add, 0, lst) / n)
+          except TypeError:
+            results[meta[0]][conf[0]][group.name][b.name].code_size = 0
 
-          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].spec_size,10) for i in range(n)]
-          results[meta[0]][conf[0]][group.name][b.name].spec_size = int(foldl(operator.add, 0, lst) / n)
+          try:
+            lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].spec_size,10) for i in range(n)]
+            results[meta[0]][conf[0]][group.name][b.name].spec_size = int(foldl(operator.add, 0, lst) / n)
+          except TypeError:
+            results[meta[0]][conf[0]][group.name][b.name].spec_size = 0
 
-          lst = [float(res_lst[i][meta[0]][conf[0]][group.name][b.name].time) for i in range(n)]
-          results[meta[0]][conf[0]][group.name][b.name].time = foldl(operator.add, 0, lst) / n
+          try:
+            lst = [float(res_lst[i][meta[0]][conf[0]][group.name][b.name].time) for i in range(n)]
+            results[meta[0]][conf[0]][group.name][b.name].time = foldl(operator.add, 0, lst) / n
+          except TypeError:
+            results[meta[0]][conf[0]][group.name][b.name].time = 0
 
-          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].backtracking,10) for i in range(n)]
-          results[meta[0]][conf[0]][group.name][b.name].backtracking = int(foldl(operator.add, 0, lst) / n)
+          try:
+            lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].backtracking,10) for i in range(n)]
+            results[meta[0]][conf[0]][group.name][b.name].backtracking = int(foldl(operator.add, 0, lst) / n)
+          except TypeError:
+            results[meta[0]][conf[0]][group.name][b.name].backtracking = 0
 
-          lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].rules,10) for i in range(n)]
-          results[meta[0]][conf[0]][group.name][b.name].rules = int(foldl(operator.add, 0, lst) / n)
+          try:
+            lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].rules,10) for i in range(n)]
+            results[meta[0]][conf[0]][group.name][b.name].rules = int(foldl(operator.add, 0, lst) / n)
+          except TypeError:
+            results[meta[0]][conf[0]][group.name][b.name].rules = 0
 
   return results
 
@@ -254,17 +289,19 @@ ALL_BENCHMARKS = [
      Benchmark(PATH2 + 'sll/sll-singleton', 'singleton'),
      Benchmark(PATH2 + 'sll/sll-free', 'dispose'),
      Benchmark(PATH2 + 'sll/sll-init', 'init'),
-     Benchmark(PATH2 + 'sll/sll-copy', 'lcopy'),
+     Benchmark(PATH2 + 'sll/sll-copy', 'lcopy-val'),
+     Benchmark(PATH2 + 'sll/sll-copy-N', 'lcopy-len'),
+     Benchmark(PATH2 + 'sll/sll-copy-NS', 'lcopy-all',),
      Benchmark(PATH2 + 'sll/sll-append', 'append'),
      Benchmark(PATH2 + 'sll/sll-delete-all', 'delete'),
      ]),
    BenchmarkGroup("Sorted list", [
      Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
-     Benchmark(PATH2 + 'srtl/srtl-insert-S', 'insert-len'),
-     Benchmark(PATH2 + 'srtl/srtl-insert-N', 'insert-val'),
+     Benchmark(PATH2 + 'srtl/srtl-insert-S', 'insert-val'),
+     Benchmark(PATH2 + 'srtl/srtl-insert-N', 'insert-len'),
      Benchmark(PATH2 + 'srtl/srtl-insert-NS', 'insert-all'),
-     Benchmark(PATH2 + 'srtl/insertion-sort-N', 'ins-sort-len'),
      Benchmark(PATH2 + 'srtl/insertion-sort-S', 'ins-sort-val'),
+     Benchmark(PATH2 + 'srtl/insertion-sort-N', 'ins-sort-len'),
      Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'ins-sort-all'),
      ]),
     BenchmarkGroup("Tree", [
@@ -272,18 +309,18 @@ ALL_BENCHMARKS = [
      Benchmark(PATH2 + 'tree/tree-size-NS', 'tsize-all'),
      Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'tsize-ptr-len'),
      Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'tsize-ptr-all'),
-     Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
-     Benchmark(PATH2 + 'tree/tree-morph', 'morph'),
-     Benchmark(PATH2 + 'tree/tree-copy-N', 'tcopy-len'),
+     # Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
+     # Benchmark(PATH2 + 'tree/tree-morph', 'morph'),
      Benchmark(PATH2 + 'tree/tree-copy-S', 'tcopy-val'),
+     Benchmark(PATH2 + 'tree/tree-copy-N', 'tcopy-len'),
      Benchmark(PATH2 + 'tree/tree-copy-NS', 'tcopy-all'),
-     Benchmark(PATH2 + 'tree/tree-copy-N-unique-ptr', 'tcopy-ptr-len'),
      Benchmark(PATH2 + 'tree/tree-copy-S-unique-ptr', 'tcopy-ptr-val'),
+     Benchmark(PATH2 + 'tree/tree-copy-N-unique-ptr', 'tcopy-ptr-len'),
      Benchmark(PATH2 + 'tree/tree-copy-NS-unique-ptr', 'tcopy-ptr-all'),
-     Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten-app'),
-     Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten-acc'),
-      ]),
-#    BenchmarkGroup("BST", [
+#     Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten-app'),
+#      Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten-acc'),
+     ]),
+# #    BenchmarkGroup("BST", [
 #      Benchmark(PATH2 + 'bst/bst-insert', 'insert'),
 #      Benchmark(PATH2 + 'bst/bst-left-rotate', 'rotate left'),
 #      Benchmark(PATH2 + 'bst/bst-right-rotate', 'rotate right'),
@@ -461,16 +498,16 @@ def write_stats2(metaconfigs, configs, groups, results,stats_file):
         #     print (row2)
         #     stats.write(row2)
         # # the number of backtracking
-        for meta in metaconfigs:
-            row3 = \
-                group.name +\
-                ',' + b.description +\
-                ',' + '\\#backtr' + \
-                ',' + meta[0] + \
-                ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].backtracking) for conf in configs])) + \
-                '\n'
-            print (row3)
-            stats.write(row3)
+        # for meta in metaconfigs:
+        #     row3 = \
+        #         group.name +\
+        #         ',' + b.description +\
+        #         ',' + '\\#backtr' + \
+        #         ',' + meta[0] + \
+        #         ',' + (','.join([str(results[meta[0]][conf[0]][group.name][b.name].backtracking) for conf in configs])) + \
+        #         '\n'
+        #     print (row3)
+        #     stats.write(row3)
         # the number of rules fired
         for meta in metaconfigs:
             row4 = \
@@ -554,13 +591,64 @@ def write_stats2_tex(metaconfig, configs, results, latex_file):
         tex.write(prefix + complete_headings + entries_final + postfix)
 
 
+def write_stats3(metaconfigs, configs, groups, results,stats_file):
+  '''Write stats from dictionary into a file'''
+  with open(stats_file, 'wt') as stats:
+    complete_headings = 'Group, Name, Assesed Property, Meta Config, ' +\
+                        (",".join([c[0] for c in configs] * SPEC_VAR))
+    stats.write(complete_headings + '\n')
+
+    # Init
+    robustness_res = dict()
+    for group in groups:
+      robustness_res[group] = dict()
+      for meta in metaconfigs:
+        robustness_res[group][meta] = dict()
+        for b in group.benchmarks:
+          robustness_res[group][meta][b.categ] = dict()
+          robustness_res[group][meta][b.categ]['AST size'] = []
+          robustness_res[group][meta][b.categ]['rules']    = []
+
+    # Populate
+    categ = dict()
+    for group in groups:
+      for meta in metaconfigs:
+        for b in group.benchmarks:
+          robustness_res[group][meta][b.categ]['AST size'] += ((results[meta[0]][conf[0]][group.name][b.name].code_size) for conf in configs)
+          robustness_res[group][meta][b.categ]['rules'] += ((results[meta[0]][conf[0]][group.name][b.name].rules) for conf in configs)
+          categ[b.categ] = [b.categ]
+
+    categories = categ.keys()
+    for group in groups:
+      for b in categories:
+        for meta in metaconfigs:
+            row1 = \
+                group.name +\
+                ',' + b[0] +\
+                ',' + 'AST size' +\
+                ',' + meta[0] +\
+                ',' + (','.join(str(x) for x in (robustness_res[group][meta][b]['AST size'])))+ \
+                '\n'
+            stats.write(row1)
+        for meta in metaconfigs:
+            row2 = \
+                group.name +\
+                ',' + b[0] +\
+                ',' + 'rules' +\
+                ',' + meta[0] +\
+                ',' + (','.join(str(x) for x in (robustness_res[group][meta][b]['rules'])))+ \
+                '\n'
+            stats.write(row2)
+
+
 def cmdline():
   import argparse
   a = argparse.ArgumentParser()
   a.add_argument('--tiny', action='store_true')
   a.add_argument('--stats',action='store_true')
-  a.add_argument('--robustnessU',action='store_true')     #disables the robustness eval
-  a.add_argument('--robustnessS',action='store_true')     #disables the robustness eval
+  a.add_argument('--robustnessUS',action='store_true')   #disables the robustness eval
+  a.add_argument('--robustnessU',action='store_true')    #disables the robustness eval
+  a.add_argument('--robustnessS',action='store_true')    #disables the robustness eval
   a.add_argument('--performance',action='store_true')    #disables the performance eval
   a.add_argument('--latex',action='store_true')          #generates the latex tables
   a.add_argument('--n', type=int, default=1)             #every returned value is the mean of n runs
@@ -598,6 +686,18 @@ if __name__ == '__main__':
     res = read_csv_all(STATS2,False)
     write_stats2_tex(METACONFIG2,CONFIG2,res,LATEX_FILE2)
 
+  ######################
+  #  ROBUSTNESS (U+S)  #
+  ######################
+
+  if os.path.isfile(RESULTS5):
+    os.remove(RESULTS5)
+
+  if not(cl_opts.robustnessUS):
+      results5 = evaluate_n_times(repetitions, METACONFIG5, CONFIG5, ROBUSTNESS, RESULTS5)
+      write_stats2(METACONFIG5, CONFIG5, ROBUSTNESS, results5, STATS5)
+
+
   ####################
   #  ROBUSTNESS (S)  #
   ####################
@@ -608,6 +708,7 @@ if __name__ == '__main__':
   if not(cl_opts.robustnessS):
       results3 = evaluate_n_times(repetitions, METACONFIG3, CONFIG3, ROBUSTNESS, RESULTS3)
       write_stats2(METACONFIG3, CONFIG3, ROBUSTNESS, results3, STATS3)
+      # write_stats3(METACONFIG3, CONFIG3, ROBUSTNESS, results3, STATS4)
 
   if (cl_opts.latex):
     res3 = read_csv_all(STATS3,False)

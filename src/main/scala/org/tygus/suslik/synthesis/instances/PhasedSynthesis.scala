@@ -50,7 +50,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = {
     val flags = config.flags
-    if (flags(1) && flags(9))
+    if (flags(10) && flags(9))
     List(
       LogicalRules.SubstLeftVar,
       UnfoldingRules.Close,
@@ -59,7 +59,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
       UnfoldingRules.Open,
       UnificationRules.HeapUnifyUnfolding,
       UnfoldingRules.AbduceCall,
-    ) else if (flags(2) && flags(9))
+    ) else if (flags(11) && flags(9))
       List(
         LogicalRules.SubstLeftVar,
         UnfoldingRules.AbduceCall,
@@ -68,7 +68,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
         UnfoldingRules.CallRule,
         UnfoldingRules.Open,
         UnfoldingRules.Close,
-      ) else if (flags(3) && flags(9))
+      ) else if (flags(12) && flags(9))
       List(
         LogicalRules.SubstLeftVar,
         UnfoldingRules.CallRule,
@@ -91,7 +91,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   def flatPhaseRules(config: SynConfig): List[SynthesisRule] = {
     val flags = config.flags
-    if (flags(0) && flags(9)) {
+    if (flags(13) && flags(9)) {
     List(
 
       OperationalRules.AllocRule,
@@ -114,7 +114,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnificationRules.Pick,
     UnificationRules.PickFromEnvRule,
   )
-  }  else  if (flags(4) && flags(9)) {
+  }  else  if (flags(14) && flags(9)) {
       List(
         OperationalRules.WriteRuleOld,
         UnificationRules.HeapUnifyFlat,
@@ -136,7 +136,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
         UnificationRules.Pick,
         UnificationRules.PickFromEnvRule,
       )
-    } else  if (flags(5) && flags(9)) {
+    } else  if (flags(15) && flags(9)) {
       List(
         UnificationRules.HeapUnifyFlat,
         OperationalRules.WriteRuleOld,
