@@ -71,12 +71,12 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
       ) else if (flags(3) && flags(9))
       List(
         LogicalRules.SubstLeftVar,
-        UnfoldingRules.Close,
-        LogicalRules.FrameUnfolding,
         UnfoldingRules.CallRule,
+        UnfoldingRules.Close,
+        UnfoldingRules.AbduceCall,
+        LogicalRules.FrameUnfolding,
         UnfoldingRules.Open,
         UnificationRules.HeapUnifyUnfolding,
-        UnfoldingRules.AbduceCall,
       )else
       List(
         LogicalRules.SubstLeftVar,
@@ -114,8 +114,51 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnificationRules.Pick,
     UnificationRules.PickFromEnvRule,
   )
-  }
-    else //default
+  }  else  if (flags(4) && flags(9)) {
+      List(
+        OperationalRules.WriteRuleOld,
+        UnificationRules.HeapUnifyFlat,
+        OperationalRules.AllocRule,
+
+        if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
+        LogicalRules.EmpRule,
+
+        // Flat phase rules
+        LogicalRules.SubstLeft,
+        UnificationRules.SubstRight,
+        LogicalRules.FrameFlat,
+
+        //    OperationalRules.WriteRule,
+        OperationalRules.FreeRule,
+        if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
+
+        UnificationRules.PureUnify,
+        UnificationRules.Pick,
+        UnificationRules.PickFromEnvRule,
+      )
+    } else  if (flags(5) && flags(9)) {
+      List(
+        UnificationRules.HeapUnifyFlat,
+        OperationalRules.WriteRuleOld,
+        OperationalRules.AllocRule,
+
+        if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
+        LogicalRules.EmpRule,
+
+        // Flat phase rules
+        LogicalRules.SubstLeft,
+        UnificationRules.SubstRight,
+        LogicalRules.FrameFlat,
+
+        //    OperationalRules.WriteRule,
+        OperationalRules.FreeRule,
+        if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
+
+        UnificationRules.PureUnify,
+        UnificationRules.Pick,
+        UnificationRules.PickFromEnvRule,
+      )
+    }  else //default
       List(
         if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
         LogicalRules.EmpRule,

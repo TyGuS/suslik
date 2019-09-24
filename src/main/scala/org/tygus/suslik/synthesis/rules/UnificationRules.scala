@@ -75,7 +75,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val alternatives = for {
         s <- postCandidates
         // at least one eval flag is set
-        t <- if (goal.env.config.flags.contains(true)) sort(pre.sigma.chunks)
+        t <- if (goal.env.config.flags(8)) sort(pre.sigma.chunks)
         else pre.sigma.chunks.sortBy(_.rank)
         // TODO create appropriate substitutions
         sub <- {
