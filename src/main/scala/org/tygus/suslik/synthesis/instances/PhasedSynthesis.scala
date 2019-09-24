@@ -48,18 +48,56 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 //    OperationalRules.AllocRule,
   )
 
-  def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
-    LogicalRules.SubstLeftVar,
-    LogicalRules.FrameUnfolding,
-    UnfoldingRules.CallRule,
-    UnfoldingRules.Open,
-    UnificationRules.HeapUnifyUnfolding,
-    UnfoldingRules.AbduceCall,
-    UnfoldingRules.Close,
-  )
+  def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = {
+    val flags = config.flags
+    if (flags(1) && flags(9))
+    List(
+      LogicalRules.SubstLeftVar,
+      UnfoldingRules.Close,
+      LogicalRules.FrameUnfolding,
+      UnfoldingRules.CallRule,
+      UnfoldingRules.Open,
+      UnificationRules.HeapUnifyUnfolding,
+      UnfoldingRules.AbduceCall,
+    ) else if (flags(2) && flags(9))
+      List(
+        LogicalRules.SubstLeftVar,
+        UnfoldingRules.AbduceCall,
+        UnificationRules.HeapUnifyUnfolding,
+        LogicalRules.FrameUnfolding,
+        UnfoldingRules.CallRule,
+        UnfoldingRules.Open,
+        UnfoldingRules.Close,
+      ) else if (flags(3) && flags(9))
+      List(
+        LogicalRules.SubstLeftVar,
+        UnfoldingRules.Close,
+        LogicalRules.FrameUnfolding,
+        UnfoldingRules.CallRule,
+        UnfoldingRules.Open,
+        UnificationRules.HeapUnifyUnfolding,
+        UnfoldingRules.AbduceCall,
+      )else
+      List(
+        LogicalRules.SubstLeftVar,
+        LogicalRules.FrameUnfolding,
+        UnfoldingRules.CallRule,
+        UnfoldingRules.Open,
+        UnificationRules.HeapUnifyUnfolding,
+        UnfoldingRules.AbduceCall,
+        UnfoldingRules.Close,
+      )
+  }
 
-  def flatPhaseRules(config: SynConfig): List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
+  def flatPhaseRules(config: SynConfig): List[SynthesisRule] = {
+    val flags = config.flags
+    if (flags(0) && flags(9)) {
+    List(
+
+      OperationalRules.AllocRule,
+      OperationalRules.WriteRuleOld,
+
+      if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
     LogicalRules.EmpRule,
 
     // Flat phase rules
@@ -67,8 +105,6 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnificationRules.SubstRight,
     LogicalRules.FrameFlat,
     UnificationRules.HeapUnifyFlat,
-    OperationalRules.AllocRule,
-    OperationalRules.WriteRuleOld,
 
 //    OperationalRules.WriteRule,
     OperationalRules.FreeRule,
@@ -78,5 +114,28 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnificationRules.Pick,
     UnificationRules.PickFromEnvRule,
   )
+  }
+    else //default
+      List(
+        if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
+        LogicalRules.EmpRule,
+
+        // Flat phase rules
+        LogicalRules.SubstLeft,
+        UnificationRules.SubstRight,
+        LogicalRules.FrameFlat,
+        UnificationRules.HeapUnifyFlat,
+        OperationalRules.AllocRule,
+        OperationalRules.WriteRuleOld,
+
+        //    OperationalRules.WriteRule,
+        OperationalRules.FreeRule,
+        if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
+
+        UnificationRules.PureUnify,
+        UnificationRules.Pick,
+        UnificationRules.PickFromEnvRule,
+      )
+  }
 
 }

@@ -40,7 +40,7 @@ case class SynConfig(
                         * IMPORTANT: remember to remove the flags check from the scala code once done
                         * with the evaluation, to make sure it does not interfere with future evaluations.
                         */
-                      flags: List[Boolean]       = (1 to 8).toList.map( _ => false),
+                      flags: List[Boolean]       = (1 to 10).toList.map( _ => false),
                     ) extends PrettyPrinting {
 
   override def pp: String =

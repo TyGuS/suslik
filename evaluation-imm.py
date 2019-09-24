@@ -42,11 +42,11 @@ RESULTS1     = 'evaluation-utils/all_results1'                     # Output file
 LATEX_FILE1  = 'evaluation-utils/table1.tex'                       # Output file for generating a latex table
 
 
-#################
-#  ROBUSTNESS   #
-#################
+####################
+#  ROBUSTNESS  (U) #
+####################
 PATH2        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
-METACONFIG2  = [ ('imm', '--imm true'), ('mut', '--imm false') ]   # Meta Configurations
+METACONFIG2  = [ ('imm', '--imm true --flag9 true'), ('mut', '--imm false --flag9 true') ]   # Meta Configurations
 CONFIG2      = [('Default',''),                                    # Configurations
                 ('Rank(D)','--flag2 true'),
                 ('Size(A)','--flag3 true'),
@@ -59,6 +59,18 @@ CONFIG2      = [('Default',''),                                    # Configurati
 STATS2       = 'evaluation-utils/all_stats2.csv'                   # Output file with all the stats
 RESULTS2     = 'evaluation-utils/all_results2'                     # Output file with synthesis results
 LATEX_FILE2  = 'evaluation-utils/table2.tex'                       # Output file for generating a latex table
+
+####################
+#  ROBUSTNESS (S)  #
+####################
+PATH2        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
+METACONFIG2  = [ ('imm', '--imm true --flag10 true'), ('mut', '--imm false --flag10 true') ]   # Meta Configurations
+CONFIG2      = [('Default',''),                                    # Configurations
+                ('WR','--flag1 true'),
+               ]
+STATS2       = 'evaluation-utils/all_stats3.csv'                   # Output file with all the stats
+RESULTS2     = 'evaluation-utils/all_results3'                     # Output file with synthesis results
+LATEX_FILE2  = 'evaluation-utils/table3.tex'                       # Output file for generating a latex table
 
 
 ###################################################################
@@ -248,7 +260,9 @@ ALL_BENCHMARKS = [
      ]),
    BenchmarkGroup("Sorted list", [
      Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
-     Benchmark(PATH2 + 'srtl/srtl-insert', 'insert'),
+     Benchmark(PATH2 + 'srtl/srtl-insert-S', 'insert-len'),
+     Benchmark(PATH2 + 'srtl/srtl-insert-N', 'insert-val'),
+     Benchmark(PATH2 + 'srtl/srtl-insert-NS', 'insert-all'),
      Benchmark(PATH2 + 'srtl/insertion-sort-N', 'ins-sort-len'),
      Benchmark(PATH2 + 'srtl/insertion-sort-S', 'ins-sort-val'),
      Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'ins-sort-all'),
@@ -545,7 +559,8 @@ def cmdline():
   a = argparse.ArgumentParser()
   a.add_argument('--tiny', action='store_true')
   a.add_argument('--stats',action='store_true')
-  a.add_argument('--robustness',action='store_true')     #disables the robustness eval
+  a.add_argument('--robustnessU',action='store_true')     #disables the robustness eval
+  a.add_argument('--robustnessS',action='store_true')     #disables the robustness eval
   a.add_argument('--performance',action='store_true')    #disables the performance eval
   a.add_argument('--latex',action='store_true')          #generates the latex tables
   a.add_argument('--n', type=int, default=1)             #every returned value is the mean of n runs
@@ -568,17 +583,32 @@ if __name__ == '__main__':
     res = read_csv_all(STATS1,True)
     write_stats1_tex(CONFIG1,res,LATEX_FILE1)
 
-  #################
-  #  ROBUSTNESS   #
-  #################
+  ####################
+  #  ROBUSTNESS (U)  #
+  ####################
 
   if os.path.isfile(RESULTS2):
     os.remove(RESULTS2)
 
-  if not(cl_opts.robustness):
+  if not(cl_opts.robustnessU):
       results2 = evaluate_n_times(repetitions, METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2)
       write_stats2(METACONFIG2, CONFIG2, ROBUSTNESS, results2, STATS2)
 
   if (cl_opts.latex):
     res = read_csv_all(STATS2,False)
     write_stats2_tex(METACONFIG2,CONFIG2,res,LATEX_FILE2)
+
+  ####################
+  #  ROBUSTNESS (S)  #
+  ####################
+
+  if os.path.isfile(RESULTS3):
+    os.remove(RESULTS3)
+
+  if not(cl_opts.robustnessS):
+      results3 = evaluate_n_times(repetitions, METACONFIG3, CONFIG3, ROBUSTNESS, RESULTS3)
+      write_stats2(METACONFIG3, CONFIG3, ROBUSTNESS, results3, STATS3)
+
+  if (cl_opts.latex):
+    res3 = read_csv_all(STATS3,False)
+    write_stats2_tex(METACONFIG3,CONFIG3,res3,LATEX_FILE3)

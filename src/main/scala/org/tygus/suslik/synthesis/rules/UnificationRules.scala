@@ -106,8 +106,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         }
       }
       val derivations = nubBy[(RuleResult, Int), Assertion](alternatives, sub => sub._1.subgoals.head.post)
-      val derivations_s = if (goal.env.config.flags.contains(true)) derivations
-      else derivations.sortBy(s => (-s._1.subgoals.head.similarity, s._2, s._1.subgoals.head.hist.applications.head))(ord)
+      val derivations_s = if (goal.env.config.flags(8)) derivations
+                          else
+        derivations.sortBy(s => (-s._1.subgoals.head.similarity, s._2, s._1.subgoals.head.hist.applications.head))(ord)
       val (res_derivations, _) = derivations_s.unzip
       res_derivations
     }

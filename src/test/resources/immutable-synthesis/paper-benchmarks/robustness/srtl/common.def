@@ -43,8 +43,8 @@ predicate srtlS(loc x, loc y, set s, int lo, int hi) {
 
 predicate srtlNS(loc x, loc y, int len, set s, int lo, int hi) {
 |  x == y        => { len == 0  /\ s =i {} /\  lo == 7  /\  hi == 0 ; emp }
-|  not (x == y)  => { en == 1 + len1  /\  0 <= len1  /\ s =i {v} ++ s1 /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ v <= lo1 /\ 0 <= v /\ v <= 7 ;
-                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** srtlNS(nxt, y, n1, s1, lo1, hi1)[0,1,2] }
+|  not (x == y)  => { len == 1 + len1  /\  0 <= len1  /\ s =i {v} ++ s1 /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ v <= lo1 /\ 0 <= v /\ v <= 7 ;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** srtlNS(nxt, y, len1, s1, lo1, hi1)[0,1,2] }
 }
 
 
