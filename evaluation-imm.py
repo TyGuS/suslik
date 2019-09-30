@@ -25,6 +25,7 @@ SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to susl
 TIMEOUT      = '-t=120000'                                        # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/immutable-synthesis/paper-benchmarks/'   # Root directory for the tests
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
+CSV_TEMP     = 'stats-temp.csv'                                   # Intermediate CSV file produced by suslik
 RESULTS      = 'evaluation-utils/all_results'                     # Output file with synthesis results
 DEFCONFIG    = ('def', '')                                        # Run with default configuration
 METACONFIG   = [DEFCONFIG]                                        # Configurations
@@ -47,14 +48,14 @@ LATEX_FILE1  = 'evaluation-utils/table1.tex'                       # Output file
 ####################
 PATH2        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
 METACONFIG2  = [ ('imm', '--imm true --flag9 true'), ('mut', '--imm false --flag9 true') ]   # Meta Configurations
-CONFIG2      = [#('Default',''),                                    # Configurations
+CONFIG2      = [('Default',''),                                    # Configurations
                 ('Rank(D)','--flag2 true'),
-                # ('Size(A)','--flag3 true'),
-                # ('Size(D)','--flag4 true'),
+                ('Size(A)','--flag3 true'),
+                ('Size(D)','--flag4 true'),
                 # # ('Cost(A)','--flag5 true'),
                 # # ('Cost(D)','--flag6 true'),
-                # ('Alph(A)','--flag7 true'),
-                # ('Alph(D)','--flag8 true')
+                ('Alph(A)','--flag7 true'),
+                ('Alph(D)','--flag8 true')
                ]
 STATS2       = 'evaluation-utils/all_stats2.csv'                   # Output file with all the stats
 RESULTS2     = 'evaluation-utils/all_results2'                     # Output file with synthesis results
@@ -67,11 +68,11 @@ PATH3        = "robustness/"                                       # Along with 
 METACONFIG3  = [ ('imm', '--imm true --flag10 true'), ('mut', '--imm false --flag10 true') ]   # Meta Configurations
 CONFIG3      = [('Default',''),                                    # Configurations
                 ('WR1','--flag11 true'),
-                # ('U1','--flag14 true'),
-              #   ('U2','--flag15 true'),
-              #   ('U3','--flag16 true'),
-              #   ('WR2','--flag12 true'),
-              #   ('WR3','--flag13 true'),
+                ('U1','--flag14 true'),
+                ('U2','--flag15 true'),
+                ('U3','--flag16 true'),
+                ('WR2','--flag12 true'),
+                ('WR3','--flag13 true'),
               ]
 STATS3       = 'evaluation-utils/all_stats3.csv'                   # Output file with all the stats
 STATS4       = 'evaluation-utils/all_stats4.csv'                   # compact stats for the plot
@@ -83,14 +84,19 @@ SPEC_VAR     = 3
 #  ROBUSTNESS (U+S)  #
 ######################
 PATH5        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
-METACONFIG5  = [ ('imm', '--imm true --flag10 true --flag9 true'),
-                 ('mut', '--imm false --flag10 true --flag9 true')
+METACONFIG5  = [ ('imm', '--imm true --flag10 true --flag9 true --flag18 true'), #tree
+                 ('mut', '--imm false --flag10 true --flag9 true --flag18 true')
+               ]                                                   # Meta Configurations
+METACONFIG6  = [ ('imm', '--imm true --flag10 true --flag9 true --flag17 true'), #srtl
+                 ('mut', '--imm false --flag10 true --flag9 true --flag17 true')
                ]                                                   # Meta Configurations
 CONFIG5      = [ (a[0] + '-' + b[0], a[1] + ' ' + b[1]) for a in CONFIG3 for b in CONFIG2]
-STATS5       = 'evaluation-utils/all_stats5.csv'                   # Output file with all the stats
+PSTATS5      = 'evaluation-utils/pstats5'                         # Output file with all the stats
 RESULTS5     = 'evaluation-utils/all_results5'                     # Output file with synthesis results
-LATEX_FILE5  = 'evaluation-utils/table5.tex'                       # Output file for generating a latex table
-SPEC_VAR     = 3
+CSV_IN5      = 'stats'
+CSV_TEMP5    = 'evaluation-utils/stats_out'
+
+
 
 ###################################################################
 
@@ -113,23 +119,22 @@ class SynthesisResult:
 
 
 class Benchmark:
-  def __init__(self, name, description, categ):
+  def __init__(self, name, description):
     self.name        = name         # Test file name
     self.description = description  # Description (in the table)
-    self.categ       = categ        # category
     self.res         = None         # the result will be an object of class SynthesisResult
 
   def __str__(self):
     return self.name + ': ' + self.description + ' with results: ' + self.res
 
-  def run_benchmark(self, file, args, results_file):
+  def run_benchmark(self, file, args, results_file, csv_in, csv_out):
     '''Runs single benchmark/file'''
     self.res = None
     fargs = list(filter(None, args))
     with open(results_file, "at") as outfile:
       print ('Running ' + file + ' ' + (' '.join(fargs)))
       call([JAVA8, '-jar', SUSLIK_JAR, file, TIMEOUT] + fargs, stdout=outfile)
-      self.res = read_csv()
+      self.res = read_csv(csv_in)
       return self.res # returns a SynthesisResult object
 
 
@@ -146,7 +151,7 @@ class BenchmarkGroup:
 
   # returns a dict of type string -> (SynthesisResult object) which maps
   # the name of each benchmark to the result of running the respective benchmark
-  def run_group(self, results_file, args = []):
+  def run_group(self, results_file, csv_in, csv_out, args = []):
     '''Runs all the benchmarks in one group'''
     res = dict()
     for b in self.benchmarks:
@@ -155,7 +160,7 @@ class BenchmarkGroup:
       if not os.path.isfile(testFileName):
         print ("Test file not found:", testFileName)
       else:
-        res[b.name] = b.run_benchmark(testFileName, args, results_file)
+        res[b.name] = b.run_benchmark(testFileName, args, results_file,csv_in, csv_out)
     return res
 
 
@@ -173,11 +178,22 @@ class Config:
   def __str__(self):
     return self.name + ': ' +  ('\n'.join([self.res[group.name] for group in self.groups]))
 
-  def run_config(self, meta_args, results_file = RESULTS):
+  def run_config(self, meta_args, csv_in, csv_out, results_file = RESULTS):
     '''Runs all the groups with one configuration'''
     print ('>>>', self.name)
     for group in self.groups:
-      self.res[group.name] = group.run_group(results_file, meta_args + self.args) # a map from filename to result
+      self.res[group.name] = group.run_group(results_file, csv_in, csv_out,meta_args + self.args) # a map from filename to result
+    with open(csv_out, "at") as tempfile:
+      tempfile.write('>>>' + self.name + '\n')
+      for group in self.groups:
+        for b in group.benchmarks:
+          row = \
+                group.name +\
+                ',' + b.description +\
+                ',' + self.res[group.name][b.name].code_size + \
+                ',' + self.res[group.name][b.name].rules +\
+                '\n'
+          tempfile.write(row)
     return self.res  # a map from groups to result
 
 
@@ -195,14 +211,16 @@ class MetaConfig:
   def __str__(self):
     return self.name + ': ' + ('\n'.join([self.res[conf[0]] for conf in self.configs]))
 
-  def run_metaconfig(self, groups, results_file = RESULTS):
+  def run_metaconfig(self, groups, csv_in, csv_out, results_file = RESULTS):
     '''Runs all the configs assuming the current meta-configuration'''
     print ('***********')
     print ('**', self.name)
     print ('***********')
+    with open(csv_out, "at") as tempfile:
+      tempfile.write('****' + self.name + '\n')
     for conf in self.configs:
       cnf = Config(groups, conf)
-      res_conf  = cnf.run_config(self.args, results_file)
+      res_conf  = cnf.run_config(self.args, csv_in, csv_out, results_file)
       self.res[conf[0]] = res_conf
     return self.res  # a dictionary from group to result of running the whole group
 
@@ -218,22 +236,22 @@ def foldl(func, acc, xs):
 
 ##########
 
-def evaluate(metaconfigs, configs, groups, results_file):
+def evaluate(metaconfigs, configs, groups, results_file, csv_in, csv_out):
   '''Test all the configurations defined in METACONFIG + CONFIG '''
   results = dict()
   for metaconf in metaconfigs:
       cnf = MetaConfig(configs, metaconf)
-      results[metaconf[0]] = cnf.run_metaconfig(groups, results_file)
+      results[metaconf[0]] = cnf.run_metaconfig(groups, csv_in, csv_out, results_file)
   return results
 
 
-def evaluate_n_times(n, metaconfigs, configs, groups, results_file):
+def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_out):
   res_lst = []
   for i in range(n):
     groups0 = groups.copy()
     if os.path.isfile(results_file):
       os.remove(results_file)
-    res_lst.append(evaluate(metaconfigs, configs, groups0, results_file))
+    res_lst.append(evaluate(metaconfigs, configs, groups0, results_file, csv_in, csv_out))
 
   results = res_lst[0].copy()
 
@@ -246,32 +264,32 @@ def evaluate_n_times(n, metaconfigs, configs, groups, results_file):
           try:
             lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].code_size,10) for i in range(n)]
             results[meta[0]][conf[0]][group.name][b.name].code_size = int(foldl(operator.add, 0, lst) / n)
-          except TypeError:
-            results[meta[0]][conf[0]][group.name][b.name].code_size = 0
+          except:
+            results[meta[0]][conf[0]][group.name][b.name].code_size = 'FAIL'
 
           try:
             lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].spec_size,10) for i in range(n)]
             results[meta[0]][conf[0]][group.name][b.name].spec_size = int(foldl(operator.add, 0, lst) / n)
-          except TypeError:
-            results[meta[0]][conf[0]][group.name][b.name].spec_size = 0
+          except:
+            results[meta[0]][conf[0]][group.name][b.name].spec_size = 'FAIL'
 
           try:
             lst = [float(res_lst[i][meta[0]][conf[0]][group.name][b.name].time) for i in range(n)]
             results[meta[0]][conf[0]][group.name][b.name].time = foldl(operator.add, 0, lst) / n
-          except TypeError:
-            results[meta[0]][conf[0]][group.name][b.name].time = 0
+          except:
+            results[meta[0]][conf[0]][group.name][b.name].time = 'FAIL'
 
           try:
             lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].backtracking,10) for i in range(n)]
             results[meta[0]][conf[0]][group.name][b.name].backtracking = int(foldl(operator.add, 0, lst) / n)
-          except TypeError:
-            results[meta[0]][conf[0]][group.name][b.name].backtracking = 0
+          except:
+            results[meta[0]][conf[0]][group.name][b.name].backtracking = 'FAIL'
 
           try:
             lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].rules,10) for i in range(n)]
             results[meta[0]][conf[0]][group.name][b.name].rules = int(foldl(operator.add, 0, lst) / n)
-          except TypeError:
-            results[meta[0]][conf[0]][group.name][b.name].rules = 0
+          except:
+            results[meta[0]][conf[0]][group.name][b.name].rules = 'FAIL'
 
   return results
 
@@ -292,11 +310,11 @@ ALL_BENCHMARKS = [
      Benchmark(PATH2 + 'sll/sll-copy', 'lcopy-val'),
      Benchmark(PATH2 + 'sll/sll-copy-N', 'lcopy-len'),
      Benchmark(PATH2 + 'sll/sll-copy-NS', 'lcopy-all',),
-     Benchmark(PATH2 + 'sll/sll-append', 'append'),
-     Benchmark(PATH2 + 'sll/sll-delete-all', 'delete'),
+     #Benchmark(PATH2 + 'sll/sll-append', 'append'),
+     #Benchmark(PATH2 + 'sll/sll-delete-all', 'delete'),
      ]),
    BenchmarkGroup("Sorted list", [
-     Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
+    # Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
      Benchmark(PATH2 + 'srtl/srtl-insert-S', 'insert-val'),
      Benchmark(PATH2 + 'srtl/srtl-insert-N', 'insert-len'),
      Benchmark(PATH2 + 'srtl/srtl-insert-NS', 'insert-all'),
@@ -305,10 +323,10 @@ ALL_BENCHMARKS = [
      Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'ins-sort-all'),
      ]),
     BenchmarkGroup("Tree", [
-     Benchmark(PATH2 + 'tree/tree-size-N', 'tsize-len'),
-     Benchmark(PATH2 + 'tree/tree-size-NS', 'tsize-all'),
-     Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'tsize-ptr-len'),
-     Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'tsize-ptr-all'),
+     # Benchmark(PATH2 + 'tree/tree-size-N', 'tsize-len'),
+     # Benchmark(PATH2 + 'tree/tree-size-NS', 'tsize-all'),
+     # Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'tsize-ptr-len'),
+     # Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'tsize-ptr-all'),
      # Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
      # Benchmark(PATH2 + 'tree/tree-morph', 'morph'),
      Benchmark(PATH2 + 'tree/tree-copy-S', 'tcopy-val'),
@@ -329,9 +347,9 @@ ALL_BENCHMARKS = [
 
 ROBUSTNESS = ALL_BENCHMARKS.copy()
 
-def read_csv():
+def read_csv(csv_in):
   '''Read stats file into the results dictionary'''
-  with open(CSV_IN, 'rt') as csvfile:
+  with open(csv_in, 'rt') as csvfile:
     d = csv.excel
     d.skipinitialspace = True
     statsReader = csv.DictReader(csvfile, dialect = d)
@@ -467,7 +485,7 @@ def write_stats1_tex(configs, results, latex_file):
   #  ROBUSTNESS   #
   #################
 
-def write_stats2(metaconfigs, configs, groups, results,stats_file):
+def write_stats2(metaconfigs, configs, groups, results, stats_file):
   '''Write stats from dictionary into a file'''
   with open(stats_file, 'wt') as stats:
     complete_headings = 'Group, Name, Assesed Property, Meta Config, ' + ( ','.join([ (",".join([c[0] for c in configs]))] ))
@@ -646,7 +664,8 @@ def cmdline():
   a = argparse.ArgumentParser()
   a.add_argument('--tiny', action='store_true')
   a.add_argument('--stats',action='store_true')
-  a.add_argument('--robustnessUS',action='store_true')   #disables the robustness eval
+  a.add_argument('--robustnessUSlsrt',action='store_true')   #disables the robustness eval
+  a.add_argument('--robustnessUStree',action='store_true')   #disables the robustness eval
   a.add_argument('--robustnessU',action='store_true')    #disables the robustness eval
   a.add_argument('--robustnessS',action='store_true')    #disables the robustness eval
   a.add_argument('--performance',action='store_true')    #disables the performance eval
@@ -663,8 +682,8 @@ if __name__ == '__main__':
   #  PERFORMANCE  #
   #################
 
-  if not(cl_opts.performance):
-      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1)
+  if (cl_opts.performance):
+      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1, CSV_IN, CSV_OUT)
       write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results1, STATS1)
 
   if (cl_opts.latex):
@@ -678,24 +697,54 @@ if __name__ == '__main__':
   if os.path.isfile(RESULTS2):
     os.remove(RESULTS2)
 
-  if not(cl_opts.robustnessU):
-      results2 = evaluate_n_times(repetitions, METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2)
+  if (cl_opts.robustnessU):
+      results2 = evaluate_n_times(repetitions, METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2, CSV_IN, CSV_OUT)
       write_stats2(METACONFIG2, CONFIG2, ROBUSTNESS, results2, STATS2)
 
   if (cl_opts.latex):
     res = read_csv_all(STATS2,False)
     write_stats2_tex(METACONFIG2,CONFIG2,res,LATEX_FILE2)
 
-  ######################
-  #  ROBUSTNESS (U+S)  #
-  ######################
+  ###########################
+  #  ROBUSTNESS (U+S)  lsrt #
+  ###########################
 
-  if os.path.isfile(RESULTS5):
-    os.remove(RESULTS5)
+  if os.path.isfile(RESULTS5 + 'lsrt'):
+    os.remove(RESULTS5 + 'lsrt')
 
-  if not(cl_opts.robustnessUS):
-      results5 = evaluate_n_times(repetitions, METACONFIG5, CONFIG5, ROBUSTNESS, RESULTS5)
-      write_stats2(METACONFIG5, CONFIG5, ROBUSTNESS, results5, STATS5)
+  if (cl_opts.robustnessUSlsrt):
+    i = 0
+    # for r in ROBUSTNESS:
+    res_file   = RESULTS5 + 'srtl'
+    stats_file = PSTATS5  + 'srtl'  + '.csv'
+    csv_in     = CSV_IN5  + '-srtl' + '.csv'
+    csv_out    = CSV_TEMP5+ '-srtl' + '.csv'
+    if os.path.isfile(res_file):
+      os.remove(res_file)
+    if os.path.isfile(csv_out):
+      os.remove(csv_out)
+    results5 = evaluate_n_times(repetitions, METACONFIG6, CONFIG5, [ROBUSTNESS[1]], res_file, csv_in, csv_out)
+    write_stats2(METACONFIG5, CONFIG5, [ROBUSTNESS[1]], results5, stats_file)
+
+  ###########################
+  #  ROBUSTNESS (U+S) tree  #
+  ###########################
+
+  if os.path.isfile(RESULTS5+'tree'):
+    os.remove(RESULTS5+'tree')
+
+  if (cl_opts.robustnessUStree):
+    # for r in ROBUSTNESS:
+    res_file = RESULTS5 + 'tree'
+    stats_file = PSTATS5   + 'tree'  + '.csv'
+    csv_in     = CSV_IN5   + '-tree' + '.csv'
+    csv_out    = CSV_TEMP5 + '-tree' + '.csv'
+    if os.path.isfile(res_file):
+      os.remove(res_file)
+    if os.path.isfile(csv_out):
+      os.remove(csv_out)
+    results6 = evaluate_n_times(repetitions, METACONFIG5, CONFIG5, [ROBUSTNESS[2]], res_file, csv_in, csv_out)
+    write_stats2(METACONFIG5, CONFIG5, [ROBUSTNESS[2]], results6, stats_file)
 
 
   ####################
@@ -706,7 +755,7 @@ if __name__ == '__main__':
     os.remove(RESULTS3)
 
   if not(cl_opts.robustnessS):
-      results3 = evaluate_n_times(repetitions, METACONFIG3, CONFIG3, ROBUSTNESS, RESULTS3)
+      results3 = evaluate_n_times(repetitions, METACONFIG3, CONFIG3, ROBUSTNESS, RESULTS3, CSV_IN, CSV_OUT)
       write_stats2(METACONFIG3, CONFIG3, ROBUSTNESS, results3, STATS3)
       # write_stats3(METACONFIG3, CONFIG3, ROBUSTNESS, results3, STATS4)
 
