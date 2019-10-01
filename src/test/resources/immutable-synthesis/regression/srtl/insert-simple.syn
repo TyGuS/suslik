@@ -1,0 +1,18 @@
+#. -b true -c 2
+sorted list: insert an element
+
+#####
+
+{0 <= n /\ 0 <= k /\ k <= 7000 ; r :-> z ** z :-> k ** (z + 1) :-> 0 ** [z, 2] ** srtl(x, n, lo, hi) }
+void srtl_insert (loc x, loc r)
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1) }
+
+#####
+
+void srtl_insert (loc x, loc r) {
+  let z2 = *r;
+  if (x == 0) {
+  } else {
+    *(z2 + 1) = x;
+  }
+}

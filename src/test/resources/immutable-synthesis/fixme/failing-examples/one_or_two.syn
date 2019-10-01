@@ -1,0 +1,7 @@
+one_or_two
+runs out of rules
+#####
+{r :-> was}
+void one_or_two(loc r)
+{ (ret ==  1 ) \/ (ret == 2); r :-> ret}
+#####

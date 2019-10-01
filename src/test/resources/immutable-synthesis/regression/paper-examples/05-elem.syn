@@ -1,0 +1,15 @@
+Example (5) from the paper (elem)
+
+#####
+
+{ S =i {v} ++ S1 ; x :-> a}
+
+void elem (loc x, int v)
+
+{ S1 ++ {v1} =i S; x :-> v1 + 1}
+
+#####
+
+void elem (loc x, int v) {
+  *x = v + 1;
+}

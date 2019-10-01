@@ -1,0 +1,50 @@
+should be able to synthesize trivial list append
+
+#####
+
+{ r :-> x ** lseg(x, 0, s1)[I@a, I@b, M] ** lseg(y, 0, s2)[I@a, I@b, M]}
+void list_append(loc r, loc y)
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[I@a, I@b, M]}
+
+#####
+
+
+{ r :-> x ** lseg(x, 0, s1)[I@a, I@b, M] ** lseg(y, 0, s2)[I@a, I@b, I@c]}
+void list_append(loc r, loc y)
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[I@a, I@b, I@c]}
+
+=====
+
+{ lseg(x, 0, s1)[I@a, I@b, M] ** lseg(y, 0, s2)[I@d, I@e, I@f] }
+void list_append(loc x, loc y)
+{  lseg(x, y, s1)[I@a, I@b, M] ** lseg(y, 0, s2)[I@d, I@e, I@f]}
+
+
+{ lseg(x, z, s1)[M, M, M] ** [z,2] ** z :-> w ** (z+1):-> 0 ** lseg(y, 0, s2)[M, M, M] }
+void list_append(loc x, loc y)
+{ lseg(x, z, s1)[M, M, M] ** [z,2] ** z :-> w ** (z+1):-> y ** lseg(y, 0, s2)[M, M, M]}
+
+
+{ lseg(x, 0, s1)[I, I, M] ** lseg(y, 0, s2)[I, I, I]}
+void list_append(loc x, loc y)
+{ s =i s1 ++ s2; lseg(x, y, s1)[I, I, M] ** lseg(y, 0, s2)[I, I, I]}
+
+{ r :-> x ** lseg(x, 0, s1)[I, I, M] ** lseg(y, 0, s2)[I, I, M]}
+void list_append(loc r, loc y)
+{ s =i s1 ++ s2; r :-> z ** lseg(z, 0, s)[I, I, M]}
+
+ # I guess it won't unify
+
+
+void list_append (loc r, loc y) {
+  let x2 = *r;
+  if (y == 0) {
+  } else {
+    let nxt2 = *(y + 1);
+    *r = nxt2;
+    list_append(r, x2);
+    let z12 = *r;
+    *(y + 1) = z12;
+    *r = y;
+  }
+}

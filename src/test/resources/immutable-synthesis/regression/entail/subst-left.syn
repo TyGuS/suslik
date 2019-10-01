@@ -1,0 +1,11 @@
+should be able to substitute equalities
+TODO would using immutable here belie too much knowledge on operator's part?
+###
+{ 5 == z  /\  y == a ; [x :-> y]@I@a ** y :-> z}
+void foo (loc x, loc y)
+{ x == x  /\  a == y  /\  true ; [x :-> y]@I@a ** y :-> 5}
+###
+void foo (loc x, loc y) {
+}
+
+lmao using immutable fixes the problem with recognizing inequality

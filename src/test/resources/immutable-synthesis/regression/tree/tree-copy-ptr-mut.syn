@@ -1,0 +1,31 @@
+should be able to synthesize a tree copy (with elements)
+
+#####
+
+{true ; r :-> x ** treeS(x, s)}
+void tree_copy(loc r)
+{true ; r :-> y ** treeS(x, s) ** treeS(y, s)[M, M, M, M] }
+
+#####
+
+void tree_copy (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let l2 = *(x2 + 1);
+    let r12 = *(x2 + 2);
+    *r = l2;
+    tree_copy(r);
+    let y12 = *r;
+    *x2 = r12;
+    tree_copy(x2);
+    let y22 = *x2;
+    let y3 = malloc(3);
+    *r = y3;
+    *(y3 + 1) = y12;
+    *(y3 + 2) = y22;
+    *y3 = v2;
+    *x2 = v2;
+  }
+}

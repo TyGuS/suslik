@@ -1,6 +1,7 @@
 package org.tygus.suslik.language
 
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.logic.MTag
 
 /**
   * @author Ilya Sergey
@@ -8,10 +9,89 @@ import org.tygus.suslik.language.Expressions._
 
 trait Substitutable[+A] {
 
-  // Variable substitution
+   // Variable substitution
   def subst(x: Var, by: Expr) : A = {
-    this.subst(Map.empty[Var,Expr] + (x -> by))
+    this.subst(Substitution(Map.empty[Var,Expr] + (x -> by), Map.empty))
   }
 
-  def subst(sigma: Map[Var, Expr]) : A
+  def subst(substitution: Substitution) : A
+
+  def subst(m: Map[Var, Expr]) : A = {
+    this.subst(Substitution(m))
+  }
+
 }
+
+object Substitution {
+  def empty: Substitution = Substitution()
+}
+
+case class Substitution(exprMapping : Map[Var, Expr] =  Map.empty[Var, Expr],
+                        mutMapping: Map[Var, MTag] = Map.empty[Var, MTag]) {
+
+  def +(v: Var, e: Expr): Substitution = {
+    Substitution(exprMapping + (v -> e), mutMapping)
+  }
+
+  def +(v: Var, m: MTag) : Substitution = {
+    Substitution(exprMapping, mutMapping + (v -> m))
+  }
+
+  def ++(o: Substitution) : Substitution = {
+    Substitution(exprMapping ++ o.exprMapping, mutMapping ++ o.mutMapping)
+  }
+
+  def getOrElse(key: Var, default: Expr): Expr = {
+    exprMapping.getOrElse(key, default)
+  }
+
+  def getOrElse(key: Var, default: MTag): MTag = {
+    mutMapping.getOrElse(key, default)
+  }
+
+  def keyset(): Set[Var] = {
+    exprMapping.keySet ++ mutMapping.keySet
+  }
+
+  def noConflict(o: Substitution): Boolean = {
+    exprMapping.keySet.intersect(o.mutMapping.keySet).isEmpty
+  }
+
+  def contains(x: Var): Boolean = {
+    exprMapping.contains(x) || mutMapping.contains(x)
+  }
+
+
+  def filter[A](p: ((Var, Any)) => Boolean ): Substitution = { 
+    Substitution(exprMapping.filter(p), mutMapping.filter(p))
+  }
+
+
+  def filterNot[A](p: ((Var, Any)) => Boolean ): Substitution = { 
+    filter{case (k : Var, v: Any) => !p((k, v))}
+  }
+
+  def sameValueAt(k: Var, o: Substitution): Boolean = {
+    if (exprMapping.isDefinedAt(k)) {
+      exprMapping(k) == o.exprMapping(k)
+    } else if (mutMapping.isDefinedAt(k)) {
+      mutMapping(k) == o.mutMapping(k)
+    } else false
+  }
+
+  // TODO [Immutability] could probably abstract these generic types of operations
+  // with and and or operations
+  def isDefinedAt(k: Var): Boolean = {
+    exprMapping.isDefinedAt(k) || mutMapping.isDefinedAt(k)
+  }
+
+}
+/*
+
+sealed class Substitute[T] {
+  object Substitute {
+    implicit object MTagResult extends Substitute[MTag]
+    implicit object PFResult extends Substitute[PFormula]
+  }
+}
+*/

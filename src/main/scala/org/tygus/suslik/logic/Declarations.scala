@@ -45,7 +45,7 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
 
   def relaxFunSpec = {
     val (relaxedPre, sub) = pre.relaxPTSImages
-    val reversedSub = for ((k, v@Var(_)) <- sub) yield v -> k
+    val reversedSub = for ((k, v@Var(_)) <- sub.exprMapping) yield v -> k // TODO [Immutability]nothing would satisfy this...
     val relaxedPost = post.subst(reversedSub)
     (this.copy(pre = relaxedPre, post = relaxedPost), sub)
   }
@@ -55,6 +55,11 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     val newPre = pre.subst(sub)
     val newPost = post.subst(sub)
     this.copy(pre = newPre, post = newPost)
+  }
+
+  def mutabilityTagsAreNotDefined(): Boolean = {
+    // there is some tag in the post that is not in the pre
+    (post.mutabilityVariables -- pre.mutabilityVariables).nonEmpty
   }
 
 }

@@ -32,10 +32,55 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
 
+      def sort(chunks: List[Heaplet]): List[Heaplet] = {
+
+        val flags = goal.env.config.flags
+
+        // RANK (default)
+        if (flags(0))
+          chunks.sortBy(_.rank)
+
+        // RANK (desc)
+        else if (flags(1))
+          chunks.sortBy(-_.rank)
+
+        //  SIZE:
+        else if (flags(2))
+          chunks.sortBy(_.size)
+
+        //  SIZE (desc):
+        else if (flags(3))
+          chunks.sortBy(-_.size)
+
+        //  COST:
+        else if (flags(4))
+          chunks.sortBy(_.cost)
+
+        //  COST (desc):
+        else if (flags(5))
+          chunks.sortBy(-_.cost)
+
+        // points-to ; sapp
+        else if (flags(6))
+          chunks.sortBy(_.name)
+
+        // sapp ; pointsto
+        else if (flags(7))
+          chunks.sortBy(_.name).reverse
+
+        else chunks.sortBy(_.rank)
+      }
+
+
       val alternatives = for {
         s <- postCandidates
-        t <- pre.sigma.chunks.sortBy(_.rank)
-        sub <- tryUnify(t, s, goal.universals, false)
+        // at least one eval flag is set
+        t <- if (goal.env.config.flags(8)) sort(pre.sigma.chunks)
+        else pre.sigma.chunks.sortBy(_.rank)
+        // TODO create appropriate substitutions
+        sub <- {
+          tryUnify(t, s, goal.universals, tagsMatter = false, _ == _)
+        }
         newPostSigma = post.sigma.subst(sub)
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
@@ -45,17 +90,27 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
         val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
         val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-        RuleResult(List(newGoal), kont, toString)
+        (RuleResult(List(newGoal), kont, toString), t.rank)
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
-      val ord = new Ordering[(Int, RuleApplication)] {
-        def compare(x: (Int, RuleApplication), y: (Int, RuleApplication)): Int = {
+      val ord = new Ordering[(Int, Int, RuleApplication)] {
+        def compare(x: (Int, Int, RuleApplication), y: (Int, Int, RuleApplication)): Int = {
           val c1 = x._1.compare(y._1)
-          if (c1 != 0) c1 else x._2.compare(y._2)
+          if (c1 != 0) c1
+          else {
+            val c2 = x._2.compare(y._2)
+            //TODO [immutability] enable/disable imm sensitive cost (just a hack, to upgrade it to rule if it has impact)
+            if (c2 != 0 && goal.env.config.prioImm) c2
+            else x._3.compare(y._3)
+          }
         }
       }
-      val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
-      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.hist.applications.head))(ord)
+      val derivations = nubBy[(RuleResult, Int), Assertion](alternatives, sub => sub._1.subgoals.head.post)
+      val derivations_s = if (goal.env.config.flags(8)) derivations
+                          else
+        derivations.sortBy(s => (-s._1.subgoals.head.similarity, s._2, s._1.subgoals.head.hist.applications.head))(ord)
+      val (res_derivations, _) = derivations_s.unzip
+      res_derivations
     }
   }
 
@@ -84,8 +139,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
-          // TODO: discuss and enable
-//        case BinaryExpr(OpBoolEq, l, r) => isExsistVar(l) || isExsistVar(r)
+        // TODO: discuss and enable
+        //        case BinaryExpr(OpBoolEq, l, r) => isExsistVar(l) || isExsistVar(r)
         // TODO [sets]: Can we enable this?
         case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false
@@ -148,13 +203,13 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val post = goal.post
 
       def isSuitable: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, v@Var(_)) =>
+        case PointsTo(x@Var(_), _, v@Var(_), _) =>
           !goal.isGhost(x) && goal.isExistential(v) && LanguageUtils.isNotDefaultFreshVar(v)
         case _ => false
       }
 
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -165,7 +220,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
+        case Some((hl@PointsTo(x@Var(_), offset, _, _), hr@PointsTo(_, _, m@Var(_), _))) =>
           for {
             // Try variables from the context
             l <- goal.programVars.toList
@@ -205,4 +260,5 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       } else Nil
     }
   }
+
 }

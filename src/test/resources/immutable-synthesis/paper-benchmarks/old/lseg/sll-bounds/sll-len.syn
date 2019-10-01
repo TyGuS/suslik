@@ -1,0 +1,20 @@
+singly-linked list: length
+
+#####
+
+{0 <= n ; ret :-> a ** lseg(x, z, n, hi,lo)[I@a,I@b,I@c] }
+void sll_len (loc x, loc z, loc ret)
+{true ; ret :-> n ** lseg(x, z, n, hi,lo)[I@a,I@b,I@c] }
+
+#####
+
+void sll_len (loc x, loc ret) {
+  if (x == 0) {
+    *ret = 0;
+  } else {
+    let nxt2 = *(x + 1);
+    sll_len(nxt2, ret);
+    let len12 = *ret;
+    *ret = 1 + len12;
+  }
+}

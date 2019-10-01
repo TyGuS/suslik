@@ -29,7 +29,7 @@ object Specifications {
 
     def hasPredicates: Boolean = sigma.chunks.exists(_.isInstanceOf[SApp])
 
-    def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
+    def subst(s: Substitution): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
       val freshSubst = refreshVars(this.vars.toList, bound)
@@ -40,16 +40,16 @@ object Specifications {
       * For all pointers x :-> v, changes v to a fresh variable $ex.
       * Returns a substitution from $ex to v.
       */
-    def relaxPTSImages: (Assertion, Subst) = {
+    def relaxPTSImages: (Assertion, Substitution) = {
       val ptss = sigma.ptss
       val (_, sub, newPtss) =
-        ptss.foldRight((Set.empty: Set[Var], Map.empty: Subst, Nil: List[PointsTo])) {
-          case (p@PointsTo(x, off, e), z@(taken, sbst, acc)) =>
+        ptss.foldRight((Set.empty: Set[Var], Substitution(): Substitution, Nil: List[PointsTo])) {
+          case (p@PointsTo(x, off, e, _), z@(taken, sbst, acc)) =>
             // Only relax if the pure part is not affected!
             if (e.vars.intersect(phi.vars).isEmpty) {
               val freshName = LanguageUtils.generateFreshExistential(taken)
               val taken1 = taken + freshName
-              val sub1 = sbst + (freshName -> e)
+              val sub1 = sbst + (freshName, e)
               (taken1, sub1, PointsTo(x, off, freshName) :: acc)
             } else (taken, sbst, p :: acc)
         }
@@ -82,6 +82,10 @@ object Specifications {
 
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
+
+    def mutabilityVariables() : Set[Var] = {
+      sigma.mutabilityVars()
+    }
 
     def cost: Int = sigma.cost
   }

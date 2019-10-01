@@ -1,0 +1,89 @@
+should be able to synthesize list copy
+
+#####
+
+predicate lseg(loc x, loc y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y, s1)[0,1, 2] }
+}
+
+{ r :-> x ** lseg(x, 0, n)[M, M, M]}
+
+void list_copy(loc r, loc x)
+
+{true ; r :-> y ** lseg(y, 0, n)[M, M, M] ** lseg(x, 0, n)[M, M, M]}
+
+
+#####
+
+void list_copy (loc r, loc x) {
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let nxt2 = *(x + 1);
+    list_copy(r, nxt2);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *r = y2;
+    *(y2 + 1) = y12;
+  }
+}
+
+Successfully synthesised in 1004 milliseconds:
+Number of backtrackings 16
+Lasting successful rule applications: 37
+Total successful rule applications: 46
+Final size of SMT cache: 97
+Number of saved negative results: 9
+Number of saved positive results: 37
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+vs immutable:
+
+Successfully synthesised in 746 milliseconds:
+Number of backtrackings 8
+Lasting successful rule applications: 28
+Total successful rule applications: 33
+Final size of SMT cache: 90
+Number of saved negative results: 5
+Number of saved positive results: 28
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void list_copy (loc r, loc x) {
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let nxt2 = *(x + 1);
+    list_copy(r, nxt2);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *r = y2;
+    *(y2 + 1) = y12;
+  }
+}
+
+
+Successfully synthesised in 788 milliseconds:
+Number of backtrackings 21
+Lasting successful rule applications: 37
+Total successful rule applications: 49
+Final size of SMT cache: 98
+Number of saved negative results: 12
+Number of saved positive results: 37
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void list_copy (loc r, loc x) {
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let nxt2 = *(x + 1);
+    list_copy(r, nxt2);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *r = y2;
+    *(y2 + 1) = y12;
+  }
+}

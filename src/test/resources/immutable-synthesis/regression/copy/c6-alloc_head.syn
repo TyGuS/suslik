@@ -1,0 +1,80 @@
+
+FStep 6:
+Add a head to a list
+
+Produces a seemingly right result, but takes sooper-long.
+Serves as an example of a problem with closing.
+
+TODO not correct
+
+{S =i {v} ++ S1 ; r :-> t3 ** lseg(t3, 0, S1)[M, M] }
+
+{S =i {v} ++ {w} ++ S1 ; r :-> t3 ** [[t3, 2]] ** [t3 :-> w] ** t3 + 1 :-> nxt ** [lseg(nxt, 0, S1)] }
+#####
+
+{true ; r :-> t3 ** lseg(t3, 0, S1)[I@a, I@b, I@c] }
+
+void list_copy(loc r, int v, loc t3)
+
+{true; r :-> y ** [y,2] ** y:-> v ** y+1:->t3 ** lseg(t3, 0, S1)[I@a, I@b, I@c]}
+
+
+#####
+{true; r:-> y ** lseg(y,0,S)
+
+void list_copy (loc r, int v, loc t3) {
+  let y2 = malloc(2);
+  *r = y2;
+  *(y2 + 1) = t3;
+  *y2 = v;
+
+}
+
+
+{S =i {v} ++ {w} ++ S1  ; r :-> t3 ** lseg(t3, 0, S1) }
+
+void list_copy(loc r, int v, loc t3)
+
+{true; r :-> y ** lseg(y, 0, S1)}
+
+mut:
+
+Successfully synthesised in 402 milliseconds:
+Number of backtrackings 25
+Lasting successful rule applications: 14
+Total successful rule applications: 29
+Final size of SMT cache: 25
+Number of saved negative results: 10
+Number of saved positive results: 14
+Number of recalled negative results: 1
+Number of recalled positive results: 0
+
+
+{true ; r :-> t3 ** lseg(t3, 0, S1)[List(Imm, Imm, Imm)]}
+void list_copy(loc r, int v, loc t3)
+{true ; r :-> y ** [y, 2] ** y :-> v ** (y + 1) :-> t3 ** lseg(t3, 0, S1)[List(Abs, Abs, Abs)]}
+
+Successfully synthesised in 616 milliseconds:
+Number of backtrackings 6
+Lasting successful rule applications: 41
+Total successful rule applications: 45
+Final size of SMT cache: 63
+Number of saved negative results: 3
+Number of saved positive results: 41
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void list_copy (loc r, int v, loc t3) {
+  if (t3 == 0) {
+    let y2 = malloc(2);
+    *r = y2;
+    *y2 = v;
+    *(y2 + 1) = 0;
+  } else {
+    let nxt2 = *(t3 + 1);
+    *r = nxt2;
+    list_copy(r, v, nxt2);
+    let y12 = *r;
+    *(y12 + 1) = t3;
+  }
+}

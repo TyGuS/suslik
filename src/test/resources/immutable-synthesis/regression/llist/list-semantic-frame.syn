@@ -1,0 +1,13 @@
+test case for semantic subst-L
+
+TODO -- same as before -- cheating to specify immutability?
+#####
+
+{ n + 1 == m + 1 /\ m - 1 == k - 1 ; lsegn(x, 0, n) }
+void noop(loc r)
+{true ; lsegn(x, 0, k) }
+
+#####
+
+void noop (loc r) {
+}

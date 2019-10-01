@@ -1,0 +1,32 @@
+#. -b true -c 2
+sorted list: insert an element
+
+#####
+
+{0 <= k /\ k <= 7000 ; 
+          r :-> z ** [z :-> k]@I@a  ** [(z + 1) :-> blank]@M ** [[z, 2]]@I@b **  
+           isrtl_nolen(x, lo, hi)[I@b, I@a, M] }
+void srtl_insert (loc x, loc r)
+{lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; 
+                               r :-> y ** isrtl_nolen(y, lo1, hi1)[I@b, I@a, M] }
+
+#####
+
+void srtl_insert (loc x, loc r) {
+  let z2 = *r;
+  let k2 = *z2;
+  if (x == 0) {
+    *(z2 + 1) = 0;
+  } else {
+    let v2 = *x;
+    if (v2 <= k2) {
+      let nxt2 = *(x + 1);
+      srtl_insert(nxt2, r);
+      let y12 = *r;
+      *(x + 1) = y12;
+      *r = x;
+    } else {
+      *(z2 + 1) = x;
+    }
+  }
+}

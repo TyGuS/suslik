@@ -1,0 +1,26 @@
+should be able to convert a singly-linked list to doubly-linked list
+
+finger-grained immutability
+how can we propagate it?
+
+notes: needed to recognize that I@c in helper should have matched I@c in real function
+#######
+
+{ true; [(prev + 1) :-> x]@I@c ** dllseg(x, z, s)[I@a, I@b, I@c, M] }
+void set_prev(loc x, loc prev)
+{ true; [(prev + 1) :-> x]@I@c ** dllseg(x, prev, s)[I@a, I@b, I@c, M]}
+
+{ true ; lseg_extra(x, s)[I@a, I@b, I@c, M]}
+void sll_to_dll(loc x)
+{ true ; dllseg(x, z, s)[I@a, I@b, I@c, M]}
+
+#######
+
+void sll_to_dll (loc x) {
+  if (x == 0) {
+  } else {
+    let nxt2 = *(x + 1);
+    sll_to_dll(nxt2);
+    set_prev(nxt2, x);
+  }
+}

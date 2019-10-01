@@ -1,0 +1,35 @@
+
+
+#####
+
+{ lsegS(xx, yy, s2)[I@a,I@b,M] ** ret :-> xx}
+void sll_weaken (loc ret, loc yy)
+{ lseg0(xx, yy)[I@a,I@b,M] ** ret :-> xx }
+
+{true ; lseg0(xx1, zz1)[M,M,M] ** lseg0(xx2, 0)[M,M,M] ** ret :-> xx2}
+void sll_append (loc xx1, loc zz1, loc ret)
+{ lseg0(xx2, zz1)[M,M,M] ** ret :-> xx2 }
+
+{true ; lsegS(x1, z1, s1)[M,M,M] ** lsegS(x2, 0, s2)[M,M,M] ** ret :-> x2}
+void sll_append (loc x1, loc z1, loc ret)
+{ lseg0(x2, z1)[M,M,M] ** ret :-> x2 }
+
+
+#####
+
+void sll_append (loc x1, loc z1, loc ret) {
+  let x22 = *ret;
+  if (x1 == z1) {
+    if (x22 == 0) {
+    } else {
+      let nxt2 = *(x22 + 1);
+      *ret = nxt2;
+      sll_weaken(ret);
+      *ret = x22;
+    }
+  } else {
+    let nxt2 = *(x1 + 1);
+    sll_append(nxt2, z1, ret);
+    free(x1);
+  }
+}

@@ -18,16 +18,37 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec7 = "{(42 < b) \\/ (b < 40); x :-> b } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
   val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(loc x, loc y) {true ; x :-> b ** (x + 1) :-> a}"
   val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
+  val spec10 = "{ [r :-> x]@M ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
+  val spec11 = "{ r :-> x ** lseg(x, S) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"
+  val spec12 = "{ r :-> x ** lseg(x, S)[M, M] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, M] ** lseg(y, S) }"
+  //val spec12 = "{ [r :-> x] ** lseg(x, S)[I@a, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@a, I@b] ** lseg(y, S) }"
+  val spec13 = "{ r :-> x ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[M, I@b] ** lseg(y, S) }"
+  // TODO not necessary to parse
+  val spec14 = "{ r :-> x ** lseg(x, S)[M, I@b] } void listcopy(loc r) { true ; r :-> y ** lseg(x, S)[I@b, I@(I@M)] ** lseg(y, S) }"
 
   val log = SynLogLevels.Test
   import log._
 
   def parseSimpleSpec(text: String) {
-    val parser = new SSLParser
+     val parser = new SSLParser
     val result = parser.parseGoal(text)
     // So far, just assert that the result is a success
     assert(result.successful, result)
     println(result.get.pp)
+  }
+
+  def parseWithListPredicate(test : String) {
+    val listPred = "predicate lseg(loc x, set s) {\n|  x == 0 => { s =i {} ; emp }\n" +
+      "|  not (x == 0) => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }\n}"
+
+    parseSimpleSpec(listPred + test)
+  }
+
+  def parseWithComplexPermissions(test : String) {
+    val listPred = "predicate lseg(loc x, set s)[0,1] {\n|  x == 0 => { s =i {} ; emp }\n" +
+      "|  not (x == 0) => { s =i {v} ++ s1 ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@0 ** lseg(nxt, s1)[0,1] }\n}"
+
+    parseSimpleSpec(listPred + test)
   }
 
   describe("Parser for SSL specs") {
@@ -66,6 +87,26 @@ class GoalParserTests extends FunSpec with Matchers {
     it("should parse malloc blocks") {
       parseSimpleSpec(spec9)
     }
+
+    it("should parse immutable predicates") {
+      parseWithListPredicate(spec10)
+    }
+
+    it("should parse immutable points-to") {
+      parseWithListPredicate(spec11)
+    }
+
+    it("should parse heap with sapp tags") {
+      parseWithComplexPermissions(spec12)
+    }
+
+    it("should parse heap with mixed immutable params") {
+      parseWithComplexPermissions(spec13)
+    }
+
+//    it("should parse heap with nested immutable params") {
+//      parseWithComplexPermissions(spec14)
+//    }
   }
 
 

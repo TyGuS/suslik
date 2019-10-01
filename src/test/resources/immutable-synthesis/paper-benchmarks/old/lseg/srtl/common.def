@@ -1,0 +1,51 @@
+predicate lseg(loc x, loc y, int lo, int hi) {
+|  x == y        => { lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => { lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y, lo1, hi1)[0,1,2] }
+}
+
+predicate lsegN(loc x, loc y, int len, int lo, int hi) {
+|  x == y        => { len == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lsegN(nxt, y, len1, lo1, hi1)[0,1,2] }
+}
+
+predicate lsegS(loc x, loc y, set s, int lo, int hi) {
+|  x == y        => { s =i {} /\ lo == 7  /\  hi == 0; emp }
+|  not (x == y)  => { s =i {v} ++ s1 /\ lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lsegS(nxt, y, s1, lo1, hi1)[0,1,2] }
+}
+
+predicate lsegNS(loc x, loc y, int len, set s, int lo, int hi) {
+|  x == y        => { s =i {} /\ len == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => { len == 1 + len1  /\  0 <= len1  /\ s =i {v} ++ s1 /\ lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lsegNS(nxt, y, len1, s1, lo1, hi1)[0,1,2] }
+}
+
+
+predicate srtl(loc x, loc y, int lo, int hi) {
+|  x == y        => {  lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => {  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ v <= lo1 /\ 0 <= v /\ v <= 7 ;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** srtl(nxt, y, lo1, hi1)[0,1,2] }
+}
+
+predicate srtlN(loc x, loc y, int len, int lo, int hi) {
+|  x == y        => { len == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ v <= lo1 /\ 0 <= v /\ v <= 7 ;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** srtlN(nxt, y, len1, lo1, hi1)[0,1,2] }
+}
+
+predicate srtlS(loc x, loc y, set s, int lo, int hi) {
+|  x == y        => { s =i {} /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ v <= lo1 /\ 0 <= v /\ v <= 7 ;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** srtlS(nxt, y, s1, lo1, hi1)[0,1,2] }
+}
+
+predicate srtlNS(loc x, loc y, int len, set s, int lo, int hi) {
+|  x == y        => { len == 0  /\ s =i {} /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == y)  => { en == 1 + len1  /\  0 <= len1  /\ s =i {v} ++ s1 /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ v <= lo1 /\ 0 <= v /\ v <= 7 ;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** srtlNS(nxt, y, n1, s1, lo1, hi1)[0,1,2] }
+}
+
+
+

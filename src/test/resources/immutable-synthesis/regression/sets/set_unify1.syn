@@ -1,0 +1,14 @@
+Should be able to unify simple facts about sets via *-hypothesis
+
+#####
+
+{ S =i {v} ++ S1 ; emp}
+
+void foo (loc x)
+
+{{v1} ++ S11 =i S ; emp}
+
+#####
+
+void foo (loc x) {
+}

@@ -1,0 +1,37 @@
+should be able to flatten the tree into a list given an auxiliary function for list appending
+
+TODO Immutability: to check why this loops with imm
+
+####
+
+{true ; lseg(xx1, 0, ss1)[I@a,I@b,M] ** lseg(xx2, 0, ss2)[I@a,I@b,M] ** ret :-> xx2}
+void sll_append (loc xx1, loc ret)
+{ss =i ss1 ++ ss2 ; lseg(yy, 0, ss)[I@a,I@b,M] ** ret :-> yy }
+
+{ true ; z :-> x ** treeS(x, s)[M,M,M,M]}
+void tree_flatten(loc z)
+{ true ;  z :-> y ** lseg(y, 0, s)[M,M,M]}
+
+####
+
+void tree_flatten (loc z) {
+  let x2 = *z;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let l2 = *(x2 + 1);
+    let r2 = *(x2 + 2);
+    *z = l2;
+    tree_flatten(z);
+    *x2 = r2;
+    tree_flatten(x2);
+    let y22 = *x2;
+    sll_append(y22, z);
+    let y32 = *z;
+    let y4 = malloc(2);
+    *z = y4;
+    *(y4 + 1) = y32;
+    free(x2);
+    *y4 = v2;
+  }
+}

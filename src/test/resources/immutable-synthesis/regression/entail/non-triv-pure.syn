@@ -1,0 +1,39 @@
+should be able to synthesize an empty program for a non-trivial pure part
+###
+{ x == x  /\  y == x ; [x :-> y]@I@a}
+void bar(loc x, int y)
+{ (x == x) /\ ((x == y) /\ true) ; [x :-> y]@I@a }
+###
+void bar (loc x, int y) {
+}
+
+Successfully synthesised in 161 milliseconds:
+Number of backtrackings 0
+Lasting successful rule applications: 4
+Total successful rule applications: 4
+Final size of SMT cache: 7
+Number of saved negative results: 0
+Number of saved positive results: 4
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void bar (loc x, int y) {
+}
+
+TODO is it cheating to add an immutable annotation?
+You don't know what's going to happen -- would require foresight
+
+immutable:
+
+Successfully synthesised in 114 milliseconds:
+Number of backtrackings 0
+Lasting successful rule applications: 2
+Total successful rule applications: 2
+Final size of SMT cache: 3
+Number of saved negative results: 0
+Number of saved positive results: 2
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void bar (loc x, int y) {
+}

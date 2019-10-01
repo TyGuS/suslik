@@ -16,7 +16,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   import log._
 
-  val synthesis: Synthesis = new PhasedSynthesis
+  def mkSynthesiser: Synthesis = new PhasedSynthesis
 
   /**
     * Command line args:
@@ -29,7 +29,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * -a, --assert <value>          check that the synthesized result against the expected one; default: false
     * -c, --maxCloseDepth <value>   maximum unfolding depth in the post-condition; default: 1
     * -o, --maxOpenDepth <value>    maximum unfolding depth in the pre-condition; default: 1
-    * -b, --branchAbduction <value> abduct conditional branches; default: false
+    * -b, --branchAbduction <value> abduce conditional branches; default: false
     * -f, --printFailed <value>     print failed rule applications; default: false
     *
     * --help                        prints the help reference
@@ -162,6 +162,26 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean](name="memoization").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))
     }.text("enable memoization; default: true")
+
+    opt[Boolean](name="prioImm").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(prioImm = b))
+    }.text("imm aware rule prioritization; default: false")
+
+    opt[Boolean](name="imm").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(imm = b))
+    }.text("immutability aware specification; default: true")
+
+    /**
+      * [EVALUATION] these dummy flags are solely used for the evaluation purposes.
+      * They are populated based on the `flags` list in SynConfig.
+      */
+    val robustness_flags_name = (1 to SynConfig().flags.length).toList.map(a => "flag" + a)
+    robustness_flags_name.foreach(arg_str =>
+      opt[Boolean](name = arg_str).action { (b, rc) =>
+        rc.copy(synConfig = rc.synConfig.copy(
+          flags = rc.synConfig.flags.updated(robustness_flags_name.indexOf(arg_str), b)))
+      }.text("set flags for evaluation; default: false")
+    )
 
 
     help("help").text("prints this usage text")

@@ -36,7 +36,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -45,10 +45,15 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2))) =>
+        case Some((hl@PointsTo(x@Var(_), offset, e1, m1), hr@PointsTo(_, _, e2, m2))) =>
           if (e1 == e2) {
             return Nil
           } // Do not write if RHSs are the same
+
+          if (!hl.isMutable || m1 != m2) {
+            return Nil
+            // Do not write if points-to is immutable
+          }
 
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
@@ -83,13 +88,16 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
       findHeaplet(noGhosts, post.sigma) match {
         case None => Nil
-        case Some(h@PointsTo(x@Var(_), offset, l)) =>
+        case Some(h@PointsTo(x@Var(_), offset, l, _)) =>
+
+          // Cannot write to immutable or absent heaplets
+          if (!h.isMutable) return Nil
 
           // Same heaplet in pre: no point in writing
           if (pre.sigma.chunks.contains(h)) return Nil
@@ -123,14 +131,15 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val gamma = goal.gamma
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, a@Var(_)) =>
+        case PointsTo(x@Var(_), _, a@Var(_), _) =>
           goal.isGhost(a) && !goal.isGhost(x)
         case _ => false
       }
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
-        case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
+        case Some(h@PointsTo(x@Var(_), offset, a@Var(_), _)) =>
+
           val y = generateFreshVar(goal, a.name)
           val tpy = goal.getType(a)
 
@@ -143,6 +152,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
     }
   }
+
 
   /*
   Alloc rule: allocate memory for an existential block
@@ -157,7 +167,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       def isExistBlock: Heaplet => Boolean = {
-        case Block(x@Var(_), _) => goal.isExistential(x)
+        case Block(x@Var(_), _, _) => goal.isExistential(x)
         case _ => false
       }
 
@@ -173,7 +183,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findTargetHeaplets(goal) match {
         case None => Nil
-        case Some((h@Block(x@Var(_), sz), pts)) =>
+        case Some((h@Block(x@Var(_), sz, _), pts)) =>
           val y = generateFreshVar(goal, x.name)
           val tpy = LocType
 
@@ -221,7 +231,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findTargetHeaplets(goal) match {
         case None => Nil
-        case Some((h@Block(x@Var(_), _), pts)) =>
+        case Some((h@Block(x@Var(_), _, _), pts)) =>
+          // should not be allowed if the target heaplet is immutable
+          if (!h.isMutable || pts.exists(z => !z.isMutable)) return Nil
+
           val newPre = Assertion(pre.phi, pre.sigma - h - pts)
 
           // Collecting the footprint

@@ -38,7 +38,7 @@ trait SepLogicUtils extends PureLogicUtils {
     slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
     val pt = hl.asInstanceOf[PointsTo]
     hr match {
-      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+      case PointsTo(y, off, _, _) => pt.loc == y && pt.offset == off
       case _ => false
     }
   }
@@ -52,7 +52,7 @@ trait SepLogicUtils extends PureLogicUtils {
                          sigma: SFormula): Option[(Block, Seq[Heaplet])] = {
     findHeaplet(pBlock, sigma) match {
       case None => None
-      case Some(h@Block(x@Var(_), sz)) =>
+      case Some(h@Block(x@Var(_), sz, _)) =>
         val pts = for (off <- 0 until sz) yield
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
         Some((h, pts.flatten))
@@ -62,26 +62,25 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
-//    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
-//      case (Some(x), Some(y)) => x - y
-//      case _ => 0
-//    }
+    //    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
+    //      case (Some(x), Some(y)) => x - y
+    //      case _ => 0
+    //    }
 
     def compareTags(lilTag: Option[Int], largTag: Option[Int]) = lilTag.getOrElse(0) - largTag.getOrElse(0)
 
     val pairTags = for {
-      SApp(name, args, t) <- adaptedFunPre.chunks
-      SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
-        case SApp(_name, _args, _) => _name == name && _args == args
+      SApp(name, args, t, _, _) <- adaptedFunPre.chunks
+      SApp(_name, _args, _t, _, _) <- goalSubHeap.chunks.find {
+        case SApp(_name, _args, _, _, _) => _name == name && _args == args  //TODO Immutability: should imm comparison be performed too?
         case _ => false
       }
     } yield (t, _t)
-    val comparisons = pairTags.map {case (t, s) => compareTags(t, s)}
+    val comparisons = pairTags.map { case (t, s) => compareTags(t, s) }
     val allGeq = comparisons.forall(_ <= 0)
     val atLeastOneLarger = comparisons.exists(_ < 0)
     allGeq && atLeastOneLarger
   }
-
 
 
   /**
@@ -90,23 +89,25 @@ trait SepLogicUtils extends PureLogicUtils {
   def findLargestMatchingHeap(small: SFormula, large: SFormula): Seq[SFormula] = {
 
     def findMatchingFor(h: Heaplet, stuff: Seq[Heaplet]): Seq[Heaplet] = h match {
-      case Block(loc, sz) => stuff.filter {
-        case Block(_, _sz) => sz == _sz
+      case Block(loc, sz, _) => stuff.filter {
+        case Block(_, _sz, _) => sz == _sz
         case _ => false
       }
-      case PointsTo(loc, offset, value) =>
+      case PointsTo(loc, offset, value, _) =>
         def hasBlockForLoc(_loc: Expr) = stuff.exists {
-          case Block(_loc1, _) => _loc == _loc1
+          case Block(_loc1, _, _) => _loc == _loc1
           case _ => false
         }
 
         stuff.filter {
-          case PointsTo(_loc, _offset, _value) => offset == _offset // && !hasBlockForLoc(_loc)
+          case PointsTo(_loc, _offset, _value, _) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
-      case SApp(pred, args, tag) => stuff.filter {
-        case SApp(_pred, _args, _tag) =>
-          _pred == pred && args.length == _args.length
+      case SApp(pred, args, tag, mutFrom, submutFrom) => stuff.filter {
+        case SApp(_pred, _args, _tag, _mutTo, _submutTo) =>
+          _pred == pred && args.length == _args.length &&
+            mutFrom == _mutTo && 
+            MTag.checkLists(_submutTo, submutFrom, expandMissingToMut = true)
         case _ => false
       }
     }
@@ -126,10 +127,10 @@ trait SepLogicUtils extends PureLogicUtils {
 
   def findBlockRootedSubHeap(b: Block, sf: SFormula): Option[SFormula] = {
     if (!sf.chunks.contains(b)) return None
-    val Block(x, sz) = b
+    val Block(x, sz, _) = b
     if (!x.isInstanceOf[Var]) return None
-    val ps = for {p@PointsTo(y, o, _) <- sf.chunks if x == y} yield p
-    val offsets = ps.map { case PointsTo(_, o, _) => o }.sorted
+    val ps = for {p@PointsTo(y, o, _, _) <- sf.chunks if x == y} yield p
+    val offsets = ps.map { case PointsTo(_, o, _, _) => o }.sorted
     val goodChunks = offsets.size == sz && // All offsets are present
       offsets.distinct.size == offsets.size && // No repetitions
       offsets.forall(o => o < sz) // all smaller than sz

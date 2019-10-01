@@ -1,0 +1,41 @@
+should be able to deallocate a linked list in the presence of another list
+TODO I'm actually surprised the immutable version doesn't work
+###
+
+{true; lseg(x, y) ** lseg (a, b)[I@a, I@b, I@c]}
+  void free_llist2 (loc x, loc y, loc a, loc b)
+{true ; lseg (a, b)[I@a, I@b, I@c] }
+
+###
+
+void free_llist2 (loc x, loc y, loc a, loc b) {
+  if (x == y) {
+  } else {
+    let nxt2 = *(x + 1);
+    free_llist2(nxt2, y, a, b);
+    free(x);
+  }
+}
+
+Successfully synthesised in 644 milliseconds:
+Number of backtrackings 82
+Lasting successful rule applications: 16
+Total successful rule applications: 60
+Final size of SMT cache: 93
+Number of saved negative results: 50
+Number of saved positive results: 16
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void free_llist2 (loc x, loc y, loc a, loc b) {
+  if (x == y) {
+  } else {
+    let nxt2 = *(x + 1);
+    free_llist2(nxt2, y, a, b);
+    free(x);
+  }
+}
+
+vs immutable
+
+        A

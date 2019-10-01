@@ -1,0 +1,16 @@
+predicate lseg(loc x, loc y) {
+|  x == y        => {emp}
+|  not (x == y)  => {[[x, 2]]@0 ** [x :-> 0]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y)[0,1,2]}
+}
+
+predicate lseg1(loc x, loc y) {
+|  x == y        => {emp}
+|  not (x == y)  => {[[x, 2]]@0 ** [x :-> 1]@1 ** [(x + 1) :-> nxt]@2 ** lseg1(nxt, y)[0,1,2]}
+}
+
+predicate lsegn(loc x, loc y, int len) {
+|  x == y        => { len == 0 ; emp }
+|  not (x == y)  => { (len == 1 + len1) /\ (0 <= len1) ; [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lsegn(nxt, y, len1)[0,1,2] }
+}
+
+

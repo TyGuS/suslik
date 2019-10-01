@@ -1,0 +1,43 @@
+should be able to flatten the tree into a list given an auxiliary function for list appending
+
+####
+
+{ true ; z :-> x ** tree(x, s)}
+void tree_flatten(loc z)
+{ true ;  z :-> y ** lseg(y, 0, s)}
+
+####
+
+void tree_flatten (loc z) {
+  let x2 = *z;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let l2 = *(x2 + 1);
+    let r2 = *(x2 + 2);
+    *z = l2;
+    tree_flatten(z);
+    *x2 = r2;
+    tree_flatten(x2);
+    let y22 = *x2;
+    list_append(z, y22);
+    let z12 = *z;
+    let y3 = malloc(2);
+    *z = y3;
+    *(y3 + 1) = z12;
+    free(x2);
+    *y3 = v2;
+  }
+}
+
+Successfully synthesised in 1264 milliseconds:
+Number of backtrackings 32
+Lasting successful rule applications: 38
+Total successful rule applications: 57
+Final size of SMT cache: 270
+Number of saved negative results: 15
+Number of saved positive results: 38
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+TODO can we do it faster? need to alloc and dealloc

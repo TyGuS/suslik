@@ -1,0 +1,15 @@
+should be able to reason with singleton sets
+
+#####
+
+{ true ; x :-> a }
+
+void add(loc x, int e)
+
+{ {e, a} =i {a, r} ; x :-> r }
+
+######
+
+void add (loc x, int e) {
+  *x = e;
+}

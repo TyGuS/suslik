@@ -1,0 +1,13 @@
+Example (3) from the paper (notSure)
+
+###
+{[x :-> a]@M ** [y :-> b]@I@a}
+void notSure (loc x, loc y)
+{[x :-> z]@M ** [y :-> z]@I@a}
+
+###
+
+void notSure (loc x, loc y) {
+  let b2 = *y;
+  *x = b2;
+}

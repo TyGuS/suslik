@@ -1,0 +1,6 @@
+should be able to synthesize an empty program
+###
+{true; emp} void foo(loc x) {true ; emp}
+###
+void foo (loc x) {
+}

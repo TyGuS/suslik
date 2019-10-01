@@ -15,7 +15,7 @@ case class SynConfig(
                       phased: Boolean           = true,
                       invert: Boolean           = true,
                       fail: Boolean             = true,
-                      commute: Boolean          = true,
+                      commute: Boolean          = false,
                       depthFirst: Boolean       = true,
                       // Timeout and logging
                       printStats: Boolean       = true,
@@ -26,9 +26,21 @@ case class SynConfig(
                       assertSuccess: Boolean    = false,
                       logToFile: Boolean        = true,
                       memoization: Boolean      = true,
+                      prioImm: Boolean          = false,
+                      imm: Boolean              = true,
                       timeOut: Long             = 120000,
                       // Global state
-                      startTime: Long           = 0
+                      startTime: Long           = 0,
+                      /**
+                        * [EVALUATION] these dummy `flags` are solely used for the evaluation purposes.
+                        * By default they have no meaning, but one can use them to turn on/off some
+                        * feature of choice. If more flags are needed, simply add more elements to
+                        * the flags list below.
+                        *
+                        * IMPORTANT: remember to remove the flags check from the scala code once done
+                        * with the evaluation, to make sure it does not interfere with future evaluations.
+                        */
+                      flags: List[Boolean]      = (1 to 16).toList.map( _ => false),
                     ) extends PrettyPrinting {
 
   override def pp: String =
@@ -46,5 +58,3 @@ case class SynConfig(
 case class SynTimeOutException(msg: String) extends Exception(msg)
 
 case class SynthesisException(msg: String) extends Exception(msg)
-
-

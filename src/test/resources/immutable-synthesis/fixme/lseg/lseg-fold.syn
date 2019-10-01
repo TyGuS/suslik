@@ -1,0 +1,13 @@
+singly-linked list segment: append
+
+TODO Immutability: unfold always materializes the head of the lseg, so how to deal with the example below?
+
+
+#####
+
+{ true ; lseg(x1, x11, s1)[I@a,I@b,M] ** [[x11,2]]@I@a ** [x11 :-> v]@I@b ** (x11 + 1) :-> z1 }
+void simplefold (loc x1, loc z1)
+{s =i {v} ++ s1 ; lseg(x1, z1, s)[I@a,I@b,M] }
+
+#####
+

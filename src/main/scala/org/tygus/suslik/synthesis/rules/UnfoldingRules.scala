@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.language.{Ident, VoidType}
+import org.tygus.suslik.language.{Ident, Substitution, VoidType}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -42,10 +42,18 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val env = goal.env
 
+     //if (h.isAbsent) return None // TODO [Immutability] correct?
+
       h match {
-        case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
+        case x@SApp(pred, args, Some(t), mut, submut) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          val predicate = env.predicates(pred)
+          val InductivePredicate(_, params, clauses) = predicate.refreshExistentials(goal.vars)
+
+          // here, we should check the params and change their tags... all of them
+          // params need to be U(n) TODO [Immutability]
+          // hm, we got the body from the predicate, so...
+
           val sbst = params.map(_._2).zip(args).toMap
           val remainingSigma = pre.sigma - h
           val newGoals = for {
@@ -54,15 +62,21 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             asn = _asn.subst(sbst)
             constraints = asn.phi
             body = asn.sigma
+            // if our heaplet was not immutable, our opening must be immutable also
+
+
+            // Adapt immutability for the clause to be substituted to the precondition
+            predChunks = x.applyFineGrainedTags(x.submut, body.chunks)
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
             // The tags in the body should be one more than in the current application:
-            _newPreSigma1 = SFormula(body.chunks).setUpSAppTags(t + 1)
+            _newPreSigma1 = SFormula(predChunks).setUpSAppTags(t + 1)
             newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
+          // TODo can absents be ghosts?
           if (noGhosts) Some((newGoals, h)) else None
         case _ => None
       }
@@ -82,7 +96,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
   }
 
- 
   /*
   Application rule: apply the inductive hypothesis
 
@@ -108,13 +121,17 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
         largHeap = goal.pre.sigma
-        largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+        largSubHeap <- {
+          findLargestMatchingHeap(lilHeap, largHeap)
+        }
         callSubPre = goal.pre.copy(sigma = largSubHeap)
 
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        sub <- SpatialUnification.unify(target, source).toList
+        sub <- {
+          SpatialUnification.unify(target, source).toList
+        }
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
@@ -130,10 +147,60 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     /**
       * Make a call goal for `f` with a given precondition
       */
-    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
+    def mkCallGoal(f: FunSpec, sub: Substitution, callSubPre: Assertion, goal: Goal): List[Goal] = {
       val preFootprint = callSubPre.sigma.chunks.map(p => goal.hist.preIndex.lastIndexOf(p)).toSet
       val ruleApp = saveApplication((preFootprint, Set.empty), goal.hist)
       val callPost = f.post.subst(sub)
+
+      /* added starts */
+      val callPre = f.pre.subst(sub)
+      // todo don't need a diff -- it's fine to apply to all heaplets
+      //val diff = callPost.sigma.chunks.filterNot(callPre.sigma.chunks.toSet)
+      //val diffEtc = SFormula(f.post.sigma.chunks.filterNot(f.pre.sigma.chunks.toSet))
+      //diffEtc.subst(sub)
+      //val diff = diffEtc.chunks
+
+      val permissionedCallPost = SFormula(callPost.sigma.chunks.map((h : Heaplet) => {
+        //if (diff.contains(h)) {
+          // we need to find the corresponding heaplet in the callSubPre and f.pre
+          // the pre and post should use the same variables
+          def findCorrespondingHeaplets[T <: Heaplet](inner : Heaplet): Boolean =
+            h match {
+              case _ : PointsTo => inner.isInstanceOf[PointsTo] && inner.vars == h.vars
+              case _ : Block => inner.isInstanceOf[Block] && inner.vars == h.vars
+              case _ : SApp => inner.isInstanceOf[SApp] && inner.vars == h.vars
+            }
+
+          val callSubPreSubbed : SFormula = callSubPre.sigma subst sub
+
+          val allPreHeapSubbed = callPre.sigma.chunks.filter(findCorrespondingHeaplets)
+          if (allPreHeapSubbed.nonEmpty) {
+            val preHeap = allPreHeapSubbed.head // assumung only one
+            // there should be a matching one, otherwise synthesis would fail
+            // TODO
+            val allCallSubPreHeapSubbed = callSubPreSubbed.chunks.filter(findCorrespondingHeaplets) // assuming only one
+            if (allCallSubPreHeapSubbed.nonEmpty) {
+              val preHeapSubbed = allCallSubPreHeapSubbed.head
+
+              // h should be weaker or equal to i.e. abs < imm < mut than the preheap
+              assert(MTag.pre(preHeap.mut, h.mut)) // make sure that the returned permission is equal to or weaker than
+
+              // TODO using the post here
+              // will unify later?
+              val newPermission = MTag.demote(preHeapSubbed.mut, preHeap.mut);
+              h match {
+                case PointsTo(a, b, c, d) => PointsTo(a, b, c, mut = newPermission)
+                case Block(a, b, c) => Block(a, b, mut = newPermission)
+                case SApp(a, b, c, d, e) => SApp(a, b, c, mut = newPermission, e)
+                case _ => h
+              }
+            } else h
+          } else h
+      //  } else h
+      }))
+
+      /* added ends */
+
       val newEnv = if (f.name == goal.fname) goal.env else {
         // To avoid more than one application of a library function
         val funs = goal.env.functions.filterKeys(_ != f.name)
@@ -141,19 +208,21 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
 //      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
       val addedChunks2 = callPost.sigma.lockSAppTags()
+      // TODO: substitute tags
       // Here we return two options for added chunks:
       // (a) with bumped tags
       // (b) with locked tags
       // The former enables applications of other functions (tree-flatten)
       // The latter enables application of the same recursive function (tree-flatten-acc),
       // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
-      for {
+      val goals = for {
 //        acs <- List(addedChunks1, addedChunks2)
         acs <- List(addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
         callGoal = goal.spawnChild(restPre, newRuleApp = Some(ruleApp), env = newEnv)
       } yield callGoal
+      goals
     }
   }
 
@@ -189,7 +258,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
-        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keyset.contains(k) } ++ compose1(exSub, relaxedSub)
         if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
@@ -199,14 +268,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-    def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): Option[(Goal, Goal)] = {
+    def writesAndRestGoals(actualSub: Substitution, relaxedSub: Substitution, f: FunSpec, goal: Goal): Option[(Goal, Goal)] = {
       val ptss = f.pre.sigma.ptss // raw points-to assertions
       val (ptsToReplace, ptsToObtain) = (for {
-        p@PointsTo(x@Var(_), off, e) <- ptss
+        p@PointsTo(x@Var(_), off, e, _) <- ptss
         if actualSub.contains(x)
         if e.subst(relaxedSub) != e.subst(actualSub)
         actualSource = x.subst(actualSub)
-        pToReplace <- goal.pre.sigma.ptss.find { case PointsTo(y, off1, _) => y == actualSource && off == off1 }
+        pToReplace <- goal.pre.sigma.ptss.find { case PointsTo(y, off1, _, _) => y == actualSource && off == off1 }
         pToObtain = PointsTo(actualSource, off, e.subst(actualSub))
       } yield {
         (pToReplace, pToObtain)
@@ -248,13 +317,18 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {
         h match {
-          case SApp(_, _, Some(t)) => t > env.config.maxCloseDepth
+          case SApp(_, _, Some(t), _, _) => t > env.config.maxCloseDepth
           case _ => false
         }
       }
 
+      def hasImmutablePreCounterpart(h : Heaplet) : Boolean = {
+        goal.pre.sigma.chunks.foldLeft[Boolean](true)((acc: Boolean, h1 : Heaplet) =>
+          if (h.lhsVars.intersect(h1.lhsVars).nonEmpty) { acc && h1.isImmutable } else acc)
+      }
+
       def heapletResults(h: Heaplet): Seq[RuleResult] = h match {
-        case SApp(pred, args, Some(t)) =>
+        case x@SApp(pred, args, Some(t), _, _) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
@@ -275,10 +349,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
             //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+            predChunks = //if (h.isImmutable && x.submut.isEmpty) {
+              //actualBody.copy(actualBody.chunks.map (c => c.mkImmutable))
+            //} else {
+              actualBody.copy(x.applyFineGrainedTags(x.submut, actualBody.chunks))
+            //}
+
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = mkConjunction(List(actualSelector, post.phi, actualConstraints))
-            val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
+            val newPost = Assertion(newPhi, goal.post.sigma ** predChunks - h)
 
             val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)

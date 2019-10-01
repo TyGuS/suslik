@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.rules.Rules.StmtProducer
@@ -20,6 +19,7 @@ object SearchTree {
       else parent match {
         // this node cannot be the root, because label.lengh > l.length
         case Some(p) => p.hasAncestor(l)
+        case None => throw SynthesisException("OrNode cannot be root")
       }
 
     // Replace the ancestor labeled l with newAN

@@ -134,7 +134,11 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       (AllocRule.findTargetHeaplets(goal), FreeRule.findTargetHeaplets(goal)) match {
         case (None, None) =>
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
+          // TODO will we always reach ReadOnlyEmpty before this rule?
             Nil
+          else if (goal.pre.sigma.chunks.foldLeft[Boolean](true)((acc, h) =>
+            if (h.isMutable) false
+            else acc)) Nil
           else
             List(RuleResult(List(goal.unsolvableChild), idProducer, toString)) // spatial parts do not match: only magic can save us
         case _ => Nil // does not apply if we could still alloc or free

@@ -15,10 +15,10 @@ import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 
 class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunnerUtil  {
 
-  val synthesis: Synthesis = new PhasedSynthesis
+  def mkSynthesiser: Synthesis = new PhasedSynthesis
 
   def resolveFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig): Specifications.Goal = {
-    val parser = new SSLParser
+    val parser = new SSLParser(params)
     val res = parser.parseGoal(text)
     if (!res.successful) {
       throw SynthesisException(s"Failed to parse the input:\n$res")

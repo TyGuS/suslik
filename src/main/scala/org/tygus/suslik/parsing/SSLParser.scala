@@ -5,12 +5,13 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis.SynthesisException
+import org.tygus.suslik.synthesis.{SynthesisException,defaultConfig,SynConfig}
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-class SSLParser extends StandardTokenParsers with SepLogicUtils {
+
+class SSLParser (config: SynConfig = defaultConfig) extends StandardTokenParsers with SepLogicUtils {
 
   // Modified repN
   def repAll[T](p: => Parser[T]): Parser[List[T]] =
@@ -92,15 +93,29 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     }
   }
 
-  def heaplet: Parser[Heaplet] = (
-      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
-          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args) }
-      )
+  def immutableheaplet : Parser[Heaplet] = (
+    ("[" ~> heaplet(Mut) <~ ("]" ~ "@")) ~ numericLit ^^ { case h ~ n => h.makeUnknown(Integer.parseInt(n)) } // later change permission
+    ||| ("[" ~> heaplet(Mut) <~ ("]" ~ "@")) ~ perm ^^   { case h ~ m => h.setMut(m)(config) }// TODO [Immutability] get rid of the bare I eventually
+    ||| heaplet(Mut)
+  )
+
+  def heaplet(mutable : MTag): Parser[Heaplet] = (
+      (identWithOffset <~ ":->") ~ expr ^^                   { case (a, o) ~ b => PointsTo(Var(a), o, b).setMut(mutable)(config) }
+          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)).setMut(mutable)(config)}
+          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("[" ~> rep1sep(perm, ",") <~ "]") ^^
+                                                             { case name ~ args ~ perms => SApp(name, args).setMut(mutable,perms)(config)}
+  )
+
+  def perm : Parser[MTag] = (
+    "M" ^^^ Mut
+      ||| (("I" ~ "@") ~> ident) ^^ (s => ImmVar(Var(s)))
+      ||| ("I" ~ "@" ~ "M") ^^ (p => Imm(Mut))
+      ||| numericLit ^^ (n => U(Integer.parseInt(n)))
+  )
 
   def sigma: Parser[SFormula] = (
       "emp" ^^^ SFormula(Nil)
-          ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
+          ||| repsep(immutableheaplet, "**") ^^ { hs => SFormula(hs) }
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
@@ -111,10 +126,11 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def indClause: Parser[InductiveClause] =
     expr ~ ("=>" ~> assertion) ^^ { case p ~ a => InductiveClause(p, a) }
 
+  // TODO [Immutability] enforce list somewhere i.e. make the numbers match up with inputs
   def indPredicate: Parser[InductivePredicate] =
-    ("predicate" ~> ident) ~ ("(" ~> repsep(formal, ",") <~ ")") ~
+    ("predicate" ~> ident) ~ ("(" ~> repsep(formal, ",") <~ ")") ~ (opt("[" ~> repsep(perm, ",") <~ "]")) ~
         (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ formals ~ clauses => InductivePredicate(name, formals, clauses)
+      case name ~ formals ~ perms ~ clauses => InductivePredicate(name, formals, clauses)
     }
 
   def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
@@ -145,4 +161,6 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def parseUnificationGoal(input: String): ParseResult[UnificationGoal] = parse(uGoal)(input)
 
   def parseGoal(input: String): ParseResult[Program] = parse(program)(input)
+
 }
+

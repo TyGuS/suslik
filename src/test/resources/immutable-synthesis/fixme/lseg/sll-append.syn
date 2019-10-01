@@ -1,0 +1,30 @@
+singly-linked list segment: append
+
+TODO Immutability: why can't we append when the segment does not end with null?
+
+
+#####
+
+
+{ true ; lseg(x1, x11, s1)[I@a,I@b,M] ** [[x11,2]]@I@a ** [x11 :-> v]@I@b ** (x11 + 1) :-> z1 }
+void simplefold (loc x1, loc z1)
+{s =i {v} ++ s1 ; lseg(x1, z1, s)[I@a,I@b,M] }
+
+#####
+
+
+{true ; lseg(x1, x11, s1)[I@a,I@b,M] ** [[x11,2]]@I@a ** [x11 :-> v]@I@b ** (x11 + 1) :-> z1 ** lseg(x2, z2, s2)[I@a,I@b,M] ** ret :-> x2}
+void lseg_append (loc x1, loc z1, loc ret)
+{s =i {v} ++ s1 ++ s2 ; lseg(x1, z2, s)[I@a,I@b,M] ** ret :-> x1 }
+
+
+void lseg_append (loc x1, loc z1, loc ret) {
+  if (x1 == 0) {
+  } else {
+    let nxt2 = *(x1 + 1);
+    lseg_append(nxt2, ret);
+    let y12 = *ret;
+    *(x1 + 1) = y12;
+    *ret = x1;
+  }
+}

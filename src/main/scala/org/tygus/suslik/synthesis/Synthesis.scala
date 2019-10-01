@@ -5,8 +5,8 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.SearchTree._
-import org.tygus.suslik.util.{SynLogging, SynStats}
 import org.tygus.suslik.synthesis.rules.Rules._
+import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
 import scala.annotation.tailrec
@@ -30,6 +30,7 @@ trait Synthesis extends SepLogicUtils {
 
   def synthesizeProc(funGoal: FunSpec, env: Environment): Option[(List[Procedure], SynStats)] = {
     implicit val config: SynConfig = env.config
+    // Cleanup the memo table
     val FunSpec(name, tp, formals, pre, post) = funGoal
     val goal = topLevelGoal(pre, post, formals, name, env)
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))
@@ -58,8 +59,6 @@ trait Synthesis extends SepLogicUtils {
     processWorkList(worklist)(stats, goal.env.config)
   }
 
-
-
   @tailrec final def processWorkList(worklist: List[OrNode])
                                     (implicit
                                      stats: SynStats,
@@ -71,7 +70,8 @@ trait Synthesis extends SepLogicUtils {
     }
 
     val sz = worklist.length
-    printLog(List((s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
+    val workListLog = s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}"
+    printLog(List((workListLog, Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     worklist match {
@@ -90,7 +90,7 @@ trait Synthesis extends SepLogicUtils {
         // each of which can have multiple open subgoals
         val rules = nextRules(goal, 0)
         val expansions =
-          if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
+          if (goal.isUnsolvable) Nil // This is a special unsolvable goal, discard eagerly
           else applyRules(rules)(goal, stats, config, ind)
 
         if (expansions.isEmpty) {
@@ -134,6 +134,8 @@ trait Synthesis extends SepLogicUtils {
         // Invoke the rule
         val allChildren = r(goal)
         // Filter out children that contain out-of-order goals
+        
+        // TODO [Commute]: This is a commute optimisation that affects completeness 
         val children = if (config.commute) {
           allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
         } else allChildren
@@ -177,7 +179,7 @@ trait Synthesis extends SepLogicUtils {
   private def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "|  " * ind
 
   protected def printLog(sc: List[(String, String)], isFail: Boolean = false)
-                      (implicit config: SynConfig, ind: Int = 0): Unit = {
+                        (implicit config: SynConfig, ind: Int = 0): Unit = {
     if (config.printDerivations) {
       if (!isFail || config.printFailed) {
         for ((s, c) <- sc if s.trim.length > 0) {

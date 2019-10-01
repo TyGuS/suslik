@@ -1,11 +1,11 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident}
+import org.tygus.suslik.language.Ident
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -41,7 +41,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else Nil
     }
   }
-
+  
   /*
   --------------------------------------- [inconsistency]
   Γ ; {φ ∧ l ≠ l ; P} ; {ψ ; Q} ---> emp
@@ -120,7 +120,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       def findPointers(a: Assertion): Set[Expr] = {
         val p = a.phi
         // All pointers
-        val allPointers = (for (PointsTo(l, _, _) <- a.sigma.chunks) yield l).toSet
+        val allPointers = (for (PointsTo(l, _, _, _) <- a.sigma.chunks) yield l).toSet
         allPointers.filter(
           x => p != pFalse && !p.conjuncts.contains(x |/=| NilPtr) && !p.conjuncts.contains(NilPtr |/=| x)
         )
@@ -160,7 +160,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "*Partial"
 
     def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[PFormula] = {
-      val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
+      val ptrs = (for (PointsTo(x, _, _, _) <- s.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = for (x <- ptrs; y <- ptrs if x != y) yield (x, y)
       val newPairs = pairs.filter {
@@ -245,6 +245,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val s2 = goal.post.sigma
       val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
+      // TODO what if program vars are linked to immutables?
       val varCandidates = goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)
 
       lazy val subs: List[Subst] = for {

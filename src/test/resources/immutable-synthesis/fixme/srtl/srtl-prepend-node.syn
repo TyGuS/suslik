@@ -1,0 +1,13 @@
+sorted list: prepend an element
+
+#####S
+
+{0 <= n  /\ 0 <= v /\ v <= 7 /\ v <= lo ; r :-> a ** [[k,2]]@I@a ** [k :-> v]@I@b ** (k+1) :-> 0 **
+                                          srtl(x, p, n, lo, hi)[I@a,I@b,M] }
+void srtl_prepend (loc x, loc p, loc k, loc r)
+{n1 == n + 1 /\ hi1 == (hi <= v ? v : hi); r :-> k ** srtl(k, p, n1, v, hi1)[I@a,I@b,M] }
+
+
+
+#####
+

@@ -1,0 +1,38 @@
+should be able to synthesize trivial list append
+
+TODO how do we collapse two lists with two different permissions into one?
+#####
+
+{ 0 <= n ; lseg(y, 0, n)[I@a, I@b, M] ** lseg(x, 0, m)[I@a, I@b, M]}
+void list_append(loc y, loc x)
+{ true  ; lseg(x, 0, k)[I@a, I@b, M]}
+
+#####
+
+{ 0 <= n ; lseg(x, 0, n) ** [lseg(y, 0, m)] }
+void list_append(loc y, loc x)
+{ r = 2*n /\ s = r - 1  ; lseg(x, 0, n-1) ** (x+s) :-> - ** (x+r) :-> y }
+
+
+void list_append (loc r, loc y) {
+  let x2 = *r;
+  if (y == 0) {
+  } else {
+    let nxt2 = *(y + 1);
+    *r = nxt2;
+    list_append(r, x2);
+    let z12 = *r;
+    *(y + 1) = z12;
+    *r = y;
+  }
+}
+
+Successfully synthesised in 1018 milliseconds:
+Number of backtrackings 92
+Lasting successful rule applications: 45
+Total successful rule applications: 96
+Final size of SMT cache: 150
+Number of saved negative results: 52
+Number of saved positive results: 45
+Number of recalled negative results: 0
+Number of recalled positive results: 0

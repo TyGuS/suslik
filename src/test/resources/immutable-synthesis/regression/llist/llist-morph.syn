@@ -1,0 +1,67 @@
+should be able to morph a linked list
+
+We can use fine-grained immutability
+###
+
+
+{true; lseg(x, y)[I@a, M, I@b] }
+  void morph_llist(loc x, loc y)
+{true; lseg1(x, y)[I@a, M, I@b] }
+
+
+###
+
+
+
+{true; [[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, y) }
+  void morph_llist(loc x, loc y)
+{true; [[x, 2]]@A ** x :-> 1 ** [(x + 1) :-> nxt]@A ** lseg(nxt, y)[I@a, M, I@b, M] } // possible...?
+
+
+{true; [[x, 2]] ** x :-> 0 ** [(x + 1) :-> nxt] ** lseg(nxt, y) }
+  void morph_llist(loc x, loc y)
+{true; [[x, 2]]@A ** x :-> 1 ** [(x + 1) :-> nxt]@A ** lseg(nxt, y) }
+
+
+[x, 2] ** x :-> 1 ** (x + 1) :-> nxt **
+
+[Abs, Mut, Abs, Mut]
+
+void morph_llist (loc x, loc y) {
+  if (x == y) {
+  } else {
+    let nxt2 = *(x + 1);
+    morph_llist(nxt2, y);
+    *x = 1;
+  }
+}
+
+Successfully synthesised in 398 milliseconds:
+Number of backtrackings 2
+Lasting successful rule applications: 15
+Total successful rule applications: 16
+Final size of SMT cache: 32
+Number of saved negative results: 1
+Number of saved positive results: 15
+Number of recalled negative results: 0
+
+Number of recalled positive results: 0
+
+Successfully synthesised in 357 milliseconds:
+Number of backtrackings 2
+Lasting successful rule applications: 13
+Total successful rule applications: 14
+Final size of SMT cache: 32
+Number of saved negative results: 1
+Number of saved positive results: 13
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void morph_llist (loc x, loc y) {
+  if (x == y) {
+  } else {
+    let nxt2 = *(x + 1);
+    morph_llist(nxt2, y);
+    *x = 1;
+  }
+}

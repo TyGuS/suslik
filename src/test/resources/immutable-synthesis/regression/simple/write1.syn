@@ -1,0 +1,7 @@
+should be able to synthesize a simple constant-assigning procedure
+###
+{true; x :-> 1} void foo(loc x) {true ; x :-> 43}
+###
+void foo (loc x) {
+  *x = 43;
+}

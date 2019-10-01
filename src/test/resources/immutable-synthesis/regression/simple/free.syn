@@ -1,0 +1,8 @@
+should be able to deallocate memory
+###
+{true; x :-> y ** [y, 1] ** y :-> 42} void delete(loc x) {true ; x :-> y }
+###
+void delete (loc x) {
+  let y2 = *x;
+  free(y2);
+}

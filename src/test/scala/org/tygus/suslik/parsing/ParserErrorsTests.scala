@@ -193,6 +193,28 @@ class ParserErrorsTests extends FunSpec with Matchers {
       failsOnLine(code, 6)
     }
 
+    it("should fail with syntax error - no immutable values") { // TODO necessary? Values immutable by default
+      val code =
+        """predicate lseg (loc x, loc y) {
+          | x == y  =>  {emp}
+          | not (x == y)  => {x :-> v ** x + 1 :-> z ** lseg(z, y)}
+          }
+
+          { r :-> x ** lseg(x, [S]) } void listcopy(loc r) { true ; r :-> y ** lseg(x, S) ** lseg(y, S) }"""
+      failsOnLine(code, 6)
+    }
+
+    it("should fail with syntax error - misuse of immutable") { // TODO do we allow immutable in postcondition by default?
+      val code =
+        """predicate lseg (loc x, loc y) {
+          | x == y  =>  {emp}
+          | not (x == y)  => {x :-> v ** x + 1 :-> z ** lseg(z, y)}
+          }
+
+          { r :-> x ** lseg(x, S) } void listcopy(loc r) { [true] ; r :-> y ** lseg(x, S) ** lseg(y, S) }"""
+      failsOnLine(code, 6)
+    }
+
     it("should throw exception if no goal is given") {
       val code =
         """predicate lseg(loc x, set s) {

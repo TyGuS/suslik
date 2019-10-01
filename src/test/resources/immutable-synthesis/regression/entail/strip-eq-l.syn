@@ -1,0 +1,38 @@
+should be able to discharge trivial equalities in the precondition
+###
+{ z == 5  /\  x == x ; [x :-> y]@I@a ** y :-> z}
+void foo(loc x, loc y)
+{ true ; [x :-> y]@I@a ** y :-> 5 }
+###
+void foo (loc x, loc y) {
+}
+
+original
+Successfully synthesised in 264 milliseconds:
+Number of backtrackings 0
+Lasting successful rule applications: 7
+Total successful rule applications: 7
+Final size of SMT cache: 8
+Number of saved negative results: 0
+Number of saved positive results: 7
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void foo (loc x, loc y) {
+}
+
+Still not very useful to add immutability:
+
+
+Successfully synthesised in 249 milliseconds:
+Number of backtrackings 0
+Lasting successful rule applications: 6
+Total successful rule applications: 6
+Final size of SMT cache: 8
+Number of saved negative results: 0
+Number of saved positive results: 6
+Number of recalled negative results: 0
+Number of recalled positive results: 0
+
+void foo (loc x, loc y) {
+}

@@ -9,7 +9,7 @@ import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 
 class AbductionTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
-  val synthesis: Synthesis = new PhasedSynthesis
+  def mkSynthesiser: Synthesis = new PhasedSynthesis
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
     it(desc) {
@@ -17,7 +17,7 @@ class AbductionTests extends FunSpec with Matchers with SynthesisRunnerUtil {
     }
 
   describe("SL-based synthesizer with abductor for hypothesis preconditions") {
-    runAllTestsFromDir("abduct")
+    runAllTestsFromDir("abduce")
   }
 
 }

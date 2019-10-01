@@ -1,0 +1,19 @@
+Copy a linked list
+
+###
+
+{lseg(x, S) }
+
+  void listcopy(loc r)
+
+{ true ; lseg(y, S) ** [lseg(x,S)]@A}
+
+#####
+
+
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  loc y12, loc nxt2, int v2, loc x2, loc r |-
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  {true && not (x2 == 0) && not (r == 0) && S =i {v2} ++ s1 && not (r == x2) && not (x2 == r) && true && true ; [[x2, 2]] ** [x2 :-> v2] ** [(x2 + 1) :-> nxt2] ** r :-> y12 ** [lseg(nxt2, s1)[-]]}
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  {true && x2 == 0 && true && not (y == 0) && true && S =i {v1} ++ s1 && S =i {} ; r :-> y ** [y, 2] ** y :-> v1 ** (y + 1) :-> y12}
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  [Fail: post-inconsistent]: SUCCESS at depth 15, 1 alternative(s) [0 sub-goal(s)]
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  [Fail: post-inconsistent] All sub-derivations failed: invertible rule, do not backtrack.
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  [Unfold: close] Trying alternative sub-derivation 2:
