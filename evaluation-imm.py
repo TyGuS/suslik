@@ -1,8 +1,5 @@
-import sys
 from subprocess import call
 import os, os.path
-import platform
-import shutil
 import csv
 import functools
 import operator
@@ -16,17 +13,37 @@ import operator
 # arguments, simply modify METACONFIG and/or CONFIG.
 #
 # TODO: currently the properties captured from running a benchmark, such as size, AST, #rule, time, etc,
-# are fixed and hardcoded, and so are their corresponding the headers. Need to parameterize that too.
+# are fixed and hardcoded, and so are their corresponding headers. Need to parameterize that too.
+#
+#
+# Running the performance eval (averages 3 runs of the benchmarks, can add --latex for dumping everything in a tex table):
+#    `python3 evaluation-imm.py --performance --n 3`
+#    csv output: evaluation-utils/stats-performance.csv
+#    tex output: evaluation-utils/table1.tex
+#
+# Running the robustness eval:
+#     `python3 evaluation-imm.py --robustnessUSsll`
+#     csv output: evaluation-utils/robustness-sll.csv
+#
+#     `python3 evaluation-imm.py --robustnessUSsrtl`
+#     csv output: evaluation-utils/robustness-srtl.csv
+#
+#     `python3 evaluation-imm.py --robustnessUStree`
+#     csv output: evaluation-utils/robustness-tree.csv
 #
 ###
 
+#################
+#    DEFAULT    #
+#################
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
 TIMEOUT      = '-t=120000'                                        # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/immutable-synthesis/paper-benchmarks/'   # Root directory for the tests
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
 CSV_TEMP     = 'stats-temp.csv'                                   # Intermediate CSV file produced by suslik
-RESULTS      = 'evaluation-utils/all_results'                     # Output file with synthesis results
+EVAL_FOLDER  = 'evaluation-utils'                                 # teh folder with most of the eval utils and stats
+RESULTS      = EVAL_FOLDER + '/all_results'                       # Output file with synthesis results
 DEFCONFIG    = ('def', '')                                        # Run with default configuration
 METACONFIG   = [DEFCONFIG]                                        # Configurations
 CONFIG       = [DEFCONFIG]                                        # Configurations
@@ -38,9 +55,9 @@ CONFIG       = [DEFCONFIG]                                        # Configuratio
 PATH1        = "old/lseg/"                                         # Along with TEST_DIR gives full path to the benchmarks
 METACONFIG1  = [ DEFCONFIG ]                                       # Meta Configurations
 CONFIG1      = [ ('imm', '--imm true'), ('mut', '--imm false') ]   # Configurations
-STATS1       = 'evaluation-utils/all_stats1.csv'                   # Output file with all the stats
-RESULTS1     = 'evaluation-utils/all_results1'                     # Output file with synthesis results
-LATEX_FILE1  = 'evaluation-utils/table1.tex'                       # Output file for generating a latex table
+STATS1       = EVAL_FOLDER + '/stats-performance.csv'              # Output file with all the stats
+RESULTS1     = EVAL_FOLDER + '/all_results1'                       # Output file with synthesis results
+LATEX_FILE1  = EVAL_FOLDER + '/table1.tex'                         # Output file for generating a latex table
 
 
 ####################
@@ -57,9 +74,9 @@ CONFIG2      = [('Default',''),                                    # Configurati
                 ('Alph(A)','--flag7 true'),
                 ('Alph(D)','--flag8 true')
                ]
-STATS2       = 'evaluation-utils/all_stats2.csv'                   # Output file with all the stats
-RESULTS2     = 'evaluation-utils/all_results2'                     # Output file with synthesis results
-LATEX_FILE2  = 'evaluation-utils/table2.tex'                       # Output file for generating a latex table
+STATS2       = EVAL_FOLDER + '/all_stats2.csv'                     # Output file with all the stats
+RESULTS2     = EVAL_FOLDER + '/all_results2'                       # Output file with synthesis results
+LATEX_FILE2  = EVAL_FOLDER + '/table2.tex'                         # Output file for generating a latex table
 
 ####################
 #  ROBUSTNESS (S)  #
@@ -74,28 +91,24 @@ CONFIG3      = [('Default',''),                                    # Configurati
                 ('WR2','--flag12 true'),
                 ('WR3','--flag13 true'),
               ]
-STATS3       = 'evaluation-utils/all_stats3.csv'                   # Output file with all the stats
-STATS4       = 'evaluation-utils/all_stats4.csv'                   # compact stats for the plot
-RESULTS3     = 'evaluation-utils/all_results3'                     # Output file with synthesis results
-LATEX_FILE3  = 'evaluation-utils/table3.tex'                       # Output file for generating a latex table
+STATS3       = EVAL_FOLDER + '/all_stats3.csv'                     # Output file with all the stats
+STATS4       = EVAL_FOLDER + '/all_stats4.csv'                     # compact stats for the plot
+RESULTS3     = EVAL_FOLDER + '/all_results3'                       # Output file with synthesis results
+LATEX_FILE3  = EVAL_FOLDER + '/table3.tex'                         # Output file for generating a latex table
 SPEC_VAR     = 3
 
 ######################
 #  ROBUSTNESS (U+S)  #
 ######################
 PATH5        = "robustness/"                                       # Along with TEST_DIR gives full path to the benchmarks
-METACONFIG5  = [ ('imm', '--imm true --flag10 true --flag9 true --flag18 true'), #tree
-                 ('mut', '--imm false --flag10 true --flag9 true --flag18 true')
-               ]                                                   # Meta Configurations
-METACONFIG6  = [ ('imm', '--imm true --flag10 true --flag9 true --flag17 true'), #srtl
-                 ('mut', '--imm false --flag10 true --flag9 true --flag17 true')
-               ]                                                   # Meta Configurations
+METACONFIG5  = [ ('imm', '--imm true --flag10 true --flag9 true'),
+                 ('mut', '--imm false --flag10 true --flag9 true')
+                 ]                                                 # Meta Configurations
 CONFIG5      = [ (a[0] + '-' + b[0], a[1] + ' ' + b[1]) for a in CONFIG3 for b in CONFIG2]
-PSTATS5      = 'evaluation-utils/pstats5'                         # Output file with all the stats
-RESULTS5     = 'evaluation-utils/all_results5'                     # Output file with synthesis results
-CSV_IN5      = 'stats'
-CSV_TEMP5    = 'evaluation-utils/stats_out'
-
+PSTATS5      = EVAL_FOLDER + '/robustness'                         # Output file with all the stats
+RESULTS5     = EVAL_FOLDER + '/all_results5'                       # Output file with raw synthesis results
+CSV_IN5      = EVAL_FOLDER + '/stats'
+CSV_TEMP5    = EVAL_FOLDER + '/stats_out'                          # used for intermediate results
 
 
 ###################################################################
@@ -310,11 +323,11 @@ ALL_BENCHMARKS = [
      Benchmark(PATH2 + 'sll/sll-copy', 'lcopy-val'),
      Benchmark(PATH2 + 'sll/sll-copy-N', 'lcopy-len'),
      Benchmark(PATH2 + 'sll/sll-copy-NS', 'lcopy-all',),
-     #Benchmark(PATH2 + 'sll/sll-append', 'append'),
-     #Benchmark(PATH2 + 'sll/sll-delete-all', 'delete'),
+     Benchmark(PATH2 + 'sll/sll-append', 'append'),
+     Benchmark(PATH2 + 'sll/sll-delete-all', 'delete'),
      ]),
    BenchmarkGroup("Sorted list", [
-    # Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
+     Benchmark(PATH2 + 'srtl/srtl-prepend', 'prepend'),
      Benchmark(PATH2 + 'srtl/srtl-insert-S', 'insert-val'),
      Benchmark(PATH2 + 'srtl/srtl-insert-N', 'insert-len'),
      Benchmark(PATH2 + 'srtl/srtl-insert-NS', 'insert-all'),
@@ -323,20 +336,20 @@ ALL_BENCHMARKS = [
      Benchmark(PATH2 + 'srtl/insertion-sort-NS', 'ins-sort-all'),
      ]),
     BenchmarkGroup("Tree", [
-     # Benchmark(PATH2 + 'tree/tree-size-N', 'tsize-len'),
-     # Benchmark(PATH2 + 'tree/tree-size-NS', 'tsize-all'),
-     # Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'tsize-ptr-len'),
-     # Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'tsize-ptr-all'),
-     # Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
-     # Benchmark(PATH2 + 'tree/tree-morph', 'morph'),
+     Benchmark(PATH2 + 'tree/tree-size-N', 'tsize-len'),
+     Benchmark(PATH2 + 'tree/tree-size-NS', 'tsize-all'),
+     Benchmark(PATH2 + 'tree/tree-size-N-unique-ptr', 'tsize-ptr-len'),
+     Benchmark(PATH2 + 'tree/tree-size-NS-unique-ptr', 'tsize-ptr-all'),
+     Benchmark(PATH2 + 'tree/tree-free', 'dispose'),
+     Benchmark(PATH2 + 'tree/tree-morph', 'morph'),
      Benchmark(PATH2 + 'tree/tree-copy-S', 'tcopy-val'),
      Benchmark(PATH2 + 'tree/tree-copy-N', 'tcopy-len'),
      Benchmark(PATH2 + 'tree/tree-copy-NS', 'tcopy-all'),
      Benchmark(PATH2 + 'tree/tree-copy-S-unique-ptr', 'tcopy-ptr-val'),
      Benchmark(PATH2 + 'tree/tree-copy-N-unique-ptr', 'tcopy-ptr-len'),
      Benchmark(PATH2 + 'tree/tree-copy-NS-unique-ptr', 'tcopy-ptr-all'),
-#     Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten-app'),
-#      Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten-acc'),
+     Benchmark(PATH2 + 'tree/tree-flatten-S', 'flatten-app'),
+     Benchmark(PATH2 + 'tree/tree-flatten-acc-S', 'flatten-acc'),
      ]),
 # #    BenchmarkGroup("BST", [
 #      Benchmark(PATH2 + 'bst/bst-insert', 'insert'),
@@ -345,7 +358,7 @@ ALL_BENCHMARKS = [
 #      ]),
   ]
 
-ROBUSTNESS = ALL_BENCHMARKS.copy()
+ROBUSTNESS      = ALL_BENCHMARKS.copy()
 
 def read_csv(csv_in):
   '''Read stats file into the results dictionary'''
@@ -485,6 +498,8 @@ def write_stats1_tex(configs, results, latex_file):
   #  ROBUSTNESS   #
   #################
 
+# writes the robustness stats into csv (using the full format - similar to the tex table)
+# (format: GROUP -> Bench description -> Property -> (meta config - unrolled vertically) -> [configs (unrolled horizontally)]))
 def write_stats2(metaconfigs, configs, groups, results, stats_file):
   '''Write stats from dictionary into a file'''
   with open(stats_file, 'wt') as stats:
@@ -538,9 +553,10 @@ def write_stats2(metaconfigs, configs, groups, results, stats_file):
             print (row4)
             stats.write(row4)
 
+# writes the robustness stats into a tex table
+# (format: GROUP -> Bench description -> Property -> (meta config - unrolled vertically) -> [configs (unrolled horizontally)]))
 def write_stats2_tex(metaconfig, configs, results, latex_file):
     '''Write stats from stats_file into a TEX file'''
-    # with open(stats_file, 'wt') as stats:
     with open(latex_file, 'wt') as tex:
         prefix  = '\\begin{tabular}{@{} c | c |  c | c |' +   (' '.join([ ' c ' for c in configs])) + '   @{}}\n'
         len_cols = 4 + len(configs)
@@ -609,7 +625,9 @@ def write_stats2_tex(metaconfig, configs, results, latex_file):
         tex.write(prefix + complete_headings + entries_final + postfix)
 
 
-def write_stats3(metaconfigs, configs, groups, results,stats_file):
+# writes the robustness stats into a csv
+# (format: GROUP -> Bench description -> Property -> (meta config - unrolled vertically) -> [configs (unrolled horizontally)]))
+def write_stats3(metaconfigs, configs, groups, results, stats_file):
   '''Write stats from dictionary into a file'''
   with open(stats_file, 'wt') as stats:
     complete_headings = 'Group, Name, Assesed Property, Meta Config, ' +\
@@ -658,47 +676,66 @@ def write_stats3(metaconfigs, configs, groups, results,stats_file):
                 '\n'
             stats.write(row2)
 
+def runOneGrpRobustness(grp_name,grp_benchmark):
+
+    if os.path.isfile(RESULTS5 + grp_name):
+        os.remove(RESULTS5 + grp_name)
+
+    res_file        = RESULTS5  + grp_name                # text file with all the raw synthesis results
+    stats_file      = PSTATS5   + '-' + grp_name + '.csv' # final outcome, postprocessed
+    csv_in          = CSV_IN5   + '-' + grp_name + '.csv' # csv file produced by suslik
+    csv_out         = CSV_TEMP5 + '-' + grp_name + '.csv' # gets updated as the evaluation runs
+
+    METACONFIG_grp  = []
+    for meta in METACONFIG5:
+        METACONFIG_grp.append((meta[0], meta[1] + ' --logFile ' + csv_in))
+    if os.path.isfile(res_file):
+        os.remove(res_file)
+    if os.path.isfile(csv_out):
+        os.remove(csv_out)
+    results5 = None
+    results5 = evaluate_n_times(repetitions, METACONFIG_grp, CONFIG5, grp_benchmark, res_file, csv_in, csv_out)
+    write_stats2(METACONFIG_grp, CONFIG5, grp_benchmark, results5, stats_file)
+
 
 def cmdline():
   import argparse
   a = argparse.ArgumentParser()
-  a.add_argument('--tiny', action='store_true')
-  a.add_argument('--stats',action='store_true')
-  a.add_argument('--robustnessUSlsrt',action='store_true')   #disables the robustness eval
-  a.add_argument('--robustnessUStree',action='store_true')   #disables the robustness eval
-  a.add_argument('--robustnessU',action='store_true')    #disables the robustness eval
-  a.add_argument('--robustnessS',action='store_true')    #disables the robustness eval
-  a.add_argument('--performance',action='store_true')    #disables the performance eval
-  a.add_argument('--latex',action='store_true')          #generates the latex tables
-  a.add_argument('--n', type=int, default=1)             #every returned value is the mean of n runs
+  a.add_argument('--robustnessUSsll',action='store_true')    #robustness eval for sll
+  a.add_argument('--robustnessUSsrtl',action='store_true')   #robustness eval for srtl
+  a.add_argument('--robustnessUStree',action='store_true')   #robustness eval for tree
+  a.add_argument('--robustnessU',action='store_true')        #robustness eval wrt unification perm
+  a.add_argument('--performance',action='store_true')        #performance eval
+  a.add_argument('--latex',action='store_true')              #generates the latex tables
+  a.add_argument('--n', type=int, default=1)                 #every returned value is the mean of n runs
   return a.parse_args()
+
 
 if __name__ == '__main__':
   cl_opts = cmdline()
   repetitions = cl_opts.n
-
 
   #################
   #  PERFORMANCE  #
   #################
 
   if (cl_opts.performance):
-      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1, CSV_IN, CSV_OUT)
+      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1, CSV_IN, CSV_TEMP)
       write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results1, STATS1)
 
   if (cl_opts.latex):
     res = read_csv_all(STATS1,True)
     write_stats1_tex(CONFIG1,res,LATEX_FILE1)
 
-  ####################
-  #  ROBUSTNESS (U)  #
-  ####################
+  ########################
+  #  ROBUSTNESS (U)  all #
+  ########################
 
   if os.path.isfile(RESULTS2):
     os.remove(RESULTS2)
 
   if (cl_opts.robustnessU):
-      results2 = evaluate_n_times(repetitions, METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2, CSV_IN, CSV_OUT)
+      results2 = evaluate_n_times(repetitions, METACONFIG2, CONFIG2, ROBUSTNESS, RESULTS2, CSV_IN, CSV_TEMP)
       write_stats2(METACONFIG2, CONFIG2, ROBUSTNESS, results2, STATS2)
 
   if (cl_opts.latex):
@@ -706,59 +743,22 @@ if __name__ == '__main__':
     write_stats2_tex(METACONFIG2,CONFIG2,res,LATEX_FILE2)
 
   ###########################
+  #  ROBUSTNESS (U+S)  sll  #
+  ###########################
+
+  if (cl_opts.robustnessUSsll):
+      runOneGrpRobustness('sll',[ROBUSTNESS[0]])
+
+  ###########################
   #  ROBUSTNESS (U+S)  lsrt #
   ###########################
 
-  if os.path.isfile(RESULTS5 + 'lsrt'):
-    os.remove(RESULTS5 + 'lsrt')
-
-  if (cl_opts.robustnessUSlsrt):
-    i = 0
-    # for r in ROBUSTNESS:
-    res_file   = RESULTS5 + 'srtl'
-    stats_file = PSTATS5  + 'srtl'  + '.csv'
-    csv_in     = CSV_IN5  + '-srtl' + '.csv'
-    csv_out    = CSV_TEMP5+ '-srtl' + '.csv'
-    if os.path.isfile(res_file):
-      os.remove(res_file)
-    if os.path.isfile(csv_out):
-      os.remove(csv_out)
-    results5 = evaluate_n_times(repetitions, METACONFIG6, CONFIG5, [ROBUSTNESS[1]], res_file, csv_in, csv_out)
-    write_stats2(METACONFIG5, CONFIG5, [ROBUSTNESS[1]], results5, stats_file)
+  if (cl_opts.robustnessUSsrtl):
+     runOneGrpRobustness('srtl',[ROBUSTNESS[1]])
 
   ###########################
   #  ROBUSTNESS (U+S) tree  #
   ###########################
 
-  if os.path.isfile(RESULTS5+'tree'):
-    os.remove(RESULTS5+'tree')
-
   if (cl_opts.robustnessUStree):
-    # for r in ROBUSTNESS:
-    res_file = RESULTS5 + 'tree'
-    stats_file = PSTATS5   + 'tree'  + '.csv'
-    csv_in     = CSV_IN5   + '-tree' + '.csv'
-    csv_out    = CSV_TEMP5 + '-tree' + '.csv'
-    if os.path.isfile(res_file):
-      os.remove(res_file)
-    if os.path.isfile(csv_out):
-      os.remove(csv_out)
-    results6 = evaluate_n_times(repetitions, METACONFIG5, CONFIG5, [ROBUSTNESS[2]], res_file, csv_in, csv_out)
-    write_stats2(METACONFIG5, CONFIG5, [ROBUSTNESS[2]], results6, stats_file)
-
-
-  ####################
-  #  ROBUSTNESS (S)  #
-  ####################
-
-  if os.path.isfile(RESULTS3):
-    os.remove(RESULTS3)
-
-  if not(cl_opts.robustnessS):
-      results3 = evaluate_n_times(repetitions, METACONFIG3, CONFIG3, ROBUSTNESS, RESULTS3, CSV_IN, CSV_OUT)
-      write_stats2(METACONFIG3, CONFIG3, ROBUSTNESS, results3, STATS3)
-      # write_stats3(METACONFIG3, CONFIG3, ROBUSTNESS, results3, STATS4)
-
-  if (cl_opts.latex):
-    res3 = read_csv_all(STATS3,False)
-    write_stats2_tex(METACONFIG3,CONFIG3,res3,LATEX_FILE3)
+      runOneGrpRobustness('tree',[ROBUSTNESS[2]])

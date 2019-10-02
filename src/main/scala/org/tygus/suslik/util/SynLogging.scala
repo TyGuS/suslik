@@ -94,12 +94,16 @@ object SynStatUtil {
 
   import java.io.{File, FileWriter}
 
-  val myStats = "stats.csv"
-  val myFile = new File(myStats)
+  var myStats = "stats.csv"
+  var myFile = new File(myStats)
   val initRow: String =
     List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Applications", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
 
   def init(config: SynConfig){
+    if (!config.logFile.isEmpty()) {
+      myStats = config.logFile
+      myFile = new File(myStats)
+    }
     if (config.logToFile) {
       if (myFile.exists()) myFile.delete()
       myFile.createNewFile()
