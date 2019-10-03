@@ -53,7 +53,6 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre.phi
-      val post = goal.post.phi
 
       if (!SMTSolving.sat(pre))
         List(RuleResult(Nil, constProducer(Error), goal.allHeaplets, this)) // pre inconsistent: return error
@@ -145,7 +144,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
         val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-        List(RuleResult(List(newGoal), kont, goal.allHeaplets, this))
+        val preHeaplets = for (h@PointsTo(l, _, _) <- pre.sigma.chunks if prePointers.contains(l)) yield h
+        val postHeaplets = for (h@PointsTo(l, _, _) <- post.sigma.chunks if postPointers.contains(l)) yield h
+        List(RuleResult(List(newGoal), kont, Footprint(SFormula(preHeaplets), SFormula(postHeaplets)), this))
       }
     }
   }
@@ -159,7 +160,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object StarPartial extends SynthesisRule with AnyPhase with InvertibleRule {
     override def toString: String = "*Partial"
 
-    def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[PFormula] = {
+    def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[(PFormula, SFormula)] = {
       val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = for (x <- ptrs; y <- ptrs if x != y) yield (x, y)
@@ -167,8 +168,11 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case (x, y) => excludeVars.intersect(x.vars ++ y.vars).isEmpty &&
           p != pFalse && !p.conjuncts.contains(x |/=| y) && !p.conjuncts.contains(y |/=| x)
       }
+      val allNewVars = newPairs.map(_._1).union(newPairs.map(_._2))
+      val heaplets = (for (h@PointsTo(x, _, _) <- s.chunks if allNewVars.contains(x)) yield h)
       if (newPairs.isEmpty) None
-      else Some(mkConjunction(p.conjuncts ++ newPairs.map { case (x, y) => x |/=| y }))
+      else Some((mkConjunction(p.conjuncts ++ newPairs.map { case (x, y) => x |/=| y }),
+        SFormula(heaplets)))
     }
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -179,15 +183,15 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, goal.existentials)) match {
           // TODO: make sure it's complete to include post, otherwise revert to pre only
         case (None, None) => Nil
-        case (Some(p1), None) =>
+        case (Some((p1, ss1)), None) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
-          List(RuleResult(List(newGoal), kont, goal.allHeaplets, this))
-        case (None, Some(p2)) =>
+          List(RuleResult(List(newGoal), kont, Footprint(ss1, emp), this))
+        case (None, Some((p2, ss2))) =>
           val newGoal = goal.spawnChild(post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont, goal.allHeaplets, this))
-        case (Some(p1), Some(p2)) =>
+          List(RuleResult(List(newGoal), kont, Footprint(emp,ss2), this))
+        case (Some((p1, ss1)), Some((p2, ss2))) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1), post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont, goal.allHeaplets, this))
+          List(RuleResult(List(newGoal), kont, Footprint(ss1, ss2), this))
 //        case (None, _) => Nil
 //        case (Some(p1), _) =>
 //          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))

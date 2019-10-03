@@ -98,8 +98,8 @@ object SearchTree {
     // i.e. could be placed after this new transition without affecting the resulting goal
     def commuters(newTransition: Transition): List[OrNode] =
       (this :: ancestors).filterNot(_.isInvertible).takeWhile(n =>
-        (n.transition.consume.disjoint(newTransition.removed) && // the new transition doesn't remove something an ancestor depends on
-        n.transition.produce.disjoint(newTransition.consume))) // the new transition doesn't rely on something produced by the ancestor
+        n.transition.consume.disjoint(newTransition.removed) // the new transition doesn't remove something an ancestor depends on
+          && n.transition.produce.disjoint(newTransition.consume)) // the new transition doesn't rely on something produced by the ancestor
 
     def pp(d: Int = 0): String = parent match {
       case None => "-"
