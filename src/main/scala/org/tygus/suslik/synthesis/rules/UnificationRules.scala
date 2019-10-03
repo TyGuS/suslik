@@ -37,6 +37,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         t <- pre.sigma.chunks.sortBy(_.rank)
         sub <- tryUnify(t, s, goal.universals, false)
         newPostSigma = post.sigma.subst(sub)
+        if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
 
