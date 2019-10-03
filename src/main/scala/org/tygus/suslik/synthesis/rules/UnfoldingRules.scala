@@ -76,7 +76,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
             val kont = branchProducer(selectors) >> handleGuard(goal) >> extractHelper(goal)
-            Some(RuleResult(subGoals, kont, Footprint(singletonHeap(heaplet), emp), toString))
+            Some(RuleResult(subGoals, kont, Footprint(singletonHeap(heaplet), emp), this))
         }
       } yield s
     }
@@ -123,7 +123,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
-        RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), toString)
+        RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
       }
     }
 
@@ -195,7 +195,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
         val kont = seqComp >> handleGuard(goal) >> extractHelper(goal)
-        RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), toString)
+        RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), this)
       }
     }
 
@@ -284,7 +284,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
             val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
-            RuleResult(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont, Footprint(emp, singletonHeap(h)), toString)
+            RuleResult(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont, Footprint(emp, singletonHeap(h)), this)
           }
           subDerivations
         case _ => Nil

@@ -36,7 +36,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       if (!SMTSolving.sat(pre && post))
         // post inconsistent with pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, toString))
+        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
       else
         Nil
     }
@@ -50,7 +50,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
         // universal post not implies by pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, toString))
+        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
       else
         Nil
     }
@@ -109,7 +109,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       } yield RuleResult(List(thenGoal, elseGoal),
         StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))),
         goal.allHeaplets,
-        toString)
+        this)
 
     def apply(goal: Goal): Seq[RuleResult] = {
       if (SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
@@ -118,7 +118,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
           // Abduction failed
-          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, toString)) // pre doesn't imply post: goal is unsolvable
+          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
           else Nil // fail optimization is disabled, so pretend this rule doesn't apply
         else guarded
       }
@@ -137,7 +137,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
             Nil
           else
-            List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, toString)) // spatial parts do not match: only magic can save us
+            List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
         case _ => Nil // does not apply if we could still alloc or free
       }
 

@@ -89,12 +89,16 @@ object Specifications extends SepLogicUtils {
   /**
     * Spatial pre-post pair; used to determine independence of rule applications.
     */
-  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting  {
+  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting with Substitutable[Footprint]  {
     def +(other: Footprint): Footprint = Footprint(pre + other.pre, post + other.post)
     def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
     def disjoint(other: Footprint): Boolean = pre.disjoint(other.pre) && post.disjoint(other.post)
 
     override def pp: String = s"{${pre.pp}}{${post.pp}}"
+
+    def subst(sigma: Map[Var, Expr]): Footprint = Footprint(pre.subst(sigma), post.subst(sigma))
+
+    def vars: Set[Var] = pre.vars ++ post.vars
   }
 
   /**
@@ -105,6 +109,21 @@ object Specifications extends SepLogicUtils {
     */
   case class Transition(consume: Footprint, produce: Footprint) extends PrettyPrinting {
     override def pp: String = s"${consume.pp} ==> ${produce.pp}"
+
+    // Heaptets that actually got removed (consumed and not produced back)
+    def removed: Footprint = consume - produce
+
+    // Replace all fresh variables in produced heap with blanks
+    def relaxedProduce: Footprint = {
+      val newVars = produce.vars.diff(consume.vars)
+      produce.subst(newVars.map(v => v -> Var("_")).toMap)
+    }
+
+    // Is this transition equal to other modulo fresh variables in produce?
+    // We need this to decide whether two transitions in different branches of the search tree are the same
+    // (we want to ignore differences in the names of fresh variables)
+    def equivalent(other: Transition): Boolean =
+      consume == other.consume && relaxedProduce == other.relaxedProduce
   }
 
   def emptyFootprint: Footprint = Footprint(emp, emp)

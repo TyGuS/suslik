@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis.rules.Rules.StmtProducer
+import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, SynthesisRule}
 
 import scala.collection.mutable
 
@@ -85,14 +85,21 @@ object SearchTree {
     // Number of proper ancestors
     def depth: Int = ancestors.length
 
+    def isInvertible: Boolean = parent match {
+      case None => false
+      case Some(p) => p.rule.isInstanceOf[InvertibleRule]
+    }
+
     // Transition that describes the relationship between this node's goal
     // and its closest ancestor's goal
     def transition: Transition = Transition(parent.map(_.consume).getOrElse(emptyFootprint), produce)
 
     // All (reflexive) ancestors of this node that commute with a transition that consumes newConsume,
     // i.e. could be placed after this new transition without affecting the resulting goal
-    def commuters(newConsume: Footprint): List[OrNode] =
-      (this :: ancestors).takeWhile(n => (n.transition.consume.disjoint(newConsume) && n.transition.produce.disjoint(newConsume)))
+    def commuters(newTransition: Transition): List[OrNode] =
+      (this :: ancestors).filterNot(_.isInvertible).takeWhile(n =>
+        (n.transition.consume.disjoint(newTransition.removed) && // the new transition doesn't remove something an ancestor depends on
+        n.transition.produce.disjoint(newTransition.consume))) // the new transition doesn't rely on something produced by the ancestor
 
     def pp(d: Int = 0): String = parent match {
       case None => "-"
@@ -110,7 +117,7 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, consume: Footprint, ruleLabel: String) {
+  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, consume: Footprint, rule: SynthesisRule) {
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true
@@ -122,7 +129,7 @@ object SearchTree {
         case None => ""
         case Some(_) => s"${parent.pp(d)}-"
       }
-      parentPP ++ ruleLabel
+      parentPP ++ rule.toString
     }
   }
 

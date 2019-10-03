@@ -55,7 +55,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = goal.spawnChild(newPre, newPost)
           val kont: StmtProducer = prepend(Store(x, offset, e2)) >> handleGuard(goal) >> extractHelper(goal)
 
-          List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(hl), singletonHeap(hr)), toString))
+          List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(hl), singletonHeap(hr)), this))
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -99,7 +99,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val newPost = Assertion(post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
           val subGoal = goal.spawnChild(post = newPost)
           val kont: StmtProducer = append(Store(x, offset, l)) >> handleGuard(goal) >> extractHelper(goal)
-          List(RuleResult(List(subGoal), kont, Footprint(emp, singletonHeap(h)), toString))
+          List(RuleResult(List(subGoal), kont, Footprint(emp, singletonHeap(h)), this))
         case Some(h) =>
           ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -139,7 +139,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
           val kont: StmtProducer = prepend(Load(y, tpy, x, offset)) >> handleGuard(goal) >> extractHelper(goal)
-          List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, toString))
+          List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -194,7 +194,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         programVars = y :: goal.programVars,
                                         newRuleApp = Some(ruleApp))
           val kont: StmtProducer = prepend(Malloc(y, tpy, sz)) >> handleGuard(goal) >> extractHelper(goal)
-          List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, toString))
+          List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
         case _ => Nil
       }
     }
@@ -236,7 +236,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = goal.spawnChild(newPre, newRuleApp = Some(ruleApp))
           val kont: StmtProducer = prepend(Free(x)) >> handleGuard(goal) >> extractHelper(goal)
 
-          List(RuleResult(List(subGoal), kont, Footprint(toRemove, emp), toString))
+          List(RuleResult(List(subGoal), kont, Footprint(toRemove, emp), this))
         case Some(_) => Nil
       }
     }

@@ -113,16 +113,16 @@ trait Synthesis extends SepLogicUtils {
             case None => { // no terminals: add all expansions to worklist
               val newNodes = for {
                 (e, i) <- expansions.zipWithIndex
-                alternatives = expansions.filter(_.label == e.label)
+                alternatives = expansions.filter(_.rule == e.rule)
                 altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
-                andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.label ++ altLabel)
+                andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
                 (g, j) <- if (e.subgoals.size == 1) List((e.subgoals.head, -1)) // this is here only for logging
                             else e.subgoals.zipWithIndex
                 produce = g.allHeaplets - (goal.allHeaplets - e.consume)
               } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
 
               def isSubsumed(n: OrNode): Boolean = {
-                val subsumer = node.commuters(n.transition.consume).find(com => precursors(com.id).contains(n.transition))
+                val subsumer = node.commuters(n.transition).find(com => precursors(com.id).exists(_.equivalent(n.transition)))
                 subsumer match {
                   case None => false
                   case Some(s) => {

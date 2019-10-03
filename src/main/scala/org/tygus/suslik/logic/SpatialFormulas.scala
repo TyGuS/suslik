@@ -201,7 +201,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def disjoint(other: SFormula): Boolean = chunks.intersect(other.chunks).isEmpty
 
-  def vars: List[Var] = chunks.flatMap(_.vars)
+  def vars: Set[Var] = chunks.flatMap(_.vars).toSet
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     chunks.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, h) => go match {

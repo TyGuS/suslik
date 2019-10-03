@@ -113,10 +113,10 @@ object Rules {
     * sub-goals to be solved and
     * a statement producer that assembles the sub-goal results
     */
-  case class RuleResult(subgoals: Seq[Goal], kont: StmtProducer, consume: Footprint, label: String)
+  case class RuleResult(subgoals: Seq[Goal], kont: StmtProducer, consume: Footprint, rule: SynthesisRule)
     extends PrettyPrinting with PureLogicUtils {
 
-    override def pp: String = label // s"[${subgoals.map(_.label.pp).mkString(", ")}]"
+    override def pp: String = rule.toString // s"[${subgoals.map(_.label.pp).mkString(", ")}]"
   }
 
   /**
