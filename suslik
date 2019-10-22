@@ -1,2 +1,3 @@
 #!/bin/bash
-scala ./target/scala-2.12/suslik.jar $*
+
+java -jar ./target/scala-2.12/suslik.jar  $*
