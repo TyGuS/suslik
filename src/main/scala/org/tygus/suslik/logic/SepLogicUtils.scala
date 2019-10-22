@@ -46,23 +46,20 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   /**
-    * Find a block satisfying a predicates, and all matching chunks.
+    * Find a block satisfying a predicate, and all matching chunks.
     * Returns None if not all chunks are present.
     */
   def findBlockAndChunks(pBlock: Heaplet => Boolean,
                          pPts: Heaplet => Boolean,
                          sigma: SFormula): Option[(Block, Seq[Heaplet])] = {
-    findHeaplet(pBlock, sigma) match {
+    findHeaplet(h => h.isInstanceOf[Block] && pBlock(h), sigma) match {
       case None => None
       case Some(h@Block(x@Var(_), sz)) =>
-        val pts = for (off <- 0 until sz) yield
+        val ptsMb = for (off <- 0 until sz) yield
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
-        Some((h, pts.flatten))
-      case Some(h) =>
-        None // todo: is this correct?
-      // For example find heaplet can stop at PointsTo, not reach the block and return None.
-      // I think there should be findHeaplet(pBlock and isBlock, sigma) match { ...
-
+        val pts = ptsMb.flatten
+        if (pts.length == sz) Some((h, pts))
+        else None
     }
   }
 

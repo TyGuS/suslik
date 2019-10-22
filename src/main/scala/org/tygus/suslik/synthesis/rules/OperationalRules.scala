@@ -32,7 +32,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   */
   object WriteRuleOld extends SynthesisRule with FlatPhase {
 
-    override def toString: Ident = "[Op: write-old]"
+    override def toString: Ident = "[Op: write]"
 
     def apply(goal: Goal): Seq[Subderivation] = {
       val pre = goal.pre
@@ -222,13 +222,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
-      def noGhostsAndIsBlock(h: Heaplet): Boolean = h match {
-        case b:Block => noGhosts(b)
-        case _ => false
-      }
 
-      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma) // todo: when memoization is off, this line makes synthesis 2x faster, but seems wrong. See comment in `findBlockAndChunks`
-//      findBlockAndChunks(noGhostsAndIsBlock, noGhosts, goal.pre.sigma)
+      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {

@@ -17,7 +17,7 @@ oop.inherits(Mode, TextMode);
     
     this.toggleCommentLines = function(state, doc, startRow, endRow) {
         var outdent = true;
-        var re = /^(\s*)#/;
+        var re = /^(\s*)\/\//;
 
         for (var i=startRow; i<= endRow; i++) {
             if (!re.test(doc.getLine(i))) {
@@ -39,7 +39,7 @@ oop.inherits(Mode, TextMode);
             }
         }
         else {
-            doc.indentRows(startRow, endRow, "#");
+            doc.indentRows(startRow, endRow, "//");
         }
     };
 
@@ -91,8 +91,7 @@ var suslikHighlightRules = function() {
     );
 
     var operators = lang.arrayToMap(
-      ("+|-|==|<|<=|=i|<=i|/\\|\\/|**|++|--|:->|?|:|"+
-      ",|\||;").split("|")
+      ("+|-|==|!=|<|<=|>|>=|&&|\|\||==>|**|:->|?|:|,|\||;").split("|")
     );
 
     // regexp must not have capturing parentheses. Use (?:) instead.
@@ -102,7 +101,7 @@ var suslikHighlightRules = function() {
         "start" : [
             {
                 token : "comment",
-                regex : /#.*$/
+                regex : /\/\/.*$/
             },
             {
                 token : "constant.language.boolean",
@@ -121,7 +120,7 @@ var suslikHighlightRules = function() {
             },
             {
                 token : "keyword.operator",
-                regex : /\*\*|\+\+|--|\+|-|==|<|<=|:->|:|\?|,\\/
+                regex : /\*\*|\+|-|==|!=|<|<=|>|>=|&&|\|\||==>|:->|:|\?/
             },
             {
                 token : "lparen",

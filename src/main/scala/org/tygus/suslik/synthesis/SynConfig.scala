@@ -21,14 +21,15 @@ case class SynConfig(
                       fail: Boolean             = true,
                       commute: Boolean          = true,
                       // Timeout and logging
-                      printStats: Boolean = true,
+                      printStats: Boolean       = false,
                       printDerivations: Boolean = false,
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
                       printEnv: Boolean         = false,
+                      printColor: Boolean       = true,
                       assertSuccess: Boolean    = true,
-                      logToFile: Boolean        = true,
-                      memoization: Boolean        = true,
+                      logToFile: Boolean        = false,
+                      memoization: Boolean      = true,
                       timeOut: Long             = DEFAULT_TIMEOUT*100,
                       inputFormat: InputFormat = dotSyn
                     ) extends PrettyPrinting {

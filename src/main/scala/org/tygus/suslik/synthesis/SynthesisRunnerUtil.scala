@@ -64,13 +64,13 @@ trait SynthesisRunnerUtil {
     }
 
     def parseSus = {
-      val hasDescr = lines.head.trim.startsWith("/*") // todo:support multiline descriptions
+      val hasDescr = lines.head.trim.startsWith("/*")
       val desc = if(hasDescr) lines.head.trim else ""
 
       val j = lines.indexWhere(_.trim.startsWith(testSeparator))
-      val (spec, expectedSrc) = lines.splitAt(j)
+      val (spec, expectedSrc) = if (j == -1) (lines, List(testSeparator, noOutputCheck)) else lines.splitAt(j)
 
-      val input = spec.mkString(" ").trim
+      val input = spec.mkString("\n").trim
       val testName = testFilePath
       val output = expectedSrc.tail.mkString("\n").trim
       (testName, desc, input, output, params.copy(inputFormat = format))
@@ -124,11 +124,11 @@ trait SynthesisRunnerUtil {
           testPrintln(s"Number of backtrackings ${stats.numBack}")
           testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
           testPrintln(s"Total successful rule applications: ${stats.numSucc}")
-          testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
-          testPrintln(s"Number of saved negative results: ${stats.numSavedResultsNegative}")
-          testPrintln(s"Number of saved positive results: ${stats.numSavedResultsPositive}")
-          testPrintln(s"Number of recalled negative results: ${stats.numRecalledResultsNegative}")
-          testPrintln(s"Number of recalled positive results: ${stats.numRecalledResultsPositive}")
+//          testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
+//          testPrintln(s"Number of saved negative results: ${stats.numSavedResultsNegative}")
+//          testPrintln(s"Number of saved positive results: ${stats.numSavedResultsPositive}")
+//          testPrintln(s"Number of recalled negative results: ${stats.numRecalledResultsNegative}")
+//          testPrintln(s"Number of recalled positive results: ${stats.numRecalledResultsPositive}")
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
         } else {

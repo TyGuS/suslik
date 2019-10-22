@@ -39,7 +39,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         })
         // check that expression is defined during the execution
         for (v <- vars_in_new_val) {
-          symExecAssert(goal.isProgramVar(v), s"value `${v.pp}` is read before defined.")
+          synAssert(goal.isProgramVar(v), s"value `${v.pp}` is read before defined.")
         }
 
         def matchingHeaplet(h: Heaplet) = h match {
@@ -49,7 +49,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         }
 
         findHeaplet(matchingHeaplet, pre.sigma) match {
-          case None => throw SynthesisException(cmd.pp + "  Memory is not yet allocated in this address")
+          case None => throw SynthesisException("Write into unknown location: " + cmd.pp)
           case Some(h: PointsTo) =>
             val newPre = Assertion(pre.phi, (pre.sigma - h) ** PointsTo(to, offset, new_val))
             val subGoal = goal.copy(newPre, sketch = rest)
@@ -82,7 +82,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         val pre = goal.pre
         val post = goal.post
 
-        symExecAssert(!goal.vars.contains(to), cmd.pp + s"name ${
+        synAssert(!goal.vars.contains(to), cmd.pp + s"name ${
           to.name
         } is already used.")
 
@@ -94,7 +94,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
 
         findHeaplet(isMatchingHeaplet, goal.pre.sigma) match {
           case None => {
-            throw SymbolicExecutionError("Invalid read: no matching heaplet: " + cmd.pp)
+            throw SynthesisException("Read from unknown location: " + cmd.pp)
           }
           case Some(PointsTo(_, _, a)) =>
             val tpy = a.getType(goal.gamma).get // the precondition knows better than the statement
@@ -105,7 +105,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
             val kont: StmtProducer = prependFromSketch(cmd, toString)
             List(Subderivation(List(subGoal), kont))
           case Some(h) =>
-            throw SynthesisException(cmd.pp + s" Read rule matched unexpected heaplet ${
+            throw SymbolicExecutionError(cmd.pp + s" Read rule matched unexpected heaplet ${
               h.pp
             }")
         }
@@ -126,7 +126,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
       case (cmd@Malloc(y, tpy, sz), rest) => {
         val pre = goal.pre
-        symExecAssert(!goal.vars.contains(y), cmd.pp + s"name ${
+        synAssert(!goal.vars.contains(y), cmd.pp + s"name ${
           y.name
         } is already used.")
 
@@ -167,16 +167,16 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
       case (cmd@Free(x), rest) => {
         val pre = goal.pre
-        symExecAssert(goal.programVars.contains(x), cmd.pp + s"value `${x.name}` is not defined.")
+//        symExecAssert(goal.programVars.contains(x), cmd.pp + s"value `${x.name}` is not defined.")
         // todo: make findNamedHeaplets find parts with different name but equal values wrt pure part
         findNamedHeaplets(goal, x) match {
-          case None => throw SymbolicExecutionError("command " + cmd.pp + " is invalid")
+          case None => throw SynthesisException("No block at this location or some record fields are unknown: " + cmd.pp)
           case Some((h@Block(_, _), pts)) =>
             val newPre = Assertion(pre.phi, pre.sigma - h - pts)
             val subGoal = goal.copy(newPre, sketch = rest)
             val kont: StmtProducer = prependFromSketch(cmd, toString)
             List(Subderivation(List(subGoal), kont))
-          case Some(what) => throw SynthesisException("Unexpected heaplet " + what + " found while executing " + cmd.pp)
+          case Some(what) => throw SymbolicExecutionError("Unexpected heaplet " + what + " found while executing " + cmd.pp)
         }
       }
       case _ => Nil
@@ -189,11 +189,11 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal:Goal): Seq[Subderivation] = goal.sketch.uncons match {
       case (cmd@Call(to, fun, actuals), rest) => {
-        symExecAssert(goal.env.functions.contains(fun.name), s"Undefined function in function call: ${cmd.pp}")
+        synAssert(goal.env.functions.contains(fun.name), s"Undefined function in function call: ${cmd.pp}")
         val actualVars = actuals.flatMap(_.vars).toSet
-        symExecAssert(actualVars.forall(x => goal.isProgramVar(x)), s"Undefined or ghost variables in function call arguments: ${cmd.pp}")
+        synAssert(actualVars.forall(x => goal.isProgramVar(x)), s"Undefined or ghost variables in function call arguments: ${cmd.pp}")
         val _f = goal.env.functions(fun.name)
-        symExecAssert(_f.params.size == actuals.size, s" Function ${_f.name} takes ${_f.params.size} arguments, but ${actuals.size} given: ${cmd.pp}")
+        synAssert(_f.params.size == actuals.size, s" Function ${_f.name} takes ${_f.params.size} arguments, but ${actuals.size} given: ${cmd.pp}")
         val f = _f.refreshExistentials(goal.vars)
 
         val lilHeap = f.pre.sigma

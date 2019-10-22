@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Statements.{Load, SeqComp, Statement}
-import org.tygus.suslik.synthesis.{StmtProducer, Subderivation, SymbolicExecutionError}
+import org.tygus.suslik.synthesis.{StmtProducer, Subderivation, SymbolicExecutionError, SynthesisException}
 
 /**
   * @author Ilya Sergey
@@ -16,6 +16,7 @@ trait RuleUtils {
 
   protected[synthesis] def ruleAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisRuleException(msg)
   protected[synthesis] def symExecAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SymbolicExecutionError(msg)
+  protected[synthesis] def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   def pureKont(rulename: String): StmtProducer =
     stmts => {
