@@ -133,11 +133,14 @@ where the necessary arguments and options are
   --phased <value>         split rules into unfolding and flat phases; default: true
   --fail <value>           enable early failure rules; default: true
   --invert <value>         enable invertible rules; default: true
+  --imm <value>            enable reasoning with RO annotations; default: true   
+  --prioImm <value>        prioritize immutable heaps for unification when multiple candidates exist; default: false
   -s, --printStats <value> print synthesis stats; default: true
   -e, --printEnv <value>   print synthesis context; default: false
   -f, --printFail <value>  print failed rule applications; default: false
   -g, --tags <value>       print predicate application tags in derivations; default: false
   -l, --log <value>        log results to a csv file; default: true
+  --logFile <value>        log results to a given csv file; default: stats.csv
   --help                   prints this usage text
 
 ```
@@ -175,3 +178,89 @@ For running benchmarks or examples from the accompanying paper, run, e.g.,
 ```
 suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
 ``` 
+
+### Trying the Read-Only Annotations
+
+The inductive predicate definitions use de Bruijn-style notation for borrows 
+inside their clauses. For example:
+
+```
+predicate lseg(loc x, loc y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ;
+                      [[x, 2]]@0 ** [x :-> v]@1 ** [(x + 1) :-> nxt]@2 ** lseg(nxt, y, s1)[0,1,2] }
+}
+
+...
+```
+
+The list copy synthesis problem can now be annotated as follows:
+
+```
+Copy a linked list with immutable annotations constraints
+
+#####
+
+{true ; r :-> x ** lseg(x, 0, s)[I@a,I@b,I@c]}
+void listcopy_v2(loc r)
+{true ; r :-> y ** lseg(x, 0, s)[I@a,I@b,I@c] ** lseg(y, 0, s)[M,M,M] }
+
+#####
+
+```
+
+where `M` stands for mutable permission, and 
+`I@a` stands for read-only (immutable) permission with the borrow stored in variable `a`.
+A mutable points-to is denoted by `z :-> k`, while its immutable counterpart
+is denoted by `[z :-> k]@I@a`. A mutable block is denoted by `[x, 2]`, and its 
+immutable version is `[[x, 2]]@I@a`.
+
+The read-only annotations are only present in the assertions language. 
+The synthesized program doesn't contain such annotations, but their effect can be noticed
+in the generated program where no mutation occurs if so is specified: 
+
+```
+void listcopy_v2 (loc r) {
+  let x2 = *r;
+  if (x2 == 0) {
+  } else {
+    let v2 = *x2;
+    let nxt2 = *(x2 + 1);
+    *r = nxt2;
+    listcopy(r);
+    let y12 = *r;
+    let y2 = malloc(2);
+    *r = y2;
+    *(y2 + 1) = nxt2;
+    *y2 = v2;
+  }
+}
+```
+
+In comparison, the `listcopy` example 
+synthesised earlier contains a spurious write statement `*(x2 + 1) = y12;`, absent in 
+`listcopy_v2`. The reasoning using immutability annotation can be switched on or off 
+using the `--imm` flag as explained above.
+
+## Reproducing the Evaluation Results (for RO)
+
+Running the performance eval (averages 3 runs of the benchmarks) outputs 
+the results in the  `evaluation-utils/stats-performance.csv` file:
+
+```
+python3 evaluation-imm.py --performance --n 3
+```
+ 
+ 
+Running the robustness eval:
+```
+python3 evaluation-imm.py --robustnessUSsll
+python3 evaluation-imm.py --robustnessUSsrtl
+python3 evaluation-imm.py --robustnessUStree
+```
+ outputs: `evaluation-utils/robustness-sll.csv`,
+    `evaluation-utils/robustness-srtl.csv`, and 
+   `evaluation-utils/robustness-tree.csv`, respectively. 
+
+
+The `evaluation-imm.py` program must be launched from the project's main directory.

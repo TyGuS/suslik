@@ -25,6 +25,7 @@ case class SynConfig(
                       printEnv: Boolean         = false,
                       assertSuccess: Boolean    = false,
                       logToFile: Boolean        = true,
+                      logFile: String           = "",
                       memoization: Boolean      = true,
                       prioImm: Boolean          = false,
                       imm: Boolean              = true,
@@ -40,7 +41,7 @@ case class SynConfig(
                         * IMPORTANT: remember to remove the flags check from the scala code once done
                         * with the evaluation, to make sure it does not interfere with future evaluations.
                         */
-                      flags: List[Boolean]      = (1 to 16).toList.map( _ => false),
+                      flags: List[Boolean]      = (1 to 18).toList.map( _ => false),
                     ) extends PrettyPrinting {
 
   override def pp: String =
