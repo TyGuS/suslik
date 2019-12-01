@@ -137,43 +137,47 @@ trait Synthesis extends SepLogicUtils with Memoization {
             None
           else {
             val (stmts, helpers) = results.unzip
-            val stmt = s.kont(stmts)
-            val allHelpers = helpers.toList.flatten
-            if (stmt.companions.contains(goal.label) && goal.label != topLabel) {
-              // Current goal is a non-top-level companion: extract a helper
-              val f = goal.toFunSpec
-              val newHelper = Procedure(f.name, f.rType, f.params, stmt)
-              Some((goal.toCall, newHelper :: allHelpers))
-            } else
-              Some((stmt, allHelpers))
-              // handleGuard(s, resultStmts.toList)
-          }
+//            val stmt = s.kont(stmts)
+            handleGuard(s, stmts.toList) match {
+              case None => None
+              case Some((stmt, helpers2)) =>
+                val allHelpers = helpers.toList.flatten ++ helpers2
+                if (stmt.companions.contains(goal.label) && goal.label != topLabel) {
+                  // Current goal is a non-top-level companion: extract a helper
+                  val f = goal.toFunSpec
+                  val newHelper = Procedure(f.name, f.rType, f.params, stmt)
+                  Some((goal.toCall, newHelper :: allHelpers))
+                } else
+                  Some((stmt, allHelpers))
+            }
+
+            }
         }
 
         // TODO: enable condition abduction again
         // If stmts is a single guarded statement:
         // if possible, propagate guard to the result of the current goal,
         // otherwise, try to synthesize the else branch and fail if that fails
-//        def handleGuard(s: Subderivation, stmts: List[Statement]): Option[Prog] =
-//          stmts match {
-//            case Guarded(cond, thn) :: Nil =>
-//              s.kont(stmts) match {
-//                case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
-//                  Some(g)
-//                case _ => // Cannot propagate: try to synthesize else branch
-//                  val goal = s.subgoals.head
-//                  val newPre = goal.pre.copy(phi = goal.pre.phi && cond.not)
-//                  // Set starting depth to current depth: new subgoal will start at its own starting depth
-//                  // to disallow producing guarded statements
-//                  val newConfig = goal.env.config.copy(startingDepth = depth)
-//                  val newG = goal.spawnChild(newPre, env = goal.env.copy(config = newConfig))
-//                  synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
-//                    case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
-//                    case _ => None // failed to synthesize else
-//                  }
-//              }
-//            case _ => Some(s.kont(stmts))
-//          }
+        def handleGuard(s: Subderivation, stmts: List[Statement]): Option[Solution] =
+          stmts match {
+            case Guarded(cond, thn) :: Nil =>
+              s.kont(stmts) match {
+                case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
+                  Some(g, Nil)
+                case _ => // Cannot propagate: try to synthesize else branch
+                  val goal = s.subgoals.head
+                  val newPre = goal.pre.copy(phi = goal.pre.phi && cond.not)
+                  // Set starting depth to current depth: new subgoal will start at its own starting depth
+                  // to disallow producing guarded statements
+                  val newConfig = goal.env.config.copy(startingDepth = depth)
+                  val newG = goal.spawnChild(newPre, env = goal.env.copy(config = newConfig))
+                  synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
+                    case Some((els, helpers)) => Some(s.kont(List(If(cond, thn, els))), helpers) // successfully synthesized else
+                    case _ => None // failed to synthesize else
+                  }
+              }
+            case _ => Some(s.kont(stmts), Nil)
+          }
 
 
         // Invoke the rule

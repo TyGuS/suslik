@@ -45,21 +45,6 @@ trait PureLogicUtils {
     common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
   }
 
-  /**
-    *
-    */
-  def propagate_not(e:Expr):Expr = e match {
-    //  Classical logic stuff and de Morgan
-    case UnaryExpr(OpNot, UnaryExpr(OpNot, arg)) => propagate_not(arg)
-    case UnaryExpr(OpNot, BinaryExpr(OpAnd, left, right)) => propagate_not(left.not) || propagate_not(right.not)
-    case UnaryExpr(OpNot, BinaryExpr(OpOr, left, right)) => propagate_not(left.not) && propagate_not(right.not)
-    case UnaryExpr(OpNot, BoolConst(true)) => pFalse
-    case UnaryExpr(OpNot, BoolConst(false)) => pTrue
-    case UnaryExpr(op, e1) if op  != OpNot => UnaryExpr(op, propagate_not(e1))
-    case BinaryExpr(op, left, right) => BinaryExpr(op, propagate_not(left), propagate_not(right))
-    case _ => e
-  }
-
   def desugar(e: Expr): Expr = e match {
       // Bi-implication usually ends up not being in CNF, so it is not very useful
 //    case BinaryExpr(OpBoolEq, e1, e2) => desugar(e1) <==> desugar(e2)
@@ -69,14 +54,10 @@ trait PureLogicUtils {
     case _ => e
   }
 
-  def propperify(e: Expr): Expr = propagate_not(desugar(e))
-
   /**
     * Expression simplifier
     */
-  private val disable_simplification = true
-  def simplify(e: Expr): Expr = if(disable_simplification) propperify(e)
-  else propperify(e) match {
+  def simplify(e: Expr): Expr = e match {
     //  Truth table for and
     case BinaryExpr(OpAnd, e1, e2) => simplify(e1) match {
       case BoolConst(false) => pFalse
@@ -84,9 +65,6 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(false) => pFalse
         case BoolConst(true) => s1
-//        case s2 if s1 == s2 => s1 // TODO: maybe enable
-//        case s2 if s1 == s2.not => pFalse
-//        case s2 if s1.not == s2 => pFalse
         case s2 => s1 && s2
       }
     }
@@ -98,9 +76,6 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(true) => pTrue
         case BoolConst(false) => s1
-//        case s2 if s2 == s1 => s1 // TODO: maybe enable
-//        case s2 if s2 == s1.not => pTrue
-//        case s2 if s2.not == s1 => pTrue
         case s2 => s1 || s2
       }
     }
@@ -176,25 +151,6 @@ trait PureLogicUtils {
     case p => isDisjunction(p)
   }
 
-  /**
-    * Return the formula as a list of conjuncts
-    */
-  def conjuncts(phi: PFormula): List[PFormula] = {
-
-    val pf = simplify(phi)
-    if (!isCNF(pf)) {
-      throw PureLogicException(s"The formula ${phi.pp} is not in CNF")
-    }
-
-    def _conjuncts(p: PFormula): List[PFormula] = p match {
-      case BoolConst(true) => Nil
-      case BinaryExpr(OpAnd, left, right) => _conjuncts(left) ++ _conjuncts(right)
-      case x => List(x)
-    }
-
-    _conjuncts(pf).distinct
-  }
-
   def findCommon[T](cond: T => Boolean, ps1: List[T], ps2: List[T]): Option[(T, List[T], List[T])] = {
     for (p <- ps1 if cond(p)) {
       if (ps2.contains(p)) {
@@ -205,7 +161,7 @@ trait PureLogicUtils {
   }
 
   def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[PFormula])] =
-    Some(conjuncts(phi)).flatMap(cs => cs.find(p) match {
+    Some(phi.conjuncts).flatMap(cs => cs.find(p) match {
       case Some(c) => Some((c, cs.filter(e => e != c)))
       case None => None
     })

@@ -102,37 +102,26 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
         }
     }
 
-    // Lazily try all permutations of source chunks
-    // Ugly imperative stuff below
-    val iter = targetChunks.permutations
-    while (iter.hasNext) {
-      val tChunks = iter.next()
-      unifyGo(tChunks, sourceChunks, Map.empty) match {
-        case Some(newSubst) =>
-          // Returns the first good substitution, doesn't try all of them!
-          val newAssertion = source.formula.subst(newSubst)
-          val allVarsCaptured = true //newAssertion.vars.forall(target.formula.vars.contains(_))
-          // TODO: Once SMT is there, also check implications
-          if (allVarsCaptured) {
-            val composition = compose(freshSubst, newSubst)
-            /* [Handling spatial-based unification]
-              Sometimes, there are parameters of the function spec, that are not present in the spatial part.
-              In this case, freshSubst will contain mappings to the variable that is not present in the current
-              goal (target). For those variables, for which we don't have a match, we just remove them from the substitution.
-              This is sound, as the result is _A_ substitution, which is correct in the case of loops,
-              as it refers to the variable in the scope.
-             */
-            val resultSubst = composition.filter {
-              case (k, v@Var(_)) => target.params.contains(v)
-              case _ => true
-            }
-            return Some(resultSubst)
-          }
-        // Otherwise, continue
-        case None =>
-      }
+    // We used to try all permutations of target chunks here, but that was unnecessary (since post-filtering was disabled) and super slow
+    unifyGo(targetChunks, sourceChunks, Map.empty) match {
+      case Some(newSubst) =>
+        // Returns the first good substitution, doesn't try all of them!
+        val composition = compose(freshSubst, newSubst)
+        /* [Handling spatial-based unification]
+          Sometimes, there are parameters of the function spec, that are not present in the spatial part.
+          In this case, freshSubst will contain mappings to the variable that is not present in the current
+          goal (target). For those variables, for which we don't have a match, we just remove them from the substitution.
+          This is sound, as the result is _A_ substitution, which is correct in the case of loops,
+          as it refers to the variable in the scope.
+         */
+        val resultSubst = composition.filter {
+          case (k, v@Var(_)) => target.formula.vars.contains(v)
+          case _ => true
+        }
+        Some(resultSubst)
+      // Otherwise, continue
+      case None => None
     }
-    None
   }
 
   /**

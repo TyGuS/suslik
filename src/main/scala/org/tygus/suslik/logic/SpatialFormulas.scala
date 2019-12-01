@@ -162,7 +162,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   }
 
   /**
-    * Change tags for applications, to avoind re-applying the rule
+    * Change tags for applications, to avoid re-applying the rule
     */
   def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h ) )
@@ -170,8 +170,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h ) )
 
-  def moveToLevel2(cond: Heaplet => Boolean = _ => true): SFormula =
-    setUpSAppTags(2, cond)
+  def setToNegative(cond: Heaplet => Boolean = _ => true): SFormula =
+    setUpSAppTags(-1, cond)
 
   def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h ) )

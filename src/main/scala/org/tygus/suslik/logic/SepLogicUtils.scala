@@ -61,11 +61,27 @@ trait SepLogicUtils extends PureLogicUtils {
     }
   }
 
-  def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
-    case (None, None) => Some(0)
-    case (Some(x), Some(y)) => Some (x - y)
-    case _ => None
+  def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
+//    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
+//      case (Some(x), Some(y)) => x - y
+//      case _ => 0
+//    }
+
+    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = lilTag.getOrElse(0) - largTag.getOrElse(0)
+
+    val pairTags = for {
+      SApp(name, args, t) <- adaptedFunPre.chunks
+      SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
+        case SApp(_name, _args, _) => _name == name && _args == args
+        case _ => false
+      }
+    } yield (t, _t)
+    val comparisons = pairTags.map {case (t, s) => compareTags(t, s)}
+    val allGeq = comparisons.forall(_ <= 0)
+    val atLeastOneLarger = comparisons.exists(_ < 0)
+    allGeq && atLeastOneLarger
   }
+
 
 
   /**

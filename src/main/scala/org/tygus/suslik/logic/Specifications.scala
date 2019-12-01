@@ -60,8 +60,8 @@ object Specifications {
     def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
 
-    def moveToLevel2(cond: Heaplet => Boolean = _ => true): Assertion =
-      this.copy(sigma = this.sigma.moveToLevel2(cond))
+    def setToNegative(cond: Heaplet => Boolean = _ => true): Assertion =
+      this.copy(sigma = this.sigma.setToNegative(cond))
 
     def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.lockSAppTags(cond))
@@ -295,11 +295,11 @@ object Specifications {
   def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment): Goal = {
     val gamma0 = formals.map({ case (t, v) => (v, t) }).toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
-    val formalNames = formals.map(_._2)
-    val ghostUniversals = pre.vars -- formalNames
-    val emptyDerivation = Derivation(pre.sigma.chunks, post.sigma.chunks)
     val pre1 = pre.resolveOverloading(gamma)
     val post1 = post.resolveOverloading(gamma)
+    val formalNames = formals.map(_._2)
+    val ghostUniversals = pre1.vars -- formalNames
+    val emptyDerivation = Derivation(pre1.sigma.chunks, post1.sigma.chunks)
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
       fname, topLabel, None, env.resolveOverloading(), emptyDerivation).simplifyPure

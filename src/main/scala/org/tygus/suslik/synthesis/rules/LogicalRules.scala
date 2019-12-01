@@ -117,18 +117,17 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       // Find pointers in `a` that are not yet known to be non-null
       def findPointers(a: Assertion): Set[Expr] = {
-        val cs = conjuncts(a.phi)
+        val p = a.phi
         // All pointers
         val allPointers = (for (PointsTo(l, _, _) <- a.sigma.chunks) yield l).toSet
         allPointers.filter(
-          x => !cs.contains(x |/=| NilPtr) && !cs.contains(NilPtr |/=| x)
+          x => p != pFalse && !p.conjuncts.contains(x |/=| NilPtr) && !p.conjuncts.contains(NilPtr |/=| x)
         )
       }
 
 
       def addToAssertion(a: Assertion, ptrs: Set[Expr]): Assertion = {
-        val cs = conjuncts(a.phi)
-        val newPhi = mkConjunction(cs ++ ptrs.map { x => x |/=| NilPtr })
+        val newPhi = mkConjunction(a.phi.conjuncts ++ ptrs.map { x => x |/=| NilPtr })
         Assertion(newPhi, a.sigma)
       }
 
@@ -159,16 +158,15 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "[Norm: *-partial]"
 
     def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[PFormula] = {
-      val cs = conjuncts(p)
       val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = for (x <- ptrs; y <- ptrs if x != y) yield (x, y)
       val newPairs = pairs.filter {
         case (x, y) => excludeVars.intersect(x.vars ++ y.vars).isEmpty &&
-          !cs.contains(x |/=| y) && !cs.contains(y |/=| x)
+          p != pFalse && !p.conjuncts.contains(x |/=| y) && !p.conjuncts.contains(y |/=| x)
       }
       if (newPairs.isEmpty) None
-      else Some(mkConjunction(cs ++ newPairs.map { case (x, y) => x |/=| y }))
+      else Some(mkConjunction(p.conjuncts ++ newPairs.map { case (x, y) => x |/=| y }))
     }
 
     def apply(goal: Goal): Seq[Subderivation] = {

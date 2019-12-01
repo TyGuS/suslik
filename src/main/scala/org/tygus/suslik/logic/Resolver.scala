@@ -19,7 +19,7 @@ object Resolver {
     // TODO: This is not optimal and, in principle, can lead to infinite derivations
     // However, a generalisation, enabling multiple calls would be too much of a hassle
     // A temporary solution is to kick this function out of the environment, once used
-    val newPre = fs.pre.moveToLevel2()
+    val newPre = fs.pre.setToNegative()
     val newPost = fs.post.lockSAppTags()
     fs.copy(pre = newPre, post = newPost)
   }
