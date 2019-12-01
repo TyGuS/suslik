@@ -14,6 +14,8 @@ scala:
 
 jdk:
   - oraclejdk8
+
+dist: trusty
   
 before_install:
   - sudo apt-get -qq install lib32stdc++6
