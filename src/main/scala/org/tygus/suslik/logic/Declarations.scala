@@ -25,7 +25,7 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
                    pre: Assertion, post: Assertion) extends TopLevelDeclaration {
 
   def resolveOverloading(env:Environment):FunSpec = {
-    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived fromn the formals
+    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     this.copy(pre=pre.resolveOverloading(gamma), post=post.resolveOverloading(gamma))
   }

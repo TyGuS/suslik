@@ -171,7 +171,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.hist
 
       findTargetHeaplets(goal) match {
         case None => Nil
@@ -185,14 +184,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val freshBlock = Block(x, sz).subst(x, y)
           val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
 
-          val postFootprint = pts.map(p => deriv.postIndex.lastIndexOf(p)).toSet + deriv.postIndex.lastIndexOf(h)
-          val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
-
           val subGoal = goal.spawnChild(newPre,
                                         post.subst(x, y),
                                         gamma = goal.gamma + (y -> tpy),
-                                        programVars = y :: goal.programVars,
-                                        newRuleApp = Some(ruleApp))
+                                        programVars = y :: goal.programVars)
           val kont: StmtProducer = prepend(Malloc(y, tpy, sz)) >> handleGuard(goal) >> extractHelper(goal)
           List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
         case _ => Nil
@@ -221,7 +216,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
-      val deriv = goal.hist
 
       findTargetHeaplets(goal) match {
         case None => Nil
@@ -229,11 +223,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val toRemove = SFormula(pts.toList) ** h
           val newPre = Assertion(pre.phi, pre.sigma - toRemove)
 
-          // Collecting the footprint
-          val preFootprint = pts.map(p => deriv.preIndex.lastIndexOf(p)).toSet + deriv.preIndex.lastIndexOf(h)
-          val ruleApp = saveApplication((preFootprint, Set.empty), deriv)
-
-          val subGoal = goal.spawnChild(newPre, newRuleApp = Some(ruleApp))
+          val subGoal = goal.spawnChild(newPre)
           val kont: StmtProducer = prepend(Free(x)) >> handleGuard(goal) >> extractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, Footprint(toRemove, emp), this))

@@ -156,14 +156,7 @@ trait Synthesis extends SepLogicUtils {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
         // Invoke the rule
-        val allChildren = r(goal)
-
-        // Filter out children that contain out-of-order goals
-        val _ = allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
-        val children = allChildren
-//        val children = if (config.commute) {
-//          allChildren.filterNot(_.subgoals.exists(goalOutOfOrder))
-//        } else allChildren
+        val children = r(goal)
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules
@@ -186,21 +179,6 @@ trait Synthesis extends SepLogicUtils {
             children ++ applyRules(rs)
           }
         }
-    }
-  }
-
-  // Is current goal supposed to appear before g?
-  def goalOutOfOrder(g: Goal)(implicit goal: Goal,
-                              stats: SynStats,
-                              config: SynConfig): Boolean = {
-    implicit val ind = goal.depth
-    g.hist.outOfOrder(allRules(goal)) match {
-      case None => false
-      case Some(app) =>
-        //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-        //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-        printLog(List((s"${RED}Alternative ${g.hist.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
-        true
     }
   }
 

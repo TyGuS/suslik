@@ -131,8 +131,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * Make a call goal for `f` with a given precondition
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
-      val preFootprint = callSubPre.sigma.chunks.map(p => goal.hist.preIndex.lastIndexOf(p)).toSet
-      val ruleApp = saveApplication((preFootprint, Set.empty), goal.hist)
       val callPost = f.post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
         // To avoid more than one application of a library function
@@ -152,7 +150,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         acs <- List(addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
-        callGoal = goal.spawnChild(restPre, newRuleApp = Some(ruleApp), env = newEnv)
+        callGoal = goal.spawnChild(restPre, env = newEnv)
       } yield callGoal
     }
   }
@@ -243,7 +241,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val post = goal.post
       val env = goal.env
-      val deriv = goal.hist
 
       // Does h have a tag that exceeds the maximum allowed unfolding depth?
       def exceedsMaxDepth(h: Heaplet): Boolean = {
@@ -280,11 +277,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = mkConjunction(List(actualSelector, post.phi, actualConstraints))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
-            val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
             val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
-            RuleResult(List(goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))), kont, Footprint(emp, singletonHeap(h)), this)
+            RuleResult(List(goal.spawnChild(post = newPost)), kont, Footprint(emp, singletonHeap(h)), this)
           }
           subDerivations
         case _ => Nil

@@ -71,7 +71,6 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.hist
 
       def isSuitable(hPost: Heaplet): Boolean = !hPost.vars.exists(goal.isExistential) && heapletFilter(hPost)
       def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && isSuitable(hPost)
@@ -83,10 +82,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPostSigma = post.sigma - hPost
           val newPre = Assertion(pre.phi, newPreSigma)
           val newPost = Assertion(post.phi, newPostSigma)
-          val preFootprint = Set(deriv.preIndex.lastIndexOf(hPre))
-          val postFootprint = Set(deriv.postIndex.lastIndexOf(hPost))
-          val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-          val newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
+          val newGoal = goal.spawnChild(newPre, newPost)
           val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
           List(RuleResult(List(newGoal), kont, Footprint(singletonHeap(hPre), singletonHeap(hPost)), this))
         }

@@ -28,7 +28,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.hist
 
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
 
@@ -41,22 +40,13 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
 
-        val preFootprint = Set(deriv.preIndex.lastIndexOf(t))
-        val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
-        val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
-        val newGoal = goal.spawnChild(post = newPost, newRuleApp = Some(ruleApp))
+        val newGoal = goal.spawnChild(post = newPost)
         val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
         RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), this)
       }
       //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
-      val ord = new Ordering[(Int, RuleApplication)] {
-        def compare(x: (Int, RuleApplication), y: (Int, RuleApplication)): Int = {
-          val c1 = x._1.compare(y._1)
-          if (c1 != 0) c1 else x._2.compare(y._2)
-        }
-      }
       val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
-      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.hist.applications.head))(ord)
+      derivations.sortBy(s => -s.subgoals.head.similarity)
     }
   }
 

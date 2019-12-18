@@ -128,59 +128,6 @@ object Specifications extends SepLogicUtils {
 
   def emptyFootprint: Footprint = Footprint(emp, emp)
 
-  case class RuleApplication(rule: SynthesisRule, footprint: (Set[Int], Set[Int]), timestamp: (Int, Int), cost: Int)
-    extends PrettyPrinting with Ordered[RuleApplication] {
-    override def pp: String =
-      s"${this.rule} ${this.timestamp} ${this.footprint} with cost ${this.cost}"
-
-    // Does this rule application commute with a previous application prev?
-    // Yes if my footprint only includes chunks that existed before prev was applied (so I could be applied before prev)
-    // and our footprints are disjoint (so prev can be applied after me)
-    def commutesWith(prev: RuleApplication): Boolean = {
-      this.footprint._1.forall(i => i < prev.timestamp._1) &&
-        this.footprint._2.forall(i => i < prev.timestamp._2) &&
-          prev.footprint._1.intersect(this.footprint._1).isEmpty &&
-            prev.footprint._2.intersect(this.footprint._2).isEmpty
-    }
-
-    // Rule applications are ordered by cost and then by footprint;
-    // for efficiency, when a rule produces multiple alternatives, lower costs should go first
-    override def compare(that: RuleApplication): Int = {
-      val minPreL = (this.footprint._1 + this.timestamp._1).min
-      val minPostL = (this.footprint._2 + this.timestamp._2).min
-      val minPreR = (that.footprint._1 + that.timestamp._1).min
-      val minPostR = (that.footprint._2 + that.timestamp._2).min
-      implicitly[Ordering[(Int, Int, Int)]].compare((cost, minPreL, minPostL), (that.cost, minPreR, minPostR))
-    }
-  }
-
-
-  case class History(preIndex: List[Heaplet], postIndex: List[Heaplet], applications: List[RuleApplication] = Nil)
-    extends PrettyPrinting {
-    override def pp: String =
-      s"${preIndex.length}: [ ${preIndex.map(_.pp).mkString(" , ")} ]" +
-        s"\n${postIndex.length}: [ ${postIndex.map(_.pp).mkString(" , ")} ]" +
-        s"\nRules: ${applications.map(_.pp).mkString(" , ")}"
-
-    // Find a previous rule application that is out of order with the latest one
-    def outOfOrder(ruleOrder: Seq[SynthesisRule]): Option[RuleApplication] = {
-
-      // app1 is ordered before app2
-      // if its rule comes earlier in the rule order,
-      // or the rules are the same and the footprint comes earlier
-      def before(app1: RuleApplication, app2: RuleApplication): Boolean = {
-        val i1 = ruleOrder.indexOf(app1.rule)
-        val i2 = ruleOrder.indexOf(app2.rule)
-        (i1, app1) < (i2, app2)
-      }
-
-      applications match {
-        case Nil => None
-        case latest :: prevs => prevs.find(prev => latest.commutesWith(prev) && before(latest, prev))
-      }
-    }
-  }
-
   /**
     * A label uniquely identifies a goal within a derivation tree (but not among alternative derivations!)
     * Here depths represents how deep we should go down a linear segment of a derivation tree
@@ -219,8 +166,7 @@ object Specifications extends SepLogicUtils {
                   fname: String, // top-level function name
                   label: GoalLabel, // unique id within the derivation
                   parent: Option[Goal], // parent goal in the derivation
-                  env: Environment, // predicates and components
-                  hist: History)
+                  env: Environment) // predicates and components
 
     extends PrettyPrinting with PureLogicUtils {
 
@@ -264,32 +210,19 @@ object Specifications extends SepLogicUtils {
                    gamma: Gamma = this.gamma,
                    programVars: List[Var] = this.programVars,
                    childId: Option[Int] = None,
-                   env: Environment = this.env,
-                   newRuleApp: Option[RuleApplication] = None): Goal = {
+                   env: Environment = this.env): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
 
-      // Build a new derivation
-      def appendNewChunks(oldAsn: Assertion, newAsn: Assertion, index: List[Heaplet]): List[Heaplet] = {
-        index ++ newAsn.sigma.chunks.diff(oldAsn.sigma.chunks).sortBy(_.rank)
-      }
-
-      val d = this.hist
-      val newHist = d.copy(preIndex = appendNewChunks(this.pre, pre, d.preIndex),
-        postIndex = appendNewChunks(this.post, post, d.postIndex),
-        applications = newRuleApp.toList ++ d.applications)
-
       // Sort heaplets from old to new and simplify pure parts
-      val newPreSigma = pre.sigma.copy(pre.sigma.chunks.sortBy(h => newHist.preIndex.lastIndexOf(h)))
-      val newPostSigma = post.sigma.copy(post.sigma.chunks.sortBy(h => newHist.postIndex.lastIndexOf(h)))
-      val preSorted = Assertion(simplify(pre.phi), newPreSigma)
-      val postSorted = Assertion(simplify(post.phi), newPostSigma)
-      val newUniversalGhosts = this.universalGhosts ++ preSorted.vars -- programVars
+      val preSimple = Assertion(simplify(pre.phi), pre.sigma)
+      val postSimple = Assertion(simplify(post.phi), post.sigma)
+      val newUniversalGhosts = this.universalGhosts ++ preSimple.vars -- programVars
 
-      Goal(preSorted, postSorted,
+      Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
-        this.fname, this.label.bumpUp(childId), Some(this), env, newHist)
+        this.fname, this.label.bumpUp(childId), Some(this), env)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -305,7 +238,7 @@ object Specifications extends SepLogicUtils {
     def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates
 
     // All variables this goal has ever used
-    def vars: Set[Var] = hist.preIndex.flatMap(_.vars).toSet ++ hist.postIndex.flatMap(_.vars).toSet ++ programVars
+    def vars: Set[Var] = gamma.keys.toSet // hist.preIndex.flatMap(_.vars).toSet ++ hist.postIndex.flatMap(_.vars).toSet ++ programVars
 
     // All universally-quantified variables this goal has ever used
     def allUniversals: Set[Var] = universalGhosts ++ programVars
@@ -370,10 +303,9 @@ object Specifications extends SepLogicUtils {
     val post1 = post.resolveOverloading(gamma)
     val formalNames = formals.map(_._2)
     val ghostUniversals = pre1.vars -- formalNames
-    val emptyDerivation = History(pre1.sigma.chunks, post1.sigma.chunks)
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), emptyDerivation).simplifyPure
+      fname, topLabel, None, env.resolveOverloading()).simplifyPure
   }
 
 }

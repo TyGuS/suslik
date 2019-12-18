@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis.rules
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.{Heaplet, PureLogicUtils, SApp}
-import org.tygus.suslik.logic.Specifications.{Footprint, Goal, History, RuleApplication}
+import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 
 object Rules {
   /**
@@ -130,11 +130,6 @@ object Rules {
 
     // Is the rule enabled on this goal?
     def enabled(goal: Goal): Boolean
-
-    def saveApplication(footprint: (Set[Int], Set[Int]),
-                        currentDeriv: History,
-                        cost: Int = 0): RuleApplication =
-      RuleApplication(this, footprint, (currentDeriv.preIndex.length, currentDeriv.postIndex.length), cost)
   }
 
   /**
@@ -167,13 +162,6 @@ object Rules {
     def heapletFilter(h: Heaplet): Boolean = {
       true
     }
-  }
-
-  // Sort a sequence of alternative subderivations (where every subderivation contains a single goal)
-  // by the footprint of their latest rule application,
-  // so that sequential applications of the rule are unlikely to cause out-of-order derivations
-  def sortAlternativesByFootprint(alts: Seq[RuleResult]): Seq[RuleResult] = {
-    alts.sortBy(_.subgoals.head.hist.applications.head)
   }
 
   def nubBy[A,B](l:List[A], p:A=>B):List[A] =
