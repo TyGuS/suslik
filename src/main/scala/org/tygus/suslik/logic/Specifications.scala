@@ -171,7 +171,8 @@ object Specifications extends SepLogicUtils {
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
-      s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} |-\n" +
+      s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
+        s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
         s"${pre.pp}\n${post.pp}"
 
     def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),

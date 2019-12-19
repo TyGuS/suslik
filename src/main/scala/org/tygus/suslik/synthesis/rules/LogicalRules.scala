@@ -214,7 +214,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
-        // This messes with hypothesis unify:
+        // TODO: enable this once we have better pure synthesis
 //        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
           //TODO: discuss and enable
 //        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
