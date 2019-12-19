@@ -233,12 +233,10 @@ object Specifications extends SepLogicUtils {
 
     def isTopLevel: Boolean = label == topLabel
 
-    def hasAllocatedBlocks: Boolean = pre.sigma.chunks.exists(_.isInstanceOf[Block])
-
     def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates
 
     // All variables this goal has ever used
-    def vars: Set[Var] = gamma.keys.toSet // hist.preIndex.flatMap(_.vars).toSet ++ hist.postIndex.flatMap(_.vars).toSet ++ programVars
+    def vars: Set[Var] = gamma.keys.toSet
 
     // All universally-quantified variables this goal has ever used
     def allUniversals: Set[Var] = universalGhosts ++ programVars
@@ -247,7 +245,7 @@ object Specifications extends SepLogicUtils {
     def ghosts: Set[Var] = pre.vars ++ post.vars -- programVars
 
     // Currently used universally quantified variables: program variables and ghosts in pre
-    def universals: Set[Var] = programVars.toSet ++ pre.vars
+    def universals: Set[Var] = pre.vars ++ programVars
 
     // Currently used ghosts that appear only in the postcondition
     def existentials: Set[Var] = post.vars -- allUniversals

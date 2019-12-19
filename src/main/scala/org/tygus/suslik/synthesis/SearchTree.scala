@@ -3,6 +3,7 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, SynthesisRule}
+import org.tygus.suslik.util.SynStats
 
 import scala.collection.mutable
 
@@ -44,18 +45,19 @@ object SearchTree {
     }
 
     // This node has failed: prune siblings from worklist
-    def fail(wl: List[OrNode])(implicit precursors: PrecursorMap): List[OrNode] = parent match {
-      case None => wl // this is the root; wl must already be empty
-      case Some(an) => { // a subgoal has failed
-        val newWL = wl.filterNot(_.hasAncestor(an.id)) // prune all other descendants of an
-        precursors.retain((i, _) => !i.endsWith(an.id)) // also prune them from precursor map
-        if (newWL.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
-          newWL
-        } else {
-          an.parent.fail(newWL)
+    def fail(wl: List[OrNode])(implicit precursors: PrecursorMap, stats: SynStats): List[OrNode] = parent match {
+        case None => wl // this is the root; wl must already be empty
+        case Some(an) => { // a subgoal has failed
+          stats.addFailedNode(an)
+          val newWL = wl.filterNot(_.hasAncestor(an.id)) // prune all other descendants of an
+          precursors.retain((i, _) => !i.endsWith(an.id)) // also prune them from precursor map
+          if (newWL.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
+            newWL
+          } else {
+            an.parent.fail(newWL)
+          }
         }
       }
-    }
 
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution, wl: List[OrNode])(implicit precursors: PrecursorMap): Either[List[OrNode], Solution] = parent match {

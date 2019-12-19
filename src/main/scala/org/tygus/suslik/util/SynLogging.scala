@@ -2,11 +2,11 @@ package org.tygus.suslik.util
 
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.FunSpec
-import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.{SynConfig}
-import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
+import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
+import org.tygus.suslik.synthesis.SynConfig
 import scalaz.DList
+import scala.collection.mutable
 
 /**
   * @author Ilya Sergey
@@ -61,16 +61,40 @@ object SynLogLevels {
 }
 
 class SynStats {
+  // For each explored search node: how many of its (reflexive) descendants have been explored?
+  private val descendantsExplored: mutable.Map[NodeId, Int] = mutable.Map()
+  // Nodes that have been backtracked out of
+  private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
+  // Total number of dead-ends in the search tree
   private var backtracking: Int = 0
+  // Total number of rule applications
   private var ruleApps: Int = 0
+  // Maximum size of the worklist
   private var maxWLSize: Int = 0
+  // Maximum search tree depth
   private var maxDepth: Int = 0
 
-  def bumpUpBacktracing() {
+  // Tell all n's ancestors that n has been explored
+  def markExplored(n: OrNode): Unit = {
+    descendantsExplored.put(n.id, descendantsExplored.getOrElse(n.id, 0) + 1)
+    n.parent match {
+      case None =>
+      case Some(an) =>
+        descendantsExplored.put(an.id, descendantsExplored.getOrElse(an.id, 0) + 1)
+        markExplored(an.parent)
+    }
+  }
+
+  // Record that n has failed
+  def addFailedNode(n: AndNode): Unit = {
+    failedNodes.add(n)
+  }
+
+  def bumpUpBacktracing(): Unit = {
     backtracking = backtracking + 1
   }
 
-  def bumpUpRuleApps() {
+  def bumpUpRuleApps(): Unit = {
     ruleApps = ruleApps + 1
   }
 
@@ -82,6 +106,10 @@ class SynStats {
     maxDepth = maxDepth.max(d)
   }
 
+  def hotNodes(count: Int = 1): List[(AndNode, Int)] = {
+    val maxNodes = failedNodes.toList.sortBy(n => -descendantsExplored(n.id)).take(count)
+    maxNodes.map(n => (n, descendantsExplored(n.id)))
+  }
   def numBack: Int = backtracking
   def numApps : Int = ruleApps
   def maxWorklistSize: Int = maxWLSize

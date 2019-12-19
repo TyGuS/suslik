@@ -245,7 +245,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val s2 = goal.post.sigma
       val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
-      val varCandidates = goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)
+      val varCandidates = (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => p1.vars.contains(x))
 
       lazy val subs: List[Subst] = for {
         v1 <- varCandidates

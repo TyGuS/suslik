@@ -4,6 +4,7 @@ import java.io.File
 
 import org.tygus.suslik.logic.Resolver._
 import org.tygus.suslik.parsing.SSLParser
+import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil}
 
 import scala.io.Source
@@ -86,6 +87,9 @@ trait SynthesisRunnerUtil {
 
     SynStatUtil.log(testName, delta, params, spec, sresult)
 
+    def printHotNode(hotNode: AndNode, descs: Int): String =
+      s"${hotNode.rule.toString} ${hotNode.consume.pp} at depth ${hotNode.parent.depth} with ${descs} descendants explored"
+
     sresult match {
       case Some((procs, stats)) =>
         val result = procs.map(_.pp).mkString
@@ -94,11 +98,13 @@ trait SynthesisRunnerUtil {
           testPrintln(params.pp)
           testPrintln(s"${spec.pp}\n", Console.BLUE)
           testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
-          testPrintln(s"Number of backtrackings ${stats.numBack}")
+          testPrintln(s"Number of backtrackings: ${stats.numBack}")
           testPrintln(s"Total rule applications: ${stats.numApps}")
           testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
           testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
           testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
+          val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
+          testPrintln(s"Hot nodes:\n $hotNodesString")
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
         } else {

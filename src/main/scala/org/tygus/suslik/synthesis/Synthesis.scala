@@ -86,6 +86,7 @@ trait Synthesis extends SepLogicUtils {
         val goal = node.goal
         implicit val ind = goal.depth
         stats.updateMaxDepth(goal.depth)
+        stats.markExplored(node)
         if (config.printEnv) {
           printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
         }
