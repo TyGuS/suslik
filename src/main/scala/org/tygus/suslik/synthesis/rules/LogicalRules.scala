@@ -238,6 +238,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object SubstLeftVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
     override def toString: String = "SubstLVar"
 
+    def snapshot(g: Goal): PFormula =
+      if (g.preNormalized) {
+        g.pre.phi
+      } else g.parent match {
+        case None => BoolConst(true)
+        case Some(p) => snapshot(p)
+      }
+
     def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
@@ -245,27 +253,77 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val s2 = goal.post.sigma
       val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
-      val varCandidates = (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => p1.vars.contains(x))
+      val normalizedPre = snapshot(goal)
+      val diff = mkConjunction((p1.conjuncts.toSet -- normalizedPre.conjuncts.toSet).toList)
+      val varCandidates =
+          (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
 
-      lazy val subs: List[Subst] = for {
-        v1 <- varCandidates
-        v2 <- varCandidates.drop(varCandidates.indexOf(v1) + 1)
+      val subs: List[(Var, Var)] = for {
+        v1 <- varCandidates.reverse
+        v2 <- varCandidates.take(varCandidates.indexOf(v1))
         if goal.getType(v1) == goal.getType(v2)
-        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v1)))
-      } yield Map(v2 -> v1)
-
+        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v2)))
+      } yield (v1, v2)
+      
       subs match {
         case Nil => Nil
-        case sub :: _ =>
+        case _ :: _ =>
+          val sub = subs.toMap
           val _p1 = p1.subst(sub)
           val _s1 = s1.subst(sub)
           val _p2 = p2.subst(sub)
           val _s2 = s2.subst(sub)
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
-            Assertion(_p2, _s2))
+            Assertion(_p2, _s2),
+            preNormalized = true)
           List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
       }
     }
   }
+
+  // If an exsitential has a unique solution that is a variable, substitute
+  object SubstRightVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
+    override def toString: String = "SubstRVar"
+
+    def snapshot(g: Goal): PFormula =
+      if (g.postNormalized) {
+        g.pre.phi && g.post.phi
+      } else g.parent match {
+        case None => BoolConst(true)
+        case Some(p) => snapshot(p)
+      }
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val p1 = goal.pre.phi
+      val p2 = goal.post.phi
+      val s2 = goal.post.sigma
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+
+      val normalized = snapshot(goal)
+      val prePost = p1 && p2
+      val diff = mkConjunction((prePost.conjuncts.toSet -- normalized.conjuncts.toSet).toList)
+      val lhsCandidates = (goal.existentials -- diff.vars).toList
+      val rhsCandidates = (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
+
+
+      val subs: List[(Var, Var)] = for {
+        v1 <- lhsCandidates
+        v2 <- rhsCandidates
+        if goal.getType(v1) == goal.getType(v2)
+        if SMTSolving.valid(prePost ==> v1.eq(v2, goal.getType(v1)))
+      } yield (v1, v2)
+
+      subs match {
+        case Nil => Nil
+        case _ :: _ =>
+          val sub = subs.toMap
+          val _p2 = p2.subst(sub)
+          val _s2 = s2.subst(sub)
+          val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), postNormalized = true)
+          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
+      }
+    }
+  }
+
 }

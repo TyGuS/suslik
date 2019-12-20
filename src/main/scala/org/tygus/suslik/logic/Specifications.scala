@@ -166,7 +166,9 @@ object Specifications extends SepLogicUtils {
                   fname: String, // top-level function name
                   label: GoalLabel, // unique id within the derivation
                   parent: Option[Goal], // parent goal in the derivation
-                  env: Environment) // predicates and components
+                  env: Environment,
+                  preNormalized: Boolean,
+                  postNormalized: Boolean) // predicates and components
 
     extends PrettyPrinting with PureLogicUtils {
 
@@ -211,7 +213,9 @@ object Specifications extends SepLogicUtils {
                    gamma: Gamma = this.gamma,
                    programVars: List[Var] = this.programVars,
                    childId: Option[Int] = None,
-                   env: Environment = this.env): Goal = {
+                   env: Environment = this.env,
+                   preNormalized: Boolean = false,
+                   postNormalized: Boolean = false): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -223,7 +227,8 @@ object Specifications extends SepLogicUtils {
 
       Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
-        this.fname, this.label.bumpUp(childId), Some(this), env)
+        this.fname, this.label.bumpUp(childId), Some(this), env,
+        preNormalized, postNormalized)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -304,7 +309,7 @@ object Specifications extends SepLogicUtils {
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading()).simplifyPure
+      fname, topLabel, None, env.resolveOverloading(), false, false).simplifyPure
   }
 
 }

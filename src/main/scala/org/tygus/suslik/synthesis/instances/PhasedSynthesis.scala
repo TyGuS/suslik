@@ -49,6 +49,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
 
   def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
     LogicalRules.SubstLeftVar,
+//    LogicalRules.SubstRightVar,
     LogicalRules.FrameUnfolding,
     UnfoldingRules.CallRule,
     UnfoldingRules.Open,
