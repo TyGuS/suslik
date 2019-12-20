@@ -163,7 +163,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
           for {
             // Try variables from the context
-            l <- goal.programVars.toList
+            l <- goal.programVars
             if goal.gamma(l).conformsTo(Some(IntType))
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
             subGoal = goal.spawnChild(newPre, post.subst(m, l))
@@ -186,18 +186,14 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "Pick"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-
-      if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
-        // This is a rule of last resort so only apply when heaps are empty
-        for {
-          ex <- goal.existentials.toList
-          v <- goal.universals.toList
-          if goal.getType(ex).conformsTo(Some(goal.getType(v)))
-          sigma = Map(ex -> v)
-          newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-          kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
-        } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
-      } else Nil
+      for {
+        ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
+        v <- goal.universals.toList
+        if goal.getType(ex).conformsTo(Some(goal.getType(v)))
+        sigma = Map(ex -> v)
+        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+        kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }
 }
