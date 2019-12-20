@@ -29,6 +29,8 @@ object Specifications extends SepLogicUtils {
 
     def hasPredicates: Boolean = sigma.chunks.exists(_.isInstanceOf[SApp])
 
+    def hasBlocks: Boolean = sigma.chunks.exists(_.isInstanceOf[Block])
+
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
@@ -240,6 +242,8 @@ object Specifications extends SepLogicUtils {
     def isTopLevel: Boolean = label == topLabel
 
     def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates
+
+    def hasBlocks: Boolean = pre.hasBlocks || post.hasBlocks
 
     // All variables this goal has ever used
     def vars: Set[Var] = gamma.keys.toSet

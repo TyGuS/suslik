@@ -20,14 +20,14 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   val exceptionQualifier: String = "rule-fail"
 
   // Noop rule: never applies (used to replace disabled rules)
-  object Noop extends SynthesisRule with AnyPhase {
+  object Noop extends SynthesisRule {
     override def toString: String = "Noop"
 
     def apply(goal: Goal): Seq[RuleResult] = Nil
   }
 
   // Short-circuits failure if pure post is inconsistent with the pre
-  object PostInconsistent extends SynthesisRule with AnyPhase with InvertibleRule {
+  object PostInconsistent extends SynthesisRule with InvertibleRule {
     override def toString: String = "PostInconsistent"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -43,7 +43,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   }
 
   // Short-circuits failure if universal part of post is too strong
-  object PostInvalid extends SynthesisRule with FlatPhase with InvertibleRule {
+  object PostInvalid extends SynthesisRule with InvertibleRule {
     override def toString: String = "PostInvalid"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -56,7 +56,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
-  object AbduceBranch extends SynthesisRule with FlatPhase with InvertibleRule {
+  object AbduceBranch extends SynthesisRule with InvertibleRule {
     override def toString: String = "AbduceBranch"
 
     def atomCandidates(goal: Goal): Seq[Expr] =
@@ -128,7 +128,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   // Short-circuits failure if spatial post doesn't match pre
   // This rule is only applicable if alloc and free aren't
-  object HeapUnreachable extends SynthesisRule with FlatPhase with InvertibleRule {
+  object HeapUnreachable extends SynthesisRule with InvertibleRule {
     override def toString: String = "HeapUnreachable"
 
     def apply(goal: Goal): Seq[RuleResult] = {

@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.{Heaplet, PureLogicUtils, SApp}
+import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 
 object Rules {
@@ -127,9 +127,6 @@ object Rules {
   abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get all possible sub-derivations
     def apply(goal: Goal): Seq[RuleResult]
-
-    // Is the rule enabled on this goal?
-    def enabled(goal: Goal): Boolean
   }
 
   /**
@@ -140,29 +137,22 @@ object Rules {
   // so no need to backtrack in case of failure
   trait InvertibleRule
 
-  trait AnyPhase {
-    def enabled(goal: Goal): Boolean = true
-  }
-
   trait UnfoldingPhase {
-    def enabled(goal: Goal): Boolean = {
-      goal.hasPredicates
-    }
-
     def heapletFilter(h: Heaplet): Boolean = {
       h.isInstanceOf[SApp]
     }
   }
 
-  trait FlatPhase {
-    def enabled(goal: Goal): Boolean = {
-      !goal.hasPredicates
-    }
-
+  trait BlockPhase {
     def heapletFilter(h: Heaplet): Boolean = {
-      true
+      h.isInstanceOf[Block]
     }
   }
+
+  trait FlatPhase {
+    def heapletFilter(h: Heaplet): Boolean = true
+  }
+
 
   def nubBy[A,B](l:List[A], p:A=>B):List[A] =
   {

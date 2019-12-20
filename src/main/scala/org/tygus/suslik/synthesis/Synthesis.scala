@@ -25,8 +25,6 @@ trait Synthesis extends SepLogicUtils {
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
-  def allRules(goal: Goal): List[SynthesisRule]
-
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
 
   def synthesizeProc(funGoal: FunSpec, env: Environment): Option[(List[Procedure], SynStats)] = {

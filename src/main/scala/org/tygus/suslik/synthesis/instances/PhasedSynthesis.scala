@@ -17,21 +17,19 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     }
   }
 
-  def allRules(goal: Goal): List[SynthesisRule] = {
-    val config = goal.env.config
-    anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ flatPhaseRules(config)
-  }
-
   def nextRules(goal: Goal, depth: Int): List[SynthesisRule] = {
     val config = goal.env.config
     if (!config.phased)
     // Phase distinction is disabled: use all non top-level rules
-      allRules(goal)
+      anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ blockPhaseRules(config) ++ flatPhaseRules(config)
     else if (goal.hasPredicates)
-    // Unfolding phase
+      // Unfolding phase
       anyPhaseRules(config) ++ unfoldingPhaseRules(config)
+    else if (goal.hasBlocks)
+      // Block phase
+      anyPhaseRules(config) ++ blockPhaseRules(config)
     else
-    // Flat phase
+      // Flat phase
       anyPhaseRules(config) ++ flatPhaseRules(config)
   }
 
@@ -58,20 +56,26 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.Close,
   )
 
+  def blockPhaseRules(config: SynConfig): List[SynthesisRule] = List(
+    if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
+    LogicalRules.FrameBlock,
+    UnificationRules.HeapUnifyBlock,
+    OperationalRules.AllocRule,
+    OperationalRules.FreeRule
+  )
+
   def flatPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
     LogicalRules.EmpRule,
+    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
 
     // Flat phase rules
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
     LogicalRules.FrameFlat,
-    UnificationRules.HeapUnifyFlat,
-    OperationalRules.AllocRule,
     OperationalRules.WriteRuleOld,
+    UnificationRules.HeapUnifyFlat,
 //    OperationalRules.WriteRule,
-    OperationalRules.FreeRule,
-    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
 
     UnificationRules.PureUnify,
     UnificationRules.Pick,

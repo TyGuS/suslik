@@ -54,6 +54,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "HeapUnifyUnfold"
   }
 
+  object HeapUnifyBlock extends HeapUnify with BlockPhase {
+    override def toString: String = "HeapUnifyBlock"
+  }
+
   object HeapUnifyFlat extends HeapUnify with FlatPhase {
     override def toString: String = "HeapUnifyFlat"
   }
@@ -64,7 +68,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     --------------------------------------- [subst-R]
     Γ ; {φ ; P} ; {ψ ∧ X = l; Q} ---> S
   */
-  object SubstRight extends SynthesisRule with FlatPhase with InvertibleRule {
+  object SubstRight extends SynthesisRule with InvertibleRule {
     override def toString: String = "SubstR"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -106,7 +110,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
     */
 
-  object PureUnify extends SynthesisRule with FlatPhase {
+  object PureUnify extends SynthesisRule {
     override def toString: String = "PureUnify"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -129,7 +133,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   --------------------------------------------------------------------------------[pick-from-env]
      Γ ; {φ ; x.f -> - * P} ; {ψ ; x.f -> m * Q} ---> *x.f := l ; S
    */
-  object PickFromEnvRule extends SynthesisRule with FlatPhase with InvertibleRule {
+  object PickFromEnvRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "WriteFromEnv"
 
@@ -178,7 +182,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> Y * Q} ---> S
    */
 
-  object Pick extends SynthesisRule with FlatPhase {
+  object Pick extends SynthesisRule {
     override def toString: String = "Pick"
 
     def apply(goal: Goal): Seq[RuleResult] = {

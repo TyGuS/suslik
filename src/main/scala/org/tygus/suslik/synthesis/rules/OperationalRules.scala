@@ -26,7 +26,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l' * Q} ---> *x.f := l' ; S
 
   */
-  object WriteRuleOld extends SynthesisRule with FlatPhase {
+  object WriteRuleOld extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "WriteOld"
 
@@ -72,7 +72,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; P} ; {ψ ; x.f -> l * Q} ---> S; *x.f := l
 
   */
-  object WriteRule extends SynthesisRule with FlatPhase with InvertibleRule {
+  object WriteRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "Write"
 
@@ -113,7 +113,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       ---------------------------------------------------------------- [read]
              Γ ; {φ ; x.f -> A * P} ; {ψ ; Q} ---> let y := *x.f ; S
   */
-  object ReadRule extends SynthesisRule with AnyPhase with InvertibleRule {
+  object ReadRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "Read"
 
@@ -155,7 +155,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
      -------------------------------------------------------------- [alloc]
      Γ ; {φ ; P} ; {ψ ; block(X, n) * Q} ---> let y = malloc(n); S
   */
-  object AllocRule extends SynthesisRule with FlatPhase {
+  object AllocRule extends SynthesisRule {
     override def toString: Ident = "Alloc"
 
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
@@ -203,7 +203,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
    ------------------------------------------------------------------------ [free]
    Γ ; {φ ; block(x, n) * x -> (l1 .. ln) * P} ; { ψ ; Q } ---> free(x); S
 */
-  object FreeRule extends SynthesisRule with FlatPhase {
+  object FreeRule extends SynthesisRule {
 
     override def toString: Ident = "Free"
 

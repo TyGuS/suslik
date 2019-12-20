@@ -26,7 +26,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     Axiom: heaps are empty and pure spec is valid -> emit skip
 
   */
-  object EmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
+  object EmpRule extends SynthesisRule with InvertibleRule {
 
     override def toString: Ident = "Emp"
 
@@ -48,7 +48,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   The other axiom: pre is inconsistent -> emit error
   */
-  object Inconsistency extends SynthesisRule with AnyPhase with InvertibleRule {
+  object Inconsistency extends SynthesisRule with InvertibleRule {
     override def toString: String = "Inconsistency"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -94,6 +94,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "FrameUnfold"
   }
 
+  object FrameBlock extends Frame with BlockPhase with InvertibleRule {
+    override def toString: String = "FrameBlock"
+  }
+
   object FrameFlat extends Frame with FlatPhase with InvertibleRule {
     override def toString: String = "FrameFlat"
   }
@@ -106,7 +110,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; Q} ---> S
   */
 
-  object NilNotLval extends SynthesisRule with AnyPhase with InvertibleRule {
+  object NilNotLval extends SynthesisRule with InvertibleRule {
     override def toString: String = "NilNotLval"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -153,7 +157,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   ------------------------------------------------------------ [*-partial]
   Γ ; {φ ; x.f -> l * y.f -> l' * P} ; {ψ ; Q} ---> S
    */
-  object StarPartial extends SynthesisRule with AnyPhase with InvertibleRule {
+  object StarPartial extends SynthesisRule with InvertibleRule {
     override def toString: String = "*Partial"
 
     def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[(PFormula, SFormula)] = {
@@ -202,7 +206,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   ------------------------------------------------ [subst-L]
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
-  object SubstLeft extends SynthesisRule with FlatPhase with InvertibleRule {
+  object SubstLeft extends SynthesisRule with InvertibleRule {
     override def toString: String = "SubstL"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -235,7 +239,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   }
 
   // This rule has to come after inconsistency
-  object SubstLeftVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
+  object SubstLeftVar extends SynthesisRule with InvertibleRule {
     override def toString: String = "SubstLVar"
 
     def snapshot(g: Goal): PFormula =
@@ -283,7 +287,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   }
 
   // If an exsitential has a unique solution that is a variable, substitute
-  object SubstRightVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
+  object SubstRightVar extends SynthesisRule with InvertibleRule {
     override def toString: String = "SubstRVar"
 
     def snapshot(g: Goal): PFormula =
