@@ -110,7 +110,7 @@ object Expressions {
     def rType: SSLType = IntSetType
     def resType: SSLType = IntSetType
   }
-  object OpDiff extends BinOp with SymmetricOp with AssociativeOp {
+  object OpDiff extends BinOp {
     def level: Int = 4
     override def pp: String = "--"
     def lType: SSLType = IntSetType
