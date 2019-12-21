@@ -88,7 +88,7 @@ trait SynthesisRunnerUtil {
     SynStatUtil.log(testName, delta, params, spec, sresult)
 
     def printHotNode(hotNode: AndNode, descs: Int): String =
-      s"${hotNode.rule.toString} ${hotNode.consume.pp} at depth ${hotNode.parent.depth} with ${descs} descendants explored"
+      s"${hotNode.rule.toString} ${hotNode.consume.pp} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
 
     sresult match {
       case Some((procs, stats)) =>
@@ -98,8 +98,9 @@ trait SynthesisRunnerUtil {
           testPrintln(params.pp)
           testPrintln(s"${spec.pp}\n", Console.BLUE)
           testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
-          testPrintln(s"Number of backtrackings: ${stats.numBack}")
-          testPrintln(s"Total rule applications: ${stats.numApps}")
+          testPrintln(s"Goals generated: ${stats.numGoalsGenerated}")
+          testPrintln(s"Goals expanded: ${stats.numGoalsExpanded}")
+          testPrintln(s"And-nodes backtracked: ${stats.numGoalsFailed}")
           testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
           testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
           testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")

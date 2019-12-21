@@ -83,8 +83,7 @@ trait Synthesis extends SepLogicUtils {
       case node :: rest => {
         val goal = node.goal
         implicit val ind = goal.depth
-        stats.updateMaxDepth(goal.depth)
-        stats.markExplored(node)
+        stats.addExpandedGoal(node)
         if (config.printEnv) {
           printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
         }
@@ -99,14 +98,13 @@ trait Synthesis extends SepLogicUtils {
 
         if (expansions.isEmpty) {
           // This is a dead-end: prune worklist and try something else
-          stats.bumpUpBacktracing()
           printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
           processWorkList(node.fail(rest))
         } else {
           // Check if any of the expansions is a terminal
           expansions.find(_.subgoals.isEmpty) match {
-            case Some(e) => node.succeed(e.kont(Nil), rest) match { // e is a terminal: this node suceeded
-              case Right(sol) => Some(sol) // No more open subgoals in this derivation: synthesis suceeded
+            case Some(e) => node.succeed(e.kont(Nil), rest) match { // e is a terminal: this node succeeded
+              case Right(sol) => Some(sol) // No more open subgoals in this derivation: synthesis succeeded
               case Left(newWorkList) => processWorkList(newWorkList) // More open goals: continue
             }
             case None => { // no terminals: add all expansions to worklist
@@ -137,6 +135,7 @@ trait Synthesis extends SepLogicUtils {
                   precursors(n.id) = precs
               }
 
+              stats.addGeneratedGoals(filteredNodes.size)
               processWorkList(filteredNodes.toList ++ rest)
             }
           }
@@ -168,8 +167,6 @@ trait Synthesis extends SepLogicUtils {
           for {c <- childFootprints.tail}
             printLog(List((c, BLACK)))(config = config, ind = goal.depth + 1)
 
-
-          stats.bumpUpRuleApps()
           if (config.invert && r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal
             children

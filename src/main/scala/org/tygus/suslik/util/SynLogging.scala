@@ -61,21 +61,21 @@ object SynLogLevels {
 }
 
 class SynStats {
+  // Total number of goals generated
+  private var goalsGenerated: Int = 0
+  // Total number of goals to which rules were applied
+  private var goalsExpanded: Int = 0
+  // Maximum goal depth
+  private var maxDepth: Int = 0
+  // Maximum size of the worklist
+  private var maxWLSize: Int = 0
   // For each explored search node: how many of its (reflexive) descendants have been explored?
   private val descendantsExplored: mutable.Map[NodeId, Int] = mutable.Map()
   // Nodes that have been backtracked out of
   private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
-  // Total number of dead-ends in the search tree
-  private var backtracking: Int = 0
-  // Total number of rule applications
-  private var ruleApps: Int = 0
-  // Maximum size of the worklist
-  private var maxWLSize: Int = 0
-  // Maximum search tree depth
-  private var maxDepth: Int = 0
 
   // Tell all n's ancestors that n has been explored
-  def markExplored(n: OrNode): Unit = {
+  private def markExplored(n: OrNode): Unit = {
     descendantsExplored.put(n.id, descendantsExplored.getOrElse(n.id, 0) + 1)
     n.parent match {
       case None =>
@@ -90,28 +90,27 @@ class SynStats {
     failedNodes.add(n)
   }
 
-  def bumpUpBacktracing(): Unit = {
-    backtracking = backtracking + 1
+  def addGeneratedGoals(n: Int): Unit = {
+    goalsGenerated = goalsGenerated + n
   }
 
-  def bumpUpRuleApps(): Unit = {
-    ruleApps = ruleApps + 1
+  def addExpandedGoal(n: OrNode): Unit = {
+    goalsExpanded = goalsExpanded + 1
+    maxDepth = maxDepth.max(n.depth)
+    markExplored(n)
   }
 
   def updateMaxWLSize(sz: Int): Unit = {
     maxWLSize = maxWLSize.max(sz)
   }
 
-  def updateMaxDepth(d: Int): Unit = {
-    maxDepth = maxDepth.max(d)
-  }
-
   def hotNodes(count: Int = 1): List[(AndNode, Int)] = {
     val maxNodes = failedNodes.toList.sortBy(n => -descendantsExplored(n.id)).take(count)
     maxNodes.map(n => (n, descendantsExplored(n.id)))
   }
-  def numBack: Int = backtracking
-  def numApps : Int = ruleApps
+  def numGoalsGenerated: Int = goalsGenerated
+  def numGoalsExpanded: Int = goalsExpanded
+  def numGoalsFailed: Int = failedNodes.size
   def maxWorklistSize: Int = maxWLSize
   def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
@@ -141,7 +140,7 @@ object SynStatUtil {
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(List[Procedure], SynStats)]): Unit = {
     if (config.logToFile) {
       val statRow = (stats match {
-        case Some((procs, st)) => List(procs.map(_.body.size).sum, st.numBack, st.numApps, st.maxWorklistSize, st.smtCacheSize)
+        case Some((procs, st)) => List(procs.map(_.body.size).sum, st.numGoalsFailed, st.numGoalsGenerated, st.maxWorklistSize, st.smtCacheSize)
         case None => DList.replicate(5, "FAIL").toList
       }).mkString(", ")
 
