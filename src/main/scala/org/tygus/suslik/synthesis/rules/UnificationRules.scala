@@ -29,11 +29,11 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val pre = goal.pre
       val post = goal.post
 
-      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
+      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
 
       val alternatives = for {
         s <- postCandidates
-        t <- pre.sigma.chunks.sortBy(_.rank)
+        t <- pre.sigma.chunks
         sub <- tryUnify(t, s, goal.universals, false)
         newPostSigma = post.sigma.subst(sub)
         if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post

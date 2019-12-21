@@ -32,8 +32,6 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
-  def rank: Int
-
   def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this
 
   def eqModTags(other: Heaplet): Boolean = {
@@ -61,7 +59,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    this.copy(loc = loc.resolveOverloading(gamma), value=value.resolveOverloading(gamma))
+    this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
 
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
@@ -82,8 +80,6 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
       gamma2 <- value.resolve(gamma1, Some(IntType))
     } yield gamma2
   }
-
-  def rank: Int = 2
 }
 
 /**
@@ -104,8 +100,6 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   def |-(other: Heaplet): Boolean = false
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
-
-  def rank: Int = 1
 }
 
 /**
@@ -142,8 +136,6 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
             }}
     } else None
   }
-
-  def rank: Int = 0
 
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
 }

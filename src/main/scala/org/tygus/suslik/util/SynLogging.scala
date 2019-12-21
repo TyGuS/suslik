@@ -62,7 +62,7 @@ object SynLogLevels {
 
 class SynStats {
   // Total number of goals generated
-  private var goalsGenerated: Int = 0
+  private var goalsGenerated: Int = 1
   // Total number of goals to which rules were applied
   private var goalsExpanded: Int = 0
   // Maximum goal depth
