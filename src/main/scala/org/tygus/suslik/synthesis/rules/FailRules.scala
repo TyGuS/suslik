@@ -5,7 +5,7 @@ import org.tygus.suslik.language.IntType
 import org.tygus.suslik.language.Statements.Guarded
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
+import org.tygus.suslik.logic.{Heaplet, PointsTo, PureLogicUtils, SepLogicUtils}
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule}
 
@@ -127,20 +127,24 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
 
   // Short-circuits failure if spatial post doesn't match pre
-  // This rule is only applicable if alloc and free aren't
+  // This rule is only applicable when only points-to heaplets are left
   object HeapUnreachable extends SynthesisRule with InvertibleRule {
     override def toString: String = "HeapUnreachable"
 
-    def apply(goal: Goal): Seq[RuleResult] = {
-      (AllocRule.findTargetHeaplets(goal), FreeRule.findTargetHeaplets(goal)) match {
-        case (None, None) =>
-          if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
-            Nil
-          else
-            List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
-        case _ => Nil // does not apply if we could still alloc or free
-      }
+    // How many chunks there are with each offset?
+    def profile(chunks: List[Heaplet]): Map[Int, Int] = chunks.groupBy{ case PointsTo(_,o,_) => o }.mapValues(_.length)
 
+    def apply(goal: Goal): Seq[RuleResult] = {
+      assert(!goal.hasPredicates && !goal.hasBlocks) // only points-to left
+      val preChunks = goal.pre.sigma.chunks
+      val postChunks = goal.post.sigma.chunks
+
+      if ((profile(preChunks) == profile(postChunks)) && // profiles must match
+        postChunks.forall{ case pts@PointsTo(v@Var(_),_,_) => goal.isExistential(v) || // each post heaplet is either existential pointer
+          findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined }) // or has a heaplet in pre with the same LHS
+        Nil
+      else
+        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
     }
   }
 }
