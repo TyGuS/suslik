@@ -200,7 +200,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     def apply(goal: Goal): Seq[RuleResult] = {
       for {
         ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
-        v <- goal.universals.toList
+        v <- goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)
         if goal.getType(ex).conformsTo(Some(goal.getType(v)))
         sigma = Map(ex -> v)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
