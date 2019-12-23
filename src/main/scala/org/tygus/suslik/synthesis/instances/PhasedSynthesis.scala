@@ -21,28 +21,30 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     val config = goal.env.config
     if (!config.phased)
     // Phase distinction is disabled: use all non top-level rules
-      anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++ blockPhaseRules(config) ++ flatPhaseRules(config)
+      anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++
+        blockPhaseRules(config) ++ pointerPhaseRules(config) ++ purePhaseRules(config)
     else if (goal.hasPredicates)
-      // Unfolding phase
+      // Unfolding phase: get rid of predicates
       anyPhaseRules(config) ++ unfoldingPhaseRules(config)
     else if (goal.hasBlocks)
-      // Block phase
+      // Block phase: get rid of blocks
       anyPhaseRules(config) ++ blockPhaseRules(config)
+    else if (goal.hasExistentialPointers)
+      // Pointer phase: match all existential pointers
+      anyPhaseRules(config) ++ pointerPhaseRules(config)
     else
-      // Flat phase
-      anyPhaseRules(config) ++ flatPhaseRules(config)
+      // Pure phase: get rid of all the heap
+      anyPhaseRules(config) ++ purePhaseRules(config)
   }
 
 
   def anyPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
-    // Normalization rules
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
 //    LogicalRules.SubstLeftVar,
     OperationalRules.ReadRule,
-//    OperationalRules.AllocRule,
   )
 
   def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
@@ -64,22 +66,27 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     OperationalRules.FreeRule
   )
 
-  def flatPhaseRules(config: SynConfig): List[SynthesisRule] = List(
+  def pointerPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
-    LogicalRules.EmpRule,
     if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
-
-    // Flat phase rules
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
     LogicalRules.FrameFlat,
     OperationalRules.WriteRuleOld,
-    UnificationRules.HeapUnifyFlat,
-//    OperationalRules.WriteRule,
+    UnificationRules.HeapUnifyPointer,
+  )
 
-//    UnificationRules.PureUnify,
+  def purePhaseRules(config: SynConfig): List[SynthesisRule] = List(
+    if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
+    LogicalRules.EmpRule,
+    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
+    LogicalRules.SubstLeft,
+    UnificationRules.SubstRight,
+    LogicalRules.FrameFlat,
+    OperationalRules.WriteRuleOld,
+    //    UnificationRules.PureUnify,
+    UnificationRules.HeapUnifyPure,
     UnificationRules.Pick,
-//    UnificationRules.PickFromEnvRule,
   )
 
 }

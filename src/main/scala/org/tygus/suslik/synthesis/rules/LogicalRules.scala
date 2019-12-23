@@ -181,6 +181,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
       (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, goal.existentials)) match {
+//      (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, Set.empty)) match {
           // TODO: make sure it's complete to include post, otherwise revert to pre only
         case (None, None) => Nil
         case (Some((p1, ss1)), None) =>

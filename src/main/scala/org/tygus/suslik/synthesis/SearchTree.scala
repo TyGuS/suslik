@@ -112,6 +112,9 @@ object SearchTree {
           p.pp(d + 1) ++ subgoalID
         }
     }
+
+    override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
+    override def hashCode(): Int = id.hashCode()
   }
 
   /**
@@ -133,6 +136,9 @@ object SearchTree {
       }
       parentPP ++ rule.toString
     }
+
+    override def equals(obj: Any): Boolean = obj.isInstanceOf[AndNode] && (obj.asInstanceOf[AndNode].id == this.id)
+    override def hashCode(): Int = id.hashCode()
   }
 
 }

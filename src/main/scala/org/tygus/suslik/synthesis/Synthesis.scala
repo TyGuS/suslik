@@ -96,45 +96,46 @@ trait Synthesis extends SepLogicUtils {
           if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
           else applyRules(rules)(node, stats, config, ind)
 
-        if (expansions.isEmpty) {
-          // This is a dead-end: prune worklist and try something else
-          printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-          processWorkList(node.fail(rest))
-        } else {
           // Check if any of the expansions is a terminal
-          expansions.find(_.subgoals.isEmpty) match {
-            case Some(e) => node.succeed(e.kont(Nil), rest) match { // e is a terminal: this node succeeded
-              case Right(sol) => Some(sol) // No more open subgoals in this derivation: synthesis succeeded
-              case Left(newWorkList) => processWorkList(newWorkList) // More open goals: continue
-            }
-            case None => { // no terminals: add all expansions to worklist
-              val newNodes = for {
-                (e, i) <- expansions.zipWithIndex
-                alternatives = expansions.filter(_.rule == e.rule)
-                altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
-                andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
-                (g, j) <- if (e.subgoals.size == 1) List((e.subgoals.head, -1)) // this is here only for logging
-                            else e.subgoals.zipWithIndex
-                produce = g.allHeaplets - (goal.allHeaplets - e.consume)
-              } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
+        expansions.find(_.subgoals.isEmpty) match {
+          case Some(e) => node.succeed(e.kont(Nil), rest) match { // e is a terminal: this node succeeded
+            case Right(sol) => Some(sol) // No more open subgoals in this derivation: synthesis succeeded
+            case Left(newWorkList) => processWorkList(newWorkList) // More open goals: continue
+          }
+          case None => { // no terminals: add all expansions to worklist
+            val newNodes = for {
+              (e, i) <- expansions.zipWithIndex
+              alternatives = expansions.filter(_.rule == e.rule)
+              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
+              andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
+              (g, j) <- if (e.subgoals.size == 1) List((e.subgoals.head, -1)) // this is here only for logging
+                          else e.subgoals.zipWithIndex
+              produce = g.allHeaplets - (goal.allHeaplets - e.consume)
+            } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
 
-              def isSubsumed(n: OrNode): Boolean = {
-                val subsumer = node.commuters(n.transition).find(com => precursors(com.id).exists(_.equivalent(n.transition)))
-                subsumer match {
-                  case None => false
-                  case Some(s) => {
-                    printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
-                    true
-                  }
+            def isSubsumed(n: OrNode): Boolean = {
+              val subsumer = node.commuters(n.transition).find(com => precursors(com.id).exists(_.equivalent(n.transition)))
+              subsumer match {
+                case None => false
+                case Some(s) => {
+                  printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
+                  true
                 }
               }
-              val filteredNodes = newNodes.filterNot(n => isSubsumed(n))
-              for ((n, i) <- newNodes.zipWithIndex) {
-                val precs = newNodes.take(i).map(_.transition).toSet
-                if (filteredNodes.contains(n))
-                  precursors(n.id) = precs
-              }
+            }
 
+            val filteredNodes = newNodes.filterNot(n => isSubsumed(n))
+            for ((n, i) <- newNodes.zipWithIndex) {
+              val precs = newNodes.take(i).map(_.transition).toSet
+              if (filteredNodes.contains(n))
+                precursors(n.id) = precs
+            }
+
+            if (filteredNodes.isEmpty) {
+              // This is a dead-end: prune worklist and try something else
+              printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+              processWorkList(node.fail(rest))
+            } else {
               stats.addGeneratedGoals(filteredNodes.size)
               processWorkList(filteredNodes.toList ++ rest)
             }

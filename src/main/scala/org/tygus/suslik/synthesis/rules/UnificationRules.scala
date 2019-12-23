@@ -25,6 +25,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
+    def varFilter(h: Heaplet, v: Var): Boolean = true
+
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
@@ -34,7 +36,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val alternatives = for {
         s <- postCandidates
         t <- pre.sigma.chunks
-        sub <- tryUnify(t, s, goal.universals, false)
+        wholeSub <- tryUnify(t, s, goal.universals, false)
+        sub = wholeSub.filterKeys(v => varFilter(s, v))
+        if !sub.isEmpty
         newPostSigma = post.sigma.subst(sub)
         if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
       } yield {
@@ -44,7 +48,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
         RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), this)
       }
-      //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
       val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
       derivations.sortBy(s => -s.subgoals.head.similarity)
     }
@@ -58,8 +61,17 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "HeapUnifyBlock"
   }
 
-  object HeapUnifyFlat extends HeapUnify with FlatPhase {
-    override def toString: String = "HeapUnifyFlat"
+  object HeapUnifyPointer extends HeapUnify with FlatPhase {
+    override def toString: String = "HeapUnifyPointer"
+
+    override def varFilter(h: Heaplet, v: Var): Boolean = h match {
+      case PointsTo(x, _, _) => v == x
+      case _ => false
+    }
+  }
+
+  object HeapUnifyPure extends HeapUnify with FlatPhase {
+    override def toString: String = "HeapUnifyPure"
   }
 
   /*
