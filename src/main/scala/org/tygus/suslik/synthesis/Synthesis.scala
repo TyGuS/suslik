@@ -19,6 +19,7 @@ import scala.collection.mutable
 trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
+
   implicit val precursors: PrecursorMap = mutable.Map.empty
 
   import log._
@@ -105,11 +106,12 @@ trait Synthesis extends SepLogicUtils {
           case None => { // no terminals: add all expansions to worklist
             val newNodes = for {
               (e, i) <- expansions.zipWithIndex
-              alternatives = expansions.filter(_.rule == e.rule)
-              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
+//              alternatives = expansions.filter(_.rule == e.rule)
+//              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
               andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
-              (g, j) <- if (e.subgoals.size == 1) List((e.subgoals.head, -1)) // this is here only for logging
-                          else e.subgoals.zipWithIndex
+              nSubs = e.subgoals.size
+              (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
+                          else e.subgoals.zip(Range(nSubs - 1, -1, -1))
               produce = g.allHeaplets - (goal.allHeaplets - e.consume)
             } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
 
@@ -128,7 +130,10 @@ trait Synthesis extends SepLogicUtils {
             for ((n, i) <- newNodes.zipWithIndex) {
               val precs = newNodes.take(i).map(_.transition).toSet
               if (filteredNodes.contains(n))
-                precursors(n.id) = precs
+                // If this node has younger and-siblings, do not add any precursors:
+                // the precursor might have failed because of its younger sibling
+                // and not because of n!
+                precursors(n.id) = if (n.id.head <= 0) precs else Set()
             }
 
             if (filteredNodes.isEmpty) {

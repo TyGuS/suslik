@@ -16,8 +16,8 @@ object SearchTree {
   // (index of each reflexive ancestor among its siblings; youngest to oldest)
   type NodeId = Vector[Int]
 
-  // For each or-node, transitions that have been tried before
-  // (i.e. transitoins of its older siblings)
+  // For each or-node, transitions that have been tried before and failed;
+  // i.e. transitions of its older siblings
   type PrecursorMap = mutable.Map[NodeId, Set[Transition]]
 
   /**
