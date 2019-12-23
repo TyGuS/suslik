@@ -264,15 +264,16 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
 
       val subs: List[(Var, Var)] = for {
-        v1 <- varCandidates.reverse
-        v2 <- varCandidates.take(varCandidates.indexOf(v1))
-        if goal.getType(v1) == goal.getType(v2)
-        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v2)))
-      } yield (v1, v2)
+        v1 <- varCandidates.reverse // prefer replacing later vars
+        v2 <- varCandidates.take(varCandidates.indexOf(v1)).find(v =>
+          goal.getType(v1) == goal.getType(v) &&
+            SMTSolving.valid(p1 ==> v1.eq(v, goal.getType(v)))
+        ) // prefer replacing with earlier variables
+      } yield v1 -> v2
       
       subs match {
         case Nil => Nil
-        case _ :: _ =>
+        case _ =>
           val sub = subs.toMap
           val _p1 = p1.subst(sub)
           val _s1 = s1.subst(sub)
