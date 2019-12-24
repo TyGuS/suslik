@@ -200,7 +200,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     def apply(goal: Goal): Seq[RuleResult] = {
       for {
         ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
-        constants = List(IntConst(0), SetLiteral(List()))
+        constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
         v <- goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars) ++ constants
         if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
         sigma = Map(ex -> v)
