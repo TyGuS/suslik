@@ -220,8 +220,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites), childId = Some(1))
         Some((writesGoal, remainingGoal))
       }
-      // val preFootprintToReplace = ptsToReplace.map(p => goal.deriv.preIndex.indexOf(p)).toSet
-      // val ruleApp = saveApplication((preFootprintToReplace, Set.empty), goal.deriv)
     }
   }
 

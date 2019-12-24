@@ -26,7 +26,7 @@ trait Synthesis extends SepLogicUtils {
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
-  def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
+  def nextRules(node: OrNode): List[SynthesisRule]
 
   def synthesizeProc(funGoal: FunSpec, env: Environment): Option[(List[Procedure], SynStats)] = {
     implicit val config: SynConfig = env.config
@@ -92,7 +92,7 @@ trait Synthesis extends SepLogicUtils {
 
         // Apply all possible rules to the current goal to get a list of alternative expansions,
         // each of which can have multiple open subgoals
-        val rules = nextRules(goal, 0)
+        val rules = nextRules(node)
         val expansions =
           if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
           else applyRules(rules)(node, stats, config, ind)

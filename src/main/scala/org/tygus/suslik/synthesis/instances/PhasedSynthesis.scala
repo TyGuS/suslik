@@ -3,8 +3,10 @@ package org.tygus.suslik.synthesis.instances
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.smt.SMTSolving.sat
+import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
+import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 import org.tygus.suslik.synthesis.rules._
 import org.tygus.suslik.util.SynLogging
 
@@ -17,12 +19,18 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     }
   }
 
-  def nextRules(goal: Goal, depth: Int): List[SynthesisRule] = {
+  def nextRules(node: OrNode): List[SynthesisRule] = {
+    val goal = node.goal
     val config = goal.env.config
     if (!config.phased)
     // Phase distinction is disabled: use all non top-level rules
       anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++
         blockPhaseRules(config) ++ pointerPhaseRules(config) ++ purePhaseRules(config)
+    else if (node.parent.isDefined && node.parent.get.rule == AbduceCall && node.id.head == 0)
+      // TODO: This is a hack: AbduceCall does not make progress,
+      // and hence has to be followed by Call, otherwise synthesis gets stuck.
+      // Proper fix: merge the two rules
+      List(CallRule)
     else if (goal.hasPredicates)
       // Unfolding phase: get rid of predicates
       anyPhaseRules(config) ++ unfoldingPhaseRules(config)
@@ -36,7 +44,6 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
       // Pure phase: get rid of all the heap
       anyPhaseRules(config) ++ purePhaseRules(config)
   }
-
 
   def anyPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
     LogicalRules.StarPartial,
