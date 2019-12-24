@@ -5,7 +5,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.unification.{PureUnification}
+import org.tygus.suslik.logic.unification.PureUnification
 import org.tygus.suslik.logic.unification.SpatialUnification.tryUnify
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.rules.Rules._
@@ -198,12 +198,30 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "Pick"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      for {
-        ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
-        constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
+      val constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
+
+      def assignments(ex: Var): Set[(Var, Expr)] =  for {
         v <- goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars) ++ constants
         if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
-        sigma = Map(ex -> v)
+      } yield ex -> v
+
+      def substitutions(domain: List[Var]): Set[Subst] = domain match {
+        case Nil => Set(emptySubst)
+        case v :: vs => for {
+          ass <- assignments(v)
+          res <- substitutions(vs)
+        } yield res + ass
+      }
+
+      for {
+        // TODO: revert to pre-var substitution when symmetry reduction is fixed
+//        ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
+//        constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
+//        v <- goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars) ++ constants
+//        if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
+//        sigma = Map(ex -> v)
+        sigma <- substitutions(goal.existentials.toList).toList
+        if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
