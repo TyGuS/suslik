@@ -1,26 +1,22 @@
-# Synthetic Separation Logic
+# Borrowing Synthetic Separation Logic
 
 [![Build Status](https://api.travis-ci.org/TyGuS/suslik.svg?branch=borrows)](https://travis-ci.org/TyGuS/suslik)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE)
 [![DOI](https://zenodo.org/badge/101061595.svg)](https://zenodo.org/badge/latestdoi/101061595)
 
 Synthesis of Heap-Manipulating Programs from Separation Logic
-Specifications
+Specifications with Read-Only Borrows.
 
 <p align="center">
-  <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/robosuslik-logo.png" width="200" height="150"></a>
+  <a href = "https://ilyasergey.net/papers/robosuslik-draft.pdf"><img src="https://github.com/TyGuS/suslik/blob/master/robosuslik-logo.png" width="200" height="150"></a>
   </p>
 
 ## Theory Behind the Tool
 
-The details of Synthetic Separation Logic can be found in the
-[accompanying draft paper](https://arxiv.org/pdf/1807.07022.pdf).
+The details of Borrowing Synthetic Separation Logic (BoSSL) can be found in the
+[accompanying draft paper](https://ilyasergey.net/papers/robosuslik-draft.pdf).
 
 ## Usage
-
-The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
-
-Otherwise, check the building instructions below.
 
 ## Setup and Build
 
