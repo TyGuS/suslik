@@ -8,7 +8,6 @@ import org.tygus.suslik.language.PrettyPrinting
 
 case class SynConfig(
                       // Synthesis params
-                      startingDepth: Int        = 100,
                       maxOpenDepth: Int         = 1,
                       maxCloseDepth: Int        = 1,
                       auxAbduction: Boolean     = false,
@@ -17,8 +16,9 @@ case class SynConfig(
                       invert: Boolean           = true,
                       fail: Boolean             = true,
                       commute: Boolean          = true,
+                      depthFirst: Boolean       = true,
                       // Timeout and logging
-                      printStats: Boolean = true,
+                      printStats: Boolean       = true,
                       printDerivations: Boolean = false,
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
@@ -26,12 +26,15 @@ case class SynConfig(
                       assertSuccess: Boolean    = false,
                       logToFile: Boolean        = true,
                       memoization: Boolean      = true,
-                      timeOut: Long             = DEFAULT_TIMEOUT
+                      timeOut: Long             = 120000,
+                      // Global state
+                      startTime: Long           = 0
                     ) extends PrettyPrinting {
 
   override def pp: String =
     ( (if (maxOpenDepth == defaultConfig.maxOpenDepth) Nil else List(s"maxOpenDepth = $maxOpenDepth")) ++
       (if (maxCloseDepth == defaultConfig.maxCloseDepth) Nil else List(s"maxCloseDepth = $maxCloseDepth")) ++
+      (if (auxAbduction == defaultConfig.auxAbduction) Nil else List(s"auxAbduction = $auxAbduction")) ++
       (if (branchAbduction == defaultConfig.branchAbduction) Nil else List(s"branchAbduction = $branchAbduction")) ++
       (if (phased == defaultConfig.phased) Nil else List(s"phased = $phased")) ++
       (if (invert == defaultConfig.invert) Nil else List(s"invert = $invert")) ++

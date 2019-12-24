@@ -1,12 +1,12 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident, IntType}
+import org.tygus.suslik.language.{Ident}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * Logical rules simplify specs and terminate the derivation;
@@ -26,18 +26,18 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     Axiom: heaps are empty and pure spec is valid -> emit skip
 
   */
-  object EmpRule extends SynthesisRule with FlatPhase with InvertibleRule {
+  object EmpRule extends SynthesisRule with InvertibleRule {
 
-    override def toString: Ident = "[Sub: emp]"
+    override def toString: Ident = "Emp"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
 
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty &&             // no existentials
         SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
-        List(Subderivation(Nil, _ => Skip))      // we are done
+        List(RuleResult(Nil, constProducer(Skip), emptyFootprint, this))      // we are done
       else Nil
     }
   }
@@ -48,15 +48,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   The other axiom: pre is inconsistent -> emit error
   */
-  object Inconsistency extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Norm: inconsistency]"
+  object Inconsistency extends SynthesisRule with InvertibleRule {
+    override def toString: String = "Inconsistency"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre.phi
-      val post = goal.post.phi
 
       if (!SMTSolving.sat(pre))
-        List(Subderivation(Nil, _ => Error)) // pre inconsistent: return error
+        List(RuleResult(Nil, constProducer(Error), goal.allHeaplets, this)) // pre inconsistent: return error
       else
         Nil
     }
@@ -69,10 +68,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   abstract class Frame extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.deriv
 
       def isSuitable(hPost: Heaplet): Boolean = !hPost.vars.exists(goal.isExistential) && heapletFilter(hPost)
       def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && isSuitable(hPost)
@@ -84,22 +82,24 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPostSigma = post.sigma - hPost
           val newPre = Assertion(pre.phi, newPreSigma)
           val newPost = Assertion(post.phi, newPostSigma)
-          val preFootprint = Set(deriv.preIndex.lastIndexOf(hPre))
-          val postFootprint = Set(deriv.postIndex.lastIndexOf(hPost))
-          val ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-          val newGoal = goal.spawnChild(newPre, newPost, newRuleApp = Some(ruleApp))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          val newGoal = goal.spawnChild(newPre, newPost)
+          val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+          List(RuleResult(List(newGoal), kont, Footprint(singletonHeap(hPre), singletonHeap(hPost)), this))
         }
       }
     }
   }
 
   object FrameUnfolding extends Frame with UnfoldingPhase {
-    override def toString: String = "[Sub: frame-unfold]"
+    override def toString: String = "FrameUnfold"
+  }
+
+  object FrameBlock extends Frame with BlockPhase with InvertibleRule {
+    override def toString: String = "FrameBlock"
   }
 
   object FrameFlat extends Frame with FlatPhase with InvertibleRule {
-    override def toString: String = "[Sub: frame-flat]"
+    override def toString: String = "FrameFlat"
   }
 
 
@@ -110,10 +110,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; Q} ---> S
   */
 
-  object NilNotLval extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Norm: nil-not-lval]"
+  object NilNotLval extends SynthesisRule with InvertibleRule {
+    override def toString: String = "NilNotLval"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       // Find pointers in `a` that are not yet known to be non-null
       def findPointers(a: Assertion): Set[Expr] = {
@@ -143,7 +143,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
-        List(Subderivation(List(newGoal), pureKont(toString)))
+        val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+        val preHeaplets = for (h@PointsTo(l, _, _) <- pre.sigma.chunks if prePointers.contains(l)) yield h
+        val postHeaplets = for (h@PointsTo(l, _, _) <- post.sigma.chunks if postPointers.contains(l)) yield h
+        List(RuleResult(List(newGoal), kont, Footprint(SFormula(preHeaplets), SFormula(postHeaplets)), this))
       }
     }
   }
@@ -154,10 +157,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   ------------------------------------------------------------ [*-partial]
   Γ ; {φ ; x.f -> l * y.f -> l' * P} ; {ψ ; Q} ---> S
    */
-  object StarPartial extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Norm: *-partial]"
+  object StarPartial extends SynthesisRule with InvertibleRule {
+    override def toString: String = "*Partial"
 
-    def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[PFormula] = {
+    def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[(PFormula, SFormula)] = {
       val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
       // All pairs of pointers
       val pairs = for (x <- ptrs; y <- ptrs if x != y) yield (x, y)
@@ -165,26 +168,31 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case (x, y) => excludeVars.intersect(x.vars ++ y.vars).isEmpty &&
           p != pFalse && !p.conjuncts.contains(x |/=| y) && !p.conjuncts.contains(y |/=| x)
       }
+      val allNewVars = newPairs.map(_._1).union(newPairs.map(_._2))
+      val heaplets = (for (h@PointsTo(x, _, _) <- s.chunks if allNewVars.contains(x)) yield h)
       if (newPairs.isEmpty) None
-      else Some(mkConjunction(p.conjuncts ++ newPairs.map { case (x, y) => x |/=| y }))
+      else Some((mkConjunction(p.conjuncts ++ newPairs.map { case (x, y) => x |/=| y }),
+        SFormula(heaplets)))
     }
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val s1 = goal.pre.sigma
       val s2 = goal.post.sigma
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
       (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, goal.existentials)) match {
+//      (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, Set.empty)) match {
           // TODO: make sure it's complete to include post, otherwise revert to pre only
         case (None, None) => Nil
-        case (Some(p1), None) =>
+        case (Some((p1, ss1)), None) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
-          List(Subderivation(List(newGoal), pureKont(toString)))
-        case (None, Some(p2)) =>
+          List(RuleResult(List(newGoal), kont, Footprint(ss1, emp), this))
+        case (None, Some((p2, ss2))) =>
           val newGoal = goal.spawnChild(post = Assertion(p2, s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
-        case (Some(p1), Some(p2)) =>
+          List(RuleResult(List(newGoal), kont, Footprint(emp,ss2), this))
+        case (Some((p1, ss1)), Some((p2, ss2))) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1), post = Assertion(p2, s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          List(RuleResult(List(newGoal), kont, Footprint(ss1, ss2), this))
 //        case (None, _) => Nil
 //        case (Some(p1), _) =>
 //          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
@@ -199,19 +207,20 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   ------------------------------------------------ [subst-L]
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
-  object SubstLeft extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Norm: subst-L]"
+  object SubstLeft extends SynthesisRule with InvertibleRule {
+    override def toString: String = "SubstL"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
-        // This messes with hypothesis unify:
-//        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
+        // TODO: enable this once we have better pure synthesis
+        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
           //TODO: discuss and enable
 //        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
         case _ => false
@@ -224,43 +233,103 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-            List(Subderivation(List(newGoal), pureKont(toString)))
+            List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
         case _ => Nil
       }
     }
   }
 
   // This rule has to come after inconsistency
-  object SubstLeftVar extends SynthesisRule with UnfoldingPhase with InvertibleRule {
-    override def toString: String = "[Norm: subst-L-var]"
+  object SubstLeftVar extends SynthesisRule with InvertibleRule {
+    override def toString: String = "SubstLVar"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def snapshot(g: Goal): PFormula =
+      if (g.preNormalized) {
+        g.pre.phi
+      } else g.parent match {
+        case None => BoolConst(true)
+        case Some(p) => snapshot(p)
+      }
+
+    def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
-      val varCandidates = goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)
+      val normalizedPre = snapshot(goal)
+      val diff = mkConjunction((p1.conjuncts.toSet -- normalizedPre.conjuncts.toSet).toList)
+      val varCandidates =
+          (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
 
-      lazy val subs: List[Subst] = for {
-        v1 <- varCandidates
-        v2 <- varCandidates.drop(varCandidates.indexOf(v1) + 1)
-        if goal.getType(v1) == goal.getType(v2)
-        if SMTSolving.valid(p1 ==> v1.eq(v2, goal.getType(v1)))
-      } yield Map(v2 -> v1)
-
+      val subs: List[(Var, Var)] = for {
+        v1 <- varCandidates.reverse // prefer replacing later vars
+        v2 <- varCandidates.take(varCandidates.indexOf(v1)).find(v =>
+          goal.getType(v1) == goal.getType(v) &&
+            SMTSolving.valid(p1 ==> v1.eq(v, goal.getType(v)))
+        ) // prefer replacing with earlier variables
+      } yield v1 -> v2
+      
       subs match {
         case Nil => Nil
-        case sub :: _ =>
+        case _ =>
+          val sub = subs.toMap
           val _p1 = p1.subst(sub)
           val _s1 = s1.subst(sub)
           val _p2 = p2.subst(sub)
           val _s2 = s2.subst(sub)
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
-            Assertion(_p2, _s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+            Assertion(_p2, _s2),
+            preNormalized = true)
+          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
       }
     }
   }
+
+  // If an exsitential has a unique solution that is a variable, substitute
+  object SubstRightVar extends SynthesisRule with InvertibleRule {
+    override def toString: String = "SubstRVar"
+
+    def snapshot(g: Goal): PFormula =
+      if (g.postNormalized) {
+        g.pre.phi && g.post.phi
+      } else g.parent match {
+        case None => BoolConst(true)
+        case Some(p) => snapshot(p)
+      }
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val p1 = goal.pre.phi
+      val p2 = goal.post.phi
+      val s2 = goal.post.sigma
+      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+
+      val normalized = snapshot(goal)
+      val prePost = p1 && p2
+      val diff = mkConjunction((prePost.conjuncts.toSet -- normalized.conjuncts.toSet).toList)
+      val lhsCandidates = (goal.existentials -- diff.vars).toList
+      val rhsCandidates = (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
+
+
+      val subs: List[(Var, Var)] = for {
+        v1 <- lhsCandidates
+        v2 <- rhsCandidates
+        if goal.getType(v1) == goal.getType(v2)
+        if SMTSolving.valid(prePost ==> v1.eq(v2, goal.getType(v1)))
+      } yield (v1, v2)
+
+      subs match {
+        case Nil => Nil
+        case _ :: _ =>
+          val sub = subs.toMap
+          val _p2 = p2.subst(sub)
+          val _s2 = s2.subst(sub)
+          val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), postNormalized = true)
+          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
+      }
+    }
+  }
+
 }

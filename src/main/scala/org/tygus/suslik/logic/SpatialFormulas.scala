@@ -32,8 +32,6 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
-  def rank: Int
-
   def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this
 
   def eqModTags(other: Heaplet): Boolean = {
@@ -47,6 +45,12 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
     case SApp(_, args, _) => args.map(_.size).sum
   }
 
+  def cost: Int = this match {
+    case PointsTo(_, _, _) => 1
+    case Block(_, _) => 0
+    case SApp(_, _, _) => 10
+  }
+
 }
 
 /**
@@ -55,7 +59,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
 case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    this.copy(loc = loc.resolveOverloading(gamma), value=value.resolveOverloading(gamma))
+    this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
 
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
@@ -76,8 +80,6 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
       gamma2 <- value.resolve(gamma1, Some(IntType))
     } yield gamma2
   }
-
-  def rank: Int = 2
 }
 
 /**
@@ -98,8 +100,6 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   def |-(other: Heaplet): Boolean = false
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
-
-  def rank: Int = 1
 }
 
 /**
@@ -136,8 +136,6 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
             }}
     } else None
   }
-
-  def rank: Int = 0
 
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
 }
@@ -178,22 +176,24 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def isEmp: Boolean = chunks.isEmpty
 
+  // Add h to chunks (multiset semantics)
   def **(h: Heaplet): SFormula = SFormula(h :: chunks)
 
+  // Add all chunks from other (multiset semantics)
   def **(other: SFormula): SFormula = SFormula(chunks ++ other.chunks)
 
-  def -(h: Heaplet): SFormula = {
-    val cnt = chunks.count(_ == h)
-    // Remove just once!
-    SFormula(chunks.filterNot(elm => elm == h) ++ (for (i <- 0 to (cnt - 2)) yield h))
-  }
+  // Remove h from this formula (multiset semantics)
+  def -(h: Heaplet): SFormula = SFormula(chunks.diff(List(h)))
 
-  def -(hs: Seq[Heaplet]): SFormula = {
-    val hSet = hs.toSet
-    SFormula(chunks.filterNot(elm => hSet.contains(elm)))
-  }
+  // Remove all chunks present in other (multiset semantics)
+  def -(other: SFormula): SFormula = SFormula(chunks.diff(other.chunks))
 
-  def vars: List[Var] = chunks.flatMap(_.vars)
+  // Add chunks from other (set semantics)
+  def +(other: SFormula): SFormula = SFormula((chunks ++ other.chunks).distinct)
+
+  def disjoint(other: SFormula): Boolean = chunks.intersect(other.chunks).isEmpty
+
+  def vars: Set[Var] = chunks.flatMap(_.vars).toSet
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     chunks.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, h) => go match {
@@ -208,21 +208,13 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
     findMatchingHeaplets(_ => true, isMatch, this, other) match {
       case None => 0
-      case Some((l, r)) => 1 + (this - l).similarity(other - r)
-    }
-  }
-
-  // How many heaplets are different between the two formulas?
-  def distance(other: SFormula): Int = {
-    def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)
-
-    findMatchingHeaplets(_ => true, isMatch, this, other) match {
-      case None => this.chunks.length + other.chunks.length
-      case Some((l, r)) => (this - l).distance(other - r)
+      case Some((l, r)) => l.cost + (this - l).similarity(other - r)
     }
   }
 
   // Size of the formula (in AST nodes)
   def size: Int = chunks.map(_.size).sum
+
+  def cost: Int = chunks.map(_.cost).sum
 }
 

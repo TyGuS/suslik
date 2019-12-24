@@ -2,10 +2,11 @@ package org.tygus.suslik.util
 
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.FunSpec
-import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.{SynConfig, SynthesisRule}
+import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
+import org.tygus.suslik.synthesis.SynConfig
 import scalaz.DList
+import scala.collection.mutable
 
 /**
   * @author Ilya Sergey
@@ -60,56 +61,60 @@ object SynLogLevels {
 }
 
 class SynStats {
-  private var backtracking: Int = 0
-  private var successful: Int = 0
-  private var lasting: Int = 0
-  private var saved_results_positive: Int = 0
-  private var saved_results_negative: Int = 0
-  private var recalled_results_positive: Int = 0
-  private var recalled_results_negative: Int = 0
+  // Total number of goals generated
+  private var goalsGenerated: Int = 1
+  // Total number of goals to which rules were applied
+  private var goalsExpanded: Int = 0
+  // Maximum goal depth
+  private var maxDepth: Int = 0
+  // Maximum size of the worklist
+  private var maxWLSize: Int = 0
+  // For each explored search node: how many of its (reflexive) descendants have been explored?
+  private val descendantsExplored: mutable.Map[NodeId, Int] = mutable.Map()
+  // Nodes that have been backtracked out of
+  private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
 
-  def bumpUpBacktracing() {
-    backtracking = backtracking + 1
+  // Tell all n's ancestors that n has been explored
+  private def markExplored(n: OrNode): Unit = {
+    descendantsExplored.put(n.id, descendantsExplored.getOrElse(n.id, 0) + 1)
+    n.parent match {
+      case None =>
+      case Some(an) =>
+        descendantsExplored.put(an.id, descendantsExplored.getOrElse(an.id, 0) + 1)
+        markExplored(an.parent)
+    }
   }
 
-  def bumpUpSuccessfulRuleApp() {
-    successful = successful + 1
+  // Record that n has failed
+  def addFailedNode(n: AndNode): Unit = {
+    failedNodes.add(n)
   }
 
-  def bumpUpLastingSuccess() {
-    lasting = lasting + 1
+  def addGeneratedGoals(n: Int): Unit = {
+    goalsGenerated = goalsGenerated + n
   }
 
-  def bumpUpSavedResultsNegative() {
-    saved_results_negative += 1
-  }
-  def bumpUpRecalledResultsNegative() {
-    recalled_results_negative += 1
-  }
-
-  def bumpUpSavedResultsPositive() {
-    saved_results_positive +=  1
-  }
-  def bumpUpRecalledResultsPositive() {
-    recalled_results_positive +=  1
+  def addExpandedGoal(n: OrNode): Unit = {
+    goalsExpanded = goalsExpanded + 1
+    maxDepth = maxDepth.max(n.depth)
+    markExplored(n)
   }
 
+  def updateMaxWLSize(sz: Int): Unit = {
+    maxWLSize = maxWLSize.max(sz)
+  }
 
-  def numBack: Int = backtracking
-  def numSucc : Int = successful
-  def numLasting : Int = lasting
-  def numSavedResultsPositive : Int = saved_results_positive
-  def numRecalledResultsPositive : Int = recalled_results_positive
-  def numSavedResultsNegative : Int = saved_results_negative
-  def numRecalledResultsNegative : Int = recalled_results_negative
+  def hotNodes(count: Int = 1): List[(AndNode, Int)] = {
+    val maxNodes = failedNodes.toList.sortBy(n => -descendantsExplored(n.id)).take(count)
+    maxNodes.map(n => (n, descendantsExplored(n.id)))
+  }
+  def numGoalsGenerated: Int = goalsGenerated
+  def numGoalsExpanded: Int = goalsExpanded
+  def numGoalsFailed: Int = failedNodes.size
+  def maxWorklistSize: Int = maxWLSize
+  def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
-  var total_goals_saved = 0
-
 }
-
-abstract sealed class SynCertificate
-case class SynAxiom(goal: Goal, rule: SynthesisRule) extends SynCertificate
-case class SynTree(subgoals: Seq[SynCertificate]) extends SynCertificate
 
 // TODO: refactor me to make more customizable
 object SynStatUtil {
@@ -119,7 +124,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Lasting", "Total", "SMT Cache").mkString(", ") + "\n"
+    List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Applications", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
 
   def init(config: SynConfig){
     if (config.logToFile) {
@@ -135,8 +140,8 @@ object SynStatUtil {
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(List[Procedure], SynStats)]): Unit = {
     if (config.logToFile) {
       val statRow = (stats match {
-        case Some((procs, st)) => List(procs.map(_.body.size).sum, st.numBack, st.numLasting, st.numSucc, st.smtCacheSize)
-        case None => DList.replicate(4, "FAIL").toList
+        case Some((procs, st)) => List(procs.map(_.body.size).sum, st.numGoalsFailed, st.numGoalsGenerated, st.maxWorklistSize, st.smtCacheSize)
+        case None => DList.replicate(5, "FAIL").toList
       }).mkString(", ")
 
       val specSize = spec.pre.size + spec.post.size

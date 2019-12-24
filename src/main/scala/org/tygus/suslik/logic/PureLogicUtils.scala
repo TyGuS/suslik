@@ -2,7 +2,6 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.synthesis.SynConfig
 
 /**
   * Utilities for pure formulae

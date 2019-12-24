@@ -15,7 +15,7 @@ scala:
 jdk:
   - openjdk8
 
-dist: trusty    
+dist: trusty
   
 before_install:
   - sudo apt-get -qq install lib32stdc++6

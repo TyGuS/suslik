@@ -70,41 +70,37 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       * Tries to find amongst chunks a heaplet h', which can be unified with the heaplet h.
       * If successful, returns a substitution and a list of remaining heaplets
       */
-    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Option[(Subst, List[UAtom])] = {
-      val iter = sourceChunks.iterator
-      while (iter.hasNext) {
-        val candidate = iter.next()
-        for {
-          sbst <- tryUnify(tc, candidate, takenVars)
-          if checkSubstWF(sbst)
-        } {
-          val remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
-          return Some(sbst, remainingAtomsAdapted)
-        }
+    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Seq[(Subst, List[UAtom])] = {
+      for {
+        candidate <-sourceChunks
+        sbst <- tryUnify(tc, candidate, takenVars)
+        if checkSubstWF(sbst)
+      } yield {
+        val remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
+        (sbst, remainingAtomsAdapted)
       }
-      None
     }
 
     // Invariant: none of the keys in acc are present in sourceChunks
-    def unifyGo(targetChunks: List[UAtom], sourceChunks: List[UAtom], acc: Subst): Option[Subst] = targetChunks match {
+    def unifyGo(targetChunks: List[UAtom], sourceChunks: List[UAtom], acc: Subst): Seq[Subst] = targetChunks match {
       case Nil =>
         // No more source chunks to unify
-        if (sourceChunks.isEmpty) Some(acc) else None
-      case tc :: _ if sourceChunks.isEmpty && !precise =>
-        Some(acc)
+        if (sourceChunks.isEmpty) List(acc) else List()
+      case _ :: _ if sourceChunks.isEmpty && !precise =>
+        List(acc)
       case tc :: tcss =>
-        findChunkAndUnify(tc, sourceChunks) match {
-          case None => None
-          // Could not find a matching heaplet
-          case Some((sbst, scsUpdated)) =>
-            assertNoOverlap(acc, sbst)
-            unifyGo(tcss, scsUpdated, acc ++ sbst)
+        val options = for {
+          (sbst, scsUpdated) <- findChunkAndUnify(tc, sourceChunks)
+        } yield {
+          assertNoOverlap(acc, sbst)
+          unifyGo(tcss, scsUpdated, acc ++ sbst)
         }
+        options.flatten
     }
 
     // We used to try all permutations of target chunks here, but that was unnecessary (since post-filtering was disabled) and super slow
     unifyGo(targetChunks, sourceChunks, Map.empty) match {
-      case Some(newSubst) =>
+      case newSubst :: _ =>
         // Returns the first good substitution, doesn't try all of them!
         val composition = compose(freshSubst, newSubst)
         /* [Handling spatial-based unification]
@@ -120,7 +116,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
         }
         Some(resultSubst)
       // Otherwise, continue
-      case None => None
+      case Nil => None
     }
   }
 

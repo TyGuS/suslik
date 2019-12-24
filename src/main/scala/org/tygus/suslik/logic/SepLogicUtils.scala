@@ -14,6 +14,9 @@ trait SepLogicUtils extends PureLogicUtils {
 
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
 
+  def emp: SFormula = SFormula(Nil)
+  def singletonHeap(h:Heaplet): SFormula = SFormula(List(h))
+
   /**
     * Get the heaplet satisfying the predicate
     */
@@ -35,11 +38,13 @@ trait SepLogicUtils extends PureLogicUtils {
     * Are two heaplets both points-to with the same LHS?
     */
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
-    slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
-    val pt = hl.asInstanceOf[PointsTo]
-    hr match {
-      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
-      case _ => false
+    if (!hl.isInstanceOf[PointsTo]) false
+    else {
+      val pt = hl.asInstanceOf[PointsTo]
+      hr match {
+        case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+        case _ => false
+      }
     }
   }
 
@@ -50,7 +55,7 @@ trait SepLogicUtils extends PureLogicUtils {
   def findBlockAndChunks(pBlock: Heaplet => Boolean,
                          pPts: Heaplet => Boolean,
                          sigma: SFormula): Option[(Block, Seq[Heaplet])] = {
-    findHeaplet(pBlock, sigma) match {
+    findHeaplet(h => h.isInstanceOf[Block] && pBlock(h), sigma) match {
       case None => None
       case Some(h@Block(x@Var(_), sz)) =>
         val pts = for (off <- 0 until sz) yield
