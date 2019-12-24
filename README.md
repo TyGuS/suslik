@@ -8,7 +8,7 @@ Synthesis of Heap-Manipulating Programs from Separation Logic
 Specifications
 
 <p align="center">
-  <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150"></a>
+  <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/robosuslik-logo.png" width="150" height="150"></a>
   </p>
 
 ## Theory Behind the Tool
