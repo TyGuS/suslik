@@ -13,7 +13,3 @@ predicate lseg_extra(loc x, set s) {
 |  x == 0        => { s =i {} ; emp }
 |  not (x == 0)  => { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> nxt ** (x + 2) :-> extra ** lseg_extra(nxt, s1) }
 }
-
-{ true; (prev + 1) :-> x ** dllseg(x, z, s) }
-void set_prev(loc x, loc prev)
-{ true; (prev + 1) :-> x ** dllseg(x, prev, s)}

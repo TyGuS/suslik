@@ -1,21 +1,16 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.Memoization
-import org.tygus.suslik.language.Expressions.Var
-import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.{SApp, _}
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.rules.OperationalRules._
-import org.tygus.suslik.synthesis.rules.UnfoldingRules
-import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule
-import org.tygus.suslik.util.OtherUtil.Accumulator
+import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.util.{SynLogging, SynStats}
+import org.tygus.suslik.synthesis.rules.Rules._
 
 import scala.Console._
+import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
@@ -25,32 +20,28 @@ trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
 
+  implicit val precursors: PrecursorMap = mutable.Map.empty
+
   import log._
 
   def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
-  def allRules(goal: Goal): List[SynthesisRule]
+  def nextRules(node: OrNode): List[SynthesisRule]
 
-  def nextRules(goal: Goal, depth: Int): List[SynthesisRule]
-
-  val memo = new Memoization
-
-  def synthesizeProc(spec: FunSpec, env: Environment, sketch: Statement): Option[(Procedure, SynStats)] = {
+  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): Option[(List[Procedure], SynStats)] = {
     implicit val config: SynConfig = env.config
-    // Cleanup the memo table
-    memo.cleanup()
-    val FunSpec(name, tp, formals, pre, post, var_decl) = spec
-    val goal = makeNewGoal(pre, post, formals, name, env, sketch, var_decl)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))(i = 0, config)
+    val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
+    val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
+    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))
     val stats = new SynStats()
     SMTSolving.init()
     try {
-      synthesize(goal, config.startingDepth)(stats = stats, rules = nextRules(goal, config.startingDepth)) match {
-        case Some(body) =>
-          val proc = Procedure(name, tp, formals, body)
-          Some((proc, stats))
+      synthesize(goal)(stats = stats) match {
+        case Some((body, helpers)) =>
+          val main = Procedure(name, tp, formals, body)
+          Some(main :: helpers, stats)
         case None =>
-          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp},\n depth = ${config.startingDepth}.")
+          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
           None
       }
     } catch {
@@ -58,166 +49,145 @@ trait Synthesis extends SepLogicUtils {
         printlnErr(msg)
         None
     }
-
   }
 
-  private def synthesize(goal: Goal, depth: Int) // todo: add goal normalization
-                        (stats: SynStats,
-                         rules: List[SynthesisRule])
-                        (implicit ind: Int = 0): Option[Statement] = {
-    lazy val res: Option[Statement] = synthesizeInner(goal, depth)(stats, rules)(ind)
-    memo.runWithMemo(goal, stats, rules, res)
+  protected def synthesize(goal: Goal)
+                          (stats: SynStats): Option[Solution] = {
+    // Initialize worklist: root or-node containing the top-level goal
+    val root = OrNode(Vector(), goal, None, goal.allHeaplets)
+    precursors.clear()
+    precursors(root.id) = Set()
+    val worklist = List(root)
+    processWorkList(worklist)(stats, goal.env.config)
   }
 
-  private def synthesizeInner(goal: Goal, depth: Int)
-                             (stats: SynStats,
-                              rules: List[SynthesisRule])
-                             (implicit ind: Int = 0): Option[Statement] = {
-    implicit val config: SynConfig = goal.env.config
 
-    if (config.printEnv) {
-      printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
-    }
-    printLog(List((s"${goal.pp}", Console.BLUE)))
 
+  @tailrec final def processWorkList(worklist: List[OrNode])
+                                    (implicit
+                                     stats: SynStats,
+                                     config: SynConfig): Option[Solution] = {
+    // Check for timeouts
     val currentTime = System.currentTimeMillis()
-    if (currentTime - goal.env.startTime > config.timeOut) {
+    if (currentTime - config.startTime > config.timeOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
     }
 
-    if (depth < 0) {
-      printLog(List(("Reached maximum depth.", RED)))
-      return None
-    }
+    val sz = worklist.length
+    printLog(List((s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
+    printLog(List((s"Precursor map (${precursors.size})", Console.YELLOW)))
+    stats.updateMaxWLSize(sz)
 
-    def tryRules(rules: List[SynthesisRule]): Option[Statement] = rules match {
-      case Nil => None
-      case r :: rs =>
+    worklist match {
+      case Nil => // No more goals to try: synthesis failed
+        None
+      case node :: rest => {
+        val goal = node.goal
+        implicit val ind = goal.depth
+        stats.addExpandedGoal(node)
+        if (config.printEnv) {
+          printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+        }
+        printLog(List((s"${goal.pp}", Console.BLUE)))
 
-        // Try alternative sub-derivations after applying `r`
-        def tryAlternatives(alts: Seq[Subderivation], altIndex: Int): Option[Statement] = alts match {
-          case Seq(a, as@_*) =>
-            if (altIndex > 0) printLog(List((s"${r.toString} Trying alternative sub-derivation ${altIndex + 1}:", MAGENTA)))
-            solveSubgoals(a) match {
-              case Some(Magic) =>
-                stats.bumpUpBacktracing()
-                tryAlternatives(as, altIndex + 1) // This alternative is inconsistent: try other alternatives
-              case Some(res) =>
-                stats.bumpUpLastingSuccess()
-                Some(res) // This alternative succeeded
-              case None =>
-                stats.bumpUpBacktracing()
-                tryAlternatives(as, altIndex + 1) // This alternative failed: try other alternatives
+        // Apply all possible rules to the current goal to get a list of alternative expansions,
+        // each of which can have multiple open subgoals
+        val rules = nextRules(node)
+        val expansions =
+          if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
+          else applyRules(rules)(node, stats, config, ind)
+
+          // Check if any of the expansions is a terminal
+        expansions.find(_.subgoals.isEmpty) match {
+          case Some(e) => node.succeed(e.kont(Nil), rest) match { // e is a terminal: this node succeeded
+            case Right(sol) => Some(sol) // No more open subgoals in this derivation: synthesis succeeded
+            case Left(newWorkList) => processWorkList(newWorkList) // More open goals: continue
+          }
+          case None => { // no terminals: add all expansions to worklist
+            val newNodes = for {
+              (e, i) <- expansions.zipWithIndex
+//              alternatives = expansions.filter(_.rule == e.rule)
+//              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
+              andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
+              nSubs = e.subgoals.size
+              (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
+                          else e.subgoals.zip(Range(nSubs - 1, -1, -1))
+              produce = g.allHeaplets - (goal.allHeaplets - e.consume)
+            } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
+
+            def isSubsumed(n: OrNode): Boolean = {
+              val subsumer = node.commuters(n.transition).find(com => precursors(com.id).exists(_.equivalent(n.transition)))
+              subsumer match {
+                case None => false
+                case Some(s) => {
+                  printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
+                  true
+                }
+              }
             }
-          case Seq() =>
-            // All alternatives have failed
-            if (config.invert && r.isInstanceOf[InvertibleRule]) {
-              // Do not backtrack application of this rule: the rule is invertible and cannot be the reason for failure
-              printLog(List((s"${r.toString} All sub-derivations failed: invertible rule, do not backtrack.", MAGENTA)))
-              None
+
+            val filteredNodes = newNodes.filterNot(n => isSubsumed(n))
+            for ((n, i) <- newNodes.zipWithIndex) {
+              val precs = newNodes.take(i).map(_.transition).toSet
+              if (filteredNodes.contains(n))
+                // If this node has younger and-siblings, do not add any precursors:
+                // the precursor might have failed because of its younger sibling
+                // and not because of n!
+                precursors(n.id) = if (n.id.head <= 0) precs else Set()
+            }
+
+            if (filteredNodes.isEmpty) {
+              // This is a dead-end: prune worklist and try something else
+              printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+              processWorkList(node.fail(rest))
             } else {
-              // Backtrack application of this rule
-              stats.bumpUpBacktracing()
-              printLog(List((s"${r.toString} All sub-derivations failed: backtrack.", MAGENTA)))
-              tryRules(rs)
-            }
-        }
-
-        // Solve all sub-goals in a sub-derivation
-        def solveSubgoals(s: Subderivation): Option[Statement] = {
-
-          // Optimization: if one of the subgoals failed, to not try the rest!
-          // <ugly-imperative-code>
-          val results = new ListBuffer[Statement]
-          import util.control.Breaks._
-          breakable {
-            for {subgoal <- s.subgoals} {
-              synthesize(subgoal, depth - 1)(stats, nextRules(subgoal, depth - 1))(ind + 1) match {
-                case Some(s) => results.append(s)
-                case _ => break
-              }
+              stats.addGeneratedGoals(filteredNodes.size)
+              processWorkList(filteredNodes.toList ++ rest)
             }
           }
-          // </ugly-imperative-code>
-
-          val resultStmts = for (r <- results) yield r
-          if (resultStmts.size < s.subgoals.size)
-          // One of the sub-goals failed: this sub-derivation fails
-            None
-          else
-            handleGuard(s, resultStmts.toList)
         }
-
-        // If stmts is a single guarded statement:
-        // if possible, propagate guard to the result of the current goal,
-        // otherwise, try to synthesize the else branch and fail if that fails
-        def handleGuard(s: Subderivation, stmts: List[Statement]): Option[Statement] =
-          stmts match {
-            case Guarded(cond, thn) :: Nil =>
-              s.kont(stmts) match {
-                case g@Guarded(_, _) if depth < config.startingDepth => // Can propagate to upper-level goal
-                  Some(g)
-                case _ => // Cannot propagate: try to synthesize else branch
-                  val goal = s.subgoals.head
-                  val newPre = goal.pre.copy(phi = goal.pre.phi && cond.not)
-                  // Set starting depth to current depth: new subgoal will start at its own starting depth
-                  // to disallow producing guarded statements
-                  val newConfig = goal.env.config.copy(startingDepth = depth)
-                  val newG = goal.copy(newPre, env = goal.env.copy(config = newConfig))
-                  synthesize(newG, depth)(stats, nextRules(newG, depth - 1))(ind) match {
-                    case Some(els) => Some(s.kont(List(If(cond, thn, els)))) // successfully synthesized else
-                    case _ => None // failed to synthesize else
-                  }
-              }
-            case _ => Some(s.kont(stmts))
-          }
-
-
-        // Invoke the rule
-        val allSubderivations = r(goal)
-        val goalStr = s"$r: "
-
-        // Filter out subderivations that violate rule ordering
-        def goalInOrder(g: Goal): Boolean = {
-          g.deriv.outOfOrder(allRules(goal)) match {
-            case None => true
-            case Some(app) =>
-              //              printLog(List((g.deriv.preIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-              //              printLog(List((g.deriv.postIndex.map(_.pp).mkString(", "), BLACK)), isFail = true)
-              printLog(List((s"$goalStr${RED}Alternative ${g.deriv.applications.head.pp} commutes with earlier ${app.pp}", BLACK)))
-              false
-          }
-        }
-
-        val subderivations = if (config.commute)
-          allSubderivations.filter(sub => sub.subgoals.forall(goalInOrder))
-        else
-          allSubderivations
-
-        if (subderivations.isEmpty) {
-          // Rule not applicable: try the rest
-          printLog(List((s"$goalStr${RED}FAIL", BLACK)), isFail = true)
-          tryRules(rs)
-        } else {
-          // Rule applicable: try all possible sub-derivations
-          val subSizes = subderivations.map(s => s"${s.subgoals.size} sub-goal(s)").mkString(", ")
-          val succ = s"SUCCESS at depth $ind, ${subderivations.size} alternative(s) [$subSizes]"
-          printLog(List((s"$goalStr$GREEN$succ", BLACK)))
-          stats.bumpUpSuccessfulRuleApp()
-          if (subderivations.size > 1) {
-            printLog(List((s"Trying alternative sub-derivation 1:", CYAN)))
-          }
-          tryAlternatives(subderivations, 0)
-        }
+      }
     }
-
-    tryRules(rules)
   }
 
-  private def getIndent(implicit i: Int): String = if (i <= 0) "" else "|  " * i
+  protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
+                                                       stats: SynStats,
+                                                       config: SynConfig,
+                                                       ind: Int): Seq[RuleResult] = {
+    implicit val goal = node.goal
+    implicit val ind = goal.depth
+    rules match {
+      case Nil => Vector() // No more rules to apply: done expanding the goal
+      case r :: rs =>
+        // Invoke the rule
+        val children = r(goal)
 
-  private def printLog(sc: List[(String, String)], isFail: Boolean = false)
-                      (implicit i: Int, config: SynConfig): Unit = {
+        if (children.isEmpty) {
+          // Rule not applicable: try other rules
+          printLog(List((s"$r FAIL", BLACK)), isFail = true)
+          applyRules(rs)
+        } else {
+          // Rule applicable: try all possible sub-derivations
+          val childFootprints = children.map(c => s"$GREEN{${c.consume.pre.pp}}$MAGENTA{${c.consume.post.pp}}$BLACK")
+          printLog(List((s"$r (${children.size}): ${childFootprints.head}", BLACK)))
+          for {c <- childFootprints.tail}
+            printLog(List((c, BLACK)))(config = config, ind = goal.depth + 1)
+
+          if (config.invert && r.isInstanceOf[InvertibleRule]) {
+            // The rule is invertible: do not try other rules on this goal
+            children
+          } else {
+            // Both this and other rules apply
+            children ++ applyRules(rs)
+          }
+        }
+    }
+  }
+
+  private def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "|  " * ind
+
+  protected def printLog(sc: List[(String, String)], isFail: Boolean = false)
+                      (implicit config: SynConfig, ind: Int = 0): Unit = {
     if (config.printDerivations) {
       if (!isFail || config.printFailed) {
         for ((s, c) <- sc if s.trim.length > 0) {

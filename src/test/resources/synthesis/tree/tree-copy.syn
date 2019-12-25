@@ -20,10 +20,9 @@ void tree_copy (loc x, loc r) {
     tree_copy(r12, x);
     let y22 = *x;
     let y3 = malloc(3);
-    *(x + 2) = y22;
     *r = y3;
-    *(y3 + 1) = y12;
-    *(y3 + 2) = r12;
+    *(y3 + 1) = y22;
+    *(y3 + 2) = y12;
     *x = v2;
     *y3 = v2;
   }

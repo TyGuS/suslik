@@ -14,13 +14,13 @@ void listcopy (loc r) {
   } else {
     let v2 = *x2;
     let nxt2 = *(x2 + 1);
-    *r = nxt2;
-    listcopy(r);
-    let y12 = *r;
+    *x2 = nxt2;
+    listcopy(x2);
+    let y12 = *x2;
     let y2 = malloc(2);
-    *(x2 + 1) = y12;
     *r = y2;
-    *(y2 + 1) = nxt2;
+    *(y2 + 1) = y12;
+    *x2 = v2;
     *y2 = v2;
   }
 }

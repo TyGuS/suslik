@@ -1,0 +1,21 @@
+# -x true
+Deallocate a linked list
+
+###
+
+{true; lseg(x)}
+  void listfree(loc x)
+{true ; emp }
+
+###
+
+void listfree (loc x) {
+  if (x == 0) {
+  } else {
+    let nxt2 = *x;
+    listfree(nxt2);
+    free(x);
+  }
+}
+
+

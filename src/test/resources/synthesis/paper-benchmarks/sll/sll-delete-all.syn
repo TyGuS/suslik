@@ -15,16 +15,18 @@ void sll_delete_all (loc x, loc ret) {
     *ret = 0;
   } else {
     let v2 = *x;
-    if (true && v2 <= a2 && a2 <= v2) {
+    if (v2 <= a2 && a2 <= v2) {
       let nxt2 = *(x + 1);
-      sll_delete_all(nxt2, ret);
+      sll_delete_all(nxt2, x);
+      let y12 = *x;
       free(x);
+      *ret = y12;
     } else {
       let nxt2 = *(x + 1);
       sll_delete_all(nxt2, ret);
       let y12 = *ret;
-      *(x + 1) = y12;
       *ret = x;
+      *(x + 1) = y12;
     }
   }
 }

@@ -1,13 +1,12 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.{Expr, PFormula}
-import org.tygus.suslik.language.{Ident, IntType}
-import org.tygus.suslik.language.Statements.{Guarded, Magic, Skip}
-import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.language.Expressions.{Expr, Var}
+import org.tygus.suslik.language.IntType
+import org.tygus.suslik.language.Statements.Guarded
+import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
-import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.LogicalRules.EmpRule.{conjuncts, mkConjunction}
+import org.tygus.suslik.logic.{Heaplet, PointsTo, PureLogicUtils, SepLogicUtils}
+import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule}
 
 /**
@@ -21,48 +20,44 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   val exceptionQualifier: String = "rule-fail"
 
   // Noop rule: never applies (used to replace disabled rules)
-  object Noop extends SynthesisRule with AnyPhase {
-    override def toString: String = "[Fail: noop]"
+  object Noop extends SynthesisRule {
+    override def toString: String = "Noop"
 
-    def apply(goal: Goal): Seq[Subderivation] = Nil
+    def apply(goal: Goal): Seq[RuleResult] = Nil
   }
 
   // Short-circuits failure if pure post is inconsistent with the pre
-  object PostInconsistent extends SynthesisRule with AnyPhase with InvertibleRule {
-    override def toString: String = "[Fail: post-inconsistent]"
+  object PostInconsistent extends SynthesisRule with InvertibleRule {
+    override def toString: String = "PostInconsistent"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre.phi
       val post = goal.post.phi
 
       if (!SMTSolving.sat(pre && post))
-        List(Subderivation(Nil, _ => Magic)) // post inconsistent: only magic can save us
+        // post inconsistent with pre
+        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
       else
         Nil
     }
   }
-
 
   // Short-circuits failure if universal part of post is too strong
-  object PostInvalid extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Fail: post-invalid]"
+  object PostInvalid extends SynthesisRule with InvertibleRule {
+    override def toString: String = "PostInvalid"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
-      val pre = goal.pre.phi
-      val post = goal.post.phi
-
+    def apply(goal: Goal): Seq[RuleResult] = {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
-      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
-      if (!SMTSolving.valid(pre ==> universalPost))
-        List(Subderivation(Nil, _ => Magic)) // universal post not implies by pre: only magic can save us
+      if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
+        // universal post not implies by pre
+        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
       else
         Nil
     }
   }
 
-  object AbduceBranch extends SynthesisRule with FlatPhase {
-
-    override def toString: Ident = "[Fail: abduce-branch]"
+  object AbduceBranch extends SynthesisRule with InvertibleRule {
+    override def toString: String = "AbduceBranch"
 
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
@@ -83,29 +78,48 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       } yield simplify(mkConjunction(subset.toList))
     }
 
-    def guardedCandidates(goal: Goal, pre: PFormula, post: PFormula): Seq[Subderivation] =
+    /**
+      * Find the earliest ancestor of goal
+      * that is still valid and has all variables from vars
+      */
+    def findBranchPoint(vars: Set[Var], goal: Goal, valid: Boolean): Option[Goal] = goal.parent match {
+      case None => if (valid) Some(goal) else None // goal is root: return itself if valid
+      case Some(pGoal) =>
+        if (vars.subsetOf(pGoal.programVars.toSet)) {
+          // Parent goal has all variables from vars: recurse
+          val pCons = SMTSolving.valid(pGoal.pre.phi ==> pGoal.universalPost)
+          findBranchPoint(vars, pGoal, pCons)
+        } else if (valid) Some(goal) else None // one of vars undefined in the goal: return itself if valid
+    }
+
+    def guardedCandidates(goal: Goal): Seq[RuleResult] =
       for {
         cond <- condCandidates(goal)
-        if SMTSolving.valid((pre && cond) ==> post)
+        pre = goal.pre.phi
+        if SMTSolving.valid((pre && cond) ==> goal.universalPost)
         if SMTSolving.sat(pre && cond)
-        newPre = goal.pre.copy(phi = goal.pre.phi && cond)
-        newGoal = goal.copy(newPre)
-      } yield Subderivation(List(newGoal), stmts => Guarded(cond, stmts.head))
+        bGoal <- findBranchPoint(cond.vars, goal, false)
+        thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi && cond), childId = Some(0))
+        elseGoal = goal.spawnChild(
+          pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
+          post = bGoal.post,
+          gamma = bGoal.gamma,
+          programVars = bGoal.programVars,
+          childId = Some(1))
+      } yield RuleResult(List(thenGoal, elseGoal),
+        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))),
+        goal.allHeaplets,
+        this)
 
-    def apply(goal: Goal): Seq[Subderivation] = {
-      val pre = goal.pre.phi
-      val post = goal.post.phi
-
-      val universalPost = mkConjunction(conjuncts(post).filterNot(p => p.vars.exists(goal.isExistential)))
-      if (SMTSolving.valid(pre ==> universalPost))
+    def apply(goal: Goal): Seq[RuleResult] = {
+      if (SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
         Nil // valid so far, nothing to say
       else {
-        val guarded = guardedCandidates(goal, pre, universalPost)
+        val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
-          if (goal.env.config.fail)
-            List(Subderivation(Nil, _ => Magic)) // pre doesn't imply post: only magic can save us
-          else
-            Nil // would like to return Magic, but fail optimization is disabled
+          // Abduction failed
+          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
+          else Nil // fail optimization is disabled, so pretend this rule doesn't apply
         else guarded
       }
     }
@@ -113,20 +127,24 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
 
   // Short-circuits failure if spatial post doesn't match pre
-  // This rule is only applicable if alloc and free aren't
-  object HeapUnreachable extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Fail: heap-unreachable]"
+  // This rule is only applicable when only points-to heaplets are left
+  object HeapUnreachable extends SynthesisRule with InvertibleRule {
+    override def toString: String = "HeapUnreachable"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
-      (AllocRule.findTargetHeaplets(goal), FreeRule.findTargetHeaplets(goal)) match {
-        case (None, None) =>
-          if (goal.pre.sigma.chunks.length == goal.post.sigma.chunks.length)
-            Nil
-          else
-            List(Subderivation(Nil, _ => Magic)) // spatial parts do not match: only magic can save us
-        case _ => Nil // does not apply if we could still alloc or free
-      }
+    // How many chunks there are with each offset?
+    def profile(chunks: List[Heaplet]): Map[Int, Int] = chunks.groupBy{ case PointsTo(_,o,_) => o }.mapValues(_.length)
 
+    def apply(goal: Goal): Seq[RuleResult] = {
+      assert(!goal.hasPredicates && !goal.hasBlocks) // only points-to left
+      val preChunks = goal.pre.sigma.chunks
+      val postChunks = goal.post.sigma.chunks
+
+      if ((profile(preChunks) == profile(postChunks)) && // profiles must match
+        postChunks.forall{ case pts@PointsTo(v@Var(_),_,_) => goal.isExistential(v) || // each post heaplet is either existential pointer
+          findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined }) // or has a heaplet in pre with the same LHS
+        Nil
+      else
+        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
     }
   }
 }

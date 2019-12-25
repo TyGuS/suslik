@@ -14,13 +14,13 @@ void dll_to_sll (loc f) {
   } else {
     let v2 = *x2;
     let w2 = *(x2 + 1);
-    *f = w2;
-    dll_to_sll(f);
-    let i12 = *f;
+    *x2 = w2;
+    dll_to_sll(x2);
+    let i12 = *x2;
     let i2 = malloc(2);
+    free(x2);
     *f = i2;
     *(i2 + 1) = i12;
-    free(x2);
     *i2 = v2;
   }
 }

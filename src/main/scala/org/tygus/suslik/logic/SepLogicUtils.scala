@@ -14,6 +14,9 @@ trait SepLogicUtils extends PureLogicUtils {
 
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
 
+  def emp: SFormula = SFormula(Nil)
+  def singletonHeap(h:Heaplet): SFormula = SFormula(List(h))
+
   /**
     * Get the heaplet satisfying the predicate
     */
@@ -35,13 +38,13 @@ trait SepLogicUtils extends PureLogicUtils {
     * Are two heaplets both points-to with the same LHS?
     */
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
-    slAssert(hl.isInstanceOf[PointsTo], s"sameLhs expected points-to chunk and got ${hl.pp}")
-    val pt = hl.asInstanceOf[PointsTo]
-    hr match {
-      case PointsTo(y, off, _) => pt.loc == y && pt.offset == off // todo: wrong. Should check
-        // SMTSolving.valid( phi ==> ((y |+|off) |=|(pt.loc |+| pt.offset )) )
-        // not (?) important for synthesis, but important for symbolic execution
-      case _ => false
+    if (!hl.isInstanceOf[PointsTo]) false
+    else {
+      val pt = hl.asInstanceOf[PointsTo]
+      hr match {
+        case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+        case _ => false
+      }
     }
   }
 
@@ -52,7 +55,7 @@ trait SepLogicUtils extends PureLogicUtils {
   def findBlockAndChunks(pBlock: Heaplet => Boolean,
                          pPts: Heaplet => Boolean,
                          sigma: SFormula): Option[(Block, Seq[Heaplet])] = {
-    findHeaplet(pBlock, sigma) match {
+    findHeaplet(h => h.isInstanceOf[Block] && pBlock(h), sigma) match {
       case None => None
       case Some(h@Block(x@Var(_), sz)) =>
         val pts = for (off <- 0 until sz) yield
@@ -66,8 +69,31 @@ trait SepLogicUtils extends PureLogicUtils {
     }
   }
 
+  def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
+//    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
+//      case (Some(x), Some(y)) => x - y
+//      case _ => 0
+//    }
+
+    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = lilTag.getOrElse(0) - largTag.getOrElse(0)
+
+    val pairTags = for {
+      SApp(name, args, t) <- adaptedFunPre.chunks
+      SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
+        case SApp(_name, _args, _) => _name == name && _args == args
+        case _ => false
+      }
+    } yield (t, _t)
+    val comparisons = pairTags.map {case (t, s) => compareTags(t, s)}
+    val allGeq = comparisons.forall(_ <= 0)
+    val atLeastOneLarger = comparisons.exists(_ < 0)
+    allGeq && atLeastOneLarger
+  }
+
+
+
   /**
-    * Find the set of sub-formalas of `large` that `small` might possibly by unified with.
+    * Find the set of sub-formulas of `large` that `small` might possibly by unified with.
     */
   def findLargestMatchingHeap(small: SFormula, large: SFormula): Seq[SFormula] = {
 
@@ -88,7 +114,7 @@ trait SepLogicUtils extends PureLogicUtils {
         }
       case SApp(pred, args, tag) => stuff.filter {
         case SApp(_pred, _args, _tag) =>
-          _pred == pred && args.length == _args.length && tag == _tag
+          _pred == pred && args.length == _args.length
         case _ => false
       }
     }
@@ -113,8 +139,8 @@ trait SepLogicUtils extends PureLogicUtils {
     val ps = for {p@PointsTo(y, o, _) <- sf.chunks if x == y} yield p
     val offsets = ps.map { case PointsTo(_, o, _) => o }.sorted
     val goodChunks = offsets.size == sz && // All offsets are present
-        offsets.distinct.size == offsets.size && // No repetitions
-        offsets.forall(o => o < sz) // all smaller than sz
+      offsets.distinct.size == offsets.size && // No repetitions
+      offsets.forall(o => o < sz) // all smaller than sz
     if (goodChunks) Some(SFormula(b :: ps)) else None
   }
 

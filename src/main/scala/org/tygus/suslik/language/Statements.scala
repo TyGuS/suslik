@@ -1,8 +1,7 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.{FunSpec, Gamma}
-import org.tygus.suslik.logic.Specifications.Goal
-import org.tygus.suslik.synthesis.Subderivation
+import org.tygus.suslik.logic.Gamma
+import org.tygus.suslik.logic.Specifications.GoalLabel
 import org.tygus.suslik.util.StringUtil._
 
 /**
@@ -28,9 +27,6 @@ object Statements {
           case Error =>
             builder.append(mkSpaces(offset))
             builder.append(s"error;\n")
-          case Magic =>
-            builder.append(mkSpaces(offset))
-            builder.append(s"magic;\n")
           case Malloc(to, _, sz) =>
             // Ignore type
             builder.append(mkSpaces(offset))
@@ -47,7 +43,7 @@ object Statements {
             val f = if (off <= 0) from.pp else s"(${from.pp} + $off)"
             // Do not print the type annotation
             builder.append(s"let ${to.pp} = *$f;\n")
-          case Call(tt, fun, args) =>
+          case Call(tt, fun, args, _) =>
             builder.append(mkSpaces(offset))
             val function_call = s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n"
             tt match {
@@ -66,10 +62,12 @@ object Statements {
             builder.append(mkSpaces(offset)).append(s"} else {\n")
             build(eb, offset + 2)
             builder.append(mkSpaces(offset)).append(s"}\n")
-          case Guarded(cond, b) =>
+          case Guarded(cond, b, eb, _) =>
             builder.append(mkSpaces(offset))
             builder.append(s"assume (${cond.pp}) {\n")
             build(b, offset + 2)
+            builder.append(mkSpaces(offset)).append(s"}\n")
+            build(eb, offset + 2)
             builder.append(mkSpaces(offset)).append(s"}\n")
         }
       }
@@ -85,7 +83,6 @@ object Statements {
         case Skip => acc
         case Hole => acc
         case Error => acc
-        case Magic => acc
         case Store(to, off, e) =>
           acc ++ to.collect(p) ++ e.collect(p)
         case Load(_, _, from, off) =>
@@ -94,7 +91,7 @@ object Statements {
           acc
         case Free(x) =>
           acc ++ x.collect(p)
-        case Call(_, fun, args) =>
+        case Call(_, fun, args, _) =>
           acc ++ fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
         case SeqComp(s1,s2) =>
           val acc1 = collector(acc)(s1)
@@ -102,8 +99,9 @@ object Statements {
         case If(cond, tb, eb) =>
           val acc1 = collector(acc ++ cond.collect(p))(tb)
           collector(acc1)(eb)
-        case Guarded(cond, b) =>
-          collector(acc ++ cond.collect(p))(b)
+        case Guarded(cond, b, eb, _) =>
+          val acc1 = collector(acc ++ cond.collect(p))(b)
+          collector(acc1)(eb)
       }
 
       collector(Set.empty)(this)
@@ -118,15 +116,23 @@ object Statements {
       case Skip => 0
       case Hole => 1
       case Error => 1
-      case Magic => 1
       case Store(to, off, e) => 1 + to.size + e.size
       case Load(to, _, from, _) => 1 + to.size + from.size
       case Malloc(to, _, _) => 1 + to.size
       case Free(x) => 1 + x.size
-      case Call(_, fun, args) => 1 + args.map(_.size).sum
+      case Call(_, fun, args, _) => 1 + args.map(_.size).sum
       case SeqComp(s1,s2) => s1.size + s2.size
       case If(cond, tb, eb) => 1 + cond.size + tb.size + eb.size
-      case Guarded(cond, b) => 1 + cond.size + b.size
+      case Guarded(cond, b, eb, _) => 1 + cond.size + b.size + eb.size
+    }
+
+    // Companions of all calls inside this statement
+    def companions: List[GoalLabel] = this match {
+      case Call(_, _, _, Some(comp)) => List(comp)
+      case SeqComp(s1,s2) => s1.companions ++ s2.companions
+      case If(_, tb, eb) => tb.companions ++ eb.companions
+      case Guarded(_, b, eb, _) => b.companions ++ eb.companions
+      case _ => Nil
     }
 
     def uncons: (Statement, Statement) = this match {
@@ -140,7 +146,7 @@ object Statements {
       case other => (other, Skip)
     }
 
-    def resolveOverloading(gamma:Gamma): Statement = this match {
+    def resolveOverloading(gamma: Gamma): Statement = this match {
       case SeqComp(s1,s2)=> SeqComp(
         s1.resolveOverloading(gamma),
         s2.resolveOverloading(gamma)
@@ -150,9 +156,11 @@ object Statements {
         tb.resolveOverloading(gamma),
         eb.resolveOverloading(gamma)
       )
-      case Guarded(cond, body) => Guarded(
+      case Guarded(cond, body, els, branchPoint) => Guarded(
         cond.resolveOverloading(gamma),
-        body.resolveOverloading(gamma)
+        body.resolveOverloading(gamma),
+        els.resolveOverloading(gamma),
+        branchPoint
       )
       case cmd:Store => cmd.copy(e = cmd.e.resolveOverloading(gamma))
       case cmd:Call => cmd.copy(args = cmd.args.map({e => e.resolveOverloading(gamma)}))
@@ -170,9 +178,6 @@ object Statements {
   // assert false;
   case object Error extends Statement
 
-  // assume false;
-  case object Magic extends Statement
-
   // let to = malloc(n); rest
   case class Malloc(to: Var, tpe: SSLType, sz: Int = 1) extends Statement
 
@@ -189,14 +194,13 @@ object Statements {
   // f(args); rest
   // or
   // let to = f(args); rest
-  case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr]) extends Statement
+  case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr], companion: Option[GoalLabel]) extends Statement
 
   case class SeqComp(s1: Statement, s2: Statement) extends Statement {
     def simplify: Statement = {
       (s1, s2) match {
-        case (Guarded(cond, b), _) => Guarded(cond, SeqComp(b, s2).simplify)
-        case (Load(y, _, _, _), Guarded(cond, b)) if cond.vars.contains(y) => this
-        case (_, Guarded(cond, b)) => Guarded(cond, SeqComp(s1, b).simplify)
+        case (Guarded(cond, b, eb, l), _) => Guarded(cond, SeqComp(b, s2).simplify, eb, l) // Guards are propagated to the top
+        case (_, Guarded(cond, b, eb, l)) => Guarded(cond, SeqComp(s1, b).simplify, eb, l) // Guards are propagated to the top
         case (Load(y, _, _, _), _) => if (s2.usedVars.contains(y)) this else s2 // Do not generate read for unused variables
         case _ => this
       }
@@ -215,7 +219,7 @@ object Statements {
     }
   }
 
-  case class Guarded(cond: Expr, body: Statement) extends Statement
+  case class Guarded(cond: Expr, body: Statement, els: Statement, branchPoint: GoalLabel) extends Statement
 
   // A procedure
   case class Procedure(name: String, tp: SSLType, formals: Seq[(SSLType, Var)], body: Statement) {
@@ -227,5 +231,9 @@ object Statements {
     """.stripMargin
 
   }
+
+  // Solution for a synthesis goal:
+  // a statement and a possibly empty list of recursive helpers
+  type Solution = (Statement, List[Procedure])
 
 }

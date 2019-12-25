@@ -202,7 +202,7 @@ object Expressions {
     def rType: SSLType = IntSetType
     def resType: SSLType = IntSetType
   }
-  object OpDiff extends BinOp with SymmetricOp with AssociativeOp {
+  object OpDiff extends BinOp {
     def level: Int = 4
     override def pp: String = "--"
     def lType: SSLType = IntSetType
@@ -235,7 +235,6 @@ object Expressions {
     override def resType: SSLType = IntSetType
   }
 
-
   sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
 
     // Type-coercing visitor (yikes!)
@@ -246,6 +245,10 @@ object Expressions {
         case c@IntConst(_) if p(c) => acc + c.asInstanceOf[R]
         case c@BoolConst(_) if p(c) => acc + c.asInstanceOf[R]
         case b@BinaryExpr(_, l, r) =>
+          val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
+          val acc2 = collector(acc1)(l)
+          collector(acc2)(r)
+        case b@OverloadedBinaryExpr(_, l, r) =>
           val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(l)
           collector(acc2)(r)
@@ -373,10 +376,34 @@ object Expressions {
     // Expression size in AST nodes
     def size: Int = this match {
       case BinaryExpr(_, l, r) => 1 + l.size + r.size
+      case OverloadedBinaryExpr(_, l, r) => 1 + l.size + r.size
       case UnaryExpr(_, arg) => 1 + arg.size
       case SetLiteral(elems) => 1 + elems.map(_.size).sum
       case IfThenElse(cond, l, r) => 1 + cond.size + l.size + r.size
       case _ => 1
+    }
+
+    // Should this atomic formula be a candidate for pure unification?
+    // For now, only allow set relations
+    def allowUnify: Boolean = this match {
+      case BinaryExpr(op, _, _) => op match {
+        case OpSetEq => true
+        case OpIn => true
+        case OpSubset => true
+        case _ => false
+      }
+      case _ => false
+    }
+
+    // Compute conjuncts once
+    lazy val conjuncts: List[PFormula] = {
+      def _conjuncts(p: PFormula): List[PFormula] = p match {
+        case BoolConst(true) => Nil
+        case BinaryExpr(OpAnd, left, right) => _conjuncts(left) ++ _conjuncts(right)
+        case x => List(x)
+      }
+
+      _conjuncts(this).distinct
     }
 
     def resolveOverloading(gamma: Gamma): Expr = this match {

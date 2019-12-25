@@ -1,0 +1,21 @@
+# -x true
+Deallocate a tree
+
+###
+
+{true; tree(x)}
+  void treefree(loc x)
+{true ; emp }
+
+###
+
+void treefree (loc x) {
+  if (x == 0) {
+  } else {
+    let l2 = *x;
+    let r2 = *(x + 1);
+    treefree(l2);
+    treefree(r2);
+    free(x);
+  }
+}

@@ -5,10 +5,10 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
-import org.tygus.suslik.logic.unification.SpatialUnification.{FrameChoppingResult, tryUnify}
+import org.tygus.suslik.logic.unification.PureUnification
+import org.tygus.suslik.logic.unification.SpatialUnification.tryUnify
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * The goal of unification rules is to eliminate existentials
@@ -25,46 +25,53 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def varFilter(h: Heaplet, v: Var): Boolean = true
+
+    def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      val deriv = goal.deriv
 
-      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).sortBy(_.rank)
+      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
 
       val alternatives = for {
         s <- postCandidates
-        t <- pre.sigma.chunks.sortBy(_.rank)
-        sub <- tryUnify(t, s, goal.universals, false)
+        t <- pre.sigma.chunks
+        wholeSub <- tryUnify(t, s, goal.universals, false)
+        sub = wholeSub.filterKeys(v => varFilter(s, v))
+        if !sub.isEmpty
         newPostSigma = post.sigma.subst(sub)
+        if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
 
-        val preFootprint = Set(deriv.preIndex.lastIndexOf(t))
-        val postFootprint = Set(deriv.postIndex.lastIndexOf(s))
-        val ruleApp = saveApplication((preFootprint, postFootprint), deriv, -pre.similarity(newPost))
-
-        val newGoal = goal.copy(post = newPost, newRuleApp = Some(ruleApp))
-        Subderivation(List(newGoal), pureKont(toString))
+        val newGoal = goal.spawnChild(post = newPost)
+        val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+        RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), this)
       }
-      //      nubBy[Subderivation,Assertion](sortAlternativesByFootprint(alternatives).toList, sub => sub.subgoals.head.post)
-      val ord = new Ordering[(Int, RuleApplication)] {
-        def compare(x: (Int, RuleApplication), y: (Int, RuleApplication)): Int = {
-          val c1 = x._1.compare(y._1)
-          if (c1 != 0) c1 else x._2.compare(y._2)
-        }
-      }
-      val derivations = nubBy[Subderivation, Assertion](alternatives, sub => sub.subgoals.head.post)
-      derivations.sortBy(s => (-s.subgoals.head.similarity, s.subgoals.head.deriv.applications.head))(ord)
+      val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
+      derivations.sortBy(s => -s.subgoals.head.similarity)
     }
   }
 
   object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase {
-    override def toString: String = "[Sub: heap-unify-unfold]"
+    override def toString: String = "HeapUnifyUnfold"
   }
 
-  object HeapUnifyFlat extends HeapUnify with FlatPhase {
-    override def toString: String = "[Sub: heap-unify-flat]"
+  object HeapUnifyBlock extends HeapUnify with BlockPhase {
+    override def toString: String = "HeapUnifyBlock"
+  }
+
+  object HeapUnifyPointer extends HeapUnify with FlatPhase {
+    override def toString: String = "HeapUnifyPointer"
+
+    override def varFilter(h: Heaplet, v: Var): Boolean = h match {
+      case PointsTo(x, _, _) => v == x
+      case _ => false
+    }
+  }
+
+  object HeapUnifyPure extends HeapUnify with FlatPhase {
+    override def toString: String = "HeapUnifyPure"
   }
 
   /*
@@ -73,10 +80,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     --------------------------------------- [subst-R]
     Γ ; {φ ; P} ; {ψ ∧ X = l; Q} ---> S
   */
-  object SubstRight extends SynthesisRule with FlatPhase with InvertibleRule {
-    override def toString: String = "[Norm: subst-R]"
+  object SubstRight extends SynthesisRule with InvertibleRule {
+    override def toString: String = "SubstR"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
 
@@ -98,8 +105,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           }
           val _p2 = mkConjunction(rest2).subst(x, e)
           val _s2 = s2.subst(x, e)
-          val newGoal = goal.copy(post = Assertion(_p2, _s2))
-          List(Subderivation(List(newGoal), pureKont(toString)))
+          val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
+          val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
         case _ => Nil
       }
     }
@@ -114,20 +122,21 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
     */
 
-  object PureUnify extends SynthesisRule with FlatPhase {
-    override def toString: String = "[Norm: pure-unify]"
+  object PureUnify extends SynthesisRule {
+    override def toString: String = "PureUnify"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       // get post conjuncts with existentials
-      val postConjuncts = conjuncts(goal.post.phi).filter(p => p.vars.exists(goal.isExistential))
-      val preConjuncts = conjuncts(goal.pre.phi)
+      val postConjuncts = goal.post.phi.conjuncts.filter(p => p.vars.exists(goal.isExistential) && p.allowUnify)
+      val preConjuncts = goal.pre.phi.conjuncts.filter(p => p.allowUnify)
 
       for {
         s <- postConjuncts
         t <- preConjuncts
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
-        newGoal = goal.copy(post = goal.post.subst(sigma))
-      } yield Subderivation(List(newGoal), pureKont(toString))
+        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+        kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }
 
@@ -136,11 +145,11 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   --------------------------------------------------------------------------------[pick-from-env]
      Γ ; {φ ; x.f -> - * P} ; {ψ ; x.f -> m * Q} ---> *x.f := l ; S
    */
-  object PickFromEnvRule extends SynthesisRule with FlatPhase with InvertibleRule {
+  object PickFromEnvRule extends SynthesisRule with InvertibleRule {
 
-    override def toString: Ident = "[Op: write-from-env]"
+    override def toString: Ident = "WriteFromEnv"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
 
       val pre = goal.pre
       val post = goal.post
@@ -166,12 +175,12 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
           for {
             // Try variables from the context
-            l <- goal.programVars.toList
+            l <- goal.programVars
             if goal.gamma(l).conformsTo(Some(IntType))
             newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
-            subGoal = goal.copy(newPre, post.subst(m, l))
-            kont = prepend(Store(x, offset, l), toString)
-          } yield Subderivation(List(subGoal), kont)
+            subGoal = goal.spawnChild(newPre, post.subst(m, l))
+            kont = prepend(Store(x, offset, l)) >> handleGuard(goal) >> extractHelper(goal)
+          } yield RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this)
         case Some((hl, hr)) =>
           ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -185,58 +194,37 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> Y * Q} ---> S
    */
 
-  object Pick extends SynthesisRule with FlatPhase {
-    override def toString: String = "[Sub: pick]"
+  object Pick extends SynthesisRule {
+    override def toString: String = "Pick"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
 
-      if (goal.pre.sigma.isEmp && goal.post.sigma.isEmp) {
-        // This is a rule of last resort so only apply when heaps are empty
-        for {
-          ex <- goal.existentials.toList
-          v <- goal.universals.toList
-          if goal.getType(ex).conformsTo(Some(goal.getType(v)))
-          sigma = Map(ex -> v)
-          newGoal = goal.copy(post = goal.post.subst(sigma))
-        } yield Subderivation(List(newGoal), pureKont(toString))
-      } else Nil
-    }
-  }
+      def assignments(ex: Var): Set[(Var, Expr)] =  for {
+        v <- goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars) ++ constants
+        if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
+      } yield ex -> v
 
-  /*
-           (GV(Post) / GV(Pre)) * GV(R) = Ø
-          Γ ; {φ ; P} ; {ψ ; Q} ---> S
-    ---------------------------------------- [*-intro]
-      Γ ; {φ ; P * R} ; {ψ ; Q * R} ---> S
-
-
-    This is the former [frame] rule
-   */
-
-  object StarIntro extends SynthesisRule with AnyPhase {
-    override def toString: String = "[Sub: *-intro]"
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-
-      val pre = goal.pre
-      val post = goal.post
-      val boundVars = goal.universals
-      val deriv = goal.deriv
-      val foundFrames = SpatialUnification.removeCommonFrame(post.sigma, pre.sigma, boundVars)
-      val alternatives = for {
-        FrameChoppingResult(newPostSigma, postFrame, newPreSigma, preFrame, sub) <- foundFrames
-
-        newPre = Assertion(pre.phi, newPreSigma)
-        newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        preFootprint = preFrame.chunks.map(p => deriv.preIndex.lastIndexOf(p)).toSet
-        postFootprint = postFrame.chunks.map(p => deriv.postIndex.lastIndexOf(p)).toSet
-        ruleApp = saveApplication((preFootprint, postFootprint), deriv)
-        newGoal = goal.copy(newPre, newPost, newRuleApp = Some(ruleApp))
-      } yield {
-        Subderivation(List(newGoal), pureKont(toString))
+      def substitutions(domain: List[Var]): Set[Subst] = domain match {
+        case Nil => Set(emptySubst)
+        case v :: vs => for {
+          ass <- assignments(v)
+          res <- substitutions(vs)
+        } yield res + ass
       }
-      sortAlternativesByFootprint(alternatives)
+
+      for {
+        // TODO: revert to pre-var substitution when symmetry reduction is fixed
+//        ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
+//        constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
+//        v <- goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars) ++ constants
+//        if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
+//        sigma = Map(ex -> v)
+        sigma <- substitutions(goal.existentials.toList).toList
+        if sigma.nonEmpty
+        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+        kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }
-
 }

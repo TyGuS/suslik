@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
 
 /**
   * Unfolding rules deal with predicates and recursion.
@@ -19,23 +20,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-unfolding"
 
-  object Open extends SynthesisRule with UnfoldingPhase {
+  object Open extends SynthesisRule {
 
-    override def toString: Ident = "[Unfold: open]"
+    override def toString: Ident = "Open"
 
-    private def kont(selectors: Seq[PFormula]): StmtProducer = stmts => {
-      ruleAssert(selectors.length == stmts.length,
-        s"Mismatch in sizes of selectors and sub-programs\n${selectors.length}: $selectors\n${stmts.length}: $stmts")
-      ruleAssert(stmts.nonEmpty, s"Induction rule expected one or more subgoals got ${stmts.length}")
-      if (stmts.length == 1) stmts.head else {
-        val cond_branches = selectors.zip(stmts).reverse
-        val ctail = cond_branches.tail
-        val finalBranch = cond_branches.head._2
-        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
-      }
-    }
-
-    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[Seq[(PFormula, Goal)]] = {
+    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
       val pre = goal.pre
       val env = goal.env
 
@@ -44,114 +33,62 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
           val sbst = params.map(_._2).zip(args).toMap
-          val remainingChunks = pre.sigma.chunks.filter(_ != h)
+          val remainingSigma = pre.sigma - h
           val newGoals = for {
-            InductiveClause(_sel, _asn) <- clauses
+            c@InductiveClause(_sel, _asn) <- clauses
             sel = _sel.subst(sbst)
             asn = _asn.subst(sbst)
             constraints = asn.phi
             body = asn.sigma
             newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
-            _newPreSigma1 = SFormula(body.chunks).bumpUpSAppTags()
-            _newPreSigma2 = SFormula(remainingChunks).lockSAppTags()
-            newPreSigma = SFormula(_newPreSigma1.chunks ++ _newPreSigma2.chunks)
-          } yield (sel, goal.copy(Assertion(newPrePhi, newPreSigma)))
+            // The tags in the body should be one more than in the current application:
+            _newPreSigma1 = SFormula(body.chunks).setUpSAppTags(t + 1)
+            newPreSigma = _newPreSigma1 ** remainingSigma
+          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
-          if (noGhosts) Some(newGoals) else None
+          if (noGhosts) Some((newGoals, h)) else None
         case _ => None
       }
     }
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       for {
-        h <- goal.pre.sigma.chunks
-        s <- mkInductiveSubGoals(goal, h) match {
+        heaplet <- goal.pre.sigma.chunks
+        s <- mkInductiveSubGoals(goal, heaplet) match {
           case None => None
-          case Some(selGoals) =>
+          case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
-            Some(Subderivation(subGoals, kont(selectors)))
+            val kont = branchProducer(selectors) >> handleGuard(goal) >> extractHelper(goal)
+            Some(RuleResult(subGoals, kont, Footprint(singletonHeap(heaplet), emp), this))
         }
       } yield s
     }
   }
 
-  /*
-                      args ⊆ Г
-       p(params) = <sel_i(params); clause_i(params)>_i
-              b_i = sel_i[args/params]
-              c_i = clause_i[args/params]
-    ∀i, f_rec; Γ ; { φ ⋀ s_i ; b_i * P } ; { ψ ; Q } ---> S_i
-    f_rec : ∀xs, { φ ; p(args) * P } ; { ψ ; Q },
-       where xs = (vars { φ ; p(args) * P } ; { ψ ; Q }) U Г
-    --------------------------------------------------------------------[Unfold: induction]
-        Γ ; { φ ; p(args) * P } ; { ψ ; Q } ---> If(<b_i, S_i>)
-
-   */
-  object InductionRule extends SynthesisRule with AnyPhase {
-
-    override def toString: Ident = "[Unfold: induction]"
-
-    private def mkIndHyp(goal: Goal, h: Heaplet): Environment = {
-      val env = goal.env
-      val fname = Var(goal.fname).refresh(env.functions.keySet.map(Var)).name
-      // TODO: provide a proper type, not VOID
-
-      // Re-tagging all predicate occurrences, so the inductive argument
-      // would be tagged with Some(1), and everyone else with None(1)
-      val SApp(pname, xs, t) = h
-      val matcher: Heaplet => Boolean = {
-        case SApp(x, ys, q) => x == pname && ys == xs
-        case _ => false
-      }
-      val newPre = goal.pre.bumpUpSAppTags(matcher).lockSAppTags(x => !matcher(x))
-      // TODO: If we want to apply IH more than once to the same heap, we need to produce several copies of the hypothesis with increasing tags
-      // Second-order, now can only apply library functions
-      val newPost = goal.post.bumpUpSAppTags()
-
-      val fspec = FunSpec(fname, VoidType, goal.formals, newPre, newPost)
-      env.copy(functions = env.functions + (fname -> fspec))
-    }
-
-    def apply(goal: Goal): Seq[Subderivation] = {
-      val env = goal.env
-      if (env.functions.keySet.contains(goal.fname)) return Nil
-      // TODO: this is a hack to avoid invoking induction where it has no chance to succeed
-      if (goal.hasAllocatedBlocks) return Nil
-      val preApps = goal.pre.sigma.apps
-      // Nothing to induce on
-      if (preApps.isEmpty) return Nil
-
-      val apps = preApps ++ goal.post.sigma.apps
-      val noInductionOrUnfoldings = apps.forall {
-        case SApp(_, _, t) => t.contains(0)
-      }
-
-      if (!noInductionOrUnfoldings) return Nil
-
-      for {
-        a <- preApps
-        newEnv = mkIndHyp(goal, a)
-        newGoal = goal.copy(env = newEnv)
-      } yield Subderivation(Seq(newGoal), pureKont(toString))
-    }
-  }
-
+ 
   /*
   Application rule: apply the inductive hypothesis
 
   TODO: Make sure it works on non-trivial sub-heaps
    */
 
-  object CallRule extends SynthesisRule with UnfoldingPhase {
+  object CallRule extends SynthesisRule {
 
-    override def toString: Ident = "[Unfold: call]"
+    override def toString: Ident = "Call"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
-      (for {
-        (_, _f) <- goal.env.functions
+    def apply(goal: Goal): Seq[RuleResult] = {
+      // look at all proper ancestors starting from the root
+      // and try to find a companion
+      // (If auxiliary abduction is disabled, only look at the root)
+      val allCands = goal.companionCandidates.reverse
+      val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
+      val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
+        goal.env.functions.values.map (f => (f, None)) // components
+      for {
+        (_f, l) <- funLabels
         f = _f.refreshExistentials(goal.vars)
 
         // Find all subsets of the goal's pre that might be unified
@@ -163,33 +100,31 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        sub <- {
-          SpatialUnification.unify(target, source).toList
-        }
-        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+        sub <- SpatialUnification.unify(target, source).toList
+        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
+        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+        // Check that the goal's subheap had at least one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(None, Var(f.name), args), toString)
-        Subderivation(List(callGoal), kont)
-      }).toSeq
+        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
+        RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
+      }
     }
 
     /**
       * Make a call goal for `f` with a given precondition
       */
-    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal, also_gen_locked :Boolean = true): List[Goal] = {
-      val preFootprint = callSubPre.sigma.chunks.map(p => goal.deriv.preIndex.lastIndexOf(p)).toSet
-      val ruleApp = saveApplication((preFootprint, Set.empty), goal.deriv)
+    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
       val callPost = f.post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
         // To avoid more than one application of a library function
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
-      val addedChunksBumpedSApp = callPost.sigma.bumpUpSAppTags()
-      val addedChunksLockedSApp = callPost.sigma.lockSAppTags()
+//      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
+      val addedChunks2 = callPost.sigma.lockSAppTags()
       // Here we return two options for added chunks:
       // (a) with bumped tags
       // (b) with locked tags
@@ -197,14 +132,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // The latter enables application of the same recursive function (tree-flatten-acc),
       // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
       for {
-        acs <- if (also_gen_locked) {
-          List(addedChunksBumpedSApp, addedChunksLockedSApp)
-        } else {
-          List(addedChunksBumpedSApp)
-        }
+//        acs <- List(addedChunks1, addedChunks2)
+        acs <- List(addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
-        callGoal = goal.copy(restPre, newRuleApp = Some(ruleApp), env = newEnv)
+        callGoal = goal.spawnChild(restPre, env = newEnv)
       } yield callGoal
     }
   }
@@ -215,20 +147,25 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
    * Infers the discrepancies and emits new write-goals
    * Uses multiple-sub-derivation mechanism to enable several writes, followed by a call (via CallRule)
    */
-  object AbduceCall extends SynthesisRule with UnfoldingPhase {
+  object AbduceCall extends SynthesisRule {
 
-    override def toString: Ident = "[Unfold: abduce-call]"
+    override def toString: Ident = "AbduceCall"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
-      (for {
-        (_, _funSpec) <- goal.env.functions
-
-        // Make a "relaxed" substitution for the spec and for with it
-        (f, exSub) = _funSpec.refreshExistentials(goal.vars).relaxFunSpec
+    // TODO: refactor common parts with CallRule
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val allCands = goal.companionCandidates.reverse
+      val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
+      val fpecs = cands.map(_.toFunSpec) ++ // companions
+        goal.env.functions.values // components
+      for {
+        _f <- fpecs
+        // Make a "relaxed" substitution for the spec
+        fStrict = _f.refreshExistentials(goal.vars)
+        (f, exSub) = fStrict.relaxFunSpec
 
         lilHeap = f.pre.sigma
         largHeap = goal.pre.sigma
-        matchingHeaps = findLargestMatchingHeap(lilHeap, largHeap)
+        matchingHeaps = findLargestMatchingHeap(f.pre.sigma, largHeap)
         largPreSubHeap <- matchingHeaps
         callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
 
@@ -237,24 +174,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+        if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
-        (writeGoalsOpt, restGoal) = writesAndRestGoals(actualSub, relaxedSub, f, goal)
-        if writeGoalsOpt.nonEmpty
+        (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
-        val writeGoals = writeGoalsOpt.toList
-        val n = writeGoals.length
-        val kont: StmtProducer = stmts => {
-          ruleAssert(stmts.length == n + 1, s"Apply-hypotheses rule expected ${n + 1} premise and got ${stmts.length}")
-          val writes = stmts.take(n)
-          val rest = stmts.drop(n).head
-          writes.foldRight(rest) { case (w, r) => SeqComp(w, r) }
-        }
-        val subGoals = writeGoals ++ List(restGoal)
-        Subderivation(subGoals, kont)
-      }).toSeq
+        val kont = seqComp >> handleGuard(goal) >> extractHelper(goal)
+        RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), this)
+      }
     }
 
-    def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): (Option[Goal], Goal) = {
+    def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): Option[(Goal, Goal)] = {
       val ptss = f.pre.sigma.ptss // raw points-to assertions
       val (ptsToReplace, ptsToObtain) = (for {
         p@PointsTo(x@Var(_), off, e) <- ptss
@@ -267,19 +196,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         (pToReplace, pToObtain)
       }).unzip
 
-
-      // val preFootprintToReplace = ptsToReplace.map(p => goal.deriv.preIndex.indexOf(p)).toSet
-      // val ruleApp = saveApplication((preFootprintToReplace, Set.empty), goal.deriv)
       val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
-      val remainingGoal = goal.copy(pre = Assertion(goal.pre.phi, heapAfterWrites))
-
-      if (ptsToReplace.isEmpty) return (None, remainingGoal)
-
-      val smallWriteGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
-      val smallWriteGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
-      val smallWritesGoal = goal.copy(pre = smallWriteGoalPre, post = smallWriteGoalPost)
-
-      (Some(smallWritesGoal), remainingGoal)
+      if (ptsToReplace.isEmpty) None // No writes required
+      else {
+        // Writes required
+        val writeGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
+        val writeGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
+        val writesGoal = goal.spawnChild(pre = writeGoalPre, post = writeGoalPost, childId = Some(0))
+        val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites), childId = Some(1))
+        Some((writesGoal, remainingGoal))
+      }
     }
   }
 
@@ -292,24 +218,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         Γ ; { φ ; P } ; { ψ ; p(args) * Q } ---> S
 
    */
-  object Close extends SynthesisRule with UnfoldingPhase {
+  object Close extends SynthesisRule {
 
-    override def toString: Ident = "[Unfold: close]"
+    override def toString: Ident = "Close"
 
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       val post = goal.post
       val env = goal.env
-      val deriv = goal.deriv
 
-      // Does h have a tag that exceeds the maximum allowed unfolding depth?
-      def exceedsMaxDepth(h: Heaplet): Boolean = {
-        h match {
-          case SApp(_, _, Some(t)) => t > env.config.maxCloseDepth
-          case _ => false
-        }
-      }
-
-      def heapletResults(h: Heaplet): Seq[Subderivation] = h match {
+      def heapletResults(h: Heaplet): Seq[RuleResult] = h match {
         case SApp(pred, args, Some(t)) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
@@ -330,16 +247,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             actualConstraints = actualAssertion.phi
             actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
             // If we unfolded too much: back out
-//             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
+            //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
             val newPhi = mkConjunction(List(actualSelector, post.phi, actualConstraints))
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val postFootprint = Set(deriv.postIndex.lastIndexOf(h))
-            val ruleApp = saveApplication((Set.empty, postFootprint), deriv)
+            val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
-            Subderivation(List(goal.copy(post = newPost, newRuleApp = Some(ruleApp))), pureKont(toString))
+            RuleResult(List(goal.spawnChild(post = newPost)), kont, Footprint(emp, singletonHeap(h)), this)
           }
           subDerivations
         case _ => Nil

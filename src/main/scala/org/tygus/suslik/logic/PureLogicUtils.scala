@@ -2,7 +2,6 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.synthesis.SynConfig
 
 /**
   * Utilities for pure formulae
@@ -88,14 +87,10 @@ trait PureLogicUtils {
     case SetLiteral(args) => SetLiteral(args.map(desugar))
   }
 
-  def propperify(e: Expr): Expr = propagate_not(desugar(e))
-
   /**
     * Expression simplifier
     */
-  private val disable_simplification = true
-  def simplify(e: Expr): Expr = if(disable_simplification) propperify(e)
-  else propperify(e) match {
+  def simplify(e: Expr): Expr = e match {
     //  Truth table for and
     case BinaryExpr(OpAnd, e1, e2) => simplify(e1) match {
       case BoolConst(false) => pFalse
@@ -103,9 +98,6 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(false) => pFalse
         case BoolConst(true) => s1
-//        case s2 if s1 == s2 => s1 // TODO: maybe enable
-//        case s2 if s1 == s2.not => pFalse
-//        case s2 if s1.not == s2 => pFalse
         case s2 => s1 && s2
       }
     }
@@ -117,9 +109,6 @@ trait PureLogicUtils {
       case s1 => simplify(e2) match {
         case BoolConst(true) => pTrue
         case BoolConst(false) => s1
-//        case s2 if s2 == s1 => s1 // TODO: maybe enable
-//        case s2 if s2 == s1.not => pTrue
-//        case s2 if s2.not == s1 => pTrue
         case s2 => s1 || s2
       }
     }
@@ -195,25 +184,6 @@ trait PureLogicUtils {
     case p => isDisjunction(p)
   }
 
-  /**
-    * Return the formula as a list of conjuncts
-    */
-  def conjuncts(phi: PFormula): List[PFormula] = {
-
-    val pf = simplify(phi)
-    if (!isCNF(pf)) {
-      throw PureLogicException(s"The formula ${phi.pp} is not in CNF")
-    }
-
-    def _conjuncts(p: PFormula): List[PFormula] = p match {
-      case BoolConst(true) => Nil
-      case BinaryExpr(OpAnd, left, right) => _conjuncts(left) ++ _conjuncts(right)
-      case x => List(x)
-    }
-
-    _conjuncts(pf).distinct
-  }
-
   def findCommon[T](cond: T => Boolean, ps1: List[T], ps2: List[T]): Option[(T, List[T], List[T])] = {
     for (p <- ps1 if cond(p)) {
       if (ps2.contains(p)) {
@@ -224,7 +194,7 @@ trait PureLogicUtils {
   }
 
   def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[PFormula])] =
-    Some(conjuncts(phi)).flatMap(cs => cs.find(p) match {
+    Some(phi.conjuncts).flatMap(cs => cs.find(p) match {
       case Some(c) => Some((c, cs.filter(e => e != c)))
       case None => None
     })

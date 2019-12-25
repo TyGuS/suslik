@@ -14,8 +14,9 @@ void sll_max (loc x, loc ret) {
   } else {
     let v2 = *x;
     let nxt2 = *(x + 1);
-    sll_max(nxt2, ret);
-    let hi12 = *ret;
+    sll_max(nxt2, x);
+    let hi12 = *x;
     *ret = hi12 <= v2 ? v2 : hi12;
+    *x = v2;
   }
 }

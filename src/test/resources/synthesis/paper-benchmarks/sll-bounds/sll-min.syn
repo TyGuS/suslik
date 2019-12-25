@@ -14,8 +14,9 @@ void sll_min (loc x, loc ret) {
   } else {
     let v2 = *x;
     let nxt2 = *(x + 1);
-    sll_min(nxt2, ret);
-    let lo12 = *ret;
+    sll_min(nxt2, x);
+    let lo12 = *x;
     *ret = v2 <= lo12 ? v2 : lo12;
+    *x = v2;
   }
 }

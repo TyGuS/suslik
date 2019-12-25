@@ -2,6 +2,10 @@ should be able to convert a doubly-linked list to single-linked list
 
 #######
 
+{ true; (prev + 1) :-> x ** dllseg(x, z, s) }
+void set_prev(loc x, loc prev)
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)}
+
 { true ; lseg_extra(x, s)}
 void sll_to_dll(loc x)
 { true ; dllseg(x, z, s)}

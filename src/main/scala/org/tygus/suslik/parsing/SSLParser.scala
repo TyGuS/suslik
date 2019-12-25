@@ -153,7 +153,6 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def statementParser:Parser[Statement] = (
     ("??" ^^^ Hole)
       ||| ("error" ~> ";" ^^^ Statements.Error)
-      ||| ("magic" ~> ";" ^^^ Magic)
       // Malloc
       ||| "let" ~> varParser ~ ("=" ~> "malloc" ~> "(" ~> numericLit <~ ")" ~> ";") ^^ {
         case variable ~ number_str => Malloc(variable, IntType, Integer.parseInt(number_str)) // todo: maybe not ignore type here
@@ -175,19 +174,19 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       }
       // Call
       ||| varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
-        case fun ~ args => Call(None, fun, args.map(desugar))
+        case fun ~ args => Call(None, fun, args.map(desugar), None)
       }
       ||| typeParser ~ (varParser <~ "=") ~ varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
-        case tpe ~ to ~ fun ~ args => Call(Some((to, tpe)), fun, args.map(desugar))
+        case tpe ~ to ~ fun ~ args => Call(Some((to, tpe)), fun, args.map(desugar), None)
       }
       // if
       ||| ("if" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}") ~ ("else" ~> "{" ~> codeWithHoles <~ "}") ^^ {
         case cond ~ tb ~ eb => If(desugar(cond), tb, eb)
       }
       // Guarded
-      ||| ("assume" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}")  ^^ {
-        case cond ~ body => Guarded(desugar(cond), body)
-      }
+//      ||| ("assume" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}")  ^^ {
+//        case cond ~ body => Guarded(desugar(cond), body)
+//      }
     )
 
   def codeWithHoles:Parser[Statement] = rep(statementParser) ^^ (seq => if(seq.nonEmpty) seq.reduceRight(SeqComp) else Skip)

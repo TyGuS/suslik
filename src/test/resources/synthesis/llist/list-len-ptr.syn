@@ -13,9 +13,9 @@ void list_len (loc r) {
   if (x2 == 0) {
   } else {
     let nxt2 = *(x2 + 1);
-    *r = nxt2;
-    list_len(r);
-    let len12 = *r;
+    *x2 = nxt2;
+    list_len(x2);
+    let len12 = *x2;
     *r = 1 + len12;
   }
 }

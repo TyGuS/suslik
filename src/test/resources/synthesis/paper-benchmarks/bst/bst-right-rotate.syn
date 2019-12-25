@@ -13,7 +13,7 @@ void bst_right_rotate (loc x, loc ret)
 void bst_right_rotate (loc x, loc ret) {
   let l2 = *(x + 1);
   let r12 = *(l2 + 2);
+  *(l2 + 2) = x;
   *ret = l2;
   *(x + 1) = r12;
-  *(l2 + 2) = x;
 }

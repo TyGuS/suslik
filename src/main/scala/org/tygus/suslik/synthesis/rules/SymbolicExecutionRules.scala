@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.LanguageUtils.generateFreshVar
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic._
@@ -8,6 +7,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * Symbolic execution rules are guided by the sketch.
@@ -24,11 +24,11 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   When the first statement in the sketch is a store *(to + offset) = e,
   modify the goal's precondition to account for the store if possible
   */
-  object GuidedWrite extends SynthesisRule  with InvertibleRule {
+  object GuidedWrite extends SynthesisRule with InvertibleRule {
 
-    override def toString: Ident = "[SE: write]"
+    override def toString: Ident = "SE-Write"
 
-    def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
+    def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
       case (cmd@Store(to, offset, new_val), rest) => { // the sketch is a store: apply the rule
         val pre = goal.pre
         val post = goal.post
@@ -52,9 +52,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           case None => throw SynthesisException(cmd.pp + "  Memory is not yet allocated in this address")
           case Some(h: PointsTo) =>
             val newPre = Assertion(pre.phi, (pre.sigma - h) ** PointsTo(to, offset, new_val))
-            val subGoal = goal.copy(newPre, sketch = rest)
-            val kont: StmtProducer = prependFromSketch(cmd, toString)
-            List(Subderivation(List(subGoal), kont))
+            val subGoal = goal.spawnChild(newPre, sketch = rest)
+            val kont: StmtProducer = prependFromSketch(cmd)
+            List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(h), emp), this))
           case Some(h) =>
             ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
             Nil
@@ -71,13 +71,13 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   */
   object GuidedRead extends SynthesisRule with InvertibleRule {
 
-    override def toString: Ident = "[SE: read]"
+    override def toString: Ident = "SE-Read"
 
     /* let to = *(from + offset)
        Check that `from + offset -> e` is in the spatial pre
        and update the pure pre with `to = e`
     */
-    def apply(goal:Goal): Seq[Subderivation] = goal.sketch.uncons match {
+    def apply(goal:Goal): Seq[RuleResult] = goal.sketch.uncons match {
       case (cmd@Load(to, _, from, offset), rest) => {
         val pre = goal.pre
         val post = goal.post
@@ -96,14 +96,16 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           case None => {
             throw SymbolicExecutionError("Invalid read: no matching heaplet: " + cmd.pp)
           }
-          case Some(PointsTo(_, _, a)) =>
+          case Some(h@PointsTo(_, _, a)) =>
             val tpy = a.getType(goal.gamma).get // the precondition knows better than the statement
-            val subGoal = goal.copy(
+            val subGoal = goal.spawnChild(
               pre = pre.copy(phi = pre.phi && (to |=| a)),
               post = post.copy(phi = post.phi && (to |=| a)),
-              sketch = rest).addProgramVar(to, tpy)
-            val kont: StmtProducer = prependFromSketch(cmd, toString)
-            List(Subderivation(List(subGoal), kont))
+              gamma = goal.gamma + (to -> tpy),
+              programVars = to :: goal.programVars,
+              sketch = rest)
+            val kont: StmtProducer = prependFromSketch(cmd)
+            List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(h), emp), this))
           case Some(h) =>
             throw SynthesisException(cmd.pp + s" Read rule matched unexpected heaplet ${
               h.pp
@@ -121,9 +123,9 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   object GuidedAlloc extends SynthesisRule with InvertibleRule {
     val MallocInitVal = 666
 
-    override def toString: Ident = "[SE: alloc]"
+    override def toString: Ident = "SE-Alloc"
 
-    def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
+    def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
       case (cmd@Malloc(y, tpy, sz), rest) => {
         val pre = goal.pre
         symExecAssert(!goal.vars.contains(y), cmd.pp + s"name ${
@@ -132,14 +134,15 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
 
         val freshChunks = for {
           off <- 0 until sz
-          z = generateFreshVar(goal, s"$$ tmp_$off")
-        } // yield PointsTo(y, off, z)
-          yield PointsTo(y, off, IntConst(MallocInitVal)) // because tons of variables slow down synthesis.
+        } yield PointsTo(y, off, IntConst(MallocInitVal)) // because tons of variables slow down synthesis.
         val freshBlock = Block(y, sz)
         val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
-        val subGoal = goal.copy(newPre, sketch = rest).addProgramVar(y, tpy)
-        val kont: StmtProducer = prependFromSketch(cmd, toString)
-        List(Subderivation(List(subGoal), kont))
+        val subGoal = goal.spawnChild(newPre,
+          gamma = goal.gamma + (y -> tpy),
+          programVars = y :: goal.programVars,
+          sketch = rest)
+        val kont: StmtProducer = prependFromSketch(cmd)
+        List(RuleResult(List(subGoal), kont, goal.allHeaplets, this))
       }
       case _ => Nil
     }
@@ -151,7 +154,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
   */
   object GuidedFree extends SynthesisRule with InvertibleRule {
 
-    override def toString: Ident = "[SE: free]"
+    override def toString: Ident = "SE-Free"
 
     def findNamedHeaplets(goal: Goal, name:Var): Option[(Block, Seq[Heaplet])] = {
       // Heaplets have no ghosts
@@ -164,7 +167,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
       findBlockAndChunks(noGhostsAndIsBlock, _ => true, goal.pre.sigma)
     }
 
-    def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
+    def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
       case (cmd@Free(x), rest) => {
         val pre = goal.pre
         symExecAssert(goal.programVars.contains(x), cmd.pp + s"value `${x.name}` is not defined.")
@@ -172,10 +175,10 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         findNamedHeaplets(goal, x) match {
           case None => throw SymbolicExecutionError("command " + cmd.pp + " is invalid")
           case Some((h@Block(_, _), pts)) =>
-            val newPre = Assertion(pre.phi, pre.sigma - h - pts)
-            val subGoal = goal.copy(newPre, sketch = rest)
-            val kont: StmtProducer = prependFromSketch(cmd, toString)
-            List(Subderivation(List(subGoal), kont))
+            val newPre = Assertion(pre.phi, pre.sigma - h - SFormula(pts.toList))
+            val subGoal = goal.spawnChild(newPre, sketch = rest)
+            val kont: StmtProducer = prependFromSketch(cmd)
+            List(RuleResult(List(subGoal), kont, goal.allHeaplets, this))
           case Some(what) => throw SynthesisException("Unexpected heaplet " + what + " found while executing " + cmd.pp)
         }
       }
@@ -185,14 +188,17 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
 
   object GuidedCall extends SynthesisRule with UnfoldingPhase {
 
-    override def toString: Ident = "[SE: call]"
+    override def toString: Ident = "SE-Call"
 
-    def apply(goal:Goal): Seq[Subderivation] = goal.sketch.uncons match {
-      case (cmd@Call(to, fun, actuals), rest) => {
-        symExecAssert(goal.env.functions.contains(fun.name), s"Undefined function in function call: ${cmd.pp}")
+    def apply(goal:Goal): Seq[RuleResult] = goal.sketch.uncons match {
+      case (cmd@Call(_, fun, actuals, _), rest) => {
+        val topLevelGoal = goal.companionCandidates.last
+        val funEnv = goal.env.functions + (goal.fname -> topLevelGoal.toFunSpec)
+
+        symExecAssert(funEnv.contains(fun.name), s"Undefined function in function call: ${cmd.pp}")
         val actualVars = actuals.flatMap(_.vars).toSet
         symExecAssert(actualVars.forall(x => goal.isProgramVar(x)), s"Undefined or ghost variables in function call arguments: ${cmd.pp}")
-        val _f = goal.env.functions(fun.name)
+        val _f = funEnv(fun.name)
         symExecAssert(_f.params.size == actuals.size, s" Function ${_f.name} takes ${_f.params.size} arguments, but ${actuals.size} given: ${cmd.pp}")
         val f = _f.refreshExistentials(goal.vars)
 
@@ -215,13 +221,13 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           // Check that actuals supplied in the code are equal to those implied by the substitution
           argsValid = mkConjunction(actuals.zip(f.params.map(_._2.subst(sub))).map { case (x, y) => x |=| y}.toList)
           if SMTSolving.valid(goal.pre.phi ==> (argsValid && f.pre.phi.subst(sub)))
-          callGoal <- UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal, also_gen_locked = false)
+          callGoal <- UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal)
         } yield {
           callGoal.copy(sketch = rest)
         }
         symExecAssert(subgoals.nonEmpty, cmd.pp + " function can't be called.")
         assert(subgoals.size == 1, "Unexpected: function call produced multiple subgoals: " + cmd.pp)
-        List(Subderivation(subgoals, prepend(cmd, toString)))
+        List(RuleResult(subgoals, prepend(cmd), goal.allHeaplets, this))
       }
       case _ => Nil
     }
@@ -230,22 +236,17 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
 
   object Conditional extends SynthesisRule with InvertibleRule {
 
-    override def toString: Ident = "[SE: cond]"
-
-    private def kont(cond: Expr): StmtProducer = stmts => {
-      ruleAssert(stmts.length == 2, s"Conditional rule expected two subgoals got ${stmts.length}")
-      If(cond, stmts.head, stmts.last)
-    }
+    override def toString: Ident = "SE-Cond"
 
 
-    def apply(goal: Goal): Seq[Subderivation] = goal.sketch.uncons match {
-      case (cmd@If(cond, tb, eb), Skip) => {
+    def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
+      case (If(cond, tb, eb), Skip) => {
         val pre = goal.pre
-        val thenGoal = goal.copy(Assertion(pre.phi && cond, pre.sigma), sketch = tb)
-        val elseGoal = goal.copy(Assertion(pre.phi && cond.not, pre.sigma), sketch = eb)
-        List(Subderivation(List(thenGoal, elseGoal), kont(cond)))
+        val thenGoal = goal.spawnChild(Assertion(pre.phi && cond, pre.sigma), sketch = tb)
+        val elseGoal = goal.spawnChild(Assertion(pre.phi && cond.not, pre.sigma), sketch = eb)
+        List(RuleResult(List(thenGoal, elseGoal), branchProducer(List(cond, cond.not)), goal.allHeaplets, this))
       }
-      case (cmd@If(cond, tb, eb), _) => {
+      case (If(_, _, _), _) => {
         throw SynthesisException("Found conditional in the middle of the program. Conditionals only allowed at the end.")
       }
       case _ => Nil
@@ -255,16 +256,17 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
 
   object Open extends SynthesisRule with InvertibleRule {
 
-    override def toString: Ident = "[SE: open]"
+    override def toString: Ident = "SE-Open"
 
     // Like the synthesis version of open,
     // but selects a single case, whose selector is implied by the precondition
-    def apply(goal: Goal): Seq[Subderivation] = {
+    def apply(goal: Goal): Seq[RuleResult] = {
       for {
         h <- goal.pre.sigma.chunks
-        (selector, subgoal) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).getOrElse(Nil)
+        (selGoals, _) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
+        (selector, subGoal) <- selGoals
         if SMTSolving.valid(goal.pre.phi ==> selector)
-      } yield Subderivation(List(subgoal), pureKont(toString))
+      } yield RuleResult(List(subGoal), idProducer, goal.allHeaplets, this)
     }
   }
 }

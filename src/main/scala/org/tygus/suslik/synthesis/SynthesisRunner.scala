@@ -99,10 +99,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(timeOut = t))
     }.text("timeout for the derivation; default (in milliseconds): 300000 (5 min)")
 
-    opt[Int]('d', "depth").action { (d, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(startingDepth = d))
-    }.text("derivation depth; default: 100")
-
     opt[Boolean]('a', "assert").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))
     }.text("check that the synthesized result against the expected one; default: true")
@@ -114,6 +110,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Int]('o', "maxOpenDepth").action { (d, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(maxOpenDepth = d))
     }.text("maximum unfolding depth in the pre-condition; default: 1")
+
+    opt[Boolean]('x', "auxAbduction").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(auxAbduction = b))
+    }.text("abduce auxiliary functions; default: false")
 
     opt[Boolean]('b', "branchAbduction").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(branchAbduction = b))
@@ -134,6 +134,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean](name = "invert").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(invert = b))
     }.text("enable invertible rules; default: true")
+
+    opt[Boolean]('d', name = "depth").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(depthFirst = b))
+    }.text("depth first search; default: true")
 
     opt[Boolean]('s', "printStats").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printStats = b))

@@ -20,7 +20,7 @@ void insertion_sort_free (loc x, loc r) {
     let y12 = *r;
     srtl_insert(y12, x);
     let y22 = *x;
-    *r = y22;
     free(x);
+    *r = y22;
   }
 }

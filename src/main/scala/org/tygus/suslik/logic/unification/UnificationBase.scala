@@ -61,8 +61,8 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       sbst.forall { case (from, to) =>
         // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
         (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
-            // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
-            (!sParams.contains(from) || to.vars.forall(tParams.contains))
+          // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
+          (!sParams.contains(from) || to.vars.forall(tParams.contains))
       }
     }
 
@@ -70,57 +70,54 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       * Tries to find amongst chunks a heaplet h', which can be unified with the heaplet h.
       * If successful, returns a substitution and a list of remaining heaplets
       */
-    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Option[(Subst, List[UAtom])] = {
-      val iter = sourceChunks.iterator
-      while (iter.hasNext) {
-        val candidate = iter.next()
-        for {
-          sbst <- tryUnify(tc, candidate, takenVars)
-          if checkSubstWF(sbst)
-        } {
-          val remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
-          return Some(sbst, remainingAtomsAdapted)
-        }
+    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Seq[(Subst, List[UAtom])] = {
+      for {
+        candidate <-sourceChunks
+        sbst <- tryUnify(tc, candidate, takenVars)
+        if checkSubstWF(sbst)
+      } yield {
+        val remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
+        (sbst, remainingAtomsAdapted)
       }
-      None
     }
 
     // Invariant: none of the keys in acc are present in sourceChunks
-    def unifyGo(targetChunks: List[UAtom], sourceChunks: List[UAtom], acc: Subst): Option[Subst] = targetChunks match {
+    def unifyGo(targetChunks: List[UAtom], sourceChunks: List[UAtom], acc: Subst): Seq[Subst] = targetChunks match {
       case Nil =>
         // No more source chunks to unify
-        if (sourceChunks.isEmpty) Some(acc) else None
-      case tc :: _ if sourceChunks.isEmpty && !precise =>
-        Some(acc)
+        if (sourceChunks.isEmpty) List(acc) else List()
+      case _ :: _ if sourceChunks.isEmpty && !precise =>
+        List(acc)
       case tc :: tcss =>
-        findChunkAndUnify(tc, sourceChunks) match {
-          case None => None
-          // Could not find a matching heaplet
-          case Some((sbst, scsUpdated)) =>
-            assertNoOverlap(acc, sbst)
-            unifyGo(tcss, scsUpdated, acc ++ sbst)
+        val options = for {
+          (sbst, scsUpdated) <- findChunkAndUnify(tc, sourceChunks)
+        } yield {
+          assertNoOverlap(acc, sbst)
+          unifyGo(tcss, scsUpdated, acc ++ sbst)
         }
+        options.flatten
     }
 
-    // Lazily try all permutations of source chunks
-    // Ugly imperative stuff below
-    val iter = targetChunks.permutations
-    while (iter.hasNext) {
-      val tChunks = iter.next()
-      unifyGo(tChunks, sourceChunks, Map.empty) match {
-        case Some(newSubst) =>
-          // Returns the first good substitution, doesn't try all of them!
-          val newAssertion = source.formula.subst(newSubst)
-          val allVarsCaptured = true //newAssertion.vars.forall(target.formula.vars.contains(_))
-          // TODO: Once SMT is there, also check implications
-          if (allVarsCaptured) {
-            return Some(compose(freshSubst, newSubst))
-          }
-        // Otherwise, continue
-        case None =>
-      }
+    // We used to try all permutations of target chunks here, but that was unnecessary (since post-filtering was disabled) and super slow
+    unifyGo(targetChunks, sourceChunks, Map.empty) match {
+      case newSubst :: _ =>
+        // Returns the first good substitution, doesn't try all of them!
+        val composition = compose(freshSubst, newSubst)
+        /* [Handling spatial-based unification]
+          Sometimes, there are parameters of the function spec, that are not present in the spatial part.
+          In this case, freshSubst will contain mappings to the variable that is not present in the current
+          goal (target). For those variables, for which we don't have a match, we just remove them from the substitution.
+          This is sound, as the result is _A_ substitution, which is correct in the case of loops,
+          as it refers to the variable in the scope.
+         */
+        val resultSubst = composition.filter {
+          case (k, v@Var(_)) => target.formula.vars.contains(v)
+          case _ => true
+        }
+        Some(resultSubst)
+      // Otherwise, continue
+      case Nil => None
     }
-    None
   }
 
   /**
@@ -147,6 +144,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
   */
 case class UnificationGoal(formula: Assertion, params: Set[Var]) {
   def ghosts: Set[Var] = formula.vars -- params
+
   override def toString: String = s"(${params.map(_.pp).mkString(", ")}) ${formula.pp}"
 }
 

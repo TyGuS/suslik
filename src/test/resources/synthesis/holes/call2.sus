@@ -31,8 +31,8 @@ void srtl_insert (loc x, loc r) {
       let nxt2 = *(x + 1);
       srtl_insert(nxt2, r);
       let y12 = *r;
-      *(x + 1) = y12;
       *r = x;
+      *(x + 1) = y12;
     } else {
       let nxt2 = *(x + 1);
       srtl_insert(nxt2, x);

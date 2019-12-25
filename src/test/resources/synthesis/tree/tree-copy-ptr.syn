@@ -15,19 +15,17 @@ void tree_copy (loc r) {
     let v2 = *x2;
     let l2 = *(x2 + 1);
     let r12 = *(x2 + 2);
-    *r = l2;
-    tree_copy(r);
-    let y12 = *r;
-    *x2 = r12;
+    *x2 = l2;
     tree_copy(x2);
-    let y22 = *x2;
+    let y12 = *x2;
+    *r = r12;
+    tree_copy(r);
+    let y22 = *r;
     let y3 = malloc(3);
-    *(x2 + 1) = y12;
-    *(x2 + 2) = y22;
     *r = y3;
-    *(y3 + 1) = l2;
-    *(y3 + 2) = r12;
-    *y3 = v2;
+    *(y3 + 1) = y22;
+    *(y3 + 2) = y12;
     *x2 = v2;
+    *y3 = v2;
   }
 }

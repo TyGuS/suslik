@@ -12,9 +12,11 @@ void sll_len (loc x, loc ret) {
   if (x == 0) {
     *ret = 0;
   } else {
+    let v2 = *x;
     let nxt2 = *(x + 1);
-    sll_len(nxt2, ret);
-    let len12 = *ret;
+    sll_len(nxt2, x);
+    let len12 = *x;
     *ret = 1 + len12;
+    *x = v2;
   }
 }

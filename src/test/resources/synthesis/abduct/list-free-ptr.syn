@@ -12,8 +12,9 @@ void list_free (loc r) {
   if (x2 == 0) {
   } else {
     let nxt2 = *(x2 + 1);
-    *r = nxt2;
-    list_free(r);
+    *x2 = nxt2;
+    list_free(x2);
     free(x2);
+    *r = 0;
   }
 }

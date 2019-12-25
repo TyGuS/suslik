@@ -13,8 +13,8 @@ void list_copy (loc r, loc x) {
     *r = 0;
   } else {
     let nxt2 = *(x + 1);
-    list_copy(r, nxt2);
-    let y12 = *r;
+    list_copy(x, nxt2);
+    let y12 = *x;
     let y2 = malloc(2);
     *r = y2;
     *(y2 + 1) = y12;

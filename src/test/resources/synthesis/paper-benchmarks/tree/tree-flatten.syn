@@ -19,17 +19,17 @@ void tree_flatten (loc z) {
     let v2 = *x2;
     let l2 = *(x2 + 1);
     let r2 = *(x2 + 2);
-    *z = l2;
-    tree_flatten(z);
-    *x2 = r2;
+    *x2 = l2;
     tree_flatten(x2);
-    let y22 = *x2;
-    sll_append(y22, z);
-    let y32 = *z;
+    *z = r2;
+    tree_flatten(z);
+    let y22 = *z;
+    sll_append(y22, x2);
+    let y32 = *x2;
     let y4 = malloc(2);
+    free(x2);
     *z = y4;
     *(y4 + 1) = y32;
-    free(x2);
     *y4 = v2;
   }
 }

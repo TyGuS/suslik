@@ -9,12 +9,10 @@ void list_append(loc r, loc y)
 #####
 
 void list_append (loc r, loc y) {
-  let x2 = *r;
   if (y == 0) {
   } else {
     let nxt2 = *(y + 1);
-    *r = nxt2;
-    list_append(r, x2);
+    list_append(r, nxt2);
     let z12 = *r;
     *(y + 1) = z12;
     *r = y;

@@ -18,9 +18,9 @@ void tree_flatten (loc x, loc z) {
     tree_flatten(r2, z);
     let t22 = *z;
     let t3 = malloc(2);
+    free(x);
     *z = t3;
     *(t3 + 1) = t22;
-    free(x);
     *t3 = v2;
   }
 }

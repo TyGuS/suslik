@@ -4,6 +4,7 @@ import java.io.File
 
 import org.tygus.suslik.logic.Resolver._
 import org.tygus.suslik.parsing.SSLParser
+import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil}
 
 import scala.io.Source
@@ -107,36 +108,40 @@ trait SynthesisRunnerUtil {
 
     val spec = specs.head
     val time1 = System.currentTimeMillis()
-    val sresult = synthesizeProc(spec, env.copy(config = params), body)
+    val config = params.copy(startTime = time1)
+    val sresult = synthesizeProc(spec, env.copy(config = config), body)
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
     SynStatUtil.log(testName, delta, params, spec, sresult)
 
+    def printHotNode(hotNode: AndNode, descs: Int): String =
+      s"${hotNode.rule.toString} ${hotNode.consume.pp} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
+
     sresult match {
-      case Some((rr, stats)) =>
-        val result = rr.pp
+      case Some((procs, stats)) =>
+        val result = procs.map(_.pp).mkString
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
           testPrintln(s"${spec.pp}\n", Console.BLUE)
           testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
-          testPrintln(s"Number of backtrackings ${stats.numBack}")
-          testPrintln(s"Lasting successful rule applications: ${stats.numLasting}")
-          testPrintln(s"Total successful rule applications: ${stats.numSucc}")
+          testPrintln(s"Goals generated: ${stats.numGoalsGenerated}")
+          testPrintln(s"Goals expanded: ${stats.numGoalsExpanded}")
+          testPrintln(s"And-nodes backtracked: ${stats.numGoalsFailed}")
+          testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
+          testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
           testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
-          testPrintln(s"Number of saved negative results: ${stats.numSavedResultsNegative}")
-          testPrintln(s"Number of saved positive results: ${stats.numSavedResultsPositive}")
-          testPrintln(s"Number of recalled negative results: ${stats.numRecalledResultsNegative}")
-          testPrintln(s"Number of recalled positive results: ${stats.numRecalledResultsPositive}")
+          val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
+          testPrintln(s"Hot nodes:\n $hotNodesString")
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
         } else {
           println(result)
         }
         if (out != noOutputCheck) {
-          val tt = out.trim.lines.toList
-          val res = result.trim.lines.toList
+          val tt = out.trim.lines.map(_.trim).toList
+          val res = result.trim.lines.toList.map(_.trim)
           if (params.assertSuccess && res != tt) {
             throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
           }
