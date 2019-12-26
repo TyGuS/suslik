@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis.instances
 
-import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.smt.SMTSolving.sat
@@ -29,7 +28,8 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     else if (!config.phased)
     // Phase distinction is disabled: use all non top-level rules
       anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++
-        blockPhaseRules(config) ++ pointerPhaseRules(config) ++ purePhaseRules(config)
+        postBlockPhaseRules(config) ++ preBlockPhaseRules(config) ++
+        pointerPhaseRules(config) ++ purePhaseRules(config)
     else if (node.parent.isDefined && node.parent.get.rule == AbduceCall && node.id.head == 0)
       // TODO: This is a hack: AbduceCall does not make progress,
       // and hence has to be followed by Call, otherwise synthesis gets stuck.
@@ -38,9 +38,11 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     else if (goal.hasPredicates)
       // Unfolding phase: get rid of predicates
       anyPhaseRules(config) ++ unfoldingPhaseRules(config)
-    else if (goal.hasBlocks)
+    else if (goal.post.hasBlocks)
       // Block phase: get rid of blocks
-      anyPhaseRules(config) ++ blockPhaseRules(config)
+      anyPhaseRules(config) ++ postBlockPhaseRules(config)
+    else if (goal.hasBlocks)
+      anyPhaseRules(config) ++ preBlockPhaseRules(config)
     else if (goal.hasExistentialPointers)
       // Pointer phase: match all existential pointers
       anyPhaseRules(config) ++ pointerPhaseRules(config)
@@ -99,11 +101,14 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     UnfoldingRules.Close,
   )
 
-  def blockPhaseRules(config: SynConfig): List[SynthesisRule] = List(
+  def postBlockPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
     LogicalRules.FrameBlock,
     UnificationRules.HeapUnifyBlock,
-    OperationalRules.AllocRule,
+    OperationalRules.AllocRule
+  )
+
+  def preBlockPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     OperationalRules.FreeRule
   )
 

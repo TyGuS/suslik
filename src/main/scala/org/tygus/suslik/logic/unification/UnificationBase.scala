@@ -1,7 +1,7 @@
 package org.tygus.suslik.logic.unification
 
-import org.tygus.suslik.language.Expressions.{Expr, Var}
-import org.tygus.suslik.language.Substitutable
+import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.HasExpressions
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
 
@@ -12,7 +12,7 @@ import org.tygus.suslik.logic.{PureLogicUtils, SepLogicUtils}
   */
 trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 
-  type UAtom <: Substitutable[UAtom]
+  type UAtom <: HasExpressions[UAtom]
 
   // match all target chunks (no leftovers) -- true for spatial case
   val precise: Boolean

@@ -5,9 +5,10 @@ import org.tygus.suslik.language.IntType
 import org.tygus.suslik.language.Statements.Guarded
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.{Heaplet, PointsTo, PureLogicUtils, SepLogicUtils}
+import org.tygus.suslik.logic.{Heaplet, PFormula, PointsTo, PureLogicUtils, SepLogicUtils}
 import org.tygus.suslik.synthesis.rules.Rules._
-import org.tygus.suslik.synthesis.rules.OperationalRules.{AllocRule, FreeRule}
+
+import scala.collection.immutable.SortedSet
 
 /**
   * Rules for short-circuiting failure;
@@ -34,7 +35,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre.phi
       val post = goal.post.phi
 
-      if (!SMTSolving.sat(pre && post))
+      if (!SMTSolving.sat((pre && post).toExpr))
         // post inconsistent with pre
         List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
       else
@@ -75,7 +76,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       for {
         subset <- atoms.toSet.subsets.toSeq
         if subset.nonEmpty
-      } yield simplify(mkConjunction(subset.toList))
+      } yield PFormula(subset).toExpr
     }
 
     /**
@@ -97,7 +98,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         cond <- condCandidates(goal)
         pre = goal.pre.phi
         if SMTSolving.valid((pre && cond) ==> goal.universalPost)
-        if SMTSolving.sat(pre && cond)
+        if SMTSolving.sat((pre && cond).toExpr)
         bGoal <- findBranchPoint(cond.vars, goal, false)
         thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi && cond), childId = Some(0))
         elseGoal = goal.spawnChild(

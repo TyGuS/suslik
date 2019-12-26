@@ -67,7 +67,7 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
 /**
   * A selector is of the form (phi, sigma)
   */
-case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPrinting with PureLogicUtils {
+case class InductiveClause(selector: Expr, asn: Assertion) extends PrettyPrinting with PureLogicUtils {
   override def pp: String =
     s"${selector.pp} => ${asn.pp}"
 
@@ -97,7 +97,7 @@ case class InductiveClause(selector: PFormula, asn: Assertion) extends PrettyPri
   }
 
   def resolveOverloading(gamma: Gamma): InductiveClause ={
-    this.copy(selector = selector.resolveOverloading(gamma), asn=asn.resolveOverloading(gamma))
+    this.copy(selector = selector.resolveOverloading(gamma), asn = asn.resolveOverloading(gamma))
   }
 }
 
@@ -157,9 +157,9 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
     * @param vars additional contextual variables that can be captures
     * @return inductive predicate
     */
-  def refreshExistentials(vars: Set[Var]): InductivePredicate = {
+  def refreshExistentials(vars: Set[Var], suffix: String = ""): InductivePredicate = {
     val bound = vars ++ params.map(_._2).toSet
-    val sbst = refreshVars(existentials.toList, bound)
+    val sbst = refreshVars(existentials.toList, bound, suffix)
     this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
   }
 

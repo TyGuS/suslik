@@ -5,7 +5,7 @@ import java.io.File
 import org.tygus.suslik.logic.Resolver._
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.SearchTree.AndNode
-import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil}
+import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil, SynStats}
 
 import scala.io.Source
 
@@ -113,27 +113,36 @@ trait SynthesisRunnerUtil {
     val time2 = System.currentTimeMillis()
     val delta = time2 - time1
 
-    SynStatUtil.log(testName, delta, params, spec, sresult)
+    SynStatUtil.log(testName, delta, params, spec, sresult._1, sresult._2)
 
     def printHotNode(hotNode: AndNode, descs: Int): String =
       s"${hotNode.rule.toString} ${hotNode.consume.pp} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
 
-    sresult match {
-      case Some((procs, stats)) =>
+    def printStats(stats: SynStats) = {
+      testPrintln(s"Goals generated: ${stats.numGoalsGenerated}")
+      testPrintln(s"Goals expanded: ${stats.numGoalsExpanded}")
+      testPrintln(s"And-nodes backtracked: ${stats.numGoalsFailed}")
+      testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
+      testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
+      testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
+      val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
+      testPrintln(s"Hot nodes:\n $hotNodesString")
+      val hotFNodesString = stats.hotFilteredNodes(5).map{case (n, s) => printHotNode(n.parent.get, s)}.mkString("\n")
+      testPrintln(s"Hot filtered nodes:\n $hotFNodesString")
+    }
+
+    sresult._1 match {
+      case Nil =>
+        printStats(sresult._2)
+        throw SynthesisException(s"Failed to synthesise:\n$sresult")
+      case procs =>
         val result = procs.map(_.pp).mkString
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
           testPrintln(s"${spec.pp}\n", Console.BLUE)
           testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
-          testPrintln(s"Goals generated: ${stats.numGoalsGenerated}")
-          testPrintln(s"Goals expanded: ${stats.numGoalsExpanded}")
-          testPrintln(s"And-nodes backtracked: ${stats.numGoalsFailed}")
-          testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
-          testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
-          testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
-          val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
-          testPrintln(s"Hot nodes:\n $hotNodesString")
+          printStats(sresult._2)
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
         } else {
@@ -146,8 +155,6 @@ trait SynthesisRunnerUtil {
             throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
           }
         }
-      case None =>
-        throw SynthesisException(s"Failed to synthesise:\n$sresult")
     }
   }
 

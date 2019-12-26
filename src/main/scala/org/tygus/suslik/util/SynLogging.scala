@@ -73,6 +73,9 @@ class SynStats {
   private val descendantsExplored: mutable.Map[NodeId, Int] = mutable.Map()
   // Nodes that have been backtracked out of
   private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
+  // Nodes that have been filtered out by symmetry reduction
+  // TODO: remove this
+  val filteredNodes: mutable.HashSet[OrNode] = mutable.HashSet()
 
   // Tell all n's ancestors that n has been explored
   private def markExplored(n: OrNode): Unit = {
@@ -108,6 +111,12 @@ class SynStats {
     val maxNodes = failedNodes.toList.sortBy(n => -descendantsExplored(n.id)).take(count)
     maxNodes.map(n => (n, descendantsExplored(n.id)))
   }
+
+  def hotFilteredNodes(count: Int = 1): List[(OrNode, Int)] = {
+    val maxNodes = filteredNodes.toList.sortBy(n => -descendantsExplored.getOrElse(n.id, 0)).take(count)
+    maxNodes.map(n => (n, descendantsExplored.getOrElse(n.id, 0)))
+  }
+
   def numGoalsGenerated: Int = goalsGenerated
   def numGoalsExpanded: Int = goalsExpanded
   def numGoalsFailed: Int = failedNodes.size
@@ -137,11 +146,11 @@ object SynStatUtil {
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
       try f(resource) finally resource.close()
 
-  def log(name: String, time: Long, config: SynConfig, spec: FunSpec, stats: Option[(List[Procedure], SynStats)]): Unit = {
+  def log(name: String, time: Long, config: SynConfig, spec: FunSpec, res: List[Procedure], stats: SynStats): Unit = {
     if (config.logToFile) {
-      val statRow = (stats match {
-        case Some((procs, st)) => List(procs.map(_.body.size).sum, st.numGoalsFailed, st.numGoalsGenerated, st.maxWorklistSize, st.smtCacheSize)
-        case None => DList.replicate(5, "FAIL").toList
+      val statRow = (res match {
+        case Nil => List("FAIL", stats.numGoalsFailed, stats.numGoalsGenerated, stats.maxWorklistSize, stats.smtCacheSize)
+        case procs => List(procs.map(_.body.size).sum, stats.numGoalsFailed, stats.numGoalsGenerated, stats.maxWorklistSize, stats.smtCacheSize)
       }).mkString(", ")
 
       val specSize = spec.pre.size + spec.post.size

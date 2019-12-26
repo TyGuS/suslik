@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.{SApp, _}
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -20,7 +20,9 @@ trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
 
+  // TODO: clean this up
   implicit val precursors: PrecursorMap = mutable.Map.empty
+  implicit val memo: ResultMap = mutable.Map.empty
 
   import log._
 
@@ -28,7 +30,7 @@ trait Synthesis extends SepLogicUtils {
 
   def nextRules(node: OrNode): List[SynthesisRule]
 
-  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): Option[(List[Procedure], SynStats)] = {
+  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
@@ -39,15 +41,15 @@ trait Synthesis extends SepLogicUtils {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
           val main = Procedure(name, tp, formals, body)
-          Some(main :: helpers, stats)
+          (main :: helpers, stats)
         case None =>
           printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
-          None
+          (Nil, stats)
       }
     } catch {
       case SynTimeOutException(msg) =>
         printlnErr(msg)
-        None
+        (Nil, stats)
     }
   }
 
@@ -57,6 +59,7 @@ trait Synthesis extends SepLogicUtils {
     val root = OrNode(Vector(), goal, None, goal.allHeaplets)
     precursors.clear()
     precursors(root.id) = Set()
+    memo.clear()
     val worklist = List(root)
     processWorkList(worklist)(stats, goal.env.config)
   }
@@ -75,80 +78,102 @@ trait Synthesis extends SepLogicUtils {
 
     val sz = worklist.length
     printLog(List((s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
-    printLog(List((s"Precursor map (${precursors.size})", Console.YELLOW)))
+//    printLog(List((s"Precursor map (${precursors.size})", Console.YELLOW)))
+    printLog(List((s"Memo (${memo.size})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     worklist match {
       case Nil => // No more goals to try: synthesis failed
         None
       case node :: rest => {
-        val goal = node.goal
-        implicit val ind = goal.depth
         stats.addExpandedGoal(node)
-        if (config.printEnv) {
-          printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+        val res = memo.get(trimGoal(node.goal)) match {
+          case Some(None) => {
+            printLog(List((s"Recalled FAIL", RED)))
+            Left(node.fail(rest))
+          }
+          case Some(Some(sol)) => {
+            printLog(List((s"Recalled solution ${sol._1}", RED)))
+            node.succeed(sol, rest)
+          }
+          case None => expandNode(node, rest)
         }
-        printLog(List((s"${goal.pp}", Console.BLUE)))
-
-        // Apply all possible rules to the current goal to get a list of alternative expansions,
-        // each of which can have multiple open subgoals
-        val rules = nextRules(node)
-        val expansions =
-          if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
-          else applyRules(rules)(node, stats, config, ind)
-
-          // Check if any of the expansions is a terminal
-        expansions.find(_.subgoals.isEmpty) match {
-          case Some(e) => node.succeed(e.kont(Nil), rest) match { // e is a terminal: this node succeeded
-            case Right(sol) => Some(sol) // No more open subgoals in this derivation: synthesis succeeded
-            case Left(newWorkList) => processWorkList(newWorkList) // More open goals: continue
-          }
-          case None => { // no terminals: add all expansions to worklist
-            val newNodes = for {
-              (e, i) <- expansions.zipWithIndex
-//              alternatives = expansions.filter(_.rule == e.rule)
-//              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
-              andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
-              nSubs = e.subgoals.size
-              (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
-                          else e.subgoals.zip(Range(nSubs - 1, -1, -1))
-              produce = g.allHeaplets - (goal.allHeaplets - e.consume)
-            } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
-
-            def isSubsumed(n: OrNode): Boolean = {
-              val subsumer = node.commuters(n.transition).find(com => precursors(com.id).exists(_.equivalent(n.transition)))
-              subsumer match {
-                case None => false
-                case Some(s) => {
-                  printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
-                  true
-                }
-              }
-            }
-
-            val filteredNodes = newNodes.filterNot(n => isSubsumed(n))
-            for ((n, i) <- newNodes.zipWithIndex) {
-              val precs = newNodes.take(i).map(_.transition).toSet
-              if (filteredNodes.contains(n))
-                // If this node has younger and-siblings, do not add any precursors:
-                // the precursor might have failed because of its younger sibling
-                // and not because of n!
-                precursors(n.id) = if (n.id.head <= 0) precs else Set()
-            }
-
-            if (filteredNodes.isEmpty) {
-              // This is a dead-end: prune worklist and try something else
-              printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-              processWorkList(node.fail(rest))
-            } else {
-              stats.addGeneratedGoals(filteredNodes.size)
-              processWorkList(filteredNodes.toList ++ rest)
-            }
-          }
+        res match {
+          case Left(newWorklist) => processWorkList(newWorklist)
+          case Right(solution) => Some(solution)
         }
       }
     }
   }
+
+  protected def expandNode(node: OrNode, rest: List[OrNode])(implicit stats: SynStats,
+                                         config: SynConfig): Either[List[OrNode], Solution] = {
+    val goal = node.goal
+    implicit val ind = goal.depth
+    if (config.printEnv) {
+      printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+    }
+    printLog(List((s"${goal.pp}", Console.BLUE)))
+
+    // Apply all possible rules to the current goal to get a list of alternative expansions,
+    // each of which can have multiple open subgoals
+    val rules = nextRules(node)
+    val expansions =
+      if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
+      else applyRules(rules)(node, stats, config, ind)
+
+    // Check if any of the expansions is a terminal
+    expansions.find(_.subgoals.isEmpty) match {
+      case Some(e) => node.succeed(e.kont(Nil), rest)
+      case None => { // no terminals: add all expansions to worklist
+        val newNodes = for {
+          (e, i) <- expansions.zipWithIndex
+          //              alternatives = expansions.filter(_.rule == e.rule)
+          //              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
+          andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
+          nSubs = e.subgoals.size
+          (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
+          else e.subgoals.zip(Range(nSubs - 1, -1, -1))
+          produce = g.allHeaplets - (goal.allHeaplets - e.consume)
+        } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
+
+        def isSubsumed(n: OrNode): Boolean = {
+          val subsumer = node.commuters(n.transition).find(com => precursors(com.id).exists(_.equivalent(n.transition)))
+          subsumer match {
+            case None => false
+            case Some(s) => {
+              printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
+              true
+            }
+          }
+        }
+
+        for {
+          n <- newNodes.filter(n => isSubsumed(n))
+        } stats.filteredNodes += n
+
+        val filteredNodes = newNodes
+        for ((n, i) <- newNodes.zipWithIndex) {
+          val precs = newNodes.take(i).map(_.transition).toSet
+          if (filteredNodes.contains(n))
+          // If this node has younger and-siblings, do not add any precursors:
+          // the precursor might have failed because of its younger sibling
+          // and not because of n!
+            precursors(n.id) = if (n.id.head <= 0) precs else Set()
+        }
+
+        if (filteredNodes.isEmpty) {
+          // This is a dead-end: prune worklist and try something else
+          printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          Left(node.fail(rest))
+        } else {
+          stats.addGeneratedGoals(filteredNodes.size)
+          Left(filteredNodes.toList ++ rest)
+        }
+      }
+    }
+  }
+
 
   protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
                                                        stats: SynStats,

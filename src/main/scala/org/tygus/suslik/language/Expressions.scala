@@ -235,7 +235,9 @@ object Expressions {
     override def resType: SSLType = IntSetType
   }
 
-  sealed abstract class Expr extends PrettyPrinting with Substitutable[Expr] {
+  sealed abstract class Expr extends PrettyPrinting with HasExpressions[Expr] with Ordered[Expr] {
+
+    def compare(that: Expr): Int = this.pp.compare(that.pp)
 
     // Type-coercing visitor (yikes!)
     def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
@@ -268,10 +270,6 @@ object Expressions {
 
       collector(Set.empty)(this)
     }
-
-    def vars: Set[Var] = collect(_.isInstanceOf[Var])
-
-    override def pp: String
 
     def level: Int = 6
     def associative: Boolean = false
@@ -395,15 +393,11 @@ object Expressions {
       case _ => false
     }
 
-    // Compute conjuncts once
-    lazy val conjuncts: List[PFormula] = {
-      def _conjuncts(p: PFormula): List[PFormula] = p match {
+    def conjuncts: List[Expr] = this match {
         case BoolConst(true) => Nil
-        case BinaryExpr(OpAnd, left, right) => _conjuncts(left) ++ _conjuncts(right)
+        case BinaryExpr(OpAnd, left, right) => left.conjuncts ++ right.conjuncts
+        case OverloadedBinaryExpr(OpAnd, left, right) => left.conjuncts ++ right.conjuncts
         case x => List(x)
-      }
-
-      _conjuncts(this).distinct
     }
 
     def resolveOverloading(gamma: Gamma): Expr = this match {
@@ -425,8 +419,6 @@ object Expressions {
     }
   }
 
-  type PFormula = Expr
-
   // Program-level variable: program-level or ghost
   case class Var(name: String) extends Expr {
     override def pp: String = name
@@ -434,9 +426,9 @@ object Expressions {
     def subst(sigma: Map[Var, Expr]): Expr =
       sigma.getOrElse(this, this)
 
-    def refresh(taken: Set[Var]): Var = {
+    def refresh(taken: Set[Var], suffix: String): Var = {
       var count = 1
-      val original = this.name
+      val original = this.name + suffix
       var tmpName = original
       while (taken.exists(_.name == tmpName)) {
         tmpName = original + count
@@ -483,7 +475,7 @@ object Expressions {
     override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
 
-    def inferConcreteOp(gamma: Gamma):BinOp = {
+    def inferConcreteOp(gamma: Gamma): BinOp = {
       val lType = left.getType(gamma)
       val rType = right.getType(gamma)
       val strictly_defined_ops = for {
@@ -552,6 +544,20 @@ object Expressions {
     override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
     def getType(gamma: Map[Var, SSLType]): Option[SSLType] = left.getType(gamma)
   }
+
+  /*
+  Common expressions
+   */
+
+  def eTrue: Expr = BoolConst(true)
+
+  def eFalse: Expr = BoolConst(false)
+
+  /*
+  Substitutions
+   */
+  type Subst = Map[Var, Expr]
+  type SubstVar = Map[Var, Var]
 
 }
 

@@ -91,8 +91,6 @@ object SMTSolving extends Core
   case class SolverUnsupportedExpr(solver: String)
     extends Exception(s"Unsupported solver: $solver.")
 
-  private def convertFormula(phi: PFormula): SMTBoolTerm = convertBoolExpr(phi)
-
   private def convertSetExpr(e: Expr): SMTSetTerm = e match {
     case Var(name) => new VarTerm[ SetTerm ]( name, setSort )
     case SetLiteral(elems) => {
@@ -217,7 +215,7 @@ object SMTSolving extends Core
 
   /** Caching */
 
-  private val cache = collection.mutable.Map[PFormula, Boolean]()
+  private val cache = collection.mutable.Map[Expr, Boolean]()
   def cacheSize: Int = cache.size
 
   // Call this before synthesizing a new function
@@ -229,12 +227,12 @@ object SMTSolving extends Core
   /** External interface */
 
   // Check if phi is satisfiable; all vars are implicitly existentially quantified
-  def sat(phi: PFormula): Boolean = {
-    cache.getOrElseUpdate(phi, checkSat(convertFormula(phi)))
+  def sat(phi: Expr): Boolean = {
+    cache.getOrElseUpdate(phi, checkSat(convertBoolExpr(phi)))
   }
 
   // Check if phi is valid; all vars are implicitly universally quantified
-  def valid(phi: PFormula): Boolean = {
+  def valid(phi: Expr): Boolean = {
     !sat(phi.not)
   }
 

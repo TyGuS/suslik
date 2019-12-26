@@ -1,8 +1,7 @@
 package org.tygus.suslik.logic.unification
 
-import org.tygus.suslik.language.Expressions.Var
-import org.tygus.suslik.logic.{SFormula, _}
-import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.logic._
 
 /**
   * @author Ilya Sergey

@@ -7,6 +7,7 @@ import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -191,7 +192,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             off <- 0 until sz
           } yield PointsTo(y, off, IntConst(MallocInitVal))
           val freshBlock = Block(x, sz).subst(x, y)
-          val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
+          val newPre = Assertion(pre.phi, mkSFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
 
           val subGoal = goal.spawnChild(newPre,
                                         post.subst(x, y),
@@ -234,7 +235,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       findTargetHeaplets(goal) match {
         case None => Nil
         case Some((h@Block(x@Var(_), _), pts)) =>
-          val toRemove = SFormula(pts.toList) ** h
+          val toRemove = mkSFormula(pts.toList) ** h
           val newPre = Assertion(pre.phi, pre.sigma - toRemove)
 
           val subGoal = goal.spawnChild(newPre)

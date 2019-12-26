@@ -52,7 +52,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "Inconsistency"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val pre = goal.pre.phi
+      val pre = goal.pre.phi.toExpr
 
       if (!SMTSolving.sat(pre))
         List(RuleResult(Nil, constProducer(Error), goal.allHeaplets, this)) // pre inconsistent: return error
@@ -125,10 +125,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         )
       }
 
-
       def addToAssertion(a: Assertion, ptrs: Set[Expr]): Assertion = {
-        val newPhi = mkConjunction(a.phi.conjuncts ++ ptrs.map { x => x |/=| NilPtr })
-        Assertion(newPhi, a.sigma)
+        Assertion(a.phi && PFormula(ptrs.map { x => x |/=| NilPtr }), a.sigma)
       }
 
       val pre = goal.pre
@@ -146,7 +144,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
         val preHeaplets = for (h@PointsTo(l, _, _) <- pre.sigma.chunks if prePointers.contains(l)) yield h
         val postHeaplets = for (h@PointsTo(l, _, _) <- post.sigma.chunks if postPointers.contains(l)) yield h
-        List(RuleResult(List(newGoal), kont, Footprint(SFormula(preHeaplets), SFormula(postHeaplets)), this))
+        List(RuleResult(List(newGoal), kont, Footprint(mkSFormula(preHeaplets), mkSFormula(postHeaplets)), this))
       }
     }
   }
@@ -171,8 +169,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val allNewVars = newPairs.map(_._1).union(newPairs.map(_._2))
       val heaplets = (for (h@PointsTo(x, _, _) <- s.chunks if allNewVars.contains(x)) yield h)
       if (newPairs.isEmpty) None
-      else Some((mkConjunction(p.conjuncts ++ newPairs.map { case (x, y) => x |/=| y }),
-        SFormula(heaplets)))
+      else Some((p && PFormula(newPairs.map { case (x, y) => x |/=| y }), mkSFormula(heaplets)))
     }
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -219,14 +216,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
-        // TODO: enable this once we have better pure synthesis
+        // TODO: this messes up with pure unification
         case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
           //TODO: discuss and enable
 //        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, p1) match {
         case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
-          val _p1 = mkConjunction(rest1).subst(x, l)
+          val _p1 = rest1.subst(x, l)
           val _s1 = s1.subst(x, l)
           val _p2 = p2.subst(x, l)
           val _s2 = s2.subst(x, l)
@@ -247,7 +244,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (g.preNormalized) {
         g.pre.phi
       } else g.parent match {
-        case None => BoolConst(true)
+        case None => pTrue
         case Some(p) => snapshot(p)
       }
 
@@ -259,7 +256,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
 
       val normalizedPre = snapshot(goal)
-      val diff = mkConjunction((p1.conjuncts.toSet -- normalizedPre.conjuncts.toSet).toList)
+      val diff = p1 - normalizedPre
       val varCandidates =
           (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
 
@@ -296,7 +293,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (g.postNormalized) {
         g.pre.phi && g.post.phi
       } else g.parent match {
-        case None => BoolConst(true)
+        case None => pTrue
         case Some(p) => snapshot(p)
       }
 
@@ -308,7 +305,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       val normalized = snapshot(goal)
       val prePost = p1 && p2
-      val diff = mkConjunction((prePost.conjuncts.toSet -- normalized.conjuncts.toSet).toList)
+      val diff = prePost - normalized
       val lhsCandidates = (goal.existentials -- diff.vars).toList
       val rhsCandidates = (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
 
@@ -317,7 +314,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         v1 <- lhsCandidates
         v2 <- rhsCandidates
         if goal.getType(v1) == goal.getType(v2)
-        if SMTSolving.valid(prePost ==> v1.eq(v2, goal.getType(v1)))
+        if SMTSolving.valid(prePost.toExpr ==> v1.eq(v2, goal.getType(v1)))
       } yield (v1, v2)
 
       subs match {

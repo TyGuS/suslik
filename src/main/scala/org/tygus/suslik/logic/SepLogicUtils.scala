@@ -2,7 +2,6 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions.{Expr, IntConst, Var}
-import org.tygus.suslik.logic.unification.SpatialUnification.tryUnify
 
 /**
   * Utilities for spatial formulae
@@ -16,6 +15,7 @@ trait SepLogicUtils extends PureLogicUtils {
 
   def emp: SFormula = SFormula(Nil)
   def singletonHeap(h:Heaplet): SFormula = SFormula(List(h))
+  def mkSFormula(hs: List[Heaplet]) = SFormula(hs)
 
   /**
     * Get the heaplet satisfying the predicate
@@ -141,7 +141,7 @@ trait SepLogicUtils extends PureLogicUtils {
     val goodChunks = offsets.size == sz && // All offsets are present
       offsets.distinct.size == offsets.size && // No repetitions
       offsets.forall(o => o < sz) // all smaller than sz
-    if (goodChunks) Some(SFormula(b :: ps)) else None
+    if (goodChunks) Some(mkSFormula(b :: ps)) else None
   }
 
   def chunksForUnifying(f: SFormula): List[Heaplet] = {

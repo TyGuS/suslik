@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
 
 /**
@@ -24,14 +25,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
-    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(PFormula, Goal)], Heaplet)] = {
+    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
       val pre = goal.pre
       val env = goal.env
 
       h match {
         case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          val freshSuffix = args.take(1).map(_.pp).mkString("_")
+          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
           val sbst = params.map(_._2).zip(args).toMap
           val remainingSigma = pre.sigma - h
           val newGoals = for {
@@ -40,9 +42,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             asn = _asn.subst(sbst)
             constraints = asn.phi
             body = asn.sigma
-            newPrePhi = mkConjunction(List(sel, pre.phi, constraints))
+            newPrePhi = pre.phi && constraints && sel
             // The tags in the body should be one more than in the current application:
-            _newPreSigma1 = SFormula(body.chunks).setUpSAppTags(t + 1)
+            _newPreSigma1 = mkSFormula(body.chunks).setUpSAppTags(t + 1)
             newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
@@ -135,7 +137,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 //        acs <- List(addedChunks1, addedChunks2)
         acs <- List(addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
-        restPre = Assertion(goal.pre.phi && callPost.phi, SFormula(restPreChunks.toList))
+        restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
         callGoal = goal.spawnChild(restPre, env = newEnv)
       } yield callGoal
     }
@@ -196,12 +198,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         (pToReplace, pToObtain)
       }).unzip
 
-      val heapAfterWrites = SFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
+      val heapAfterWrites = mkSFormula(((goal.pre.sigma.chunks.toSet -- ptsToReplace) ++ ptsToObtain).toList)
       if (ptsToReplace.isEmpty) None // No writes required
       else {
         // Writes required
-        val writeGoalPre = Assertion(goal.pre.phi, SFormula(ptsToReplace))
-        val writeGoalPost = Assertion(goal.pre.phi, SFormula(ptsToObtain))
+        val writeGoalPre = Assertion(goal.pre.phi, mkSFormula(ptsToReplace))
+        val writeGoalPost = Assertion(goal.pre.phi, mkSFormula(ptsToObtain))
         val writesGoal = goal.spawnChild(pre = writeGoalPre, post = writeGoalPost, childId = Some(0))
         val remainingGoal = goal.spawnChild(pre = Assertion(goal.pre.phi, heapAfterWrites), childId = Some(1))
         Some((writesGoal, remainingGoal))
@@ -241,7 +243,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
             asnExistentials = asn.vars -- paramNames.toSet
-            freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars)
+            freshSuffix = args.take(1).map(_.pp).mkString("_")
+            freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars, freshSuffix)
             // Make sure that can unfold only once
             actualAssertion = asn.subst(freshExistentialsSubst).subst(substArgs)
             actualConstraints = actualAssertion.phi
@@ -250,7 +253,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {
             val actualSelector = selector.subst(freshExistentialsSubst).subst(substArgs)
-            val newPhi = mkConjunction(List(actualSelector, post.phi, actualConstraints))
+            val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
             val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)

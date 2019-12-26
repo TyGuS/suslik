@@ -3,18 +3,14 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
 
+import scala.collection.immutable.SortedSet
+
 /**
   * Utilities for pure formulae
   *
   * @author Nadia Polikarpova, Ilya Sergey
   */
 trait PureLogicUtils {
-
-  /*
-  Substitutions
-   */
-  type Subst = Map[Var, Expr]
-  type SubstVar = Map[Var, Var]
 
   def emptySubst: Subst = Map.empty
 
@@ -52,8 +48,8 @@ trait PureLogicUtils {
     case UnaryExpr(OpNot, UnaryExpr(OpNot, arg)) => propagate_not(arg)
     case UnaryExpr(OpNot, BinaryExpr(OpAnd, left, right)) => propagate_not(left.not) || propagate_not(right.not)
     case UnaryExpr(OpNot, BinaryExpr(OpOr, left, right)) => propagate_not(left.not) && propagate_not(right.not)
-    case UnaryExpr(OpNot, BoolConst(true)) => pFalse
-    case UnaryExpr(OpNot, BoolConst(false)) => pTrue
+    case UnaryExpr(OpNot, BoolConst(true)) => eFalse
+    case UnaryExpr(OpNot, BoolConst(false)) => eTrue
       
     // Propagate further
     case UnaryExpr(op, e1) => UnaryExpr(op, propagate_not(e1))
@@ -93,10 +89,10 @@ trait PureLogicUtils {
   def simplify(e: Expr): Expr = e match {
     //  Truth table for and
     case BinaryExpr(OpAnd, e1, e2) => simplify(e1) match {
-      case BoolConst(false) => pFalse
+      case BoolConst(false) => eFalse
       case BoolConst(true) => simplify(e2)
       case s1 => simplify(e2) match {
-        case BoolConst(false) => pFalse
+        case BoolConst(false) => eFalse
         case BoolConst(true) => s1
         case s2 => s1 && s2
       }
@@ -104,10 +100,10 @@ trait PureLogicUtils {
 
     //  Truth table for or
     case BinaryExpr(OpOr, e1, e2) => simplify(e1) match {
-      case BoolConst(true) => pTrue
+      case BoolConst(true) => eTrue
       case BoolConst(false) => simplify(e2)
       case s1 => simplify(e2) match {
-        case BoolConst(true) => pTrue
+        case BoolConst(true) => eTrue
         case BoolConst(false) => s1
         case s2 => s1 || s2
       }
@@ -117,8 +113,8 @@ trait PureLogicUtils {
     case UnaryExpr(OpNot, UnaryExpr(OpNot, arg)) => simplify(arg)
     case UnaryExpr(OpNot, BinaryExpr(OpAnd, left, right)) => simplify(left.not) || simplify(right.not)
     case UnaryExpr(OpNot, BinaryExpr(OpOr, left, right)) => simplify(left.not) && simplify(right.not)
-    case UnaryExpr(OpNot, BoolConst(true)) => pFalse
-    case UnaryExpr(OpNot, BoolConst(false)) => pTrue
+    case UnaryExpr(OpNot, BoolConst(true)) => eFalse
+    case UnaryExpr(OpNot, BoolConst(false)) => eTrue
 
     case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
       BoolConst(true)
@@ -151,21 +147,26 @@ trait PureLogicUtils {
     case _ => e
   }
 
-  def pTrue: PFormula = BoolConst(true)
-
-  def pFalse: PFormula = BoolConst(false)
-
   private def isAtomicExpr(e: Expr): Boolean = e match {
     case BinaryExpr(op, _, _) => !op.isInstanceOf[RelOp] && !op.isInstanceOf[LogicOp]
     case _ => true
   }
 
-  val isRelationPFormula: (PFormula) => Boolean = {
+  def pTrue: PFormula = PFormula(Set[Expr]())
+
+  def pFalse: PFormula = PFormula(Set(eFalse))
+
+  def simplify(p: PFormula): PFormula = {
+    val cs = p.conjuncts.map(simplify) - eTrue
+    if (cs.contains(eFalse)) pFalse else PFormula(cs)
+  }
+
+  val isRelationPFormula: (Expr) => Boolean = {
     case BinaryExpr(op, e1, e2) => op.isInstanceOf[RelOp] && isAtomicExpr(e1) && isAtomicExpr(e2)
     case _ => false
   }
 
-  val isAtomicPFormula: PFormula => Boolean = {
+  val isAtomicPFormula: Expr => Boolean = {
     case BoolConst(true) | BoolConst(false) => true
     case Var(_) => true // Not sure, because var might be non-bool, which is not very atomic (or is it atomic enough?)
     case UnaryExpr(OpNot, Var(_)) => true // here var must be bool
@@ -173,13 +174,13 @@ trait PureLogicUtils {
     case p => isRelationPFormula(p)
   }
 
-  val isDisjunction: PFormula => Boolean = {
+  val isDisjunction: Expr => Boolean = {
     case BinaryExpr(OpAnd, _, _) => false
     case BinaryExpr(OpOr, left, right) => isDisjunction(left) && isDisjunction(right)
     case p => isAtomicPFormula(p)
   }
 
-  val isCNF: PFormula => Boolean = {
+  val isCNF: Expr => Boolean = {
     case BinaryExpr(OpAnd, left, right) => isCNF(left) && isCNF(right)
     case p => isDisjunction(p)
   }
@@ -193,29 +194,29 @@ trait PureLogicUtils {
     None
   }
 
-  def findConjunctAndRest(p: PFormula => Boolean, phi: PFormula): Option[(PFormula, List[PFormula])] =
-    Some(phi.conjuncts).flatMap(cs => cs.find(p) match {
-      case Some(c) => Some((c, cs.filter(e => e != c)))
+  def findConjunctAndRest(p: Expr => Boolean, phi: PFormula): Option[(Expr, PFormula)] =
+    phi.conjuncts.find(p) match {
+      case Some(c) => Some((c, phi - c))
       case None => None
-    })
+    }
 
   /**
     * Assemble a formula from a list of conjunctions
     */
-  def mkConjunction(ps: List[PFormula]): PFormula = ps.distinct.foldLeft[PFormula](pTrue)((p1, p2) => p1 && p2)
+  def toFormula(e: Expr): PFormula = PFormula(e.conjuncts.toSet)
 
   /**
     * @param vs    a list of variables to refresh
     * @param bound bound identifiers
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
-  def refreshVars(vs: List[Var], bound: Set[Var]): Map[Var, Var] = {
+  def refreshVars(vs: List[Var], bound: Set[Var], suffix: String = ""): Map[Var, Var] = {
 
     def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] =
       vsToRefresh match {
         case Nil => acc
         case x :: xs =>
-          val y = x.refresh(taken)
+          val y = x.refresh(taken, suffix)
           val newAcc = acc + (x -> y)
           val newTaken = taken + x + y
           go(xs, newTaken, newAcc)

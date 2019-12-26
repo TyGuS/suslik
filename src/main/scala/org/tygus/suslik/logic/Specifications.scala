@@ -4,28 +4,18 @@ import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
-import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
-
-import scala.math.Ordering.Implicits._
+import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 
 object Specifications extends SepLogicUtils {
 
-  case class Assertion(phi: PFormula, sigma: SFormula) extends Substitutable[Assertion]
+  case class Assertion(phi: PFormula, sigma: SFormula) extends HasExpressions[Assertion]
     with PureLogicUtils {
 
     def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
 
-    // Get free variables
-    def varsPhi: Set[Var] = phi.vars
-
-    def varsSigma: Set[Var] = sigma.collectE(_.isInstanceOf[Var])
-
-    // Get all variables in the assertion
-    def vars: Set[Var] = varsPhi ++ varsSigma
-
     // Collect arbitrary expressions
-    def collectE[R <: Expr](p: Expr => Boolean): Set[R] =
-      phi.collect(p) ++ sigma.collectE(p)
+    def collect[R <: Expr](p: Expr => Boolean): Set[R] =
+      phi.collect(p) ++ sigma.collect(p)
 
     def hasPredicates: Boolean = sigma.chunks.exists(_.isInstanceOf[SApp])
 
@@ -55,7 +45,7 @@ object Specifications extends SepLogicUtils {
               (taken1, sub1, PointsTo(x, off, freshName) :: acc)
             } else (taken, sbst, p :: acc)
         }
-      val newSigma = SFormula(sigma.chunks.filter(!ptss.contains(_)) ++ newPtss)
+      val newSigma = mkSFormula(sigma.chunks.filter(!ptss.contains(_)) ++ newPtss)
       (this.copy(sigma = newSigma), sub)
     }
 
@@ -70,13 +60,14 @@ object Specifications extends SepLogicUtils {
 
     def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
       for {
-        gamma1 <- phi.resolve(gamma, Some(BoolType))
+        gamma1 <- phi.resolve(gamma)
         gamma2 <- sigma.resolve(gamma1, env)
       } yield gamma2
     }
 
     def resolveOverloading(gamma: Gamma): Assertion = {
-      this.copy(phi = phi.resolveOverloading(gamma), sigma = sigma.resolveOverloading(gamma))
+      this.copy(phi = toFormula(simplify(phi.toExpr.resolveOverloading(gamma))),
+        sigma = sigma.resolveOverloading(gamma))
     }
 
     // TODO: take into account distance between pure parts
@@ -91,7 +82,7 @@ object Specifications extends SepLogicUtils {
   /**
     * Spatial pre-post pair; used to determine independence of rule applications.
     */
-  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting with Substitutable[Footprint]  {
+  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting with HasExpressions[Footprint]  {
     def +(other: Footprint): Footprint = Footprint(pre + other.pre, post + other.post)
     def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
     def disjoint(other: Footprint): Boolean = pre.disjoint(other.pre) && post.disjoint(other.post)
@@ -100,7 +91,9 @@ object Specifications extends SepLogicUtils {
 
     def subst(sigma: Map[Var, Expr]): Footprint = Footprint(pre.subst(sigma), post.subst(sigma))
 
-    def vars: Set[Var] = pre.vars ++ post.vars
+    override def resolveOverloading(gamma: Gamma): Footprint = Footprint(pre.resolveOverloading(gamma), post.resolveOverloading(gamma))
+
+    override def collect[R <: Expr](p: Expr => Boolean): Set[R] = pre.collect(p) ++ post.collect(p)
   }
 
   /**
@@ -180,10 +173,7 @@ object Specifications extends SepLogicUtils {
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
         s"${pre.pp}\n${sketch.pp}${post.pp}"
 
-    def simplifyPure: Goal = copy(Assertion(simplify(pre.phi), pre.sigma),
-      Assertion(simplify(post.phi), post.sigma))
-
-    lazy val universalPost: PFormula = mkConjunction(post.phi.conjuncts.filterNot(p => p.vars.exists(this.isExistential)))
+    lazy val universalPost: PFormula = PFormula(post.phi.conjuncts.filterNot(p => p.vars.exists(this.isExistential)))
 
     // Ancestors of this goal in the derivation (root last)
     lazy val ancestors: List[Goal] = parent match {
@@ -320,7 +310,7 @@ object Specifications extends SepLogicUtils {
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), false, false).simplifyPure
+      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), false, false)
   }
 
 }

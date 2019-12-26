@@ -1,5 +1,6 @@
 package org.tygus.suslik.logic
 
+import javafx.collections.transformation.SortedList
 import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.synthesis.SynthesisException
@@ -8,17 +9,15 @@ import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 /**
   * Separation logic fragment
   */
-sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet] with SepLogicUtils {
-
-  def resolveOverloading(gamma: Gamma):Heaplet
+sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet] with Ordered[Heaplet] with SepLogicUtils {
 
   // Collect certain sub-expressions
-  def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
+  def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
     def collector(acc: Set[R])(h: Heaplet): Set[R] = h match {
       case PointsTo(v, offset, value) =>
         val acc1 = if (p(v)) acc + v.asInstanceOf[R] else acc
         acc1 ++ value.collect(p)
-      case Block(v, sz) =>
+      case Block(v, _) =>
         if (p(v)) acc + v.asInstanceOf[R] else acc
       case SApp(_, args, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
     }
@@ -26,7 +25,7 @@ sealed abstract class Heaplet extends PrettyPrinting with Substitutable[Heaplet]
     collector(Set.empty)(this)
   }
 
-  def vars: Set[Var] = collectE(_.isInstanceOf[Var])
+  def compare(that: Heaplet): Int = this.pp.compare(that.pp)
 
   def |-(other: Heaplet): Boolean
 
@@ -141,8 +140,8 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
 }
 
 
-case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitutable[SFormula] {
-  def resolveOverloading(gamma: Gamma): SFormula = {this.copy(chunks=chunks.map(_.resolveOverloading(gamma)))}
+case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpressions[SFormula] {
+  def resolveOverloading(gamma: Gamma): SFormula = { this.copy(chunks=chunks.map(_.resolveOverloading(gamma))) }
 
   override def pp: Ident = if (chunks.isEmpty) "emp" else chunks.map(_.pp).mkString(" ** ")
 
@@ -155,8 +154,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
   def subst(sigma: Map[Var, Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
 
   // Collect certain sub-expressions
-  def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
-    chunks.foldLeft(Set.empty[R])((a, h) => a ++ h.collectE(p))
+  def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
+    chunks.foldLeft(Set.empty[R])((a, h) => a ++ h.collect(p))
   }
 
   /**
@@ -193,8 +192,6 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def disjoint(other: SFormula): Boolean = chunks.intersect(other.chunks).isEmpty
 
-  def vars: Set[Var] = chunks.flatMap(_.vars).toSet
-
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     chunks.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, h) => go match {
       case None => None
@@ -225,4 +222,5 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with Substitut
 
   def cost: Int = chunks.map(_.cost).sum
 }
+
 

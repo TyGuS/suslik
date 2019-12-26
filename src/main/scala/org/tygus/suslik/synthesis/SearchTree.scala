@@ -1,6 +1,8 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.Statements.Solution
+import org.tygus.suslik.language.Expressions.Var
+import org.tygus.suslik.language.Statements.{Solution, Statement}
+import org.tygus.suslik.logic.Gamma
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, SynthesisRule}
 import org.tygus.suslik.util.SynStats
@@ -19,6 +21,25 @@ object SearchTree {
   // For each or-node, transitions that have been tried before and failed;
   // i.e. transitions of its older siblings
   type PrecursorMap = mutable.Map[NodeId, Set[Transition]]
+
+  // Simplified, canonical goal for memoization
+  // TODO: stirp Goal to be this?
+  case class MemoGoal(pre: Assertion,
+                  post: Assertion,
+                  gamma: Gamma,
+                  programVars: List[Var],
+                  universalGhosts: Set[Var],
+                  sketch: Statement)
+
+  def trimGoal(g: Goal): MemoGoal = MemoGoal(
+    Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks.sorted)),
+    Assertion(g.post.phi, mkSFormula(g.post.sigma.chunks.sorted)),
+    g.gamma,
+    g.programVars,
+    g.universalGhosts,
+    g.sketch)
+
+  type ResultMap = mutable.Map[MemoGoal, Option[Solution]]
 
   /**
     * Or-node in the search tree;
@@ -45,7 +66,9 @@ object SearchTree {
     }
 
     // This node has failed: prune siblings from worklist
-    def fail(wl: List[OrNode])(implicit precursors: PrecursorMap, stats: SynStats): List[OrNode] = parent match {
+    def fail(wl: List[OrNode])(implicit precursors: PrecursorMap, memo: ResultMap, stats: SynStats): List[OrNode] = {
+      memo(trimGoal(goal)) = None
+      parent match {
         case None => wl // this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
@@ -58,9 +81,12 @@ object SearchTree {
           }
         }
       }
+    }
 
     // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution, wl: List[OrNode])(implicit precursors: PrecursorMap): Either[List[OrNode], Solution] = parent match {
+    def succeed(s: Solution, wl: List[OrNode])(implicit precursors: PrecursorMap, memo: ResultMap): Either[List[OrNode], Solution] = {
+      memo(trimGoal(goal)) = Some(s)
+      parent match {
       case None => Right(s) // this is the root: synthesis succeeded
       case Some(an) => { // a subgoal has succeeded
         val newWL = wl.filterNot(_.hasAncestor(id)) // prune all my descendants from worklist
@@ -73,6 +99,7 @@ object SearchTree {
           Left(newWL.map(_.replaceAncestor(an.id, newAN)))
         }
       }
+    }
     }
 
     // Or-nodes that are proper ancestors of this nodes in the search tree

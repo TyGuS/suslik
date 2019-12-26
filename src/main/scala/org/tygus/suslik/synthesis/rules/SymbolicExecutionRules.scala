@@ -7,6 +7,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -136,7 +137,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           off <- 0 until sz
         } yield PointsTo(y, off, IntConst(MallocInitVal)) // because tons of variables slow down synthesis.
         val freshBlock = Block(y, sz)
-        val newPre = Assertion(pre.phi, SFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
+        val newPre = Assertion(pre.phi, mkSFormula(pre.sigma.chunks ++ freshChunks ++ List(freshBlock)))
         val subGoal = goal.spawnChild(newPre,
           gamma = goal.gamma + (y -> tpy),
           programVars = y :: goal.programVars,
@@ -175,7 +176,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         findNamedHeaplets(goal, x) match {
           case None => throw SymbolicExecutionError("command " + cmd.pp + " is invalid")
           case Some((h@Block(_, _), pts)) =>
-            val newPre = Assertion(pre.phi, pre.sigma - h - SFormula(pts.toList))
+            val newPre = Assertion(pre.phi, pre.sigma - h - mkSFormula(pts.toList))
             val subGoal = goal.spawnChild(newPre, sketch = rest)
             val kont: StmtProducer = prependFromSketch(cmd)
             List(RuleResult(List(subGoal), kont, goal.allHeaplets, this))
@@ -219,7 +220,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           }
 
           // Check that actuals supplied in the code are equal to those implied by the substitution
-          argsValid = mkConjunction(actuals.zip(f.params.map(_._2.subst(sub))).map { case (x, y) => x |=| y}.toList)
+          argsValid = PFormula(actuals.zip(f.params.map(_._2.subst(sub))).map { case (x, y) => x |=| y}.toSet)
           if SMTSolving.valid(goal.pre.phi ==> (argsValid && f.pre.phi.subst(sub)))
           callGoal <- UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal)
         } yield {

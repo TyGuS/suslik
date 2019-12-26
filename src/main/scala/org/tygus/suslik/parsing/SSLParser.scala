@@ -7,6 +7,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.SynthesisException
+import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.annotation.tailrec
@@ -118,12 +119,12 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       )
 
   def sigma: Parser[SFormula] = (
-      "emp" ^^^ SFormula(Nil)
-          ||| repsep(heaplet, "**") ^^ { hs => SFormula(hs) }
+      "emp" ^^^ emp
+          ||| repsep(heaplet, "**") ^^ { hs => mkSFormula(hs) }
       )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
-    case Some(p) ~ s => Assertion(desugar(p), s)
+    case Some(p) ~ s => Assertion(toFormula(desugar(p)), s)
     case None ~ s => Assertion(pTrue, s)
   }
 
