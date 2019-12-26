@@ -1,16 +1,8 @@
 package org.tygus.suslik.holes
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.suslik.language.Expressions.Var
-import org.tygus.suslik.language.Statements.Statement
-import org.tygus.suslik.language._
-import org.tygus.suslik.logic.Resolver.resolveProgram
-import org.tygus.suslik.logic.Specifications.{Goal, makeNewGoal}
-import org.tygus.suslik.logic._
-import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
-import org.tygus.suslik.util.OtherUtil.Accumulator
 
 /**
   * @author Roman Shchedrin

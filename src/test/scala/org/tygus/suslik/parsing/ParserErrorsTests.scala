@@ -3,7 +3,6 @@ package org.tygus.suslik.parsing
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.synthesis.SynthesisException
 import org.tygus.suslik.util.SynLogLevels
-import scala.util.parsing.combinator.Parsers
 
 /**
   * @author Roman Shchedrin
