@@ -3,8 +3,6 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
 
-import scala.collection.immutable.SortedSet
-
 /**
   * Utilities for pure formulae
   *

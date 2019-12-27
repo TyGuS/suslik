@@ -1,12 +1,10 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.Expressions.Var
-import org.tygus.suslik.language.Statements.{Solution, Statement}
+import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, SynthesisRule}
 import org.tygus.suslik.util.SynStats
-
-import scala.collection.mutable
 
 /**
   * And-or tree that represents the space of all possible derivations
@@ -16,26 +14,6 @@ object SearchTree {
   // Node's position in the search tree
   // (index of each reflexive ancestor among its siblings; youngest to oldest)
   type NodeId = Vector[Int]
-
-  // For each or-node, transitions that have been tried before and failed;
-  // i.e. transitions of its older siblings
-  type PrecursorMap = mutable.Map[NodeId, Set[Transition]]
-
-  // Simplified, canonical goal for memoization
-  case class MemoGoal(pre: Assertion,
-                  post: Assertion,
-                  programVars: Set[Var],
-                  universalGhosts: Set[Var],
-                  sketch: Statement)
-
-  def trimGoal(g: Goal): MemoGoal = MemoGoal(
-    Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks.sorted)),
-    Assertion(g.post.phi, mkSFormula(g.post.sigma.chunks.sorted)),
-    g.programVars.toSet,
-    g.universalGhosts,
-    g.sketch)
-
-  type ResultMap = mutable.Map[MemoGoal, Option[Solution]]
 
   /**
     * Or-node in the search tree;
@@ -63,13 +41,13 @@ object SearchTree {
 
     // This node has failed: prune siblings from worklist
     def fail(wl: List[OrNode])(implicit precursors: PrecursorMap, memo: ResultMap, stats: SynStats): List[OrNode] = {
-      memo(trimGoal(goal)) = None
+      memo.save(goal, Failed())
       parent match {
         case None => wl // this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
           val newWL = wl.filterNot(_.hasAncestor(an.id)) // prune all other descendants of an
-          precursors.retain((i, _) => !i.endsWith(an.id)) // also prune them from precursor map
+          precursors.removeDescendants(an.id) // also prune them from precursor map
           if (newWL.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
             newWL
           } else {
@@ -81,12 +59,12 @@ object SearchTree {
 
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution, wl: List[OrNode])(implicit precursors: PrecursorMap, memo: ResultMap): Either[List[OrNode], Solution] = {
-      memo(trimGoal(goal)) = Some(s)
+      memo.save(goal, Succeeded(s))
       parent match {
       case None => Right(s) // this is the root: synthesis succeeded
       case Some(an) => { // a subgoal has succeeded
         val newWL = wl.filterNot(_.hasAncestor(id)) // prune all my descendants from worklist
-        precursors.retain((i, _) => !i.endsWith(this.id)) // also prune them from precursor map
+        precursors.removeDescendants(this.id) // also prune them from precursor map
         // Check if an has more open subgoals:
         if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
           an.parent.succeed(an.kont(List(s)), newWL)

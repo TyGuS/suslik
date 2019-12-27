@@ -4,25 +4,21 @@ import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.{SApp, _}
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.util.{SynLogging, SynStats}
 import org.tygus.suslik.synthesis.rules.Rules._
 
 import scala.Console._
 import scala.annotation.tailrec
-import scala.collection.mutable
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis extends SepLogicUtils {
+trait Synthesis extends HasMemo with SepLogicUtils {
 
   val log: SynLogging
-
-  // TODO: clean this up
-  implicit val precursors: PrecursorMap = mutable.Map.empty
-  implicit val memo: ResultMap = mutable.Map.empty
 
   import log._
 
@@ -57,14 +53,10 @@ trait Synthesis extends SepLogicUtils {
                           (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
     val root = OrNode(Vector(), goal, None, goal.allHeaplets)
-    precursors.clear()
-    precursors(root.id) = Set()
-    memo.clear()
+    clearMemo(root)
     val worklist = List(root)
     processWorkList(worklist)(stats, goal.env.config)
   }
-
-
 
   @tailrec final def processWorkList(worklist: List[OrNode])
                                     (implicit
@@ -87,12 +79,12 @@ trait Synthesis extends SepLogicUtils {
         None
       case node :: rest => {
         stats.addExpandedGoal(node)
-        val res = memo.get(trimGoal(node.goal)) match {
-          case Some(None) => {
+        val res = memo.lookup(node.goal) match {
+          case Some(Failed()) => {
             printLog(List((s"Recalled FAIL", RED)))
             Left(node.fail(rest))
           }
-          case Some(Some(sol)) => {
+          case Some(Succeeded(sol)) => {
             printLog(List((s"Recalled solution ${sol._1}", RED)))
             node.succeed(sol, rest)
           }
@@ -138,8 +130,7 @@ trait Synthesis extends SepLogicUtils {
         } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
 
         def isSubsumed(n: OrNode): Boolean = {
-          val subsumer = node.commuters(n.transition).find(com => precursors(com.id).exists(_.equivalent(n.transition)))
-          subsumer match {
+          precursors.subsumer(n, node) match {
             case None => false
             case Some(s) => {
               printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
@@ -154,12 +145,13 @@ trait Synthesis extends SepLogicUtils {
 
         val filteredNodes = newNodes
         for ((n, i) <- newNodes.zipWithIndex) {
+
           val precs = newNodes.take(i).map(_.transition).toSet
           if (filteredNodes.contains(n))
           // If this node has younger and-siblings, do not add any precursors:
           // the precursor might have failed because of its younger sibling
           // and not because of n!
-            precursors(n.id) = if (n.id.head <= 0) precs else Set()
+            precursors.save(n.id, precs)
         }
 
         if (filteredNodes.isEmpty) {
