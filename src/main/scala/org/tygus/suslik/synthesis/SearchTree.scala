@@ -2,7 +2,6 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements.{Solution, Statement}
-import org.tygus.suslik.logic.Gamma
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, SynthesisRule}
 import org.tygus.suslik.util.SynStats
@@ -23,19 +22,16 @@ object SearchTree {
   type PrecursorMap = mutable.Map[NodeId, Set[Transition]]
 
   // Simplified, canonical goal for memoization
-  // TODO: stirp Goal to be this?
   case class MemoGoal(pre: Assertion,
                   post: Assertion,
-                  gamma: Gamma,
-                  programVars: List[Var],
+                  programVars: Set[Var],
                   universalGhosts: Set[Var],
                   sketch: Statement)
 
   def trimGoal(g: Goal): MemoGoal = MemoGoal(
     Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks.sorted)),
     Assertion(g.post.phi, mkSFormula(g.post.sigma.chunks.sorted)),
-    g.gamma,
-    g.programVars,
+    g.programVars.toSet,
     g.universalGhosts,
     g.sketch)
 
