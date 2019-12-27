@@ -205,22 +205,20 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
       } yield ex -> v
 
-      def substitutions(domain: List[Var]): Set[Subst] = domain match {
-        case Nil => Set(emptySubst)
-        case v :: vs => for {
-          ass <- assignments(v)
-          res <- substitutions(vs)
-        } yield res + ass
-      }
+      // TODO: remove this when symmetry reduction is gone for good or fixed
+//      def substitutions(domain: List[Var]): Set[Subst] = domain match {
+//        case Nil => Set(emptySubst)
+//        case v :: vs => for {
+//          ass <- assignments(v)
+//          res <- substitutions(vs)
+//        } yield res + ass
+//      }
 
       for {
-        // TODO: revert to pre-var substitution when symmetry reduction is fixed
-//        ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
-//        constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
-//        v <- goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars) ++ constants
-//        if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
-//        sigma = Map(ex -> v)
-        sigma <- substitutions(goal.existentials.toList).toList
+        ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
+        ass <- assignments(ex)
+        sigma = Map(ass)
+//        sigma <- substitutions(goal.existentials.toList).toList
         if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
