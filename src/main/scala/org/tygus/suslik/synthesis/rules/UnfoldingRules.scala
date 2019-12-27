@@ -90,8 +90,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
         goal.env.functions.values.map (f => (f, None)) // components
       for {
-        (_f, l) <- funLabels
-        f = _f.refreshExistentials(goal.vars)
+        (f, l) <- funLabels
 
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
@@ -119,7 +118,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * Make a call goal for `f` with a given precondition
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
-      val callPost = f.post.subst(sub)
+//      val freshSuffix = sub.values.map(_.pp).mkString("_")
+      val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
+      val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
         // To avoid more than one application of a library function
         val funs = goal.env.functions.filterKeys(_ != f.name)

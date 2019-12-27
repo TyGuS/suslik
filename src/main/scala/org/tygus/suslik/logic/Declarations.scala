@@ -55,11 +55,10 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     (this.copy(pre = relaxedPre, post = relaxedPost), sub)
   }
 
-  def refreshExistentials(taken: Set[Var]): FunSpec = {
-    val sub = refreshVars(((post.vars -- pre.vars) -- params.map(_._2).toSet).toList, taken)
-    val newPre = pre.subst(sub)
+  def refreshExistentials(taken: Set[Var], suffix: String = ""): FunSpec = {
+    val sub = refreshVars(((post.vars -- pre.vars) -- params.map(_._2).toSet).toList, taken, suffix)
     val newPost = post.subst(sub)
-    this.copy(pre = newPre, post = newPost)
+    this.copy(post = newPost)
   }
 
 }
