@@ -4,8 +4,8 @@ import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
-import org.tygus.suslik.synthesis.SynConfig
-import scalaz.DList
+import org.tygus.suslik.synthesis.{Memoization, SynConfig}
+
 import scala.collection.mutable
 
 /**
@@ -123,6 +123,7 @@ class SynStats {
   def maxWorklistSize: Int = maxWLSize
   def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
+  def memoSize: Int = Memoization.memo.size
 }
 
 // TODO: refactor me to make more customizable

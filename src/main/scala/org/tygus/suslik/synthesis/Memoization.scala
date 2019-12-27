@@ -72,9 +72,7 @@ object Memoization {
       precMap.retain((i, _) => !i.endsWith(n))
     }
   }
-}
 
-trait HasMemo {
   implicit val precursors: PrecursorMap = new PrecursorMap()
   implicit val memo: ResultMap = new ResultMap()
 

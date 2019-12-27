@@ -58,7 +58,7 @@ object SearchTree {
     }
 
     // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution, wl: List[OrNode])(implicit precursors: PrecursorMap, memo: ResultMap): Either[List[OrNode], Solution] = {
+    def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = {
       memo.save(goal, Succeeded(s))
       parent match {
       case None => Right(s) // this is the root: synthesis succeeded

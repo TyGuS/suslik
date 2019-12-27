@@ -16,7 +16,7 @@ import scala.annotation.tailrec
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis extends HasMemo with SepLogicUtils {
+trait Synthesis extends SepLogicUtils {
 
   val log: SynLogging
 

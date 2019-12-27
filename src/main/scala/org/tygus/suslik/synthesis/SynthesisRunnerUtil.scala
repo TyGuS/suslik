@@ -124,6 +124,7 @@ trait SynthesisRunnerUtil {
       testPrintln(s"And-nodes backtracked: ${stats.numGoalsFailed}")
       testPrintln(s"Maximum worklist size: ${stats.maxWorklistSize}")
       testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
+      testPrintln(s"Final memo size: ${stats.memoSize}")
       testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
       val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
       testPrintln(s"Hot nodes:\n $hotNodesString")
