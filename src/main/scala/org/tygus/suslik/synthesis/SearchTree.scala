@@ -39,10 +39,17 @@ object SearchTree {
         else p.parent.replaceAncestor(l, n)
     }
 
+    private def failNodes(nodes: List[OrNode], wl: List[OrNode])(implicit stats: SynStats): List[OrNode] = nodes match {
+      case Nil => wl
+      case n :: rest => {
+        val newWl = n.fail(wl)
+        failNodes(rest, newWl)
+      }
+    }
+
     // This node has failed: prune siblings from worklist
-    def fail(wl: List[OrNode])(implicit precursors: PrecursorMap, memo: ResultMap, stats: SynStats): List[OrNode] = {
-      memo.save(goal, Failed())
-      parent match {
+    def fail(wl: List[OrNode])(implicit stats: SynStats): List[OrNode] = {
+      val newWl = parent match {
         case None => wl // this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
@@ -55,25 +62,40 @@ object SearchTree {
           }
         }
       }
+      val unsuspend = memo.save(goal, Failed())
+      failNodes(unsuspend, newWl)
+    }
+
+    private def succeedNodes(nodes: List[OrNode],
+                             s: Solution,
+                             res: Either[List[OrNode], Solution]): Either[List[OrNode], Solution] = res match {
+      case Right(sol) => Right(sol)
+      case Left(wl) => nodes match {
+        case Nil => Left(wl)
+        case n :: rest => {
+          n.succeed(s, wl)
+        }
+      }
     }
 
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = {
-      memo.save(goal, Succeeded(s))
-      parent match {
-      case None => Right(s) // this is the root: synthesis succeeded
-      case Some(an) => { // a subgoal has succeeded
-        val newWL = wl.filterNot(_.hasAncestor(id)) // prune all my descendants from worklist
-        precursors.removeDescendants(this.id) // also prune them from precursor map
-        // Check if an has more open subgoals:
-        if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
-          an.parent.succeed(an.kont(List(s)), newWL)
-        } else { // there are other open subgoals: partially apply and replace in descendants
-          val newAN = an.copy(kont = an.kont.partApply(s))
-          Left(newWL.map(_.replaceAncestor(an.id, newAN)))
+      val res = parent match {
+        case None => Right(s) // this is the root: synthesis succeeded
+        case Some(an) => { // a subgoal has succeeded
+          val newWL = wl.filterNot(_.hasAncestor(id)) // prune all my descendants from worklist
+          precursors.removeDescendants(this.id) // also prune them from precursor map
+          // Check if an has more open subgoals:
+          if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
+            an.parent.succeed(an.kont(List(s)), newWL)
+          } else { // there are other open subgoals: partially apply and replace in descendants
+            val newAN = an.copy(kont = an.kont.partApply(s))
+            Left(newWL.map(_.replaceAncestor(an.id, newAN)))
+          }
         }
       }
-    }
+      val unsuspend = memo.save(goal, Succeeded(s))
+      succeedNodes(unsuspend, s, res)
     }
 
     // Or-nodes that are proper ancestors of this nodes in the search tree

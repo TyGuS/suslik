@@ -22,8 +22,13 @@ object Memoization {
 
   class ResultMap {
     private val memo: mutable.Map[MemoGoal, GoalStatus] = mutable.Map.empty
+    val suspended: mutable.Map[MemoGoal, List[OrNode]] = mutable.Map.empty
 
-    def size: Int = memo.size
+    def size: (Int, Int, Int) = (
+      memo.count(_._2.isInstanceOf[Failed]),
+      memo.count(_._2.isInstanceOf[Succeeded]),
+      memo.count(_._2.isInstanceOf[Expanded])
+      )
 
     def clear(): Unit = {
       memo.clear()
@@ -33,8 +38,20 @@ object Memoization {
       memo.get(trimGoal(goal))
     }
 
-    def save(goal: Goal, status: GoalStatus): Unit = {
-      memo(trimGoal(goal)) = status
+    def save(goal: Goal, status: GoalStatus): List[OrNode] = {
+      val key = trimGoal(goal)
+      memo(key) = status
+      status match {
+        case Failed() => suspended.remove(key).getOrElse(Nil)
+        case Succeeded(_) => suspended.remove(key).getOrElse(Nil)
+        case Expanded() => Nil
+      }
+    }
+
+    def suspend(node: OrNode): Unit = {
+      val key = trimGoal(node.goal)
+      val cur = suspended.getOrElse(key, Nil)
+      suspended(key) = node :: cur
     }
 
     private def trimGoal(g: Goal): MemoGoal = MemoGoal(

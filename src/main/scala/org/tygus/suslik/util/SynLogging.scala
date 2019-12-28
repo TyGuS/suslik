@@ -123,7 +123,7 @@ class SynStats {
   def maxWorklistSize: Int = maxWLSize
   def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
-  def memoSize: Int = Memoization.memo.size
+  def memoSize: (Int, Int, Int) = Memoization.memo.size
 }
 
 // TODO: refactor me to make more customizable

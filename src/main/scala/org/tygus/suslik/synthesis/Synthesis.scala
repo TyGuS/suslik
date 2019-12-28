@@ -68,25 +68,38 @@ trait Synthesis extends SepLogicUtils {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
     }
 
-    val sz = worklist.length
-    printLog(List((s"Worklist ($sz): ${worklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
+    val sortedWorklist = worklist.sortBy(_.goal.cost)
+    val sz = sortedWorklist.length
+    printLog(List((s"Worklist ($sz): ${sortedWorklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
 //    printLog(List((s"Precursor map (${precursors.size})", Console.YELLOW)))
     printLog(List((s"Memo (${memo.size})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
-    worklist match {
+    sortedWorklist match {
       case Nil => // No more goals to try: synthesis failed
         None
       case node :: rest => {
         stats.addExpandedGoal(node)
-        val res = memo.lookup(node.goal) match {
+        val goal = node.goal
+        implicit val ind = goal.depth
+        if (config.printEnv) {
+          printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+        }
+        printLog(List((s"${goal.pp}", Console.BLUE)))
+
+        val res = memo.lookup(goal) match {
           case Some(Failed()) => {
             printLog(List((s"Recalled FAIL", RED)))
             Left(node.fail(rest))
           }
           case Some(Succeeded(sol)) => {
-            printLog(List((s"Recalled solution ${sol._1}", RED)))
+            printLog(List((s"Recalled solution ${sol._1.pp}", RED)))
             node.succeed(sol, rest)
+          }
+          case Some(Expanded()) => {
+            printLog(List(("Suspend", RED)))
+            memo.suspend(node)
+            Left(rest)
           }
           case None => expandNode(node, rest)
         }
@@ -101,11 +114,8 @@ trait Synthesis extends SepLogicUtils {
   protected def expandNode(node: OrNode, rest: List[OrNode])(implicit stats: SynStats,
                                          config: SynConfig): Either[List[OrNode], Solution] = {
     val goal = node.goal
+    memo.save(goal, Expanded())
     implicit val ind = goal.depth
-    if (config.printEnv) {
-      printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
-    }
-    printLog(List((s"${goal.pp}", Console.BLUE)))
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
