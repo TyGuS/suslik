@@ -25,6 +25,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
+    override def cost: Int = 1
+
     def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
       val pre = goal.pre
       val env = goal.env
@@ -80,6 +82,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   object CallRule extends SynthesisRule with GeneratesCode {
 
     override def toString: Ident = "Call"
+
+    override def cost: Int = 1
 
     def apply(goal: Goal): Seq[RuleResult] = {
       // look at all proper ancestors starting from the root
@@ -224,6 +228,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   object Close extends SynthesisRule {
 
     override def toString: Ident = "Close"
+
+    override def cost: Int = 1
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val post = goal.post

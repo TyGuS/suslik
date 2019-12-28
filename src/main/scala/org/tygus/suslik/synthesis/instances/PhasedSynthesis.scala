@@ -38,7 +38,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
   def specBasedRules(node: OrNode): List[SynthesisRule] = {
     val goal = node.goal
     val config = goal.env.config
-    if (node.parent.isDefined && node.parent.get.rule == AbduceCall && node.id.head == 0)
+    if (node.parent.isDefined && node.parent.get.rule == AbduceCall && node.id.head > 0)
     // TODO: This is a hack: AbduceCall does not make progress,
     // and hence has to be followed by Call, otherwise synthesis gets stuck.
     // Proper fix: merge the two rules

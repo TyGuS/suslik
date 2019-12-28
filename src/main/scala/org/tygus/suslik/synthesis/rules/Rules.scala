@@ -35,11 +35,15 @@ object Rules {
     )
 
     /**
-      * Producer that results form partially applying this producer to s
+      * Producer that results form applying this producer to s as its idx argument
       */
-    def partApply(s: Solution): StmtProducer = StmtProducer (
+    def partApply(s: Solution, idx: Int = 0): StmtProducer = StmtProducer (
       this.arity - 1,
       sols => {
+        // TODO: I think this can happen but hasn't so far:
+        assert(idx == 0, "Partial application to non-first child")
+//        val padded = sols ++ List.fill(idx + 1 - sols.length)(dummySolution)
+//        this.apply(padded.updated(idx, s))
         this.apply(s +: sols)
       }
     )
@@ -148,6 +152,8 @@ object Rules {
   abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get all possible sub-derivations
     def apply(goal: Goal): Seq[RuleResult]
+
+    def cost: Int = 0
   }
 
   /**

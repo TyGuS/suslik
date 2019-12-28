@@ -9,7 +9,9 @@ import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
 import scala.collection.mutable
 
 object Memoization {
-  // Simplified, canonical goal for memoization
+  /**
+    * Simplified, canonical goal for memoization
+    */
   case class MemoGoal(pre: Assertion,
                       post: Assertion,
                       gamma: Gamma,
@@ -17,44 +19,80 @@ object Memoization {
                       universalGhosts: Set[Var],
                       sketch: Statement)
 
+  /**
+    * What has the search discovered about a goal so far?
+    */
   sealed abstract class GoalStatus
+  // This goal has been fully explored and failed
   case class Failed() extends GoalStatus
+  // This goal has been fully explored and produces solution `sol`
   case class Succeeded(sol: Solution) extends GoalStatus
+  // This goal has been expanded but not yet fully explored
+  // (its descendants are still in the worklist)
   case class Expanded() extends GoalStatus
 
-  class ResultMap {
-    private val memo: mutable.Map[MemoGoal, GoalStatus] = mutable.Map.empty
-    val suspended: mutable.Map[MemoGoal, List[OrNode]] = mutable.Map.empty
+  /**
+    * Caches search results for goals
+    */
+  class Memo {
+    // Maps goals we have seen to their search status
+    private val cache: mutable.Map[MemoGoal, GoalStatus] = mutable.Map.empty
+    // Maps expanded goals to equivalent ones that have been suspended waiting for this one to resolve
+    private val suspended: mutable.Map[MemoGoal, Set[NodeId]] = mutable.Map.empty.withDefaultValue(Set())
 
+    // For logging purposes
     def size: (Int, Int, Int) = (
-      memo.count(_._2.isInstanceOf[Failed]),
-      memo.count(_._2.isInstanceOf[Succeeded]),
-      memo.count(_._2.isInstanceOf[Expanded])
+      cache.count(_._2.isInstanceOf[Failed]),
+      cache.count(_._2.isInstanceOf[Succeeded]),
+      cache.count(_._2.isInstanceOf[Expanded])
       )
 
+    // Empty memo
     def clear(): Unit = {
-      memo.clear()
+      cache.clear()
+      suspended.clear()
     }
 
+    // Lookup goal in the cache
     def lookup(goal: Goal): Option[GoalStatus] = {
-      memo.get(trimGoal(goal))
+      cache.get(trimGoal(goal))
     }
 
-    def save(goal: Goal, status: GoalStatus): List[OrNode] = {
+    // Save search status of a goal
+    def save(goal: Goal, status: GoalStatus): Unit = {
       val key = trimGoal(goal)
-      memo(key) = status
+      cache(key) = status
       status match {
-        case Failed() => suspended.remove(key).getOrElse(Nil)
-        case Succeeded(_) => suspended.remove(key).getOrElse(Nil)
-        case Expanded() => Nil
+        case Failed() => suspended.remove(key)
+        case Succeeded(_) => suspended.remove(key)
+        case _ =>
+      }
+    }
+
+    // Forget a goal if it is expanded (but not resolved)
+    // Useful when we abandon a branch of search without resolving all goals,
+    // so now it's time for their suspended twins to shine.
+    def forgetExpanded(goal: Goal): Unit = {
+      val key = trimGoal(goal)
+      cache.get(key) match {
+        case Some(Expanded()) => {
+          cache.remove(key)
+          suspended.remove(key)
+        }
+        case _ =>
       }
     }
 
     def suspend(node: OrNode): Unit = {
       val key = trimGoal(node.goal)
-      val cur = suspended.getOrElse(key, Nil)
-      suspended(key) = node :: cur
+      suspended(key) = suspended(key) + node.id
     }
+
+    def isSuspended(node: OrNode): Boolean = {
+      suspended.values.exists(_.contains(node.id))
+    }
+
+    def suspendedSize: Int = suspended.size
 
     private def trimGoal(g: Goal): MemoGoal = MemoGoal(
       Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks.sorted)),
@@ -66,7 +104,6 @@ object Memoization {
 
   }
 
-
-  implicit val memo: ResultMap = new ResultMap()
+  implicit val memo: Memo = new Memo()
 
 }

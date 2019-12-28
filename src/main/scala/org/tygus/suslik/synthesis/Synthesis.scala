@@ -68,11 +68,11 @@ trait Synthesis extends SepLogicUtils {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
     }
 
-    val sortedWorklist = worklist.sortBy(_.goal.cost)
+    val sortedWorklist = worklist.sortBy(n => (memo.isSuspended(n), n.cost))
     val sz = sortedWorklist.length
-    printLog(List((s"Worklist ($sz): ${sortedWorklist.map(_.pp()).mkString(" ")}", Console.YELLOW)))
-//    printLog(List((s"Precursor map (${precursors.size})", Console.YELLOW)))
+    printLog(List((s"Worklist ($sz): ${sortedWorklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
     printLog(List((s"Memo (${memo.size})", Console.YELLOW)))
+    printLog(List((s"Suspended (${memo.suspendedSize})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     sortedWorklist match {
@@ -99,7 +99,7 @@ trait Synthesis extends SepLogicUtils {
           case Some(Expanded()) => {
             printLog(List(("Suspend", RED)))
             memo.suspend(node)
-            Left(rest)
+            Left(node :: rest)
           }
           case None => expandNode(node, rest)
         }
@@ -135,7 +135,7 @@ trait Synthesis extends SepLogicUtils {
           andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
           nSubs = e.subgoals.size
           (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
-          else e.subgoals.zip(Range(nSubs - 1, -1, -1))
+          else e.subgoals.zipWithIndex
           produce = g.allHeaplets - (goal.allHeaplets - e.consume)
         } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
 

@@ -21,6 +21,9 @@ object SearchTree {
     * For this node to succeed, one of its children has to succeed.
     */
   case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], produce: Footprint) {
+    // My index among the children of parent
+    def childIndex: Int = id.headOption.getOrElse(0).max(0)
+
     // Does this node have a ancestor with label l?
     def hasAncestor(l: Vector[Int]): Boolean =
       if (id == l) true
@@ -39,22 +42,14 @@ object SearchTree {
         else copy(parent = Some(p.copy(parent = p.parent.replaceAncestor(l, n))))
     }
 
-    private def failNodes(nodes: List[OrNode], wl: List[OrNode])(implicit stats: SynStats): List[OrNode] = nodes match {
-      case Nil => wl
-      case n :: rest => {
-        val newWl = n.fail(wl)
-        failNodes(rest, newWl)
-      }
-    }
-
     // This node has failed: prune siblings from worklist
     def fail(wl: List[OrNode])(implicit stats: SynStats): List[OrNode] = {
-//      val unsuspend = memo.save(goal, Failed())
-      val newWl = parent match {
+      memo.save(goal, Failed())
+      parent match {
         case None => wl // this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
-          val newWL = wl.filterNot(_.hasAncestor(an.id)) // prune all other descendants of an
+          val newWL = pruneDescendants(an.id, wl)  // prune all other descendants of an
           if (newWL.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
             newWL
           } else {
@@ -62,42 +57,40 @@ object SearchTree {
           }
         }
       }
-      val unsuspend = memo.save(goal, Failed())
-      failNodes(unsuspend, newWl)
-    }
-
-    private def succeedNodes(nodes: List[OrNode],
-                             s: Solution,
-                             res: Either[List[OrNode], Solution]): Either[List[OrNode], Solution] = res match {
-      case Right(sol) => Right(sol)
-      case Left(wl) => nodes match {
-        case Nil => Left(wl)
-        case n :: rest => {
-          val newRes = n.succeed(s, wl)
-          succeedNodes(rest, s, newRes)
-        }
-      }
     }
 
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = {
-//      val unsuspend = memo.save(goal, Succeeded(s))
-      val res = parent match {
+      memo.save(goal, Succeeded(s))
+      parent match {
         case None => Right(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
-          val newWL = wl.filterNot(_.hasAncestor(id)) // prune all my descendants from worklist
+          val newWL = pruneDescendants(id, wl) // prune all my descendants from worklist
           // Check if an has more open subgoals:
           if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
             an.parent.succeed(an.kont(List(s)), newWL)
           } else { // there are other open subgoals: partially apply and replace in descendants
-            val newAN = an.copy(kont = an.kont.partApply(s))
-            memo.suspended.mapValues(_.map(_.replaceAncestor(an.id, newAN)))
+            val newAN = an.copy(kont = an.kont.partApply(s, childIndex))
             Left(newWL.map(_.replaceAncestor(an.id, newAN)))
           }
         }
       }
-      val unsuspend = memo.save(goal, Succeeded(s))
-      succeedNodes(unsuspend, s, res)
+    }
+
+    // Worklist `wl` with all descendants of `ancestor` pruned
+    private def pruneDescendants(ancestor: NodeId, wl: List[OrNode]): List[OrNode] = {
+      val (toForget, newWL) = wl.partition(_.hasAncestor(ancestor))
+      toForget.foreach(_.forget(ancestor))
+      newWL
+    }
+
+    // Remove reflexive ancestors of this node until `until` from memo
+    private def forget(until: NodeId): Unit = parent match {
+      case None =>
+      case Some(an) => if (an.id.length >= until.length) {
+        memo.forgetExpanded(this.goal)
+        an.parent.forget(until)
+      }
     }
 
     // Or-nodes that are proper ancestors of this nodes in the search tree
@@ -112,21 +105,9 @@ object SearchTree {
     // Number of proper ancestors
     def depth: Int = ancestors.length
 
-    def isInvertible: Boolean = parent match {
-      case None => false
-      case Some(p) => p.rule.isInstanceOf[InvertibleRule]
-    }
-
     // Transition that describes the relationship between this node's goal
     // and its closest ancestor's goal
     def transition: Transition = Transition(parent.map(_.consume).getOrElse(emptyFootprint), produce)
-
-    // All (reflexive) ancestors of this node that commute with a transition that consumes newConsume,
-    // i.e. could be placed after this new transition without affecting the resulting goal
-    def commuters(newTransition: Transition): List[OrNode] =
-      (this :: ancestors).filterNot(_.isInvertible).takeWhile(n =>
-        n.transition.consume.disjoint(newTransition.removed) // the new transition doesn't remove something an ancestor depends on
-          && n.transition.produce.disjoint(newTransition.consume)) // the new transition doesn't rely on something produced by the ancestor
 
     def pp(d: Int = 0): String = parent match {
       case None => "-"
@@ -137,6 +118,9 @@ object SearchTree {
           p.pp(d + 1) ++ subgoalID
         }
     }
+
+    def cost: Int = goal.cost
+//    def cost: Int = (this :: ancestors).map(_.parent.map(_.rule.cost).getOrElse(0)).sum
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
     override def hashCode(): Int = id.hashCode()
