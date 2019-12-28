@@ -1,6 +1,5 @@
 package org.tygus.suslik.logic
 
-import javafx.collections.transformation.SortedList
 import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.synthesis.SynthesisException
