@@ -242,6 +242,8 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[RuleResult] = goal.sketch.uncons match {
       case (If(cond, tb, eb), Skip) => {
+        val unknown = cond.vars.filterNot(goal.isProgramVar)
+        symExecAssert(unknown.isEmpty, s"Unknown variables in condition: ${unknown.map(_.pp).mkString(",")}")
         val pre = goal.pre
         val thenGoal = goal.spawnChild(Assertion(pre.phi && cond, pre.sigma), sketch = tb)
         val elseGoal = goal.spawnChild(Assertion(pre.phi && cond.not, pre.sigma), sketch = eb)
