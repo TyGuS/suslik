@@ -29,9 +29,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l' * Q} ---> *x.f := l' ; S
 
   */
-  object WriteRuleOld extends SynthesisRule with InvertibleRule {
+  object WriteRule extends SynthesisRule with GeneratesCode with InvertibleRule {
 
-    override def toString: Ident = "WriteOld"
+    override def toString: Ident = "Write"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
@@ -67,49 +67,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
   }
 
-
-  /*
-  Write rule: create a new write from where it's possible
-
-  Γ ; {φ ; P} ; {ψ ; x.f -> Y * Q} ---> S   GV(l) = Ø  Y is fresh
-  ------------------------------------------------------------------------- [write]
-  Γ ; {φ ; P} ; {ψ ; x.f -> l * Q} ---> S; *x.f := l
-
-  */
-  object WriteRule extends SynthesisRule with InvertibleRule {
-
-    override def toString: Ident = "Write"
-
-    def apply(goal: Goal): Seq[RuleResult] = {
-
-      val pre = goal.pre
-      val post = goal.post
-
-      // Heaplets have no ghosts
-      def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
-        case _ => false
-      }
-
-      findHeaplet(noGhosts, post.sigma) match {
-        case None => Nil
-        case Some(h@PointsTo(x@Var(_), offset, l)) =>
-
-          // Same heaplet in pre: no point in writing
-          if (pre.sigma.chunks.contains(h)) return Nil
-
-          val y = generateFreshVar(goal)
-
-          val newPost = Assertion(post.phi, (post.sigma - h) ** PointsTo(x, offset, y))
-          val subGoal = goal.spawnChild(post = newPost)
-          val kont: StmtProducer = append(Store(x, offset, l)) >> handleGuard(goal) >> extractHelper(goal)
-          List(RuleResult(List(subGoal), kont, Footprint(emp, singletonHeap(h)), this))
-        case Some(h) =>
-          ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
-          Nil
-      }
-    }
-  }
   /*
   Read rule: create a fresh typed read
 
@@ -117,7 +74,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       ---------------------------------------------------------------- [read]
              Γ ; {φ ; x.f -> A * P} ; {ψ ; Q} ---> let y := *x.f ; S
   */
-  object ReadRule extends SynthesisRule with InvertibleRule {
+  object ReadRule extends SynthesisRule with GeneratesCode with InvertibleRule {
 
     override def toString: Ident = "Read"
 
@@ -163,7 +120,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
      -------------------------------------------------------------- [alloc]
      Γ ; {φ ; P} ; {ψ ; block(X, n) * Q} ---> let y = malloc(n); S
   */
-  object AllocRule extends SynthesisRule {
+  object AllocRule extends SynthesisRule with GeneratesCode {
     override def toString: Ident = "Alloc"
 
     val MallocInitVal = 666
@@ -213,7 +170,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
    ------------------------------------------------------------------------ [free]
    Γ ; {φ ; block(x, n) * x -> (l1 .. ln) * P} ; { ψ ; Q } ---> free(x); S
 */
-  object FreeRule extends SynthesisRule {
+  object FreeRule extends SynthesisRule with GeneratesCode {
 
     override def toString: Ident = "Free"
 

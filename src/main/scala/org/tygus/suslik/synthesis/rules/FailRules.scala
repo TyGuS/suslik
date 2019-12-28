@@ -57,7 +57,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
-  object AbduceBranch extends SynthesisRule with InvertibleRule {
+  object AbduceBranch extends SynthesisRule with GeneratesCode with InvertibleRule {
     override def toString: String = "AbduceBranch"
 
     def atomCandidates(goal: Goal): Seq[Expr] =

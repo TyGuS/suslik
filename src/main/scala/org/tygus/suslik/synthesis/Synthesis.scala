@@ -33,6 +33,7 @@ trait Synthesis extends SepLogicUtils {
     printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))
     val stats = new SynStats()
     SMTSolving.init()
+    memo.clear()
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
@@ -53,7 +54,6 @@ trait Synthesis extends SepLogicUtils {
                           (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
     val root = OrNode(Vector(), goal, None, goal.allHeaplets)
-    clearMemo(root)
     val worklist = List(root)
     processWorkList(worklist)(stats, goal.env.config)
   }
@@ -139,38 +139,13 @@ trait Synthesis extends SepLogicUtils {
           produce = g.allHeaplets - (goal.allHeaplets - e.consume)
         } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
 
-        def isSubsumed(n: OrNode): Boolean = {
-          precursors.subsumer(n, node) match {
-            case None => false
-            case Some(s) => {
-              printLog(List((s"Application ${n.pp()} commutes with earlier ${s.pp()}", RED)))
-              true
-            }
-          }
-        }
-
-        for {
-          n <- newNodes.filter(n => isSubsumed(n))
-        } stats.filteredNodes += n
-
-        val filteredNodes = newNodes
-        for ((n, i) <- newNodes.zipWithIndex) {
-
-          val precs = newNodes.take(i).map(_.transition).toSet
-          if (filteredNodes.contains(n))
-          // If this node has younger and-siblings, do not add any precursors:
-          // the precursor might have failed because of its younger sibling
-          // and not because of n!
-            precursors.save(n.id, precs)
-        }
-
-        if (filteredNodes.isEmpty) {
+        if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
           Left(node.fail(rest))
         } else {
-          stats.addGeneratedGoals(filteredNodes.size)
-          Left(filteredNodes.toList ++ rest)
+          stats.addGeneratedGoals(newNodes.size)
+          Left(newNodes.toList ++ rest)
         }
       }
     }

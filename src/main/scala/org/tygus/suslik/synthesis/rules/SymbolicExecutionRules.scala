@@ -187,7 +187,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  object GuidedCall extends SynthesisRule with UnfoldingPhase {
+  object GuidedCall extends SynthesisRule with UnfoldingPhase with InvertibleRule {
 
     override def toString: Ident = "SE-Call"
 

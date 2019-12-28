@@ -36,7 +36,7 @@ object SearchTree {
       case Some(p) =>
         if (p.id == l) copy(parent = Some(n))
         else if (p.id.length <= l.length) this
-        else p.parent.replaceAncestor(l, n)
+        else copy(parent = Some(p.copy(parent = p.parent.replaceAncestor(l, n))))
     }
 
     private def failNodes(nodes: List[OrNode], wl: List[OrNode])(implicit stats: SynStats): List[OrNode] = nodes match {
@@ -49,12 +49,12 @@ object SearchTree {
 
     // This node has failed: prune siblings from worklist
     def fail(wl: List[OrNode])(implicit stats: SynStats): List[OrNode] = {
+//      val unsuspend = memo.save(goal, Failed())
       val newWl = parent match {
         case None => wl // this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
           val newWL = wl.filterNot(_.hasAncestor(an.id)) // prune all other descendants of an
-          precursors.removeDescendants(an.id) // also prune them from precursor map
           if (newWL.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
             newWL
           } else {
@@ -73,23 +73,25 @@ object SearchTree {
       case Left(wl) => nodes match {
         case Nil => Left(wl)
         case n :: rest => {
-          n.succeed(s, wl)
+          val newRes = n.succeed(s, wl)
+          succeedNodes(rest, s, newRes)
         }
       }
     }
 
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = {
+//      val unsuspend = memo.save(goal, Succeeded(s))
       val res = parent match {
         case None => Right(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
           val newWL = wl.filterNot(_.hasAncestor(id)) // prune all my descendants from worklist
-          precursors.removeDescendants(this.id) // also prune them from precursor map
           // Check if an has more open subgoals:
           if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
             an.parent.succeed(an.kont(List(s)), newWL)
           } else { // there are other open subgoals: partially apply and replace in descendants
             val newAN = an.copy(kont = an.kont.partApply(s))
+            memo.suspended.mapValues(_.map(_.replaceAncestor(an.id, newAN)))
             Left(newWL.map(_.replaceAncestor(an.id, newAN)))
           }
         }

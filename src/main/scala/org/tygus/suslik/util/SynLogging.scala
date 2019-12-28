@@ -74,8 +74,6 @@ class SynStats {
   // Nodes that have been backtracked out of
   private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
   // Nodes that have been filtered out by symmetry reduction
-  // TODO: remove this
-  val filteredNodes: mutable.HashSet[OrNode] = mutable.HashSet()
 
   // Tell all n's ancestors that n has been explored
   private def markExplored(n: OrNode): Unit = {
@@ -110,11 +108,6 @@ class SynStats {
   def hotNodes(count: Int = 1): List[(AndNode, Int)] = {
     val maxNodes = failedNodes.toList.sortBy(n => -descendantsExplored(n.id)).take(count)
     maxNodes.map(n => (n, descendantsExplored(n.id)))
-  }
-
-  def hotFilteredNodes(count: Int = 1): List[(OrNode, Int)] = {
-    val maxNodes = filteredNodes.toList.sortBy(n => -descendantsExplored.getOrElse(n.id, 0)).take(count)
-    maxNodes.map(n => (n, descendantsExplored.getOrElse(n.id, 0)))
   }
 
   def numGoalsGenerated: Int = goalsGenerated

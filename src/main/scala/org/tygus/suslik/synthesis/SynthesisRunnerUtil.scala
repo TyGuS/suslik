@@ -128,8 +128,6 @@ trait SynthesisRunnerUtil {
       testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
       val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
       testPrintln(s"Hot nodes:\n $hotNodesString")
-      val hotFNodesString = stats.hotFilteredNodes(5).map{case (n, s) => printHotNode(n.parent.get, s)}.mkString("\n")
-      testPrintln(s"Hot filtered nodes:\n $hotFNodesString")
     }
 
     sresult._1 match {

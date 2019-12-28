@@ -158,6 +158,9 @@ object Rules {
   // so no need to backtrack in case of failure
   trait InvertibleRule
 
+  // This rule produces code
+  trait GeneratesCode
+
   trait UnfoldingPhase {
     def heapletFilter(h: Heaplet): Boolean = {
       h.isInstanceOf[SApp]

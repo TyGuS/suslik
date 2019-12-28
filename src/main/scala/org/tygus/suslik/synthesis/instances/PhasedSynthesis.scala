@@ -5,7 +5,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.smt.SMTSolving.sat
 import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
+import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 import org.tygus.suslik.synthesis.rules._
 import org.tygus.suslik.util.SynLogging
@@ -24,31 +24,39 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     val config = goal.env.config
     if (goal.sketch != Hole)
     // Until we encounter a hole, symbolically execute the sketch
-      symbolicExecutionRules(config)
+      anyPhaseRules(config).filterNot(_.isInstanceOf[GeneratesCode]) ++
+        symbolicExecutionRules(config) ++
+        specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (!config.phased)
     // Phase distinction is disabled: use all non top-level rules
       anyPhaseRules(config) ++ unfoldingPhaseRules(config) ++
         postBlockPhaseRules(config) ++ preBlockPhaseRules(config) ++
         pointerPhaseRules(config) ++ purePhaseRules(config)
-    else if (node.parent.isDefined && node.parent.get.rule == AbduceCall && node.id.head == 0)
-      // TODO: This is a hack: AbduceCall does not make progress,
-      // and hence has to be followed by Call, otherwise synthesis gets stuck.
-      // Proper fix: merge the two rules
+    else anyPhaseRules(config) ++ specBasedRules(node)
+  }
+
+  def specBasedRules(node: OrNode): List[SynthesisRule] = {
+    val goal = node.goal
+    val config = goal.env.config
+    if (node.parent.isDefined && node.parent.get.rule == AbduceCall && node.id.head == 0)
+    // TODO: This is a hack: AbduceCall does not make progress,
+    // and hence has to be followed by Call, otherwise synthesis gets stuck.
+    // Proper fix: merge the two rules
       List(CallRule)
     else if (goal.hasPredicates)
-      // Unfolding phase: get rid of predicates
-      anyPhaseRules(config) ++ unfoldingPhaseRules(config)
+    // Unfolding phase: get rid of predicates
+      unfoldingPhaseRules(config)
     else if (goal.post.hasBlocks)
-      // Block phase: get rid of blocks
-      anyPhaseRules(config) ++ postBlockPhaseRules(config)
+    // Block phase: get rid of blocks
+      postBlockPhaseRules(config)
     else if (goal.hasBlocks)
-      anyPhaseRules(config) ++ preBlockPhaseRules(config)
+      preBlockPhaseRules(config)
     else if (goal.hasExistentialPointers)
-      // Pointer phase: match all existential pointers
-      anyPhaseRules(config) ++ pointerPhaseRules(config)
+    // Pointer phase: match all existential pointers
+      pointerPhaseRules(config)
     else
-      // Pure phase: get rid of all the heap
-      anyPhaseRules(config) ++ purePhaseRules(config)
+    // Pure phase: get rid of all the heap
+      purePhaseRules(config)
   }
 
   def anyPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
@@ -56,8 +64,8 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
-//    LogicalRules.SubstLeftVar,
     OperationalRules.ReadRule,
+//    LogicalRules.SubstLeftVar,
   )
 
   def symbolicExecutionRules(config: SynConfig):  List[SynthesisRule] = List(
@@ -68,26 +76,26 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     SymbolicExecutionRules.GuidedFree,
     SymbolicExecutionRules.Conditional,
     SymbolicExecutionRules.GuidedCall,
-    LogicalRules.EmpRule,
-    LogicalRules.StarPartial,
-    LogicalRules.NilNotLval,
-    LogicalRules.Inconsistency,
-    if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
-    LogicalRules.SubstLeftVar,
-    LogicalRules.FrameUnfolding,
-    UnificationRules.HeapUnifyUnfolding,
-    UnfoldingRules.Close,
-    LogicalRules.FrameBlock,
-    UnificationRules.HeapUnifyBlock,
-    LogicalRules.SubstLeft,
-    UnificationRules.SubstRight,
-    LogicalRules.FrameFlat,
-    UnificationRules.HeapUnifyPointer,
-    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
-    UnificationRules.HeapUnifyPure,
-//    UnificationRules.PureUnify,
-    UnificationRules.Pick,
-//    UnificationRules.PickFromEnvRule
+//    LogicalRules.EmpRule,
+//    LogicalRules.StarPartial,
+//    LogicalRules.NilNotLval,
+//    LogicalRules.Inconsistency,
+//    if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
+//    LogicalRules.SubstLeftVar,
+//    LogicalRules.FrameUnfolding,
+//    UnificationRules.HeapUnifyUnfolding,
+//    UnfoldingRules.Close,
+//    LogicalRules.FrameBlock,
+//    UnificationRules.HeapUnifyBlock,
+//    LogicalRules.SubstLeft,
+//    UnificationRules.SubstRight,
+//    LogicalRules.FrameFlat,
+//    UnificationRules.HeapUnifyPointer,
+//    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
+//    UnificationRules.HeapUnifyPure,
+////    UnificationRules.PureUnify,
+//    UnificationRules.Pick,
+////    UnificationRules.PickFromEnvRule
   )
 
   def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
@@ -118,7 +126,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
     LogicalRules.FrameFlat,
-    OperationalRules.WriteRuleOld,
+    OperationalRules.WriteRule,
     UnificationRules.HeapUnifyPointer,
   )
 
@@ -129,7 +137,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
     LogicalRules.FrameFlat,
-    OperationalRules.WriteRuleOld,
+    OperationalRules.WriteRule,
     //    UnificationRules.PureUnify,
     UnificationRules.HeapUnifyPure,
     UnificationRules.Pick,
