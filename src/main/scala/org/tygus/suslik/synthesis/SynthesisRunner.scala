@@ -137,7 +137,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('d', name = "depth").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(depthFirst = b))
-    }.text("depth first search; default: true")
+    }.text("depth first search; default: false")
+
+    opt[Boolean]('i', "interactive").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(interactive = b))
+    }.text("interactive mode; default: false")
 
     opt[Boolean]('s', "printStats").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printStats = b))

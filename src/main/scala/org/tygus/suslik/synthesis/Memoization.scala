@@ -59,7 +59,7 @@ object Memoization {
     }
 
     // Save search status of a goal
-    def save(goal: Goal, status: GoalStatus): Unit = {
+    def save(goal: Goal, status: GoalStatus)(implicit config: SynConfig): Unit = if (config.memoization) {
       val key = trimGoal(goal)
       cache(key) = status
       status match {
@@ -83,7 +83,7 @@ object Memoization {
       }
     }
 
-    def suspend(node: OrNode): Unit = {
+    def suspend(node: OrNode)(implicit config: SynConfig): Unit = if (config.memoization) {
       val key = trimGoal(node.goal)
       suspended(key) = suspended(key) + node.id
     }

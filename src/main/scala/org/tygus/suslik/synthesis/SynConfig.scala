@@ -20,8 +20,9 @@ case class SynConfig(
                       invert: Boolean           = true,
                       fail: Boolean             = true,
                       commute: Boolean          = true,
-                      depthFirst: Boolean       = true,
+                      depthFirst: Boolean       = false,
                       // Timeout and logging
+                      interactive: Boolean      = false,
                       printStats: Boolean       = true,
                       printDerivations: Boolean = false,
                       printFailed: Boolean      = false,

@@ -43,7 +43,7 @@ object SearchTree {
     }
 
     // This node has failed: prune siblings from worklist
-    def fail(wl: List[OrNode])(implicit stats: SynStats): List[OrNode] = {
+    def fail(wl: List[OrNode])(implicit stats: SynStats, config: SynConfig): List[OrNode] = {
       memo.save(goal, Failed())
       parent match {
         case None => wl // this is the root; wl must already be empty
@@ -60,7 +60,7 @@ object SearchTree {
     }
 
     // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution, wl: List[OrNode]): Either[List[OrNode], Solution] = {
+    def succeed(s: Solution, wl: List[OrNode])(implicit config: SynConfig): Either[List[OrNode], Solution] = {
       memo.save(goal, Succeeded(s))
       parent match {
         case None => Right(s) // this is the root: synthesis succeeded
@@ -120,7 +120,7 @@ object SearchTree {
     }
 
     def cost: Int = goal.cost
-//    def cost: Int = (this :: ancestors).map(_.parent.map(_.rule.cost).getOrElse(0)).sum
+//    def cost: Int = goal.cost.max((this :: ancestors).map(_.parent.map(_.rule.cost).getOrElse(0)).max)
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
     override def hashCode(): Int = id.hashCode()

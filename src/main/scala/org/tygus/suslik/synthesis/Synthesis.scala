@@ -64,11 +64,11 @@ trait Synthesis extends SepLogicUtils {
                                      config: SynConfig): Option[Solution] = {
     // Check for timeouts
     val currentTime = System.currentTimeMillis()
-    if (currentTime - config.startTime > config.timeOut) {
+    if (!config.interactive && currentTime - config.startTime > config.timeOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
     }
 
-    val sortedWorklist = worklist.sortBy(n => (memo.isSuspended(n), n.cost))
+    val sortedWorklist = if (config.depthFirst) worklist else worklist.sortBy(n => (memo.isSuspended(n), n.cost))
     val sz = sortedWorklist.length
     printLog(List((s"Worklist ($sz): ${sortedWorklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
     printLog(List((s"Memo (${memo.size})", Console.YELLOW)))
@@ -115,14 +115,20 @@ trait Synthesis extends SepLogicUtils {
                                          config: SynConfig): Either[List[OrNode], Solution] = {
     val goal = node.goal
     memo.save(goal, Expanded())
-    implicit val ind = goal.depth
+    implicit val ind: Int = goal.depth
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
     val rules = nextRules(node)
-    val expansions =
+    val allExpansions =
       if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
       else applyRules(rules)(node, stats, config, ind)
+
+    val expansions = if (config.interactive) {
+      // Interactive mode: ask user to pick an expansion
+      val choice = if (allExpansions.length == 1) 0 else readInt
+      if (0 < choice && choice <= allExpansions.size) List(allExpansions(choice - 1)) else allExpansions
+    } else allExpansions
 
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
@@ -134,10 +140,9 @@ trait Synthesis extends SepLogicUtils {
           //              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
           andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
           nSubs = e.subgoals.size
-          (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
-          else e.subgoals.zipWithIndex
-          produce = g.allHeaplets - (goal.allHeaplets - e.consume)
-        } yield OrNode(j +: andNode.id, g, Some(andNode), produce)
+          ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
+          else e.subgoals.zip(e.produces(goal)).zipWithIndex
+        } yield OrNode(j +: andNode.id, g, Some(andNode), p)
 
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
@@ -156,8 +161,8 @@ trait Synthesis extends SepLogicUtils {
                                                        stats: SynStats,
                                                        config: SynConfig,
                                                        ind: Int): Seq[RuleResult] = {
-    implicit val goal = node.goal
-    implicit val ind = goal.depth
+    implicit val goal: Goal = node.goal
+    implicit val ind: Int = goal.depth
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
@@ -170,7 +175,7 @@ trait Synthesis extends SepLogicUtils {
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
-          val childFootprints = children.map(c => s"$GREEN{${c.consume.pre.pp}}$MAGENTA{${c.consume.post.pp}}$BLACK")
+          val childFootprints = children.map(showChild(goal))
           printLog(List((s"$r (${children.size}): ${childFootprints.head}", BLACK)))
           for {c <- childFootprints.tail}
             printLog(List((c, BLACK)))(config = config, ind = goal.depth + 1)
@@ -184,6 +189,16 @@ trait Synthesis extends SepLogicUtils {
           }
         }
     }
+  }
+
+  private def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$BLACK"
+  private def showChild(goal: Goal)(c: RuleResult): String =
+    c.subgoals.length match {
+    case 0 => showFootprint(c.consume)
+    case 1 =>
+      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}"
+    case _ =>
+      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}, ..."
   }
 
   private def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "|  " * ind

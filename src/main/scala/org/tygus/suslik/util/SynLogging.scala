@@ -7,6 +7,7 @@ import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.{Memoization, SynConfig}
 
 import scala.collection.mutable
+import scala.io.StdIn
 
 /**
   * @author Ilya Sergey
@@ -22,6 +23,8 @@ sealed abstract class SynLogging {
   def printlnErr(s: String): Unit
 
   def testPrintln(s: String, color: String = Console.BLACK): Unit
+
+  def readInt: Int
 }
 
 /**
@@ -41,6 +44,8 @@ object SynLogLevels {
     }
 
     override def println(): Unit = Console.println()
+
+    def readInt: Int = StdIn.readInt()
   }
 
   object Test extends SynLogging {
@@ -56,6 +61,8 @@ object SynLogLevels {
     override def testPrintln(s: String, color: String = Console.BLACK): Unit = {
       Console.println(s"$color$s${Console.BLACK}")
     }
+
+    def readInt: Int = 0
   }
 
 }

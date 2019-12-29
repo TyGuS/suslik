@@ -142,6 +142,8 @@ object Rules {
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String = rule.toString // s"[${subgoals.map(_.label.pp).mkString(", ")}]"
+
+    def produces(parent: Goal): Seq[Footprint] = subgoals.map(g => g.allHeaplets - (parent.allHeaplets - consume))
   }
 
   /**
