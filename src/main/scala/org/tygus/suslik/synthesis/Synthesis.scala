@@ -50,6 +50,8 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
+  type Worklist = List[OrNode]
+
   protected def synthesize(goal: Goal)
                           (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
@@ -58,7 +60,7 @@ trait Synthesis extends SepLogicUtils {
     processWorkList(worklist)(stats, goal.env.config)
   }
 
-  @tailrec final def processWorkList(worklist: List[OrNode])
+  @tailrec final def processWorkList(worklist: Worklist)
                                     (implicit
                                      stats: SynStats,
                                      config: SynConfig): Option[Solution] = {
@@ -75,17 +77,10 @@ trait Synthesis extends SepLogicUtils {
 
     if (worklist.isEmpty) None // No more goals to try: synthesis failed
     else {
-      val (node, rest) = // Select next node to expand:
-        if (config.depthFirst)  // DFS? Pick the first one
-          (worklist.head, worklist.tail)
-        else {  // Otherwise pick a minimum-cost node that is not suspended
-          val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
-          (best, worklist.filterNot(_.id == best.id))
-        }
-
-      stats.addExpandedGoal(node)
+      val (node, withRest) = selectNode(worklist) // Select next node to expand
       val goal = node.goal
       implicit val ind: Int = goal.depth
+      stats.addExpandedGoal(node)
       printLog(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW)))
       if (config.printEnv) {
         printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
@@ -96,18 +91,18 @@ trait Synthesis extends SepLogicUtils {
       val res = memo.lookup(goal) match {
         case Some(Failed()) => { // Same goal has failed before: record as failed
           printLog(List((s"Recalled FAIL", RED)))
-          Left(node.fail(rest))
+          Left(node.fail(withRest(Nil)))
         }
-        case Some(Succeeded(sol)) => { // Same goal has suceeded before: return the same solution
+        case Some(Succeeded(sol)) => { // Same goal has succeeded before: return the same solution
           printLog(List((s"Recalled solution ${sol._1.pp}", RED)))
-          node.succeed(sol, rest)
+          node.succeed(sol, withRest(Nil))
         }
-        case Some(Expanded()) => { // Same goal has been explanded before: wait until it's fully explored
+        case Some(Expanded()) => { // Same goal has been expanded before: wait until it's fully explored
           printLog(List(("Suspend", RED)))
           memo.suspend(node)
-          Left(node :: rest)
+          Left(withRest(List(node)))
         }
-        case None => expandNode(node, rest) // First time we see this goal: do expand
+        case None => expandNode(node, withRest) // First time we see this goal: do expand
       }
       res match {
         case Left(newWorklist) => processWorkList(newWorklist)
@@ -116,8 +111,19 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
+  // Given a worklist, return the next node to work on
+  // and a strategy for combining its children with the rest of the list
+  protected def selectNode(worklist: Worklist)(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
+    if (config.depthFirst)  // DFS? Pick the first one
+      (worklist.head, _ ++ worklist.tail)
+    else {  // Otherwise pick a minimum-cost node that is not suspended
+      val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
+      val idx = worklist.indexOf(best)
+      (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))
+    }
+
   // Expand node and return either a new worklist or the final solution
-  protected def expandNode(node: OrNode, rest: List[OrNode])(implicit stats: SynStats,
+  protected def expandNode(node: OrNode, withRest: List[OrNode] => List[OrNode])(implicit stats: SynStats,
                                          config: SynConfig): Either[List[OrNode], Solution] = {
     val goal = node.goal
     memo.save(goal, Expanded())
@@ -138,7 +144,7 @@ trait Synthesis extends SepLogicUtils {
 
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
-      case Some(e) => node.succeed(e.kont(Nil), rest)
+      case Some(e) => node.succeed(e.kont(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
@@ -162,10 +168,10 @@ trait Synthesis extends SepLogicUtils {
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-          Left(node.fail(rest))
+          Left(node.fail(withRest(Nil)))
         } else {
           stats.addGeneratedGoals(newNodes.size)
-          Left(newNodes.toList ++ rest)
+          Left(withRest(newNodes.toList))
         }
       }
     }
