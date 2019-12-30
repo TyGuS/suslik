@@ -68,49 +68,55 @@ trait Synthesis extends SepLogicUtils {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
     }
 
-    val sortedWorklist = if (config.depthFirst) worklist else worklist.sortBy(n => (memo.isSuspended(n), n.cost))
-    val sz = sortedWorklist.length
-    printLog(List((s"Worklist ($sz): ${sortedWorklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
-    printLog(List((s"Memo (${memo.size})", Console.YELLOW)))
-    printLog(List((s"Suspended (${memo.suspendedSize})", Console.YELLOW)))
+    val sz = worklist.length
+    printLog(List((s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
+    printLog(List((s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
-    sortedWorklist match {
-      case Nil => // No more goals to try: synthesis failed
-        None
-      case node :: rest => {
-        stats.addExpandedGoal(node)
-        val goal = node.goal
-        implicit val ind = goal.depth
-        if (config.printEnv) {
-          printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+    if (worklist.isEmpty) None // No more goals to try: synthesis failed
+    else {
+      val (node, rest) = // Select next node to expand:
+        if (config.depthFirst)  // DFS? Pick the first one
+          (worklist.head, worklist.tail)
+        else {  // Otherwise pick a minimum-cost node that is not suspended
+          val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
+          (best, worklist.filterNot(_.id == best.id))
         }
-        printLog(List((s"${goal.pp}", Console.BLUE)))
 
-        val res = memo.lookup(goal) match {
-          case Some(Failed()) => {
-            printLog(List((s"Recalled FAIL", RED)))
-            Left(node.fail(rest))
-          }
-          case Some(Succeeded(sol)) => {
-            printLog(List((s"Recalled solution ${sol._1.pp}", RED)))
-            node.succeed(sol, rest)
-          }
-          case Some(Expanded()) => {
-            printLog(List(("Suspend", RED)))
-            memo.suspend(node)
-            Left(node :: rest)
-          }
-          case None => expandNode(node, rest)
+      stats.addExpandedGoal(node)
+      val goal = node.goal
+      implicit val ind: Int = goal.depth
+      printLog(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW)))
+      if (config.printEnv) {
+        printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+      }
+      printLog(List((s"${goal.pp}", Console.BLUE)))
+
+      // Lookup the node in the memo
+      val res = memo.lookup(goal) match {
+        case Some(Failed()) => { // Same goal has failed before: record as failed
+          printLog(List((s"Recalled FAIL", RED)))
+          Left(node.fail(rest))
         }
-        res match {
-          case Left(newWorklist) => processWorkList(newWorklist)
-          case Right(solution) => Some(solution)
+        case Some(Succeeded(sol)) => { // Same goal has suceeded before: return the same solution
+          printLog(List((s"Recalled solution ${sol._1.pp}", RED)))
+          node.succeed(sol, rest)
         }
+        case Some(Expanded()) => { // Same goal has been explanded before: wait until it's fully explored
+          printLog(List(("Suspend", RED)))
+          memo.suspend(node)
+          Left(node :: rest)
+        }
+        case None => expandNode(node, rest) // First time we see this goal: do expand
+      }
+      res match {
+        case Left(newWorklist) => processWorkList(newWorklist)
+        case Right(solution) => Some(solution)
       }
     }
   }
 
+  // Expand node and return either a new worklist or the final solution
   protected def expandNode(node: OrNode, rest: List[OrNode])(implicit stats: SynStats,
                                          config: SynConfig): Either[List[OrNode], Solution] = {
     val goal = node.goal
@@ -134,15 +140,24 @@ trait Synthesis extends SepLogicUtils {
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) => node.succeed(e.kont(Nil), rest)
       case None => { // no terminals: add all expansions to worklist
+        // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          //              alternatives = expansions.filter(_.rule == e.rule)
-          //              altLabel = if (alternatives.size == 1) "" else alternatives.indexOf(e).toString // this is here only for logging
           andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
           nSubs = e.subgoals.size
           ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
           else e.subgoals.zip(e.produces(goal)).zipWithIndex
         } yield OrNode(j +: andNode.id, g, Some(andNode), p)
+
+        // Suspend nodes with older and-siblings
+        newNodes.foreach (n => {
+          val idx = n.childIndex
+          if (idx > 0) {
+            val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
+            printLog(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
+            memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it suceeds
+          }
+        })
 
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else

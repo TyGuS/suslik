@@ -71,7 +71,7 @@ object SearchTree {
           if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
             an.parent.succeed(an.kont(List(s)), newWL)
           } else { // there are other open subgoals: partially apply and replace in descendants
-            val newAN = an.copy(kont = an.kont.partApply(s, childIndex))
+            val newAN = an.copy(kont = an.kont.partApply(s))
             Left(newWL.map(_.replaceAncestor(an.id, newAN)))
           }
         }

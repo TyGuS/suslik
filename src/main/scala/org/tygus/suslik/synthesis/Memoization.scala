@@ -88,6 +88,12 @@ object Memoization {
       suspended(key) = suspended(key) + node.id
     }
 
+    // Suspend node until keyNode is fully explored
+    def suspendSibling(node: OrNode, keyNode: OrNode): Unit = {
+      val key = trimGoal(keyNode.goal)
+      suspended(key) = suspended(key) + node.id
+    }
+
     def isSuspended(node: OrNode): Boolean = {
       suspended.values.exists(_.contains(node.id))
     }
