@@ -47,7 +47,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     case PointsTo(_, _, _) => 0
     case Block(_, _) => 0
     case SApp(_, _, None) => 3
-    case SApp(_, _, Some(n)) => n + 1
+    case SApp(_, _, Some(n)) => n
 //    case PointsTo(_, _, _) => 1
 //    case Block(_, _) => 1
 //    case SApp(_, _, _) => 10
@@ -224,7 +224,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
   def size: Int = chunks.map(_.size).sum
 
   def cost: Int = chunks.map(_.cost).sum
-//  def cost: Int = (0 :: chunks.map(_.cost)).max
+//  def cost: Int = chunks.foldLeft(0)((m, c) => m.max(c.cost))
 }
 
 

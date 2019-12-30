@@ -93,7 +93,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
       val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
         goal.env.functions.values.map (f => (f, None)) // components
-      for {
+      val results = for {
         (f, l) <- funLabels
 
         // Find all subsets of the goal's pre that might be unified
@@ -116,6 +116,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
         RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
       }
+      results.groupBy(r => r.subgoals.head.pre).map(_._2.head).toList
     }
 
     /**
@@ -130,7 +131,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
-//      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
+      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
       val addedChunks2 = callPost.sigma.lockSAppTags()
       // Here we return two options for added chunks:
       // (a) with bumped tags
@@ -164,7 +165,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
       val fpecs = cands.map(_.toFunSpec) ++ // companions
         goal.env.functions.values // components
-      for {
+      val results = for {
         _f <- fpecs
         // Make a "relaxed" substitution for the spec
         fStrict = _f.refreshExistentials(goal.vars)
@@ -188,6 +189,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont = seqComp >> handleGuard(goal) >> extractHelper(goal)
         RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), this)
       }
+      results.groupBy(r => r.subgoals.last.pre).map(_._2.head).toList
     }
 
     def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): Option[(Goal, Goal)] = {

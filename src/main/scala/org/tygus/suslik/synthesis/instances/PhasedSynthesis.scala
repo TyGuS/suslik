@@ -65,7 +65,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.Inconsistency,
     if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
     OperationalRules.ReadRule,
-//    LogicalRules.SubstLeftVar,
+//    LogicalRules.SubstLeft,
   )
 
   def symbolicExecutionRules(config: SynConfig):  List[SynthesisRule] = List(

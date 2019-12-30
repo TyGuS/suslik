@@ -4,6 +4,7 @@ import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, SynthesisRule}
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.{AbduceCall, CallRule}
 import org.tygus.suslik.util.SynStats
 
 /**
@@ -93,14 +94,17 @@ object SearchTree {
       }
     }
 
-    // Or-nodes that are proper ancestors of this nodes in the search tree
-    def ancestors: List[OrNode] = parent match {
+    // And nodes that are proper ancestors of this node in the search tree
+    def andAncestors: List[AndNode] = parent match {
       case None => Nil
-      case Some(p) => {
-        val gp = p.parent
-        gp :: gp.ancestors
-      }
+      case Some(p) => p :: p.parent.andAncestors
     }
+
+    // Or-nodes that are proper ancestors of this node in the search tree
+    def ancestors: List[OrNode] = andAncestors.map(_.parent)
+
+    // Rules that lead to this node
+    def ruleHistory: List[SynthesisRule] = andAncestors.map(_.rule)
 
     // Number of proper ancestors
     def depth: Int = ancestors.length
@@ -119,8 +123,13 @@ object SearchTree {
         }
     }
 
-    def cost: Int = goal.cost
-//    def cost: Int = goal.cost.max((this :: ancestors).map(_.parent.map(_.rule.cost).getOrElse(0)).max)
+    lazy val cost: Int = {
+//      val history = ruleHistory
+//      val callCount = history.count(_ == CallRule)
+//      val hasAbduceCall = history.nonEmpty && history.head == AbduceCall
+      // TODO: we'll need to include calls in the cost if we don't lock tags
+      goal.cost  // (callCount + (if (hasAbduceCall) 1 else 0))
+    }
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
     override def hashCode(): Int = id.hashCode()
