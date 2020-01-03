@@ -73,10 +73,11 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // Toggle this to enable abduction of conjunctions
       // (without branch pruning, produces too many branches)
 //      atoms
-      for {
+      val conds = for {
         subset <- atoms.toSet.subsets.toSeq
         if subset.nonEmpty
       } yield PFormula(subset).toExpr
+      conds.sorted
     }
 
     /**
@@ -108,7 +109,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           programVars = bGoal.programVars,
           childId = Some(1))
       } yield RuleResult(List(thenGoal, elseGoal),
-        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))),
+        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))) ,
         goal.allHeaplets,
         this)
 

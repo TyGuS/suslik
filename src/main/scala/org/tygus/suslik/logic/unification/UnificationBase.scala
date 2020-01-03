@@ -72,7 +72,7 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
       */
     def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Seq[(Subst, List[UAtom])] = {
       for {
-        candidate <-sourceChunks
+        candidate <- sourceChunks
         sbst <- tryUnify(tc, candidate, takenVars)
         if checkSubstWF(sbst)
       } yield {

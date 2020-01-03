@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements.{Solution, Statement}
 import org.tygus.suslik.logic.Gamma
-import org.tygus.suslik.logic.Specifications.{Assertion, Goal, Transition, mkSFormula}
+import org.tygus.suslik.logic.Specifications.{Assertion, Goal, mkSFormula}
 import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
 
 import scala.collection.mutable

@@ -116,7 +116,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
         RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
       }
-      results.groupBy(r => r.subgoals.head.pre).map(_._2.head).toList
+      nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
     }
 
     /**
@@ -189,7 +189,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont = seqComp >> handleGuard(goal) >> extractHelper(goal)
         RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), this)
       }
-      results.groupBy(r => r.subgoals.last.pre).map(_._2.head).toList
+      nubBy[RuleResult, Assertion](results, r => r.subgoals.last.pre)
     }
 
     def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): Option[(Goal, Goal)] = {

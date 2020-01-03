@@ -61,21 +61,11 @@ trait SepLogicUtils extends PureLogicUtils {
         val pts = for (off <- 0 until sz) yield
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
         Some((h, pts.flatten))
-      case Some(h) =>
-        None // todo: is this correct?
-      // For example find heaplet can stop at PointsTo, not reach the block and return None.
-      // I think there should be findHeaplet(pBlock and isBlock, sigma) match { ...
-
     }
   }
 
   def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
-//    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = (lilTag, largTag) match {
-//      case (Some(x), Some(y)) => x - y
-//      case _ => 0
-//    }
-
-    def compareTags(lilTag: Option[Int], largTag: Option[Int]) = lilTag.getOrElse(0) - largTag.getOrElse(0)
+    def compareTags(lilTag: Option[Int], largTag: Option[Int]): Int = lilTag.getOrElse(0) - largTag.getOrElse(0)
 
     val pairTags = for {
       SApp(name, args, t) <- adaptedFunPre.chunks

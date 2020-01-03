@@ -550,7 +550,6 @@ object Expressions {
    */
 
   def eTrue: Expr = BoolConst(true)
-
   def eFalse: Expr = BoolConst(false)
 
   /*
@@ -558,6 +557,9 @@ object Expressions {
    */
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
+
+  def toSorted[A <: Expr](s: Set[A]): List[A] = s.toList.sorted(Ordering[Expr])
+  def least[A <: Expr](s: Set[Var]): List[Var] = if (s.isEmpty) Nil else List(s.min(Ordering[Expr]))
 
 }
 
