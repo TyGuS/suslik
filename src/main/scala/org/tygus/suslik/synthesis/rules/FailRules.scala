@@ -73,25 +73,26 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // Toggle this to enable abduction of conjunctions
       // (without branch pruning, produces too many branches)
 //      atoms
-      val conds = for {
-        subset <- atoms.toSet.subsets.toSeq
+      for {
+        subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
         if subset.nonEmpty
       } yield PFormula(subset).toExpr
-      conds.sorted
     }
 
     /**
       * Find the earliest ancestor of goal
       * that is still valid and has all variables from vars
       */
-    def findBranchPoint(vars: Set[Var], goal: Goal, valid: Boolean): Option[Goal] = goal.parent match {
-      case None => if (valid) Some(goal) else None // goal is root: return itself if valid
-      case Some(pGoal) =>
-        if (vars.subsetOf(pGoal.programVars.toSet)) {
-          // Parent goal has all variables from vars: recurse
-          val pCons = SMTSolving.valid(pGoal.pre.phi ==> pGoal.universalPost)
-          findBranchPoint(vars, pGoal, pCons)
-        } else if (valid) Some(goal) else None // one of vars undefined in the goal: return itself if valid
+    def findBranchPoint(vars: Set[Var], goal: Goal): Option[Goal] = {
+      def valid(g: Goal) = SMTSolving.valid(g.pre.phi ==> g.universalPost)
+      goal.parent match {
+        case None => Some(goal).filter(valid) // goal is root: return itself if valid
+        case Some(pGoal) =>
+          if (vars.subsetOf(pGoal.programVars.toSet)) {
+            // Parent goal has all variables from vars: recurse
+            findBranchPoint(vars, pGoal)
+          } else Some(goal).filter(valid) // one of vars undefined in the goal: return itself if valid
+      }
     }
 
     def guardedCandidates(goal: Goal): Seq[RuleResult] =
@@ -100,13 +101,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         pre = goal.pre.phi
         if SMTSolving.valid((pre && cond) ==> goal.universalPost)
         if SMTSolving.sat((pre && cond).toExpr)
-        bGoal <- findBranchPoint(cond.vars, goal, false)
+        bGoal <- findBranchPoint(cond.vars, goal)
         thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi && cond), childId = Some(0))
-        elseGoal = goal.spawnChild(
+        elseGoal = bGoal.spawnChild(
           pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
-          post = bGoal.post,
-          gamma = bGoal.gamma,
-          programVars = bGoal.programVars,
           childId = Some(1))
       } yield RuleResult(List(thenGoal, elseGoal),
         StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))) ,
@@ -122,7 +120,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           // Abduction failed
           if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
           else Nil // fail optimization is disabled, so pretend this rule doesn't apply
-        else guarded
+        else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
       }
     }
   }

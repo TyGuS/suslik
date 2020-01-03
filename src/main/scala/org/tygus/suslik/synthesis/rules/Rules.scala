@@ -109,7 +109,7 @@ object Rules {
     1,
     liftToSolutions(stmts => {stmts.head match {
       case g@Guarded(cond, body, els, l) =>
-        if (goal.label == l) If(cond, body, els) // Current goal is the branching point: create conditional
+        if (goal.label == l) If(cond, body, els).simplify // Current goal is the branching point: create conditional
         else g // Haven't reached the branching point yet: propagate guarded statement
       case stmt => stmt
     }})

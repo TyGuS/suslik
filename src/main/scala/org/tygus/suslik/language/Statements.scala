@@ -214,6 +214,8 @@ object Statements {
         case (Skip, Skip) => Skip
         case (Error, _) => eb
         case (_, Error) => tb
+        case (Guarded(gcond, gb, geb, _), _) => If(cond, If(gcond, gb, geb), eb).simplify // TODO: this handles nested branch abductions but it's not particularly sound
+        case (_, Guarded(gcond, gb, geb, _)) => If(cond, tb, If(gcond, gb, geb)).simplify
         case _ => this
       }
     }
