@@ -51,7 +51,7 @@ object Expressions {
   trait SymmetricOp
   trait AssociativeOp
 
-  object OpOverloadedEq extends OverloadedBinOp{
+  object OpOverloadedEq extends OverloadedBinOp {
     override def level: Int = 3
     override def pp: String = "=="
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
@@ -63,7 +63,7 @@ object Expressions {
     override def default: BinOp = OpEq
   }
 
-  object OpNotEqual extends OverloadedBinOp{
+  object OpNotEqual extends OverloadedBinOp {
     // some not implemented, because it is syntactic sugar operator, and shouldn't be met after Parser
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = ???
     override def default: BinOp = ???
@@ -71,7 +71,7 @@ object Expressions {
     override def pp: String = "!="
   }
 
-  object OpGt extends OverloadedBinOp{
+  object OpGt extends OverloadedBinOp {
     // some not implemented, because it is syntactic sugar operator, and shouldn't be met after Parser
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = ???
     override def default: BinOp = ???
@@ -79,7 +79,7 @@ object Expressions {
     override def pp: String = ">"
   }
 
-  object OpGeq extends OverloadedBinOp{
+  object OpGeq extends OverloadedBinOp {
     // some not implemented, because it is syntactic sugar operator, and shouldn't be met after Parser
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = ???
     override def default: BinOp = ???
@@ -87,7 +87,7 @@ object Expressions {
     override def pp: String = ">="
   }
 
-  object OpImplication extends BinOp{
+  object OpImplication extends BinOp {
     override def level: Int = 3
     override def pp: String = "==>"
 
@@ -96,7 +96,7 @@ object Expressions {
     override def resType: SSLType = BoolType
   }
 
-  object OpOverloadedPlus extends OverloadedBinOp{
+  object OpOverloadedPlus extends OverloadedBinOp {
     override def level: Int = 4
     override def pp: String = "+"
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
@@ -107,7 +107,7 @@ object Expressions {
     override def default: BinOp = OpPlus
   }
 
-  object OpOverloadedMinus extends OverloadedBinOp{
+  object OpOverloadedMinus extends OverloadedBinOp {
     override def level: Int = 4
     override def pp: String = "-"
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
@@ -118,7 +118,7 @@ object Expressions {
     override def default: BinOp = OpMinus
   }
 
-  object OpOverloadedLeq extends OverloadedBinOp{
+  object OpOverloadedLeq extends OverloadedBinOp {
     override def level: Int = 3
     override def pp: String = "<="
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
@@ -129,7 +129,7 @@ object Expressions {
     override def default: BinOp = OpLeq
   }
 
-  object OpOverloadedStar extends OverloadedBinOp{
+  object OpOverloadedStar extends OverloadedBinOp {
     override def level: Int = 4
     override def pp: String = "*"
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
@@ -349,7 +349,7 @@ object Expressions {
         }
       case SetLiteral(elems) =>
         if (IntSetType.conformsTo(target)) {
-          elems.foldLeft[Option[Map[Var, SSLType]]](Some(gamma))((go, e) => go match {
+          elems.foldLeft[Option[Gamma]](Some(gamma))((go, e) => go match {
             case None => None
             case Some(g) => e.resolve(g, Some(IntType))
           })
@@ -423,7 +423,7 @@ object Expressions {
   case class Var(name: String) extends Expr {
     override def pp: String = name
 
-    def subst(sigma: Map[Var, Expr]): Expr =
+    def subst(sigma: Subst): Expr =
       sigma.getOrElse(this, this)
 
     def refresh(taken: Set[Var], suffix: String): Var = {
@@ -437,13 +437,13 @@ object Expressions {
       Var(tmpName)
     }
 
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = gamma.get(this)
+    def getType(gamma: Gamma): Option[SSLType] = gamma.get(this)
   }
 
   // Program-level constant
   sealed abstract class Const(value: Any) extends Expr {
     override def pp: String = value.toString
-    def subst(sigma: Map[Var, Expr]): Expr = this
+    def subst(sigma: Subst): Expr = this
   }
 
   case class IntConst(value: Integer) extends Const(value) {
@@ -452,25 +452,25 @@ object Expressions {
       */
     def isNull: Boolean = value == 0
 
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(IntType)
+    def getType(gamma: Gamma): Option[SSLType] = Some(IntType)
   }
 
   val NilPtr = IntConst(0)
 
   case class BoolConst(value: Boolean) extends Const(value) {
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(BoolType)
+    def getType(gamma: Gamma): Option[SSLType] = Some(BoolType)
   }
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
-    def subst(sigma: Map[Var, Expr]): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+    def subst(sigma: Subst): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(op.resType)
+    def getType(gamma: Gamma): Option[SSLType] = Some(op.resType)
   }
 
   case class OverloadedBinaryExpr(overloaded_op: OverloadedBinOp, left: Expr, right: Expr) extends Expr {
-    def subst(sigma: Map[Var, Expr]): Expr = OverloadedBinaryExpr(overloaded_op, left.subst(sigma), right.subst(sigma))
+    def subst(sigma: Subst): Expr = OverloadedBinaryExpr(overloaded_op, left.subst(sigma), right.subst(sigma))
     override def level: Int = overloaded_op.level
     override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
@@ -525,24 +525,24 @@ object Expressions {
   }
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
-    def subst(sigma: Map[Var, Expr]): Expr = UnaryExpr(op, arg.subst(sigma))
+    def subst(sigma: Subst): Expr = UnaryExpr(op, arg.subst(sigma))
 
     override def level = 5
     override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(op.outputType)
+    def getType(gamma: Gamma): Option[SSLType] = Some(op.outputType)
   }
 
   case class SetLiteral(elems: List[Expr]) extends Expr {
     override def pp: String = s"{${elems.map(_.pp).mkString(", ")}}"
-    override def subst(sigma: Map[Var, Expr]): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = Some(IntSetType)
+    override def subst(sigma: Subst): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
+    def getType(gamma: Gamma): Option[SSLType] = Some(IntSetType)
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
     override def level: Int = 0
     override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
-    override def subst(sigma: Map[Var, Expr]): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
-    def getType(gamma: Map[Var, SSLType]): Option[SSLType] = left.getType(gamma)
+    override def subst(sigma: Subst): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
+    def getType(gamma: Gamma): Option[SSLType] = left.getType(gamma)
   }
 
   /*

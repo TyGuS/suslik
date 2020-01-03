@@ -94,7 +94,7 @@ object Specifications extends SepLogicUtils {
 
     override def collect[R <: Expr](p: Expr => Boolean): Set[R] = pre.collect(p) ++ post.collect(p)
   }
-  
+
   def emptyFootprint: Footprint = Footprint(emp, emp)
 
   /**
@@ -217,7 +217,7 @@ object Specifications extends SepLogicUtils {
     }
 
     // All variables this goal has ever used
-    def vars: Set[Var] = gamma.keys.toSet
+    def vars: Set[Var] = gamma.keySet
 
     // All universally-quantified variables this goal has ever used
     def allUniversals: Set[Var] = universalGhosts ++ programVars

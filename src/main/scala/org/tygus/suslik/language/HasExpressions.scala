@@ -14,7 +14,7 @@ trait HasExpressions[+A] {
     this.subst(Map(x -> by))
   }
 
-  def subst(sigma: Map[Var, Expr]) : A
+  def subst(sigma: Subst) : A
 
   def resolveOverloading(gamma: Gamma): A
 
