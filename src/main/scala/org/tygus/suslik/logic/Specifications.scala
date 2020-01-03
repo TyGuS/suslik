@@ -4,7 +4,6 @@ import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
-import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 
 object Specifications extends SepLogicUtils {
 
@@ -95,32 +94,7 @@ object Specifications extends SepLogicUtils {
 
     override def collect[R <: Expr](p: Expr => Boolean): Set[R] = pre.collect(p) ++ post.collect(p)
   }
-
-  /**
-    * A transition between two goals,
-    * represented as a footprint that has been consumed (i.e. removed from the old goal)
-    * and produced (i.e. added to the new goal).
-    * A transition semantically describes a concrete rule application.
-    */
-  case class Transition(consume: Footprint, produce: Footprint) extends PrettyPrinting {
-    override def pp: String = s"${consume.pp} ==> ${produce.pp}"
-
-    // Heaptets that actually got removed (consumed and not produced back)
-    def removed: Footprint = consume - produce
-
-    // Replace all fresh variables in produced heap with blanks
-    def relaxedProduce: Footprint = {
-      val newVars = produce.vars.diff(consume.vars)
-      produce.subst(newVars.map(v => v -> Var("_")).toMap)
-    }
-
-    // Is this transition equal to other modulo fresh variables in produce?
-    // We need this to decide whether two transitions in different branches of the search tree are the same
-    // (we want to ignore differences in the names of fresh variables)
-    def equivalent(other: Transition): Boolean =
-      consume == other.consume && relaxedProduce == other.relaxedProduce
-  }
-
+  
   def emptyFootprint: Footprint = Footprint(emp, emp)
 
   /**

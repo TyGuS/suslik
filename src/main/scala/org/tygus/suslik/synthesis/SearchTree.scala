@@ -109,10 +109,6 @@ object SearchTree {
     // Number of proper ancestors
     def depth: Int = ancestors.length
 
-    // Transition that describes the relationship between this node's goal
-    // and its closest ancestor's goal
-    def transition: Transition = Transition(parent.map(_.consume).getOrElse(emptyFootprint), produce)
-
     def pp(d: Int = 0): String = parent match {
       case None => "-"
       case Some(p) =>

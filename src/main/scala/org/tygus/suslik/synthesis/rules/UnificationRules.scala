@@ -38,7 +38,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         t <- pre.sigma.chunks
         wholeSub <- tryUnify(t, s, goal.universals, false)
         sub = wholeSub.filterKeys(v => varFilter(s, v))
-        if !sub.isEmpty
+        if sub.nonEmpty
         newPostSigma = post.sigma.subst(sub)
         if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
       } yield {
@@ -93,7 +93,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
           // TODO: discuss and enable
 //        case BinaryExpr(OpBoolEq, l, r) => isExsistVar(l) || isExsistVar(r)
-        // TODO [sets]: Can we enable this?
         case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
         case _ => false
       }, p2) match {
@@ -205,20 +204,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
       } yield ex -> v
 
-      // TODO: remove this when symmetry reduction is gone for good or fixed
-//      def substitutions(domain: List[Var]): Set[Subst] = domain match {
-//        case Nil => Set(emptySubst)
-//        case v :: vs => for {
-//          ass <- assignments(v)
-//          res <- substitutions(vs)
-//        } yield res + ass
-//      }
-
       for {
         ex <- goal.existentials.toList.take(1) // since all existentials must go, no point trying them in different order
         ass <- assignments(ex)
         sigma = Map(ass)
-//        sigma <- substitutions(goal.existentials.toList).toList
         if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
