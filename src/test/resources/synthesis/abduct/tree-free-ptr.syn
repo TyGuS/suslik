@@ -17,7 +17,7 @@ void free_tree (loc r) {
     free_tree(x);
     *x = rx;
     free_tree(x);
-    free(x2);
+    free(x);
     *r = 0;
   }
 }

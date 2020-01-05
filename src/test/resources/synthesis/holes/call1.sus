@@ -1,4 +1,4 @@
-#. -b true -c 2
+#. -c 2
 /*sorted list: insert an element complete prog*/
 
 void srtl_insert (loc x, loc r)

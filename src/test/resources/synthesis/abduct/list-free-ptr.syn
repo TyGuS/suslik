@@ -14,7 +14,7 @@ void list_free (loc r) {
     let n = *(x + 1);
     *x = n;
     list_free(x);
-    free(x2);
+    free(x);
     *r = 0;
   }
 }
