@@ -139,7 +139,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
       for {
 //        acs <- List(addedChunks1, addedChunks2)
-        acs <- List(addedChunks2)
+        acs <- List(addedChunks1)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
         callGoal = goal.spawnChild(restPre, env = newEnv)

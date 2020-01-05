@@ -65,7 +65,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     LogicalRules.Inconsistency,
     if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
     OperationalRules.ReadRule,
-//    LogicalRules.SubstLeft,
+    LogicalRules.SubstLeft,
   )
 
   def symbolicExecutionRules(config: SynConfig):  List[SynthesisRule] = List(
@@ -123,7 +123,7 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
   def pointerPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     if (config.branchAbduction) FailRules.AbduceBranch else if (!config.fail) FailRules.Noop else FailRules.PostInvalid,
     if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
-    LogicalRules.SubstLeft,
+//    LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
     LogicalRules.FrameFlat,
     OperationalRules.WriteRule,

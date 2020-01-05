@@ -1,0 +1,11 @@
+# -x true -o 2
+Flatten a tree into a list (needs append as an auxiliary)
+
+####
+
+{ true ; ret :-> a ** treeS(x, s)}
+void tree_flatten(loc x, loc ret)
+{ true ;  ret :-> y ** sll(y, s)}
+
+####
+
