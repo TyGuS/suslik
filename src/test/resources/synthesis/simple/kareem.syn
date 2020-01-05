@@ -5,9 +5,9 @@ void kareem1(loc x, loc y, loc z)
 {true ; x :-> y ** y :-> z ** z :-> x ** v :-> x}
 ###
 void kareem1 (loc x, loc y, loc z) {
-  let v2 = *x;
+  let v = *x;
   *x = y;
   *y = z;
   *z = x;
-  *v2 = x;
+  *v = x;
 }

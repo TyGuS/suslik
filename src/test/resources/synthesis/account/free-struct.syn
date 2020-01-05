@@ -5,6 +5,6 @@ void deleteAccount(loc x)
 {true ; x :-> y }
 ###
 void deleteAccount (loc x) {
-  let y2 = *x;
-  free(y2);
+  let y = *x;
+  free(y);
 }

@@ -9,6 +9,6 @@ void notsure (loc x, loc y)
 ###
 
 void notsure (loc x, loc y) {
-  let a2 = *x;
-  *y = a2;
+  let a = *x;
+  *y = a;
 }

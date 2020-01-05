@@ -11,8 +11,6 @@ void set_prev(loc x, loc prev)
 void set_prev (loc x, loc prev) {
   if (x == 0) {
   } else {
-    let w2 = *(x + 1);
-    set_prev(w2, x);
     *(x + 2) = prev;
   }
 }

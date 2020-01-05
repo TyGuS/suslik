@@ -170,7 +170,7 @@ object Specifications extends SepLogicUtils {
     // Turn this goal into a helper function call
     def toCall: Statement = {
       val f = this.toFunSpec
-      Call(None, Var(f.name), f.params.map(_._2), None)
+      Call(Var(f.name), f.params.map(_._2), None)
     }
 
     def allHeaplets: Footprint = Footprint(pre.sigma, post.sigma)

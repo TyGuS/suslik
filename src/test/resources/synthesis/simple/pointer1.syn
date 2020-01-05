@@ -7,8 +7,8 @@ should be able to work with pointer offsets
 ###
 
 void swap (loc x, loc y) {
-  let a2 = *x;
-  let b2 = *(x + 1);
-  *x = b2;
-  *(x + 1) = a2;
+  let a = *x;
+  let b = *(x + 1);
+  *x = b;
+  *(x + 1) = a;
 }

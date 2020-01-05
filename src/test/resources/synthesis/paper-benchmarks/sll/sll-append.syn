@@ -11,10 +11,10 @@ void sll_append (loc x1, loc ret)
 void sll_append (loc x1, loc ret) {
   if (x1 == 0) {
   } else {
-    let nxt2 = *(x1 + 1);
-    sll_append(nxt2, ret);
-    let y12 = *ret;
-    *(x1 + 1) = y12;
+    let n = *(x1 + 1);
+    sll_append(n, ret);
+    let y = *ret;
+    *(x1 + 1) = y;
     *ret = x1;
   }
 }

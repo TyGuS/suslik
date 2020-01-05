@@ -3,34 +3,34 @@ binary search tree: insert an element
 
 #####
 
-{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** bst(x, n, lo, hi) }
-void bst_insert (loc x, loc r)
-{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** bst(y, n1, lo1, hi1) }
+{0 <= n /\ 0 <= k /\ k <= 7 ; ret :-> k ** bst(x, n, lo, hi) }
+void bst_insert (loc x, loc ret)
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; ret :-> y ** bst(y, n1, lo1, hi1) }
 
 #####
 
-void bst_insert (loc x, loc r) {
-  let k2 = *r;
+void bst_insert (loc x, loc ret) {
+  let k = *ret;
   if (x == 0) {
-    let y2 = malloc(3);
-    *r = y2;
-    *(y2 + 1) = 0;
-    *(y2 + 2) = 0;
-    *y2 = k2;
+    let y = malloc(3);
+    *ret = y;
+    *(y + 1) = 0;
+    *(y + 2) = 0;
+    *y = k;
   } else {
-    let v2 = *x;
-    if (k2 <= v2) {
-      let l2 = *(x + 1);
-      bst_insert(l2, r);
-      let y12 = *r;
-      *(x + 1) = y12;
-      *r = x;
+    let v = *x;
+    if (v <= k) {
+      let r = *(x + 2);
+      bst_insert(r, ret);
+      let y = *ret;
+      *ret = x;
+      *(x + 2) = y;
     } else {
-      let r12 = *(x + 2);
-      bst_insert(r12, r);
-      let y12 = *r;
-      *r = x;
-      *(x + 2) = y12;
+      let l = *(x + 1);
+      bst_insert(l, ret);
+      let y = *ret;
+      *(x + 1) = y;
+      *ret = x;
     }
   }
 }

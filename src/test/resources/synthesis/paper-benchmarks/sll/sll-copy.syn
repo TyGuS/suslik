@@ -9,18 +9,19 @@ void sll_copy(loc r)
 #####
 
 void sll_copy (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let v2 = *x2;
-    let nxt2 = *(x2 + 1);
-    *x2 = nxt2;
-    sll_copy(x2);
-    let y12 = *x2;
-    let y2 = malloc(2);
-    *r = y2;
-    *(y2 + 1) = y12;
-    *x2 = v2;
-    *y2 = v2;
+    let v = *x;
+    let n = *(x + 1);
+    *x = n;
+    sll_copy(x);
+    let yx = *x;
+    let y = malloc(2);
+    *r = y;
+    *(x + 1) = yx;
+    *(y + 1) = n;
+    *x = v;
+    *y = v;
   }
 }

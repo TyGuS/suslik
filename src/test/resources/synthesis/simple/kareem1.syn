@@ -7,6 +7,6 @@ void kareem2(loc x)
 
 ###
 void kareem2 (loc x) {
-  let v2 = *x;
-  *v2 = x;
+  let v = *x;
+  *v = x;
 }

@@ -7,8 +7,8 @@ should be able to synthesize a swap program
 ###
 
 void swap (loc x, loc y) {
-  let a2 = *x;
-  let b2 = *y;
-  *x = b2;
-  *y = a2;
+  let a = *x;
+  let b = *y;
+  *x = b;
+  *y = a;
 }

@@ -12,8 +12,8 @@ Deallocate a linked list
 void listfree (loc x) {
   if (x == 0) {
   } else {
-    let nxt2 = *x;
-    listfree(nxt2);
+    let n = *x;
+    listfree(n);
     free(x);
   }
 }

@@ -13,8 +13,8 @@ void listfree2 (loc x, loc y) {
   if (x == 0) {
     listfree200(x, y);
   } else {
-    let nxt2 = *x;
-    listfree2(y, nxt2);
+    let n = *x;
+    listfree2(y, n);
     free(x);
   }
 }
@@ -22,8 +22,8 @@ void listfree2 (loc x, loc y) {
 void listfree200 (loc x, loc y) {
   if (y == 0) {
   } else {
-    let nxt2 = *y;
-    listfree200(x, nxt2);
+    let n = *y;
+    listfree200(x, n);
     free(y);
   }
 }

@@ -3,15 +3,14 @@ package org.tygus.suslik.parsing
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
+import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.UnificationGoal
-import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.SynthesisException
-import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 
-import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
+import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
 class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
@@ -175,10 +174,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       }
       // Call
       ||| varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
-        case fun ~ args => Call(None, fun, args.map(desugar), None)
-      }
-      ||| typeParser ~ (varParser <~ "=") ~ varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
-        case tpe ~ to ~ fun ~ args => Call(Some((to, tpe)), fun, args.map(desugar), None)
+        case fun ~ args => Call(fun, args.map(desugar), None)
       }
       // if
       ||| ("if" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}") ~ ("else" ~> "{" ~> codeWithHoles <~ "}") ^^ {

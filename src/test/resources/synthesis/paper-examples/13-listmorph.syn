@@ -11,15 +11,15 @@ void listmorph(loc x, loc r)
 void listmorph (loc x, loc r) {
   if (x == 0) {
   } else {
-    let v2 = *x;
-    let nxt2 = *(x + 1);
-    listmorph(nxt2, r);
-    let y12 = *r;
-    let y2 = malloc(3);
+    let v = *x;
+    let n = *(x + 1);
+    listmorph(n, r);
+    let yn = *r;
+    let y = malloc(3);
     free(x);
-    *r = y2;
-    *(y2 + 2) = y12;
-    *y2 = v2;
-    *(y2 + 1) = v2 + 1;
+    *r = y;
+    *(y + 2) = yn;
+    *y = v;
+    *(y + 1) = v + 1;
   }
 }

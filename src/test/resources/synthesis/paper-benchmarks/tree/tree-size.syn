@@ -12,13 +12,13 @@ void tree_size(loc x, loc r)
 void tree_size (loc x, loc r) {
   if (x == 0) {
   } else {
-    let l2 = *(x + 1);
-    let r12 = *(x + 2);
-    tree_size(l2, r);
-    let n12 = *r;
-    *x = 0;
-    tree_size(r12, x);
-    let n22 = *x;
-    *r = 1 + n12 + n22;
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    tree_size(l, r);
+    let n1 = *r;
+    *r = 0;
+    tree_size(rx, r);
+    let n = *r;
+    *r = 1 + n1 + n;
   }
 }

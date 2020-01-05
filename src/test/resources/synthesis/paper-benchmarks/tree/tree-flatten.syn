@@ -13,23 +13,23 @@ void tree_flatten(loc z)
 ####
 
 void tree_flatten (loc z) {
-  let x2 = *z;
-  if (x2 == 0) {
+  let x = *z;
+  if (x == 0) {
   } else {
-    let v2 = *x2;
-    let l2 = *(x2 + 1);
-    let r2 = *(x2 + 2);
-    *x2 = l2;
-    tree_flatten(x2);
-    *z = r2;
+    let v = *x;
+    let l = *(x + 1);
+    let r = *(x + 2);
+    *x = l;
+    tree_flatten(x);
+    *z = r;
     tree_flatten(z);
-    let y22 = *z;
-    sll_append(y22, x2);
-    let y32 = *x2;
-    let y4 = malloc(2);
-    free(x2);
-    *z = y4;
-    *(y4 + 1) = y32;
-    *y4 = v2;
+    let yz = *z;
+    sll_append(yz, x);
+    let yy = *x;
+    let y = malloc(2);
+    free(x);
+    *z = y;
+    *(y + 1) = yy;
+    *y = v;
   }
 }

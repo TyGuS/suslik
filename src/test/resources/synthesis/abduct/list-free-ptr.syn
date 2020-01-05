@@ -8,12 +8,12 @@ should be able to deallocate a list from the pointer to a head
 ###
 
 void list_free (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let nxt2 = *(x2 + 1);
-    *x2 = nxt2;
-    list_free(x2);
+    let n = *(x + 1);
+    *x = n;
+    list_free(x);
     free(x2);
     *r = 0;
   }

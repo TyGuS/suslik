@@ -10,8 +10,8 @@ should be able to initialize a linked list
 void sll_init (loc x, int v) {
   if (x == 0) {
   } else {
-    let nxt2 = *(x + 1);
-    sll_init(nxt2, v);
+    let n = *(x + 1);
+    sll_init(n, v);
     *x = v;
   }
 }

@@ -4,23 +4,23 @@ should be able to convert a doubly-linked list to single-linked list
 
 { true ; f :-> x ** dllseg(x, z, s)}
 void dll_to_sll(loc f)
-{ true ;  f :-> i ** lseg(i, s)}
+{ true ;  f :-> y ** lseg(y, s)}
 
 #######
 
 void dll_to_sll (loc f) {
-  let x2 = *f;
-  if (x2 == 0) {
+  let x = *f;
+  if (x == 0) {
   } else {
-    let v2 = *x2;
-    let w2 = *(x2 + 1);
-    *x2 = w2;
-    dll_to_sll(x2);
-    let i12 = *x2;
-    let i2 = malloc(2);
-    free(x2);
-    *f = i2;
-    *(i2 + 1) = i12;
-    *i2 = v2;
+    let v = *x;
+    let w = *(x + 1);
+    *x = w;
+    dll_to_sll(x);
+    let yx = *x;
+    let y = malloc(2);
+    free(x);
+    *f = y;
+    *(y + 1) = yx;
+    *y = v;
   }
 }

@@ -11,9 +11,9 @@ void bst_left_rotate (loc x, loc ret)
 #####
 
 void bst_left_rotate (loc x, loc ret) {
-  let r2 = *(x + 2);
-  let l12 = *(r2 + 1);
-  *(r2 + 1) = x;
-  *ret = r2;
-  *(x + 2) = l12;
+  let r = *(x + 2);
+  let l = *(r + 1);
+  *(r + 1) = x;
+  *ret = r;
+  *(x + 2) = l;
 }

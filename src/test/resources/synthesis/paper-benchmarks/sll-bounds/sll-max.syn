@@ -12,11 +12,11 @@ void sll_max (loc x, loc ret) {
   if (x == 0) {
     *ret = 0;
   } else {
-    let v2 = *x;
-    let nxt2 = *(x + 1);
-    sll_max(nxt2, x);
-    let hi12 = *x;
-    *ret = hi12 <= v2 ? v2 : hi12;
-    *x = v2;
+    let v = *x;
+    let n = *(x + 1);
+    sll_max(n, x);
+    let h = *x;
+    *ret = h <= v ? v : h;
+    *x = v;
   }
 }

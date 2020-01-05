@@ -10,10 +10,10 @@ should be able to morhp a tree
 void morhp_tree (loc x, int i) {
   if (x == 0) {
   } else {
-    let l2 = *(x + 1);
-    let r2 = *(x + 2);
-    morhp_tree(l2, i);
-    morhp_tree(r2, i);
+    let l = *(x + 1);
+    let r = *(x + 2);
+    morhp_tree(l, i);
+    morhp_tree(r, i);
     *x = i;
   }
 }

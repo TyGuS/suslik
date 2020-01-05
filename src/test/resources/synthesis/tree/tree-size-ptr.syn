@@ -10,17 +10,17 @@ void tree_size(loc r)
 #####
 
 void tree_size (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let l2 = *(x2 + 1);
-    let r12 = *(x2 + 2);
-    *x2 = l2;
-    tree_size(x2);
-    let n12 = *x2;
-    *r = r12;
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    *x = l;
+    tree_size(x);
+    let n1 = *x;
+    *r = rx;
     tree_size(r);
-    let n22 = *r;
-    *r = 1 + n12 + n22;
+    let n = *r;
+    *r = 1 + n1 + n;
   }
 }

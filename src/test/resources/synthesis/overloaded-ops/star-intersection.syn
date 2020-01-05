@@ -16,21 +16,21 @@ void sll_intersect (loc old_sll, loc ret)
 #####
 
 void sll_intersect (loc old_sll, loc ret) {
-  let second_set_elem2 = *ret;
+  let s = *ret;
   if (old_sll == 0) {
     *ret = 0;
   } else {
-    let v2 = *old_sll;
-    if (v2 <= second_set_elem2 && second_set_elem2 <= v2) {
-      let nxt2 = *(old_sll + 1);
-      sll_intersect(nxt2, old_sll);
-      let new_sll12 = *old_sll;
-      *(old_sll + 1) = new_sll12;
+    let v = *old_sll;
+    if (s <= v && v <= s) {
+      let nx = *(old_sll + 1);
+      sll_intersect(nx, old_sll);
+      let n = *old_sll;
+      *(old_sll + 1) = n;
       *ret = old_sll;
-      *old_sll = second_set_elem2;
+      *old_sll = s;
     } else {
-      let nxt2 = *(old_sll + 1);
-      sll_intersect(nxt2, ret);
+      let n = *(old_sll + 1);
+      sll_intersect(n, ret);
       free(old_sll);
     }
   }

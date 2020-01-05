@@ -11,7 +11,7 @@ object Statements {
 
   import Expressions._
 
-  sealed abstract class Statement {
+  sealed abstract class Statement extends HasExpressions[Statement] {
 
     // Pretty-printer
     def pp: String = {
@@ -43,15 +43,10 @@ object Statements {
             val f = if (off <= 0) from.pp else s"(${from.pp} + $off)"
             // Do not print the type annotation
             builder.append(s"let ${to.pp} = *$f;\n")
-          case Call(tt, fun, args, _) =>
+          case Call(fun, args, _) =>
             builder.append(mkSpaces(offset))
             val function_call = s"${fun.pp}(${args.map(_.pp).mkString(", ")});\n"
-            tt match {
-              case Some(tpe) =>
-                builder.append(s"${tpe._2.pp} ${tpe._1.pp} = " + function_call)
-              case None =>
-                builder.append(function_call)
-            }
+            builder.append(function_call)
           case SeqComp(s1,s2) =>
             build(s1, offset)
             build(s2, offset)
@@ -77,7 +72,7 @@ object Statements {
     }
 
     // Expression-collector
-    def collectE[R <: Expr](p: Expr => Boolean): Set[R] = {
+    def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
 
       def collector(acc: Set[R])(st: Statement): Set[R] = st match {
         case Skip => acc
@@ -91,7 +86,7 @@ object Statements {
           acc
         case Free(x) =>
           acc ++ x.collect(p)
-        case Call(_, fun, args, _) =>
+        case Call(fun, args, _) =>
           acc ++ fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
         case SeqComp(s1,s2) =>
           val acc1 = collector(acc)(s1)
@@ -107,8 +102,29 @@ object Statements {
       collector(Set.empty)(this)
     }
 
-    def usedVars: Set[Var] = this match {
-      case _ => collectE(_.isInstanceOf[Var])
+    override def subst(sigma: Subst): Statement = this match {
+      case Store(to, off, e) => {
+        assert(!sigma.keySet.contains(to) || sigma(to).isInstanceOf[Var])
+        Store(to.subst(sigma).asInstanceOf[Var], off, e.subst(sigma))
+      }
+      case Load(to, tpe, from, offset) => {
+        assert(!sigma.keySet.contains(to) || sigma(to).isInstanceOf[Var])
+        assert(!sigma.keySet.contains(from) || sigma(from).isInstanceOf[Var])
+        Load(to.subst(sigma).asInstanceOf[Var], tpe, from.subst(sigma).asInstanceOf[Var], offset)
+      }
+      case Malloc(to, tpe, sz) => {
+        assert(!sigma.keySet.contains(to) || sigma(to).isInstanceOf[Var])
+        Malloc(to.subst(sigma).asInstanceOf[Var], tpe, sz)
+      }
+      case Free(x) => {
+        assert(!sigma.keySet.contains(x) || sigma(x).isInstanceOf[Var])
+        Free(x.subst(sigma).asInstanceOf[Var])
+      }
+      case Call(fun, args, companion) => Call(fun, args.map(_.subst(sigma)), companion)
+      case SeqComp(s1, s2) => SeqComp(s1.subst(sigma), s2.subst(sigma))
+      case If(cond, tb, eb) => If(cond.subst(sigma), tb.subst(sigma), eb.subst(sigma))
+      case Guarded(cond, b, eb, l) => Guarded(cond.subst(sigma), b.subst(sigma), eb.subst(sigma), l)
+      case _ => this
     }
 
     // Statement size in AST nodes
@@ -120,7 +136,7 @@ object Statements {
       case Load(to, _, from, _) => 1 + to.size + from.size
       case Malloc(to, _, _) => 1 + to.size
       case Free(x) => 1 + x.size
-      case Call(_, fun, args, _) => 1 + args.map(_.size).sum
+      case Call(_, args, _) => 1 + args.map(_.size).sum
       case SeqComp(s1,s2) => s1.size + s2.size
       case If(cond, tb, eb) => 1 + cond.size + tb.size + eb.size
       case Guarded(cond, b, eb, _) => 1 + cond.size + b.size + eb.size
@@ -128,7 +144,7 @@ object Statements {
 
     // Companions of all calls inside this statement
     def companions: List[GoalLabel] = this match {
-      case Call(_, _, _, Some(comp)) => List(comp)
+      case Call(_, _, Some(comp)) => List(comp)
       case SeqComp(s1,s2) => s1.companions ++ s2.companions
       case If(_, tb, eb) => tb.companions ++ eb.companions
       case Guarded(_, b, eb, _) => b.companions ++ eb.companions
@@ -169,41 +185,55 @@ object Statements {
 
   }
 
-  // skip;
+  // skip
   case object Skip extends Statement
 
-  // ?? Hole without pre- post- conditions
+  // ??
   case object Hole extends Statement
 
-  // assert false;
+  // assert false
   case object Error extends Statement
 
-  // let to = malloc(n); rest
+  // let to = malloc(n)
   case class Malloc(to: Var, tpe: SSLType, sz: Int = 1) extends Statement
 
-  // free(v); rest
+  // free(v)
   case class Free(v: Var) extends Statement
 
-  // let to = *from; rest
+  // let to = *from.offset
   case class Load(to: Var, tpe: SSLType, from: Var,
                   offset: Int = 0) extends Statement
 
-  // *to.offset = e; rest
+  // *to.offset = e
   case class Store(to: Var, offset: Int, e: Expr) extends Statement
 
-  // f(args); rest
-  // or
-  // let to = f(args); rest
-  case class Call(to: Option[(Var, SSLType)], fun: Var, args: Seq[Expr], companion: Option[GoalLabel]) extends Statement
+  // f(args)
+  case class Call(fun: Var, args: Seq[Expr], companion: Option[GoalLabel]) extends Statement
 
+  // s1; s2
   case class SeqComp(s1: Statement, s2: Statement) extends Statement {
     def simplify: Statement = {
       (s1, s2) match {
         case (Guarded(cond, b, eb, l), _) => Guarded(cond, SeqComp(b, s2).simplify, eb, l) // Guards are propagated to the top
         case (_, Guarded(cond, b, eb, l)) => Guarded(cond, SeqComp(s1, b).simplify, eb, l) // Guards are propagated to the top
-        case (Load(y, _, _, _), _) => if (s2.usedVars.contains(y)) this else s2 // Do not generate read for unused variables
+        case (Load(y, tpe, from, offset), _) => simplifyBinding(y, newY => Load(newY, tpe, from, offset))
+        case (Malloc(to, tpe, sz), _) => simplifyBinding(to, newTo => Malloc(newTo, tpe, sz))
         case _ => this
       }
+    }
+
+    // Eliminate or shorten newly bound variable newvar
+    // depending on the rest of the program (s2)
+    private def simplifyBinding(newvar: Var, mkBinding: Var => Statement): Statement = {
+      val used = s2.vars
+      if (used.contains(newvar)) {
+        // Try to shorten the variable name
+        val prefixes = Range(1, newvar.name.length).map(n => newvar.name.take(n))
+        prefixes.find(p => !used.contains(Var(p))) match {
+          case None => this // All shorter names are used
+          case Some(name) => SeqComp(mkBinding(Var(name)), s2.subst(newvar, Var(name)))
+        }
+      } else s2 // Do not generate bindings for unused variables
     }
   }
 
@@ -221,6 +251,7 @@ object Statements {
     }
   }
 
+  // assume cond { body } else { els }
   case class Guarded(cond: Expr, body: Statement, els: Statement, branchPoint: GoalLabel) extends Statement
 
   // A procedure

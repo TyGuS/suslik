@@ -8,15 +8,15 @@ should be able to deallocate a tree from a pointer to the head
 ###
 
 void free_tree (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let l2 = *(x2 + 1);
-    let r12 = *(x2 + 2);
-    *x2 = l2;
-    free_tree(x2);
-    *x2 = r12;
-    free_tree(x2);
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    *x = l;
+    free_tree(x);
+    *x = rx;
+    free_tree(x);
     free(x2);
     *r = 0;
   }

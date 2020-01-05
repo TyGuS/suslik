@@ -21,25 +21,23 @@ void srtl_insert (loc x, loc r)
 void srtl_insert (loc x, loc r) {
   let k2 = *r;
   if (x == 0) {
-    let y2 = malloc(2);
-    *r = y2;
-    *(y2 + 1) = 0;
-    *y2 = k2;
+    let y = malloc(2);
+    *r = y;
+    *(y + 1) = 0;
+    *y = k2;
   } else {
     let v2 = *x;
     if (v2 <= k2) {
-      let nxt2 = *(x + 1);
-      srtl_insert(nxt2, r);
-      let y12 = *r;
+      let n = *(x + 1);
+      srtl_insert(n, r);
+      let y = *r;
       *r = x;
-      *(x + 1) = y12;
+      *(x + 1) = y;
     } else {
-      let nxt2 = *(x + 1);
-      srtl_insert(nxt2, x);
-      let y12 = *x;
-      *(x + 1) = y12;
-      *r = x;
-      *x = k2;
+      let y = malloc(2);
+      *r = y;
+      *(y + 1) = x;
+      *y = k2;
     }
   }
 }

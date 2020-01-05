@@ -17,9 +17,4 @@ void list_copy(loc r, loc x, loc t3, loc nxt, int v)
 #####
 
 void list_copy (loc r, loc x, loc t3, loc nxt, int v) {
-  if (nxt == 0) {
-  } else {
-    *(x + 1) = t3;
-    *r = nxt;
-  }
 }

@@ -9,13 +9,13 @@ void list_len(loc r)
 #####
 
 void list_len (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let nxt2 = *(x2 + 1);
-    *x2 = nxt2;
-    list_len(x2);
-    let len12 = *x2;
-    *r = 1 + len12;
+    let n = *(x + 1);
+    *x = n;
+    list_len(x);
+    let l = *x;
+    *r = 1 + l;
   }
 }

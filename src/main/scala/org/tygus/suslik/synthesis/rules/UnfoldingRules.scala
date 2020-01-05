@@ -1,14 +1,12 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Ident
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.language.{Ident, VoidType}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
-import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
 
 /**
@@ -113,7 +111,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Check that the goal's subheap had at least one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(None, Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
+        val kont: StmtProducer = prepend(Call(Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
         RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)

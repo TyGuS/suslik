@@ -10,8 +10,8 @@ should be able to deallocate a linked list
 void free_llist (loc x, loc y) {
   if (x == y) {
   } else {
-    let nxt2 = *(x + 1);
-    free_llist(nxt2, y);
+    let n = *(x + 1);
+    free_llist(n, y);
     free(x);
   }
 }

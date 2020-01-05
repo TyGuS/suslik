@@ -192,7 +192,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "SE-Call"
 
     def apply(goal:Goal): Seq[RuleResult] = goal.sketch.uncons match {
-      case (cmd@Call(_, fun, actuals, _), rest) => {
+      case (cmd@Call(fun, actuals, _), rest) => {
         val topLevelGoal = goal.companionCandidates.last
         val funEnv = goal.env.functions + (goal.fname -> topLevelGoal.toFunSpec)
 

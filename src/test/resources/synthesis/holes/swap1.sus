@@ -12,7 +12,7 @@ void swap(loc x, loc y)
 
 void swap (loc x, loc y) {
   let yy = *y;
-  let a2 = *x;
+  let a = *x;
   *x = yy;
-  *y = a2;
+  *y = a;
 }

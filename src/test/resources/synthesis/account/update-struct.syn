@@ -9,7 +9,7 @@ void deposit(loc x, int amount)
 ###
 
 void deposit (loc x, int amount) {
-  let y2 = *x;
-  let bal2 = *(y2 + 1);
-  *(y2 + 1) = bal2 + amount;
+  let y = *x;
+  let b = *(y + 1);
+  *(y + 1) = b + amount;
 }

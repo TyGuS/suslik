@@ -11,8 +11,8 @@ i.e., by inferring the frame to be allocated (frame abduction!)
 void list_free (loc x) {
   if (x == 0) {
   } else {
-    let nxt2 = *(x + 1);
-    list_free(nxt2);
+    let n = *(x + 1);
+    list_free(n);
     free(x);
   }
 }

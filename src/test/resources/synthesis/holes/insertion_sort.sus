@@ -22,13 +22,13 @@ void insertion_sort_free (loc x, loc r) {
     let www = malloc(5);
     free(www);
   } else {
-    let nxt2 = *(x + 1);
-    insertion_sort_free(nxt2, r);
-    let y12 = *r;
-    srtl_insert(y12, x);
-    let y22 = *x;
+    let n = *(x + 1);
+    insertion_sort_free(n, r);
+    let yn = *r;
+    srtl_insert(yn, x);
+    let y = *x;
     free(x);
-    *r = y22;
+    *r = y;
   }
 }
 

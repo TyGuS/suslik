@@ -9,23 +9,23 @@ void tree_copy(loc r)
 #####
 
 void tree_copy (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let v2 = *x2;
-    let l2 = *(x2 + 1);
-    let r12 = *(x2 + 2);
-    *x2 = l2;
-    tree_copy(x2);
-    let y12 = *x2;
-    *r = r12;
+    let v = *x;
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    *x = l;
+    tree_copy(x);
+    let yx = *x;
+    *r = rx;
     tree_copy(r);
-    let y22 = *r;
-    let y3 = malloc(3);
-    *r = y3;
-    *(y3 + 1) = y22;
-    *(y3 + 2) = y12;
-    *x2 = v2;
-    *y3 = v2;
+    let yr = *r;
+    let y = malloc(3);
+    *r = y;
+    *(y + 1) = yx;
+    *(y + 2) = yr;
+    *x = v;
+    *y = v;
   }
 }

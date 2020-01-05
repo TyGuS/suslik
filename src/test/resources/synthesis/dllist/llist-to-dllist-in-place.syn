@@ -15,8 +15,8 @@ void sll_to_dll(loc x)
 void sll_to_dll (loc x) {
   if (x == 0) {
   } else {
-    let nxt2 = *(x + 1);
-    sll_to_dll(nxt2);
-    set_prev(nxt2, x);
+    let n = *(x + 1);
+    sll_to_dll(n);
+    set_prev(n, x);
   }
 }

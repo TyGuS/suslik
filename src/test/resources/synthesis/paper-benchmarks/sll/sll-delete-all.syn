@@ -10,23 +10,23 @@ void sll_delete_all (loc x, loc ret)
 #####
 
 void sll_delete_all (loc x, loc ret) {
-  let a2 = *ret;
+  let a = *ret;
   if (x == 0) {
     *ret = 0;
   } else {
-    let v2 = *x;
-    if (v2 <= a2 && a2 <= v2) {
-      let nxt2 = *(x + 1);
-      sll_delete_all(nxt2, x);
-      let y12 = *x;
+    let v = *x;
+    if (a <= v && v <= a) {
+      let n = *(x + 1);
+      sll_delete_all(n, x);
+      let y = *x;
       free(x);
-      *ret = y12;
+      *ret = y;
     } else {
-      let nxt2 = *(x + 1);
-      sll_delete_all(nxt2, ret);
-      let y12 = *ret;
+      let n = *(x + 1);
+      sll_delete_all(n, ret);
+      let y = *ret;
+      *(x + 1) = y;
       *ret = x;
-      *(x + 1) = y12;
     }
   }
 }

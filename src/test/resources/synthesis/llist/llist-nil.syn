@@ -8,7 +8,7 @@ should be able to allocate a linked list
 ###
 
 void create_llist (loc z, loc r) {
-  let x2 = malloc(1);
-  *r = x2;
-  *x2 = 0;
+  let x = malloc(1);
+  *r = x;
+  *x = 0;
 }

@@ -9,11 +9,11 @@ void kareem3(loc x)
 ###
 
 void kareem3 (loc x) {
-  let a2 = *x;
-  let b2 = *a2;
-  let c2 = *b2;
+  let a = *x;
+  let b = *a;
+  let c = *b;
   *x = 42;
-  *a2 = c2;
-  *b2 = a2;
-  *c2 = b2;
+  *a = c;
+  *b = a;
+  *c = b;
 }

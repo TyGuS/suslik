@@ -11,16 +11,16 @@ void tree_flatten(loc x, loc z)
 void tree_flatten (loc x, loc z) {
   if (x == 0) {
   } else {
-    let v2 = *x;
-    let l2 = *(x + 1);
-    let r2 = *(x + 2);
-    tree_flatten(l2, z);
-    tree_flatten(r2, z);
-    let t22 = *z;
-    let t3 = malloc(2);
+    let v = *x;
+    let l = *(x + 1);
+    let r = *(x + 2);
+    tree_flatten(l, z);
+    tree_flatten(r, z);
+    let tr = *z;
+    let t = malloc(2);
     free(x);
-    *z = t3;
-    *(t3 + 1) = t22;
-    *t3 = v2;
+    *z = t;
+    *(t + 1) = tr;
+    *t = v;
   }
 }

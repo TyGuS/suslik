@@ -9,15 +9,16 @@ void list_copy(loc r)
 #####
 
 void list_copy (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let nxt2 = *(x2 + 1);
-    *x2 = nxt2;
-    list_copy(x2);
-    let y12 = *x2;
-    let y2 = malloc(2);
-    *r = y2;
-    *(y2 + 1) = y12;
+    let n = *(x + 1);
+    *x = n;
+    list_copy(x);
+    let yx = *x;
+    let y = malloc(2);
+    *r = y;
+    *(x + 1) = yx;
+    *(y + 1) = n;
   }
 }

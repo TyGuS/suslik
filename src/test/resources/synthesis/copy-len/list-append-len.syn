@@ -11,10 +11,10 @@ void list_append(loc r, loc y)
 void list_append (loc r, loc y) {
   if (y == 0) {
   } else {
-    let nxt2 = *(y + 1);
-    list_append(r, nxt2);
-    let z12 = *r;
-    *(y + 1) = z12;
+    let n = *(y + 1);
+    list_append(r, n);
+    let z = *r;
+    *(y + 1) = z;
     *r = y;
   }
 }

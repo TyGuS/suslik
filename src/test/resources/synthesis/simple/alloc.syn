@@ -8,7 +8,7 @@ void create(loc x)
 ###
 
 void create (loc x) {
-  let y2 = malloc(1);
-  *x = y2;
-  *y2 = 42;
+  let y = malloc(1);
+  *x = y;
+  *y = 42;
 }
