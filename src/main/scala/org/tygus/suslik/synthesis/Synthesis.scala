@@ -30,7 +30,7 @@ trait Synthesis extends SepLogicUtils {
     implicit val config: SynConfig = env.config
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
-    printLog(List(("Initial specification:", Console.BLACK), (s"${goal.pp}\n", Console.BLUE)))
+    printLog(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
     val stats = new SynStats()
     SMTSolving.init()
     memo.clear()
@@ -192,14 +192,14 @@ trait Synthesis extends SepLogicUtils {
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules
-          printLog(List((s"$r FAIL", BLACK)), isFail = true)
+          printLog(List((s"$r FAIL", RESET)), isFail = true)
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
           val childFootprints = children.map(showChild(goal))
-          printLog(List((s"$r (${children.size}): ${childFootprints.head}", BLACK)))
+          printLog(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
           for {c <- childFootprints.tail}
-            printLog(List((c, BLACK)))(config = config, ind = goal.depth + 1)
+            printLog(List((c, RESET)))(config = config, ind = goal.depth + 1)
 
           if (config.invert && r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal
@@ -212,7 +212,7 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
-  private def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$BLACK"
+  private def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$RESET"
   private def showChild(goal: Goal)(c: RuleResult): String =
     c.subgoals.length match {
     case 0 => showFootprint(c.consume)
@@ -229,11 +229,11 @@ trait Synthesis extends SepLogicUtils {
     if (config.printDerivations) {
       if (!isFail || config.printFailed) {
         for ((s, c) <- sc if s.trim.length > 0) {
-          print(s"$BLACK$getIndent")
-          println(s"$c${s.replaceAll("\n", s"\n$BLACK$getIndent$c")}")
+          print(s"$RESET$getIndent")
+          println(s"$c${s.replaceAll("\n", s"\n$RESET$getIndent$c")}")
         }
       }
-      print(s"$BLACK")
+      print(s"$RESET")
     }
   }
 

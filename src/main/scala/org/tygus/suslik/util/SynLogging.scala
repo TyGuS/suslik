@@ -22,7 +22,7 @@ sealed abstract class SynLogging {
 
   def printlnErr(s: String): Unit
 
-  def testPrintln(s: String, color: String = Console.BLACK): Unit
+  def testPrintln(s: String, color: String = Console.RESET): Unit
 
   def readInt: Int
 }
@@ -39,8 +39,8 @@ object SynLogLevels {
 
     override def println(s: String): Unit = Console.println(s)
 
-    override def testPrintln(s: String, color: String = Console.BLACK): Unit = {
-      Console.println(s"$color$s${Console.BLACK}")
+    override def testPrintln(s: String, color: String = Console.RESET): Unit = {
+      Console.println(s"$color$s${Console.RESET}")
     }
 
     override def println(): Unit = Console.println()
@@ -58,8 +58,8 @@ object SynLogLevels {
 
     override def printlnErr(s: String): Unit = Console.println(s)
 
-    override def testPrintln(s: String, color: String = Console.BLACK): Unit = {
-      Console.println(s"$color$s${Console.BLACK}")
+    override def testPrintln(s: String, color: String = Console.RESET): Unit = {
+      Console.println(s"$color$s${Console.RESET}")
     }
 
     def readInt: Int = 0
