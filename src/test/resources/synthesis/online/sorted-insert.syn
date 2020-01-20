@@ -1,0 +1,17 @@
+#. this -b true -c 2
+insert an element into a sorted list
+
+###
+
+predicate srtl(loc x, int len, int lo, int hi) {
+|  x == 0        => { len == 0  /\  lo == 255  /\  hi == 0 ; emp }
+|  not (x == 0)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 
+                      v <= lo1 /\ 0 <= v /\ v <= 255 ;
+                      [x, 2] ** x :-> v ** (x + 1) :-> nxt ** srtl(nxt, len1, lo1, hi1) }
+}
+
+{0 <= n /\ 0 <= k /\ k <= 255 ; r :-> k ** srtl(x, n, lo, hi) }
+void srtl_insert (loc x, loc r)
+{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1) }
+
+###

@@ -49,7 +49,7 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   /**
-    * Find a block satisfying a predicates, and all matching chunks.
+    * Find a block satisfying a predicate, and all matching chunks.
     * Returns None if not all chunks are present.
     */
   def findBlockAndChunks(pBlock: Heaplet => Boolean,
@@ -58,9 +58,12 @@ trait SepLogicUtils extends PureLogicUtils {
     findHeaplet(h => h.isInstanceOf[Block] && pBlock(h), sigma) match {
       case None => None
       case Some(h@Block(x@Var(_), sz)) =>
-        val pts = for (off <- 0 until sz) yield
+        val ptsMb = for (off <- 0 until sz) yield
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
-        Some((h, pts.flatten))
+//        Some((h, pts.flatten))
+        val pts = ptsMb.flatten
+        if (pts.length == sz) Some((h, pts))
+        else None
     }
   }
 

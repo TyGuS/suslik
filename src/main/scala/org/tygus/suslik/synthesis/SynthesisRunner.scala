@@ -93,7 +93,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('r', "trace").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printDerivations = b))
-    }.text("print the entire derivation trace; default: true")
+    }.text("print the entire derivation trace; default: false")
 
     opt[Long]('t', "timeout").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(timeOut = t))
@@ -145,7 +145,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('s', "printStats").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printStats = b))
-    }.text("print synthesis stats; default: true")
+    }.text("print synthesis stats; default: false")
 
     opt[Boolean]('e', "printEnv").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
@@ -161,7 +161,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('l', "log").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(logToFile = b))
-    }.text("log results to a csv file; default: true")
+    }.text("log results to a csv file; default: false")
 
     opt[Boolean](name="memoization").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))

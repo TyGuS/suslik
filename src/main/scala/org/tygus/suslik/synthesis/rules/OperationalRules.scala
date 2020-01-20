@@ -2,12 +2,10 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.LanguageUtils.generateFreshVar
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.Statements.Load
 import org.tygus.suslik.language.{Statements, _}
-import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -177,6 +175,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
+
       findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
     }
 

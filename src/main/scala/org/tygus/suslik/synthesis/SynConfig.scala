@@ -28,6 +28,7 @@ case class SynConfig(
                       printFailed: Boolean      = false,
                       printTags: Boolean        = false,
                       printEnv: Boolean         = false,
+                      printColor: Boolean       = true,
                       assertSuccess: Boolean    = true,
                       logToFile: Boolean        = true,
                       memoization: Boolean      = true,

@@ -65,13 +65,13 @@ trait SynthesisRunnerUtil {
     }
 
     def parseSus = {
-      val hasDescr = lines.head.trim.startsWith("/*") // todo:support multiline descriptions
+      val hasDescr = lines.head.trim.startsWith("/*")
       val desc = if(hasDescr) lines.head.trim else ""
 
       val j = lines.indexWhere(_.trim.startsWith(testSeparator))
-      val (spec, expectedSrc) = lines.splitAt(j)
+      val (spec, expectedSrc) = if (j == -1) (lines, List(testSeparator, noOutputCheck)) else lines.splitAt(j)
 
-      val input = spec.mkString(" ").trim
+      val input = spec.mkString("\n").trim
       val testName = testFilePath
       val output = expectedSrc.tail.mkString("\n").trim
       (testName, desc, input, output, params.copy(inputFormat = format))
