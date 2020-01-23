@@ -51,11 +51,6 @@ class ImmutabilityPaperBenchamarksTests extends FunSpec with Matchers with Synth
   // LSEG: the predicate definitions includes linked list segments
   // ***********************************************************
 
-
-  describe("bst") {
-    runAllTestsFromDir(PATH + "old/ll/bst")
-  }
-
   describe("ints") {
     // NOTHING iSPECIAL WITH THIS BENCHMARK
     runAllTestsFromDir(PATH + "old/lseg/ints")
