@@ -78,9 +78,9 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
       checkUnificationSuccess(uSource3, uTarget3)
     }
 
-    it("assertions with non-trivial existentials") {
-      checkUnificationSuccess(uSource4, uTarget4)
-    }
+//    it("assertions with non-trivial existentials") {
+//      checkUnificationSuccess(uSource4, uTarget4)
+//    }
 
     it("assertions with predicate symbols") {
       checkUnificationSuccess(uSource5, uTarget5)
