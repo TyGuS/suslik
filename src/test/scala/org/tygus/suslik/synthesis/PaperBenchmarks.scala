@@ -36,8 +36,8 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
     runAllTestsFromDir("paper-benchmarks/tree")
   }
 
-  describe("Binary search trees") {
+/*  describe("Binary search trees") {
     runAllTestsFromDir("paper-benchmarks/bst")
-  }
+  }*/
 
 }
