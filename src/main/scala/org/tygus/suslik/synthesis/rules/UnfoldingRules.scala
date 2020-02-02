@@ -6,7 +6,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
+import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
 
 /**
@@ -102,15 +102,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         // Try to unify f's precondition and found goal pre's subheaps
         sourceAsn = f.pre
-        sourceParams = f.params.map(_._2).toSet
         targetAsn = callSubPre
-        targetParams = goal.programVars.toSet
+        sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
-        // TODO [UGoal]: Get rid of the goals
-        source = UnificationGoal(sourceAsn, sourceParams)
-        target = UnificationGoal(targetAsn, targetParams)
-        sub <- SpatialUnification.unify(target, source).toList
         // Checking ghost flow for a given substitution
+        sourceParams = f.params.map(_._2).toSet
+        targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
         
         // Check if respects ordering
@@ -188,21 +185,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
 
         sourceAsn = f.pre
-        sourceParams = f.params.map(_._2).toSet
         targetAsn = callSubPre
-        targetParams = goal.programVars.toSet
+        relaxedSub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
-        source = UnificationGoal(sourceAsn, sourceParams)
-        target = UnificationGoal(targetAsn, targetParams)
-
-        // TODO [UGoal]: Get rid of the goals
-        relaxedSub <- SpatialUnification.unify(target, source).toList
         // Checking ghost flow for a given substitution
+        sourceParams = f.params.map(_._2).toSet
+        targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(relaxedSub, targetAsn, targetParams, sourceAsn, sourceParams)
         
-        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        relaxedSub <- SpatialUnification.unify(target, source)
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
         if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))

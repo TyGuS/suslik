@@ -5,7 +5,6 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.synthesis.SynthesisException
 
 import scala.annotation.tailrec
@@ -138,7 +137,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   type UGoal = (Assertion, Set[Var])
 
-  def uGoal: Parser[(UGoal)] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
+  def uGoal: Parser[UGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
     case params ~ formula => (formula, params.toSet)
   }
 

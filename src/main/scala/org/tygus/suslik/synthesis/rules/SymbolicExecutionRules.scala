@@ -2,12 +2,11 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
-import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
+import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -212,19 +211,17 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           callSubPre = goal.pre.copy(sigma = largSubHeap)
 
           sourceAsn = f.pre
-          sourceParams = f.params.map(_._2).toSet
           targetAsn = callSubPre
-          targetParams = goal.programVars.toSet
 
           // Try to unify f's precondition and found goal pre's subheaps
           // We don't care if f's params are replaced with ghosts, we already checked earlier that actuals are not ghost
-          // TODO [UGoal]: Get rid of the goals
-          source = UnificationGoal(sourceAsn, sourceParams)
-          target = UnificationGoal(targetAsn, targetParams)
-          sub <- SpatialUnification.unify(target, source).toList
+          sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
           // Checking ghost flow for a given substitution
+          sourceParams = f.params.map(_._2).toSet
+          targetParams = goal.programVars.toSet
           if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
+
           // Check that actuals supplied in the code are equal to those implied by the substitution
           argsValid = PFormula(actuals.zip(f.params.map(_._2.subst(sub))).map { case (x, y) => x |=| y}.toSet)
           if SMTSolving.valid(goal.pre.phi ==> (argsValid && f.pre.phi.subst(sub)))

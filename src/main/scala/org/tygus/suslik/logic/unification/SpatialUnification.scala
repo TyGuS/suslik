@@ -17,16 +17,18 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
     * The result is a substitution of variables in the `source` to the variables in the `target`,
     * with the constraint that parameters of the former are not instantiated with the ghosts
     * of the latter (instantiating ghosts with anything is fine).
+    * 
+    * @param globalNames variables that bound in both source and target
     */
-  def unify(target: UnificationGoal, source: UnificationGoal,
-            boundInBoth: Set[Var] = Set.empty): Option[Subst] = {
+  def unify(target: Assertion,
+            source: Assertion,
+            globalNames: Set[Var] = Set.empty): Option[Subst] = {
+    
     // Make sure that all variables in source are fresh wrt. target
-    val (freshSource, freshSubst) = refreshSource(target, source, boundInBoth)
+    val (freshSourceAsn, freshSubst) = refreshSource(target, source, globalNames)
 
-    val targetChunks = target.formula.sigma.chunks
-    val sourceChunks = freshSource.formula.sigma.chunks
-    val takenVars = target.formula.vars ++ boundInBoth
-
+    val targetChunks = target.sigma.chunks
+    val sourceChunks = freshSourceAsn.sigma.chunks
     if (!checkShapesMatch(targetChunks, sourceChunks)) return None
 
     // Invariant: none of the keys in acc are present in sourceChunks
@@ -39,7 +41,7 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
           // Tries to find amongst chunks a heaplet h', which can be unified with the heaplet h.
           candidate <- sourceChunks
           // If successful, returns a substitution and a list of remaining heaplets
-          sbst <- tryUnify(tc, candidate, takenVars)
+          sbst <- tryUnify(tc, candidate, target.vars ++ globalNames)
           remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
         } yield {
           assertNoOverlap(acc, sbst)
@@ -61,7 +63,7 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
           as it refers to the variable in the scope.
          */
         val resultSubst = composition.filter {
-          case (k, v@Var(_)) => target.formula.vars.contains(v)
+          case (k, v@Var(_)) => target.vars.contains(v)
           case _ => true
         }
         Some(resultSubst)
@@ -72,25 +74,26 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
 
   /**
     * Tries to unify two heaplets `target` and `source`, assuming `source` has
-    * variables that are either free or in `nonFreeInSource`.
+    * variables that are either free or in `cantBeSubstituted`.
     *
     * If successful, returns a substitution from `source`'tFrame fresh variables to `target`'tFrame variables
     */
-  def tryUnify(target: UAtom, source: UAtom,
-               nonFreeInSource: Set[Var],
+  def tryUnify(target: UAtom, 
+               source: UAtom,
+               cantBeSubstituted: Set[Var],
                // Take the application level tags into the account
                // should be ignored when used from the *-intro rule
-               tagsMatter: Boolean = true): Seq[Subst] = {
-    assert(target.vars.forall(nonFreeInSource.contains), s"Not all variables of ${target.pp} are in $nonFreeInSource")
+               tagsMatter: Boolean = false): Seq[Subst] = {
+    assert(target.vars.forall(cantBeSubstituted.contains), s"Not all variables of ${target.pp} are in $cantBeSubstituted")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
         if (o1 != o2) Nil else {
-          assert(nonFreeInSource.contains(x))
-          assert(y.vars.forall(nonFreeInSource.contains))
+          assert(cantBeSubstituted.contains(x))
+          assert(y.vars.forall(cantBeSubstituted.contains))
           val sbst = for {
-            m1 <- genSubst(x, a, nonFreeInSource)
+            m1 <- genSubst(x, a, cantBeSubstituted)
             _v2 = b.subst(m1)
-            m2 <- genSubst(y, _v2, nonFreeInSource)
+            m2 <- genSubst(y, _v2, cantBeSubstituted)
           } yield {
             assertNoOverlap(m1, m2)
             m1 ++ m2
@@ -99,8 +102,8 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
         }
       case (Block(x1@Var(_), s1), Block(x2@Var(_), s2)) =>
         if (s1 != s2) Nil else {
-          assert(nonFreeInSource.contains(x1))
-          genSubst(x1, x2, nonFreeInSource).toList
+          assert(cantBeSubstituted.contains(x1))
+          genSubst(x1, x2, cantBeSubstituted).toList
         }
       case (SApp(p1, es1, targetTag), SApp(p2, es2, sourceTag)) =>
         // Only unify predicates with variables as arguments
@@ -116,7 +119,7 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
             case (opt, (x1, x2)) => opt match {
               case None => None
               case Some(acc) =>
-                genSubst(x1, x2, nonFreeInSource) match {
+                genSubst(x1, x2, cantBeSubstituted) match {
                   case Some(sbst) =>
                     assertNoOverlap(acc, sbst)
                     Some(acc ++ sbst)
@@ -128,11 +131,6 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
       case _ => Nil
     }
   }
-
-
-  def tryUnify(target: UAtom, source: UAtom, nonFreeInSource: Set[Var]): Seq[Subst] =
-    tryUnify(target, source, nonFreeInSource, tagsMatter = false)
-  
   
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
@@ -194,19 +192,19 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
   }
 
   /**
-    * Generate fresh names for variables in `source` that occur in `target`
+    * Generate fresh names for variables in `source` that occur in `target` and are not globallyBound
     */
-  protected def refreshSource(target: UnificationGoal, source: UnificationGoal, 
-                              boundInBoth: Set[Var] = Set.empty): (UnificationGoal, SubstVar) = {
-    val (freshSourceFormula, freshSubst) = source.formula.refresh(target.formula.vars)
-    val freshParams = source.params.map(_.subst(freshSubst)).asInstanceOf[Set[Var]]
-    (UnificationGoal(freshSourceFormula, freshParams), freshSubst)
+  protected def refreshSource(target: Assertion, 
+                              source: Assertion,
+                              globalNames: Set[Var]): (Assertion, SubstVar) = {
+    val (freshSourceFormula, freshSubst) = source.refresh(target.vars, globalNames)
+    (freshSourceFormula, freshSubst)
   }
 
-  protected def genSubst(to: Expr, from: Expr, taken: Set[Var]): Option[Subst] = {
+  protected def genSubst(to: Expr, from: Expr, cantBeSubstituted: Set[Var]): Option[Subst] = {
     if (to == from) Some(Map.empty) // Handling constants etc
     else from match {
-      case _from@Var(_) if !taken.contains(_from) => Some(Map(_from -> to))
+      case _from@Var(_) if !cantBeSubstituted.contains(_from) => Some(Map(_from -> to))
       case _ => None
     }
   }
@@ -214,13 +212,3 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
 
 
   }
-
-
-/**
-  * A parameterized formula, for which unification produces the substitution
-  */
-case class UnificationGoal(formula: Assertion, @deprecated params: Set[Var]) {
-  // def ghosts: Set[Var] = formula.vars -- params
-
-  override def toString: String = s"(${params.map(_.pp).mkString(", ")}) ${formula.pp}"
-}
