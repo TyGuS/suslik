@@ -103,7 +103,7 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
 
 
   /** ****************************************************
-    * Failuretests
+    * Failure tests
     * ***************************************************/
 
   //  Fail: to unify, "c" has to be substituted "z", but the latter is a ghost in the target
