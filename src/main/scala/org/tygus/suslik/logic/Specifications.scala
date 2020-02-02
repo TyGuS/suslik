@@ -27,6 +27,8 @@ object Specifications extends SepLogicUtils {
       (this.subst(freshSubst), freshSubst)
     }
 
+    def ghosts(params: Set[Var]): Set[Var] = this.vars -- params
+
     /**
       * For all pointers x :-> v, changes v to a fresh variable $ex.
       * Returns a substitution from $ex to v.

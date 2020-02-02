@@ -23,6 +23,24 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 
   protected def checkShapesMatch(cs1: List[UAtom], cs2: List[UAtom]): Boolean
 
+  /**
+    * Check that substitution does not substitutes ghosts for params
+    */
+  def checkGhostFlow(sbst: Subst,
+                     targetAsn: Assertion, targetParams: Set[Var],
+                     sourceAsn: Assertion, sourceParams: Set[Var]) = {
+    val tGhosts = targetAsn.ghosts(targetParams)
+    assert(targetParams.intersect(tGhosts).isEmpty, s"Non empty sets: $targetParams, $tGhosts")
+    val sGhosts = sourceAsn.ghosts(sourceParams)
+    assert(sourceParams.intersect(sGhosts).isEmpty, s"Non empty sets: $sourceParams, $sGhosts")
+    sbst.forall { case (from, to) =>
+      // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
+      (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
+        // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
+        (!sourceParams.contains(from) || to.vars.forall(targetParams.contains))
+    }
+  }
+
 
   /**
     * Unification of two formulae based on their spatial parts
@@ -48,39 +66,6 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 
     if (!checkShapesMatch(targetChunks, sourceChunks)) return None
 
-    /**
-      * Check that substitution does not substitutes ghosts for params
-      */
-    def checkSubstWF(sbst: Subst) = {
-      val tParams = target.params
-      val tGhosts = target.ghosts
-      assert(tParams.intersect(tGhosts).isEmpty, s"Non empty sets: $tParams, $tGhosts")
-      val sParams = freshSource.params
-      val sGhosts = freshSource.ghosts
-      assert(sParams.intersect(sGhosts).isEmpty, s"Non empty sets: $sParams, $sGhosts")
-      sbst.forall { case (from, to) =>
-        // If "to" is a ghost (in the target), the "from" also should be a ghost (in the source)
-        (tGhosts.intersect(to.vars).isEmpty || sGhosts.contains(from)) &&
-          // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
-          (!sParams.contains(from) || to.vars.forall(tParams.contains))
-      }
-    }
-
-    /**
-      * Tries to find amongst chunks a heaplet h', which can be unified with the heaplet h.
-      * If successful, returns a substitution and a list of remaining heaplets
-      */
-    def findChunkAndUnify(tc: UAtom, sourceChunks: List[UAtom]): Seq[(Subst, List[UAtom])] = {
-      for {
-        candidate <- sourceChunks
-        sbst <- tryUnify(tc, candidate, takenVars)
-        if checkSubstWF(sbst)
-      } yield {
-        val remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
-        (sbst, remainingAtomsAdapted)
-      }
-    }
-
     // Invariant: none of the keys in acc are present in sourceChunks
     def unifyGo(targetChunks: List[UAtom], sourceChunks: List[UAtom], acc: Subst): Seq[Subst] = targetChunks match {
       case Nil =>
@@ -90,10 +75,14 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
         List(acc)
       case tc :: tcss =>
         val options = for {
-          (sbst, scsUpdated) <- findChunkAndUnify(tc, sourceChunks)
+          // Tries to find amongst chunks a heaplet h', which can be unified with the heaplet h.
+          candidate <- sourceChunks
+          // If successful, returns a substitution and a list of remaining heaplets
+          sbst <- tryUnify(tc, candidate, takenVars)
+          remainingAtomsAdapted = sourceChunks.filter(_ != candidate).map(_.subst(sbst))
         } yield {
           assertNoOverlap(acc, sbst)
-          unifyGo(tcss, scsUpdated, acc ++ sbst)
+          unifyGo(tcss, remainingAtomsAdapted, acc ++ sbst)
         }
         options.flatten
     }
@@ -142,8 +131,8 @@ trait UnificationBase extends SepLogicUtils with PureLogicUtils {
 /**
   * A parameterized formula, for which unification produces the substitution
   */
-case class UnificationGoal(formula: Assertion, params: Set[Var]) {
-  def ghosts: Set[Var] = formula.vars -- params
+case class UnificationGoal(formula: Assertion, @deprecated params: Set[Var]) {
+  // def ghosts: Set[Var] = formula.vars -- params
 
   override def toString: String = s"(${params.map(_.pp).mkString(", ")}) ${formula.pp}"
 }

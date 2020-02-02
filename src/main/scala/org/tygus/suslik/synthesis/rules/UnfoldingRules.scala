@@ -101,9 +101,17 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         callSubPre = goal.pre.copy(sigma = largSubHeap)
 
         // Try to unify f's precondition and found goal pre's subheaps
-        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.programVars.toSet)
+        sourceAsn = f.pre
+        sourceParams = f.params.map(_._2).toSet
+        targetAsn = callSubPre
+        targetParams = goal.programVars.toSet
+        
+        source = UnificationGoal(sourceAsn, sourceParams)
+        target = UnificationGoal(targetAsn, targetParams)
         sub <- SpatialUnification.unify(target, source).toList
+        // Checking ghost flow for a given substitution
+        if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
+        // Check if respects ordering
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
@@ -116,6 +124,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
     }
+
 
     /**
       * Make a call goal for `f` with a given precondition
