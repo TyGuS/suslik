@@ -24,8 +24,8 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
             source: Assertion,
             globalNames: Set[Var] = Set.empty): Option[Subst] = {
     
-    // Make sure that all variables in source are fresh wrt. target
-    val (freshSourceAsn, freshSubst) = refreshSource(target, source, globalNames)
+    // Make sure that all substitutable variables in source are fresh wrt. target
+    val (freshSourceAsn, freshSubst) = source.refresh(target.vars, globalNames)
 
     val targetChunks = target.sigma.chunks
     val sourceChunks = freshSourceAsn.sigma.chunks
@@ -189,16 +189,6 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
         // If "from" is a parameter (in the source), the "to" also should be a parameter (in the target)
         (!sourceParams.contains(from) || to.vars.forall(targetParams.contains))
     }
-  }
-
-  /**
-    * Generate fresh names for variables in `source` that occur in `target` and are not globallyBound
-    */
-  protected def refreshSource(target: Assertion, 
-                              source: Assertion,
-                              globalNames: Set[Var]): (Assertion, SubstVar) = {
-    val (freshSourceFormula, freshSubst) = source.refresh(target.vars, globalNames)
-    (freshSourceFormula, freshSubst)
   }
 
   protected def genSubst(to: Expr, from: Expr, cantBeSubstituted: Set[Var]): Option[Subst] = {
