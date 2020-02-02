@@ -1,14 +1,19 @@
 package org.tygus.suslik.unification
 
 import org.scalatest.{FunSpec, Matchers}
+import org.tygus.suslik.language.Expressions
+import org.tygus.suslik.language.Expressions.Var
+import org.tygus.suslik.logic.Specifications.Assertion
 import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
-import org.tygus.suslik.logic.PureLogicUtils
+import org.tygus.suslik.logic.{PureLogicUtils, Specifications}
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.util.SynLogLevels
 
 class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils {
 
-  private def getSourceTarget(sourceText: String, targetText: String) = {
+  type UGoal = (Assertion, Set[Var])
+
+  private def getSourceTarget(sourceText: String, targetText: String): (UGoal, UGoal) = {
     val parser = new SSLParser
     val targetRes = parser.parseUnificationGoal(targetText)
     val sourceRes = parser.parseUnificationGoal(sourceText)
@@ -46,7 +51,11 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
   //////////////////////////////////////////////////
 
   private def checkUnificationSuccess(sourceText: String, targetText: String) {
-    val (target: UnificationGoal, source: UnificationGoal) = getSourceTarget(sourceText, targetText)
+    val (t, s) = getSourceTarget(sourceText, targetText)
+
+    // TODO [UGoal] remove me
+    val target = UnificationGoal(t._1, t._2)
+    val source = UnificationGoal(s._1, s._2)
 
     // Assert that these are conjunctions
     SpatialUnification.unify(target, source) match {
@@ -107,15 +116,25 @@ class SpatialUnificationTests extends FunSpec with Matchers with PureLogicUtils 
   /////////////////////////////////////////////////////////////////////
 
   private def checkUnificationFailure(sourceText: String, targetText: String) {
-    val (target: UnificationGoal, source: UnificationGoal) = getSourceTarget(sourceText, targetText)
+    val (t, s) = getSourceTarget(sourceText, targetText)
+
+    // TODO [UGoal] remove me
+    val target = UnificationGoal(t._1, t._2)
+    val source = UnificationGoal(s._1, s._2)
+
 
     // Assert that these are conjunctions
     SpatialUnification.unify(target, source) match {
       case Some(sbst) =>
         val res = source.formula.subst(sbst)
-        testPrintln(s"Weird! Unified\nSource $source\nwith\nTarget $target\n" +
+        // Now need to check the ghost flow
+        if (SpatialUnification.checkGhostFlow(sbst, t._1, t._2, s._1, s._2)) {
+          testPrintln(s"Weird! Unified\nSource $source\nwith\nTarget $target\n" +
             s"Adapted source:\n${res.pp}\nSubstitution (source -> target):\n${SpatialUnification.ppSubst(sbst)}\n")
-        assert(false, "Unification shouldn't succeed")
+          assert(false, "Unification shouldn't succeed")
+        } else {
+          // Good!
+        }
       case None =>
         testPrintln(s"As expected, failed to unify")
         testPrintln(s"$source", Console.BLUE)

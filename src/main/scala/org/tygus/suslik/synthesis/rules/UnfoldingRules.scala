@@ -105,12 +105,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sourceParams = f.params.map(_._2).toSet
         targetAsn = callSubPre
         targetParams = goal.programVars.toSet
-        
+
+        // TODO [UGoal]: Get rid of the goals
         source = UnificationGoal(sourceAsn, sourceParams)
         target = UnificationGoal(targetAsn, targetParams)
         sub <- SpatialUnification.unify(target, source).toList
         // Checking ghost flow for a given substitution
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
+        
         // Check if respects ordering
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
@@ -184,6 +186,20 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         largPreSubHeap <- matchingHeaps
         callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
 
+
+        sourceAsn = f.pre
+        sourceParams = f.params.map(_._2).toSet
+        targetAsn = callSubPre
+        targetParams = goal.programVars.toSet
+
+        source = UnificationGoal(sourceAsn, sourceParams)
+        target = UnificationGoal(targetAsn, targetParams)
+
+        // TODO [UGoal]: Get rid of the goals
+        relaxedSub <- SpatialUnification.unify(target, source).toList
+        // Checking ghost flow for a given substitution
+        if SpatialUnification.checkGhostFlow(relaxedSub, targetAsn, targetParams, sourceAsn, sourceParams)
+        
         source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
         target = UnificationGoal(callSubPre, goal.programVars.toSet)
         relaxedSub <- SpatialUnification.unify(target, source)

@@ -211,14 +211,20 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
           callSubPre = goal.pre.copy(sigma = largSubHeap)
 
+          sourceAsn = f.pre
+          sourceParams = f.params.map(_._2).toSet
+          targetAsn = callSubPre
+          targetParams = goal.programVars.toSet
+
           // Try to unify f's precondition and found goal pre's subheaps
           // We don't care if f's params are replaced with ghosts, we already checked earlier that actuals are not ghost
-          source = UnificationGoal(f.pre, Set.empty)
-          target = UnificationGoal(callSubPre, Set.empty)
-          sub <- {
-            SpatialUnification.unify(target, source).toList
-          }
+          // TODO [UGoal]: Get rid of the goals
+          source = UnificationGoal(sourceAsn, sourceParams)
+          target = UnificationGoal(targetAsn, targetParams)
+          sub <- SpatialUnification.unify(target, source).toList
 
+          // Checking ghost flow for a given substitution
+          if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
           // Check that actuals supplied in the code are equal to those implied by the substitution
           argsValid = PFormula(actuals.zip(f.params.map(_._2.subst(sub))).map { case (x, y) => x |=| y}.toSet)
           if SMTSolving.valid(goal.pre.phi ==> (argsValid && f.pre.phi.subst(sub)))
