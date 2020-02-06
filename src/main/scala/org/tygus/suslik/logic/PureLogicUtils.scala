@@ -205,7 +205,7 @@ trait PureLogicUtils {
 
   /**
     * @param vs    a list of variables to refresh
-    * @param bound bound identifiers
+    * @param bound identifiers whose names are already taken
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
   def refreshVars(vs: List[Var], bound: Set[Var], suffix: String = ""): Map[Var, Var] = {

@@ -22,10 +22,19 @@ object Specifications extends SepLogicUtils {
 
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
-    def refresh(bound: Set[Var]): (Assertion, SubstVar) = {
-      val freshSubst = refreshVars(this.vars.toList, bound)
+    /**
+      * 
+      * @param takenNames -- names that are already taken
+      * @param globalNames -- variables that shouldn't be renamed
+      * @return
+      */
+    def refresh(takenNames: Set[Var], globalNames: Set[Var]): (Assertion, SubstVar) = {
+      val varsToRename = (vars -- globalNames).toList
+      val freshSubst = refreshVars(varsToRename, takenNames ++ globalNames)
       (this.subst(freshSubst), freshSubst)
     }
+
+    def ghosts(params: Set[Var]): Set[Var] = this.vars -- params
 
     /**
       * For all pointers x :-> v, changes v to a fresh variable $ex.
