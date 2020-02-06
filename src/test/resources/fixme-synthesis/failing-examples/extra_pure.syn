@@ -1,0 +1,14 @@
+Swapping example
+adding useless conditions in pure part breaks the synthesis
+(with `a == 55` instead of `y == 55` works)
+###
+
+{ y==55 ;x :-> a ** y :-> b }
+
+void swap(loc x, loc y)
+
+{y==55 ; x :-> b ** y :-> a }
+
+###
+
+nope

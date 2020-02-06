@@ -1,0 +1,29 @@
+/* free and write should work with equalities */
+
+/* free works incorrectly, because it can't find block parts that has different name than block name */
+void fr(loc f)
+{ true ; }
+{ true ;  }
+{
+  let a = malloc(3);
+  *a = a;
+  let b = *a; /* b == a */
+  *b = a;
+  *(b+1) = b+1;
+  let c = *(b+1);
+  *c = c;
+  free(b);
+}
+
+###
+
+void fr(loc f) {
+  let a = malloc(3);
+  *a = a;
+  let b = *a; /* b == a */
+  *b = a;
+  *(b+1) = b+1;
+  let c = *(b+1);
+  *c = c;
+  free(b);
+}
