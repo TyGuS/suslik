@@ -5,7 +5,6 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.unification.UnificationGoal
 import org.tygus.suslik.synthesis.SynthesisException
 
 import scala.annotation.tailrec
@@ -136,8 +135,10 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       case name ~ formals ~ clauses => InductivePredicate(name, formals, clauses)
     }
 
-  def uGoal: Parser[UnificationGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
-    case params ~ formula => UnificationGoal(formula, params.toSet)
+  type UGoal = (Assertion, Set[Var])
+
+  def uGoal: Parser[UGoal] = ("(" ~> rep1sep(varParser, ",") <~ ")") ~ assertion ^^ {
+    case params ~ formula => (formula, params.toSet)
   }
 
   def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]"
@@ -223,8 +224,8 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case Success(_, in) if !in.atEnd => Failure("Not fully parsed", in)
     case s => s
   }
-
-  def parseUnificationGoal(input: String): ParseResult[UnificationGoal] = parse(uGoal)(input)
+  
+  def parseUnificationGoal(input: String): ParseResult[UGoal] = parse(uGoal)(input)
 
   def parseGoalSYN(input: String): ParseResult[Program] = parse(programSYN)(input)
   def parseGoalSUS(input: String): ParseResult[Program] = parse(programSUS)(input)

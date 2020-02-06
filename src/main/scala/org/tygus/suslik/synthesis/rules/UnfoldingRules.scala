@@ -6,7 +6,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.unification.{SpatialUnification, UnificationGoal}
+import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
 
 /**
@@ -101,9 +101,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         callSubPre = goal.pre.copy(sigma = largSubHeap)
 
         // Try to unify f's precondition and found goal pre's subheaps
-        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        sub <- SpatialUnification.unify(target, source).toList
+        sourceAsn = f.pre
+        targetAsn = callSubPre
+        sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
+
+        // Checking ghost flow for a given substitution
+        sourceParams = f.params.map(_._2).toSet
+        targetParams = goal.programVars.toSet
+        if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
+        
+        // Check if respects ordering
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
@@ -116,6 +123,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
     }
+
 
     /**
       * Make a call goal for `f` with a given precondition
@@ -175,9 +183,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         largPreSubHeap <- matchingHeaps
         callSubPre = goal.pre.copy(sigma = largPreSubHeap) // A subheap of the precondition to unify with
 
-        source = UnificationGoal(f.pre, f.params.map(_._2).toSet)
-        target = UnificationGoal(callSubPre, goal.programVars.toSet)
-        relaxedSub <- SpatialUnification.unify(target, source)
+
+        sourceAsn = f.pre
+        targetAsn = callSubPre
+        relaxedSub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
+
+        // Checking ghost flow for a given substitution
+        sourceParams = f.params.map(_._2).toSet
+        targetParams = goal.programVars.toSet
+        if SpatialUnification.checkGhostFlow(relaxedSub, targetAsn, targetParams, sourceAsn, sourceParams)
+        
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
         if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
