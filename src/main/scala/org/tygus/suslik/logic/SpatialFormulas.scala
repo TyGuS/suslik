@@ -105,9 +105,12 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 }
 
 /**
+  *
+  * TODO: Remove tags
+  *
   * Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], /*card: Option[Var], */ tag: Option[Int] = Some(0)) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args = args.map(_.resolveOverloading(gamma)))
 
@@ -115,8 +118,10 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
     val ppTag: Option[Int] => String = {
       case None => "[-]" // "[\uD83D\uDD12]" // "locked"
       case Some(0) => "" // Default tag
-      case Some(t) => s"[$t]"
+      case Some(t) => s"<$t>"
     }
+
+
     s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
   }
 

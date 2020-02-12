@@ -131,8 +131,14 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def indPredicate: Parser[InductivePredicate] =
     ("predicate" ~> ident) ~ ("(" ~> repsep(formal, ",") <~ ")") ~
+        opt("[" ~> ident <~ "]") ~
         (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ formals ~ clauses => InductivePredicate(name, formals, clauses)
+      case name ~ formals ~ card ~ clauses =>
+        val c = card match {
+          case Some(s) => s
+          case None => cardName(name)
+        }
+        InductivePredicate(name, formals, c, clauses)
     }
 
   type UGoal = (Assertion, Set[Var])
@@ -195,7 +201,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   }
 
   def programSUS: Parser[Program] = repAll(indPredicate | (goalFunctionV1 ||| nonGoalFunction)) ^^ { pfs =>
-    val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
+    val ps = for (p@InductivePredicate(_, _, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
     val goals = for (gc@GoalContainer(_, _) <- pfs) yield gc
     if (goals.isEmpty) {
@@ -209,7 +215,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   }
 
   def programSYN: Parser[Program] = repAll(indPredicate | goalFunctionSYN) ^^ { pfs =>
-    val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
+    val ps = for (p@InductivePredicate(_, _, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
     if (fs.isEmpty){
       throw SynthesisException("Parsing failed. No single function spec is provided.")

@@ -12,6 +12,8 @@ import org.tygus.suslik.language.Expressions.{Expr, IntConst, Var}
 trait SepLogicUtils extends PureLogicUtils {
 
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
+  
+  def cardName(n: String) = s"${n}_card"
 
   def emp: SFormula = SFormula(Nil)
   def singletonHeap(h:Heaplet): SFormula = SFormula(List(h))

@@ -33,7 +33,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
+          val InductivePredicate(_, params, card, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
           val sbst = params.map(_._2).zip(args).toMap
           val remainingSigma = pre.sigma - h
           val newGoals = for {
@@ -256,7 +256,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          val InductivePredicate(_, params, card, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val paramNames = params.map(_._2)

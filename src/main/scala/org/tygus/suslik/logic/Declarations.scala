@@ -105,7 +105,7 @@ case class InductiveClause(selector: Expr, asn: Assertion) extends PrettyPrintin
   *
   * For instance, a linked list can be encoded as follows:
   *
-  * predicate lseg(x, y) {
+  * predicate lseg(x, y)[α] {
   * x == y  =>  emp
   * | x != y  => x -> (V, Z) * lseg(Z, y)
   * }
@@ -113,13 +113,16 @@ case class InductiveClause(selector: Expr, asn: Assertion) extends PrettyPrintin
   *
   * Each clause condition does not contain free variables, only the parameters,
   * while all free variables in the spatial part (body) is existentially quantified.
+  * 
+  * α is an identifier that stands for predicate cardinality and is necessary for the cyclic proof checking.
+  * In case if it's missing from the definition, it's instantiated with predname_card
   *
   * Also add simple predicate definitions
   *
   * TODO: add higher-order predicates, e.g., a list parameterised by a predicate
   *
   */
-case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[InductiveClause])
+case class InductivePredicate(name: Ident, params: Formals, card: Ident, clauses: Seq[InductiveClause])
     extends TopLevelDeclaration with PureLogicUtils {
 
   def resolve(gamma: Gamma, env:Environment):Option[Gamma] = {
@@ -143,9 +146,11 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
   }
 
   override def pp: String = {
-    val prelude = s"$name (${params.map(_._2.pp).mkString(", ")}) {"
+    val prelude = s"$name (${params.map(_._2.pp).mkString(", ")})"
+    // Print cardinality parameter
+    val c = if (card == cardName(card)) "" else s"[$card]"
     val cls = clauses.map(_.pp).mkString(" | ")
-    prelude + cls + "}"
+    prelude + card + s"{ $cls }"
   }
 
   def valid: Boolean = clauses.forall(_.valid)
