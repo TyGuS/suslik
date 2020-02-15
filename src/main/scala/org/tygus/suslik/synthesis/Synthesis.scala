@@ -89,7 +89,7 @@ trait Synthesis extends SepLogicUtils {
 
       // Lookup the node in the memo
       val res = memo.lookup(goal) match {
-        case Some(Failed()) => { // Same goal has failed before: record as failed
+        case Some(Failed) => { // Same goal has failed before: record as failed
           printLog(List((s"Recalled FAIL", RED)))
           Left(node.fail(withRest(Nil)))
         }
@@ -97,7 +97,7 @@ trait Synthesis extends SepLogicUtils {
           printLog(List((s"Recalled solution ${sol._1.pp}", RED)))
           node.succeed(sol, withRest(Nil))
         }
-        case Some(Expanded()) => { // Same goal has been expanded before: wait until it's fully explored
+        case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
           printLog(List(("Suspend", RED)))
           memo.suspend(node)
           Left(withRest(List(node)))
@@ -126,7 +126,7 @@ trait Synthesis extends SepLogicUtils {
   protected def expandNode(node: OrNode, withRest: List[OrNode] => List[OrNode])(implicit stats: SynStats,
                                          config: SynConfig): Either[List[OrNode], Solution] = {
     val goal = node.goal
-    memo.save(goal, Expanded())
+    memo.save(goal, Expanded)
     implicit val ind: Int = goal.depth
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
