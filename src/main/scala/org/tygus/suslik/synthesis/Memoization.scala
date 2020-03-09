@@ -101,8 +101,8 @@ object Memoization {
     def suspendedSize: Int = suspended.size
 
     private def trimGoal(g: Goal): MemoGoal = MemoGoal(
-      Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks.sorted)),
-      Assertion(g.post.phi, mkSFormula(g.post.sigma.chunks.sorted)),
+      Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks)),
+      Assertion(g.post.phi, mkSFormula(g.post.sigma.chunks)),
       g.gamma,
       g.programVars.toSet,
       g.universalGhosts,

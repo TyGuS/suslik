@@ -122,7 +122,7 @@ case class InductiveClause(selector: Expr, asn: Assertion) extends PrettyPrintin
   * TODO: add higher-order predicates, e.g., a list parameterised by a predicate
   *
   */
-case class InductivePredicate(name: Ident, params: Formals, card: Ident, clauses: Seq[InductiveClause])
+case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[InductiveClause])
     extends TopLevelDeclaration with PureLogicUtils {
 
   def resolve(gamma: Gamma, env:Environment):Option[Gamma] = {
@@ -148,9 +148,8 @@ case class InductivePredicate(name: Ident, params: Formals, card: Ident, clauses
   override def pp: String = {
     val prelude = s"$name (${params.map(_._2.pp).mkString(", ")})"
     // Print cardinality parameter
-    val c = if (card == cardName(card)) "" else s"[$card]"
     val cls = clauses.map(_.pp).mkString(" | ")
-    prelude + card + s"{ $cls }"
+    prelude  + s"{ $cls }"
   }
 
   def valid: Boolean = clauses.forall(_.valid)
@@ -162,14 +161,14 @@ case class InductivePredicate(name: Ident, params: Formals, card: Ident, clauses
     * @return inductive predicate
     */
   def refreshExistentials(vars: Set[Var], suffix: String = ""): InductivePredicate = {
-    val bound = vars ++ params.map(_._2).toSet
+    val bound = Set(selfCardVar) ++ vars ++ params.map(_._2).toSet
     val sbst = refreshVars(existentials.toList, bound, suffix)
     this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
   }
 
   def vars: Set[Var] = clauses.flatMap(c => c.selector.vars ++ c.asn.vars).toSet
 
-  def existentials: Set[Var] = vars -- params.map(_._2).toSet
+  def existentials: Set[Var] = vars -- params.map(_._2).toSet -- Set(selfCardVar)
 
 }
 

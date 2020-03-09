@@ -1,7 +1,7 @@
 package org.tygus.suslik.logic
 
-import org.tygus.suslik.language._
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
 import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 
@@ -18,7 +18,13 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
         acc1 ++ value.collect(p)
       case Block(v, _) =>
         if (p(v)) acc + v.asInstanceOf[R] else acc
-      case SApp(_, args, _) => args.foldLeft(acc)((a, e) => a ++ e.collect(p))
+      case SApp(_, args, _, card) =>
+        args.foldLeft(acc)((a, e) => a ++ e.collect(p)) ++
+          // [Cardinality] add the cardinality variable
+          (card match {
+            case Some(v) => v.collect(p)
+            case _ => Set.empty
+          })
     }
 
     collector(Set.empty)(this)
@@ -40,14 +46,14 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   def size: Int = this match {
     case PointsTo(loc, _, value) => 1 + loc.size + value.size
     case Block(loc, _) => 1 + loc.size
-    case SApp(_, args, _) => args.map(_.size).sum
+    case SApp(_, args, _, _) => args.map(_.size).sum
   }
 
   def cost: Int = this match {
     case PointsTo(_, _, _) => 0
     case Block(_, _) => 0
-    case SApp(_, _, None) => 3
-    case SApp(_, _, Some(n)) => n
+    case SApp(_, _, None, _) => 3
+    case SApp(_, _, Some(n), _) => n
     //    case PointsTo(_, _, _) => 1
     //    case Block(_, _) => 1
     //    case SApp(_, _, _) => 10
@@ -82,6 +88,11 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
       gamma2 <- value.resolve(gamma1, Some(IntType))
     } yield gamma2
   }
+
+  override def compare(that: Heaplet) = that match {
+    case SApp(pred, args, tag, card) => -1
+    case _ => super.compare(that)
+  }
 }
 
 /**
@@ -102,30 +113,57 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   def |-(other: Heaplet): Boolean = false
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
+
+  override def compare(that: Heaplet) = that match {
+    case SApp(pred, args, tag, card) => -1
+    case _ => super.compare(that)
+  }
 }
 
 /**
   *
   * TODO: Remove tags
   *
-  * Predicate application
+  * @card is a cardinality of a current call. When equals None, treated as an existential
+  *
+  *       Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], /*card: Option[Var], */ tag: Option[Int] = Some(0)) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: Option[Expr] = None) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args = args.map(_.resolveOverloading(gamma)))
 
   override def pp: String = {
+    val ppCard: Option[Expr] => String = {
+      case None => "" // "[\uD83D\uDD12]" // "locked"
+      case Some(t) => s"<${t.pp}>"
+    }
+
     val ppTag: Option[Int] => String = {
       case None => "[-]" // "[\uD83D\uDD12]" // "locked"
       case Some(0) => "" // Default tag
       case Some(t) => s"<$t>"
     }
 
-
-    s"$pred(${args.map(_.pp).mkString(", ")})${ppTag(tag)}"
+    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}"
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet = this.copy(args = args.map(_.subst(sigma)))
+
+  override def compare(that: Heaplet): Int = that match {
+    case SApp(pred1, args1, tag, card) =>
+      val c1 = this.pred.compareTo(pred1)
+      val c2 = this.args.toString.compareTo(args1.toString)
+      if (c1 != 0) return c1
+      if (c2 != 0) return c2
+      0
+    case _ => super.compare(that)
+  }
+
+  def subst(sigma: Map[Var, Expr]): Heaplet = {
+    val newArgs = args.map(_.subst(sigma))
+    // [Cardinality] adjust cardinality
+    val newCard = card.map(_.subst(sigma))
+    this.copy(args = newArgs, card = newCard)
+  }
 
   def |-(other: Heaplet): Boolean = false
 
@@ -164,7 +202,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b
 
-  def apps: List[SApp] = for (b@SApp(_, _, _) <- chunks) yield b
+  def apps: List[SApp] = for (b@SApp(_, _, _, _) <- chunks) yield b
 
   def ptss: List[PointsTo] = for (b@PointsTo(_, _, _) <- chunks) yield b
 

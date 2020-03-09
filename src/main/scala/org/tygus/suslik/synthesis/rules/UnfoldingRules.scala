@@ -30,11 +30,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       h match {
-        case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
+        case SApp(pred, args, Some(t), card) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
-          val InductivePredicate(_, params, card, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
-          val sbst = params.map(_._2).zip(args).toMap
+          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
+          val sbst = params.map(_._2).zip(args).toMap ++
+            // [Cardinality] adjust cardinality of sub-clauses
+            (card match {case Some(v) => Map(selfCardVar -> v) case _ => Map.empty})
           val remainingSigma = pre.sigma - h
           val newGoals = for {
             c@InductiveClause(_sel, _asn) <- clauses
@@ -251,20 +253,22 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       def heapletResults(h: Heaplet): Seq[RuleResult] = h match {
-        case SApp(pred, args, Some(t)) =>
+        case SApp(pred, args, Some(t), card) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, card, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val paramNames = params.map(_._2)
-          val substArgs = paramNames.zip(args).toMap
+          val substArgs = paramNames.zip(args).toMap ++
+            // [Cardinality] adjust cardinality of sub-clauses
+            (card match {case Some(v) => Map(selfCardVar -> v) case _ => Map.empty})
           val subDerivations = for {
             InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
-            asnExistentials = asn.vars -- paramNames.toSet
+            asnExistentials = asn.vars -- paramNames.toSet -- Set(selfCardVar)
             freshSuffix = args.take(1).map(_.pp).mkString("_")
             freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars, freshSuffix)
             // Make sure that can unfold only once

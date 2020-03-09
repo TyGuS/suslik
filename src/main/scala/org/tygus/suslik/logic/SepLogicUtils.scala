@@ -11,6 +11,12 @@ import org.tygus.suslik.language.Expressions.{Expr, IntConst, Var}
 
 trait SepLogicUtils extends PureLogicUtils {
 
+  /**
+    * A name used to refer to the size cardinality of the enclosing inductive predicate
+    * from within its definition
+    */
+  val selfCardVar = Var("self_card")
+
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
   
   def cardName(n: String) = s"${n}_card"
@@ -70,9 +76,9 @@ trait SepLogicUtils extends PureLogicUtils {
     def compareTags(lilTag: Option[Int], largTag: Option[Int]): Int = lilTag.getOrElse(0) - largTag.getOrElse(0)
 
     val pairTags = for {
-      SApp(name, args, t) <- adaptedFunPre.chunks
-      SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
-        case SApp(_name, _args, _) => _name == name && _args == args
+      SApp(name, args, t, c) <- adaptedFunPre.chunks
+      SApp(_name, _args, _t, _c) <- goalSubHeap.chunks.find {
+        case SApp(_name, _args, _, _c) => _name == name && _args == args 
         case _ => false
       }
     } yield (t, _t)
@@ -104,8 +110,8 @@ trait SepLogicUtils extends PureLogicUtils {
           case PointsTo(_loc, _offset, _value) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
-      case SApp(pred, args, tag) => stuff.filter {
-        case SApp(_pred, _args, _tag) =>
+      case SApp(pred, args, tag, _) => stuff.filter {
+        case SApp(_pred, _args, _tag, _) =>
           _pred == pred && args.length == _args.length
         case _ => false
       }

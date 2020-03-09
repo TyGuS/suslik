@@ -1,0 +1,9 @@
+predicate sll(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}
+
+predicate sll_card(loc x, set s) {
+|  x == 0        => { s =i {} /\ self_card == 0 ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 /\ self_card == b + 2 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll_card(nxt, s1)<b> }
+}

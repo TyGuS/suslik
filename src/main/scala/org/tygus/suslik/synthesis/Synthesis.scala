@@ -2,12 +2,12 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.{SApp, _}
+import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
-import org.tygus.suslik.util.{SynLogging, SynStats}
 import org.tygus.suslik.synthesis.rules.Rules._
+import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
 import scala.annotation.tailrec
