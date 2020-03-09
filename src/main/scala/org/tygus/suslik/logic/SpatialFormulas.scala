@@ -21,10 +21,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
       case SApp(_, args, _, card) =>
         args.foldLeft(acc)((a, e) => a ++ e.collect(p)) ++
           // [Cardinality] add the cardinality variable
-          (card match {
-            case Some(v) => v.collect(p)
-            case _ => Set.empty
-          })
+          card.collect(p)
     }
 
     collector(Set.empty)(this)
@@ -128,15 +125,12 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   *
   *       Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: Option[Expr] = None) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args = args.map(_.resolveOverloading(gamma)))
 
   override def pp: String = {
-    val ppCard: Option[Expr] => String = {
-      case None => "" // "[\uD83D\uDD12]" // "locked"
-      case Some(t) => s"<${t.pp}>"
-    }
+    def ppCard(e: Expr) = s"<${e.pp}>"
 
     val ppTag: Option[Int] => String = {
       case None => "[-]" // "[\uD83D\uDD12]" // "locked"
@@ -161,7 +155,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
     val newArgs = args.map(_.subst(sigma))
     // [Cardinality] adjust cardinality
-    val newCard = card.map(_.subst(sigma))
+    val newCard = card.subst(sigma)
     this.copy(args = newArgs, card = newCard)
   }
 

@@ -37,7 +37,8 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     */
   def main(args: Array[String]): Unit = handleInput(args)
 
-  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
+  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
+    super.doRun(testName, desc, in, out, params)
     if (params.printStats) {
       println(desc)
       println()
@@ -87,7 +88,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     head(TOOLNAME, VERSION_STRING)
 
-    arg[String]("fileName").action {(x, c) =>
+    arg[String]("fileName").action { (x, c) =>
       c.copy(fileName = x)
     }.text("a synthesis file name (the file under the specified folder, called filename.syn)")
 
@@ -163,7 +164,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(logToFile = b))
     }.text("log results to a csv file; default: true")
 
-    opt[Boolean](name="memoization").action { (b, rc) =>
+    opt[Boolean](name = "memoization").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))
     }.text("enable memoization; default: true")
 

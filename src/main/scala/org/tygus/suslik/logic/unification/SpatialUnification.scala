@@ -82,10 +82,7 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
     */
   def tryUnify(target: UAtom,
                source: UAtom,
-               cantBeSubstituted: Set[Var],
-               // Take the application level tags into the account
-               // should be ignored when used from the *-intro rule
-               tagsMatter: Boolean = false): Seq[Subst] = {
+               cantBeSubstituted: Set[Var]): Seq[Subst] = {
     assert(target.vars.forall(cantBeSubstituted.contains), s"Not all variables of ${target.pp} are in $cantBeSubstituted")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
@@ -107,24 +104,18 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
           assert(cantBeSubstituted.contains(x1))
           genSubst(x1, x2, cantBeSubstituted).toList
         }
-      case (SApp(p1, es1, targetTag, tCard), SApp(p2, es2, sourceTag, sCard)) =>
+      case (SApp(p1, es1, _, tCard), SApp(p2, es2, _, sCard)) =>
         // Only unify predicates with variables as arguments
         // if es2.forall(_.isInstanceOf[Var])
 
-        if (p1 != p2 || es1.size != es2.size ||
-          (targetTag != sourceTag && tagsMatter)) Nil
+        if (p1 != p2 || es1.size != es2.size) Nil
 
         else {
           // [Cardinality] : adapting for substituting cardinalities
-          val pairs = es1.zip(es2).toList
-          
-          val allPairs = (tCard, sCard) match {
-            case (Some(t), Some(s)) => (t, s) :: pairs
-            case _ => pairs
-          }
+          val pairs = (tCard, sCard) :: es1.zip(es2).toList
           
           // Collect the mapping from the predicate parameters
-          allPairs.foldLeft(Some(Map.empty): Option[Subst]) {
+          pairs.foldLeft(Some(Map.empty): Option[Subst]) {
             case (opt, (x1, x2)) => opt match {
               case None => None
               case Some(acc) =>

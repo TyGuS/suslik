@@ -36,7 +36,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
           val sbst = params.map(_._2).zip(args).toMap ++
             // [Cardinality] adjust cardinality of sub-clauses
-            (card match {case Some(v) => Map(selfCardVar -> v) case _ => Map.empty})
+            Map(selfCardVar -> card)
           val remainingSigma = pre.sigma - h
           val newGoals = for {
             c@InductiveClause(_sel, _asn) <- clauses
@@ -113,6 +113,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
         
         // Check if respects ordering
+        // [Cardinality] TODO: get rid by using cardinality constraints instead 
         if respectsOrdering(largSubHeap, lilHeap.subst(sub))
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
@@ -197,6 +198,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+
+        // [Cardinality] TODO: get rid by using cardinality constraints instead
         if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
@@ -262,9 +265,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val paramNames = params.map(_._2)
+          
           val substArgs = paramNames.zip(args).toMap ++
             // [Cardinality] adjust cardinality of sub-clauses
-            (card match {case Some(v) => Map(selfCardVar -> v) case _ => Map.empty})
+            Map(selfCardVar -> card)
+          
           val subDerivations = for {
             InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
