@@ -1,13 +1,11 @@
 package org.tygus.suslik
 
-import java.time.Instant
-
 /**
   * @author Ilya Sergey
   */
 package object parsing {
 
-  private var now = Instant.now().getEpochSecond
+  private var now = 1583756044
 
   def getTotallyFreshName(): String = {
     val s = s"c$now"
