@@ -32,6 +32,7 @@ object SearchTree {
       else parent match {
         // this node cannot be the root, because label.lengh > l.length
         case Some(p) => p.hasAncestor(l)
+        case _ => false
       }
 
     // Replace the ancestor labeled l with newAN
@@ -45,7 +46,7 @@ object SearchTree {
 
     // This node has failed: prune siblings from worklist
     def fail(wl: List[OrNode])(implicit stats: SynStats, config: SynConfig): List[OrNode] = {
-      memo.save(goal, Failed())
+      memo.save(goal, Failed)
       parent match {
         case None => wl // this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
