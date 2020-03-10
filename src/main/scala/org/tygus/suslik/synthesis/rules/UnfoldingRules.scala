@@ -135,7 +135,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // [Cardinality] recursive case: symheap passed to the call is smaller than the initial one
         cardLT(preHeap, getRootGoal(goal).pre.sigma, goal.pre.phi)
 
-      // No unlimited recursion: blocking once participated cardinalities
+      // Preventing multiple decreasing calls: blocking cardinality variables that participated once 
       val allowedToCall = onlyNonUsedCardinalities(preHeap, f.name, goal)
 
       allowedToCall && wellFounded
