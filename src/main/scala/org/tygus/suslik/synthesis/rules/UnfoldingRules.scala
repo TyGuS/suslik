@@ -72,7 +72,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
   }
 
- 
+
   /*
   Application rule: apply the inductive hypothesis
 
@@ -92,7 +92,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val allCands = goal.companionCandidates.reverse
       val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
       val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
-        goal.env.functions.values.map (f => (f, None)) // components
+        goal.env.functions.values.map(f => (f, None)) // components
       val results = for {
         (f, l) <- funLabels
 
@@ -111,10 +111,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sourceParams = f.params.map(_._2).toSet
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
-        
-        // Check if respects ordering
-        // [Cardinality] TODO: get rid by using cardinality constraints instead 
-        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
+
+        // [Cardinality] checking if the symheap passed to the call is smaller than the initial one
+        wellFounded = cardLT(lilHeap.subst(sub), getRootGoal(goal).pre.sigma, goal.pre.phi)
+        if wellFounded
+
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
@@ -132,7 +133,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       * Make a call goal for `f` with a given precondition
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
-//      val freshSuffix = sub.values.map(_.pp).mkString("_")
+      //      val freshSuffix = sub.values.map(_.pp).mkString("_")
       val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
       val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
@@ -149,7 +150,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // The latter enables application of the same recursive function (tree-flatten-acc),
       // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
       for {
-//        acs <- List(addedChunks1, addedChunks2)
+        //        acs <- List(addedChunks1, addedChunks2)
         acs <- List(addedChunks2)
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
@@ -195,12 +196,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sourceParams = f.params.map(_._2).toSet
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(relaxedSub, targetAsn, targetParams, sourceAsn, sourceParams)
-        
+
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
 
-        // [Cardinality] TODO: get rid by using cardinality constraints instead
-        if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
+        // [Cardinality] checking if the symheap passed to the call is smaller than the initial one
+        wellFounded = cardLT(lilHeap.subst(actualSub), getRootGoal(goal).pre.sigma, goal.pre.phi)
+        if wellFounded
+
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
@@ -265,11 +268,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val paramNames = params.map(_._2)
-          
+
           val substArgs = paramNames.zip(args).toMap ++
             // [Cardinality] adjust cardinality of sub-clauses
             Map(selfCardVar -> card)
-          
+
           val subDerivations = for {
             InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
