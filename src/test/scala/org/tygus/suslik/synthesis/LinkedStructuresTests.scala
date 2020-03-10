@@ -22,8 +22,8 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisRunnerUt
     runAllTestsFromDir("llist")
   }
 
-  describe("SL-based synthesizer with mutable trees") {
-    runAllTestsFromDir("tree")
+  describe("SL-based synthesizer for doubly-linked lists") {
+    runAllTestsFromDir("dllist")
   }
 
   describe("SL-based synthesizer for linked lists parametrized by length") {
@@ -38,8 +38,9 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisRunnerUt
     runAllTestsFromDir("flatten")
   }
 
-  describe("SL-based synthesizer for doubly-linked lists") {
-    runAllTestsFromDir("dllist")
+  describe("SL-based synthesizer with mutable trees") {
+    runAllTestsFromDir("tree")
   }
+
 
 }

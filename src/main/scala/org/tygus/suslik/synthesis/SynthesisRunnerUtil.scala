@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import java.io.File
 
-import org.tygus.suslik.logic.Resolver._
+import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.{LanguageUtils, parsing}
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.SearchTree.AndNode
@@ -103,7 +103,7 @@ trait SynthesisRunnerUtil {
 
     val prog = res.get
     // assert(prog.predicates.nonEmpty)
-    val (specs, env, body) = resolveProgram(prog)
+    val (specs, env, body) = preprocessProgram(prog)
 
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")

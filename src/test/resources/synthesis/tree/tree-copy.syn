@@ -2,9 +2,9 @@ should be able to synthesize a tree copy (with elements)
 
 #####
 
-{true ; r :-> 0 ** treeS(x, S)}
+{true ; r :-> 0 ** treeS(x, S)<a>}
 void tree_copy(loc x, loc r)
-{true ; r :-> y ** treeS(x, S) ** treeS(y, S) }
+{true ; r :-> y ** treeS(x, S)<a> ** treeS(y, S)<a> }
 
 #####
 
@@ -22,9 +22,8 @@ void tree_copy (loc x, loc r) {
     let y = malloc(3);
     *(x + 1) = yl;
     *r = y;
-    *(x + 2) = yr;
     *(y + 1) = l;
-    *(y + 2) = rx;
+    *(y + 2) = yr;
     *y = v;
   }
 }

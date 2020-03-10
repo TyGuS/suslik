@@ -2,9 +2,9 @@ should be able to synthesize a tree copy (with preserving length)
 
 #####
 
-{true ; r :-> 0 ** treeN(x, n)}
+{true ; r :-> 0 ** treeN(x, n)<a>}
 void tree_copy(loc x, loc r)
-{true ; r :-> y ** treeN(x, n) ** treeN(y, n) }
+{true ; r :-> y ** treeN(x, n)<a> ** treeN(y, n)<a> }
 
 #####
 
@@ -20,8 +20,7 @@ void tree_copy (loc x, loc r) {
     let yr = *r;
     let y = malloc(3);
     *r = y;
-    *(x + 2) = yr;
     *(y + 1) = yl;
-    *(y + 2) = rx;
+    *(y + 2) = yr;
   }
 }

@@ -3,7 +3,7 @@ package org.tygus.suslik.overloading
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language._
-import org.tygus.suslik.logic.Resolver.resolveProgram
+import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.parsing.SSLParser
@@ -25,7 +25,7 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
       throw SynthesisException(s"Failed to parse the input:\n$res")
     }
     val prog = res.get
-    val (specs, env, body) = resolveProgram(prog)
+    val (specs, env, body) = preprocessProgram(prog)
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
     }

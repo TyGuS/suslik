@@ -82,30 +82,49 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   /**
-    * Compute cardinality of the symbolic heap as an expression 
+    * Compute cardinality of the symbolic heap as an expression.
+    *
+    * Returns the size of the non-recursive part as a component.
     */
-  def heapCardinality(sigma: SFormula): Expr = {
+  def heapCardinality(sigma: SFormula): (Int, Expr) = {
     val heaplets = sigma.chunks
-    val ptsCount = IntConst(heaplets.count {
+    val ptsCount = heaplets.count {
       _.isInstanceOf[PointsTo]
-    })
+    }
     val cardinalities = for (SApp(_, _, _, c) <- heaplets) yield c
-    cardinalities.foldLeft(ptsCount: Expr)((l, r) => BinaryExpr(OpPlus, l, r))
+    if (cardinalities.isEmpty) return (ptsCount, IntConst(ptsCount))
+
+    val res = if (ptsCount == 0) {
+      val h :: t = cardinalities
+      t.foldLeft(h)((l, r) => BinaryExpr(OpPlus, l, r))
+    } else {
+      cardinalities.foldLeft(IntConst(ptsCount): Expr)((l, r) => BinaryExpr(OpPlus, l, r))
+    }
+
+    (ptsCount, res)
   }
 
   /**
     * Compare symbolic heap cardinalities for strinct inequality (<) 
     */
   def cardLT(sigma1: SFormula, sigma2: SFormula, cond: PFormula): Boolean = {
-    val card1 = heapCardinality(sigma1)
-    val card2 = heapCardinality(sigma2)
+    val (_, card1) = heapCardinality(sigma1)
+    val (_, card2) = heapCardinality(sigma2)
     val goal = BinaryExpr(OpLt, card1, card2)
     val res = SMTSolving.valid(cond ==> goal)
     res
   }
+  
+  def getCardinalities(sigma: SFormula) = for (SApp(_, _, _, c) <- sigma.chunks) yield c
+  
+  def onlyNonUsedCardinalities(sigma: SFormula, fname: String, goal: Goal) : Boolean = {
+    val participating = for (SApp(_, _, _, c) <- sigma.chunks) yield (c, fname)
+    val res = goal.blockedCardinalities.intersect(participating.toSet) == Set.empty
+    res
+  }
 
 
-  def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
+  /*def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
     def compareTags(lilTag: Option[Int], largTag: Option[Int]): Int = lilTag.getOrElse(0) - largTag.getOrElse(0)
 
     val pairTags = for {
@@ -119,7 +138,7 @@ trait SepLogicUtils extends PureLogicUtils {
     val allGeq = comparisons.forall(_ <= 0)
     val atLeastOneLarger = comparisons.exists(_ < 0)
     allGeq && atLeastOneLarger
-  }
+  }*/
 
 
   /**
@@ -142,8 +161,8 @@ trait SepLogicUtils extends PureLogicUtils {
           case PointsTo(_loc, _offset, _value) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
-      case SApp(pred, args, tag, _) => stuff.filter {
-        case SApp(_pred, _args, _tag, _) =>
+      case SApp(pred, args, _, _) => stuff.filter {
+        case SApp(_pred, _args, _, _) =>
           _pred == pred && args.length == _args.length
         case _ => false
       }

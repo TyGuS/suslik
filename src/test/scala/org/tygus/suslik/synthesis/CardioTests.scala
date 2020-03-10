@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 
-class CardioBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
+class CardioTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
