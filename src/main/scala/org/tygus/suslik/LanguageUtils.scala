@@ -22,6 +22,24 @@ object LanguageUtils {
     candidate
   }
 
+  private val init= 513
+
+  private var now = init
+
+  def resetFreshNameGenerator(): Unit = {
+    now = init
+  }
+  
+  val cardinalityPrefix = "_alpha_"
+
+  def getTotallyFreshName(prefix: String): String = {
+    val s = s"$prefix$now"
+    now = now + 1
+    s
+  }
+
+
+
   def generateFreshExistential(existing: Set[Var], tmpName: String = "$ex"): Var = {
     var counter = 1
     var candidate = Var(s"$tmpName")

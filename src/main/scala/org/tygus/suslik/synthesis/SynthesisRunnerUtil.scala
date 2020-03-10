@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis
 import java.io.File
 
 import org.tygus.suslik.logic.Resolver._
-import org.tygus.suslik.parsing
+import org.tygus.suslik.{LanguageUtils, parsing}
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil, SynStats}
@@ -32,7 +32,7 @@ trait SynthesisRunnerUtil {
   val synthesis: Synthesis
 
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig) = {
-    parsing.resetFreshNameGenerator()
+    LanguageUtils.resetFreshNameGenerator()
   }
 
   import synthesis._

@@ -1,5 +1,6 @@
 package org.tygus.suslik.parsing
 
+import org.tygus.suslik.LanguageUtils.{cardinalityPrefix, getTotallyFreshName}
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
@@ -114,7 +115,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
       ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
       ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("<" ~> expr <~ ">") ^^ {
-      case name ~ args ~ v => SApp(name, args, Some(0), v.getOrElse(Var(getTotallyFreshName())))
+      case name ~ args ~ v => SApp(name, args, Some(0), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
     }
     )
 

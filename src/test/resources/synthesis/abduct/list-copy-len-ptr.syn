@@ -18,7 +18,6 @@ void list_copy (loc r) {
     let yx = *x;
     let y = malloc(2);
     *r = y;
-    *(x + 1) = yx;
-    *(y + 1) = n;
+    *(y + 1) = yx;
   }
 }
