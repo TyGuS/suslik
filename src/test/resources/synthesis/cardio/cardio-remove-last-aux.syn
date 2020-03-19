@@ -1,0 +1,26 @@
+# -b true -o 2 -c 2
+
+should be able to synthesize removal of the second element of the list 
+
+#####
+
+{ true ; r :-> x ** [x, 2] ** x :-> v ** (x + 1) :-> z}
+void aux(loc r)
+{ b == 0 /\ (y == 0 \/ y == x) ; r :-> y ** sll_card0(y)<b> }
+
+
+{ a >= 4 ; r :-> x ** sll_card0(x)<a>}
+void remove_second(loc r)
+{b == a - 2 /\ (y == 0 \/ y == x); r :-> y ** sll_card0(y)<b> }
+
+#####
+
+void remove_second (loc r) {
+  let x = *r;
+  let nx = *(x + 1);
+  let n = *(nx + 1);
+  *x = nx;
+  free(nx);
+  *x = 0;
+  *(x + 1) = n;
+}
