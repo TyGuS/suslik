@@ -129,7 +129,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
     }
 
-    // [Cardinality] Make sure this works
+    // [Cardinality] Checking size constraints before emitting the call
     def canEmitCall(preHeap: SFormula, goal: Goal, f: FunSpec, largSubHeap: SFormula): Boolean = {
       val wellFounded = goal.fname != f.name ||
         // [Cardinality] recursive case: symheap passed to the call is smaller than the initial one
@@ -158,7 +158,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val moreBLocked = getCardinalities(f.pre.sigma.subst(sub)).map(c => (c, f.name))
 
       //[Cardinality] TODO, WTF: For some weird reason I cannot get rid of this
-      // as the synthesis becomse quite much slower, even though the tags are no longer
+      // as the synthesis becomes much slower, even though the tags are no longer
       // used to determine whether a call can be made 
       val acs = callPost.sigma.lockSAppTags()
       for {
