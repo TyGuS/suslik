@@ -138,6 +138,8 @@ where the necessary arguments and options are
   -f, --printFail <value>  print failed rule applications; default: false
   -g, --tags <value>       print predicate application tags in derivations; default: false
   -l, --log <value>        log results to a csv file; default: true
+  -x, --auxAbduction <value>
+                           abduce auxiliary functions; default: false 
   --help                   prints this usage text
 
 ```
