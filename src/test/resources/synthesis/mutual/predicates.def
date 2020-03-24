@@ -1,0 +1,9 @@
+predicate rose_tree(loc x) {
+|  x == 0        => { self_card == 0 ; emp }
+|  not (x == 0)  => { self_card == 1 + z /\ z < self_card; [x, 2] ** x :-> v ** (x + 1) :-> b ** buds(b)<z>}
+}
+
+predicate buds(loc x) {
+|  x == 0        => { self_card == 0 ; emp }
+|  not (x == 0)  => { self_card == 2 + y + z /\ y < self_card /\ z < self_card; [x, 2] ** x :-> r ** rose_tree(r)<y> ** (x + 1) :-> nxt ** buds(nxt)<z> }
+}
