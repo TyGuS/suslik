@@ -114,6 +114,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // And then check sourceAsn.pp versus targetAsn.pp.
         // This shows that "sources" (companions) don't capture one that is essential
         // for extracting the bud-deallocating recursive function.
+        // To fix it, we need to suitably adapt the calculation in `companionCandidates`.
         sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
         // Checking ghost flow for a given substitution
