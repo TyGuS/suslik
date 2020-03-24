@@ -18,7 +18,7 @@ object Specifications extends SepLogicUtils {
 
     def hasPredicates: Boolean = sigma.chunks.exists(_.isInstanceOf[SApp])
 
-    def getPredicates(p: SApp => Boolean): List[SApp] = 
+    def getPredicates(p: SApp => Boolean): List[SApp] =
       for (s@SApp(_, _, _, _) <- sigma.chunks if p(s)) yield s
 
     def hasBlocks: Boolean = sigma.chunks.exists(_.isInstanceOf[Block])
@@ -227,8 +227,15 @@ object Specifications extends SepLogicUtils {
     def isTopLevel: Boolean = label == topLabel
 
     def getPredicates(p: SApp => Boolean): Seq[SApp] = pre.getPredicates(p) ++ post.getPredicates(p)
-    
+
     def hasPredicates(p: SApp => Boolean = _ => true): Boolean = getPredicates(p).nonEmpty
+
+    def hasViablePredicates: Boolean = getPredicates(p => {
+      val t = p.tag
+      t.nonEmpty &&
+        (t.get < env.config.maxCloseDepth ||
+          t.get < env.config.maxOpenDepth)
+    }).nonEmpty
 
     def hasBlocks: Boolean = pre.hasBlocks || post.hasBlocks
 

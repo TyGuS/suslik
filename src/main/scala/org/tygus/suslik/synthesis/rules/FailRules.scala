@@ -137,11 +137,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def profile(chunks: List[Heaplet]): Map[Int, Int] = chunks.groupBy { case PointsTo(_, o, _) => o }.mapValues(_.length)
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      if (goal.hasPredicates() || goal.hasBlocks) { 
-        // only points-to left
-        return Nil
-      }
-      
+      assert(!(goal.hasPredicates() || goal.hasBlocks))
       val preChunks = goal.pre.sigma.chunks
       val postChunks = goal.post.sigma.chunks
 

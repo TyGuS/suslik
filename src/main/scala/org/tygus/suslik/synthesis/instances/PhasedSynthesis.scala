@@ -43,16 +43,22 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     // and hence has to be followed by Call, otherwise synthesis gets stuck.
     // Proper fix: merge the two rules
       List(CallRule)
-    // Only if can unfold further
-    else if (goal.hasPredicates(p => {
-      val t = p.tag
-      t.nonEmpty &&
-        (t.get < config.maxCloseDepth ||
-          t.get < config.maxOpenDepth)
-    }
-    ))
-    // Unfolding phase: get rid of predicates
-      unfoldingPhaseRules(config)
+    else if (goal.hasPredicates()) (
+      // Only if can unfold further
+      // Unfolding phase: get rid of predicates
+      unfoldingPhaseRules(config) 
+        /* TODO [Mutual]:
+           Enabling the following rules progresses the synthesis of `rose_tree_free` even further,
+           but makes other case studies excruciatingly slow, so I comment it for now.
+            
+           This is sub-optimal, and ideally we only need to check for predicates
+           that still cna be unfolded. However, introducing this more elaborated check
+           vai goal.hasViablePredicates breaks the synthesis down the line.
+           
+           I need this to enable cyclic synthesis for rose tree    
+         */
+        // ++ preBlockPhaseRules(config)
+      )
     else if (goal.post.hasBlocks)
     // Block phase: get rid of blocks
       postBlockPhaseRules(config)
