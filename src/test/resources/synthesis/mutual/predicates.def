@@ -1,6 +1,6 @@
 predicate rose_tree(loc x) {
 |  x == 0        => { self_card == 0 ; emp }
-|  not (x == 0)  => { self_card == 1 + z /\ z < self_card; [x, 2] ** x :-> v ** (x + 1) :-> b ** buds(b)<z>}
+|  not (x == 0)  => { self_card == 3 + z /\ z < self_card; [x, 3] ** x :-> v ** (x + 1) :-> b ** (x + 2) :-> v ** buds(b)<z>}
 }
 
 predicate buds(loc x) {

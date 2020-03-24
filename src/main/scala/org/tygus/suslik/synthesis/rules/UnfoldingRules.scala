@@ -94,10 +94,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // (If auxiliary abduction is disabled, only look at the root)
       val allCands = goal.companionCandidates.reverse
       val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
-      val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
-        goal.env.functions.values.map(f => (f, None)) // components
+      val funLabels = cands.map(a => (a.toFunSpec, Some(a.label), a)) ++ // companions
+        goal.env.functions.values.map(f => (f, None, goal)) // components
       val results = for {
-        (f, l) <- funLabels
+        (f, l, g) <- funLabels
 
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
@@ -108,6 +108,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         sourceAsn = f.pre
         targetAsn = callSubPre
+        // TODO [Mutual]: try to put the BP to the next line for rose_tree_free, catching
+        // the moment when sourceAsn.pp features "buds(bx)"
+        // Just add condition to the break point: sourceAsn.pp.contains("buds")
+        // And then check sourceAsn.pp versus targetAsn.pp.
+        // This shows that "sources" (companions) don't capture one that is essential
+        // for extracting the bud-deallocating recursive function.
         sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
         // Checking ghost flow for a given substitution
@@ -115,6 +121,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
 
+        // G is a companion goal
         if canEmitCall(lilHeap.subst(sub), goal, f, largSubHeap)
 
         args = f.params.map { case (_, x) => x.subst(sub) }

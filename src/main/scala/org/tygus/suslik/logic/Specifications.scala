@@ -175,8 +175,12 @@ object Specifications extends SepLogicUtils {
 
     // Ancestors before progress was last made
     def companionCandidates: List[Goal] = {
-      // TODO: actually sufficient to consider everything before last open
+      // TODO [Mutual]: doens't suffice for rose_tree_free example.
+      // Ilya: Not sure I understand thisю
+      // This seems crucial for catching the "companion" for a second recursive function. 
       ancestors.dropWhile(_.label.depths.length == this.label.depths.length)
+      // TODO: actually sufficient to consider everything before last open
+
     }
 
     // Turn this goal into a helper function specification
