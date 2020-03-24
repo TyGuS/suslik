@@ -46,12 +46,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             body = asn.sigma
             newPrePhi = pre.phi && constraints && sel
             // The tags in the body should be one more than in the current application:
-          
+
             // TODO: get rid of me - no need to use tags here!
             _newPreSigma1 = mkSFormula(body.chunks).setUpSAppTags(t + 1)
             newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
-          
+
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
@@ -108,13 +108,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         sourceAsn = f.pre
         targetAsn = callSubPre
-        // TODO [Mutual]: try to put the BP to the next line for rose_tree_free, catching
-        // the moment when sourceAsn.pp features "buds(bx)"
-        // Just add condition to the break point: sourceAsn.pp.contains("buds")
-        // And then check sourceAsn.pp versus targetAsn.pp.
-        // This shows that "sources" (companions) don't capture one that is essential
-        // for extracting the bud-deallocating recursive function.
-        // To fix it, we need to suitably adapt the calculation in `companionCandidates`.
+        /* TODO [Mutual]: try to put the BP to the next code line for rose_tree_free, catching
+           the moment when sourceAsn.pp features "buds(bx)".
+           
+           Just add condition to the breakpoint: sourceAsn.pp.contains("buds")
+           and then check sourceAsn.pp versus targetAsn.pp.
+           
+           This shows that "sources" (companions) don't capture one that is essential
+           for extracting the bud-deallocating recursive function.
+           To fix it, we need to suitably adapt the calculation in `companionCandidates`.
+        */
         sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
         // Checking ghost flow for a given substitution
