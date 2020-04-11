@@ -114,7 +114,7 @@ object SearchTree {
       case Some(p) =>
         if (d > 2) s"...($depth)"
         else {
-          val subgoalID = if (id.head < 0) "" else s".${id.head.toString}"
+          val subgoalID = if (id.head < 0) "" else s".${id.head}"
           p.pp(d + 1) ++ subgoalID
         }
     }

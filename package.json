@@ -1,0 +1,32 @@
+{
+  "name": "suslik",
+  "version": "1.0.0",
+  "description": "[![Build Status](https://travis-ci.org/TyGuS/suslik.svg?branch=master)](https://travis-ci.org/TyGuS/suslik) [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE) [![DOI](https://zenodo.org/badge/101061595.svg)](https://zenodo.org/badge/latestdoi/101061595)",
+  "main": "mode-suslik.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TyGuS/suslik.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TyGuS/suslik/issues"
+  },
+  "homepage": "https://github.com/TyGuS/suslik#readme",
+  "dependencies": {
+    "jquery": "^3.5.0",
+    "vue": "^2.6.11"
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.3.34",
+    "@types/node": "^13.11.1",
+    "cssnano": "^4.1.10",
+    "typescript": "^3.8.3"
+  }
+}

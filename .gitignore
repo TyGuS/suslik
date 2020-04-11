@@ -114,6 +114,10 @@ fabric.properties
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
+# Vim/Emacs
+*~
+.*.swp
+
 # stats
 *.csv
 
@@ -131,3 +135,13 @@ hs_err_pid*
 **/.Makefile.coq.d
 **/Makefile.coq
 **/Makefile.coq.conf
+
+# JS stuff
+node_modules
+.cache
+.now
+dist
+public
+
+# traces
+*.out
