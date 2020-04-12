@@ -39,7 +39,19 @@ class ProofTrace {
     }
 
     children(node: Data.NodeEntry) {
-        return this.nodeIndex.childrenById.get(node.id) || [];
+        function lex2(a1: number[], a2: number[]) {
+            let n = Math.min(2, a1.length, a2.length);
+            for (let i = n - 1; i >= 0; i--) {
+                if      (a1[i] < a2[i]) return -1;
+                else if (a1[i] > a2[i]) return 1;
+            }
+            return 0;
+        }
+        function byId2(u1: Data.NodeEntry, u2: Data.NodeEntry) {
+            return lex2(u1.id, u2.id);
+        }
+        return (this.nodeIndex.childrenById.get(node.id) || [])
+            .sort(byId2); // modifies the list but that's ok
     }
 
     createView() {
@@ -94,9 +106,9 @@ namespace ProofTrace {
         export type Environment = Map<string, {type: string, of: string}>;
 
         export function parse(traceText: string): Data {
-            var nodes = traceText.split('\n\n').filter(x => x).map(ln =>
+            var entries = traceText.split('\n\n').filter(x => x).map(ln =>
                             JSON.parse(ln));
-            return {nodes};
+            return {nodes: entries.filter(e => e.id)};
         };
 
         export function envOfGoal(goal: GoalEntry) {
@@ -189,9 +201,7 @@ Vue.component('proof-trace', {
         this.$watch('root.expanded', () => {
             requestAnimationFrame(() => {
                 if (this.$refs.subtrees)
-                    this.$refs.subtrees.scrollIntoView({block: 'end', behavior: 'smooth'});
-                else
-                    window.scrollBy(0, -1);
+                    this.focusElement(this.$refs.subtrees);
             });
         });
     },
@@ -201,6 +211,15 @@ Vue.component('proof-trace', {
             if (ev.type == 'expand' && ev.target == this.root.value)
                 this.root.expanded = !this.root.expanded;
             this.action({...ev, target: this.root});
+        },
+        focusElement(el: HTMLElement) {
+            var box = el.getBoundingClientRect(), clrse = 10,
+                viewport = (<any>window).visualViewport,
+                v = (box.bottom + clrse) - viewport.height,
+                hl = box.left - clrse - viewport.width * 0.33,
+                hr = (box.right + clrse) - viewport.width,
+                h = Math.min(hl, hr);
+            window.scrollBy({left: Math.max(h, 0), top: Math.max(v, 0), behavior: 'smooth'});
         }
     }
 });
@@ -211,19 +230,34 @@ Vue.component('proof-trace-node', {
     template: `
         <div class="proof-trace-node" @click="expand" @mouseenter="showId"
                 @mousedown="clickStart" @click.capture="clickCapture"">
-            <div @mousedown="stopDbl" class="title">{{value.pp}}</div>
+            <div @mousedown="stopDbl" class="title">
+                <span class="pp">{{value.pp}}</span>
+                <span class="tag">{{tag}}</span>
+            </div>
             <proof-trace-goal @click.native.stop="action" :value="value.goal"/>
         </div>`,
+    computed: {
+        tag() {
+            return this.value.id.slice(0, 2).reverse()
+                .filter((n:number) => n >= 0).join('→');
+        }
+    },
     methods: {
         action(ev) { this.$emit('action', ev); },
         expand() { this.action({type: 'expand', target: this.value}); },
         showId() { $('#hint').text(JSON.stringify(this.value.id)); },
+
+        varSpans() {
+            var el = $(this.$el);
+            return el.find('span.var').add(el.find('.proof-trace-vars span.name'));
+        },
+
         stopDbl(ev) { if (ev.detail > 1) ev.preventDefault(); },
         // boilerplate to prevent click after selection
         clickStart(ev) { this.$data._anchor = {x: ev.pageX, y: ev.pageY}; },
         clickCapture(ev) { 
             var a = this.$data._anchor;
-            if (a && (ev.pageX - a.x > 3 || ev.pageY - a.y > 3))
+            if (a && (Math.abs(ev.pageX - a.x) > 3 || Math.abs(ev.pageY - a.y) > 3))
                 ev.stopPropagation();
         }
     }

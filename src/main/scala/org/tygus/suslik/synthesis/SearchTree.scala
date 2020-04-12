@@ -143,7 +143,7 @@ object SearchTree {
       else if (id.length < l.length) false
       else parent.hasAncestor(l)
 
-    def pp(d: Int): String = {
+    def pp(d: Int = 0): String = {
       val parentPP = parent.parent match {
         case None => ""
         case Some(_) => s"${parent.pp(d)}-"

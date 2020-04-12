@@ -22,7 +22,7 @@ import scala.io.StdIn
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUtils {
+class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
 
   val trace = new ProofTrace("trace.out")
 
@@ -33,7 +33,6 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
 
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
-    val stats = new SynStats()
     SMTSolving.init()
     memo.clear()
     try {
@@ -134,7 +133,7 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
     val rules = tactic.nextRules(node)
-    val allExpansions = applyRules(rules)(node, stats, config, ind)
+    val allExpansions = applyRules(rules)(node, stats, config, ctx)
     val expansions = tactic.filterExpansions(allExpansions)
 
     // Check if any of the expansions is a terminal
@@ -144,12 +143,13 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
+        trace.add(node.id, Succeeded(e.producer(Nil)))
         node.succeed(e.producer(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule)
+          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule); () = trace.add(andNode)
           nSubs = e.subgoals.size
           ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
           else e.subgoals.zip(e.produces(goal)).zipWithIndex

@@ -20,6 +20,12 @@
     cursor: default;
 }
 
+.proof-trace-node > .title > span.tag {
+    float: right;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 90%;
+}
+
 .proof-trace-goal {
     max-width: 25em;
     white-space: normal;
@@ -56,6 +62,11 @@
     color: #464;
 }
 
+.proof-trace-existentials::before {
+    content: "∃ ";
+    font-size: 90%;
+}
+
 .proof-trace-formula span.op {
     font-size: 100%;
 }
@@ -65,6 +76,11 @@
 
 .proof-trace-formula span.var[data-of=existentials] {
     color: #464;
+}
+
+.proof-trace-formula span.var:hover {
+    background: #eee;
+    cursor: default;
 }
 
 #hint {
