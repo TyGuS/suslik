@@ -7,13 +7,17 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 
 object Rules {
+  type Kont = Seq[Solution] => Solution
+
   /**
     * A continuation that builds a solution for a synthesis problem
     * from solutions of its sub-problems
     */
-  case class StmtProducer (arity: Int,
-                           fn: Seq[Solution] => Solution) extends RuleUtils {
+  sealed abstract class StmtProducer extends RuleUtils {
     val exceptionQualifier: String = "producer"
+
+    val arity: Int
+    val fn: Kont
 
     def apply(children: Seq[Solution]): Solution = {
       ruleAssert(children.lengthCompare(arity) == 0, s"Producer expects $arity children and got ${children.length}")
@@ -25,24 +29,12 @@ object Rules {
       * the resulting producer first applies p1 to a prefix of child solutions,
       * then applies p2 to the result of p1 and a suffix of child solutions
       */
-    def >>(p: StmtProducer): StmtProducer = StmtProducer (
-      this.arity + p.arity - 1,
-      sols => {
-        val (sols1, sols2) = sols.splitAt(this.arity)
-        val sol = this.fn(sols1)
-        p.fn(sol +: sols2)
-      }
-    )
+    def >>(p: StmtProducer): StmtProducer = ChainedProducer(this, p)
 
     /**
       * Producer that results form applying this producer to s as its idx argument
       */
-    def partApply(s: Solution): StmtProducer = StmtProducer (
-      this.arity - 1,
-      sols => {
-        this.apply(s +: sols)
-      }
-    )
+    def partApply(s: Solution): StmtProducer = PartiallyAppliedProducer(this, s)
   }
 
   def liftToSolutions(f: Seq[Statement] => Statement)(arg: Seq[Solution]): Solution = {
@@ -52,49 +44,77 @@ object Rules {
     (stmt,allHelpers)
   }
 
+  case class ChainedProducer(p1: StmtProducer, p2: StmtProducer) extends StmtProducer {
+    val arity: Int = p1.arity + p2.arity - 1
+    val fn: Kont = sols => {
+      val (sols1, sols2) = sols.splitAt(p1.arity)
+      val sol = p1.fn(sols1)
+      p2.fn(sol +: sols2)
+    }
+  }
+
+  case class PartiallyAppliedProducer(p: StmtProducer, s: Solution) extends StmtProducer {
+    val arity: Int = p.arity - 1
+    val fn: Kont = sols => {
+      p.apply(s +: sols)
+    }
+  }
+
   /**
     * Identity producer: returns the first child solution unchanged
     */
-  def idProducer: StmtProducer =
-    StmtProducer(1, _.head)
+  case object IdProducer extends StmtProducer {
+    val arity: Int = 1
+    val fn: Kont = _.head
+  }
 
   /**
     * Constant producer: ignored child solutions and returns s
     */
-  def constProducer(s: Statement): StmtProducer =
-    StmtProducer(0, liftToSolutions(_ => s))
+  case class ConstProducer(s: Statement) extends StmtProducer {
+    val arity: Int = 0
+    val fn: Kont = liftToSolutions(_ => s)
+  }
 
   /**
     * Producer that prepends s to the first child solution
     */
-  def prepend(s: Statement): StmtProducer =
-    StmtProducer(1, liftToSolutions(stmts => {SeqComp(s, stmts.head).simplify}))
+  case class PrependProducer(s: Statement) extends StmtProducer {
+    val arity: Int = 1
+    val fn: Kont = liftToSolutions(stmts => { SeqComp(s, stmts.head).simplify })
+  }
 
   /**
     * Same as prepend but do not simplify s away, because it comes from the sketch
     */
-  def prependFromSketch(s: Statement): StmtProducer =
-    StmtProducer(1, liftToSolutions(stmts => {SeqComp(s, stmts.head)}))
+  case class PrependFromSketchProducer(s: Statement) extends StmtProducer {
+    val arity: Int = 1
+    val fn: Kont = liftToSolutions(stmts => { SeqComp(s, stmts.head) })
+  }
 
   /**
     * Producer that appends s to the first child solution
     */
-  def append(s: Statement): StmtProducer =
-    StmtProducer(1, liftToSolutions(stmts => {SeqComp(stmts.head, s).simplify}))
+  case class AppendProducer(s: Statement) extends StmtProducer {
+    val arity: Int = 1
+    val fn: Kont = liftToSolutions(stmts => { SeqComp(stmts.head, s).simplify })
+  }
 
   /**
     * Producer that sequentially composes results of two goals
     */
-  def seqComp: StmtProducer =
-    StmtProducer(2, liftToSolutions (stmts => {SeqComp(stmts.head, stmts.last).simplify}))
+  case object SeqCompProducer extends StmtProducer {
+    val arity: Int = 2
+    val fn: Kont = liftToSolutions(stmts => {SeqComp(stmts.head, stmts.last).simplify})
+  }
 
   /**
     * Producer that checks if the child solution has backlinks to its goal,
     * and if so produces a helper call and a new helper
     */
-  def extractHelper(goal: Goal): StmtProducer = StmtProducer (
-    1,
-    sols => {
+  case class ExtractHelper(goal: Goal) extends StmtProducer {
+    val arity: Int = 1
+    val fn: Kont = sols => {
       val (stmt, helpers) = sols.head
       if (stmt.companions.contains(goal.label) && !goal.isTopLevel) {
         val f = goal.toFunSpec
@@ -103,22 +123,22 @@ object Rules {
       } else
         (stmt, helpers)
     }
-  )
+  }
 
-  def handleGuard(goal: Goal): StmtProducer = StmtProducer (
-    1,
-    liftToSolutions(stmts => {stmts.head match {
+  case class HandleGuard(goal: Goal) extends StmtProducer {
+    val arity: Int = 1
+    val fn: Kont = liftToSolutions(stmts => {stmts.head match {
       case g@Guarded(cond, body, els, l) =>
         if (goal.label == l) If(cond, body, els).simplify // Current goal is the branching point: create conditional
         else g // Haven't reached the branching point yet: propagate guarded statement
       case stmt => stmt
     }})
-  )
+  }
 
   // Produces a conditional that branches on the selectors
-  def branchProducer(selectors: Seq[Expr]): StmtProducer = StmtProducer (
-    selectors.length,
-    liftToSolutions (stmts => {
+  case class BranchProducer(selectors: Seq[Expr]) extends StmtProducer {
+    val arity: Int = selectors.length
+    val fn: Kont = liftToSolutions(stmts => {
       if (stmts.length == 1) stmts.head else {
         val cond_branches = selectors.zip(stmts).reverse
         val ctail = cond_branches.tail
@@ -126,7 +146,12 @@ object Rules {
         ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => If(c, tb, eb).simplify }
       }
     })
-  )
+  }
+
+  case class GuardedProducer(cond: Expr, goal: Goal) extends StmtProducer {
+    val arity: Int = 2
+    val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, goal.label))
+  }
 
 
   /**
