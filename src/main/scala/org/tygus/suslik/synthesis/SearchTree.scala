@@ -7,6 +7,8 @@ import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, Syn
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.{AbduceCall, CallRule}
 import org.tygus.suslik.util.SynStats
 
+import scala.collection.mutable
+
 /**
   * And-or tree that represents the space of all possible derivations
   */
@@ -64,12 +66,14 @@ object SearchTree {
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution, wl: List[OrNode])(implicit config: SynConfig): Either[List[OrNode], Solution] = {
       memo.save(goal, Succeeded(s))
+      addSuccessfulOr(this)
       parent match {
         case None => Right(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
           val newWL = pruneDescendants(id, wl) // prune all my descendants from worklist
           // Check if an has more open subgoals:
           if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
+            addSuccessfulAnd(an)
             an.parent.succeed(an.kont(List(s)), newWL)
           } else { // there are other open subgoals: partially apply and replace in descendants
             val newAN = an.copy(kont = an.kont.partApply(s))
@@ -110,6 +114,8 @@ object SearchTree {
     // Number of proper ancestors
     def depth: Int = ancestors.length
 
+    def child: Option[AndNode] = orMap.get(this)
+
     def pp(d: Int = 0): String = parent match {
       case None => "-"
       case Some(p) =>
@@ -144,6 +150,8 @@ object SearchTree {
       else if (id.length < l.length) false
       else parent.hasAncestor(l)
 
+    def children: Option[List[OrNode]] = andMap.get(this)
+
     def pp(d: Int): String = {
       val parentPP = parent.parent match {
         case None => ""
@@ -156,4 +164,26 @@ object SearchTree {
     override def hashCode(): Int = id.hashCode()
   }
 
+  /**
+    * A tree implemented as a pair of maps, storing successfully synthesized and-nodes and or-nodes.
+    */
+  var root: Option[OrNode] = None
+  private val orMap: mutable.Map[OrNode, AndNode] = mutable.Map.empty
+  private val andMap: mutable.Map[AndNode, List[OrNode]] = mutable.Map.empty
+
+  private def addSuccessfulAnd(an: AndNode): Unit = {
+    orMap(an.parent) = an
+  }
+
+  private def addSuccessfulOr(on: OrNode): Unit = on.parent match {
+    case Some(an) =>
+      if (root.isEmpty) root = Some(on)
+      andMap.get(an) match {
+        case Some(ors) =>
+          andMap(an) = on :: ors
+        case None =>
+          andMap(an) = List(on)
+      }
+    case None =>
+  }
 }
