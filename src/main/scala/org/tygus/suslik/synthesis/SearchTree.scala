@@ -4,7 +4,7 @@ import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, StmtProducer, SynthesisRule}
-import org.tygus.suslik.synthesis.rules.UnfoldingRules.{AbduceCall, CallRule}
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.{AbduceCall, CallRule, Open}
 import org.tygus.suslik.util.SynStats
 
 import scala.collection.mutable
@@ -150,7 +150,7 @@ object SearchTree {
       else if (id.length < l.length) false
       else parent.hasAncestor(l)
 
-    def children: Option[List[OrNode]] = andMap.get(this)
+    def children: List[OrNode] = andMap.getOrElse(this, List())
 
     def pp(d: Int): String = {
       val parentPP = parent.parent match {
@@ -167,17 +167,17 @@ object SearchTree {
   /**
     * A tree implemented as a pair of maps, storing successfully synthesized and-nodes and or-nodes.
     */
-  var root: Option[OrNode] = None
-  private val orMap: mutable.Map[OrNode, AndNode] = mutable.Map.empty
-  private val andMap: mutable.Map[AndNode, List[OrNode]] = mutable.Map.empty
+  class SearchTree
+  lazy val root: Option[OrNode] = orMap.find(i => i._1.id == Vector()).map(_._1)
+  val orMap: mutable.Map[OrNode, AndNode] = mutable.Map.empty
+  val andMap: mutable.Map[AndNode, List[OrNode]] = mutable.Map.empty
 
-  private def addSuccessfulAnd(an: AndNode): Unit = {
+  def addSuccessfulAnd(an: AndNode): Unit = {
     orMap(an.parent) = an
   }
 
-  private def addSuccessfulOr(on: OrNode): Unit = on.parent match {
+  def addSuccessfulOr(on: OrNode): Unit = on.parent match {
     case Some(an) =>
-      if (root.isEmpty) root = Some(on)
       andMap.get(an) match {
         case Some(ors) =>
           andMap(an) = on :: ors

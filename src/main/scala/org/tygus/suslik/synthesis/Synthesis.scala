@@ -1,5 +1,6 @@
 package org.tygus.suslik.synthesis
 
+import org.tygus.suslik.certification.targets.coq.Coq
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -38,6 +39,14 @@ trait Synthesis extends SepLogicUtils {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
           val main = Procedure(name, tp, formals, body)
+
+          // certification
+          val certTarget = Coq
+          val targetName = certTarget.name
+          val certificate = certTarget.certify(main, env)
+          testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
+          testPrintln(certificate.body)
+
           (main :: helpers, stats)
         case None =>
           printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
@@ -144,7 +153,10 @@ trait Synthesis extends SepLogicUtils {
 
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
-      case Some(e) => node.succeed(e.kont(Nil), withRest(Nil))
+      case Some(e) =>
+        val andNode = AndNode(expansions.indexOf(e) +: node.id, e.kont, node, e.consume, e.rule)
+        SearchTree.addSuccessfulAnd(andNode)
+        node.succeed(e.kont(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
