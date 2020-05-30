@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.coq.logic
 
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.certification.targets.coq.language.{CAssertion, CFunSpec, CPredicateEnv, CoqType, PrettyPrinting}
+import org.tygus.suslik.certification.targets.coq.language.{CAssertion, CFunSpec, CoqType, PrettyPrinting}
 
 trait ProofContextItem
 
@@ -12,23 +12,13 @@ case class CGoal(pre: CAssertion,
                  universalGhosts: Seq[CVar],
                  fname: String)
 
-case class CEnvironment(goal: CGoal,
-                        spec: CFunSpec,
+case class CEnvironment(spec: CFunSpec,
                         ctx: ProofContext,
-                        predicates: CPredicateEnv,
-                        callHeapVars: Seq[CVar],
-                        inductive: Boolean) {
-  def copy(goal: CGoal = this.goal,
-           spec: CFunSpec = this.spec,
+                        callHeapVars: Seq[CVar]) {
+  def copy(spec: CFunSpec = this.spec,
            ctx: ProofContext = this.ctx,
-           predicates: CPredicateEnv = this.predicates,
-           callHeapVars: Seq[CVar] = this.callHeapVars,
-           inductive: Boolean = this.inductive): CEnvironment =
-    CEnvironment(goal, spec, ctx, predicates, callHeapVars, inductive)
-
-  def apps: Seq[CSApp] =
-    (goal.pre.sigma.collect(_.isInstanceOf[CSApp])
-      ++ goal.post.sigma.collect(_.isInstanceOf[CSApp])).toSeq
+           callHeapVars: Seq[CVar] = this.callHeapVars): CEnvironment =
+    CEnvironment(spec, ctx, callHeapVars)
 }
 
 case class CProofStep(app: CRuleApp, next: Seq[CProofStep]) {

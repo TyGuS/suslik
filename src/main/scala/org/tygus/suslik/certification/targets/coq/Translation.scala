@@ -95,10 +95,11 @@ object Translation {
 
           val sub = subs.head
           val csub = sub.map { case (k, v) => (CVar(k.name), translateExpr(v))}
-          Some(CCallRuleApp(cenv, fun.name, args.map(arg => translateExpr(arg).asInstanceOf[CVar]), csub))
+          Some(CCallRuleApp(cenv, fun.name, args.map(arg => translateExpr(arg).asInstanceOf[CVar])))
         case (Open, BranchProducer(selectors)) =>
-          val app = footprint.pre.apps.headOption.getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
-          Some(COpen(cenv, selectors.map(translateExpr), translateHeaplet(app).asInstanceOf[CSApp]))
+          val app = footprint.pre.apps.headOption
+            .getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
+          Some(COpen(selectors.map(translateExpr), translateInductivePredicate(env.predicates(app.pred))))
         case _ =>
           None // rule has no effect on certification
       }
@@ -137,14 +138,11 @@ object Translation {
 
     val initialGoal = translateGoal(rootOr.goal)
     val cenv = CEnvironment(
-      initialGoal,
       translateFunSpec,
       Map.empty,
-      env.predicates.mapValues(translateInductivePredicate),
       Seq.empty,
-      inductive
     )
-    val ruleApp = CGhostElim(cenv)
+    val ruleApp = CGhostElim(initialGoal)
     val nextEnv = ruleApp.nextEnvs(cenv, initialGoal)
     val res = traverse(rootAnd, proc.body, nextEnv.head, steps => CProofStep(ruleApp, steps))
 

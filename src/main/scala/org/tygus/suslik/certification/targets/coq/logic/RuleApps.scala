@@ -21,10 +21,9 @@ sealed abstract class CRuleApp {
 }
 
 
-case class CGhostElim(env: CEnvironment) extends CRuleApp {
+case class CGhostElim(goal: CGoal) extends CRuleApp {
   override val before: Option[String] = Some("ssl_ghostelim_pre.")
   override val op: Option[String] = {
-    val goal = env.goal
     val ghosts = goal.universalGhosts
     if (ghosts.isEmpty) None else {
       val builder = new StringBuilder()
@@ -35,7 +34,7 @@ case class CGhostElim(env: CEnvironment) extends CRuleApp {
     }
   }
   override val after: Seq[String] = {
-    val pre = env.goal.pre
+    val pre = goal.pre
     val ptss = pre.sigma.ptss
     val apps = pre.sigma.apps
 
@@ -57,12 +56,11 @@ case class CGhostElim(env: CEnvironment) extends CRuleApp {
   }
 
   override def nextEnvs(env: CEnvironment, goal: CGoal): Seq[CEnvironment] = {
-    val goal = env.goal
     val gamma = goal.gamma
     val universalGhosts = goal.universalGhosts.map(v => (v, gamma.getOrElse(v, CUnitType))).toMap
     val happs = goal.pre.sigma.apps.map(app => (CVar(s"H_${app.pred}"), app))
     val ctx = (universalGhosts ++ happs) + (CVar("h") -> CHeapType)
-    Seq(env.copy(goal, ctx = ctx))
+    Seq(env.copy(ctx = ctx))
   }
 }
 
@@ -98,9 +96,7 @@ case class CFreeRuleApp(size: Int) extends COperationalRuleApp {
 }
 
 sealed abstract class CUnfoldingRuleApp extends CRuleApp
-case class COpen(env: CEnvironment, selectors: Seq[CExpr], app: CSApp) extends CUnfoldingRuleApp {
-  val pred: CInductivePredicate = env.predicates(app.pred)
-
+case class COpen(selectors: Seq[CExpr], pred: CInductivePredicate) extends CUnfoldingRuleApp {
   override val op: Option[String] = {
     val builder = new StringBuilder()
     builder.append("case: ifP=>cond; ")
@@ -153,7 +149,6 @@ case class COpen(env: CEnvironment, selectors: Seq[CExpr], app: CSApp) extends C
   }
 
   override def nextEnvs(env: CEnvironment, goal: CGoal): Seq[CEnvironment] = {
-    val goal = env.goal
     val gamma = goal.gamma
     selectors.map(selector => {
       val clause = pred.clauses.find(c => c.selector == selector).get
@@ -168,15 +163,15 @@ case class COpen(env: CEnvironment, selectors: Seq[CExpr], app: CSApp) extends C
     })
   }
 }
-case class CCallRuleApp(env: CEnvironment, fun: String, args: Seq[CVar], sub: Map[CVar, CExpr]) extends CUnfoldingRuleApp {
+
+case class CCallRuleApp(env: CEnvironment, fun: String, args: Seq[CVar]) extends CUnfoldingRuleApp {
   override val before: Option[String] = {
     val builder = new StringBuilder()
     // rearrange heap to put recursive heap component to the head
     builder.append(s"put_to_head ${env.callHeapVars.head.pp}.\n")
     builder.append("apply: bnd_seq.\n")
     // identify how many ghost values to pass to the call
-    val pureEx = env.spec.pureParams.map { case (_, v) => sub(v).asInstanceOf[CVar] }
-    for (v <- pureEx) builder.append(s"apply: (gh_ex ${v.pp}).\n")
+    for (v <- args) builder.append(s"apply: (gh_ex ${v.pp}).\n")
     Some(builder.toString())
   }
 
