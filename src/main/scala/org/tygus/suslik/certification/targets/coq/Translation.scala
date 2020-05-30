@@ -9,8 +9,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.unification.SpatialUnification
-import org.tygus.suslik.synthesis.SearchTree
-import org.tygus.suslik.synthesis.SearchTree._
+import org.tygus.suslik.certification.Tree
 import org.tygus.suslik.synthesis.rules._
 import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.LogicalRules._
@@ -20,11 +19,11 @@ import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 object Translation {
   case class TranslationException(msg: String) extends Exception(msg)
 
-  lazy val rootOr: OrNode = SearchTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
-  lazy val rootAnd: AndNode = rootOr.child.getOrElse(throw TranslationException("Search tree is uninitialized"))
-
+  lazy val root: Tree.Node = Tree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
   // Basic check whether a proof is inductive
-  lazy val inductive: Boolean = rootAnd.rule == Open
+  lazy val inductive: Boolean = root.rule == Open
+
+  type ProofProducer = Seq[CProofStep] => CProofStep
 
   def translateProof(proc: Procedure)(implicit env: Environment): CProof = {
     def expandStmt(stmt: Statement) : (Option[Statement], Seq[Statement]) = stmt match {
@@ -45,25 +44,24 @@ object Translation {
       * Creates a new continuation B that applies the existing continuation A
       * to a new sequence prepended to A's original parameter sequence
       */
-    def prependKont(kont: Seq[CProofStep] => CProofStep, prependSteps: Seq[CProofStep])(steps: Seq[CProofStep]) =
-      kont(prependSteps ++ steps)
+    def prependKont(kont: ProofProducer, prependSteps: Seq[CProofStep]): ProofProducer =
+      steps => kont(prependSteps ++ steps)
 
     // Double tree walk: program and proof
-    def traverse(an: SearchTree.AndNode, stmt: Statement, cenv: CEnvironment, kont: Seq[CProofStep] => CProofStep): CProofStep = {
+    def traverse(node: Tree.Node, stmt: Statement, kont: ProofProducer)(implicit cenv: CEnvironment): CProofStep = {
       val (currStmt, nextStmts) = expandStmt(stmt)
 
-      val on = an.parent
-      val goal = on.goal
-      val footprint = an.consume
-      val subOns = an.children.reverse.map(_.child).filter(_.isDefined).map(_.get)
-      val stmtProducer = unwrapStmtProducer(an.kont)
-      val ruleApp: Option[CRuleApp] = (an.rule, stmtProducer) match {
+      val goal = node.goal
+      val footprint = node.consume
+      val childNodes = node.children
+      val stmtProducer = unwrapStmtProducer(node.kont)
+      val ruleApp: Option[CRuleApp] = (node.rule, stmtProducer) match {
         case (EmpRule, _) =>
-          Some(CEmp)
+          Some(CEmp())
         case (ReadRule, PrependProducer(Load(to, _, _, _))) =>
           currStmt match {
             case Some(Load(to1, _, _, _)) if to.name.startsWith(to1.name) =>
-              Some(CRead)
+              Some(CRead())
             case _ =>
               None // bound variable was eliminated by SeqComp.simplify
           }
@@ -72,7 +70,7 @@ object Translation {
         case (FreeRule, PrependProducer(Free(v))) =>
           footprint.pre.blocks.find(_.loc == v)
             .map(b => CFreeRuleApp(b.sz))
-        case (CallRule, PrependProducer(Call(fun, args, _))) =>
+        case (CallRule, PrependProducer(Call(fun, _, _))) =>
           val allCands = goal.companionCandidates.reverse
           val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
           val funLabels = cands.map(a => a.toFunSpec) ++ // companions
@@ -94,8 +92,18 @@ object Translation {
           } yield sub
 
           val sub = subs.head
-          val csub = sub.map { case (k, v) => (CVar(k.name), translateExpr(v))}
-          Some(CCallRuleApp(cenv, fun.name, args.map(arg => translateExpr(arg).asInstanceOf[CVar])))
+          val csub = sub.map { case (src, dest) =>
+            val csrc = CVar(src.name)
+            // if any variables were renamed, substitute them
+            val existingVars = cenv.ctx.keySet
+            val simplifyingMapping = dest.vars
+              .map(v => (v, existingVars.find(v1 => v.name.startsWith(v1.name))))
+                .filter(_._2.isDefined)
+                .map(el => (el._1, Var(el._2.get.name)))
+                .toMap
+            (csrc, translateExpr(dest.subst(simplifyingMapping)))
+          }
+          Some(CCallRuleApp(fun.name, csub))
         case (Open, BranchProducer(selectors)) =>
           val app = footprint.pre.apps.headOption
             .getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
@@ -106,52 +114,48 @@ object Translation {
 
       ruleApp match {
         case Some(app) =>
-          val nextEnv = app.nextEnvs(cenv, translateGoal(goal))
-          subOns.zip(nextStmts).zip(nextEnv) match {
-            case ((subOn, nextStmt), nextEnv) :: tl =>
+          val nextEnvs = app.nextEnvs(translateGoal(goal))
+          childNodes.zip(nextStmts).zip(nextEnvs) match {
+            case ((childNode, nextStmt), nextEnv) :: tl =>
               val nextKont = tl.foldLeft((steps: Seq[CProofStep]) => kont(Seq(CProofStep(app, steps)))) {
-                case (kontAcc, ((subOn, nextStmt), nextEnv)) =>
-                  (steps: Seq[CProofStep]) =>
-                    traverse(subOn, nextStmt, nextEnv, prependKont(kontAcc, steps))
+                case (kontAcc, ((childNode, nextStmt), nextEnv)) =>
+                  steps => traverse(childNode, nextStmt, prependKont(kontAcc, steps))(nextEnv)
               }
-              traverse(subOn, nextStmt, nextEnv, nextKont)
+              traverse(childNode, nextStmt, nextKont)(nextEnv)
             case Nil =>
               kont(Seq(CProofStep(app, Seq()))) // nothing left to traverse
           }
         case None =>
           // No Coq proof step was generated for this run; pass through the parameters
-          subOns match {
-            case subOn :: tl =>
+          childNodes match {
+            case subNode :: tl =>
               val nextKont = tl.foldLeft(kont) {
-                case (kontAcc, subOn) =>
-                  (steps: Seq[CProofStep]) =>
-                    traverse(subOn, stmt, cenv, prependKont(kontAcc, steps))
+                case (kontAcc, childNode) =>
+                  steps => traverse(childNode, stmt, prependKont(kontAcc, steps))(cenv)
               }
-              traverse(subOn, stmt, cenv, nextKont)
+              traverse(subNode, stmt, nextKont)(cenv)
             case Nil =>
               kont(Seq()) // nothing left to traverse
           }
-
-          traverse(subOns.head, stmt, cenv, kont)
       }
     }
 
-    val initialGoal = translateGoal(rootOr.goal)
-    val cenv = CEnvironment(
+    val initialGoal = translateGoal(root.goal)
+    val initialCEnv: CEnvironment = CEnvironment(
       translateFunSpec,
       Map.empty,
       Seq.empty,
     )
-    val ruleApp = CGhostElim(initialGoal)
-    val nextEnv = ruleApp.nextEnvs(cenv, initialGoal)
-    val res = traverse(rootAnd, proc.body, nextEnv.head, steps => CProofStep(ruleApp, steps))
+    val ruleApp = CGhostElim(initialGoal)(initialCEnv)
+    val nextEnv = ruleApp.nextEnvs(initialGoal).head
+    val res = traverse(root, proc.body, steps => CProofStep(ruleApp, steps))(nextEnv)
 
     CProof(res)
   }
 
   def translateFunSpec(implicit env: Environment): CFunSpec = {
-    val FunSpec(_, tp, _, _, _, _) = rootOr.goal.toFunSpec
-    val goal = rootOr.goal
+    val FunSpec(_, tp, _, _, _, _) = root.goal.toFunSpec
+    val goal = root.goal
     val pureParams = goal.universalGhosts
       .intersect(goal.gamma.keySet)
       .map(v => translateParam((goal.gamma(v), v))).toList

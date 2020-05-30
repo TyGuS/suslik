@@ -5,11 +5,11 @@ import org.tygus.suslik.certification.targets.coq.language.Expressions._
 import org.tygus.suslik.LanguageUtils.cardinalityPrefix
 import org.tygus.suslik.logic.Specifications.selfCardVar
 
-sealed abstract class CRuleApp {
+sealed abstract class CRuleApp(implicit env: CEnvironment) {
   val before: Option[String] = None
   val op: Option[String] = None
   val after: Seq[String] = Seq.empty
-  def nextEnvs(env: CEnvironment, goal: CGoal): Seq[CEnvironment] = Seq(env)
+  def nextEnvs(goal: CGoal): Seq[CEnvironment] = Seq(env)
   protected def nestedDestruct(items: Seq[CVar]): String = items.toList match {
     case v1 :: v2 :: rest =>
       s"[${v1.pp} ${nestedDestruct(v2 :: rest)}]"
@@ -21,7 +21,7 @@ sealed abstract class CRuleApp {
 }
 
 
-case class CGhostElim(goal: CGoal) extends CRuleApp {
+case class CGhostElim(goal: CGoal)(implicit env: CEnvironment) extends CRuleApp {
   override val before: Option[String] = Some("ssl_ghostelim_pre.")
   override val op: Option[String] = {
     val ghosts = goal.universalGhosts
@@ -55,7 +55,7 @@ case class CGhostElim(goal: CGoal) extends CRuleApp {
     Seq(builder.toString())
   }
 
-  override def nextEnvs(env: CEnvironment, goal: CGoal): Seq[CEnvironment] = {
+  override def nextEnvs(goal: CGoal): Seq[CEnvironment] = {
     val gamma = goal.gamma
     val universalGhosts = goal.universalGhosts.map(v => (v, gamma.getOrElse(v, CUnitType))).toMap
     val happs = goal.pre.sigma.apps.map(app => (CVar(s"H_${app.pred}"), app))
@@ -64,39 +64,39 @@ case class CGhostElim(goal: CGoal) extends CRuleApp {
   }
 }
 
-sealed abstract class CFailRuleApp extends CRuleApp
-case object CNoop extends CFailRuleApp
-case object CPostInconsistent extends CFailRuleApp
-case object CPostInvalid extends CFailRuleApp
-case object CAbduceBranch extends CFailRuleApp
-case object CHeapUnreachable extends CFailRuleApp
+sealed abstract class CFailRuleApp(implicit env: CEnvironment) extends CRuleApp
+case class CNoop(implicit env: CEnvironment) extends CFailRuleApp
+case class CPostInconsistent(implicit env: CEnvironment) extends CFailRuleApp
+case class CPostInvalid(implicit env: CEnvironment) extends CFailRuleApp
+case class CAbduceBranch(implicit env: CEnvironment) extends CFailRuleApp
+case class CHeapUnreachable(implicit env: CEnvironment) extends CFailRuleApp
 
-sealed abstract class CLogicalRuleApp extends CRuleApp
-case object CEmp extends CLogicalRuleApp {
+sealed abstract class CLogicalRuleApp(implicit env: CEnvironment) extends CRuleApp
+case class CEmp(implicit env: CEnvironment) extends CLogicalRuleApp {
   override val op: Option[String] = Some("ssl_emp.")
 }
-case object CInconsistency extends CLogicalRuleApp
-case object CFrame extends CLogicalRuleApp
-case object CNilNotLval extends CLogicalRuleApp
-case object CStarPartial extends CLogicalRuleApp
-case object CSubstLeft extends CLogicalRuleApp
-case object CSubstLeftVar extends CLogicalRuleApp
+case class CInconsistency(implicit env: CEnvironment) extends CLogicalRuleApp
+case class CFrame(implicit env: CEnvironment) extends CLogicalRuleApp
+case class CNilNotLval(implicit env: CEnvironment) extends CLogicalRuleApp
+case class CStarPartial(implicit env: CEnvironment) extends CLogicalRuleApp
+case class CSubstLeft(implicit env: CEnvironment) extends CLogicalRuleApp
+case class CSubstLeftVar(implicit env: CEnvironment) extends CLogicalRuleApp
 
-sealed abstract class COperationalRuleApp extends CRuleApp
-case class CWrite(to: CVar) extends COperationalRuleApp {
+sealed abstract class COperationalRuleApp(implicit env: CEnvironment) extends CRuleApp
+case class CWrite(to: CVar)(implicit env: CEnvironment) extends COperationalRuleApp {
   override val op: Option[String] = Some("ssl_write.")
   override val after: Seq[String] = Seq(s"ssl_write_post ${to.pp}.")
 }
-case object CRead extends COperationalRuleApp {
+case class CRead(implicit env: CEnvironment) extends COperationalRuleApp {
   override val op: Option[String] = Some("ssl_read.")
 }
-case object CAlloc extends COperationalRuleApp
-case class CFreeRuleApp(size: Int) extends COperationalRuleApp {
+case class CAlloc(implicit env: CEnvironment) extends COperationalRuleApp
+case class CFreeRuleApp(size: Int)(implicit env: CEnvironment) extends COperationalRuleApp {
   override val op: Option[String] = Some((1 to size).map(_ => "ssl_dealloc.").mkString("\n"))
 }
 
-sealed abstract class CUnfoldingRuleApp extends CRuleApp
-case class COpen(selectors: Seq[CExpr], pred: CInductivePredicate) extends CUnfoldingRuleApp {
+sealed abstract class CUnfoldingRuleApp(implicit env: CEnvironment) extends CRuleApp
+case class COpen(selectors: Seq[CExpr], pred: CInductivePredicate)(implicit env: CEnvironment) extends CUnfoldingRuleApp {
   override val op: Option[String] = {
     val builder = new StringBuilder()
     builder.append("case: ifP=>cond; ")
@@ -148,7 +148,7 @@ case class COpen(selectors: Seq[CExpr], pred: CInductivePredicate) extends CUnfo
     })
   }
 
-  override def nextEnvs(env: CEnvironment, goal: CGoal): Seq[CEnvironment] = {
+  override def nextEnvs(goal: CGoal): Seq[CEnvironment] = {
     val gamma = goal.gamma
     selectors.map(selector => {
       val clause = pred.clauses.find(c => c.selector == selector).get
@@ -164,20 +164,21 @@ case class COpen(selectors: Seq[CExpr], pred: CInductivePredicate) extends CUnfo
   }
 }
 
-case class CCallRuleApp(env: CEnvironment, fun: String, args: Seq[CVar]) extends CUnfoldingRuleApp {
+case class CCallRuleApp(fun: String, sub: Map[CVar, CExpr])(implicit env: CEnvironment) extends CUnfoldingRuleApp {
   override val before: Option[String] = {
     val builder = new StringBuilder()
     // rearrange heap to put recursive heap component to the head
     builder.append(s"put_to_head ${env.callHeapVars.head.pp}.\n")
     builder.append("apply: bnd_seq.\n")
     // identify how many ghost values to pass to the call
-    for (v <- args) builder.append(s"apply: (gh_ex ${v.pp}).\n")
+    val pureEx = env.spec.pureParams.map { case (_, v) => sub(v).asInstanceOf[CVar] }
+    for (v <- pureEx) builder.append(s"apply: (gh_ex ${v.pp}).\n")
     Some(builder.toString())
   }
 
   override val op: Option[String] =
     Some(s"apply: val_do=>//= _ ? ->; rewrite unitL=>_.")
 
-  override def nextEnvs(env: CEnvironment, goal: CGoal): Seq[CEnvironment] =
+  override def nextEnvs(goal: CGoal): Seq[CEnvironment] =
     Seq(env.copy(callHeapVars = env.callHeapVars.tail))
 }

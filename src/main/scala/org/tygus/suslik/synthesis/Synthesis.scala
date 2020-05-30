@@ -1,5 +1,6 @@
 package org.tygus.suslik.synthesis
 
+import org.tygus.suslik.certification.Tree
 import org.tygus.suslik.certification.targets.coq.Coq
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
@@ -154,8 +155,7 @@ trait Synthesis extends SepLogicUtils {
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
-        val andNode = AndNode(expansions.indexOf(e) +: node.id, e.kont, node, e.consume, e.rule)
-        SearchTree.addSuccessfulAnd(andNode)
+        Tree.add(Tree.Node(node.id, node.parent.map(Tree.Node.fromSynthesis), node.goal, e.kont, e.rule, node.produce, e.consume))
         node.succeed(e.kont(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
