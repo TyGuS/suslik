@@ -27,29 +27,37 @@ object Translation {
   lazy val inductive: Boolean = rootAnd.rule == Open
 
   def translateProof(proc: Procedure)(implicit env: Environment): CProof = {
+    def expandStmt(stmt: Statement) : (Option[Statement], Seq[Statement]) = stmt match {
+      case SeqComp(s1, s2) => (Some(s1), Seq(s2))
+      case If(_, tb, eb) => (None, Seq(tb, eb))
+      case Guarded(_, body, els, _) => (None, Seq(body, els))
+      case _ => (Some(stmt), Seq())
+    }
+
+    @scala.annotation.tailrec
+    def unwrapStmtProducer(p: StmtProducer) : StmtProducer = p match {
+      case PartiallyAppliedProducer(p, _) => unwrapStmtProducer(p)
+      case ChainedProducer(p1, _) => unwrapStmtProducer(p1)
+      case p => p
+    }
+
+    /**
+      * Creates a new continuation B that applies the existing continuation A
+      * to a new sequence prepended to A's original parameter sequence
+      */
+    def prependKont(kont: Seq[CProofStep] => CProofStep, prependSteps: Seq[CProofStep])(steps: Seq[CProofStep]) =
+      kont(prependSteps ++ steps)
+
     // Double tree walk: program and proof
-    def traverse(an: SearchTree.AndNode, stmt: Statement, cenv: CEnvironment): CProofStep = {
-      val (currStmt, nextStmts) = stmt match {
-        case SeqComp(s1, s2) => (Some(s1), Seq(s2))
-        case If(_, tb, eb) => (None, Seq(tb, eb))
-        case Guarded(_, body, els, _) => (None, Seq(body, els))
-        case _ => (Some(stmt), Seq())
-      }
+    def traverse(an: SearchTree.AndNode, stmt: Statement, cenv: CEnvironment, kont: Seq[CProofStep] => CProofStep): CProofStep = {
+      val (currStmt, nextStmts) = expandStmt(stmt)
 
       val on = an.parent
       val goal = on.goal
       val footprint = an.consume
       val subOns = an.children.reverse.map(_.child).filter(_.isDefined).map(_.get)
-      val kont: StmtProducer = {
-        @scala.annotation.tailrec
-        def unwrapKont(p: StmtProducer) : StmtProducer = p match {
-          case PartiallyAppliedProducer(p, _) => unwrapKont(p)
-          case ChainedProducer(p1, p2) => unwrapKont(p1)
-          case p => p
-        }
-        unwrapKont(an.kont)
-      }
-      val ruleApp: Option[CRuleApp] = (an.rule, kont) match {
+      val stmtProducer = unwrapStmtProducer(an.kont)
+      val ruleApp: Option[CRuleApp] = (an.rule, stmtProducer) match {
         case (EmpRule, _) =>
           Some(CEmp)
         case (ReadRule, PrependProducer(Load(to, _, _, _))) =>
@@ -57,7 +65,7 @@ object Translation {
             case Some(Load(to1, _, _, _)) if to.name.startsWith(to1.name) =>
               Some(CRead)
             case _ =>
-              None
+              None // bound variable was eliminated by SeqComp.simplify
           }
         case (WriteRule, PrependProducer(Store(to, _, _))) =>
           Some(CWrite(CVar(to.name)))
@@ -92,15 +100,38 @@ object Translation {
           val app = footprint.pre.apps.headOption.getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
           Some(COpen(cenv, selectors.map(translateExpr), translateHeaplet(app).asInstanceOf[CSApp]))
         case _ =>
-          None
+          None // rule has no effect on certification
       }
 
       ruleApp match {
         case Some(app) =>
           val nextEnv = app.nextEnvs(cenv, translateGoal(goal))
-          CProofStep(app, subOns.zip(nextStmts).zip(nextEnv).map(e => traverse(e._1._1, e._1._2, e._2)))
+          subOns.zip(nextStmts).zip(nextEnv) match {
+            case ((subOn, nextStmt), nextEnv) :: tl =>
+              val nextKont = tl.foldLeft((steps: Seq[CProofStep]) => kont(Seq(CProofStep(app, steps)))) {
+                case (kontAcc, ((subOn, nextStmt), nextEnv)) =>
+                  (steps: Seq[CProofStep]) =>
+                    traverse(subOn, nextStmt, nextEnv, prependKont(kontAcc, steps))
+              }
+              traverse(subOn, nextStmt, nextEnv, nextKont)
+            case Nil =>
+              kont(Seq(CProofStep(app, Seq()))) // nothing left to traverse
+          }
         case None =>
-          traverse(subOns.head, stmt, cenv)
+          // No Coq proof step was generated for this run; pass through the parameters
+          subOns match {
+            case subOn :: tl =>
+              val nextKont = tl.foldLeft(kont) {
+                case (kontAcc, subOn) =>
+                  (steps: Seq[CProofStep]) =>
+                    traverse(subOn, stmt, cenv, prependKont(kontAcc, steps))
+              }
+              traverse(subOn, stmt, cenv, nextKont)
+            case Nil =>
+              kont(Seq()) // nothing left to traverse
+          }
+
+          traverse(subOns.head, stmt, cenv, kont)
       }
     }
 
@@ -115,8 +146,9 @@ object Translation {
     )
     val ruleApp = CGhostElim(cenv)
     val nextEnv = ruleApp.nextEnvs(cenv, initialGoal)
+    val res = traverse(rootAnd, proc.body, nextEnv.head, steps => CProofStep(ruleApp, steps))
 
-    CProof(CProofStep(ruleApp, Seq(traverse(rootAnd, proc.body, nextEnv.head))))
+    CProof(res)
   }
 
   def translateFunSpec(implicit env: Environment): CFunSpec = {
