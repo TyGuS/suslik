@@ -118,11 +118,17 @@ object Translation {
 
           val sub = subs.head
           val existingVars = cenv.ctx.keySet
+          def longestPrefix(s: String, vset: Set[CVar]): Option[CVar] = {
+            val prefixes = vset.filter(v1 => s.startsWith(v1.name))
+            if (prefixes.isEmpty) None
+            else Some(prefixes.maxBy(_.name.length))
+          }
+
           val csub = sub.map { case (src, dest) =>
             val csrc = CVar(src.name)
             // if any variables were renamed, substitute them
             val simplifyingMapping = dest.vars
-              .map(v => (v, existingVars.find(v1 => v.name.startsWith(v1.name))))
+              .map(v => (v, longestPrefix(v.name, existingVars)))
               .filter(_._2.isDefined)
               .map(el => (el._1, Var(el._2.get.name)))
               .toMap
@@ -135,7 +141,10 @@ object Translation {
         case (Open, BranchProducer(selectors)) =>
           val app = footprint.pre.apps.headOption
             .getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
-          val cruleApp = COpen(selectors.map(translateExpr), translateInductivePredicate(env.predicates(app.pred)))
+          val pred = cenv.predicates
+            .find(_.name == app.pred)
+            .getOrElse(throw TranslationException(s"No predicate matching label ${app.pred} found in environment"))
+          val cruleApp = COpen(selectors.map(translateExpr), pred)
           val cstmt = openProducer(selectors.map(translateExpr))
           (Some(ruleAppProducer(cruleApp)), Some(cstmt), Some(cruleApp.nextEnvs(cgoal)))
         case _ =>
@@ -215,23 +224,22 @@ object Translation {
         (steps1, stmts1) => item.traverse(prependArgsProducer(kontAcc, steps1, stmts1))
     }
 
-  def translate(node: Tree.Node, proc: Procedure)(implicit env: Environment): (CFunSpec, CProof, CProcedure) = {
+  def translate(node: Tree.Node, proc: Procedure)(implicit env: Environment):
+    (Seq[CInductivePredicate], CFunSpec, CProof, CProcedure) = {
+    val cpreds = for (label <- (node.goal.pre.sigma.apps ++ node.goal.post.sigma.apps).distinct.map(_.pred)) yield {
+      val predicate = env.predicates(label)
+      translateInductivePredicate(predicate.resolveOverloading(env))
+    }
     val initialGoal = translateGoal(node.goal)
     val spec = translateFunSpec(node)
-    val initialCEnv: CEnvironment = CEnvironment(spec, Map.empty, Seq.empty)
+    val initialCEnv: CEnvironment = CEnvironment(spec, cpreds, Map.empty, Seq.empty)
     val ruleApp = CGhostElim(initialGoal)(initialCEnv)
     val nextEnv = ruleApp.nextEnvs(initialGoal).head
     val (proofBody, stmtBody) = TraversalItem(node, proc.body, nextEnv).traverse((steps, stmts) => (CProofStep(ruleApp, steps), stmts.head))
 
     val proof = CProof(proofBody)
     val cproc = CProcedure(proc.name, translateSSLType(proc.tp), proc.formals.map(translateParam), stmtBody, spec.inductive)
-    (spec, proof, cproc)
-  }
-
-  def translatePredicate(el: InductivePredicate): CInductivePredicate = {
-    val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
-    val cClauses = el.clauses.zipWithIndex.map { case (c, i) => translateClause(s"${el.name}$i", c) }
-    CInductivePredicate(el.name, cParams, cClauses)
+    (cpreds, spec, proof, cproc)
   }
 
   private def translateFunSpec(node: Tree.Node)(implicit env: Environment): CFunSpec = {
@@ -303,8 +311,11 @@ object Translation {
     case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr), tag)
   }
 
-  private def translateAsn(el: Assertion): CAssertion =
-    CAssertion(translateExpr(el.phi.toExpr).simplify, translateSFormula(el.sigma))
+  private def translateAsn(el: Assertion): CAssertion = {
+    val phi: CExpr = translateExpr(el.phi.toExpr).simplify
+    val sigma = translateSFormula(el.sigma)
+    CAssertion(phi, sigma)
+  }
 
   private def translateSFormula(el: SFormula): CSFormula = {
     val ptss = el.ptss.map(translateHeaplet).asInstanceOf[List[CPointsTo]]

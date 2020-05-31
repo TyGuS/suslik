@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.coq.logic
 
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.certification.targets.coq.language.{CAssertion, CFunSpec, CoqType, PrettyPrinting}
+import org.tygus.suslik.certification.targets.coq.language.{CAssertion, CFunSpec, CInductivePredicate, CoqType, PrettyPrinting}
 
 trait ProofContextItem
 
@@ -13,12 +13,14 @@ case class CGoal(pre: CAssertion,
                  fname: String)
 
 case class CEnvironment(spec: CFunSpec,
+                        predicates: Seq[CInductivePredicate],
                         ctx: ProofContext,
                         callHeapVars: Seq[CVar]) {
   def copy(spec: CFunSpec = this.spec,
+           predicates: Seq[CInductivePredicate] = this.predicates,
            ctx: ProofContext = this.ctx,
            callHeapVars: Seq[CVar] = this.callHeapVars): CEnvironment =
-    CEnvironment(spec, ctx, callHeapVars)
+    CEnvironment(spec, predicates, ctx, callHeapVars)
 }
 
 case class CProofStep(app: CRuleApp, next: Seq[CProofStep]) {

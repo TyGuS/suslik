@@ -17,12 +17,8 @@ object Coq extends CertificationTarget {
     val headers = Source.fromFile(headersFile)
     for (line <- headers.getLines) builder.append(s"$line\n")
     headers.close()
-    for (label <- (root.goal.pre.sigma.apps ++ root.goal.post.sigma.apps).distinct.map(_.pred)) {
-      val predicate = env.predicates(label)
-      builder.append(Translation.translateInductivePredicate(predicate.resolveOverloading(env)).pp)
-      builder.append("\n")
-    }
-    val (spec, proof, cproc) = Translation.translate(root, proc)(env)
+    val (preds, spec, proof, cproc) = Translation.translate(root, proc)(env)
+    preds.foreach(pred => builder.append(pred.pp + "\n"))
     builder.append(spec.pp)
     builder.append("\n")
     builder.append(cproc.ppp)
