@@ -1,10 +1,21 @@
 package org.tygus.suslik.certification.targets.coq.language
 
+import org.tygus.suslik.LanguageUtils.cardinalityPrefix
 import org.tygus.suslik.certification.targets.coq.logic.ProofContextItem
+import org.tygus.suslik.logic.Specifications.selfCardVar
 
 object Expressions {
 
   sealed abstract class CExpr extends ProgramPrettyPrinting with ProofContextItem {
+    private def isUseless: Boolean = this match {
+      case CBinaryExpr(_, CVar(name), _) =>
+        name == selfCardVar.name || name.startsWith(cardinalityPrefix)
+      case CBinaryExpr(_, _, CVar(name)) =>
+        name == selfCardVar.name || name.startsWith(cardinalityPrefix)
+      case _ =>
+        false
+    }
+
     def collect[R <: CExpr](p: CExpr => Boolean): Set[R] = {
 
       def collector(acc: Set[R])(exp: CExpr): Set[R] = exp match {
@@ -43,8 +54,8 @@ object Expressions {
     def simplify: CExpr = this match {
       case CBinaryExpr(op, left, right) =>
         if (op == COpAnd) {
-          if (left == CBoolConst(true)) return right.simplify
-          else if (right == CBoolConst(true)) return left.simplify
+          if (left == CBoolConst(true) || left.isUseless) return right.simplify
+          else if (right == CBoolConst(true) || right.isUseless) return left.simplify
         }
         CBinaryExpr(op, left.simplify, right.simplify)
       case CUnaryExpr(op, arg) =>

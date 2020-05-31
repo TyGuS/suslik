@@ -1,6 +1,7 @@
 package org.tygus.suslik.certification.targets.coq
 
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
+import org.tygus.suslik.certification.targets.coq.language.Statements._
 import org.tygus.suslik.certification.targets.coq.language._
 import org.tygus.suslik.certification.targets.coq.logic._
 import org.tygus.suslik.language._
@@ -19,96 +20,82 @@ import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 object Translation {
   case class TranslationException(msg: String) extends Exception(msg)
 
-  lazy val root: Tree.Node = Tree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
-  // Basic check whether a proof is inductive
-  lazy val inductive: Boolean = root.rule == Open
-
   type ProofProducer = Seq[CProofStep] => CProofStep
+  type CStmtProducer = Seq[CStatement] => CStatement
+  type TraversalResult = (CProofStep, CStatement)
+  type TraversalProducer = (Seq[CProofStep], Seq[CStatement]) => TraversalResult
 
-  def translateProof(proc: Procedure)(implicit env: Environment): CProof = {
-    case class TraversalItem(node: Tree.Node, stmt: Statement, cenv: CEnvironment)
-
+  case class TraversalItem(node: Tree.Node, stmt: Statement, implicit val cenv: CEnvironment) {
     /**
-      * Given a program point, derives the currently focused statement and its children
-      * @param stmt the program point
-      * @return a tuple of an optional current statement and a sequence of child statements
+      * CPS tree traversal of a proof and program in tandem
+      * @param kont the current continuation
+      * @return a Coq proof step and program statement
       */
-    def expandStmt(stmt: Statement) : (Option[Statement], Seq[Statement]) = stmt match {
-      case SeqComp(s1, s2) => (Some(s1), Seq(s2))
-      case If(_, tb, eb) => (None, Seq(tb, eb))
-      case Guarded(_, body, els, _) => (None, Seq(body, els))
-      case _ => (Some(stmt), Seq())
-    }
-
-    /**
-      * Unwraps a statement producer to get to the part relevant to certification
-      * @param p the producer
-      * @return an unwrapped producer
-      */
-    @scala.annotation.tailrec
-    def unwrapStmtProducer(p: StmtProducer) : StmtProducer = p match {
-      case PartiallyAppliedProducer(p, _) => unwrapStmtProducer(p)
-      case ChainedProducer(p1, _) => unwrapStmtProducer(p1)
-      case p => p
-    }
-
-    /**
-      * Composes two continuation functions g ∘ f
-      * @param f the first continuation to apply
-      * @param g the second continuation to apply
-      * @return the composed result
-      */
-    def composeProducer(f: ProofProducer, g: ProofProducer): ProofProducer = items => g(Seq(f(items)))
-
-    /**
-      * Creates a new continuation that prepends items to the argument of an existing continuation `kont`
-      * @param kont the original continuation
-      * @param itemsToPrepend items to prepend to `kont`
-      * @return a new continuation
-      */
-    def prependArgsProducer(kont: ProofProducer, itemsToPrepend: Seq[CProofStep]): ProofProducer =
-      items => kont(itemsToPrepend ++ items)
-
-    /**
-      * Creates a new continuation that combines the result of multiple traversals at a branching point
-      * @param items a list of things to traverse
-      * @param kont the final (root) continuation to apply after collecting all child results
-      * @return a new continuation
-      */
-    def branchProducer(items: List[TraversalItem], kont: ProofProducer): ProofProducer =
-      items.foldLeft(kont) {
-        case (kontAcc, item) =>
-          items1 => traverse(item, prependArgsProducer(kontAcc, items1))
+    def traverse(kont: TraversalProducer)(implicit env: Environment): TraversalResult = {
+      val (_, nextStmts) = expandStmt(stmt)
+      val childNodes = node.children
+      val (nextTraversalItems, nextKont) = mkKonts match {
+        case (Some(nextProofKont), Some(nextStmtKont), Some(nextEnvs)) =>
+          val nextTraversalItems = childNodes.zip(nextStmts).zip(nextEnvs).map(i => TraversalItem(i._1._1, i._1._2, i._2))
+          val nextKont = composeProducer(nextProofKont, nextStmtKont, kont)
+          (nextTraversalItems, nextKont)
+        case _ =>
+          (childNodes.map(TraversalItem(_, stmt, cenv)), kont)
       }
 
+      nextTraversalItems match {
+        case hd :: tl =>
+          hd.traverse(branchProducer(tl, nextKont))
+        case Nil =>
+          nextKont(Seq(), Seq())
+      }
+    }
+
     /**
-      * Tries to derive a Coq rule application that matches a given traversal item
-      * @param item the thing to traverse
-      * @return an optional Coq rule application
+      * Tries to derive proof and program continuations from a traversal item
+      * @return an optional proof continuation, program continuation, and proof environment
       */
-    def deriveCRuleApp(item: TraversalItem): Option[CRuleApp] = {
-      implicit val TraversalItem(node, stmt, cenv) = item
+    private def mkKonts(implicit env: Environment):
+    (Option[ProofProducer], Option[CStmtProducer], Option[Seq[CEnvironment]]) = {
       val (currStmt, _) = expandStmt(stmt)
 
-      val goal = node.goal
       val footprint = node.consume
+      val goal = node.goal
+      val cgoal = translateGoal(goal)
       val stmtProducer = unwrapStmtProducer(node.kont)
       (node.rule, stmtProducer) match {
         case (EmpRule, _) =>
-          Some(CEmp())
+          val cruleApp = CEmp()
+          val cstmt = seqCompProducer(CSkip)
+          (Some(ruleAppProducer(cruleApp)), Some(cstmt), Some(cruleApp.nextEnvs(cgoal)))
         case (ReadRule, PrependProducer(Load(to, _, _, _))) =>
           currStmt match {
-            case Some(Load(to1, _, _, _)) if to.name.startsWith(to1.name) =>
-              Some(CRead())
+            case Some(Load(to1, tpe, from, offset)) if to.name.startsWith(to1.name) =>
+              val cruleApp = CRead()
+              val s = CLoad(CVar(to.name), translateSSLType(tpe), CVar(from.name), offset)
+              val cstmt = seqCompProducer(s)
+              (Some(ruleAppProducer(cruleApp)), Some(cstmt), Some(cruleApp.nextEnvs(cgoal)))
             case _ =>
-              None // bound variable was eliminated by SeqComp.simplify
+              (None, None, None) // bound variable was eliminated by SeqComp.simplify
           }
-        case (WriteRule, PrependProducer(Store(to, _, _))) =>
-          Some(CWrite(CVar(to.name)))
+        case (WriteRule, PrependProducer(Store(to, offset, e))) =>
+          val cruleApp = CWrite(CVar(to.name))
+          val s = CStore(CVar(to.name), offset, translateExpr(e))
+          val cstmt = seqCompProducer(s)
+          (Some(ruleAppProducer(cruleApp)), Some(cstmt), Some(cruleApp.nextEnvs(cgoal)))
         case (FreeRule, PrependProducer(Free(v))) =>
-          footprint.pre.blocks.find(_.loc == v)
-            .map(b => CFreeRuleApp(b.sz))
-        case (CallRule, PrependProducer(Call(fun, _, _))) =>
+          footprint.pre.blocks.find(_.loc == v) match {
+            case Some(b) =>
+              val cruleApp = CFreeRuleApp(b.sz)
+              val s = (1 until b.sz).foldLeft[CStatement](CFree(CVar(v.name))){
+                (acc, n) => CSeqComp(CFree(CVar(v.name), n), acc)
+              }
+              val cstmt = seqCompProducer(s)
+              (Some(ruleAppProducer(cruleApp)), Some(cstmt), Some(cruleApp.nextEnvs(cgoal)))
+            case None =>
+              (None, None, None)
+          }
+        case (CallRule, PrependProducer(Call(fun, args, _))) =>
           val allCands = goal.companionCandidates.reverse
           val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
           val funLabels = cands.map(a => a.toFunSpec) ++ // companions
@@ -130,10 +117,10 @@ object Translation {
           } yield sub
 
           val sub = subs.head
+          val existingVars = cenv.ctx.keySet
           val csub = sub.map { case (src, dest) =>
             val csrc = CVar(src.name)
             // if any variables were renamed, substitute them
-            val existingVars = cenv.ctx.keySet
             val simplifyingMapping = dest.vars
               .map(v => (v, existingVars.find(v1 => v.name.startsWith(v1.name))))
               .filter(_._2.isDefined)
@@ -141,58 +128,115 @@ object Translation {
               .toMap
             (csrc, translateExpr(dest.subst(simplifyingMapping)))
           }
-          Some(CCallRuleApp(fun.name, csub))
+          val cruleApp = CCallRuleApp(fun.name, csub)
+          val s = CCall(CVar(fun.name), args.map(translateExpr))
+          val cstmt = seqCompProducer(s)
+          (Some(ruleAppProducer(cruleApp)), Some(cstmt), Some(cruleApp.nextEnvs(cgoal)))
         case (Open, BranchProducer(selectors)) =>
           val app = footprint.pre.apps.headOption
             .getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
-          Some(COpen(selectors.map(translateExpr), translateInductivePredicate(env.predicates(app.pred))))
+          val cruleApp = COpen(selectors.map(translateExpr), translateInductivePredicate(env.predicates(app.pred)))
+          val cstmt = openProducer(selectors.map(translateExpr))
+          (Some(ruleAppProducer(cruleApp)), Some(cstmt), Some(cruleApp.nextEnvs(cgoal)))
         case _ =>
-          None // rule has no effect on certification
+          (None, None, None) // rule has no effect on certification
       }
     }
-
-    /**
-      * CPS tree traversal of a proof and program in tandem
-      * @param item the current thing to traverse
-      * @param kont the current continuation
-      * @return a Coq proof step
-      */
-    @scala.annotation.tailrec
-    def traverse(item: TraversalItem, kont: ProofProducer): CProofStep = {
-      val ruleApp = deriveCRuleApp(item)
-
-      val (_, nextStmts) = expandStmt(item.stmt)
-      val childNodes = item.node.children
-      val (nextTraversalItems, nextKont) = ruleApp match {
-        case Some(app) =>
-          val nextEnvs = app.nextEnvs(translateGoal(item.node.goal))
-          val nextTraversalItems = childNodes.zip(nextStmts).zip(nextEnvs).map(i => TraversalItem(i._1._1, i._1._2, i._2))
-          val nextKont = composeProducer(steps => CProofStep(app, steps), kont)
-          (nextTraversalItems, nextKont)
-        case None =>
-          (childNodes.map(TraversalItem(_, item.stmt, item.cenv)), kont)
-      }
-
-      nextTraversalItems match {
-        case hd :: tl =>
-          traverse(hd, branchProducer(tl, nextKont))
-        case Nil =>
-          nextKont(Seq())
-      }
-    }
-
-    val initialGoal = translateGoal(root.goal)
-    val initialCEnv: CEnvironment = CEnvironment(translateFunSpec, Map.empty, Seq.empty)
-    val ruleApp = CGhostElim(initialGoal)(initialCEnv)
-    val nextEnv = ruleApp.nextEnvs(initialGoal).head
-    val res = traverse(TraversalItem(root, proc.body, nextEnv), steps => CProofStep(ruleApp, steps))
-
-    CProof(res)
   }
 
-  def translateFunSpec(implicit env: Environment): CFunSpec = {
-    val FunSpec(_, tp, _, _, _, _) = root.goal.toFunSpec
-    val goal = root.goal
+  /**
+    * Given a program point, derives the currently focused statement and its children
+    * @param stmt the program point
+    * @return a tuple of an optional current statement and a sequence of child statements
+    */
+  private def expandStmt(stmt: Statement) : (Option[Statement], Seq[Statement]) = stmt match {
+    case SeqComp(s1, s2) => (Some(s1), Seq(s2))
+    case If(_, tb, eb) => (None, Seq(tb, eb))
+    case Guarded(_, body, els, _) => (None, Seq(body, els))
+    case _ => (Some(stmt), Seq())
+  }
+
+  /**
+    * Unwraps a statement producer to get to the part relevant to certification
+    * @param p the producer
+    * @return an unwrapped producer
+    */
+  @scala.annotation.tailrec
+  private def unwrapStmtProducer(p: StmtProducer) : StmtProducer = p match {
+    case PartiallyAppliedProducer(p, _) => unwrapStmtProducer(p)
+    case ChainedProducer(p1, _) => unwrapStmtProducer(p1)
+    case p => p
+  }
+
+  /**
+    * Composes a proof and statement producer with a traversal producer
+    * @param f1 the proof continuation
+    * @param f2 the stmt continuation
+    * @param g the outer traversal continuation
+    * @return the composed result
+    */
+  private def composeProducer(f1: ProofProducer, f2: CStmtProducer, g: TraversalProducer): TraversalProducer =
+    (steps, stmts) => g(Seq(f1(steps)), Seq(f2(stmts)))
+
+  /**
+    * Creates a new continuation that prepends items to the argument of an existing continuation `kont`
+    * @param kont the original continuation
+    * @param steps items to prepend to `kont`
+    * @param stmts items to prepend to `kont`
+    * @return a new continuation
+    */
+  private def prependArgsProducer(kont: TraversalProducer, steps: Seq[CProofStep], stmts: Seq[CStatement]): TraversalProducer =
+    (steps1, stmts1) => kont(steps ++ steps1, stmts ++ stmts1)
+
+  private def ruleAppProducer(app: CRuleApp): ProofProducer = steps => CProofStep(app, steps)
+
+  private def seqCompProducer(s: CStatement): CStmtProducer = {
+    case hd :: _ => CSeqComp(s, hd)
+    case Nil => s
+  }
+
+  private def openProducer(selectors: Seq[CExpr]): CStmtProducer = stmts =>
+    if (stmts.length == 1) stmts.head else {
+      val cond_branches = selectors.zip(stmts).reverse
+      val ctail = cond_branches.tail
+      val finalBranch = cond_branches.head._2
+      ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => CIf(c, tb, eb).simplify }
+    }
+
+  /**
+    * Creates a new continuation that combines the result of multiple traversals at a branching point
+    * @param items a list of things to traverse
+    * @param kont the final (root) continuation to apply after collecting all child results
+    * @return a new continuation
+    */
+  private def branchProducer(items: List[TraversalItem], kont: TraversalProducer)(implicit env: Environment): TraversalProducer =
+    items.foldLeft(kont) {
+      case (kontAcc, item) =>
+        (steps1, stmts1) => item.traverse(prependArgsProducer(kontAcc, steps1, stmts1))
+    }
+
+  def translate(node: Tree.Node, proc: Procedure)(implicit env: Environment): (CFunSpec, CProof, CProcedure) = {
+    val initialGoal = translateGoal(node.goal)
+    val spec = translateFunSpec(node)
+    val initialCEnv: CEnvironment = CEnvironment(spec, Map.empty, Seq.empty)
+    val ruleApp = CGhostElim(initialGoal)(initialCEnv)
+    val nextEnv = ruleApp.nextEnvs(initialGoal).head
+    val (proofBody, stmtBody) = TraversalItem(node, proc.body, nextEnv).traverse((steps, stmts) => (CProofStep(ruleApp, steps), stmts.head))
+
+    val proof = CProof(proofBody)
+    val cproc = CProcedure(proc.name, translateSSLType(proc.tp), proc.formals.map(translateParam), stmtBody, spec.inductive)
+    (spec, proof, cproc)
+  }
+
+  def translatePredicate(el: InductivePredicate): CInductivePredicate = {
+    val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
+    val cClauses = el.clauses.zipWithIndex.map { case (c, i) => translateClause(s"${el.name}$i", c) }
+    CInductivePredicate(el.name, cParams, cClauses)
+  }
+
+  private def translateFunSpec(node: Tree.Node)(implicit env: Environment): CFunSpec = {
+    val FunSpec(_, tp, _, _, _, _) = node.goal.toFunSpec
+    val goal = node.goal
     val pureParams = goal.universalGhosts
       .intersect(goal.gamma.keySet)
       .map(v => translateParam((goal.gamma(v), v))).toList
@@ -207,7 +251,7 @@ object Translation {
       pureParams,
       cpre,
       cpost,
-      inductive
+      node.rule == Open
     )
   }
 
@@ -260,7 +304,7 @@ object Translation {
   }
 
   private def translateAsn(el: Assertion): CAssertion =
-    CAssertion(translateExpr(el.phi.toExpr), translateSFormula(el.sigma))
+    CAssertion(translateExpr(el.phi.toExpr).simplify, translateSFormula(el.sigma))
 
   private def translateSFormula(el: SFormula): CSFormula = {
     val ptss = el.ptss.map(translateHeaplet).asInstanceOf[List[CPointsTo]]

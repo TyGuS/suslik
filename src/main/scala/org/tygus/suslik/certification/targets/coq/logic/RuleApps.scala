@@ -2,8 +2,6 @@ package org.tygus.suslik.certification.targets.coq.logic
 
 import org.tygus.suslik.certification.targets.coq.language._
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.LanguageUtils.cardinalityPrefix
-import org.tygus.suslik.logic.Specifications.selfCardVar
 
 sealed abstract class CRuleApp(implicit env: CEnvironment) {
   val before: Option[String] = None
@@ -109,9 +107,7 @@ case class COpen(selectors: Seq[CExpr], pred: CInductivePredicate)(implicit env:
       val builder = new StringBuilder()
       val clause = pred.clauses.find(c => c.selector == selector).get
       val asn = clause.asn
-      val ve = (asn.spatialEx ++ asn.pureEx)
-        .filter(e => e.name != selfCardVar.name && !e.name.startsWith(cardinalityPrefix))
-        .diff(pred.params.map(_._2)).distinct
+      val ve = (asn.spatialEx ++ asn.pureEx).diff(pred.params.map(_._2)).distinct
       val he = asn.heapEx
 
       // existentials of the constructor
