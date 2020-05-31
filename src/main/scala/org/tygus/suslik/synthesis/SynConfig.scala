@@ -1,6 +1,9 @@
 package org.tygus.suslik.synthesis
 
+import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.language.PrettyPrinting
+
+import java.io.File
 
 /**
   * @author Ilya Sergey
@@ -34,7 +37,10 @@ case class SynConfig(
                       timeOut: Long             = 120000,
                       inputFormat: InputFormat = dotSyn,
                       // Global state
-                      startTime: Long           = 0
+                      startTime: Long           = 0,
+                      // Certification
+                      certTarget: CertificationTarget = null,
+                      certDest: File = null,
                     ) extends PrettyPrinting {
 
   override def pp: String =
@@ -45,7 +51,9 @@ case class SynConfig(
       (if (phased == defaultConfig.phased) Nil else List(s"phased = $phased")) ++
       (if (invert == defaultConfig.invert) Nil else List(s"invert = $invert")) ++
       (if (fail == defaultConfig.fail) Nil else List(s"fail = $fail")) ++
-      (if (commute == defaultConfig.commute) Nil else List(s"commute = $commute"))
+      (if (commute == defaultConfig.commute) Nil else List(s"commute = $commute")) ++
+      (if (certTarget == defaultConfig.certTarget) Nil else List(s"certTarget = ${certTarget.name}")) ++
+      (if (certDest == defaultConfig.certDest) Nil else List(s"certDest = ${certDest.getCanonicalPath}"))
       ).mkString(", ")
 }
 

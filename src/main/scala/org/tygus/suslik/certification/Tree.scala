@@ -67,4 +67,6 @@ object Tree {
   }
 
   def get(id: NodeId): Option[Node] = m.keySet.find(_ == Node(id, None, null, null, null, null, null))
+
+  def clear(): Unit = m.clear
 }

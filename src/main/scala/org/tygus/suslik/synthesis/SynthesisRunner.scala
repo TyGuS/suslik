@@ -2,6 +2,8 @@ package org.tygus.suslik.synthesis
 
 import java.io.File
 
+import org.tygus.suslik.certification.CertificationTarget
+import org.tygus.suslik.certification.targets._
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 import org.tygus.suslik.util.{SynLogLevels, SynLogging}
 
@@ -88,6 +90,12 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     head(TOOLNAME, VERSION_STRING)
 
+    implicit val certTargetRead: scopt.Read[CertificationTarget] =
+      scopt.Read.reads {
+        case "coq" => coq.Coq
+        case _ => ???
+      }
+
     arg[String]("fileName").action { (x, c) =>
       c.copy(fileName = x)
     }.text("a synthesis file name (the file under the specified folder, called filename.syn)")
@@ -168,6 +176,13 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))
     }.text("enable memoization; default: true")
 
+    opt[CertificationTarget](name="certTarget").action { (t, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
+    }.text("set certification target; default: none")
+
+    opt[File](name="certDest").action { (f, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(certDest = f))
+    }.text("write certificate to path; default: none")
 
     help("help").text("prints this usage text")
 

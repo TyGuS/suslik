@@ -1,0 +1,9 @@
+should be able to free a tree
+
+####
+
+{true ; tree(x, s) }
+  void treefree(loc x)
+{true ; emp }
+
+####

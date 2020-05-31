@@ -9,9 +9,9 @@ import scala.io.Source
 
 object Coq extends CertificationTarget {
   val name: String = "Coq"
-  lazy val root: Tree.Node = Tree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
 
   def certify(proc: Procedure, env: Environment): CoqCertificate = {
+    val root = Tree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
     val builder = new StringBuilder
     val headersFile = "htt-tactics.v"
     val headers = Source.fromFile(headersFile)
@@ -28,6 +28,8 @@ object Coq extends CertificationTarget {
     builder.append(cproc.ppp)
     builder.append("\n")
     builder.append(proof.pp)
+
+    Tree.clear() // Clear tree after certification complete
 
     CoqCertificate(builder.toString(), proc.name)
   }

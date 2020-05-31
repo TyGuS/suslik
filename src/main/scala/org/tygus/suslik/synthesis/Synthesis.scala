@@ -40,14 +40,6 @@ trait Synthesis extends SepLogicUtils {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
           val main = Procedure(name, tp, formals, body)
-
-          // certification
-          val certTarget = Coq
-          val targetName = certTarget.name
-          val certificate = certTarget.certify(main, env)
-          testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
-          testPrintln(certificate.body)
-
           (main :: helpers, stats)
         case None =>
           printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
