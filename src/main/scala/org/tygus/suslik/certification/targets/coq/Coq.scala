@@ -11,7 +11,7 @@ object Coq extends CertificationTarget {
   val name: String = "Coq"
 
   def certify(proc: Procedure, env: Environment): CoqCertificate = {
-    val root = Tree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
+    val root = CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
     val builder = new StringBuilder
     val headersFile = "htt-tactics.v"
     val headers = Source.fromFile(headersFile)
@@ -25,7 +25,7 @@ object Coq extends CertificationTarget {
     builder.append("\n")
     builder.append(proof.pp)
 
-    Tree.clear() // Clear tree after certification complete
+    CertTree.clear() // [Certify]: Clear tree after certification complete
 
     CoqCertificate(builder.toString(), proc.name)
   }

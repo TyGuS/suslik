@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.certification.Tree
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
@@ -71,7 +70,6 @@ object SearchTree {
           val newWL = pruneDescendants(id, wl) // prune all my descendants from worklist
           // Check if an has more open subgoals:
           if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
-            Tree.add(Tree.Node.fromSynthesis(an))
             an.parent.succeed(an.kont(List(s)), newWL)
           } else { // there are other open subgoals: partially apply and replace in descendants
             val newAN = an.copy(kont = an.kont.partApply(s))

@@ -10,7 +10,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.unification.SpatialUnification
-import org.tygus.suslik.certification.Tree
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.synthesis.rules._
 import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.LogicalRules._
@@ -25,7 +25,7 @@ object Translation {
   type TraversalResult = (CProofStep, CStatement)
   type TraversalProducer = (Seq[CProofStep], Seq[CStatement]) => TraversalResult
 
-  case class TraversalItem(node: Tree.Node, stmt: Statement, implicit val cenv: CEnvironment) {
+  case class TraversalItem(node: CertTree.Node, stmt: Statement, implicit val cenv: CEnvironment) {
     /**
       * CPS tree traversal of a proof and program in tandem
       * @param kont the current continuation
@@ -224,7 +224,7 @@ object Translation {
         (steps1, stmts1) => item.traverse(prependArgsProducer(kontAcc, steps1, stmts1))
     }
 
-  def translate(node: Tree.Node, proc: Procedure)(implicit env: Environment):
+  def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
     (Seq[CInductivePredicate], CFunSpec, CProof, CProcedure) = {
     val cpreds = for (label <- (node.goal.pre.sigma.apps ++ node.goal.post.sigma.apps).distinct.map(_.pred)) yield {
       val predicate = env.predicates(label)
@@ -242,7 +242,7 @@ object Translation {
     (cpreds, spec, proof, cproc)
   }
 
-  private def translateFunSpec(node: Tree.Node)(implicit env: Environment): CFunSpec = {
+  private def translateFunSpec(node: CertTree.Node)(implicit env: Environment): CFunSpec = {
     val FunSpec(_, tp, _, _, _, _) = node.goal.toFunSpec
     val goal = node.goal
     val pureParams = goal.universalGhosts

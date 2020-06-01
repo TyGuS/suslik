@@ -1,7 +1,6 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.certification.Tree
-import org.tygus.suslik.certification.targets.coq.Coq
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -147,7 +146,7 @@ trait Synthesis extends SepLogicUtils {
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
-        Tree.add(Tree.Node(node.id, node.parent.map(Tree.Node.fromSynthesis), node.goal, e.kont, e.rule, node.produce, e.consume))
+        CertTree.addSuccessfulPath(node, e) // [Certify]: Add a terminal node and its ancestors to the certification tree
         node.succeed(e.kont(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
