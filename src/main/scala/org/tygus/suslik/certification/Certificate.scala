@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification
 
-abstract class Certificate {
+trait Certificate {
   val body: String
   val name: String
   val suffix: String

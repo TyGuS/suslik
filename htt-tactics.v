@@ -39,12 +39,14 @@ Ltac ssl_read := apply: bnd_readR=>/=.
 Ltac ssl_write := apply: bnd_writeR=>/=.
 
 Ltac ssl_write_post x :=
+  rewrite -?joinA;
   match goal with
   | [ |- verify (x :-> _ \+ _) _ _ ] =>
-    rewrite !(joinC (x :-> _))
+    rewrite ?(joinC (x :-> _))
   | [ |- verify (x :-> _)  _ _ ] =>
     rewrite -(unitL (x :-> _))
   end;
+  rewrite ?joinA;
   apply frame.
 
 Ltac ssl_dealloc :=
@@ -61,7 +63,7 @@ Ltac ssl_dealloc :=
   end
 .
 
-Ltac ssl_emp := apply: val_ret=>//.
+Ltac ssl_emp := apply: val_ret=>*//=; hhauto.
 
 Ltac ssl_ghostelim_pre := apply: ghR; move=>h.
 

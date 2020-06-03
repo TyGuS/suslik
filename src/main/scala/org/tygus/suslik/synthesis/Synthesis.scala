@@ -146,7 +146,10 @@ trait Synthesis extends SepLogicUtils {
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
-        CertTree.addSuccessfulPath(node, e) // [Certify]: Add a terminal node and its ancestors to the certification tree
+        if (config.certTarget != null) {
+          // [Certify]: Add a terminal node and its ancestors to the certification tree
+          CertTree.addSuccessfulPath(node, e)
+        }
         node.succeed(e.kont(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions

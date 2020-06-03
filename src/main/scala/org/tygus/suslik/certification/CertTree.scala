@@ -6,7 +6,7 @@ import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, StmtProducer, Synthes
 
 import scala.collection.mutable
 
-object Tree {
+object CertTree {
 
   /**
     * [Certify]: A utility for traversing a successful synthesis result during certification
