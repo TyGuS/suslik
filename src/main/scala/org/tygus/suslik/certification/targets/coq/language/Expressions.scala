@@ -1,12 +1,11 @@
 package org.tygus.suslik.certification.targets.coq.language
 
 import org.tygus.suslik.LanguageUtils.cardinalityPrefix
-import org.tygus.suslik.certification.targets.coq.logic.ProofContextItem
 import org.tygus.suslik.logic.Specifications.selfCardVar
 
 object Expressions {
 
-  sealed abstract class CExpr extends ProgramPrettyPrinting with ProofContextItem {
+  sealed abstract class CExpr extends ProgramPrettyPrinting {
     private def isMetadata: Boolean =
       !this.vars.exists(v => v.name != selfCardVar.name && !v.name.startsWith(cardinalityPrefix))
 
