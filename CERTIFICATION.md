@@ -22,6 +22,8 @@ opam install coq coq-mathcomp-ssreflect coq-fcsl-pcm
 
 For HTT, clone the repo and run `opam install .` at the root to install using OPAM.
 
+Each synthesized Coq certificate imports `SSL`, a module consisting of predefined tactics. The module source may be compiled by running `make clean && make` in the directory `certification/coq`.
+
 ### Running Synthesis with Certification
 
 Add the following flags to run synthesis with certification.
