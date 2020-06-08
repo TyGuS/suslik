@@ -84,7 +84,7 @@ Definition sll_singleton_type :=
       fun h =>
           h = p :-> a,
       [vfun (_: unit) h =>
-        exists y elems,
+        exists y (elems : seq nat),
         exists h',
           elems = [:: x] /\ h = p :-> y \+ h' /\ sll y elems h'      ]).
 Program Definition sll_singleton : sll_singleton_type :=
@@ -92,7 +92,7 @@ Program Definition sll_singleton : sll_singleton_type :=
     Do (
   y2 <-- allocb null 2;
   p ::= y2;;
-  (y2 .+ 1) ::= 0;;
+  (y2 .+ 1) ::= null;;
   y2 ::= x;;
   ret tt    ).
 Next Obligation.
@@ -128,19 +128,12 @@ apply frame.
 ssl_write.
 ssl_write_post y2.
 
-apply: val_ret=>v1 v2 v3 v4.
-exists y2, [:: x].
-exists (y2 :-> x \+ y2 .+ 1 :-> 0).
-split; auto.
-split.
-- rewrite unitL; hhauto.
-- constructor 2.
-  admit.
-  exists 0, nil, x, empty.
-  split; auto.
-  split; hhauto.
-  rewrite unitR.
-  Fail done. (* why? *)
-  admit.
-Admitted.
-
+apply: val_ret; rewrite !unitL=>v1 v2 v3 v4/=.
+exists y2, [::x], (y2 :-> x \+ y2 .+ 1 :-> null).
+split=>//; split=>//.
+- by rewrite joinA joinC joinA. 
+- constructor 2=>//; first by rewrite defPtUnO in v2; case/andP: v2=>//.
+  exists null, [::], x, Unit; split=>//; rewrite unitR. 
+  split=>//.  
+  constructor 1=>//.
+Qed.
