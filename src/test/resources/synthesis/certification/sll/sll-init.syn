@@ -1,0 +1,17 @@
+should be able to initialize a linked list
+###
+
+{ true; sll(x, s) }
+  void sll_init(loc x, int v)
+{ s1 <=i {v} ; sll(x, s1) }
+
+###
+
+void sll_init (loc x, int v) {
+  if (x == 0) {
+  } else {
+    let n = *(x + 1);
+    sll_init(n, v);
+    *x = v;
+  }
+}

@@ -22,7 +22,7 @@ class CoqCertificationTests extends FunSpec with Matchers with SynthesisRunnerUt
       val certDestPath = certDest.getCanonicalPath
       synthesizeFromSpec(testName, in, out, params.copy(assertSuccess = false, certTarget = Coq, certDest = certDest))
       val fname = testName.split('/').last
-      val certPath = Paths.get(certDestPath, s"$fname.v").toFile.getCanonicalPath
+      val certPath = Paths.get(certDestPath, s"${fname.replace('-', '_')}.v").toFile.getCanonicalPath
 
       // verify
       val result = s"coqc -vok $certPath".!
@@ -32,7 +32,10 @@ class CoqCertificationTests extends FunSpec with Matchers with SynthesisRunnerUt
     }
 
   describe("SL-based synthesizer with certification") {
-    runAllTestsFromDir("certification")
+    runAllTestsFromDir("certification/ints")
+    runAllTestsFromDir("certification/list")
+    runAllTestsFromDir("certification/tree")
+    runAllTestsFromDir("certification/sll")
   }
 
 }
