@@ -108,7 +108,7 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   /**
-    * Compare symbolic heap cardinalities for strinct inequality (<) 
+    * Compare symbolic heap cardinalities for strict inequality (<)
     */
   def cardLT(sigma1: SFormula, sigma2: SFormula, cond: PFormula): Boolean = {
     val (_, card1) = heapCardinality(sigma1)
