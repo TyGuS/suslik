@@ -1,6 +1,9 @@
 package org.tygus.suslik.synthesis
 
+import scala.concurrent.duration._
 import org.tygus.suslik.language.PrettyPrinting
+
+import scala.concurrent.duration.Deadline
 
 /**
   * @author Ilya Sergey
@@ -35,7 +38,7 @@ case class SynConfig(
                       timeOut: Long             = 120000,
                       inputFormat: InputFormat = dotSyn,
                       // Global state
-                      startTime: Long           = 0
+                      startTime: Deadline       = Deadline.now
                     ) extends PrettyPrinting {
 
   override def pp: String =
@@ -48,6 +51,9 @@ case class SynConfig(
       (if (fail == defaultConfig.fail) Nil else List(s"fail = $fail")) ++
       (if (commute == defaultConfig.commute) Nil else List(s"commute = $commute"))
       ).mkString(", ")
+
+  def timedOut: Boolean = (startTime + timeOut.milliseconds).isOverdue()
+  def duration: Long = (Deadline.now - startTime).toMillis
 }
 
 case class SynTimeOutException(msg: String) extends Exception(msg)
