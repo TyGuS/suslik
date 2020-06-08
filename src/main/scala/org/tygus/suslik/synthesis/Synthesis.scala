@@ -2,12 +2,12 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.{SApp, _}
+import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
-import org.tygus.suslik.util.{SynLogging, SynStats}
 import org.tygus.suslik.synthesis.rules.Rules._
+import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
 import scala.annotation.tailrec
@@ -87,7 +87,7 @@ trait Synthesis extends SepLogicUtils {
 
       // Lookup the node in the memo
       val res = memo.lookup(goal) match {
-        case Some(Failed()) => { // Same goal has failed before: record as failed
+        case Some(Failed) => { // Same goal has failed before: record as failed
           printLog(List((s"Recalled FAIL", RED)))
           Left(node.fail(withRest(Nil)))
         }
@@ -95,7 +95,7 @@ trait Synthesis extends SepLogicUtils {
           printLog(List((s"Recalled solution ${sol._1.pp}", RED)))
           node.succeed(sol, withRest(Nil))
         }
-        case Some(Expanded()) => { // Same goal has been expanded before: wait until it's fully explored
+        case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
           printLog(List(("Suspend", RED)))
           memo.suspend(node)
           Left(withRest(List(node)))
@@ -124,7 +124,7 @@ trait Synthesis extends SepLogicUtils {
   protected def expandNode(node: OrNode, withRest: List[OrNode] => List[OrNode])(implicit stats: SynStats,
                                          config: SynConfig): Either[List[OrNode], Solution] = {
     val goal = node.goal
-    memo.save(goal, Expanded())
+    memo.save(goal, Expanded)
     implicit val ind: Int = goal.depth
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,

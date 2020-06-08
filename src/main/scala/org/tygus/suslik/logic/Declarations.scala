@@ -105,7 +105,7 @@ case class InductiveClause(selector: Expr, asn: Assertion) extends PrettyPrintin
   *
   * For instance, a linked list can be encoded as follows:
   *
-  * predicate lseg(x, y) {
+  * predicate lseg(x, y)[α] {
   * x == y  =>  emp
   * | x != y  => x -> (V, Z) * lseg(Z, y)
   * }
@@ -113,6 +113,9 @@ case class InductiveClause(selector: Expr, asn: Assertion) extends PrettyPrintin
   *
   * Each clause condition does not contain free variables, only the parameters,
   * while all free variables in the spatial part (body) is existentially quantified.
+  * 
+  * α is an identifier that stands for predicate cardinality and is necessary for the cyclic proof checking.
+  * In case if it's missing from the definition, it's instantiated with predname_card
   *
   * Also add simple predicate definitions
   *
@@ -143,9 +146,10 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
   }
 
   override def pp: String = {
-    val prelude = s"$name (${params.map(_._2.pp).mkString(", ")}) {"
+    val prelude = s"$name (${params.map(_._2.pp).mkString(", ")})"
+    // Print cardinality parameter
     val cls = clauses.map(_.pp).mkString(" | ")
-    prelude + cls + "}"
+    prelude  + s"{ $cls }"
   }
 
   def valid: Boolean = clauses.forall(_.valid)
@@ -157,14 +161,14 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
     * @return inductive predicate
     */
   def refreshExistentials(vars: Set[Var], suffix: String = ""): InductivePredicate = {
-    val bound = vars ++ params.map(_._2).toSet
+    val bound = Set(selfCardVar) ++ vars ++ params.map(_._2).toSet
     val sbst = refreshVars(existentials.toList, bound, suffix)
     this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
   }
 
   def vars: Set[Var] = clauses.flatMap(c => c.selector.vars ++ c.asn.vars).toSet
 
-  def existentials: Set[Var] = vars -- params.map(_._2).toSet
+  def existentials: Set[Var] = vars -- params.map(_._2).toSet -- Set(selfCardVar)
 
 }
 

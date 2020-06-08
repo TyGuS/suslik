@@ -1,7 +1,9 @@
 package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
-import org.tygus.suslik.language.Expressions.{Expr, IntConst, Var}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, IntConst, OpLt, OpPlus, Var}
+import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.logic.smt.SMTSolving
 
 /**
   * Utilities for spatial formulae
@@ -11,10 +13,20 @@ import org.tygus.suslik.language.Expressions.{Expr, IntConst, Var}
 
 trait SepLogicUtils extends PureLogicUtils {
 
+  /**
+    * A name used to refer to the size cardinality of the enclosing inductive predicate
+    * from within its definition
+    */
+  val selfCardVar = Var("self_card")
+
   protected def slAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SepLogicException(msg)
 
+  def cardName(n: String) = s"${n}_card"
+
   def emp: SFormula = SFormula(Nil)
-  def singletonHeap(h:Heaplet): SFormula = SFormula(List(h))
+
+  def singletonHeap(h: Heaplet): SFormula = SFormula(List(h))
+
   def mkSFormula(hs: List[Heaplet]) = SFormula(hs)
 
   /**
@@ -67,22 +79,69 @@ trait SepLogicUtils extends PureLogicUtils {
     }
   }
 
-  def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
+  def getRootGoal(g: Goal): Goal = g.parent match {
+    case None => g
+    case Some(p) => getRootGoal(p)
+  }
+
+  /**
+    * Compute cardinality of the symbolic heap as an expression.
+    *
+    * Returns the size of the non-recursive part as a component.
+    */
+  def heapCardinality(sigma: SFormula): (Int, Expr) = {
+    val heaplets = sigma.chunks
+    val ptsCount = heaplets.count {
+      _.isInstanceOf[PointsTo]
+    }
+    val cardinalities = for (SApp(_, _, _, c) <- heaplets) yield c
+    if (cardinalities.isEmpty) return (ptsCount, IntConst(ptsCount))
+
+    val res = if (ptsCount == 0) {
+      val h :: t = cardinalities
+      t.foldLeft(h)((l, r) => BinaryExpr(OpPlus, l, r))
+    } else {
+      cardinalities.foldLeft(IntConst(ptsCount): Expr)((l, r) => BinaryExpr(OpPlus, l, r))
+    }
+
+    (ptsCount, res)
+  }
+
+  /**
+    * Compare symbolic heap cardinalities for strinct inequality (<) 
+    */
+  def cardLT(sigma1: SFormula, sigma2: SFormula, cond: PFormula): Boolean = {
+    val (_, card1) = heapCardinality(sigma1)
+    val (_, card2) = heapCardinality(sigma2)
+    val goal = BinaryExpr(OpLt, card1, card2)
+    val res = SMTSolving.valid(cond ==> goal)
+    res
+  }
+  
+  def getCardinalities(sigma: SFormula) = for (SApp(_, _, _, c) <- sigma.chunks) yield c
+  
+  def onlyNonUsedCardinalities(sigma: SFormula, fname: String, goal: Goal) : Boolean = {
+    val participating = for (SApp(_, _, _, c) <- sigma.chunks) yield (c, fname)
+    val res = goal.blockedCardinalities.intersect(participating.toSet) == Set.empty
+    res
+  }
+
+
+  /*def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
     def compareTags(lilTag: Option[Int], largTag: Option[Int]): Int = lilTag.getOrElse(0) - largTag.getOrElse(0)
 
     val pairTags = for {
-      SApp(name, args, t) <- adaptedFunPre.chunks
-      SApp(_name, _args, _t) <- goalSubHeap.chunks.find {
-        case SApp(_name, _args, _) => _name == name && _args == args
+      SApp(name, args, t, c) <- adaptedFunPre.chunks
+      SApp(_name, _args, _t, _c) <- goalSubHeap.chunks.find {
+        case SApp(_name, _args, _, _c) => _name == name && _args == args
         case _ => false
       }
     } yield (t, _t)
-    val comparisons = pairTags.map {case (t, s) => compareTags(t, s)}
+    val comparisons = pairTags.map { case (t, s) => compareTags(t, s) }
     val allGeq = comparisons.forall(_ <= 0)
     val atLeastOneLarger = comparisons.exists(_ < 0)
     allGeq && atLeastOneLarger
-  }
-
+  }*/
 
 
   /**
@@ -105,8 +164,8 @@ trait SepLogicUtils extends PureLogicUtils {
           case PointsTo(_loc, _offset, _value) => offset == _offset // && !hasBlockForLoc(_loc)
           case _ => false
         }
-      case SApp(pred, args, tag) => stuff.filter {
-        case SApp(_pred, _args, _tag) =>
+      case SApp(pred, args, _, _) => stuff.filter {
+        case SApp(_pred, _args, _, _) =>
           _pred == pred && args.length == _args.length
         case _ => false
       }

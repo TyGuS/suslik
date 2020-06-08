@@ -7,10 +7,12 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
-  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
+  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
+    super.doRun(testName, desc, in, out, params)
     it(desc) {
       synthesizeFromSpec(testName, in, out, params)
     }
+  }
 
   describe("SuSLik should be able synthesize") {
     runAllTestsFromDir("paper-examples")
@@ -36,8 +38,8 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
     runAllTestsFromDir("paper-benchmarks/tree")
   }
 
-  describe("Binary search trees") {
-    runAllTestsFromDir("paper-benchmarks/bst")
-  }
+//  describe("Binary search trees") {
+//    runAllTestsFromDir("paper-benchmarks/bst")
+//  }
 
 }

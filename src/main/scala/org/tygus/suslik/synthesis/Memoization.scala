@@ -24,12 +24,12 @@ object Memoization {
     */
   sealed abstract class GoalStatus
   // This goal has been fully explored and failed
-  case class Failed() extends GoalStatus
+  case object Failed extends GoalStatus
   // This goal has been fully explored and produces solution `sol`
   case class Succeeded(sol: Solution) extends GoalStatus
   // This goal has been expanded but not yet fully explored
   // (its descendants are still in the worklist)
-  case class Expanded() extends GoalStatus
+  case object Expanded extends GoalStatus
 
   /**
     * Caches search results for goals
@@ -42,9 +42,9 @@ object Memoization {
 
     // For logging purposes
     def size: (Int, Int, Int) = (
-      cache.count(_._2.isInstanceOf[Failed]),
+      cache.count(_._2 == Failed),
       cache.count(_._2.isInstanceOf[Succeeded]),
-      cache.count(_._2.isInstanceOf[Expanded])
+      cache.count(_._2 == Expanded)
       )
 
     // Empty memo
@@ -63,7 +63,7 @@ object Memoization {
       val key = trimGoal(goal)
       cache(key) = status
       status match {
-        case Failed() => suspended.remove(key)
+        case Failed => suspended.remove(key)
         case Succeeded(_) => suspended.remove(key)
         case _ =>
       }
@@ -75,7 +75,7 @@ object Memoization {
     def forgetExpanded(goal: Goal): Unit = {
       val key = trimGoal(goal)
       cache.get(key) match {
-        case Some(Expanded()) => {
+        case Some(Expanded) => {
           cache.remove(key)
           suspended.remove(key)
         }
@@ -101,8 +101,8 @@ object Memoization {
     def suspendedSize: Int = suspended.size
 
     private def trimGoal(g: Goal): MemoGoal = MemoGoal(
-      Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks.sorted)),
-      Assertion(g.post.phi, mkSFormula(g.post.sigma.chunks.sorted)),
+      Assertion(g.pre.phi, mkSFormula(g.pre.sigma.chunks)),
+      Assertion(g.post.phi, mkSFormula(g.post.sigma.chunks)),
       g.gamma,
       g.programVars.toSet,
       g.universalGhosts,

@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule.canEmitCall
 
 /**
   * Unfolding rules deal with predicates and recursion.
@@ -30,11 +31,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       h match {
-        case SApp(pred, args, Some(t)) if t < env.config.maxOpenDepth =>
+        case SApp(pred, args, Some(t), card) if t < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
-          val sbst = params.map(_._2).zip(args).toMap
+          // [Cardinality] adjust cardinality of sub-clauses
+          val sbst = params.map(_._2).zip(args).toMap + (selfCardVar -> card)
           val remainingSigma = pre.sigma - h
           val newGoals = for {
             c@InductiveClause(_sel, _asn) <- clauses
@@ -44,9 +46,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             body = asn.sigma
             newPrePhi = pre.phi && constraints && sel
             // The tags in the body should be one more than in the current application:
+          
+            // TODO: get rid of me - no need to use tags here!
             _newPreSigma1 = mkSFormula(body.chunks).setUpSAppTags(t + 1)
             newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
+          
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
@@ -70,7 +75,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
   }
 
- 
+
   /*
   Application rule: apply the inductive hypothesis
 
@@ -90,7 +95,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val allCands = goal.companionCandidates.reverse
       val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
       val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
-        goal.env.functions.values.map (f => (f, None)) // components
+        goal.env.functions.values.map(f => (f, None)) // components
       val results = for {
         (f, l) <- funLabels
 
@@ -109,9 +114,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sourceParams = f.params.map(_._2).toSet
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
-        
-        // Check if respects ordering
-        if respectsOrdering(largSubHeap, lilHeap.subst(sub))
+
+        if canEmitCall(lilHeap.subst(sub), goal, f, largSubHeap)
+
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
@@ -124,12 +129,24 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
     }
 
+    // [Cardinality] Checking size constraints before emitting the call
+    def canEmitCall(preHeap: SFormula, goal: Goal, f: FunSpec, largSubHeap: SFormula): Boolean = {
+      val wellFounded = goal.fname != f.name ||
+        // [Cardinality] recursive case: symheap passed to the call is smaller than the initial one
+        cardLT(preHeap, getRootGoal(goal).pre.sigma, goal.pre.phi)
+
+      // Preventing multiple decreasing calls: blocking cardinality variables that participated once 
+      val allowedToCall = onlyNonUsedCardinalities(preHeap, f.name, goal)
+
+      allowedToCall && wellFounded
+    }
+
 
     /**
       * Make a call goal for `f` with a given precondition
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
-//      val freshSuffix = sub.values.map(_.pp).mkString("_")
+      //      val freshSuffix = sub.values.map(_.pp).mkString("_")
       val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
       val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
       val newEnv = if (f.name == goal.fname) goal.env else {
@@ -137,20 +154,19 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val funs = goal.env.functions.filterKeys(_ != f.name)
         goal.env.copy(functions = funs)
       }
-      val addedChunks1 = callPost.sigma.bumpUpSAppTags()
-      val addedChunks2 = callPost.sigma.lockSAppTags()
-      // Here we return two options for added chunks:
-      // (a) with bumped tags
-      // (b) with locked tags
-      // The former enables applications of other functions (tree-flatten)
-      // The latter enables application of the same recursive function (tree-flatten-acc),
-      // but "focused" on a different some(1)-tagged predicate applications. Both are sound.
+
+      val moreBLocked = getCardinalities(f.pre.sigma.subst(sub)).map(c => (c, f.name))
+
+      //[Cardinality] TODO, WTF: For some weird reason I cannot get rid of this
+      // as the synthesis becomes much slower, even though the tags are no longer
+      // used to determine whether a call can be made 
+      val acs = callPost.sigma.lockSAppTags()
       for {
-//        acs <- List(addedChunks1, addedChunks2)
-        acs <- List(addedChunks2)
+        blocked <- getCardinalities(f.pre.sigma.subst(sub)).map(c => (c, f.name))
+        newBlocked = goal.blockedCardinalities + blocked
         restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
         restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
-        callGoal = goal.spawnChild(restPre, env = newEnv)
+        callGoal = goal.spawnChild(restPre, env = newEnv, blocked = newBlocked)
       } yield callGoal
     }
   }
@@ -192,10 +208,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sourceParams = f.params.map(_._2).toSet
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(relaxedSub, targetAsn, targetParams, sourceAsn, sourceParams)
-        
+
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
-        if respectsOrdering(largPreSubHeap, lilHeap.subst(actualSub))
+
+        if canEmitCall(lilHeap.subst(actualSub), goal, f, largPreSubHeap)
+
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
@@ -251,7 +269,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       def heapletResults(h: Heaplet): Seq[RuleResult] = h match {
-        case SApp(pred, args, Some(t)) =>
+        case SApp(pred, args, Some(t), card) =>
           if (t >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
@@ -260,11 +278,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val paramNames = params.map(_._2)
-          val substArgs = paramNames.zip(args).toMap
+
+          // [Cardinality] adjust cardinality of sub-clauses
+          val substArgs = paramNames.zip(args).toMap + (selfCardVar -> card)
+
           val subDerivations = for {
             InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
-            asnExistentials = asn.vars -- paramNames.toSet
+            asnExistentials = asn.vars -- paramNames.toSet -- Set(selfCardVar)
             freshSuffix = args.take(1).map(_.pp).mkString("_")
             freshExistentialsSubst = refreshVars(asnExistentials.toList, goal.vars, freshSuffix)
             // Make sure that can unfold only once

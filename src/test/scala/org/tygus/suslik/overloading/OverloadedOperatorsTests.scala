@@ -3,7 +3,7 @@ package org.tygus.suslik.overloading
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language._
-import org.tygus.suslik.logic.Resolver.resolveProgram
+import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.parsing.SSLParser
@@ -14,7 +14,7 @@ import org.tygus.suslik.synthesis.instances.PhasedSynthesis
   * @author Roman Shchedrin
   */
 
-class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunnerUtil  {
+class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
@@ -25,7 +25,7 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
       throw SynthesisException(s"Failed to parse the input:\n$res")
     }
     val prog = res.get
-    val (specs, env, body) = resolveProgram(prog)
+    val (specs, env, body) = preprocessProgram(prog)
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
     }
@@ -36,11 +36,12 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
   }
 
 
-
-  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
+  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
+    super.doRun(testName, desc, in, out, params)
     it(desc) {
       synthesizeFromSpec(testName, in, out, params)
     }
+  }
 
   describe("Resolver tests") {
     it("should respect function signature") {

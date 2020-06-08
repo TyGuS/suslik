@@ -1,5 +1,6 @@
 package org.tygus.suslik.parsing
 
+import org.tygus.suslik.LanguageUtils.{cardinalityPrefix, getTotallyFreshName}
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
@@ -17,13 +18,13 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def repAll[T](p: => Parser[T]): Parser[List[T]] =
     Parser { in =>
       val elems = new ListBuffer[T]
-      val p0 = p    // avoid repeatedly re-evaluating by-name parser
+      val p0 = p // avoid repeatedly re-evaluating by-name parser
 
       @tailrec def applyp(in0: Input): ParseResult[List[T]] =
         if (in0.atEnd) Success(elems.toList, in0)
         else p0(in0) match {
-          case Success(x, rest) => elems += x ; applyp(rest)
-          case ns: NoSuccess    => ns
+          case Success(x, rest) => elems += x; applyp(rest)
+          case ns: NoSuccess => ns
         }
 
       applyp(in)
@@ -33,10 +34,10 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def typeParser: Parser[SSLType] =
     ("int" ^^^ IntType
-        | "bool" ^^^ BoolType
-        | "loc" ^^^ LocType
-        | "set" ^^^ IntSetType
-        | "void" ^^^ VoidType)
+      | "bool" ^^^ BoolType
+      | "loc" ^^^ LocType
+      | "set" ^^^ IntSetType
+      | "void" ^^^ VoidType)
 
   def formal: Parser[(SSLType, Var)] = typeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
 
@@ -82,11 +83,11 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   }
 
   def atom: Parser[Expr] = (
-      unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
-          | "(" ~> expr <~ ")"
-          | intLiteral | boolLiteral | setLiteral
-          | varParser
-      )
+    unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
+      | "(" ~> expr <~ ")"
+      | intLiteral | boolLiteral | setLiteral
+      | varParser
+    )
 
   def term: Parser[Expr] = chainl1(atom, binOpParser(termOpParser))
 
@@ -111,15 +112,17 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   }
 
   def heaplet: Parser[Heaplet] = (
-      (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
-          ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
-          ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ^^ { case name ~ args => SApp(name, args) }
-      )
+    (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
+      ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
+      ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("<" ~> expr <~ ">") ^^ {
+      case name ~ args ~ v => SApp(name, args, Some(0), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
+    }
+    )
 
   def sigma: Parser[SFormula] = (
-      "emp" ^^^ emp
-          ||| repsep(heaplet, "**") ^^ { hs => mkSFormula(hs) }
-      )
+    "emp" ^^^ emp
+      ||| repsep(heaplet, "**") ^^ { hs => mkSFormula(hs) }
+    )
 
   def assertion: Parser[Assertion] = "{" ~> (opt(expr <~ ";") ~ sigma) <~ "}" ^^ {
     case Some(p) ~ s => Assertion(toFormula(desugar(p)), s)
@@ -131,8 +134,14 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def indPredicate: Parser[InductivePredicate] =
     ("predicate" ~> ident) ~ ("(" ~> repsep(formal, ",") <~ ")") ~
-        (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
-      case name ~ formals ~ clauses => InductivePredicate(name, formals, clauses)
+      opt("[" ~> ident <~ "]") ~
+      (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
+      case name ~ formals ~ card ~ clauses =>
+        val c = card match {
+          case Some(s) => s
+          case None => cardName(name)
+        }
+        InductivePredicate(name, formals, clauses)
     }
 
   type UGoal = (Assertion, Set[Var])
@@ -147,50 +156,50 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case pre ~ tpe ~ name ~ formals ~ vars_decl ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
   }
 
-  def nonGoalFunction: Parser[FunSpec] =  typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ~ assertion ^^ {
-    case  tpe ~ name ~ formals  ~ vars_decl ~ pre ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
+  def nonGoalFunction: Parser[FunSpec] = typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ~ assertion ^^ {
+    case tpe ~ name ~ formals ~ vars_decl ~ pre ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
   }
 
-  def statementParser:Parser[Statement] = (
+  def statementParser: Parser[Statement] = (
     ("??" ^^^ Hole)
       ||| ("error" ~> ";" ^^^ Statements.Error)
       // Malloc
       ||| "let" ~> varParser ~ ("=" ~> "malloc" ~> "(" ~> numericLit <~ ")" ~> ";") ^^ {
-        case variable ~ number_str => Malloc(variable, IntType, Integer.parseInt(number_str)) // todo: maybe not ignore type here
-      }
+      case variable ~ number_str => Malloc(variable, IntType, Integer.parseInt(number_str)) // todo: maybe not ignore type here
+    }
       ||| ("free" ~> "(" ~> varParser <~ ")" ~> ";") ^^ Free
       // Store
       ||| "*" ~> varParser ~ ("=" ~> expr <~ ";") ^^ {
-        case variable ~ e => Store(variable, 0, desugar(e))
-      }
+      case variable ~ e => Store(variable, 0, desugar(e))
+    }
       ||| ("*" ~> "(" ~> varParser <~ "+") ~ numericLit ~ (")" ~> "=" ~> expr <~ ";") ^^ {
-        case variable ~ offset_str ~ e => Store(variable, Integer.parseInt(offset_str), desugar(e))
-      }
+      case variable ~ offset_str ~ e => Store(variable, Integer.parseInt(offset_str), desugar(e))
+    }
       // Load
       ||| ("let" ~> varParser) ~ ("=" ~> "*" ~> varParser <~ ";") ^^ {
-        case to ~ from => Load(to, IntType, from) // todo: maybe not ignore type here
-      }
+      case to ~ from => Load(to, IntType, from) // todo: maybe not ignore type here
+    }
       ||| ("let" ~> varParser <~ "=" <~ "*" <~ "(") ~ (varParser <~ "+") ~ (numericLit <~ ")" <~ ";") ^^ {
-        case to ~ from ~ offset_str => Load(to, IntType, from, Integer.parseInt(offset_str)) // todo: maybe not ignore type here
-      }
+      case to ~ from ~ offset_str => Load(to, IntType, from, Integer.parseInt(offset_str)) // todo: maybe not ignore type here
+    }
       // Call
       ||| varParser ~ ("(" ~> repsep(expr, ",") <~ ")" <~ ";") ^^ {
-        case fun ~ args => Call(fun, args.map(desugar), None)
-      }
+      case fun ~ args => Call(fun, args.map(desugar), None)
+    }
       // if
       ||| ("if" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}") ~ ("else" ~> "{" ~> codeWithHoles <~ "}") ^^ {
-        case cond ~ tb ~ eb => If(desugar(cond), tb, eb)
-      }
-      // Guarded
-//      ||| ("assume" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}")  ^^ {
-//        case cond ~ body => Guarded(desugar(cond), body)
-//      }
+      case cond ~ tb ~ eb => If(desugar(cond), tb, eb)
+    }
+    // Guarded
+    //      ||| ("assume" ~> "(" ~> expr <~ ")") ~ ("{" ~> codeWithHoles <~ "}")  ^^ {
+    //        case cond ~ body => Guarded(desugar(cond), body)
+    //      }
     )
 
-  def codeWithHoles:Parser[Statement] = rep(statementParser) ^^ (seq => if(seq.nonEmpty) seq.reduceRight(SeqComp) else Skip)
+  def codeWithHoles: Parser[Statement] = rep(statementParser) ^^ (seq => if (seq.nonEmpty) seq.reduceRight(SeqComp) else Skip)
 
 
-  def goalFunctionV1: Parser[GoalContainer] =  nonGoalFunction ~ ("{" ~> codeWithHoles <~ "}") ^^ {
+  def goalFunctionV1: Parser[GoalContainer] = nonGoalFunction ~ ("{" ~> codeWithHoles <~ "}") ^^ {
     case goal ~ body => GoalContainer(goal, body)
   }
 
@@ -211,7 +220,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def programSYN: Parser[Program] = rep(indPredicate | goalFunctionSYN) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
-    if (fs.isEmpty){
+    if (fs.isEmpty) {
       throw SynthesisException("Parsing failed. No single function spec is provided.")
     }
     val goal = fs.last
@@ -224,10 +233,12 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case Success(_, in) if !in.atEnd => Failure("Not fully parsed", in)
     case s => s
   }
-  
+
   def parseUnificationGoal(input: String): ParseResult[UGoal] = parse(uGoal)(input)
 
   def parseGoalSYN(input: String): ParseResult[Program] = parse(programSYN)(input)
+
   def parseGoalSUS(input: String): ParseResult[Program] = parse(programSUS)(input)
+
   def parseGoal = parseGoalSYN _
 }

@@ -1,0 +1,12 @@
+should be able to synthesize list copy
+
+#####
+
+{a >= 1 ; r :-> x ** sll_card(x, s)<a>}
+void sll_copy(loc r)
+{0 < b ; r :-> y ** sll_card(y, s)<b> }
+
+#####
+
+void sll_copy (loc r) {
+}

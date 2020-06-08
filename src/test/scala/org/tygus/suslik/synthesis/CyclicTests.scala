@@ -7,10 +7,12 @@ class CyclicTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
-  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
+  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
+    super.doRun(testName, desc, in, out, params)
     it(desc) {
       synthesizeFromSpec(testName, in, out, params)
     }
+  }
 
   describe("Synthesis with cyclic proofs") {
     runAllTestsFromDir("cyclic")

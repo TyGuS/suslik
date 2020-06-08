@@ -1,0 +1,16 @@
+should be able to synthesize list beheading 
+
+#####
+
+{ a > 0 ; r :-> x ** sll_card(x, s)<a>}
+void behead(loc r)
+{b == a - 2 ; r :-> y ** sll_card(y, s1)<b> }
+
+#####
+
+void behead (loc r) {
+  let x = *r;
+  let n = *(x + 1);
+  free(x);
+  *r = n;
+}

@@ -23,8 +23,8 @@ object Specifications extends SepLogicUtils {
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     /**
-      * 
-      * @param takenNames -- names that are already taken
+      *
+      * @param takenNames  -- names that are already taken
       * @param globalNames -- variables that shouldn't be renamed
       * @return
       */
@@ -90,9 +90,11 @@ object Specifications extends SepLogicUtils {
   /**
     * Spatial pre-post pair; used to determine independence of rule applications.
     */
-  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting with HasExpressions[Footprint]  {
+  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting with HasExpressions[Footprint] {
     def +(other: Footprint): Footprint = Footprint(pre + other.pre, post + other.post)
+
     def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
+
     def disjoint(other: Footprint): Boolean = pre.disjoint(other.pre) && post.disjoint(other.post)
 
     override def pp: String = s"{${pre.pp}}{${post.pp}}"
@@ -147,7 +149,11 @@ object Specifications extends SepLogicUtils {
                   env: Environment,
                   sketch: Statement,
                   preNormalized: Boolean,
-                  postNormalized: Boolean) // predicates and components
+                  postNormalized: Boolean,
+                  // Indicating the cardinality variables that cannot
+                  // further participate in certain functions calls
+                  blockedCardinalities: Set[(Expr, String)]
+                 ) // predicates and components
 
     extends PrettyPrinting with PureLogicUtils {
 
@@ -192,7 +198,8 @@ object Specifications extends SepLogicUtils {
                    env: Environment = this.env,
                    sketch: Statement = this.sketch,
                    preNormalized: Boolean = false,
-                   postNormalized: Boolean = false): Goal = {
+                   postNormalized: Boolean = false,
+                   blocked: Set[(Expr, String)] = this.blockedCardinalities): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -205,7 +212,7 @@ object Specifications extends SepLogicUtils {
       Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
-        preNormalized, postNormalized)
+        preNormalized, postNormalized, blocked)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -268,7 +275,7 @@ object Specifications extends SepLogicUtils {
       * Cost of a goal:
       * for now just the number of heaplets in pre and post
       */
-//    lazy val cost: Int = pre.cost.max(post.cost)
+    //    lazy val cost: Int = pre.cost.max(post.cost)
     lazy val cost: Int = pre.cost + post.cost
   }
 
@@ -294,7 +301,7 @@ object Specifications extends SepLogicUtils {
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), false, false)
+      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), false, false, Set.empty)
   }
 
 }

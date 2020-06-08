@@ -1,11 +1,9 @@
-package org.tygus.suslik.parsing
+package org.tygus.suslik.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
-import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil, defaultConfig}
 
-
-class TestNewSyntax extends FunSpec with Matchers with SynthesisRunnerUtil {
+class CardioTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   val synthesis: Synthesis = new PhasedSynthesis
 
@@ -15,8 +13,10 @@ class TestNewSyntax extends FunSpec with Matchers with SynthesisRunnerUtil {
       synthesizeFromSpec(testName, in, out, params)
     }
   }
-  
-  describe("New syntax test") {
-    runAllTestsFromDir("syntax")
+
+  describe("SuSLik with Cardinalities should be able synthesize") {
+    runAllTestsFromDir("cardio")
   }
+
+
 }

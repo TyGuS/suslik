@@ -11,17 +11,19 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisRunnerUt
 
   val synthesis: Synthesis = new PhasedSynthesis
 
-  def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
+  override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
+    super.doRun(testName, desc, in, out, params)
     it(desc) {
       synthesizeFromSpec(testName, in, out, params)
     }
+  }
 
   describe("SL-based synthesizer with linked lists") {
     runAllTestsFromDir("llist")
   }
 
-  describe("SL-based synthesizer with mutable trees") {
-    runAllTestsFromDir("tree")
+  describe("SL-based synthesizer for doubly-linked lists") {
+    runAllTestsFromDir("dllist")
   }
 
   describe("SL-based synthesizer for linked lists parametrized by length") {
@@ -36,8 +38,9 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisRunnerUt
     runAllTestsFromDir("flatten")
   }
 
-  describe("SL-based synthesizer for doubly-linked lists") {
-    runAllTestsFromDir("dllist")
+  describe("SL-based synthesizer with mutable trees") {
+    runAllTestsFromDir("tree")
   }
+
 
 }

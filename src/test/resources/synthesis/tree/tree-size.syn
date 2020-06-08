@@ -3,9 +3,9 @@ should be able to synthesize tree size
 #####
 
 
-{0 <= n ; r :-> 0 ** treeN(x, n) }
+{0 <= n ; r :-> 0 ** treeN(x, n)<a> }
 void tree_size(loc x, loc r)
-{true ; r :-> n ** treeN(x, n) }
+{true ; r :-> n ** treeN(x, n)<a> }
 
 #####
 

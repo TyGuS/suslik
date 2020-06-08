@@ -82,10 +82,7 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
     */
   def tryUnify(target: UAtom,
                source: UAtom,
-               cantBeSubstituted: Set[Var],
-               // Take the application level tags into the account
-               // should be ignored when used from the *-intro rule
-               tagsMatter: Boolean = false): Seq[Subst] = {
+               cantBeSubstituted: Set[Var]): Seq[Subst] = {
     assert(target.vars.forall(cantBeSubstituted.contains), s"Not all variables of ${target.pp} are in $cantBeSubstituted")
     (target, source) match {
       case (PointsTo(x@Var(_), o1, y), PointsTo(a@Var(_), o2, b)) =>
@@ -107,15 +104,16 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
           assert(cantBeSubstituted.contains(x1))
           genSubst(x1, x2, cantBeSubstituted).toList
         }
-      case (SApp(p1, es1, targetTag), SApp(p2, es2, sourceTag)) =>
+      case (SApp(p1, es1, _, tCard), SApp(p2, es2, _, sCard)) =>
         // Only unify predicates with variables as arguments
         // if es2.forall(_.isInstanceOf[Var])
 
-        if (p1 != p2 || es1.size != es2.size ||
-          (targetTag != sourceTag && tagsMatter)) Nil
+        if (p1 != p2 || es1.size != es2.size) Nil
 
         else {
-          val pairs = es1.zip(es2)
+          // [Cardinality] : adapting for substituting cardinalities
+          val pairs = (tCard, sCard) :: es1.zip(es2).toList
+          
           // Collect the mapping from the predicate parameters
           pairs.foldLeft(Some(Map.empty): Option[Subst]) {
             case (opt, (x1, x2)) => opt match {
@@ -166,8 +164,8 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
     // Check matching blocks
     val checkMatchingApps = (as1: List[Heaplet], as2: List[Heaplet]) =>
       as1.forall {
-        case SApp(x1, xs1, _) =>
-          as2.exists { case SApp(x2, xs2, _) => x1 == x2 && xs1.size == xs2.size; case _ => false }
+        case SApp(x1, xs1, _, _) =>
+          as2.exists { case SApp(x2, xs2, _, _) => x1 == x2 && xs1.size == xs2.size; case _ => false }
         case _ => false
       }
     if (!checkMatchingApps(as1, as2) || !checkMatchingApps(as2, as1)) return false
