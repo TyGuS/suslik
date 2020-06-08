@@ -2,12 +2,12 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.unification.PureUnification
-import org.tygus.suslik.logic.unification.SpatialUnification.tryUnify
 import org.tygus.suslik.logic._
+import org.tygus.suslik.logic.unification.PureUnification
+import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -16,7 +16,6 @@ import org.tygus.suslik.synthesis.rules.Rules._
   *
   * @author Nadia Polikarpova, Ilya Sergey
   */
-
 
 object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
@@ -36,7 +35,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val alternatives = for {
         s <- postCandidates
         t <- pre.sigma.chunks
-        wholeSub <- tryUnify(t, s, goal.universals, false)
+        wholeSub <- SpatialUnification.tryUnify(t, s, goal.universals)
         sub = wholeSub.filterKeys(v => varFilter(s, v))
         if sub.nonEmpty
         newPostSigma = post.sigma.subst(sub)

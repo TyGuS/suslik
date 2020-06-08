@@ -48,9 +48,9 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     case Block(_, _) => 0
     case SApp(_, _, None) => 3
     case SApp(_, _, Some(n)) => n
-//    case PointsTo(_, _, _) => 1
-//    case Block(_, _) => 1
-//    case SApp(_, _, _) => 10
+    //    case PointsTo(_, _, _) => 1
+    //    case Block(_, _) => 1
+    //    case SApp(_, _, _) => 10
   }
 
 }
@@ -89,7 +89,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   */
 case class Block(loc: Expr, sz: Int) extends Heaplet {
 
-  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(loc=loc.resolveOverloading(gamma))
+  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(loc = loc.resolveOverloading(gamma))
 
   override def pp: Ident = {
     s"[${loc.pp}, $sz]"
@@ -109,10 +109,10 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   */
 case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extends Heaplet {
 
-  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args=args.map(_.resolveOverloading(gamma)))
+  override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args = args.map(_.resolveOverloading(gamma)))
 
   override def pp: String = {
-    val ppTag : Option[Int] => String = {
+    val ppTag: Option[Int] => String = {
       case None => "[-]" // "[\uD83D\uDD12]" // "locked"
       case Some(0) => "" // Default tag
       case Some(t) => s"[$t]"
@@ -125,17 +125,17 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
   def |-(other: Heaplet): Boolean = false
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
-    if (!(env.predicates contains  pred)){
-      throw SynthesisException( s"predicate $pred is undefined")
+    if (!(env.predicates contains pred)) {
+      throw SynthesisException(s"predicate $pred is undefined")
     }
     val formals = env.predicates(pred).params
 
     if (formals.length == args.length) {
-      (formals, args).zipped.foldLeft[Option[Gamma]](Some(gamma))
-      { case (go, (formal, actual)) => go match {
-              case None => None
-              case Some(g) => actual.resolve(g, Some(formal._1))
-            }}
+      (formals, args).zipped.foldLeft[Option[Gamma]](Some(gamma)) { case (go, (formal, actual)) => go match {
+        case None => None
+        case Some(g) => actual.resolve(g, Some(formal._1))
+      }
+      }
     } else None
   }
 
@@ -144,9 +144,18 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0)) extend
 
 
 case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpressions[SFormula] {
-  def resolveOverloading(gamma: Gamma): SFormula = { this.copy(chunks=chunks.map(_.resolveOverloading(gamma))) }
+  def resolveOverloading(gamma: Gamma): SFormula = {
+    this.copy(chunks = chunks.map(_.resolveOverloading(gamma)))
+  }
 
-  override def pp: Ident = if (chunks.isEmpty) "emp" else chunks.map(_.pp).mkString(" ** ")
+  override def pp: Ident = if (chunks.isEmpty) "emp" else {
+    def pt(l: List[Heaplet]) = l.map(_.pp).sortBy(x => x)
+
+    val c1 = chunks.filter(_.isInstanceOf[PointsTo])
+    val c2 = chunks.filter(_.isInstanceOf[SApp])
+    val c3 = chunks.filter(x => !x.isInstanceOf[PointsTo] && !x.isInstanceOf[SApp])
+    List(c1, c2, c3).flatMap(pt).mkString(" ** ")
+  }
 
   def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b
 
@@ -165,16 +174,16 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
     * Change tags for applications, to avoid re-applying the rule
     */
   def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h ) )
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h))
 
   def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h ) )
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h))
 
   def setToNegative(cond: Heaplet => Boolean = _ => true): SFormula =
     setUpSAppTags(-1, cond)
 
   def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h ) )
+    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h))
 
   def isEmp: Boolean = chunks.isEmpty
 
@@ -212,11 +221,11 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
     }
   }
 
-  def is_subheap_of(other: SFormula):Boolean = {
+  def is_subheap_of(other: SFormula): Boolean = {
     similarity(other) == this.chunks.length
   }
 
-  def replace(what: SFormula, replacement: SFormula): SFormula ={
+  def replace(what: SFormula, replacement: SFormula): SFormula = {
     (this - what) ** replacement
   }
 
@@ -224,7 +233,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
   def size: Int = chunks.map(_.size).sum
 
   def cost: Int = chunks.map(_.cost).sum
-//  def cost: Int = chunks.foldLeft(0)((m, c) => m.max(c.cost))
+
+  //  def cost: Int = chunks.foldLeft(0)((m, c) => m.max(c.cost))
 }
 
 
