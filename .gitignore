@@ -116,3 +116,6 @@ hs_err_pid*
 
 # stats
 *.csv
+
+# Emacs-generated 
+.#*
