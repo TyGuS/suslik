@@ -83,7 +83,7 @@ object Translation {
     */
   def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
     (Seq[CInductivePredicate], CFunSpec, CProof, CProcedure) = {
-    val cpreds = for (label <- (node.goal.pre.sigma.apps ++ node.goal.post.sigma.apps).distinct.map(_.pred)) yield {
+    val cpreds = for (label <- (node.goal.pre.sigma.apps ++ node.goal.post.sigma.apps).map(_.pred).distinct) yield {
       val predicate = env.predicates(label)
       translateInductivePredicate(predicate.resolveOverloading(env))
     }
