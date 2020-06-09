@@ -89,8 +89,7 @@ object Translation {
     }
     val initialGoal = translateGoal(node.goal)
     val spec = translateFunSpec(node)
-    val initialCEnv: CEnvironment = CEnvironment(spec, cpreds, Set.empty, Seq.empty)
-
+    val initialCEnv = CEnvironment(spec, cpreds)
     val proof = ProofTranslation.translate(node, proc, initialGoal, initialCEnv)
     val stmtBody = ProgramTranslation.translate(node, proc, initialGoal)
 

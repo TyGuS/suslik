@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.{Expr}
+import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic._
@@ -151,6 +151,12 @@ object Rules {
   case class GuardedProducer(cond: Expr, goal: Goal) extends StmtProducer {
     val arity: Int = 2
     val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, goal.label))
+  }
+
+  // Captures the existential substitution map produced by the Pick rule
+  case class ExistentialProducer(subst: Map[Var, Expr]) extends StmtProducer {
+    val arity: Int = 1
+    val fn: Kont = liftToSolutions(stmts => stmts.head)
   }
 
 

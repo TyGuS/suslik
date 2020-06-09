@@ -58,7 +58,13 @@ Ltac ssl_dealloc :=
   end
 .
 
-Ltac ssl_emp := apply: val_ret=>*//=; hhauto.
+Ltac ssl_emp := apply: val_ret=>*//=.
+
+Ltac ssl_emp_post :=
+  try repeat hhauto ||
+  match goal with
+  | [H_cond: _ |- _] => case: ltngtP H_cond
+  end.
 
 Ltac ssl_ghostelim_pre := try apply: ghR; move=>h.
 

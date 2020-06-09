@@ -30,8 +30,9 @@ object Statements {
         case CIf(cond, tb, eb) =>
           val acc1 = collector(acc ++ cond.collect(p))(tb)
           collector(acc1)(eb)
-        case CGuarded(cond, b) =>
-          collector(acc ++ cond.collect(p))(b)
+        case CGuarded(cond, b, eb) =>
+          val acc1 = collector(acc ++ cond.collect(p))(b)
+          collector(acc1)(eb)
       }
 
       collector(Set.empty)(this)
@@ -92,7 +93,16 @@ object Statements {
             builder.append(mkSpaces(offset)).append(s"else\n")
             build(eb, offset + 2)
             builder.append("\n")
-          case CGuarded(cond, body) => ???
+          case CGuarded(cond, body, els) =>
+            builder.append(mkSpaces(offset))
+            builder.append(s"if ${cond.ppp}\n")
+            builder.append(mkSpaces(offset))
+            builder.append(s"then\n")
+            build(body, offset + 2)
+            builder.append("\n")
+            builder.append(mkSpaces(offset)).append(s"else\n")
+            build(els, offset + 2)
+            builder.append("\n")
         }
       }
 
@@ -132,16 +142,15 @@ object Statements {
 
   case class CSeqComp(s1: CStatement, s2: CStatement) extends CStatement {
     def simplify: CStatement = (s1, s2) match {
-      case (CGuarded(cond, b), _) => CGuarded(cond, CSeqComp(b, s2).simplify)
-      case (CLoad(y, _, _, _), CGuarded(cond, b)) if cond.vars.contains(y) => this
-      case (_, CGuarded(cond, b)) => CGuarded(cond, CSeqComp(s1, b).simplify)
+      case (CGuarded(cond, b, eb), _) => CGuarded(cond, CSeqComp(b, s2).simplify, eb)
+      case (CLoad(y, _, _, _), CGuarded(cond, _, _)) if cond.vars.contains(y) => this
+      case (_, CGuarded(cond, b, eb)) => CGuarded(cond, CSeqComp(s1, b).simplify, eb)
       case (CLoad(y, _, _, _), _) => if (s2.usedVars.contains(y)) this else s2 // Do not generate read for unused variables
       case _ => this
     }
-
   }
 
-  case class CGuarded(cond: CExpr, body: CStatement) extends CStatement
+  case class CGuarded(cond: CExpr, body: CStatement, els: CStatement) extends CStatement
 
   case class CProcedure(name: String, tp: CoqType, formals: Seq[(CoqType, CVar)], body: CStatement, inductive: Boolean = false) extends CStatement {
     override def pp: String = {

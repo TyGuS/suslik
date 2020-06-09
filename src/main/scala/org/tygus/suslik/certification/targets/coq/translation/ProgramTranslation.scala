@@ -6,6 +6,7 @@ import org.tygus.suslik.certification.targets.coq.language.Statements._
 import org.tygus.suslik.certification.targets.coq.logic.Proof._
 import org.tygus.suslik.certification.targets.coq.translation.Translation._
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules._
 import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.Rules._
@@ -37,9 +38,11 @@ object ProgramTranslation {
       ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => CIf(c, tb, eb).simplify }
     }
 
-  private def deriveCStmtProducer(item: TraversalItem): Option[CStmtProducer] = {
-    val TraversalItem(node, stmt) = item
-    val (currStmt, _) = expandStmt(stmt)
+  private def guardedProducer(cond: CExpr): CStmtProducer = stmts =>
+    CGuarded(cond, stmts.head, stmts.last)
+
+  private def deriveCStmtProducer(item: TraversalItem, currStmt: Option[Statement]): Option[CStmtProducer] = {
+    val node = item.node
 
     val footprint = node.consume
     val stmtProducer = unwrapStmtProducer(node.kont)
@@ -71,6 +74,9 @@ object ProgramTranslation {
       case (Open, BranchProducer(selectors)) =>
         val cstmt = openProducer(selectors.map(translateExpr))
         Some(cstmt)
+      case (AbduceBranch, GuardedProducer(cond, _)) =>
+        val cstmt = guardedProducer(translateExpr(cond))
+        Some(cstmt)
       case _ =>
         None // rule has no effect on certification
     }
@@ -78,9 +84,9 @@ object ProgramTranslation {
 
   @scala.annotation.tailrec
   private def traverseStmt(item: TraversalItem, kont: CStmtProducer): CStatement = {
-    val (_, nextStmts) = expandStmt(item.stmt)
+    val (currStmt, nextStmts) = expandStmt(item.stmt)
     val childNodes = item.node.children
-    val (nextTraversalItems, nextKont) = deriveCStmtProducer(item) match {
+    val (nextTraversalItems, nextKont) = deriveCStmtProducer(item, currStmt) match {
       case Some(nextStmtKont) =>
         val nextTraversalItems = childNodes.zip(nextStmts).map(i => TraversalItem(i._1, i._2))
         val nextKont = composeProducer[CStatement](nextStmtKont, kont)

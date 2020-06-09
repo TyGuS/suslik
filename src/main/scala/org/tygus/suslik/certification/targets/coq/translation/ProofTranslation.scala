@@ -3,15 +3,18 @@ package org.tygus.suslik.certification.targets.coq.translation
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
 import org.tygus.suslik.certification.targets.coq.logic.Proof._
+import org.tygus.suslik.certification.targets.coq.logic.rules.FailRules.CAbduceBranchApp
 import org.tygus.suslik.certification.targets.coq.logic.rules.LogicalRules._
 import org.tygus.suslik.certification.targets.coq.logic.rules.NativeRules.CGhostElimApp
 import org.tygus.suslik.certification.targets.coq.logic.rules.OperationalRules._
 import org.tygus.suslik.certification.targets.coq.logic.rules.Rules.CRuleApp
 import org.tygus.suslik.certification.targets.coq.logic.rules.UnfoldingRules._
+import org.tygus.suslik.certification.targets.coq.logic.rules.UnificationRules.CPickApp
 import org.tygus.suslik.certification.targets.coq.translation.Translation._
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.unification.SpatialUnification
+import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules.EmpRule
 import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.Rules._
@@ -37,9 +40,8 @@ object ProofTranslation {
 
   private def ruleAppProducer(app: CRuleApp): ProofProducer = steps => CProofStep(app, steps)
 
-  private def deriveCRuleApp(item: TraversalItem): Option[CRuleApp] = {
-    val TraversalItem(node, stmt, cenv) = item
-    val (currStmt, _) = expandStmt(stmt)
+  private def deriveCRuleApp(item: TraversalItem, currStmt: Option[Statement]): Option[CRuleApp] = {
+    val TraversalItem(node, _, cenv) = item
 
     val footprint = node.consume
     val goal = node.goal
@@ -58,7 +60,7 @@ object ProofTranslation {
         Some(CWriteApp(CVar(to.name), cenv))
       case (FreeRule, PrependProducer(Free(v))) =>
         footprint.pre.blocks.find(_.loc == v).map(b => CFreeApp(b.sz, cenv))
-      case (CallRule, PrependProducer(Call(fun, args, _))) =>
+      case (CallRule, PrependProducer(Call(fun, _, _))) =>
         val allCands = goal.companionCandidates.reverse
         val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
         val funLabels = cands.map(a => a.toFunSpec) ++ // companions
@@ -105,6 +107,11 @@ object ProofTranslation {
           .find(_.name == app.pred)
           .getOrElse(throw TranslationException(s"No predicate matching label ${app.pred} found in environment"))
         Some(COpenApp(selectors.map(translateExpr), pred, cenv))
+      case (_, ExistentialProducer(subst)) =>
+        val csubst = subst.map { case (k, v) => CVar(k.name) -> translateExpr(v) }
+        Some(CPickApp(csubst, cenv))
+      case (AbduceBranch, GuardedProducer(cond, _)) =>
+        Some(CAbduceBranchApp(translateExpr(cond), cenv))
       case _ =>
         None // rule has no effect on certification
     }
@@ -112,11 +119,14 @@ object ProofTranslation {
 
   @scala.annotation.tailrec
   private def traverseProof(item: TraversalItem, kont: ProofProducer): CProofStep = {
-    val (_, nextStmts) = expandStmt(item.stmt)
+    val (currStmt, nextStmts) = expandStmt(item.stmt)
     val childNodes = item.node.children
-    val (nextTraversalItems, nextKont) = deriveCRuleApp(item) match {
+    val (nextTraversalItems, nextKont) = deriveCRuleApp(item, currStmt) match {
       case Some(cruleApp) =>
-        val nextTraversalItems = childNodes.zip(nextStmts).zip(cruleApp.nextEnvs).map(i => TraversalItem(i._1._1, i._1._2, i._2))
+        val nextTraversalItems = childNodes
+          .zip(if (cruleApp.isExplicit) nextStmts else Seq(item.stmt))
+          .zip(cruleApp.nextEnvs)
+          .map(i => TraversalItem(i._1._1, i._1._2, i._2))
         val nextKont = composeProducer[CProofStep](ruleAppProducer(cruleApp), kont)
         (nextTraversalItems, nextKont)
       case _ =>

@@ -205,7 +205,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma = Map(ex -> v)
         if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-        kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }

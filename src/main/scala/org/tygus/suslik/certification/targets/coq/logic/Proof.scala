@@ -16,13 +16,15 @@ object Proof {
 
   case class CEnvironment(spec: CFunSpec,
                           predicates: Seq[CInductivePredicate],
-                          ctx: Set[CVar],
-                          callHeapVars: Seq[CVar]) {
+                          ctx: Set[CVar] = Set.empty,
+                          existentials: Map[CVar, CExpr] = Map.empty,
+                          callHeapVars: Seq[CVar] = Seq.empty) {
     def copy(spec: CFunSpec = this.spec,
              predicates: Seq[CInductivePredicate] = this.predicates,
              ctx: Set[CVar] = this.ctx,
+             existentials: Map[CVar, CExpr] = this.existentials,
              callHeapVars: Seq[CVar] = this.callHeapVars): CEnvironment =
-      CEnvironment(spec, predicates, ctx, callHeapVars)
+      CEnvironment(spec, predicates, ctx, existentials, callHeapVars)
 
     private var counter = 0
     def generateFreshVar(v: CVar): CVar = {
