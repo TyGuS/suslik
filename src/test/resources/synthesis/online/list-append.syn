@@ -1,0 +1,14 @@
+append two singly-linked lists
+
+###
+
+predicate list(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** list(nxt, s1) }
+}
+
+{ true ; list(x1, s1) ** list(x2, s2) ** ret :-> x2 }
+void append (loc x1, loc ret)
+{ s =i s1 ++ s2 ; list(y, s) ** ret :-> y }
+
+###

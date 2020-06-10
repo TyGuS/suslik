@@ -23,8 +23,6 @@ trait Synthesis extends SepLogicUtils {
 
   import log._
 
-  def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
-
   def nextRules(node: OrNode): List[SynthesisRule]
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
@@ -66,9 +64,8 @@ trait Synthesis extends SepLogicUtils {
                                      stats: SynStats,
                                      config: SynConfig): Option[Solution] = {
     // Check for timeouts
-    val currentTime = System.currentTimeMillis()
-    if (!config.interactive && currentTime - config.startTime > config.timeOut) {
-      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
+    if (!config.interactive && config.timedOut) {
+      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
     }
 
     val sz = worklist.length

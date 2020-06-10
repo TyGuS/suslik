@@ -1,0 +1,22 @@
+// flatten a tree into a list
+
+predicate list(loc x, set s) {
+|  x == 0  => { s == {} ; emp }
+|  x != 0  => { s == {v} + s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** list(nxt, s1) }
+}
+
+predicate tree(loc x, set s) {
+|  x == 0  => { s == {}            ; emp }
+|  x != 0  => { s == {v} + s1 + s2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1) ** tree(r, s2) }
+}
+
+
+// Flatten a tree with root `t`;
+// `r` stores the address of a list used as an accumulator.
+void tree_flatten(loc t, loc r)
+{ true          ; tree(t, s) ** r :-> y ** list(y, acc)}
+{ s1 == s + acc ; r :-> x ** list(x, s1)}
+{
+  ??
+}
+

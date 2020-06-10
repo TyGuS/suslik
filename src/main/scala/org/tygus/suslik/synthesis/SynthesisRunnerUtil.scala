@@ -3,12 +3,13 @@ package org.tygus.suslik.synthesis
 import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
+import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.logic.Preprocessor._
-import org.tygus.suslik.{LanguageUtils, parsing}
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil, SynStats}
 
+import scala.concurrent.duration.Deadline
 import scala.io.Source
 
 /**
@@ -69,13 +70,13 @@ trait SynthesisRunnerUtil {
     }
 
     def parseSus = {
-      val hasDescr = lines.head.trim.startsWith("/*") // todo:support multiline descriptions
+      val hasDescr = lines.head.trim.startsWith("/*")
       val desc = if(hasDescr) lines.head.trim else ""
 
       val j = lines.indexWhere(_.trim.startsWith(testSeparator))
-      val (spec, expectedSrc) = lines.splitAt(j)
+      val (spec, expectedSrc) = if (j == -1) (lines, List(testSeparator, noOutputCheck)) else lines.splitAt(j)
 
-      val input = spec.mkString(" ").trim
+      val input = spec.mkString("\n").trim
       val testName = testFilePath
       val output = expectedSrc.tail.mkString("\n").trim
       (testName, desc, input, output, params.copy(inputFormat = format))
@@ -111,13 +112,11 @@ trait SynthesisRunnerUtil {
     }
 
     val spec = specs.head
-    val time1 = System.currentTimeMillis()
-    val config = params.copy(startTime = time1)
+    val config = params.copy(startTime = Deadline.now)
     val sresult = synthesizeProc(spec, env.copy(config = config), body)
-    val time2 = System.currentTimeMillis()
-    val delta = time2 - time1
+    val duration = config.duration
 
-    SynStatUtil.log(testName, delta, params, spec, sresult._1, sresult._2)
+    SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
 
     def printHotNode(hotNode: AndNode, descs: Int): String =
       s"${hotNode.rule.toString} ${hotNode.consume.pp} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
@@ -144,7 +143,7 @@ trait SynthesisRunnerUtil {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
           testPrintln(s"${spec.pp}\n", Console.BLUE)
-          testPrintln(s"Successfully synthesised in $delta milliseconds:", Console.GREEN)
+          testPrintln(s"Successfully synthesised in $duration milliseconds:", Console.GREEN)
           printStats(sresult._2)
           testPrintln(result)
           testPrintln("-----------------------------------------------------")
