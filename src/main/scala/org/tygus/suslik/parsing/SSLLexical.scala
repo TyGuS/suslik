@@ -20,16 +20,4 @@ class SSLLexical extends StdLexical {
       "<", ">", ",", "/",   "+", "-", "==", "!=", "==>", "<=", ">=", "[", "]", "|", "??"
   )
 
-  // see `whitespace in `Scanners`
-  override def whitespace: Parser[Any] = rep[Any](
-    whitespaceChar
-        | '/' ~ '*' ~ comment
-        | '/' ~ '*' ~ failure("unclosed comment")
-  )
-
-  override protected def comment: Parser[Any] = (
-      rep(chrExcept(EofCh, '*')) ~ '*' ~ '/' ^^ (_ => ' ')
-          | rep(chrExcept(EofCh, '*')) ~ '*' ~ comment ^^ (_ => ' ')
-      )
-
 }

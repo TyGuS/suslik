@@ -37,8 +37,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       if (!SMTSolving.sat((pre && post).toExpr))
-      // post inconsistent with pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
+        // post inconsistent with pre
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
       else
         Nil
     }
@@ -51,8 +51,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
-      // universal post not implies by pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
+        // universal post not implies by pre
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
       else
         Nil
     }
@@ -109,7 +109,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
           childId = Some(1))
       } yield RuleResult(List(thenGoal, elseGoal),
-        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))),
+        GuardedProducer(cond, bGoal),
         goal.allHeaplets,
         this)
 
@@ -119,8 +119,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
-        // Abduction failed
-          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
+          // Abduction failed
+          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
           else Nil // fail optimization is disabled, so pretend this rule doesn't apply
         else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
       }
@@ -147,7 +147,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         }) // or has a heaplet in pre with the same LHS
         Nil
       else
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
     }
   }
 

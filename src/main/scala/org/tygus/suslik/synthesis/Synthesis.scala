@@ -1,5 +1,6 @@
 package org.tygus.suslik.synthesis
 
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -21,8 +22,6 @@ trait Synthesis extends SepLogicUtils {
   val log: SynLogging
 
   import log._
-
-  def synAssert(assertion: Boolean, msg: String): Unit = if (!assertion) throw SynthesisException(msg)
 
   def nextRules(node: OrNode): List[SynthesisRule]
 
@@ -65,9 +64,8 @@ trait Synthesis extends SepLogicUtils {
                                      stats: SynStats,
                                      config: SynConfig): Option[Solution] = {
     // Check for timeouts
-    val currentTime = System.currentTimeMillis()
-    if (!config.interactive && currentTime - config.startTime > config.timeOut) {
-      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut.toDouble / 1000} seconds.\n")
+    if (!config.interactive && config.timedOut) {
+      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
     }
 
     val sz = worklist.length
@@ -144,7 +142,12 @@ trait Synthesis extends SepLogicUtils {
 
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
-      case Some(e) => node.succeed(e.kont(Nil), withRest(Nil))
+      case Some(e) =>
+        if (config.certTarget != null) {
+          // [Certify]: Add a terminal node and its ancestors to the certification tree
+          CertTree.addSuccessfulPath(node, e)
+        }
+        node.succeed(e.kont(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {

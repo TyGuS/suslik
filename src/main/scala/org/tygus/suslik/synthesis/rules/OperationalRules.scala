@@ -2,12 +2,10 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.LanguageUtils.generateFreshVar
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.Statements.Load
 import org.tygus.suslik.language.{Statements, _}
-import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.rules.LogicalRules.mkSFormula
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -56,7 +54,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
           val subGoal = goal.spawnChild(newPre, newPost)
-          val kont: StmtProducer = prepend(Store(x, offset, e2)) >> handleGuard(goal) >> extractHelper(goal)
+          val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> HandleGuard(goal) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(hl), singletonHeap(hr)), this))
         case Some((hl, hr)) =>
@@ -103,7 +101,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         post = post.subst(a, y),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
-          val kont: StmtProducer = prepend(Load(y, tpy, x, offset)) >> handleGuard(goal) >> extractHelper(goal)
+          val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
@@ -155,7 +153,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         post.subst(x, y),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
-          val kont: StmtProducer = prepend(Malloc(y, tpy, sz)) >> handleGuard(goal) >> extractHelper(goal)
+          val kont: StmtProducer = PrependProducer(Malloc(y, tpy, sz)) >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
         case _ => Nil
       }
@@ -177,6 +175,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
+
       findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
     }
 
@@ -190,7 +189,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, pre.sigma - toRemove)
 
           val subGoal = goal.spawnChild(newPre)
-          val kont: StmtProducer = prepend(Free(x)) >> handleGuard(goal) >> extractHelper(goal)
+          val kont: StmtProducer = PrependProducer(Free(x)) >> HandleGuard(goal) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, Footprint(toRemove, emp), this))
         case Some(_) => Nil

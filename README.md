@@ -177,3 +177,7 @@ For running benchmarks or examples from the accompanying paper, run, e.g.,
 ```
 suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
 ``` 
+
+### Certification
+
+See the file [CERTIFICATION.md](CERTIFICATION.md) for instructions on certifying the synthesis results. 

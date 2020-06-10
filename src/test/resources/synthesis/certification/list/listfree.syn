@@ -1,0 +1,18 @@
+Listfree example
+
+###
+
+{true; lseg(x, S)}
+  void listfree(loc x)
+{true ; emp }
+
+###
+
+void listfree (loc x) {
+  if (x == 0) {
+  } else {
+    let nxt2 = *(x + 1);
+    listfree(nxt2);
+    free(x);
+  }
+}

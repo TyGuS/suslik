@@ -188,10 +188,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
   override def pp: Ident = if (chunks.isEmpty) "emp" else {
     def pt(l: List[Heaplet]) = l.map(_.pp).sortBy(x => x)
 
-    val c1 = chunks.filter(_.isInstanceOf[PointsTo])
-    val c2 = chunks.filter(_.isInstanceOf[SApp])
-    val c3 = chunks.filter(x => !x.isInstanceOf[PointsTo] && !x.isInstanceOf[SApp])
-    List(c1, c2, c3).flatMap(pt).mkString(" ** ")
+    List(ptss, apps, blocks).flatMap(pt).mkString(" ** ")
   }
 
   def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b

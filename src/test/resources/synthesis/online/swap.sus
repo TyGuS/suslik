@@ -1,0 +1,8 @@
+// swap values of two pointers
+
+void swap (loc x, loc y)
+{true ; x :-> a ** y :-> b }
+{true ; x :-> b ** y :-> a }
+{
+  ??
+}

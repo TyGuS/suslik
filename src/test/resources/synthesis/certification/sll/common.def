@@ -1,0 +1,4 @@
+predicate sll(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}

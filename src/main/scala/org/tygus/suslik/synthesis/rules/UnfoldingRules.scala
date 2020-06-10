@@ -7,7 +7,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.SpatialUnification
-import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
+import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule.canEmitCall
 
 /**
@@ -68,7 +68,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case None => None
           case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
-            val kont = branchProducer(selectors) >> handleGuard(goal) >> extractHelper(goal)
+            val kont = BranchProducer(selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, Footprint(singletonHeap(heaplet), emp), this))
         }
       } yield s
@@ -134,7 +134,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Check that the goal's subheap had at least one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
+        val kont: StmtProducer = PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
@@ -228,7 +228,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
-        val kont = seqComp >> handleGuard(goal) >> extractHelper(goal)
+        val kont = SeqCompProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.last.pre)
@@ -310,7 +310,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+            val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, Footprint(emp, singletonHeap(h)), this)
           }
