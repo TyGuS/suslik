@@ -180,4 +180,4 @@ suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
 
 ### Certification
 
-See the file [CERTIFICATION.md](CERTIFICATION.md) for instructions on certifying the synthesis results. 
+See the file [certification.md](certification.md) for instructions on certifying the synthesis results. 
