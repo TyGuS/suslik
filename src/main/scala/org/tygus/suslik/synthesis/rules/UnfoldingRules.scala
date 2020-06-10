@@ -7,7 +7,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.SpatialUnification
-import org.tygus.suslik.synthesis.rules.Rules.{extractHelper, _}
+import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule.canEmitCall
 
 /**
@@ -46,12 +46,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             body = asn.sigma
             newPrePhi = pre.phi && constraints && sel
             // The tags in the body should be one more than in the current application:
-          
+
             // TODO: get rid of me - no need to use tags here!
             _newPreSigma1 = mkSFormula(body.chunks).setUpSAppTags(t + 1)
             newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
-          
+
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
@@ -68,7 +68,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case None => None
           case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
-            val kont = branchProducer(selectors) >> handleGuard(goal) >> extractHelper(goal)
+            val kont = BranchProducer(selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, Footprint(singletonHeap(heaplet), emp), this))
         }
       } yield s
@@ -94,10 +94,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       // (If auxiliary abduction is disabled, only look at the root)
       val allCands = goal.companionCandidates.reverse
       val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
-      val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
-        goal.env.functions.values.map(f => (f, None)) // components
+      val funLabels = cands.map(a => (a.toFunSpec, Some(a.label), a)) ++ // companions
+        goal.env.functions.values.map(f => (f, None, goal)) // components
       val results = for {
-        (f, l) <- funLabels
+        (f, l, g) <- funLabels
 
         // Find all subsets of the goal's pre that might be unified
         lilHeap = f.pre.sigma
@@ -108,6 +108,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         sourceAsn = f.pre
         targetAsn = callSubPre
+        /* TODO [Mutual]: try to put the BP to the next code line for rose_tree_free, catching
+           the moment when sourceAsn.pp features "buds(bx)".
+           
+           Just add condition to the breakpoint: sourceAsn.pp.contains("buds")
+           and then check sourceAsn.pp versus targetAsn.pp.
+           
+           This shows that "sources" (companions) don't capture one that is essential
+           for extracting the bud-deallocating recursive function.
+           To fix it, we need to suitably adapt the calculation in `companionCandidates`.
+        */
         sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
         // Checking ghost flow for a given substitution
@@ -115,6 +125,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
 
+        // G is a companion goal
         if canEmitCall(lilHeap.subst(sub), goal, f, largSubHeap)
 
         args = f.params.map { case (_, x) => x.subst(sub) }
@@ -123,7 +134,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Check that the goal's subheap had at least one unfolding
         callGoal <- mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = prepend(Call(Var(f.name), args, l)) >> handleGuard(goal) >> extractHelper(goal)
+        val kont: StmtProducer = PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
@@ -217,7 +228,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
-        val kont = seqComp >> handleGuard(goal) >> extractHelper(goal)
+        val kont = SeqCompProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.last.pre)
@@ -299,7 +310,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+            val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, Footprint(emp, singletonHeap(h)), this)
           }

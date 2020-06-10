@@ -1,6 +1,7 @@
 package org.tygus.suslik.synthesis
 
-import java.io.File
+import java.io.{File, PrintWriter}
+import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.logic.Preprocessor._
@@ -154,6 +155,19 @@ trait SynthesisRunnerUtil {
           val res = result.trim.lines.toList.map(_.trim)
           if (params.assertSuccess && res != tt) {
             throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
+          }
+        }
+        if (params.certTarget != null) {
+          val certTarget = params.certTarget
+          val targetName = certTarget.name
+          val certificate = certTarget.certify(procs.head, env)
+          if (params.certDest == null) {
+            testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
+            testPrintln(certificate.body)
+          } else {
+            val path = Paths.get(params.certDest.getCanonicalPath, certificate.fileName).toFile
+            new PrintWriter(path) { write(certificate.body); close() }
+            testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
           }
         }
     }

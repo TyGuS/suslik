@@ -2,6 +2,8 @@ package org.tygus.suslik.synthesis
 
 import java.io.File
 
+import org.tygus.suslik.certification.CertificationTarget
+import org.tygus.suslik.certification.targets._
 import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 import org.tygus.suslik.util.{SynLogLevels, SynLogging}
 
@@ -21,18 +23,31 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   /**
     * Command line args:
     *
-    * filePath                      a synthesis file name (the file under the specified folder, called filename.syn)
+    * fileName                       a synthesis file name (the file under the specified folder, called filename.syn)
     *
-    * -r, --trace <value>           print the entire derivation trace; default: false
-    * -t, --timeout <value>         timeout for the derivation; default (in milliseconds): 300000 (5 min)
-    * -d, --depth <value>           derivation depth; default: 100
-    * -a, --assert <value>          check that the synthesized result against the expected one; default: false
-    * -c, --maxCloseDepth <value>   maximum unfolding depth in the post-condition; default: 1
-    * -o, --maxOpenDepth <value>    maximum unfolding depth in the pre-condition; default: 1
-    * -b, --branchAbduction <value> abduct conditional branches; default: false
-    * -f, --printFailed <value>     print failed rule applications; default: false
+    * -r, --trace <value>            print the entire derivation trace; default: true
+    * -t, --timeout <value>          timeout for the derivation; default (in milliseconds): 300000 (5 min)
+    * -a, --assert <value>           check that the synthesized result against the expected one; default: true
+    * -c, --maxCloseDepth <value>    maximum unfolding depth in the post-condition; default: 1
+    * -o, --maxOpenDepth <value>     maximum unfolding depth in the pre-condition; default: 1
+    * -x, --auxAbduction <value>     abduce auxiliary functions; default: false
+    * -b, --branchAbduction <value>  abduce conditional branches; default: false
+    * --commute <value>              only try commutative rule applications in one order; default: true
+    * --phased <value>               split rules into unfolding and flat phases; default: true
+    * --fail <value>                 enable early failure rules; default: true
+    * --invert <value>               enable invertible rules; default: true
+    * -d, --depth <value>            depth first search; default: false
+    * -i, --interactive <value>      interactive mode; default: false
+    * -s, --printStats <value>       print synthesis stats; default: true
+    * -e, --printEnv <value>         print synthesis context; default: false
+    * -f, --printFail <value>        print failed rule applications; default: false
+    * -g, --tags <value>             print predicate application tags in derivations; default: false
+    * -l, --log <value>              log results to a csv file; default: true
+    * --memoization <value>          enable memoization; default: true
+    * --certTarget <value>           set certification target; default: none
+    * --certDest <value>             write certificate to path; default: none
     *
-    * --help                        prints the help reference
+    * --help                         prints the help reference
     *
     */
   def main(args: Array[String]): Unit = handleInput(args)
@@ -87,6 +102,12 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     // See examples at https://github.com/scopt/scopt
 
     head(TOOLNAME, VERSION_STRING)
+
+    implicit val certTargetRead: scopt.Read[CertificationTarget] =
+      scopt.Read.reads {
+        case "coq" => coq.Coq
+        case _ => ???
+      }
 
     arg[String]("fileName").action { (x, c) =>
       c.copy(fileName = x)
@@ -168,6 +189,13 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))
     }.text("enable memoization; default: true")
 
+    opt[CertificationTarget](name="certTarget").action { (t, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
+    }.text("set certification target; default: none")
+
+    opt[File](name="certDest").action { (f, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(certDest = f))
+    }.text("write certificate to path; default: none")
 
     help("help").text("prints this usage text")
 

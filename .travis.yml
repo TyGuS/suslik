@@ -33,7 +33,8 @@ before_script:
   - sudo chmod +x /usr/local/bin/sbt
 
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION test assembly
+#  - sbt ++$TRAVIS_SCALA_VERSION test assembly
+  - sbt ++$TRAVIS_SCALA_VERSION assembly
 
 cache:
   directories:

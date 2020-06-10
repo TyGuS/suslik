@@ -138,6 +138,8 @@ where the necessary arguments and options are
   -f, --printFail <value>  print failed rule applications; default: false
   -g, --tags <value>       print predicate application tags in derivations; default: false
   -l, --log <value>        log results to a csv file; default: true
+  -x, --auxAbduction <value>
+                           abduce auxiliary functions; default: false 
   --help                   prints this usage text
 
 ```
@@ -175,3 +177,7 @@ For running benchmarks or examples from the accompanying paper, run, e.g.,
 ```
 suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
 ``` 
+
+### Certification
+
+See the file [certification.md](certification.md) for instructions on certifying the synthesis results. 

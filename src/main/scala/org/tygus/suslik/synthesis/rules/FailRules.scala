@@ -13,6 +13,7 @@ import scala.collection.immutable.SortedSet
 /**
   * Rules for short-circuiting failure;
   * do not affect completeness, they are simply an optimization.
+  *
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
@@ -37,7 +38,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       if (!SMTSolving.sat((pre && post).toExpr))
         // post inconsistent with pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
       else
         Nil
     }
@@ -51,7 +52,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
         // universal post not implies by pre
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this))
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
       else
         Nil
     }
@@ -72,7 +73,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val atoms = atomCandidates(goal)
       // Toggle this to enable abduction of conjunctions
       // (without branch pruning, produces too many branches)
-//      atoms
+      //      atoms
       for {
         subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
         if subset.nonEmpty
@@ -85,6 +86,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       */
     def findBranchPoint(vars: Set[Var], goal: Goal): Option[Goal] = {
       def valid(g: Goal) = SMTSolving.valid(g.pre.phi ==> g.universalPost)
+
       goal.parent match {
         case None => Some(goal).filter(valid) // goal is root: return itself if valid
         case Some(pGoal) =>
@@ -107,7 +109,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
           childId = Some(1))
       } yield RuleResult(List(thenGoal, elseGoal),
-        StmtProducer(2, liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, bGoal.label))) ,
+        GuardedProducer(cond, bGoal),
         goal.allHeaplets,
         this)
 
@@ -118,7 +120,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
           // Abduction failed
-          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
+          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
           else Nil // fail optimization is disabled, so pretend this rule doesn't apply
         else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
       }
@@ -132,19 +134,21 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "HeapUnreachable"
 
     // How many chunks there are with each offset?
-    def profile(chunks: List[Heaplet]): Map[Int, Int] = chunks.groupBy{ case PointsTo(_,o,_) => o }.mapValues(_.length)
+    def profile(chunks: List[Heaplet]): Map[Int, Int] = chunks.groupBy { case PointsTo(_, o, _) => o }.mapValues(_.length)
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      assert(!goal.hasPredicates && !goal.hasBlocks) // only points-to left
+      assert(!(goal.hasPredicates() || goal.hasBlocks))
       val preChunks = goal.pre.sigma.chunks
       val postChunks = goal.post.sigma.chunks
 
       if ((profile(preChunks) == profile(postChunks)) && // profiles must match
-        postChunks.forall{ case pts@PointsTo(v@Var(_),_,_) => goal.isExistential(v) || // each post heaplet is either existential pointer
-          findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined }) // or has a heaplet in pre with the same LHS
+        postChunks.forall { case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
+          findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined
+        }) // or has a heaplet in pre with the same LHS
         Nil
       else
-        List(RuleResult(List(goal.unsolvableChild), idProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
     }
   }
+
 }

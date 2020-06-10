@@ -37,7 +37,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty &&             // no existentials
         SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
-        List(RuleResult(Nil, constProducer(Skip), emptyFootprint, this))      // we are done
+        List(RuleResult(Nil, ConstProducer(Skip), emptyFootprint, this))      // we are done
       else Nil
     }
   }
@@ -55,7 +55,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre.phi.toExpr
 
       if (!SMTSolving.sat(pre))
-        List(RuleResult(Nil, constProducer(Error), goal.allHeaplets, this)) // pre inconsistent: return error
+        List(RuleResult(Nil, ConstProducer(Error), goal.allHeaplets, this)) // pre inconsistent: return error
       else
         Nil
     }
@@ -83,7 +83,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, newPreSigma)
           val newPost = Assertion(post.phi, newPostSigma)
           val newGoal = goal.spawnChild(newPre, newPost)
-          val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, Footprint(singletonHeap(hPre), singletonHeap(hPost)), this))
         }
       }
@@ -141,7 +141,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
-        val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         val preHeaplets = for (h@PointsTo(l, _, _) <- pre.sigma.chunks if prePointers.contains(l)) yield h
         val postHeaplets = for (h@PointsTo(l, _, _) <- post.sigma.chunks if postPointers.contains(l)) yield h
         List(RuleResult(List(newGoal), kont, Footprint(mkSFormula(preHeaplets), mkSFormula(postHeaplets)), this))
@@ -175,7 +175,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val s1 = goal.pre.sigma
       val s2 = goal.post.sigma
-      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
       (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, goal.existentials)) match {
 //      (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, Set.empty)) match {
@@ -212,7 +212,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
-      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
       findConjunctAndRest({
         case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
@@ -253,7 +253,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val s1 = goal.pre.sigma
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
-      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
       val normalizedPre = snapshot(goal)
       val diff = p1 - normalizedPre
@@ -301,7 +301,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val p1 = goal.pre.phi
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
-      val kont = idProducer >> handleGuard(goal) >> extractHelper(goal)
+      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
       val normalized = snapshot(goal)
       val prePost = p1 && p2

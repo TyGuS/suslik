@@ -18,6 +18,9 @@ object Specifications extends SepLogicUtils {
 
     def hasPredicates: Boolean = sigma.chunks.exists(_.isInstanceOf[SApp])
 
+    def getPredicates(p: SApp => Boolean): List[SApp] =
+      for (s@SApp(_, _, _, _) <- sigma.chunks if p(s)) yield s
+
     def hasBlocks: Boolean = sigma.chunks.exists(_.isInstanceOf[Block])
 
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
@@ -172,8 +175,12 @@ object Specifications extends SepLogicUtils {
 
     // Ancestors before progress was last made
     def companionCandidates: List[Goal] = {
-      // TODO: actually sufficient to consider everything before last open
+      // TODO [Mutual]: doens't suffice for rose_tree_free example.
+      // Ilya: Not sure I understand thisю
+      // This seems crucial for catching the "companion" for a second recursive function. 
       ancestors.dropWhile(_.label.depths.length == this.label.depths.length)
+      // TODO: actually sufficient to consider everything before last open
+
     }
 
     // Turn this goal into a helper function specification
@@ -223,7 +230,16 @@ object Specifications extends SepLogicUtils {
 
     def isTopLevel: Boolean = label == topLabel
 
-    def hasPredicates: Boolean = pre.hasPredicates || post.hasPredicates
+    def getPredicates(p: SApp => Boolean): Seq[SApp] = pre.getPredicates(p) ++ post.getPredicates(p)
+
+    def hasPredicates(p: SApp => Boolean = _ => true): Boolean = getPredicates(p).nonEmpty
+
+    def hasViablePredicates: Boolean = getPredicates(p => {
+      val t = p.tag
+      t.nonEmpty &&
+        (t.get < env.config.maxCloseDepth ||
+          t.get < env.config.maxOpenDepth)
+    }).nonEmpty
 
     def hasBlocks: Boolean = pre.hasBlocks || post.hasBlocks
 

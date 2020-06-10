@@ -1,0 +1,14 @@
+# -o 2 -x true
+
+should be able to deallocate a rose tree
+
+TODO: Grep for [Mutual] labels in the code to find some relevant comments
+
+###
+
+{ rose_tree(x)<a> }
+  void rose_tree_free(loc x)
+{ emp }
+
+###
+

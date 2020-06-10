@@ -43,9 +43,22 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     // and hence has to be followed by Call, otherwise synthesis gets stuck.
     // Proper fix: merge the two rules
       List(CallRule)
-    else if (goal.hasPredicates)
-    // Unfolding phase: get rid of predicates
-      unfoldingPhaseRules(config)
+    else if (goal.hasPredicates()) (
+      // Only if can unfold further
+      // Unfolding phase: get rid of predicates
+      unfoldingPhaseRules(config) 
+        /* TODO [Mutual]:
+           Enabling the following rules progresses the synthesis of `rose_tree_free` even further,
+           but makes other case studies excruciatingly slow, so I comment it for now.
+            
+           This is sub-optimal, and ideally we only need to check for predicates
+           that still cna be unfolded. However, introducing this more elaborated check
+           vai goal.hasViablePredicates breaks the synthesis down the line.
+           
+           I need this to enable cyclic synthesis for rose tree    
+         */
+        // ++ preBlockPhaseRules(config)
+      )
     else if (goal.post.hasBlocks)
     // Block phase: get rid of blocks
       postBlockPhaseRules(config)
@@ -59,16 +72,16 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
       purePhaseRules(config)
   }
 
-  def anyPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
+  def anyPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
     OperationalRules.ReadRule,
-//    LogicalRules.SubstLeft,
+    //    LogicalRules.SubstLeft,
   )
 
-  def symbolicExecutionRules(config: SynConfig):  List[SynthesisRule] = List(
+  def symbolicExecutionRules(config: SynConfig): List[SynthesisRule] = List(
     SymbolicExecutionRules.Open,
     SymbolicExecutionRules.GuidedRead,
     SymbolicExecutionRules.GuidedWrite,
@@ -76,31 +89,31 @@ class PhasedSynthesis(implicit val log: SynLogging) extends Synthesis {
     SymbolicExecutionRules.GuidedFree,
     SymbolicExecutionRules.Conditional,
     SymbolicExecutionRules.GuidedCall,
-//    LogicalRules.EmpRule,
-//    LogicalRules.StarPartial,
-//    LogicalRules.NilNotLval,
-//    LogicalRules.Inconsistency,
-//    if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
-//    LogicalRules.SubstLeftVar,
-//    LogicalRules.FrameUnfolding,
-//    UnificationRules.HeapUnifyUnfolding,
-//    UnfoldingRules.Close,
-//    LogicalRules.FrameBlock,
-//    UnificationRules.HeapUnifyBlock,
-//    LogicalRules.SubstLeft,
-//    UnificationRules.SubstRight,
-//    LogicalRules.FrameFlat,
-//    UnificationRules.HeapUnifyPointer,
-//    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
-//    UnificationRules.HeapUnifyPure,
-////    UnificationRules.PureUnify,
-//    UnificationRules.Pick,
-////    UnificationRules.PickFromEnvRule
+    //    LogicalRules.EmpRule,
+    //    LogicalRules.StarPartial,
+    //    LogicalRules.NilNotLval,
+    //    LogicalRules.Inconsistency,
+    //    if (!config.fail) FailRules.Noop else FailRules.PostInconsistent,
+    //    LogicalRules.SubstLeftVar,
+    //    LogicalRules.FrameUnfolding,
+    //    UnificationRules.HeapUnifyUnfolding,
+    //    UnfoldingRules.Close,
+    //    LogicalRules.FrameBlock,
+    //    UnificationRules.HeapUnifyBlock,
+    //    LogicalRules.SubstLeft,
+    //    UnificationRules.SubstRight,
+    //    LogicalRules.FrameFlat,
+    //    UnificationRules.HeapUnifyPointer,
+    //    if (!config.fail) FailRules.Noop else FailRules.HeapUnreachable,
+    //    UnificationRules.HeapUnifyPure,
+    ////    UnificationRules.PureUnify,
+    //    UnificationRules.Pick,
+    ////    UnificationRules.PickFromEnvRule
   )
 
-  def unfoldingPhaseRules(config: SynConfig):  List[SynthesisRule] = List(
+  def unfoldingPhaseRules(config: SynConfig): List[SynthesisRule] = List(
     LogicalRules.SubstLeftVar,
-//    LogicalRules.SubstRightVar,
+    //    LogicalRules.SubstRightVar,
     LogicalRules.FrameUnfolding,
     UnfoldingRules.CallRule,
     UnfoldingRules.Open,

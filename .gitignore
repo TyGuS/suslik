@@ -116,3 +116,18 @@ hs_err_pid*
 
 # stats
 *.csv
+
+# Emacs-generated
+.#*
+
+# Coq-generated
+\#*\#
+**/*.vo
+**/*.v.d
+**/*.glob
+**/*.vok
+**/*.vos
+**/*.aux
+**/.Makefile.coq.d
+**/Makefile.coq
+**/Makefile.coq.conf
