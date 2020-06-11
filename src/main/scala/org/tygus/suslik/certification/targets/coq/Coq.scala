@@ -1,5 +1,7 @@
 package org.tygus.suslik.certification.targets.coq
 
+import java.nio.file.Paths
+
 import org.tygus.suslik.certification._
 import org.tygus.suslik.certification.targets.coq.translation.Translation
 import org.tygus.suslik.certification.targets.coq.translation.Translation.TranslationException
@@ -8,7 +10,8 @@ import org.tygus.suslik.logic.Environment
 
 object Coq extends CertificationTarget {
   val name: String = "Coq"
-  private val prelude = """
+  private val loadPath = Paths.get("certification/coq").toFile.getCanonicalPath
+  private val prelude = s"""Add LoadPath "$loadPath" as SSL.
 From mathcomp
 Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From fcsl

@@ -21,7 +21,7 @@ opam pin add coq-htt git+https://github.com/TyGuS/htt\#master --no-action --yes
 opam install coq coq-mathcomp-ssreflect coq-fcsl-pcm coq-htt
 ```
 
-Each synthesized Coq certificate imports `SSL`, a module consisting of predefined tactics. The module source may be compiled by running `make clean && make` in the directory `certification/coq`.
+Before verifying a generated Coq certificate, make sure to compile the predefined tactics by running `make clean && make` in the directory `certification/coq`. Each generated Coq certificate adds this physical directory to the load path of Coq, and then maps it to the logical directory `SSL`.
 
 ### Running Synthesis with Certification
 
@@ -30,5 +30,14 @@ Add the following flags to run synthesis with certification.
 - `--certTarget <value>`: Currently supports value `coq`.
 - `--certDest <value>` (optional): Specifies the directory in which to generate a certificate file. Logs output to console if not provided.
 
+For example, the following command produces a Coq certificate of the specification `listfree.syn`, and logs its contents to the console.
 
+```bash
+./suslik examples/listfree.syn --assert false --certTarget coq
+```
 
+By providing the `--certDest` flag, SuSLik writes out this certificate as a file to the specified directory. The following example command writes a Coq certificate named `listfree.v` to the project root directory.
+
+```bash
+./suslik examples/listfree.syn --assert false --certTarget coq --certDest .
+```
