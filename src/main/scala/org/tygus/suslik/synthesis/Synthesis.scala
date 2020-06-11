@@ -219,10 +219,11 @@ trait Synthesis extends SepLogicUtils {
   private def showChild(goal: Goal)(c: RuleResult): String =
     c.subgoals.length match {
     case 0 => showFootprint(c.consume)
-    case 1 =>
-      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}"
-    case _ =>
-      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}, ..."
+    case _ => s"${showFootprint(c.consume)} --> ${c.produces(goal).map(showFootprint).mkString(", ")}"
+//    case 1 =>
+//      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}"
+//    case _ =>
+//      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}, ..."
   }
 
   private def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "|  " * ind

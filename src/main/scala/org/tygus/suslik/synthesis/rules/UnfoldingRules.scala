@@ -108,16 +108,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Try to unify f's precondition and found goal pre's subheaps
         sourceAsn = f.pre
         targetAsn = callSubPre
-        /* TODO [Mutual]: try to put the BP to the next code line for rose_tree_free, catching
-           the moment when sourceAsn.pp features "buds(bx)".
-           
-           Just add condition to the breakpoint: sourceAsn.pp.contains("buds")
-           and then check sourceAsn.pp versus targetAsn.pp.
-           
-           This shows that "sources" (companions) don't capture one that is essential
-           for extracting the bud-deallocating recursive function.
-           To fix it, we need to suitably adapt the calculation in `companionCandidates`.
-        */
         sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
         // Checking ghost flow for a given substitution
@@ -126,7 +116,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
 
         // G is a companion goal
-        if canEmitCall(lilHeap.subst(sub), goal, f, largSubHeap)
+        if canEmitCall(largSubHeap, lilHeap, goal, f)
 
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
@@ -141,13 +131,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
 
     // [Cardinality] Checking size constraints before emitting the call
-    def canEmitCall(preHeap: SFormula, goal: Goal, f: FunSpec, largSubHeap: SFormula): Boolean = {
-      val wellFounded = goal.fname != f.name ||
+    def canEmitCall(budHeap: SFormula, companionHeap: SFormula, goal: Goal, f: FunSpec): Boolean = {
+      // Non top-level goals have a different name from the main function;
+      // this is a somewhat hacky way to check this (what if a component name start with goal.fname?)
+      val wellFounded = !f.name.startsWith(goal.fname) ||
         // [Cardinality] recursive case: symheap passed to the call is smaller than the initial one
-        cardLT(preHeap, getRootGoal(goal).pre.sigma, goal.pre.phi)
+        cardLT(budHeap, companionHeap, goal.pre.phi)
 
-      // Preventing multiple decreasing calls: blocking cardinality variables that participated once 
-      val allowedToCall = onlyNonUsedCardinalities(preHeap, f.name, goal)
+      // Preventing multiple decreasing calls: blocking cardinality variables that participated once
+      val allowedToCall = onlyNonUsedCardinalities(budHeap, f.name, goal)
 
       allowedToCall && wellFounded
     }
@@ -223,7 +215,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Preserve regular variables and fresh existentials back to what they were, if applicable
         actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
 
-        if canEmitCall(lilHeap.subst(actualSub), goal, f, largPreSubHeap)
+        if canEmitCall(largPreSubHeap, lilHeap, goal, f)
 
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
