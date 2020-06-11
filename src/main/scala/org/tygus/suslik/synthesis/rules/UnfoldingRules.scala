@@ -122,7 +122,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
         // Check that the goal's subheap had at least one unfolding
-        callGoal <- mkCallGoal(f, sub, callSubPre, goal)
+        callGoal = mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
@@ -134,21 +134,19 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     def canEmitCall(budHeap: SFormula, companionHeap: SFormula, goal: Goal, f: FunSpec): Boolean = {
       // Non top-level goals have a different name from the main function;
       // this is a somewhat hacky way to check this (what if a component name start with goal.fname?)
-      val wellFounded = !f.name.startsWith(goal.fname) ||
-        // [Cardinality] recursive case: symheap passed to the call is smaller than the initial one
-        cardLT(budHeap, companionHeap, goal.pre.phi)
+      val isRecusive = f.name.startsWith(goal.fname)
 
-      // Preventing multiple decreasing calls: blocking cardinality variables that participated once
-      val allowedToCall = onlyNonUsedCardinalities(budHeap, f.name, goal)
-
-      allowedToCall && wellFounded
+      // TODO: the tag check prevents an infinite chain of recursive calls
+      // by requiring that at least one predicate hasn't yet participated in a call.
+      // This is a hack and should be replaced by goal prioritization
+      !isRecusive || (budHeap.apps.exists(_.tag.isDefined) && cardLT(budHeap, companionHeap, goal.pre.phi))
     }
 
 
     /**
       * Make a call goal for `f` with a given precondition
       */
-    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): List[Goal] = {
+    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): Goal = {
       //      val freshSuffix = sub.values.map(_.pp).mkString("_")
       val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
       val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
@@ -158,19 +156,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         goal.env.copy(functions = funs)
       }
 
-      val moreBLocked = getCardinalities(f.pre.sigma.subst(sub)).map(c => (c, f.name))
-
       //[Cardinality] TODO, WTF: For some weird reason I cannot get rid of this
       // as the synthesis becomes much slower, even though the tags are no longer
       // used to determine whether a call can be made 
       val acs = callPost.sigma.lockSAppTags()
-      for {
-        blocked <- getCardinalities(f.pre.sigma.subst(sub)).map(c => (c, f.name))
-        newBlocked = goal.blockedCardinalities + blocked
-        restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
-        restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
-        callGoal = goal.spawnChild(restPre, env = newEnv, blocked = newBlocked)
-      } yield callGoal
+      val restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
+      val restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
+      goal.spawnChild(restPre, env = newEnv)
     }
   }
 

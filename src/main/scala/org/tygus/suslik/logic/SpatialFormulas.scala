@@ -138,7 +138,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
       case Some(t) => s"<$t>"
     }
 
-    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}"
+    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${ppTag(tag)}"
   }
 
 

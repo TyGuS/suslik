@@ -153,9 +153,6 @@ object Specifications extends SepLogicUtils {
                   sketch: Statement,
                   preNormalized: Boolean,
                   postNormalized: Boolean,
-                  // Indicating the cardinality variables that cannot
-                  // further participate in certain functions calls
-                  blockedCardinalities: Set[(Expr, String)]
                  ) // predicates and components
 
     extends PrettyPrinting with PureLogicUtils {
@@ -201,8 +198,7 @@ object Specifications extends SepLogicUtils {
                    env: Environment = this.env,
                    sketch: Statement = this.sketch,
                    preNormalized: Boolean = false,
-                   postNormalized: Boolean = false,
-                   blocked: Set[(Expr, String)] = this.blockedCardinalities): Goal = {
+                   postNormalized: Boolean = false): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -215,7 +211,7 @@ object Specifications extends SepLogicUtils {
       Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
-        preNormalized, postNormalized, blocked)
+        preNormalized, postNormalized)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -313,7 +309,7 @@ object Specifications extends SepLogicUtils {
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), false, false, Set.empty)
+      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), false, false)
   }
 
 }

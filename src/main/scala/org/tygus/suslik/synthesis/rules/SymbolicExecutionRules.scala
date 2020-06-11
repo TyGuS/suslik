@@ -225,7 +225,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           // Check that actuals supplied in the code are equal to those implied by the substitution
           argsValid = PFormula(actuals.zip(f.params.map(_._2.subst(sub))).map { case (x, y) => x |=| y}.toSet)
           if SMTSolving.valid(goal.pre.phi ==> (argsValid && f.pre.phi.subst(sub)))
-          callGoal <- UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal)
+          callGoal = UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal)
         } yield {
           callGoal.copy(sketch = rest)
         }

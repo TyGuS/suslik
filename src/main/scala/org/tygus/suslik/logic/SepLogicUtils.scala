@@ -120,12 +120,6 @@ trait SepLogicUtils extends PureLogicUtils {
   
   def getCardinalities(sigma: SFormula) = for (SApp(_, _, _, c) <- sigma.chunks) yield c
   
-  def onlyNonUsedCardinalities(sigma: SFormula, fname: String, goal: Goal) : Boolean = {
-    val participating = for (SApp(_, _, _, c) <- sigma.chunks) yield (c, fname)
-    val res = goal.blockedCardinalities.intersect(participating.toSet) == Set.empty
-    res
-  }
-
 
   /*def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
     def compareTags(lilTag: Option[Int], largTag: Option[Int]): Int = lilTag.getOrElse(0) - largTag.getOrElse(0)
