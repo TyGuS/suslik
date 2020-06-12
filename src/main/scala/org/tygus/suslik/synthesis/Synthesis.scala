@@ -27,7 +27,7 @@ trait Synthesis extends SepLogicUtils {
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
-    val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
+    val fspec@FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     printLog(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
     val stats = new SynStats()
@@ -36,7 +36,7 @@ trait Synthesis extends SepLogicUtils {
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
-          val main = Procedure(name, tp, formals, body)
+          val main = Procedure(fspec, body)
           (main :: helpers, stats)
         case None =>
           printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")

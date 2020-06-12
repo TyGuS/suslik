@@ -1,6 +1,6 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.Gamma
+import org.tygus.suslik.logic.{FunSpec, Gamma}
 import org.tygus.suslik.logic.Specifications.GoalLabel
 import org.tygus.suslik.util.StringUtil._
 
@@ -255,7 +255,9 @@ object Statements {
   case class Guarded(cond: Expr, body: Statement, els: Statement, branchPoint: GoalLabel) extends Statement
 
   // A procedure
-  case class Procedure(name: String, tp: SSLType, formals: Seq[(SSLType, Var)], body: Statement) {
+  case class Procedure(f: FunSpec, body: Statement) {
+    
+    val (name: String, tp: SSLType, formals: Seq[(SSLType, Var)]) = (f.name, f.rType, f.params)
 
     def pp: String =
       s"""
