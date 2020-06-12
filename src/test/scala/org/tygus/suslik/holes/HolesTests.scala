@@ -2,15 +2,12 @@ package org.tygus.suslik.holes
 
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 
 /**
   * @author Roman Shchedrin
   */
 
 class HolesTests extends FunSpec with Matchers with SynthesisRunnerUtil  {
-
-  val synthesis: Synthesis = new PhasedSynthesis
 
   def isNegative(out: String): Boolean = {
     out == "ERROR"

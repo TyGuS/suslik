@@ -5,8 +5,6 @@ import java.io.File
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.language.PrettyPrinting
 
-import scala.concurrent.duration.{Deadline, _}
-
 /**
   * @author Ilya Sergey
   */
@@ -24,27 +22,24 @@ case class SynConfig(
                       auxAbduction: Boolean = false,
                       branchAbduction: Boolean = false,
                       phased: Boolean = true,
-                      invert: Boolean = true,
-                      fail: Boolean = true,
-                      commute: Boolean = true,
                       depthFirst: Boolean = false,
+                      memoization: Boolean = true,
                       // Timeout and logging
                       interactive: Boolean = false,
                       printStats: Boolean = true,
                       printDerivations: Boolean = false,
                       printFailed: Boolean = false,
-                      printTags: Boolean = false,
                       printEnv: Boolean = false,
                       printColor: Boolean = true,
                       assertSuccess: Boolean = true,
                       logToFile: Boolean = true,
-                      memoization: Boolean = true,
                       timeOut: Long = 120000,
-                      inputFormat: InputFormat = dotSyn,
-                      startTime: Deadline = Deadline.now,
                       // Certification
                       certTarget: CertificationTarget = null,
                       certDest: File = null,
+                      // Internal (not directly settable through CLI)
+                      inputFormat: InputFormat = dotSyn,
+                      script: List[Int] = List()
                     ) extends PrettyPrinting {
 
   override def pp: String =
@@ -53,16 +48,11 @@ case class SynConfig(
       (if (auxAbduction == defaultConfig.auxAbduction) Nil else List(s"auxAbduction = $auxAbduction")) ++
       (if (branchAbduction == defaultConfig.branchAbduction) Nil else List(s"branchAbduction = $branchAbduction")) ++
       (if (phased == defaultConfig.phased) Nil else List(s"phased = $phased")) ++
-      (if (invert == defaultConfig.invert) Nil else List(s"invert = $invert")) ++
-      (if (fail == defaultConfig.fail) Nil else List(s"fail = $fail")) ++
-      (if (commute == defaultConfig.commute) Nil else List(s"commute = $commute")) ++
+      (if (depthFirst == defaultConfig.depthFirst) Nil else List(s"depthFirst = $depthFirst")) ++
+      (if (memoization == defaultConfig.memoization) Nil else List(s"memoization = $memoization")) ++
       (if (certTarget == defaultConfig.certTarget) Nil else List(s"certTarget = ${certTarget.name}")) ++
       (if (certDest == defaultConfig.certDest) Nil else List(s"certDest = ${certDest.getCanonicalPath}"))
       ).mkString(", ")
-
-  def timedOut: Boolean = (startTime + timeOut.milliseconds).isOverdue()
-
-  def duration: Long = (Deadline.now - startTime).toMillis
 }
 
 case class SynTimeOutException(msg: String) extends Exception(msg)

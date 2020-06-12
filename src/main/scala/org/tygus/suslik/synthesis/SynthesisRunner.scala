@@ -4,7 +4,6 @@ import java.io.File
 
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.certification.targets._
-import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 import org.tygus.suslik.util.{SynLogLevels, SynLogging}
 
 /**
@@ -18,8 +17,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   import log._
 
-  val synthesis: Synthesis = new PhasedSynthesis
-
   /**
     * Command line args:
     *
@@ -32,16 +29,12 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * -o, --maxOpenDepth <value>     maximum unfolding depth in the pre-condition; default: 1
     * -x, --auxAbduction <value>     abduce auxiliary functions; default: false
     * -b, --branchAbduction <value>  abduce conditional branches; default: false
-    * --commute <value>              only try commutative rule applications in one order; default: true
     * --phased <value>               split rules into unfolding and flat phases; default: true
-    * --fail <value>                 enable early failure rules; default: true
-    * --invert <value>               enable invertible rules; default: true
     * -d, --depth <value>            depth first search; default: false
     * -i, --interactive <value>      interactive mode; default: false
     * -s, --printStats <value>       print synthesis stats; default: true
     * -e, --printEnv <value>         print synthesis context; default: false
     * -f, --printFail <value>        print failed rule applications; default: false
-    * -g, --tags <value>             print predicate application tags in derivations; default: false
     * -l, --log <value>              log results to a csv file; default: true
     * --memoization <value>          enable memoization; default: true
     * --certTarget <value>           set certification target; default: none
@@ -141,21 +134,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(branchAbduction = b))
     }.text("abduce conditional branches; default: false")
 
-    opt[Boolean](name = "commute").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(commute = b))
-    }.text("only try commutative rule applications in one order; default: true")
-
     opt[Boolean](name = "phased").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(phased = b))
     }.text("split rules into unfolding and flat phases; default: true")
-
-    opt[Boolean](name = "fail").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(fail = b))
-    }.text("enable early failure rules; default: true")
-
-    opt[Boolean](name = "invert").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(invert = b))
-    }.text("enable invertible rules; default: true")
 
     opt[Boolean]('d', name = "depth").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(depthFirst = b))
@@ -176,10 +157,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean]('f', "printFail").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
     }.text("print failed rule applications; default: false")
-
-    opt[Boolean]('g', "tags").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printTags = b))
-    }.text("print predicate application tags in derivations; default: false")
 
     opt[Boolean]('l', "log").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(logToFile = b))

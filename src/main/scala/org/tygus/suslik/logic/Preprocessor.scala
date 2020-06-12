@@ -3,7 +3,6 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, OpEq, OpLt}
 import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.logic.Specifications.Assertion
-import org.tygus.suslik.synthesis.SynConfig
 
 object Preprocessor extends SepLogicUtils {
 
@@ -11,7 +10,7 @@ object Preprocessor extends SepLogicUtils {
     * Collect program declarations into an environment
     * TODO: type checking
     */
-  def preprocessProgram(prog: Program): (Seq[FunSpec], Environment, Statement) = {
+  def preprocessProgram(prog: Program): (Seq[FunSpec], PredicateEnv, FunctionEnv, Statement) = {
     val Program(preds, funs, goal) = prog
     val funMap = funs.map(fs => fs.name -> fs).toMap
 
@@ -22,7 +21,7 @@ object Preprocessor extends SepLogicUtils {
     val newPreds = preds.map(p => p.copy(clauses = p.clauses.map(addCardConstraintsClause)))
     
     val predMap = newPreds.map(ps => ps.name -> ps).toMap
-    (List(goal.spec), Environment(predMap, funMap, SynConfig()), goal.body)
+    (List(goal.spec), predMap, funMap, goal.body)
   }
 
   /**

@@ -8,15 +8,13 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.instances.PhasedSynthesis
+import org.tygus.suslik.util.SynStats
 
 /**
   * @author Roman Shchedrin
   */
 
 class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunnerUtil {
-
-  val synthesis: Synthesis = new PhasedSynthesis
 
   def resolveFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig): Specifications.Goal = {
     val parser = new SSLParser
@@ -25,16 +23,16 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
       throw SynthesisException(s"Failed to parse the input:\n$res")
     }
     val prog = res.get
-    val (specs, env, body) = preprocessProgram(prog)
+    val (specs, predEnv, funcEnv, body) = preprocessProgram(prog)
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
     }
     val spec = specs.head
     val FunSpec(name, _, formals, pre, post, var_types) = spec
+    val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
     val goal = topLevelGoal(pre, post, formals, name, env, body, var_types)
     goal
   }
-
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
     super.doRun(testName, desc, in, out, params)

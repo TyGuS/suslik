@@ -7,6 +7,7 @@ import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.{Memoization, SynConfig}
 
 import scala.collection.mutable
+import scala.concurrent.duration._
 import scala.io.StdIn
 
 /**
@@ -67,7 +68,9 @@ object SynLogLevels {
 
 }
 
-class SynStats {
+class SynStats(timeOut: Long) {
+  // When did the synthesis start?
+  private var startTime: Deadline = Deadline.now
   // Total number of goals generated
   private var goalsGenerated: Int = 1
   // Total number of goals to which rules were applied
@@ -80,7 +83,15 @@ class SynStats {
   private val descendantsExplored: mutable.Map[NodeId, Int] = mutable.Map()
   // Nodes that have been backtracked out of
   private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
-  // Nodes that have been filtered out by symmetry reduction
+  // Rule applications picked interactively
+  private var expansionChoices: List[Int] = List()
+
+  // Have we reached the timeout yet?
+  def timedOut: Boolean = (startTime + timeOut.milliseconds).isOverdue()
+  // How long has passed since synthesis started
+  def duration: Long = (Deadline.now - startTime).toMillis
+  // Start recording time
+  def start(): Unit = { startTime = Deadline.now }
 
   // Tell all n's ancestors that n has been explored
   private def markExplored(n: OrNode): Unit = {
@@ -108,6 +119,9 @@ class SynStats {
     markExplored(n)
   }
 
+  def addExpansionChoice(choice: Int): Unit =
+    expansionChoices = expansionChoices ++ List(choice)
+
   def updateMaxWLSize(sz: Int): Unit = {
     maxWLSize = maxWLSize.max(sz)
   }
@@ -124,6 +138,7 @@ class SynStats {
   def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
   def memoSize: (Int, Int, Int) = Memoization.memo.size
+  def getExpansionChoices: List[Int] = expansionChoices
 }
 
 // TODO: refactor me to make more customizable

@@ -2,13 +2,10 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.IntType
-import org.tygus.suslik.language.Statements.Guarded
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.{Heaplet, PFormula, PointsTo, PureLogicUtils, SepLogicUtils}
+import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.rules.Rules._
-
-import scala.collection.immutable.SortedSet
 
 /**
   * Rules for short-circuiting failure;
@@ -20,13 +17,6 @@ import scala.collection.immutable.SortedSet
 object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-fail"
-
-  // Noop rule: never applies (used to replace disabled rules)
-  object Noop extends SynthesisRule {
-    override def toString: String = "Noop"
-
-    def apply(goal: Goal): Seq[RuleResult] = Nil
-  }
 
   // Short-circuits failure if pure post is inconsistent with the pre
   object PostInconsistent extends SynthesisRule with InvertibleRule {
@@ -120,8 +110,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
           // Abduction failed
-          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
-          else Nil // fail optimization is disabled, so pretend this rule doesn't apply
+          List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
         else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
       }
     }

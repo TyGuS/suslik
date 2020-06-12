@@ -4,12 +4,14 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
+import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.SearchTree.AndNode
-import org.tygus.suslik.util.{SynLogLevels, SynLogging, SynStatUtil, SynStats}
+import org.tygus.suslik.synthesis.tactics._
+import org.tygus.suslik.util._
 
-import scala.concurrent.duration.Deadline
 import scala.io.Source
 
 /**
@@ -17,6 +19,11 @@ import scala.io.Source
   */
 
 trait SynthesisRunnerUtil {
+
+  {
+    // Warm up SMT solver:
+    SMTSolving
+  }
 
   implicit val log : SynLogging = SynLogLevels.Test
   import log._
@@ -31,30 +38,34 @@ trait SynthesisRunnerUtil {
   // The path starts from the project root.
   val rootDir: String = "./src/test/resources/synthesis".replace("/", File.separator)
 
-  val synthesis: Synthesis
-
   def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig) = {
     LanguageUtils.resetFreshNameGenerator()
   }
 
-  import synthesis._
-  
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
     val format = testFilePath match{
       case s if s.endsWith(testExtension) => dotSyn
       case s if s.endsWith(sketchExtension) => dotSus
     }
-    // The path is counted from the rout
+    // The path is counted from the root
     val allLines = Source.fromFile(file).getLines.toList
     val (params, lines) =
       if (allLines.nonEmpty && allLines.head.startsWith(paramPrefix)) {
         (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' '), initialParams), allLines.tail)
       } else (initialParams, allLines)
 
-    def parseSyn = {
+    def splitAtSeparator(lines: List[String], default: List[String] = List()): (List[String], List[String]) = {
       val i = lines.indexWhere(_.trim.contains(testSeparator))
-      val (testDescr, _ :: specAndSrc) = lines.splitAt(i) // a::b matches head `a` and tail `b`
+      if (i == -1) (lines, default)
+      else {
+        val (before, _ :: after) = lines.splitAt(i) // a::b matches head `a` and tail `b`
+        (before, after)
+      }
+    }
+
+    def parseSyn = {
+      val (testDescr, afterDescr) = splitAtSeparator(lines)
       val fname = removeSuffix(file.getName, s".$testExtension")
       val dirName = file.getParentFile.getName
       val description = if (testDescr.isEmpty) "Testing synthesis" else testDescr.mkString("\n").trim
@@ -62,23 +73,24 @@ trait SynthesisRunnerUtil {
       val testName = s"$dirName/$fname"
       val desc = s"[$testName] $description"
 
-      val j = specAndSrc.indexWhere(_.trim.startsWith(testSeparator))
-      val (spec, expectedSrc) = specAndSrc.splitAt(j)
+      val (spec, afterSpec) = splitAtSeparator(afterDescr)
       val input = spec.mkString(" ").trim
-      val output = expectedSrc.tail.mkString("\n").trim
-      (testName, desc, input, output, params.copy(inputFormat = format))
+
+      val (expectedSrc, rawScript) = splitAtSeparator(afterSpec)
+      val output = expectedSrc.mkString("\n").trim
+      val script = rawScript.mkString("\n").trim.split("\n").toList.filter(_.nonEmpty).map(_.toInt)
+      (testName, desc, input, output, params.copy(inputFormat = format, script = script))
     }
 
     def parseSus = {
       val hasDescr = lines.head.trim.startsWith("/*")
       val desc = if(hasDescr) lines.head.trim else ""
 
-      val j = lines.indexWhere(_.trim.startsWith(testSeparator))
-      val (spec, expectedSrc) = if (j == -1) (lines, List(testSeparator, noOutputCheck)) else lines.splitAt(j)
+      val (spec, expectedSrc) = splitAtSeparator(lines, List(noOutputCheck))
 
       val input = spec.mkString("\n").trim
       val testName = testFilePath
-      val output = expectedSrc.tail.mkString("\n").trim
+      val output = expectedSrc.mkString("\n").trim
       (testName, desc, input, output, params.copy(inputFormat = format))
     }
 
@@ -88,8 +100,20 @@ trait SynthesisRunnerUtil {
     }
   }
 
+  // Create synthesizer object, choosing search tactic based on the config
+  def createSynthesizer(env: Environment): Synthesis = {
+    val tactic =
+      if (env.config.interactive)
+        new InteractiveSynthesis(env.config, env.stats)
+      else if (env.config.script.nonEmpty)
+        new ReplaySynthesis(env.config)
+      else
+        new PhasedSynthesis(env.config)
+    new Synthesis(tactic, log)
+  }
+
   def synthesizeFromFile(dir: String, testName: String): Unit = {
-    val (_, desc, in, out, params) = getDescInputOutput(testName)
+    val (_, _, in, out, params) = getDescInputOutput(testName)
     synthesizeFromSpec(testName, in, out, params)
   }
 
@@ -104,17 +128,19 @@ trait SynthesisRunnerUtil {
     }
 
     val prog = res.get
-    // assert(prog.predicates.nonEmpty)
-    val (specs, env, body) = preprocessProgram(prog)
+    val (specs, predEnv, funcEnv, body) = preprocessProgram(prog)
 
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
     }
 
     val spec = specs.head
-    val config = params.copy(startTime = Deadline.now)
-    val sresult = synthesizeProc(spec, env.copy(config = config), body)
-    val duration = config.duration
+    val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
+    val synthesizer = createSynthesizer(env)
+
+    env.stats.start()
+    val sresult = synthesizer.synthesizeProc(spec, env, body)
+    val duration = env.stats.duration
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
 
@@ -156,6 +182,10 @@ trait SynthesisRunnerUtil {
           if (params.assertSuccess && res != tt) {
             throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
           }
+        }
+        if (params.interactive) {
+          testPrintln(sresult._2.getExpansionChoices.mkString("\n"))
+          testPrintln("-----------------------------------------------------")
         }
         if (params.certTarget != null) {
           val certTarget = params.certTarget

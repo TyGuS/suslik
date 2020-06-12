@@ -7,6 +7,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
+import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.{SynLogging, SynStats}
 
@@ -17,20 +18,16 @@ import scala.annotation.tailrec
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-trait Synthesis extends SepLogicUtils {
-
-  val log: SynLogging
+class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUtils {
 
   import log._
 
-  def nextRules(node: OrNode): List[SynthesisRule]
-
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
+    implicit val stats: SynStats = env.stats
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     printLog(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
-    val stats = new SynStats()
     SMTSolving.init()
     memo.clear()
     try {
@@ -64,7 +61,7 @@ trait Synthesis extends SepLogicUtils {
                                      stats: SynStats,
                                      config: SynConfig): Option[Solution] = {
     // Check for timeouts
-    if (!config.interactive && config.timedOut) {
+    if (!config.interactive && stats.timedOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
     }
 
@@ -129,16 +126,9 @@ trait Synthesis extends SepLogicUtils {
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
-    val rules = nextRules(node)
-    val allExpansions =
-      if (goal.isUnsolvable) Nil  // This is a special unsolvable goal, discard eagerly
-      else applyRules(rules)(node, stats, config, ind)
-
-    val expansions = if (config.interactive) {
-      // Interactive mode: ask user to pick an expansion
-      val choice = if (allExpansions.length == 1) 0 else readInt
-      if (0 < choice && choice <= allExpansions.size) List(allExpansions(choice - 1)) else allExpansions
-    } else allExpansions
+    val rules = tactic.nextRules(node)
+    val allExpansions = applyRules(rules)(node, stats, config, ind)
+    val expansions = tactic.filterExpansions(allExpansions)
 
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
@@ -164,7 +154,7 @@ trait Synthesis extends SepLogicUtils {
           if (idx > 0) {
             val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
             printLog(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
-            memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it suceeds
+            memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it succeeds
           }
         })
 
@@ -204,7 +194,7 @@ trait Synthesis extends SepLogicUtils {
           for {c <- childFootprints.tail}
             printLog(List((c, RESET)))(config = config, ind = goal.depth + 1)
 
-          if (config.invert && r.isInstanceOf[InvertibleRule]) {
+          if (r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal
             children
           } else {
