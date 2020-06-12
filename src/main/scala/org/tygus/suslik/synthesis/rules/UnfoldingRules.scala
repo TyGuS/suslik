@@ -7,6 +7,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.SpatialUnification
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule.canEmitCall
 

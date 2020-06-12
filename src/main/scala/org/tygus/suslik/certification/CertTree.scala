@@ -2,7 +2,8 @@ package org.tygus.suslik.certification
 
 import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
-import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, StmtProducer, SynthesisRule}
+import org.tygus.suslik.synthesis.StmtProducer
+import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
 
 import scala.collection.mutable
 
@@ -61,7 +62,7 @@ object CertTree {
       }
     }
 
-    val terminalAn = AndNode(Vector(), e.kont, terminal, e.consume, e.rule)
+    val terminalAn = AndNode(Vector(), e.producer, terminal, e.consume, e.rule)
     traverse(terminalAn, _ => ())
   }
 

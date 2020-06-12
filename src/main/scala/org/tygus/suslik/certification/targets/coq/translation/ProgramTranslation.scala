@@ -6,10 +6,10 @@ import org.tygus.suslik.certification.targets.coq.language.Statements._
 import org.tygus.suslik.certification.targets.coq.logic.Proof._
 import org.tygus.suslik.certification.targets.coq.translation.Translation._
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules._
 import org.tygus.suslik.synthesis.rules.OperationalRules._
-import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 
 object ProgramTranslation {

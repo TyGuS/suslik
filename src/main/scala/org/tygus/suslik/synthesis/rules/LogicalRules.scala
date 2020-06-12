@@ -1,11 +1,12 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Ident}
+import org.tygus.suslik.language.Ident
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.Specifications._
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**

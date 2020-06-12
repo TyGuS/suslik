@@ -147,12 +147,12 @@ trait Synthesis extends SepLogicUtils {
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
-        node.succeed(e.kont(Nil), withRest(Nil))
+        node.succeed(e.producer(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.kont, node, e.consume, e.rule)
+          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule)
           nSubs = e.subgoals.size
           ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
           else e.subgoals.zip(e.produces(goal)).zipWithIndex

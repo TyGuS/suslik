@@ -2,13 +2,11 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.IntType
-import org.tygus.suslik.language.Statements.Guarded
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.{Heaplet, PFormula, PointsTo, PureLogicUtils, SepLogicUtils}
+import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
-
-import scala.collection.immutable.SortedSet
 
 /**
   * Rules for short-circuiting failure;

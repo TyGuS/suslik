@@ -10,7 +10,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.rules.Rules._
+import org.tygus.suslik.synthesis.{ChainedProducer, PartiallyAppliedProducer, StmtProducer}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.Open
 
 object Translation {
