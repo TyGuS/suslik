@@ -3,7 +3,7 @@ Deallocate a linked list
 
 ###
 
-{true; lseg(x)}
+{true; list(x)}
   void listfree(loc x)
 {true ; emp }
 

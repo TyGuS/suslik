@@ -3,7 +3,7 @@ Deallocate two linked lists (needs listfree as an auxiliary, unless we can pass 
 
 ###
 
-{true; lseg(x) ** lseg(y)}
+{true; list(x) ** list(y)}
   void listfree2(loc x, loc y)
 {true ; emp }
 
