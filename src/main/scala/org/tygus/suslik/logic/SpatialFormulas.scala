@@ -165,10 +165,11 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
     if (!(env.predicates contains pred)) {
       throw SynthesisException(s"predicate $pred is undefined")
     }
-    val formals = env.predicates(pred).params
 
+    val gamma1 = card.resolve(gamma, Some(IntType))
+    val formals = env.predicates(pred).params
     if (formals.length == args.length) {
-      (formals, args).zipped.foldLeft[Option[Gamma]](Some(gamma)) { case (go, (formal, actual)) => go match {
+      (formals, args).zipped.foldLeft[Option[Gamma]](gamma1) { case (go, (formal, actual)) => go match {
         case None => None
         case Some(g) => actual.resolve(g, Some(formal._1))
       }

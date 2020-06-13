@@ -19,18 +19,18 @@ void bst_insert (loc x, loc ret) {
     *y = k;
   } else {
     let v = *x;
-    if (v <= k) {
-      let r = *(x + 2);
-      bst_insert(r, ret);
-      let y = *ret;
-      *ret = x;
-      *(x + 2) = y;
-    } else {
+    if (k <= v) {
       let l = *(x + 1);
       bst_insert(l, ret);
       let y = *ret;
       *(x + 1) = y;
       *ret = x;
+    } else {
+      let r = *(x + 2);
+      bst_insert(r, ret);
+      let y = *ret;
+      *ret = x;
+      *(x + 2) = y;
     }
   }
 }
