@@ -3,9 +3,9 @@ binary search tree: insert an element
 
 #####
 
-{0 <= n /\ 0 <= k /\ k <= 7 ; ret :-> k ** bst(x, n, lo, hi) }
+{ 0 <= n /\ 0 <= k /\ k <= 7 ; ret :-> k ** bst(x, n, lo, hi)<a> }
 void bst_insert (loc x, loc ret)
-{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; ret :-> y ** bst(y, n1, lo1, hi1) }
+{ n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) /\ b == a + 3 ; ret :-> y ** bst(y, n1, lo1, hi1)<b> }
 
 #####
 
@@ -42,5 +42,19 @@ void bst_insert (loc x, loc ret) {
 1
 1
 2
+3
+5
+2
+1
+2
+1
+1
+12
 4
 5
+3
+1
+2
+1
+1
+12
