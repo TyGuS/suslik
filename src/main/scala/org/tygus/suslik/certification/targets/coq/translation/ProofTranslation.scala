@@ -17,9 +17,9 @@ import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules.EmpRule
 import org.tygus.suslik.synthesis.rules.OperationalRules._
-import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
+import org.tygus.suslik.synthesis.{BranchProducer, ExistentialProducer, GuardedProducer, PrependProducer}
 
 object ProofTranslation {
   type ProofProducer = Producer[CProofStep]

@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
-import org.tygus.suslik.synthesis.rules.Rules.{StmtProducer, SynthesisRule}
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import org.tygus.suslik.util.SynStats
 
 /**

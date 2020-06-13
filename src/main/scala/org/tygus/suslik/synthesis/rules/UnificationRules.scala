@@ -6,8 +6,8 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.unification.PureUnification
-import org.tygus.suslik.logic.unification.SpatialUnification
+import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**

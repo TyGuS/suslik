@@ -17,10 +17,9 @@ For Coq requirements available on [OPAM](https://opam.ocaml.org/doc/Install.html
 
 ```
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam install coq coq-mathcomp-ssreflect coq-fcsl-pcm
+opam pin add coq-htt git+https://github.com/TyGuS/htt\#master --no-action --yes
+opam install coq coq-mathcomp-ssreflect coq-fcsl-pcm coq-htt
 ```
-
-For HTT, clone the repo and run `opam install .` at the root to install using OPAM.
 
 Each synthesized Coq certificate imports `SSL`, a module consisting of predefined tactics. The module source may be compiled by running `make clean && make` in the directory `certification/coq`.
 
