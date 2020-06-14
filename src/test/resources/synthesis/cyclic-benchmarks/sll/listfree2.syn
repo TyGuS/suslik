@@ -1,0 +1,30 @@
+# -x true
+Deallocate two linked lists (needs listfree as an auxiliary, unless we can pass emp as a list)
+
+###
+
+{true; sll(x, s1) ** sll(y, s2)}
+  void listfree2(loc x, loc y)
+{true ; emp }
+
+###
+
+void listfree2 (loc x, loc y) {
+  if (x == 0) {
+    listfree200(x, y);
+  } else {
+    let n = *x;
+    listfree2(y, n);
+    free(x);
+  }
+}
+
+void listfree200 (loc x, loc y) {
+  if (y == 0) {
+  } else {
+    let n = *y;
+    listfree200(x, n);
+    free(y);
+  }
+}
+

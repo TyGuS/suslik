@@ -1,0 +1,11 @@
+# -o 2 -x true -p true
+
+should be able to flatten the tree into a list 
+
+####
+
+{ z :-> x ** tree(x, s) }
+void flatten(loc z)
+{ z :-> y ** sll(y, s) }
+
+####
