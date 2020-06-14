@@ -119,7 +119,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
-        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(sub))
+        if goalCompanionPureUnifies(goal.pre.phi, f.pre.phi, sub)
         // Check that the goal's subheap had at least one unfolding
         callGoal = mkCallGoal(f, sub, callSubPre, goal)
       } yield {
@@ -150,7 +150,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
       val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
 
-//      val acs = callPost.sigma.lockSAppTags()
+      //      val acs = callPost.sigma.lockSAppTags()
       // TODO: refactor the cost of the call somewhere else
       val acs = callPost.sigma.setUpSAppTags(callSubPre.sigma.maxSAppTag + 2)
       val restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
@@ -202,7 +202,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         if canEmitCall(largPreSubHeap, lilHeap, goal, f)
 
-        if SMTSolving.valid(goal.pre.phi ==> f.pre.phi.subst(actualSub))
+        if goalCompanionPureUnifies(goal.pre.phi, f.pre.phi, actualSub)
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
         val kont = SeqCompProducer >> HandleGuard(goal) >> ExtractHelper(goal)
@@ -210,6 +210,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.last.pre)
     }
+
 
     def writesAndRestGoals(actualSub: Subst, relaxedSub: Subst, f: FunSpec, goal: Goal): Option[(Goal, Goal)] = {
       val ptss = f.pre.sigma.ptss // raw points-to assertions
@@ -300,6 +301,75 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         s <- heapletResults(h)
       } yield s
     }
+  }
+
+
+  /**
+    * [Cyclic] 
+    *
+    * For the call inference, check that the goal's precondition implies 
+    * the companion's precondition after the spatial parts are unified.
+    *
+    * Since there might be variables in the pure part that are left out, those need to be
+    * existentially quantified. This methods tries to find the right substitution for them
+    * using brute-force, until the implication folds or it is out of options.
+    *
+    * This is motivated by the following part of the rose_tree example synthesis. The 
+    * predicate in question is defined as follows:
+    *
+    * predicate rose_tree(loc x) {
+    * |  x == 0        => { self_card == 0 ; emp }
+    * |  not (x == 0)  => { self_card == 1 + z /\ z < self_card ; [x, 1] ** x :-> b ** buds(b)<z>}
+    * }
+    *
+    * predicate buds(loc x) {
+    * |  x == 0        => { self_card == 0 ; emp }
+    * |  not (x == 0)  => { self_card == 3 + y + z /\ y < self_card /\ z < self_card ;
+    * [x, 3] ** x :-> v ** (x + 1) :-> r ** rose_tree(r)<y> ** (x + 2) :-> nxt ** buds(nxt)<z> }
+    * }
+    *
+    * At some point, the companion precondition is something along the lines of:
+    *
+    * { a = 1 + z /\ ... ; buds(x)<z> }
+    *
+    * and current goal is
+    *
+    * { z = 1 + zx /\ a = 1 + z /\ ... ; buds(bx)<zx> }
+    *
+    * Unification gives: `x -> bx, z -> zx`, and hence we need to prove `a = 1
+    * + zx`, which is of course not true. The crux of the problem is that `a`
+    * (and every variable that appears in the companion pure pre but not
+    * spatial pre), has to be treated as existential. The proper solution
+    * would be to use some kind of pure synthesis to find a term for it that
+    * makes the implication hold (in this case, it would be `a -> z`).
+    *
+    */
+  protected def goalCompanionPureUnifies(goalPrePure: PFormula, companionPrePure: PFormula, sub: Map[Var, Expr]): Boolean = {
+    val companionSubstituted = companionPrePure.subst(sub)
+    if (SMTSolving.valid(goalPrePure ==> companionSubstituted)) {
+      return true
+    }
+    val wildCompanionPureVars = (companionPrePure.vars -- sub.keySet).toList
+    val goalVars = goalPrePure.vars
+
+    if (wildCompanionPureVars.size > 1) {
+      // Give up brute force for large instances
+      return false
+    }
+    val substitutionCandidates = goalVars.subsets(wildCompanionPureVars.size)
+    for {
+      cand <- substitutionCandidates
+      perm <- cand.toList.permutations
+    } {
+      val trySubst = wildCompanionPureVars.zip(perm).toMap
+      val elaboratedCompanion = companionSubstituted.subst(trySubst)
+      if (SMTSolving.valid(goalPrePure ==> elaboratedCompanion)) {
+        // Managed to unify
+        return true
+      }
+    }
+
+    false
   }
 
 }

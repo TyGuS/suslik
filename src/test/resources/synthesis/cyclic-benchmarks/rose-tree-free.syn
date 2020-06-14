@@ -4,7 +4,7 @@ should be able to deallocate a rose tree
 
 ###
 
-{ rose_tree(x)<a> }
+{ rose_tree(x, s)<a> }
   void rose_tree_free(loc x)
 { emp }
 
