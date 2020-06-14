@@ -63,9 +63,6 @@ object Specifications extends SepLogicUtils {
     def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
 
-    def setToNegative(cond: Heaplet => Boolean = _ => true): Assertion =
-      this.copy(sigma = this.sigma.setToNegative(cond))
-
     def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
       this.copy(sigma = this.sigma.lockSAppTags(cond))
 

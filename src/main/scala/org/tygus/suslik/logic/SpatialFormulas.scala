@@ -119,8 +119,6 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
 
 /**
   *
-  * TODO: Remove tags
-  *
   * @card is a cardinality of a current call. When equals None, treated as an existential
   *
   *       Predicate application
@@ -135,7 +133,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
     val ppTag: Option[Int] => String = {
       case None => "[-]" // "[\uD83D\uDD12]" // "locked"
       case Some(0) => "" // Default tag
-      case Some(t) => s"<$t>"
+      case Some(t) => s"[$t]"
     }
 
     s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${ppTag(tag)}"
@@ -214,11 +212,13 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
   def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h))
 
-  def setToNegative(cond: Heaplet => Boolean = _ => true): SFormula =
-    setUpSAppTags(-1, cond)
-
   def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h))
+
+  def maxSAppTag: Int = chunks.map(_ match {
+    case SApp(_, _, Some(n), _) => n
+    case _ => 0
+  }).max
 
   def isEmp: Boolean = chunks.isEmpty
 

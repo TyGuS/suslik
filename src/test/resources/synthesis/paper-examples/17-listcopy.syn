@@ -2,9 +2,9 @@ Example (17) from the paper (listcopy)
 
 ###
 
-{true ; r :-> x ** lseg(x, 0, S)}
+{true ; r :-> x ** lseg(x, 0, S)<a>}
 void listcopy(loc r)
-{true ; r :-> y ** lseg(x, 0, S) ** lseg(y, 0, S) }
+{true ; r :-> y ** lseg(x, 0, S)<a> ** lseg(y, 0, S)<b> }
 
 #####
 
