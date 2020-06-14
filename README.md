@@ -134,6 +134,7 @@ where the necessary arguments and options are
   --fail <value>           enable early failure rules; default: true
   --invert <value>         enable invertible rules; default: true
   -s, --printStats <value> print synthesis stats; default: true
+  -p, --printSpecs <value> print specifications for synthesized functions; default: false
   -e, --printEnv <value>   print synthesis context; default: false
   -f, --printFail <value>  print failed rule applications; default: false
   -g, --tags <value>       print predicate application tags in derivations; default: false
