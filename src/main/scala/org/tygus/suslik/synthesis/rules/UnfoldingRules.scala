@@ -149,19 +149,13 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       //      val freshSuffix = sub.values.map(_.pp).mkString("_")
       val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
       val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
-      // TODO: remove this
-      val newEnv = if (f.name == goal.fname) goal.env else {
-        // To avoid more than one application of a library function
-        val funs = goal.env.functions.filterKeys(_ != f.name)
-        goal.env.copy(functions = funs)
-      }
 
 //      val acs = callPost.sigma.lockSAppTags()
       // TODO: refactor the cost of the call somewhere else
       val acs = callPost.sigma.setUpSAppTags(callSubPre.sigma.maxSAppTag + 2)
       val restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
       val restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
-      goal.spawnChild(restPre, env = newEnv)
+      goal.spawnChild(restPre)
     }
   }
 
