@@ -1,8 +1,10 @@
 package org.tygus.suslik.logic
 
-import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, OpEq, OpLt}
+import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.logic.Specifications.Assertion
+
+import scala.collection.immutable.Set
 
 object Preprocessor extends SepLogicUtils {
 
@@ -18,8 +20,8 @@ object Preprocessor extends SepLogicUtils {
     // val newPreds = preds
 
     // Enable predicate instrumentation
-    val newPreds = preds.map(p => p.copy(clauses = p.clauses.map(addCardConstraintsClause)))
-    
+    val newPreds = preds.map(p => p.copy(clauses = p.clauses.map(addPreciseCardConstraints)))
+
     val predMap = newPreds.map(ps => ps.name -> ps).toMap
     (List(goal.spec), predMap, funMap, goal.body)
   }
@@ -27,7 +29,7 @@ object Preprocessor extends SepLogicUtils {
   /**
     * Add a missing cardinality constraint to a predicate clause 
     */
-  private def addCardConstraintsClause(clause: InductiveClause): InductiveClause = {
+  private def addCardConstraints(clause: InductiveClause): InductiveClause = {
     val InductiveClause(sel, Assertion(phi, sigma)) = clause
 
     // All cardinality-related variables
@@ -35,12 +37,56 @@ object Preprocessor extends SepLogicUtils {
       SApp(_, _, _, card) <- sigma.chunks
       v <- card.vars
     } yield v).toSet
-    
-    
+
+
     // Constant footprint
     if (cardVars.isEmpty) {
       val (_, clauseCard) = heapCardinality(sigma)
-      val cardConstraint = BinaryExpr(OpEq, selfCardVar, clauseCard) // self_card = x
+      val cardConstraint = BinaryExpr(OpEq, selfCardVar, clauseCard) // self_card = constant heap size
+      val newPhi = PFormula(phi.conjuncts ++ Set(cardConstraint))
+      return InductiveClause(sel, Assertion(newPhi, sigma))
+    }
+
+    val constrainedVars = sel.vars ++ phi.vars
+    if (cardVars.subsetOf(constrainedVars)) return clause // No constraints to add
+
+    // Otherwise, generate for the clause cardinality
+    val (ptsCount, clauseCard) = heapCardinality(sigma)
+
+    // Inequalities
+
+    // All cardinalities are less than self-cardinality
+    val ltCards = if (ptsCount > 0) {
+      for (cv <- cardVars) yield BinaryExpr(OpLt, cv, selfCardVar)
+    } else Set.empty
+    
+    // All cardinalities are positive
+    val posConstraints = for (cv <- cardVars) yield BinaryExpr(OpLeq, IntConst(0), cv)
+
+
+    val newPhi = PFormula(phi.conjuncts ++ ltCards ++ posConstraints)
+
+    InductiveClause(sel, Assertion(newPhi, sigma))
+  }
+
+
+  /**
+    * [Cardinality] Obsolete: add precise cardinality
+    */
+  private def addPreciseCardConstraints(clause: InductiveClause): InductiveClause = {
+    val InductiveClause(sel, Assertion(phi, sigma)) = clause
+
+    // All cardinality-related variables
+    val cardVars = (for {
+      SApp(_, _, _, card) <- sigma.chunks
+      v <- card.vars
+    } yield v).toSet
+
+
+    // Constant footprint
+    if (cardVars.isEmpty) {
+      val (_, clauseCard) = heapCardinality(sigma)
+      val cardConstraint = BinaryExpr(OpEq, selfCardVar, clauseCard) // constant heap size
       val newPhi = PFormula(phi.conjuncts ++ Set(cardConstraint))
       return InductiveClause(sel, Assertion(newPhi, sigma))
     }
