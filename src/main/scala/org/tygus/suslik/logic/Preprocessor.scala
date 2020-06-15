@@ -86,7 +86,7 @@ object Preprocessor extends SepLogicUtils {
     // Constant footprint
     if (cardVars.isEmpty) {
       val (_, clauseCard) = heapCardinality(sigma)
-      val cardConstraint = BinaryExpr(OpEq, selfCardVar, clauseCard) // constant heap size
+      val cardConstraint = BinaryExpr(OpEq, selfCardVar, clauseCard) // self_card = x
       val newPhi = PFormula(phi.conjuncts ++ Set(cardConstraint))
       return InductiveClause(sel, Assertion(newPhi, sigma))
     }
