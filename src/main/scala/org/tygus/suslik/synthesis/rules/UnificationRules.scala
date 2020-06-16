@@ -209,4 +209,40 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }
+
+  /**
+    * Special pure synthesis rule for integer existentials that are only constrained by lower bounds
+    * (useful for cardinalities).
+    */
+  object PickCard extends SynthesisRule {
+    override def toString: String = "PickCard"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      // If e is of the form lo < v, get lo
+      def getLowerBound(e: Expr, v: Var): Option[Expr] = e match {
+        case BinaryExpr(OpLt, lo, v1) if v1 == v => Some(lo)
+        case _ => None
+      }
+
+      // Expression that computes the maximum of all es
+      def maxExpr(es: Seq[Expr]): Expr =
+        es.reduceLeft((e1, e2) => IfThenElse(BinaryExpr(OpLt, e1, e2), e2, e1))
+
+      val lower_bounded = for {
+        ex <- goal.existentials.toList
+        if goal.getType(ex).conformsTo(Some(IntType))
+        boundOpts = goal.post.phi.conjuncts.filter(_.vars.contains(ex)).map(e => getLowerBound(e, ex))
+        if boundOpts.forall(_.isDefined)
+      } yield (ex, boundOpts.map(_.get).toList)
+
+      for {
+        (ex, bounds) <- lower_bounded.take(1)
+        sol = if (bounds.isEmpty) IntConst(0) else BinaryExpr(OpPlus, maxExpr(bounds), IntConst(1))
+        sigma = Map(ex -> sol)
+        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+        kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+    }
+  }
+
 }

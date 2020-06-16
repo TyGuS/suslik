@@ -113,6 +113,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     OperationalRules.WriteRule,
     //    UnificationRules.PureUnify,
     UnificationRules.HeapUnifyPure,
+    UnificationRules.PickCard,
     UnificationRules.Pick,
   )
 
