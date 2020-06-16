@@ -20,7 +20,7 @@ object Preprocessor extends SepLogicUtils {
     // val newPreds = preds
 
     // Enable predicate instrumentation
-    val newPreds = preds.map(p => p.copy(clauses = p.clauses.map(addPreciseCardConstraints)))
+    val newPreds = preds.map(p => p.copy(clauses = p.clauses.map(addCardConstraints)))
 
     val predMap = newPreds.map(ps => ps.name -> ps).toMap
     (List(goal.spec), predMap, funMap, goal.body)
@@ -60,11 +60,11 @@ object Preprocessor extends SepLogicUtils {
       for (cv <- cardVars) yield BinaryExpr(OpLt, cv, selfCardVar)
     } else Set.empty
     
-    // All cardinalities are positive
-    val posConstraints = for (cv <- cardVars) yield BinaryExpr(OpLeq, IntConst(0), cv)
+    // All cardinalities are non-negative
+    // val posConstraints = for (cv <- cardVars) yield BinaryExpr(OpLeq, IntConst(0), cv)
 
-
-    val newPhi = PFormula(phi.conjuncts ++ ltCards ++ posConstraints)
+    
+    val newPhi = PFormula(phi.conjuncts ++ ltCards)
 
     InductiveClause(sel, Assertion(newPhi, sigma))
   }

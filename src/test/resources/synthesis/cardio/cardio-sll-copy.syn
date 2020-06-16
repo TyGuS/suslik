@@ -2,9 +2,9 @@ should be able to synthesize list copy with cardinalities
 
 #####
 
-{r :-> x ** sll_card(x, s)<a>}
+{r :-> x ** sll_card(x, s)}
 void sll_copy(loc r)
-{r :-> y ** sll_card(x, s)<a> ** sll_card(y, s)<a> }
+{r :-> y ** sll_card(x, s) ** sll_card(y, s) }
 
 #####
 

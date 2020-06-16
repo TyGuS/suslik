@@ -2,9 +2,9 @@ should be able to synthesize a tree copy
 
 #####
 
-{0 <= n ; r :-> x ** treeN(x, n)<a>}
+{0 <= n ; r :-> x ** treeN(x, n)}
 void tree_copy(loc r)
-{true ; r :-> y ** treeN(x, n)<a> ** treeN(y, n)<a> }
+{true ; r :-> y ** treeN(x, n) ** treeN(y, n) }
 
 #####
 
