@@ -1,0 +1,149 @@
+#proof-trace-pane {
+    padding-bottom: 25%;
+}
+
+.proof-trace .subtrees {
+    white-space: nowrap;
+}
+
+.proof-trace-node {
+    width: fit-content;
+    max-width: 25em;
+    border: 1px solid #666;
+    padding: 2px;
+}
+
+.proof-trace-node:hover {
+    background: #eef;
+}
+
+.proof-trace-node > .title {
+    cursor: default;
+}
+
+.proof-trace-node > .title > span.tag {
+    float: right;
+    margin-left: 1em;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 90%;
+}
+
+.proof-trace-goal {
+    white-space: normal;
+    border: 1px solid #999;
+    padding: 2px;
+}
+
+.proof-trace-node:hover > .proof-trace-goal {
+    background: #fff;
+}
+
+.proof-trace,
+.proof-trace-node {
+    display: inline-block;
+    margin-top: 0.25em;
+    margin-right: 0.2em;
+    vertical-align: top;
+}
+
+.proof-trace-vars > span:not(:last-child)::after {
+    content: ", ";
+}
+
+.proof-trace-vars span.name:hover {
+    background: #eee;
+    cursor: default;
+}
+
+.proof-trace-program-vars {
+    color: #888;
+}
+
+.proof-trace-existentials {
+    color: #464;
+}
+
+.proof-trace-existentials::before {
+    content: "∃ ";
+    font-size: 90%;
+}
+
+.proof-trace-formula span.op {
+    font-size: 100%;
+}
+.proof-trace-formula span.var[data-of=programVars] {
+    color: #888;
+}
+
+.proof-trace-formula span.var[data-of=existentials] {
+    color: #464;
+}
+
+.proof-trace-formula span.var:hover {
+    background: #eee;
+    cursor: default;
+}
+
+.proof-trace-formula span.cardinality {
+    font-size: 60%;
+    position: relative;
+    top: -.5em;
+    color: #b00;
+}
+.proof-trace-formula span.cardinality::before {
+    content: "⟨";
+}
+.proof-trace-formula span.cardinality::after {
+    content: "⟩";
+}
+
+.proof-trace:not(:last-child) {
+    border-top: 1px solid #aaa;
+    margin-right: 0;
+    padding-right: 0.25em;
+    margin-top: calc(0.5em - 1px);
+}
+.proof-trace:not(:last-child) > .proof-trace-node {
+    margin-top: -1px;
+}
+.proof-trace:not(:first-child):last-child {
+    margin-top: calc(0.5em - 1px);
+}
+.proof-trace:not(:first-child):last-child > .proof-trace-node {
+    margin-top: 0;
+}
+
+.proof-trace-node.AndNode {
+    background: #999;
+    color: #ddd;
+}
+
+.proof-trace-node.AndNode:hover {
+    background: #88d;
+}
+
+.proof-trace-node.OrNode.Succeeded,
+.proof-trace-node.OrNode.Succeeded > .proof-trace-goal {
+    background: #dfd;
+}
+
+.proof-trace-node.OrNode.Succeeded\*,
+.proof-trace-node.OrNode.Succeeded\* > .proof-trace-goal {
+    background: #fafff8;
+}
+
+.proof-trace-node.OrNode.Succeeded:hover,
+.proof-trace-node.OrNode.Succeeded\*:hover {
+    background: #eef;
+}
+
+#hint {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+}
+
+#hint:not(:empty) {
+    padding: .1em .5em;
+    background: #ddd;
+}

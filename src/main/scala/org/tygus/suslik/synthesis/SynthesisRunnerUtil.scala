@@ -8,6 +8,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
+import org.tygus.suslik.report.Log
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -25,8 +26,8 @@ trait SynthesisRunnerUtil {
     SMTSolving
   }
 
-  implicit val log : SynLogging = SynLogLevels.Test
-  import log._
+  implicit val log : Log = new Log(SynLogLevels.Test)
+  //import log._
 
   val testSeparator = "###"
   val testExtension = "syn"
@@ -118,6 +119,8 @@ trait SynthesisRunnerUtil {
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig) : Unit = {
+    import log.out.testPrintln
+
     val parser = new SSLParser
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)

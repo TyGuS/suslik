@@ -114,7 +114,7 @@ object SearchTree {
       case Some(p) =>
         if (d > 2) s"...($depth)"
         else {
-          val subgoalID = if (id.head < 0) "" else s".${id.head.toString}"
+          val subgoalID = if (id.head < 0) "" else s".${id.head}"
           p.pp(d + 1) ++ subgoalID
         }
     }
@@ -143,7 +143,7 @@ object SearchTree {
       else if (id.length < l.length) false
       else parent.hasAncestor(l)
 
-    def pp(d: Int): String = {
+    def pp(d: Int = 0): String = {
       val parentPP = parent.parent match {
         case None => ""
         case Some(_) => s"${parent.pp(d)}-"

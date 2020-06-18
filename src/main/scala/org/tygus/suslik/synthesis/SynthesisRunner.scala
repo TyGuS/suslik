@@ -4,7 +4,8 @@ import java.io.File
 
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.certification.targets._
-import org.tygus.suslik.util.{SynLogLevels, SynLogging}
+import org.tygus.suslik.report.Log
+import org.tygus.suslik.util.SynLogLevels
 
 /**
   * @author Ilya Sergey
@@ -13,9 +14,7 @@ import org.tygus.suslik.util.{SynLogLevels, SynLogging}
 object SynthesisRunner extends SynthesisRunnerUtil {
 
   // Enable verbose logging
-  override implicit val log: SynLogging = SynLogLevels.Verbose
-
-  import log._
+  override implicit val log = new Log(SynLogLevels.Verbose)
 
   /**
     * Command line args:

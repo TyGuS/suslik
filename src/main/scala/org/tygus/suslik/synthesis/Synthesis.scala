@@ -1,10 +1,13 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
+import java.io.{BufferedWriter, File, FileWriter}
+
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.report.{Log, ProofTrace}
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.synthesis.tactics.Tactic
@@ -13,14 +16,15 @@ import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
 import scala.annotation.tailrec
+import scala.io.StdIn
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUtils {
+class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
 
-  import log._
+  val trace = new ProofTrace("trace.out")
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
@@ -28,7 +32,7 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
 
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
-    printLog(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
+    log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
     SMTSolving.init()
     memo.clear()
     try {
@@ -37,12 +41,12 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
         case None =>
-          printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
+          log.out.printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
           (Nil, stats)
       }
     } catch {
       case SynTimeOutException(msg) =>
-        printlnErr(msg)
+        log.out.printlnErr(msg)
         (Nil, stats)
     }
   }
@@ -67,34 +71,37 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
     }
 
     val sz = worklist.length
-    printLog(List((s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
-    printLog(List((s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW)))
+    log.print(List((s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
+    log.print(List((s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
     if (worklist.isEmpty) None // No more goals to try: synthesis failed
     else {
       val (node, withRest) = selectNode(worklist) // Select next node to expand
       val goal = node.goal
-      implicit val ind: Int = goal.depth
+      implicit val ctx = log.Context(goal)
       stats.addExpandedGoal(node)
-      printLog(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW)))
+      log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW)))
       if (config.printEnv) {
-        printLog(List((s"${goal.env.pp}", Console.MAGENTA)))
+        log.print(List((s"${goal.env.pp}", Console.MAGENTA)))
       }
-      printLog(List((s"${goal.pp}", Console.BLUE)))
+      log.print(List((s"${goal.pp}", Console.BLUE)))
+      trace.add(node)
 
       // Lookup the node in the memo
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
-          printLog(List((s"Recalled FAIL", RED)))
+          log.print(List((s"Recalled FAIL", RED)))
+          trace.add(node.id, Failed)
           Left(node.fail(withRest(Nil)))
         }
         case Some(Succeeded(sol)) => { // Same goal has succeeded before: return the same solution
-          printLog(List((s"Recalled solution ${sol._1.pp}", RED)))
+          log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
+          trace.add(node.id, Succeeded(sol))
           node.succeed(sol, withRest(Nil))
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
-          printLog(List(("Suspend", RED)))
+          log.print(List(("Suspend", RED)))
           memo.suspend(node)
           Left(withRest(List(node)))
         }
@@ -123,12 +130,12 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
                                          config: SynConfig): Either[List[OrNode], Solution] = {
     val goal = node.goal
     memo.save(goal, Expanded)
-    implicit val ind: Int = goal.depth
+    implicit val ctx = log.Context(goal)
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
     val rules = tactic.nextRules(node)
-    val allExpansions = applyRules(rules)(node, stats, config, ind)
+    val allExpansions = applyRules(rules)(node, stats, config, ctx)
     val expansions = tactic.filterExpansions(allExpansions)
 
     // Check if any of the expansions is a terminal
@@ -138,12 +145,13 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
+        trace.add(node.id, Succeeded(e.producer(Nil)))
         node.succeed(e.producer(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule)
+          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule); () = trace.add(andNode)
           nSubs = e.subgoals.size
           ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
           else e.subgoals.zip(e.produces(goal)).zipWithIndex
@@ -154,14 +162,15 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
           val idx = n.childIndex
           if (idx > 0) {
             val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
-            printLog(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
+            log.print(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
             memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it succeeds
           }
         })
 
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
-          printLog(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          trace.add(node.id, Failed)
           Left(node.fail(withRest(Nil)))
         } else {
           stats.addGeneratedGoals(newNodes.size)
@@ -175,9 +184,8 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
   protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
                                                        stats: SynStats,
                                                        config: SynConfig,
-                                                       ind: Int): Seq[RuleResult] = {
+                                                       ctx: log.Context): Seq[RuleResult] = {
     implicit val goal: Goal = node.goal
-    implicit val ind: Int = goal.depth
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
@@ -186,14 +194,14 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules
-          printLog(List((s"$r FAIL", RESET)), isFail = true)
+          log.print(List((s"$r FAIL", RESET)), isFail = true)
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
-          val childFootprints = children.map(showChild(goal))
-          printLog(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
-          for {c <- childFootprints.tail}
-            printLog(List((c, RESET)))(config = config, ind = goal.depth + 1)
+          val childFootprints = children.map(log.showChild(goal))
+          log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
+          //for {c <- childFootprints.tail}
+          //  log.print(List((c, RESET)))(config = config, ind = goal.depth + 1)
 
           if (r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal
@@ -205,31 +213,4 @@ class Synthesis(tactic: Tactic, implicit val log: SynLogging) extends SepLogicUt
         }
     }
   }
-
-  private def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$RESET"
-  private def showChild(goal: Goal)(c: RuleResult): String =
-    c.subgoals.length match {
-    case 0 => showFootprint(c.consume)
-    case _ => s"${showFootprint(c.consume)} --> ${c.produces(goal).map(showFootprint).mkString(", ")}"
-//    case 1 =>
-//      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}"
-//    case _ =>
-//      s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}, ..."
-  }
-
-  private def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "|  " * ind
-
-  protected def printLog(sc: List[(String, String)], isFail: Boolean = false)
-                      (implicit config: SynConfig, ind: Int = 0): Unit = {
-    if (config.printDerivations) {
-      if (!isFail || config.printFailed) {
-        for ((s, c) <- sc if s.trim.length > 0) {
-          print(s"$RESET$getIndent")
-          println(s"$c${s.replaceAll("\n", s"\n$RESET$getIndent$c")}")
-        }
-      }
-      print(s"$RESET")
-    }
-  }
-
 }
