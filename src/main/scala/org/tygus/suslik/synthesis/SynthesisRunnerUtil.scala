@@ -167,7 +167,15 @@ trait SynthesisRunnerUtil {
         printStats(sresult._2)
         throw SynthesisException(s"Failed to synthesise:\n$sresult")
       case procs =>
-        val result = procs.map(_.pp).mkString
+        val result = if (params.printSpecs) {
+          procs.map(p => {
+            val (pre, post) = (p.f.pre.pp.trim, p.f.post.pp.trim)
+            List(pre, post, p.pp.trim).mkString("\n")
+          }).mkString("\n\n")
+        } else {
+          procs.map(_.pp).mkString("\n\n")
+        }
+          
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)

@@ -149,6 +149,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(printStats = b))
     }.text("print synthesis stats; default: false")
 
+    opt[Boolean]('p', "printSpecs").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printSpecs = b))
+    }.text("print specifications for synthesized functions; default: false")
+
     opt[Boolean]('e', "printEnv").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
     }.text("print synthesis context; default: false")
