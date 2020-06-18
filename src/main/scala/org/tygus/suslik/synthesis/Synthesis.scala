@@ -86,15 +86,18 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
         log.print(List((s"${goal.env.pp}", Console.MAGENTA)))
       }
       log.print(List((s"${goal.pp}", Console.BLUE)))
+      trace.add(node)
 
       // Lookup the node in the memo
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
           log.print(List((s"Recalled FAIL", RED)))
+          trace.add(node.id, Failed)
           Left(node.fail(withRest(Nil)))
         }
         case Some(Succeeded(sol)) => { // Same goal has succeeded before: return the same solution
           log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
+          trace.add(node.id, Succeeded(sol))
           node.succeed(sol, withRest(Nil))
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
@@ -128,7 +131,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
     val goal = node.goal
     memo.save(goal, Expanded)
     implicit val ctx = log.Context(goal)
-    trace.add(node)
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
@@ -168,6 +170,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          trace.add(node.id, Failed)
           Left(node.fail(withRest(Nil)))
         } else {
           stats.addGeneratedGoals(newNodes.size)

@@ -12,6 +12,7 @@ class ProofTrace {
     nodeIndex: {
         byId: JSONMap<Data.NodeId, Data.NodeEntry>
         childrenById: JSONMap<Data.NodeId, Data.NodeEntry[]>
+        statusById: JSONMap<Data.NodeId, Data.StatusEntry>
     }
 
     view: Vue
@@ -25,15 +26,45 @@ class ProofTrace {
     }
 
     createIndex() {
-        this.nodeIndex = {byId: new JSONMap(), childrenById: new JSONMap()};
+        this.nodeIndex = {
+            byId: new JSONMap(),
+            childrenById: new JSONMap(), statusById: new JSONMap()
+        };
+        // Build byId
         for (let node of this.data.nodes)
             this.nodeIndex.byId.set(node.id, node);
 
+        // Build childrenById
         var m = this.nodeIndex.childrenById;
         for (let node of this.data.nodes) {
-            if (node.id.length > 1) {
-                var parent = node.id.slice(2);  // @todo AndNode
+            if (node.id.length >= 1) {
+                var parent = node.id.slice(1);
                 m.set(parent, (m.get(parent) || []).concat([node]));
+            }
+        }
+
+        // Build statusById
+        for (let entry of this.data.statuses) {
+            var id = entry.at;
+            this.nodeIndex.statusById.set(id, entry);
+        }
+
+        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+            if (!this.nodeIndex.statusById.get(node.id)) {
+                var children = (this.nodeIndex.childrenById.get(node.id) || [])
+                                .map(c => this.nodeIndex.statusById.get(c.id));
+                if (children.length) {
+                    switch (node.tag) {
+                    case 'OrNode':
+                        if (children.some(x => x && x.status.tag === 'Succeeded'))
+                            this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
+                        break;
+                    case 'AndNode':
+                        if (children.every(x => x && x.status.tag === 'Succeeded'))
+                            this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
+                        break;
+                    }
+                }
             }
         }
     }
@@ -56,14 +87,28 @@ class ProofTrace {
 
     createView() {
         this.view = new (Vue.component('proof-trace'))();
-        this.view.root = {
-            value: this.root, children: undefined, expanded: true
-        };
+        this.view.root = this.createNode(this.root);
         this.expandNode(this.view.root);
         this.expandNode(this.view.root.children[0]);
         this.view.$mount();
 
         this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev))
+    }
+
+    getStatus(node: Data.NodeEntry): Data.GoalStatusEntry { 
+        var entry = this.nodeIndex.statusById.get(node.id);
+        return entry && entry.status;
+    }
+
+    createNode(node: Data.NodeEntry): View.Node {
+        return {value: node, children: undefined, expanded: false,
+                status: this.getStatus(node)};
+    }
+
+    expandNode(nodeView: View.Node) {
+        nodeView.expanded = true;
+        nodeView.children = this.children(nodeView.value)
+            .map(node => this.createNode(node));
     }
 
     viewAction(ev: View.ActionEvent) {
@@ -73,26 +118,23 @@ class ProofTrace {
         }
     }
 
-    expandNode(nodeView: View.Node) {
-        nodeView.children = this.children(nodeView.value)
-            .map(value => ({value, children: undefined, expanded: false}));
-    }
-
 }
 
 
 namespace ProofTrace {
 
     export type Data = {
-        nodes: Data.NodeEntry[]
+        nodes: Data.NodeEntry[],
+        statuses: Data.StatusEntry[]
     };
 
     export namespace Data {
 
         export type NodeEntry = {
             id: NodeId
+            tag: "AndNode" | "OrNode"
             pp: string
-            goal: GoalEntry 
+            goal: GoalEntry
         };
 
         export type NodeId = number[];
@@ -105,10 +147,22 @@ namespace ProofTrace {
 
         export type Environment = Map<string, {type: string, of: string}>;
 
+        export type StatusEntry = {
+            at: NodeId
+            status: GoalStatusEntry
+        };
+
+        export type GoalStatusEntry = {tag: "Succeeded" | "Failed", from?: string};
+
         export function parse(traceText: string): Data {
             var entries = traceText.split('\n\n').filter(x => x).map(ln =>
                             JSON.parse(ln));
-            return {nodes: entries.filter(e => e.id)};
+            var nodes = [], statuses = [];
+            for (let e of entries) {
+                if (e.tag) nodes.push(e);
+                else if (e.status) statuses.push(e);
+            }
+            return {nodes, statuses};
         };
 
         export function envOfGoal(goal: GoalEntry) {
@@ -128,9 +182,10 @@ namespace ProofTrace {
     export namespace View {
 
         export type Node = {
-            value: Data.NodeEntry,
-            children: Node[],
-            expanded: boolean;
+            value: Data.NodeEntry
+            children: Node[]
+            status: Data.GoalStatusEntry
+            expanded: boolean
         };
 
         export type ActionEvent = {
@@ -189,7 +244,8 @@ Vue.component('proof-trace', {
     template: `
         <div class="proof-trace">
             <template v-if="root">
-                <proof-trace-node :value="root.value" @action="nodeAction"/>
+                <proof-trace-node :value="root.value" :status="root.status"
+                                  @action="nodeAction"/>
                 <div class="subtrees" ref="subtrees" v-if="root.expanded">
                     <template v-for="child in root.children">
                         <proof-trace :root="child" @action="action"/>
@@ -208,12 +264,14 @@ Vue.component('proof-trace', {
     methods: {
         action(ev) { this.$emit('action', ev); },
         nodeAction(ev) {
-            if (ev.type == 'expand' && ev.target == this.root.value)
+            if (ev.type == 'expand/collapse') {
                 this.root.expanded = !this.root.expanded;
+                ev.type = this.root.expanded ? 'expand' : 'collapse';
+            }
             this.action({...ev, target: this.root});
         },
         focusElement(el: HTMLElement) {
-            var box = el.getBoundingClientRect(), clrse = 10,
+            var box = el.getBoundingClientRect(), clrse = 50,
                 viewport = (<any>window).visualViewport,
                 v = (box.bottom + clrse) - viewport.height,
                 hl = box.left - clrse - viewport.width * 0.33,
@@ -225,16 +283,18 @@ Vue.component('proof-trace', {
 });
 
 Vue.component('proof-trace-node', {
-    props: ['value'],
+    props: ['value', 'status'],
     data: () => ({_anchor: false}),
     template: `
-        <div class="proof-trace-node" @click="expand" @mouseenter="showId"
-                @mousedown="clickStart" @click.capture="clickCapture"">
+        <div class="proof-trace-node" @click="toggle" @mouseenter="showId"
+                @mousedown="clickStart" @click.capture="clickCapture">
+            <div v-if="status">{{status.tag}}{{status.from}}</div>
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
                 <span class="tag">{{tag}}</span>
             </div>
-            <proof-trace-goal @click.native.stop="action" :value="value.goal"/>
+            <proof-trace-goal v-if="value.goal" :value="value.goal"
+                @click.native.stop="action"/>
         </div>`,
     computed: {
         tag() {
@@ -244,7 +304,7 @@ Vue.component('proof-trace-node', {
     },
     methods: {
         action(ev) { this.$emit('action', ev); },
-        expand() { this.action({type: 'expand', target: this.value}); },
+        toggle() { this.action({type: 'expand/collapse', target: this.value}); },
         showId() { $('#hint').text(JSON.stringify(this.value.id)); },
 
         varSpans() {

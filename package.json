@@ -1,14 +1,8 @@
 {
   "name": "suslik",
   "version": "1.0.0",
-  "description": "[![Build Status](https://travis-ci.org/TyGuS/suslik.svg?branch=master)](https://travis-ci.org/TyGuS/suslik) [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE) [![DOI](https://zenodo.org/badge/101061595.svg)](https://zenodo.org/badge/latestdoi/101061595)",
-  "main": "mode-suslik.js",
-  "directories": {
-    "example": "examples"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "description": "Synthestic Separation Logic -- low-level pointer program synthesis",
+  "main": "dist/index.html",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TyGuS/suslik.git"

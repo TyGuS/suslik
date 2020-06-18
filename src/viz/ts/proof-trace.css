@@ -8,6 +8,7 @@
 
 .proof-trace-node {
     width: fit-content;
+    max-width: 25em;
     border: 1px solid #666;
     padding: 2px;
 }
@@ -22,12 +23,12 @@
 
 .proof-trace-node > .title > span.tag {
     float: right;
+    margin-left: 1em;
     font-family: 'Times New Roman', Times, serif;
     font-size: 90%;
 }
 
 .proof-trace-goal {
-    max-width: 25em;
     white-space: normal;
     border: 1px solid #999;
     padding: 2px;
