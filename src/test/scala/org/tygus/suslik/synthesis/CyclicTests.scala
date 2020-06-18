@@ -16,7 +16,7 @@ class CyclicTests extends FunSpec with Matchers with SynthesisRunnerUtil {
   }
 
   describe("Cyclic paper benchmarks") {
-    runAllTestsFromDir("cyclic-benchmarks")
+    runAllTestsFromDir("cyclic-benchmarks/rose-tree")
   }
 
 }

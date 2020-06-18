@@ -170,8 +170,8 @@ trait SynthesisRunnerUtil {
         val result = if (params.printSpecs) {
           procs.map(p => {
             val (pre, post) = (p.f.pre.pp.trim, p.f.post.pp.trim)
-            List(pre, post, p.pp.trim).mkString("\n\n")
-          }).mkString("\n")
+            List(pre, post, p.pp.trim).mkString("\n")
+          }).mkString("\n\n")
         } else {
           procs.map(_.pp.trim).mkString("\n\n")
         }

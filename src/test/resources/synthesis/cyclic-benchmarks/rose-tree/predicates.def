@@ -1,11 +1,11 @@
 predicate rose_tree(loc x, set s) {
-|  x == 0        => { self_card == 0 /\ s =i {} ; emp }
-|  not (x == 0)  => { z < self_card; [x, 1] ** x :-> b ** buds(b, s)<z>}
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { [x, 1] ** x :-> b ** buds(b, s)<z>}
 }
 
 predicate buds(loc x, set s) {
-|  x == 0        => { self_card == 0 /\ s =i {}; emp }
-|  not (x == 0)  => { y < self_card /\ z < self_card /\ s =i {v} ++ s1 ++ s2 ;
+|  x == 0        => { s =i {}; emp }
+|  not (x == 0)  => { s =i {v} ++ s1 ++ s2 ;
                       [x, 3] ** x :-> v ** (x + 1) :-> r ** rose_tree(r, s1)<y> ** (x + 2) :-> nxt ** buds(nxt, s2)<z> }
 }
 
