@@ -55,11 +55,11 @@ class ProofTrace {
                                 .map(c => this.nodeIndex.statusById.get(c.id));
                 if (children.length) {
                     switch (node.tag) {
-                    case 'OrNode':
+                    case Data.NodeType.OrNode:
                         if (children.some(x => x && x.status.tag === 'Succeeded'))
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
-                    case 'AndNode':
+                    case Data.NodeType.AndNode:
                         if (children.every(x => x && x.status.tag === 'Succeeded'))
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
@@ -90,6 +90,7 @@ class ProofTrace {
         this.view.root = this.createNode(this.root);
         this.expandNode(this.view.root);
         this.expandNode(this.view.root.children[0]);
+        //this.expandAll(this.view.root);
         this.view.$mount();
 
         this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev))
@@ -109,6 +110,12 @@ class ProofTrace {
         nodeView.expanded = true;
         nodeView.children = this.children(nodeView.value)
             .map(node => this.createNode(node));
+    }
+
+    expandAll(nodeView: View.Node) {
+        this.expandNode(nodeView);
+        for (let c of nodeView.children)
+            this.expandAll(c);
     }
 
     viewAction(ev: View.ActionEvent) {
@@ -132,12 +139,14 @@ namespace ProofTrace {
 
         export type NodeEntry = {
             id: NodeId
-            tag: "AndNode" | "OrNode"
+            tag: NodeType
             pp: string
             goal: GoalEntry
         };
 
         export type NodeId = number[];
+
+        export enum NodeType { AndNode = 'AndNode', OrNode = 'OrNode' };
 
         export type GoalEntry = {
             pre: string, post: string, sketch: string,
@@ -194,20 +203,23 @@ namespace ProofTrace {
         };
 
         const OPERATORS = new Map([
-            [':->', {pp: "↦"}], ['==', {}], ['**', {pp: '∗'}], ['&&', {pp: "∧"}],
-            ['=i', {pp: "=ᵢ"}], ['++', {pp: '∪'}]]);
+            [':->', {pp: "↦"}], ['==', {pp: "="}], ['**', {pp: '∗'}], ['&&', {pp: "∧"}],
+            ['not', {pp: "¬"}], ['=i', {pp: "=ᵢ"}], ['++', {pp: '∪'}]]);
 
         export function tokenize(pp: string, env: Data.Environment) {
-            return pp.split(/(\s+|[(){},])/).map(s => {
-                var v = env.get(s), op = OPERATORS.get(s);
+            return pp.split(/(\s+|[(){}[\],])/).map(s => {
+                var v = env.get(s), op = OPERATORS.get(s), mo: RegExpMatchArray;
                 if (v)
                     return {kind: 'var', text: s, ...v};
                 else if (op)
                     return {kind: 'op', text: s, ...op};
                 else if (s.match(/^\s+$/))
                     return {kind: 'whitespace', text: s};
-                else if (s.match(/^[(){}]$/))
+                else if (s.match(/^[(){}[\]]$/))
                     return {kind: 'brace', text: s};
+                else if (mo = s.match(/^<(\w+)>$/)) {
+                    return {kind: 'cardinality', text: mo[1]};
+                }
                 else if (s != '')
                     return {kind: 'unknown', text: s};
             })
@@ -286,9 +298,9 @@ Vue.component('proof-trace-node', {
     props: ['value', 'status'],
     data: () => ({_anchor: false}),
     template: `
-        <div class="proof-trace-node" @click="toggle" @mouseenter="showId"
-                @mousedown="clickStart" @click.capture="clickCapture">
-            <div v-if="status">{{status.tag}}{{status.from}}</div>
+        <div class="proof-trace-node" :class="[value.tag, statusClass]"
+                @click="toggle" @click.capture="clickCapture"
+                @mouseenter="showId" @mousedown="clickStart">
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
                 <span class="tag">{{tag}}</span>
@@ -298,8 +310,12 @@ Vue.component('proof-trace-node', {
         </div>`,
     computed: {
         tag() {
-            return this.value.id.slice(0, 2).reverse()
-                .filter((n:number) => n >= 0).join('→');
+            return (this.value.tag == Data.NodeType.AndNode) ? this.value.id[0]
+                    : this.value.id.slice(0, 2)
+                        .reverse().filter((n:number) => n >= 0).join('→');
+        },
+        statusClass() {
+            return this.status && `${this.status.tag}${this.status.from || ''}`;
         }
     },
     methods: {
@@ -341,7 +357,7 @@ Vue.component('proof-trace-goal', {
 Vue.component('proof-trace-vars', {
     props: ['value'],
     template: `
-        <div class="proof-trace-vars">
+        <div class="proof-trace-vars" v-show="value.length > 0">
             <template v-for="v in value">
                 <span>
                     <span class="type">{{v[0]}}</span>

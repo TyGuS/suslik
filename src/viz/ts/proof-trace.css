@@ -84,6 +84,59 @@
     cursor: default;
 }
 
+.proof-trace-formula span.cardinality {
+    font-size: 60%;
+    position: relative;
+    top: -.5em;
+    color: #b00;
+}
+.proof-trace-formula span.cardinality::before {
+    content: "⟨";
+}
+.proof-trace-formula span.cardinality::after {
+    content: "⟩";
+}
+
+.proof-trace:not(:last-child) {
+    border-top: 1px solid #aaa;
+    margin-right: 0;
+    padding-right: 0.25em;
+    margin-top: calc(0.5em - 1px);
+}
+.proof-trace:not(:last-child) > .proof-trace-node {
+    margin-top: -1px;
+}
+.proof-trace:not(:first-child):last-child {
+    margin-top: calc(0.5em - 1px);
+}
+.proof-trace:not(:first-child):last-child > .proof-trace-node {
+    margin-top: 0;
+}
+
+.proof-trace-node.AndNode {
+    background: #999;
+    color: #ddd;
+}
+
+.proof-trace-node.AndNode:hover {
+    background: #88d;
+}
+
+.proof-trace-node.OrNode.Succeeded,
+.proof-trace-node.OrNode.Succeeded > .proof-trace-goal {
+    background: #dfd;
+}
+
+.proof-trace-node.OrNode.Succeeded\*,
+.proof-trace-node.OrNode.Succeeded\* > .proof-trace-goal {
+    background: #fafff8;
+}
+
+.proof-trace-node.OrNode.Succeeded:hover,
+.proof-trace-node.OrNode.Succeeded\*:hover {
+    background: #eef;
+}
+
 #hint {
     position: fixed;
     bottom: 0;
