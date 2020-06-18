@@ -45,7 +45,7 @@ trait SynthesisRunnerUtil {
 
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
-    val format = testFilePath match{
+    val format = testFilePath match {
       case s if s.endsWith(testExtension) => dotSyn
       case s if s.endsWith(sketchExtension) => dotSus
     }
@@ -131,7 +131,7 @@ trait SynthesisRunnerUtil {
     }
 
     val prog = res.get
-    val (specs, predEnv, funcEnv, body) = preprocessProgram(prog)
+    val (specs, predEnv, funcEnv, body) = preprocessProgram(prog, params)
 
     if (specs.lengthCompare(1) != 0) {
       throw SynthesisException("Expected a single synthesis goal")
@@ -170,10 +170,10 @@ trait SynthesisRunnerUtil {
         val result = if (params.printSpecs) {
           procs.map(p => {
             val (pre, post) = (p.f.pre.pp.trim, p.f.post.pp.trim)
-            List(pre, post, p.pp.trim).mkString("\n")
-          }).mkString("\n\n")
+            List(pre, post, p.pp.trim).mkString("\n\n")
+          }).mkString("\n")
         } else {
-          procs.map(_.pp).mkString("\n\n")
+          procs.map(_.pp.trim).mkString("\n\n")
         }
           
         if (params.printStats) {

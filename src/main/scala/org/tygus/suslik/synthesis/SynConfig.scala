@@ -10,10 +10,12 @@ import org.tygus.suslik.language.PrettyPrinting
   */
 
 sealed trait InputFormat
-
 case object dotSyn extends InputFormat
-
 case object dotSus extends InputFormat
+
+sealed trait TerminationMetric
+case object totalSize extends TerminationMetric
+case object lexicographic extends TerminationMetric
 
 case class SynConfig(
                       // Synthesis params
@@ -24,6 +26,7 @@ case class SynConfig(
                       phased: Boolean = true,
                       depthFirst: Boolean = false,
                       memoization: Boolean = true,
+                      termination: TerminationMetric = totalSize,
                       // Timeout and logging
                       interactive: Boolean = false,
                       printStats: Boolean = true,

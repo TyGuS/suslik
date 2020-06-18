@@ -1,7 +1,7 @@
 package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
-import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, IntConst, OpLt, OpPlus, Var}
+import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.smt.SMTSolving
 
@@ -108,9 +108,27 @@ trait SepLogicUtils extends PureLogicUtils {
   }
 
   /**
-    * Compare symbolic heap cardinalities for strict inequality (<)
+    * Compare two heaps according to some lexicographic order on instances of the same predicates
     */
-  def cardLT(sigma1: SFormula, sigma2: SFormula, cond: PFormula): Boolean = {
+  def lexiLT(sigma1: SFormula, sigma2: SFormula, cond: PFormula): Boolean = {
+    def lexiOrd(cardPairs: List[(Expr, Expr)]): Expr =
+      cardPairs.foldRight(eFalse)((e, res) =>
+        BinaryExpr(OpOr, BinaryExpr(OpLt, e._1, e._2), BinaryExpr(OpAnd, BinaryExpr(OpEq, e._1, e._2), res)))
+
+    val cardSeqs = for {
+      preds1 <- sigma1.apps.permutations
+      preds2 <- sigma2.apps.permutations
+      pairs = preds1.zip(preds2)
+      if pairs.forall {case (p1, p2) => p1.pred == p2.pred}
+    } yield pairs.map {case (p1, p2) => (p1.card, p2.card)}
+
+    cardSeqs.toList.distinct.exists(ps => SMTSolving.valid(cond ==> lexiOrd(ps)))
+  }
+
+  /**
+    * Compare two heaps according to their total size
+    */
+  def totalLT(sigma1: SFormula, sigma2: SFormula, cond: PFormula): Boolean = {
     val (_, card1) = heapCardinality(sigma1)
     val (_, card2) = heapCardinality(sigma2)
     val goal = BinaryExpr(OpLt, card1, card2)

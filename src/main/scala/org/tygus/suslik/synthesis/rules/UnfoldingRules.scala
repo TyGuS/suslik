@@ -131,14 +131,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     // [Cardinality] Checking size constraints before emitting the call
     def canEmitCall(budHeap: SFormula, companionHeap: SFormula, goal: Goal, f: FunSpec): Boolean = {
+      // If the call is not recursive, nothing to check
       // Non top-level goals have a different name from the main function;
       // this is a somewhat hacky way to check this (what if a component name start with goal.fname?)
-      val isRecusive = f.name.startsWith(goal.fname)
+      if (!f.name.startsWith(goal.fname)) return true
 
-      // TODO: the tag check prevents an infinite chain of recursive calls
-      // by requiring that at least one predicate hasn't yet participated in a call.
-      // This is a hack and should be replaced by goal prioritization
-      !isRecusive || cardLT(budHeap, companionHeap, goal.pre.phi)
+      goal.env.config.termination match {
+        case `totalSize` => totalLT(budHeap, companionHeap, goal.pre.phi)
+        case `lexicographic` => lexiLT(budHeap, companionHeap, goal.pre.phi)
+      }
     }
 
 

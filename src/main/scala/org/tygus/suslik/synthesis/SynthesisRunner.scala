@@ -169,6 +169,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))
     }.text("enable memoization; default: true")
 
+    opt[Boolean](name = "lexi").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(termination = if (b) lexicographic else totalSize))
+    }.text("use lexicographic termination metric (as opposed to total size); default: false")
+
     opt[CertificationTarget](name="certTarget").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
     }.text("set certification target; default: none")
