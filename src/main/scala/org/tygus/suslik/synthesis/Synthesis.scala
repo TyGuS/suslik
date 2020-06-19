@@ -151,8 +151,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule); () = trace.add(andNode)
-          nSubs = e.subgoals.size
+          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule)
+          nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
           ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
           else e.subgoals.zip(e.produces(goal)).zipWithIndex
         } yield OrNode(j +: andNode.id, g, Some(andNode), p)
@@ -200,8 +200,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
           // Rule applicable: try all possible sub-derivations
           val childFootprints = children.map(log.showChild(goal))
           log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
-          //for {c <- childFootprints.tail}
-          //  log.print(List((c, RESET)))(config = config, ind = goal.depth + 1)
+          for {c <- childFootprints.tail}
+            log.print(List((s" <|>  $c", CYAN)))
 
           if (r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal

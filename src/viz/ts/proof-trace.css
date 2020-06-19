@@ -50,13 +50,11 @@
     content: ", ";
 }
 
-.proof-trace-vars span.name:hover {
-    background: #eee;
-    cursor: default;
-}
-
 .proof-trace-program-vars {
     color: #888;
+}
+.proof-trace-program-vars span.name {
+    color: #7a8;
 }
 
 .proof-trace-existentials {
@@ -71,17 +69,21 @@
 .proof-trace-formula span.op {
     font-size: 100%;
 }
-.proof-trace-formula span.var[data-of=programVars] {
-    color: #888;
-}
 
-.proof-trace-formula span.var[data-of=existentials] {
-    color: #464;
-}
+.proof-trace-formula span.var[data-of=programVars]  { color: #373; }
+.proof-trace-formula span.var[data-of=existentials] { color: #844; }
+.proof-trace-formula span.var[data-of=ghosts]       { color: #888; }
 
+.proof-trace-vars span.name:hover,
 .proof-trace-formula span.var:hover {
     background: #eee;
+    outline: 1px solid #eee;
     cursor: default;
+}
+
+.proof-trace-vars span.highlight:not(:hover),
+.proof-trace-formula span.highlight:not(:hover) {
+    outline: 1px solid #ccc;
 }
 
 .proof-trace-formula span.cardinality {

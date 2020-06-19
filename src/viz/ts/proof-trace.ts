@@ -102,17 +102,27 @@ class ProofTrace {
     }
 
     createNode(node: Data.NodeEntry): View.Node {
-        return {value: node, children: undefined, expanded: false,
+        return {value: node, children: undefined, focus: false, expanded: false,
                 status: this.getStatus(node)};
     }
 
-    expandNode(nodeView: View.Node) {
+    expandNode(nodeView: View.Node, focus: boolean = false) {
+        nodeView.focus = focus;
         nodeView.expanded = true;
         nodeView.children = this.children(nodeView.value)
             .map(node => this.createNode(node));
     }
 
-    expandAll(nodeView: View.Node) {
+    expandOrNode(nodeView: View.Node, focus: boolean = false) {
+        this.expandNode(nodeView, focus);
+        for (let c of nodeView.children) {
+            if (c.value.tag == Data.NodeType.AndNode) {
+                this.expandOrNode(c, focus);
+            }
+        }
+    }
+
+    expandAll(nodeView: View.Node = this.view.root) {
         this.expandNode(nodeView);
         for (let c of nodeView.children)
             this.expandAll(c);
@@ -121,7 +131,7 @@ class ProofTrace {
     viewAction(ev: View.ActionEvent) {
         switch (ev.type) {
         case 'expand':
-            this.expandNode(ev.target); break;
+            this.expandOrNode(ev.target, true); break;
         }
     }
 
@@ -152,6 +162,7 @@ namespace ProofTrace {
             pre: string, post: string, sketch: string,
             programVars:  [string, string][]
             existentials: [string, string][]
+            ghosts:       [string, string][]
         };
 
         export type Environment = Map<string, {type: string, of: string}>;
@@ -176,10 +187,12 @@ namespace ProofTrace {
 
         export function envOfGoal(goal: GoalEntry) {
             var d: Environment = new Map;
-            for (let [type, name] of goal.programVars)
-                d.set(name, {type, of: 'programVars'});
-            for (let [type, name] of goal.existentials)
-                d.set(name, {type, of: 'existentials'});
+            function intro(vs: [string, string][], of: string) {
+                for (let [type, name] of vs) d.set(name, {type, of});
+            }
+            intro(goal.programVars, 'programVars');
+            intro(goal.existentials, 'existentials');
+            intro(goal.ghosts, 'ghosts');
             return d;
         }
 
@@ -194,6 +207,7 @@ namespace ProofTrace {
             value: Data.NodeEntry
             children: Node[]
             status: Data.GoalStatusEntry
+            focus: boolean
             expanded: boolean
         };
 
@@ -268,7 +282,7 @@ Vue.component('proof-trace', {
     mounted() {
         this.$watch('root.expanded', () => {
             requestAnimationFrame(() => {
-                if (this.$refs.subtrees)
+                if (this.root.focus && this.$refs.subtrees)
                     this.focusElement(this.$refs.subtrees);
             });
         });
@@ -300,7 +314,8 @@ Vue.component('proof-trace-node', {
     template: `
         <div class="proof-trace-node" :class="[value.tag, statusClass]"
                 @click="toggle" @click.capture="clickCapture"
-                @mouseenter="showId" @mousedown="clickStart">
+                @mouseenter="showId" @mousedown="clickStart"
+                @mouseover="showRefs" @mouseout="hideRefs">
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
                 <span class="tag">{{tag}}</span>
@@ -323,9 +338,21 @@ Vue.component('proof-trace-node', {
         toggle() { this.action({type: 'expand/collapse', target: this.value}); },
         showId() { $('#hint').text(JSON.stringify(this.value.id)); },
 
-        varSpans() {
-            var el = $(this.$el);
-            return el.find('span.var').add(el.find('.proof-trace-vars span.name'));
+        showRefs(ev) {
+            var el = ev.target;
+            if (['var', 'name'].some(c => el.classList.contains(c))) {
+                this.varSpans(el.textContent).addClass('highlight');
+            }
+        },
+        hideRefs() {
+            this.varSpans().removeClass('highlight');
+        },
+        varSpans(nm?: string) {
+            if (nm) return this.varSpans().filter((_,x: Node) => x.textContent == nm);
+            else {
+                var el = $(this.$el);
+                return el.find('span.var').add(el.find('.proof-trace-vars span.name'));
+            }
         },
 
         stopDbl(ev) { if (ev.detail > 1) ev.preventDefault(); },
