@@ -200,8 +200,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
           // Rule applicable: try all possible sub-derivations
           val childFootprints = children.map(log.showChild(goal))
           log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
-          //for {c <- childFootprints.tail}
-          //  log.print(List((c, RESET)))(config = config, ind = goal.depth + 1)
+          for {c <- childFootprints.tail}
+            log.print(List((s" <|>  $c", CYAN)))
 
           if (r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal
