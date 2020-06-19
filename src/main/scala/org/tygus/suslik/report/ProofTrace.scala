@@ -2,6 +2,7 @@ package org.tygus.suslik.report
 
 import java.io.{BufferedWriter, File, FileWriter}
 
+import org.tygus.suslik.language.Expressions
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.Memoization
 import org.tygus.suslik.synthesis.Memoization.GoalStatus
@@ -23,10 +24,10 @@ class ProofTrace(val outputFile: File) {
   }
 
   def add(node: OrNode) =
-    writeObject(NodeEntry(node.id, "OrNode", node.pp(), GoalEntry(node.goal)))
+    writeObject(NodeEntry(node.id, "OrNode", node.pp(), GoalEntry(node.goal), -1))
 
-  def add(node: AndNode) =
-    writeObject(NodeEntry(node.id, "AndNode", node.pp(), null))
+  def add(node: AndNode, nChildren: Int) =
+    writeObject(NodeEntry(node.id, "AndNode", node.pp(), null, nChildren))
 
   def add(at: NodeId, status: GoalStatus) = {
     val st = status match {
@@ -42,7 +43,7 @@ class ProofTrace(val outputFile: File) {
 
 object ProofTrace {
 
-  case class NodeEntry(id: Vector[Int], tag: String, pp: String, goal: GoalEntry)
+  case class NodeEntry(id: Vector[Int], tag: String, pp: String, goal: GoalEntry, nChildren: Int)
   object NodeEntry {
     implicit val rw: RW[NodeEntry] = macroRW
   }
@@ -51,13 +52,18 @@ object ProofTrace {
                        post: String,
                        sketch: String,
                        programVars: Seq[(String, String)],
-                       existentials: Seq[(String, String)])
+                       existentials: Seq[(String, String)],
+                       ghosts: Seq[(String, String)])
   object GoalEntry {
     implicit val rw: RW[GoalEntry] = macroRW
 
-    def apply(goal: Goal): GoalEntry = GoalEntry(goal.pre.pp, goal.post.pp, goal.sketch.pp,
-      goal.programVars.map(v => (goal.getType(v).pp, v.pp)),
-      goal.existentials.map(v => (goal.getType(v).pp, v.pp)).toSeq)
+    def apply(goal: Goal): GoalEntry = GoalEntry(
+      goal.pre.pp, goal.post.pp, goal.sketch.pp,
+      vars(goal, goal.programVars), vars(goal, goal.existentials),
+      vars(goal, goal.universalGhosts))
+
+    def vars(goal: Goal, vs: Iterable[Expressions.Var]) =
+      vs.map(v => (goal.getType(v).pp, v.pp)).toSeq
   }
 
   case class GoalStatusEntry(tag: String)

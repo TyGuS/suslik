@@ -151,8 +151,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule); () = trace.add(andNode)
-          nSubs = e.subgoals.size
+          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule)
+          nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
           ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
           else e.subgoals.zip(e.produces(goal)).zipWithIndex
         } yield OrNode(j +: andNode.id, g, Some(andNode), p)
