@@ -1,7 +1,6 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
-import java.io.{BufferedWriter, File, FileWriter}
 
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
@@ -12,19 +11,16 @@ import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
-import org.tygus.suslik.util.{SynLogging, SynStats}
+import org.tygus.suslik.util.SynStats
 
 import scala.Console._
 import scala.annotation.tailrec
-import scala.io.StdIn
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
-
-  val trace = new ProofTrace("trace.out")
+class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace) extends SepLogicUtils {
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config

@@ -8,7 +8,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.Log
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -26,8 +26,7 @@ trait SynthesisRunnerUtil {
     SMTSolving
   }
 
-  implicit val log : Log = new Log(SynLogLevels.Test)
-  //import log._
+  val log : Log = new Log(SynLogLevels.Test)
 
   val testSeparator = "###"
   val testExtension = "syn"
@@ -110,7 +109,11 @@ trait SynthesisRunnerUtil {
         new ReplaySynthesis(env.config)
       else
         new PhasedSynthesis(env.config)
-    new Synthesis(tactic, log)
+    val trace : ProofTrace = env.config.traceToJsonFile match {
+      case None => ProofTraceNone
+      case Some(file) => new ProofTraceJson(file)
+    }
+    new Synthesis(tactic, log, trace)
   }
 
   def synthesizeFromFile(dir: String, testName: String): Unit = {
