@@ -60,7 +60,8 @@ class ProofTrace {
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
                     case Data.NodeType.AndNode:
-                        if (children.every(x => x && x.status.tag === 'Succeeded'))
+                        if (children.length == node.nChildren &&
+                            children.every(x => x && x.status.tag === 'Succeeded'))
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
                     }
@@ -132,6 +133,8 @@ class ProofTrace {
         switch (ev.type) {
         case 'expand':
             this.expandOrNode(ev.target, true); break;
+        case 'expandAll':
+            this.expandAll(ev.target); break;
         }
     }
 
@@ -152,6 +155,7 @@ namespace ProofTrace {
             tag: NodeType
             pp: string
             goal: GoalEntry
+            nChildren: number
         };
 
         export type NodeId = number[];
@@ -183,7 +187,7 @@ namespace ProofTrace {
                 else if (e.status) statuses.push(e);
             }
             return {nodes, statuses};
-        };
+        }
 
         export function envOfGoal(goal: GoalEntry) {
             var d: Environment = new Map;
@@ -212,7 +216,7 @@ namespace ProofTrace {
         };
 
         export type ActionEvent = {
-            type: "expand",
+            type: "expand" | "collapse" | "expandAll",
             target: Node
         };
 
@@ -272,6 +276,9 @@ Vue.component('proof-trace', {
             <template v-if="root">
                 <proof-trace-node :value="root.value" :status="root.status"
                                   @action="nodeAction"/>
+                <div class="proof-trace-expand-all" :class="{root: root.value.id.length == 0}">
+                    <span @click="expandAll">++</span>
+                </div>
                 <div class="subtrees" ref="subtrees" v-if="root.expanded">
                     <template v-for="child in root.children">
                         <proof-trace :root="child" @action="action"/>
@@ -296,6 +303,7 @@ Vue.component('proof-trace', {
             }
             this.action({...ev, target: this.root});
         },
+        expandAll() { this.action({type: 'expandAll', target: this.root})},
         focusElement(el: HTMLElement) {
             var box = el.getBoundingClientRect(), clrse = 50,
                 viewport = (<any>window).visualViewport,
@@ -314,7 +322,7 @@ Vue.component('proof-trace-node', {
     template: `
         <div class="proof-trace-node" :class="[value.tag, statusClass]"
                 @click="toggle" @click.capture="clickCapture"
-                @mouseenter="showId" @mousedown="clickStart"
+                @mouseenter="showId" @mouseleave="hideId" @mousedown="clickStart"
                 @mouseover="showRefs" @mouseout="hideRefs">
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
@@ -337,6 +345,7 @@ Vue.component('proof-trace-node', {
         action(ev) { this.$emit('action', ev); },
         toggle() { this.action({type: 'expand/collapse', target: this.value}); },
         showId() { $('#hint').text(JSON.stringify(this.value.id)); },
+        hideId() { $('#hint').empty(); },
 
         showRefs(ev) {
             var el = ev.target;

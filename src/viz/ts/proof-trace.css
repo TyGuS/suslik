@@ -41,8 +41,8 @@
 .proof-trace,
 .proof-trace-node {
     display: inline-block;
-    margin-top: 0.25em;
-    margin-right: 0.2em;
+    margin-right: 0.2em;   
+    margin-bottom: 0.5em;
     vertical-align: top;
 }
 
@@ -103,16 +103,9 @@
     border-top: 1px solid #aaa;
     margin-right: 0;
     padding-right: 0.25em;
-    margin-top: calc(0.5em - 1px);
 }
 .proof-trace:not(:last-child) > .proof-trace-node {
     margin-top: -1px;
-}
-.proof-trace:not(:first-child):last-child {
-    margin-top: calc(0.5em - 1px);
-}
-.proof-trace:not(:first-child):last-child > .proof-trace-node {
-    margin-top: 0;
 }
 
 .proof-trace-node.AndNode {
@@ -124,12 +117,16 @@
     background: #88d;
 }
 
-.proof-trace-node.OrNode.Succeeded,
+.proof-trace-node.OrNode.Succeeded {
+    background: #afa;
+}
 .proof-trace-node.OrNode.Succeeded > .proof-trace-goal {
-    background: #dfd;
+    background: #efe;
 }
 
-.proof-trace-node.OrNode.Succeeded\*,
+.proof-trace-node.OrNode.Succeeded\* {
+    background: #dfd;
+}
 .proof-trace-node.OrNode.Succeeded\* > .proof-trace-goal {
     background: #fafff8;
 }
@@ -137,6 +134,47 @@
 .proof-trace-node.OrNode.Succeeded:hover,
 .proof-trace-node.OrNode.Succeeded\*:hover {
     background: #eef;
+}
+
+.proof-trace-node.AndNode.Succeeded\* {
+    background: #486;
+}
+.proof-trace-node.AndNode.Succeeded\*:hover {
+    background: #499;
+    color: #eee;
+}
+
+.proof-trace div.proof-trace-expand-all {
+    position: absolute;
+    display: none;
+    padding: 0 .3em;
+}
+.proof-trace div.proof-trace-expand-all span {
+    padding: .2em;
+    position: absolute;
+    color: #888;
+    background: #ffffffd0;
+    cursor: pointer;
+}
+.proof-trace div.proof-trace-expand-all span:hover {
+    color: #448;
+}
+.proof-trace-node.OrNode ~ div.proof-trace-expand-all:not(.root) span {
+    right: 1em;
+    bottom: 0;
+}
+.proof-trace-node ~ div.proof-trace-expand-all.root span {
+    left: -.15em;
+    padding-bottom: 1em;
+}
+.proof-trace-node.AndNode ~ div.proof-trace-expand-all span {
+    left: -.15em;
+    padding-bottom: .5em;
+}
+.proof-trace-node ~ div.proof-trace-expand-all:hover,
+.proof-trace-node:hover ~ div.proof-trace-expand-all {
+    opacity: 1;
+    display: inline;
 }
 
 #hint {
