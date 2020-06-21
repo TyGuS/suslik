@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Expressions.Var
-import org.tygus.suslik.language.Statements.{Hole, Solution, Statement}
+import org.tygus.suslik.language.Statements.{Solution, Statement}
 import org.tygus.suslik.logic.Gamma
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, SuspendedCallGoal, mkSFormula}
 import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
@@ -18,7 +18,7 @@ object Memoization {
                       programVars: Set[Var],
                       universalGhosts: Set[Var],
                       sketch: Statement,
-                      hasCallGoal: Boolean)
+                      callGoal: Option[SuspendedCallGoal])
 
   /**
     * What has the search discovered about a goal so far?
@@ -110,7 +110,7 @@ object Memoization {
         g.programVars.toSet.intersect(usedVars),
         g.universalGhosts.intersect(usedVars),
         g.sketch,
-        g.callGoal.isDefined // TODO: this is probably incomplete
+        g.callGoal
       )
     }
 

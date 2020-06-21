@@ -98,10 +98,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.isExistential(e.asInstanceOf[Var])
 
       findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => isExsistVar(l) || isExsistVar(r)
-          // TODO: discuss and enable
-//        case BinaryExpr(OpBoolEq, l, r) => isExsistVar(l) || isExsistVar(r)
-        case BinaryExpr(OpSetEq, l, r) => isExsistVar(l) || isExsistVar(r)
+        case BinaryExpr(OpEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
+        case BinaryExpr(OpBoolEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
+        case BinaryExpr(OpSetEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
         case _ => false
       }, p2) match {
         case Some((BinaryExpr(_, l, r), rest2)) =>
@@ -210,5 +209,37 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }
+
+  /*
+   If there's an argument in the call of the suspended recursive call goal that hasn't been substituted yet,
+   try substituting it with the companion's goal argument at the same position.
+   This rule is useful when there's an argument that does not appear in the precondition (see e.g. sll/sll-init).
+   This strategy is incomplete, but it mimics our previous approach of not treating companion vars as existentials at all.
+  */
+  object PickArg extends SynthesisRule {
+    override def toString: String = "PickArg"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      def isUnsubstituted(e: Expr) = e.isInstanceOf[Var] && !goal.allUniversals.contains(e.asInstanceOf[Var])
+
+      if (goal.callGoal.isEmpty) return Nil // no suspended call
+      val callGoal = goal.callGoal.get
+
+      if (callGoal.call.companion.isEmpty) return Nil // suspended call is not recursive
+      val companion = goal.ancestorWithLabel(callGoal.call.companion.get).get.toFunSpec
+
+      val i = callGoal.call.args.indexWhere(isUnsubstituted)
+      if (i < 0) return Nil // no unsubstituted arguments remain
+
+      val arg = companion.params(i)._1
+      val sigma = Map(callGoal.call.args(i).asInstanceOf[Var] -> arg)
+      val newPost = goal.post.subst(sigma)
+      val newCallGoal = goal.callGoal.map(_.subst(sigma))
+      val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
+      val kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
+    }
+  }
+
 
 }

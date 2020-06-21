@@ -20,7 +20,7 @@ class Log(val out: SynLogging) {
   private def showSubgoal(consume: Footprint, goal: Goal, subgoal: Goal): String = {
     val prod = subgoal.allHeaplets - (goal.allHeaplets - consume)
     val purePostDiff = subgoal.post.phi.conjuncts.diff(goal.post.phi.conjuncts)
-    s"${showFootprint(prod)}[${purePostDiff.map(_.pp).mkString(" /\\ ")}]"
+    s"${showFootprint(prod)}$MAGENTA[${purePostDiff.map(_.pp).mkString(" && ")}]$RESET"
   }
 
   def showChild(goal: Goal)(c: RuleResult): String =

@@ -254,7 +254,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Optimization: do not consider f if its pre has predicates that cannot possibly match ours
         if multiSubset(f.pre.sigma.profile.apps, goal.pre.sigma.profile.apps)
 
-        newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap
+        newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap // Add f's (fresh) variables to gamma
         call = Call(Var(f.name), f.params.map(_._1), l)
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, f.post, call))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)

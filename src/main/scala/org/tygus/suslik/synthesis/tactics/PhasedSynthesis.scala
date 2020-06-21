@@ -59,6 +59,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,
+    LogicalRules.WeakenPre,
     OperationalRules.ReadRule,
     //    LogicalRules.SubstLeft,
   )
@@ -107,6 +108,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           OperationalRules.WriteRule,
           UnificationRules.HeapUnifyPure,
           UnificationRules.PickCard,
+          UnificationRules.PickArg,
           UnificationRules.Pick))
   }
 

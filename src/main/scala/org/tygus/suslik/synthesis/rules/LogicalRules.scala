@@ -62,6 +62,32 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
+  /*
+   Remove conjuncts from the pure pre if their variables do not occur anywhere else
+  */
+  object WeakenPre extends SynthesisRule with InvertibleRule {
+    override def toString: String = "WeakenPre"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val weakenedPres = for {
+        subPre <- goal.pre.phi.conjuncts.subsets
+        subPreVars = subPre.toList.map(_.vars).fold(Set.empty)(_ ++ _)
+        if subPreVars.nonEmpty
+        restPre = goal.pre.phi.conjuncts -- subPre
+        restVars = restPre.toList.map(_.vars).fold(Set.empty)(_ ++ _) ++ goal.pre.sigma.vars ++ goal.post.vars
+        if subPreVars.intersect(restVars).isEmpty
+      } yield restPre
+      if (weakenedPres.isEmpty) Nil
+      else {
+        val smallest = weakenedPres.minBy(_.size)
+        val newPre = Assertion(PFormula(smallest), goal.pre.sigma)
+        val newGoal = goal.spawnChild(pre = newPre)
+        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        List(RuleResult(List(newGoal), kont, Footprint(emp, emp), this))
+      }
+    }
+  }
+
 
   /*
    Remove an equivalent heaplet from pre and post
@@ -216,10 +242,11 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
       findConjunctAndRest({
-        case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
-        // TODO: this messes up with pure unification
-        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
-          //TODO: discuss and enable
+        case BinaryExpr(OpEq, v1@Var(_), e2) => !e2.vars.contains(v1)
+        case BinaryExpr(OpSetEq, v1@Var(_), e2) => !e2.vars.contains(v1)
+        case BinaryExpr(OpBoolEq, v1@Var(_), e2) => !e2.vars.contains(v1)
+//        case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
+//        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
 //        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, p1) match {
