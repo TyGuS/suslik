@@ -16,13 +16,21 @@ class Log(val out: SynLogging) {
   }
 
   private def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$RESET"
+
+  private def showSubgoal(consume: Footprint, goal: Goal, subgoal: Goal): String = {
+    val prod = subgoal.allHeaplets - (goal.allHeaplets - consume)
+    val purePostDiff = subgoal.post.phi.conjuncts.diff(goal.post.phi.conjuncts)
+    s"${showFootprint(prod)}[${purePostDiff.map(_.pp).mkString(" /\\ ")}]"
+  }
+
   def showChild(goal: Goal)(c: RuleResult): String =
     c.subgoals.length match {
       case 0 => showFootprint(c.consume)
-      case 1 =>
-        s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}"
-      case _ =>
-        s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}, ..."
+      case _ => s"${showFootprint(c.consume)} --> ${c.subgoals.map(sub => showSubgoal(c.consume, goal, sub)).mkString(", ")}"
+//      case 1 =>
+//        s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}"
+//      case _ =>
+//        s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}, ..."
     }
 
   private def getIndent(ind: Int): String = if (ind <= 0) "" else "|  " * ind

@@ -18,7 +18,7 @@ object Memoization {
                       programVars: Set[Var],
                       universalGhosts: Set[Var],
                       sketch: Statement,
-                      callGoal: Option[SuspendedCallGoal])
+                      hasCallGoal: Boolean)
 
   /**
     * What has the search discovered about a goal so far?
@@ -110,7 +110,7 @@ object Memoization {
         g.programVars.toSet.intersect(usedVars),
         g.universalGhosts.intersect(usedVars),
         g.sketch,
-        g.callGoal
+        g.callGoal.isDefined // TODO: this is probably incomplete
       )
     }
 
