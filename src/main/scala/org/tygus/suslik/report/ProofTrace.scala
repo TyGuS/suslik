@@ -14,7 +14,7 @@ import upickle.default.{macroRW, ReadWriter => RW}
 sealed abstract class ProofTrace {
   def add(node: OrNode) { }
   def add(node: AndNode, nChildren: Int) { }
-  def add(at: NodeId, status: GoalStatus) { }
+  def add(at: NodeId, status: GoalStatus, from: Option[String] = None) { }
   def add(result: Rules.RuleResult, parent: OrNode) { }
 }
 
@@ -39,13 +39,13 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
   override def add(node: AndNode, nChildren: Int): Unit =
     writeObject(NodeEntry(node.id, "AndNode", node.pp(), null, nChildren))
 
-  override def add(at: NodeId, status: GoalStatus): Unit = {
+  override def add(at: NodeId, status: GoalStatus, from: Option[String] = None): Unit = {
     val st = status match {
       case Memoization.Succeeded(_) => Succeeded
       case Memoization.Failed => Failed
       case _ => throw new RuntimeException(s"cannot serialize ${status}")
     }
-    writeObject(StatusEntry(at, st))
+    writeObject(StatusEntry(at, st.copy(from = from)))
   }
 
   override def add(result: Rules.RuleResult, parent: OrNode) {
@@ -68,7 +68,8 @@ object ProofTraceJson {
     implicit val rw: RW[NodeEntry] = macroRW
   }
 
-  case class GoalEntry(pre: String,
+  case class GoalEntry(id: String,
+                       pre: String,
                        post: String,
                        sketch: String,
                        programVars: Seq[(String, String)],
@@ -77,7 +78,7 @@ object ProofTraceJson {
   object GoalEntry {
     implicit val rw: RW[GoalEntry] = macroRW
 
-    def apply(goal: Goal): GoalEntry = GoalEntry(
+    def apply(goal: Goal): GoalEntry = GoalEntry(goal.label.pp,
       goal.pre.pp, goal.post.pp, goal.sketch.pp,
       vars(goal, goal.programVars), vars(goal, goal.existentials),
       vars(goal, goal.universalGhosts))
@@ -86,7 +87,7 @@ object ProofTraceJson {
       vs.map(v => (goal.getType(v).pp, v.pp)).toSeq
   }
 
-  case class GoalStatusEntry(tag: String)
+  case class GoalStatusEntry(tag: String, from: Option[String] = None)
   val Succeeded = GoalStatusEntry("Succeeded")
   val Failed = GoalStatusEntry("Failed")
 

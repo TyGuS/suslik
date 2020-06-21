@@ -127,6 +127,18 @@ class ProofTrace {
         }
     }
 
+    expandById(node: Data.NodeId, focus: boolean = false) {
+        var view = this.nodeIndex.viewById.get(node);
+        if (view) this.expandNode(view, focus);
+    }
+
+    expandBranch(tip: Data.NodeId, focus: boolean = false) {
+        var prefixes = tip.slice(1).map((_,i,u) => u.slice(-(i + 1)));
+        for (let pfx of prefixes)
+            this.expandById(pfx);
+        // @todo focus tip
+    }
+
     expandAll(nodeView: View.Node = this.view.root) {
         this.expandNode(nodeView);
         for (let c of nodeView.children)
@@ -180,7 +192,7 @@ namespace ProofTrace {
             status: GoalStatusEntry
         };
 
-        export type GoalStatusEntry = {tag: "Succeeded" | "Failed", from?: string};
+        export type GoalStatusEntry = {tag: "Succeeded" | "Failed", from?: string | string[]};
 
         export function parse(traceText: string): Data {
             var entries = traceText.split('\n\n').filter(x => x).map(ln =>
@@ -232,7 +244,7 @@ namespace ProofTrace {
             return pp.split(/(\s+|[(){}[\],])/).map(s => {
                 var v = env.get(s), op = OPERATORS.get(s), mo: RegExpMatchArray;
                 if (v)
-                    return {kind: 'var', text: s, ...v};
+                    return {kind: 'var', text: s, pp: pprintIdentifier(s), ...v};
                 else if (op)
                     return {kind: 'op', text: s, ...op};
                 else if (s.match(/^\s+$/))
@@ -240,12 +252,16 @@ namespace ProofTrace {
                 else if (s.match(/^[(){}[\]]$/))
                     return {kind: 'brace', text: s};
                 else if (mo = s.match(/^<(\w+)>$/)) {
-                    return {kind: 'cardinality', text: mo[1]};
+                    return {kind: 'cardinality', text:s, pp: pprintIdentifier(mo[1])};
                 }
                 else if (s != '')
                     return {kind: 'unknown', text: s};
             })
             .filter(x => x);
+        }
+
+        export function pprintIdentifier(v: string) {
+            return v.replace('_alpha_', 'α');
         }
         
     }
@@ -342,7 +358,12 @@ Vue.component('proof-trace-node', {
                    .reverse().filter((n:number) => n >= 0).join('→');
         },
         statusClass() {
-            return this.status && `${this.status.tag}${this.status.from || ''}`;
+            if (this.status) {
+                var {tag, from: fr} = this.status,
+                    suffix = fr ? (fr === '*' ? '*' : `-${fr}`) : ''
+                return `${tag}${suffix}`;
+            }
+            else return undefined;
         }
     },
     methods: {
@@ -353,7 +374,7 @@ Vue.component('proof-trace-node', {
 
         showRefs(ev) {
             var el = ev.target;
-            if (['var', 'name'].some(c => el.classList.contains(c))) {
+            if (['var', 'name', 'cardinality'].some(c => el.classList.contains(c))) {
                 this.varSpans(el.textContent).addClass('highlight');
             }
         },
@@ -364,7 +385,7 @@ Vue.component('proof-trace-node', {
             if (nm) return this.varSpans().filter((_,x: Node) => x.textContent == nm);
             else {
                 var el = $(this.$el);
-                return el.find('span.var').add(el.find('.proof-trace-vars span.name'));
+                return el.find('span.var, span.cardinality, .proof-trace-vars span.name');
             }
         },
 
@@ -401,10 +422,13 @@ Vue.component('proof-trace-vars', {
             <template v-for="v in value">
                 <span>
                     <span class="type">{{v[0]}}</span>
-                    <span class="name">{{v[1]}}</span>
+                    <span class="name">{{pp(v[1])}}</span>
                 </span>
             </template>
-        </div>`
+        </div>`,
+    methods: {
+        pp: View.pprintIdentifier
+    }
 });
 
 Vue.component('proof-trace-formula', {

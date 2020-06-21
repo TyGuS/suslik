@@ -43,8 +43,8 @@ class MainDocument {
         return this.open(await (await fetch(url)).text(), opts)
     }
 
-    async openRecent(opts?: OpenOptions) {
-        this.openUrl(this.storage['suslik:doc:lastUrl'] || DEFAULT_URL, opts);
+    openRecent(opts?: OpenOptions) {
+        return this.openUrl(this.storage['suslik:doc:lastUrl'] || DEFAULT_URL, opts);
     }
 
     async read(file: File) {

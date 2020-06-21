@@ -60,6 +60,9 @@
 .proof-trace-existentials {
     color: #464;
 }
+.proof-trace-existentials span.name {
+    color: #b44;
+}
 
 .proof-trace-existentials::before {
     content: "∃ ";
@@ -71,7 +74,7 @@
 }
 
 .proof-trace-formula span.var[data-of=programVars]  { color: #373; }
-.proof-trace-formula span.var[data-of=existentials] { color: #844; }
+.proof-trace-formula span.var[data-of=existentials] { color: #c00; }
 .proof-trace-formula span.var[data-of=ghosts]       { color: #888; }
 
 .proof-trace-vars span.name:hover,
@@ -90,13 +93,17 @@
     font-size: 60%;
     position: relative;
     top: -.5em;
-    color: #b00;
+    color: #e30;
+    cursor: default;
 }
 .proof-trace-formula span.cardinality::before {
     content: "⟨";
 }
 .proof-trace-formula span.cardinality::after {
     content: "⟩";
+}
+.proof-trace-formula span.cardinality:hover {
+    background: #eee;
 }
 
 .proof-trace:not(:last-child) {
@@ -129,6 +136,13 @@
 }
 .proof-trace-node.OrNode.Succeeded\* > .proof-trace-goal {
     background: #fafff8;
+}
+
+.proof-trace-node.OrNode.Succeeded-cache {
+    background: #ff8;
+}
+.proof-trace-node.OrNode.Succeeded-cache  > .proof-trace-goal {
+    background: #ffd;
 }
 
 .proof-trace-node.OrNode.Succeeded:hover,

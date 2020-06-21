@@ -88,12 +88,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
           log.print(List((s"Recalled FAIL", RED)))
-          trace.add(node.id, Failed)
+          trace.add(node.id, Failed, Some("cache"))
           Left(node.fail(withRest(Nil)))
         }
         case Some(Succeeded(sol)) => { // Same goal has succeeded before: return the same solution
           log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
-          trace.add(node.id, Succeeded(sol))
+          trace.add(node.id, Succeeded(sol), Some("cache"))
           node.succeed(sol, withRest(Nil))
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
