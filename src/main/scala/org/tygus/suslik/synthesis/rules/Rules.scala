@@ -28,8 +28,6 @@ object Rules {
   abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get all possible sub-derivations
     def apply(goal: Goal): Seq[RuleResult]
-
-    def cost: Int = 0
   }
 
   /**

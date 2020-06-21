@@ -169,7 +169,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
     if (formals.length == args.length) {
       (formals, args).zipped.foldLeft[Option[Gamma]](gamma1) { case (go, (formal, actual)) => go match {
         case None => None
-        case Some(g) => actual.resolve(g, Some(formal._1))
+        case Some(g) => actual.resolve(g, Some(formal._2))
       }
       }
     } else None
@@ -264,6 +264,14 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
     (this - what) ** replacement
   }
 
+  lazy val profile: SProfile = {
+    val appProfile = apps.groupBy(_.pred).mapValues(_.length)
+    val blockProfile = blocks.groupBy(_.sz).mapValues(_.length)
+    val ptsProfile = ptss.groupBy(_.offset).mapValues(_.length)
+    SProfile(appProfile, blockProfile, ptsProfile)
+  }
+
+
   // Size of the formula (in AST nodes)
   def size: Int = chunks.map(_.size).sum
 
@@ -271,5 +279,13 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   //  def cost: Int = chunks.foldLeft(0)((m, c) => m.max(c.cost))
 }
+
+/**
+  * Profile of a spatial formula (contains properties that cannot be changed by unification)
+  * @param apps how maybe applications there are of each predicate?
+  * @param blocks how many blocks there are of each size?
+  * @param ptss how many points-to chunks there are with each offset?
+  */
+case class SProfile(apps: Map[Ident, Int], blocks: Map[Int, Int], ptss: Map[Int, Int])
 
 

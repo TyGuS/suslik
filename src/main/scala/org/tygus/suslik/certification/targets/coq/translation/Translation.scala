@@ -102,7 +102,7 @@ object Translation {
     val goal = node.goal
     val pureParams = goal.universalGhosts
       .intersect(goal.gamma.keySet)
-      .map(v => translateParam((goal.gamma(v), v))).toList
+      .map(v => translateParam((v, goal.gamma(v)))).toList
     val ctp = translateSSLType(tp)
     val cparams = goal.formals.map(translateParam)
     val cpre = translateAsn(goal.pre)
@@ -124,8 +124,8 @@ object Translation {
     CInductivePredicate(el.name, cParams, cClauses)
   }
 
-  private def translateParam(el: (SSLType, Var)): (CoqType, CVar) =
-    (translateSSLType(el._1), CVar(el._2.name))
+  private def translateParam(el: (Var, SSLType)): (CoqType, CVar) =
+    (translateSSLType(el._2), CVar(el._1.name))
 
   private def translateClause(name: String, el: InductiveClause): CInductiveClause = {
     val selector = translateExpr(el.selector)

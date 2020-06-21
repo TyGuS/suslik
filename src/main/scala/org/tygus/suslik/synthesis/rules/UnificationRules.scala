@@ -1,5 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
+import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.IntType
 import org.tygus.suslik.logic.Specifications._
@@ -22,13 +23,15 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
+    def heapletTransform(goal:Goal, h: Heaplet): Heaplet = h
+
     def varFilter(h: Heaplet, v: Var): Boolean = true
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
 
-      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
+      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).map(h => heapletTransform(goal, h))
 
       val alternatives = for {
         s <- postCandidates
@@ -40,8 +43,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-
-        val newGoal = goal.spawnChild(post = newPost)
+        val newCallGoal = goal.callGoal.map(_.subst(sub))
+        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), this)
       }
@@ -60,6 +63,14 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   object HeapUnifyPointer extends HeapUnify with FlatPhase {
     override def toString: String = "HeapUnifyPointer"
+
+    override def heapletTransform(goal:Goal, h: Heaplet): Heaplet = h match {
+      case PointsTo(x, o, _) => {
+        val f = LanguageUtils.generateFreshExistential(goal.vars)
+        PointsTo(x, o, f)
+      }
+      case _ => h
+    }
 
     override def varFilter(h: Heaplet, v: Var): Boolean = h match {
       case PointsTo(x, _, _) => v == x
@@ -99,9 +110,11 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           } else {
             (r.asInstanceOf[Var], l)
           }
-          val _p2 = rest2.subst(x, e)
-          val _s2 = s2.subst(x, e)
-          val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
+          val sigma = Map(x -> e)
+          val _p2 = rest2.subst(sigma)
+          val _s2 = s2.subst(sigma)
+          val newCallGoal = goal.callGoal.map(_.subst(sigma))
+          val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
           val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
         case _ => Nil
@@ -153,8 +166,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         v <- toSorted(goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)) ++ constants
         if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
         sigma = Map(ex -> v)
-        if sigma.nonEmpty
-        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+        newPost = goal.post.subst(sigma)
+        newCallGoal = goal.callGoal.map(_.subst(sigma))
+        newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
@@ -189,7 +203,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         (ex, bounds) <- lower_bounded.take(1)
         sol = if (bounds.isEmpty) IntConst(0) else BinaryExpr(OpPlus, maxExpr(bounds), IntConst(1))
         sigma = Map(ex -> sol)
-        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
+        newPost = goal.post.subst(sigma)
+        newCallGoal = goal.callGoal.map(_.subst(sigma))
+        newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }

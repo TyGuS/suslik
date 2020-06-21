@@ -123,16 +123,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object HeapUnreachable extends SynthesisRule with InvertibleRule {
     override def toString: String = "HeapUnreachable"
 
-    // How many chunks there are with each offset?
-    def profile(chunks: List[Heaplet]): Map[Int, Int] = chunks.groupBy { case PointsTo(_, o, _) => o }.mapValues(_.length)
-
     def apply(goal: Goal): Seq[RuleResult] = {
       assert(!(goal.hasPredicates() || goal.hasBlocks))
-      val preChunks = goal.pre.sigma.chunks
-      val postChunks = goal.post.sigma.chunks
-
-      if ((profile(preChunks) == profile(postChunks)) && // profiles must match
-        postChunks.forall { case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
+      if ((goal.pre.sigma.profile == goal.post.sigma.profile) && // profiles must match
+        goal.post.sigma.chunks.forall { case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
           findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined
         }) // or has a heaplet in pre with the same LHS
         Nil

@@ -39,7 +39,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       | "set" ^^^ IntSetType
       | "void" ^^^ VoidType)
 
-  def formal: Parser[(SSLType, Var)] = typeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
+  def formal: Parser[(Var, SSLType)] = typeParser ~ ident ^^ { case a ~ b => (Var(b), a) }
 
   def intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))

@@ -146,11 +146,12 @@ object Specifications extends SepLogicUtils {
                   fname: String, // top-level function name
                   label: GoalLabel, // unique id within the derivation
                   parent: Option[Goal], // parent goal in the derivation
-                  env: Environment,
-                  sketch: Statement,
-                  preNormalized: Boolean,
+                  env: Environment, // predicates and components
+                  sketch: Statement, // sketch
+                  callGoal: Option[SuspendedCallGoal],
+                  preNormalized: Boolean, // TODO: this ugliness is here to optimize SubstleftVar / SubstRightVar
                   postNormalized: Boolean,
-                 ) // predicates and components
+                 )
 
     extends PrettyPrinting with PureLogicUtils {
 
@@ -167,6 +168,8 @@ object Specifications extends SepLogicUtils {
       case Some(p) => p :: p.ancestors
     }
 
+    def ancestorWithLabel(l: GoalLabel): Option[Goal] = ancestors.find(_.label == l)
+
     // Ancestors before progress was last made
     def companionCandidates: List[Goal] = {
       ancestors.dropWhile(_.label.depths.length == this.label.depths.length)
@@ -182,7 +185,7 @@ object Specifications extends SepLogicUtils {
     // Turn this goal into a helper function call
     def toCall: Statement = {
       val f = this.toFunSpec
-      Call(Var(f.name), f.params.map(_._2), None)
+      Call(Var(f.name), f.params.map(_._1), None)
     }
 
     def allHeaplets: Footprint = Footprint(pre.sigma, post.sigma)
@@ -194,6 +197,7 @@ object Specifications extends SepLogicUtils {
                    childId: Option[Int] = None,
                    env: Environment = this.env,
                    sketch: Statement = this.sketch,
+                   callGoal: Option[SuspendedCallGoal] = this.callGoal,
                    preNormalized: Boolean = false,
                    postNormalized: Boolean = false): Goal = {
 
@@ -208,6 +212,7 @@ object Specifications extends SepLogicUtils {
       Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
+        callGoal,
         preNormalized, postNormalized)
     }
 
@@ -267,7 +272,7 @@ object Specifications extends SepLogicUtils {
       }
     }
 
-    def formals: Formals = programVars.map(v => (getType(v), v))
+    def formals: Formals = programVars.map(v => (v, getType(v)))
 
     def depth: Int = ancestors.length
 
@@ -298,15 +303,32 @@ object Specifications extends SepLogicUtils {
   def topLabel: GoalLabel = GoalLabel(List(0), List())
 
   def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment, sketch: Statement, vars_decl: Formals): Goal = {
-    val gamma0 = (formals.map({ case (t, v) => (v, t) }) ++ vars_decl.map({ case (t, v) => (v, t) })).toMap // initial environemnt: derived from the formals
+    val gamma0 = (formals ++ vars_decl).toMap // initial environemnt: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     val pre1 = pre.resolveOverloading(gamma)
     val post1 = post.resolveOverloading(gamma)
-    val formalNames = formals.map(_._2)
+    val formalNames = formals.map(_._1)
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), false, false)
+      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), None, false, false)
   }
 
+  /**
+    * Stored information necessary to compute call arguments and the goal after call
+    * when in call abduction mode
+    * @param callerPre precondition of the goal where call abduction started
+    * @param callerPost postcondition of the goal where call abduction started
+    * @param calleePost postcondiiton of the companion goal
+    * @param call call statement
+    */
+  case class SuspendedCallGoal(callerPre: Assertion, callerPost: Assertion, calleePost: Assertion, call: Call) {
+    // Substitute existentials in the callee postcondition and the call statement
+    def subst(sigma: Subst): SuspendedCallGoal = {
+      val newCall = call.copy(args = call.args.map(_.subst(sigma)))
+      this.copy(calleePost = calleePost.subst(sigma), call = newCall)
+    }
+  }
 }
+
+

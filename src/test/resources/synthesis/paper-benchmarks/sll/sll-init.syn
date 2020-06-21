@@ -1,7 +1,7 @@
 should be able to initialize a linked list
 ###
 
-{ true; sll(x, s) }
+{ 0 <= v ; sll(x, s) }
   void sll_init(loc x, int v)
 { s1 <=i {v} ; sll(x, s1) }
 

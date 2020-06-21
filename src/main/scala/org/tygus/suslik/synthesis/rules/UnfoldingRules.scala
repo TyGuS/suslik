@@ -25,8 +25,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
-    override def cost: Int = 1
-
     def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
       val pre = goal.pre
       val env = goal.env
@@ -37,7 +35,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
           // [Cardinality] adjust cardinality of sub-clauses
-          val sbst = params.map(_._2).zip(args).toMap + (selfCardVar -> card)
+          val sbst = params.map(_._1).zip(args).toMap + (selfCardVar -> card)
           val remainingSigma = pre.sigma - h
           val newGoals = for {
             c@InductiveClause(_sel, _asn) <- clauses
@@ -85,8 +83,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Call"
 
-    override def cost: Int = 1
-
     def apply(goal: Goal): Seq[RuleResult] = {
       // look at all proper ancestors starting from the root
       // and try to find a companion
@@ -110,14 +106,14 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
         // Checking ghost flow for a given substitution
-        sourceParams = f.params.map(_._2).toSet
+        sourceParams = f.params.map(_._1).toSet
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
 
         // G is a companion goal
         if canEmitCall(largSubHeap, lilHeap, goal, f)
 
-        args = f.params.map { case (_, x) => x.subst(sub) }
+        args = f.params.map { case (x, _) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         if goalCompanionPureUnifies(goal.pre.phi, f.pre.phi, sub)
         // Check that the goal's subheap had at least one unfolding
@@ -148,7 +144,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       */
     def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): Goal = {
       //      val freshSuffix = sub.values.map(_.pp).mkString("_")
-      val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
+      val freshSuffix = f.params.map(_._1.subst(sub).pp).mkString("_")
       val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
 
       //      val acs = callPost.sigma.lockSAppTags()
@@ -194,7 +190,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         relaxedSub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
 
         // Checking ghost flow for a given substitution
-        sourceParams = f.params.map(_._2).toSet
+        sourceParams = f.params.map(_._1).toSet
         targetParams = goal.programVars.toSet
         if SpatialUnification.checkGhostFlow(relaxedSub, targetAsn, targetParams, sourceAsn, sourceParams)
 
@@ -239,6 +235,84 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     }
   }
 
+  object AbduceCallNew extends SynthesisRule {
+
+    override def toString: Ident = "AbduceCallNew"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      // look at all proper ancestors starting from the root
+      // and try to find a companion
+      // (If auxiliary abduction is disabled, only look at the root)
+      val allCands = goal.companionCandidates.reverse
+      val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
+      val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
+        goal.env.functions.values.map(f => (f, None)) // components
+      val results = for {
+        (_f, l) <- funLabels
+        f = _f.refreshAll(goal.vars)
+
+        // Optimization: do not consider f if its pre has predicates that cannot possibly match ours
+        if multiSubset(f.pre.sigma.profile.apps, goal.pre.sigma.profile.apps)
+
+        newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap
+        call = Call(Var(f.name), f.params.map(_._1), l)
+        suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, f.post, call))
+        newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
+      } yield {
+        val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        RuleResult(List(newGoal), kont, Footprint(emp, goal.post.sigma), this)
+      }
+//      nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
+      results
+    }
+  }
+
+  object CallNew extends SynthesisRule with GeneratesCode {
+
+    override def toString: Ident = "CallNew"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      if (goal.callGoal.isEmpty) return Nil // this goal has no suspended call
+
+      val pre = goal.pre
+      val post = goal.post
+      val callGoal = goal.callGoal.get
+      val budHeap = callGoal.callerPre.sigma - goal.pre.sigma
+      val noGhostArgs = callGoal.call.args.forall(_.vars.subsetOf(goal.programVars.toSet))
+
+      if (post.sigma.isEmp &&                                   // companion's transformed pre-heap is empty
+        goal.existentials.isEmpty &&                            // no existentials
+        noGhostArgs &&                                          // TODO: if slow, move this check to when substitution is made
+        canEmitCall(budHeap, goal, callGoal.call.companion) &&  // termination
+        SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
+      {
+        // TODO: get rid of the 2
+        val calleePost = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 2)
+        val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePost)
+        val newPost = callGoal.callerPost
+        val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
+        val kont: StmtProducer = PrependProducer(callGoal.call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        List(RuleResult(List(newGoal), kont, Footprint(emp, emp), this))
+      }
+      else Nil
+    }
+
+    // [Cardinality] Checking size constraints before emitting the call
+    def canEmitCall(budHeap: SFormula, goal: Goal, l: Option[GoalLabel]): Boolean = l match {
+      case None => true // non-recursive call
+      case Some(label) => {
+        val companion = goal.ancestorWithLabel(label).get
+        val companionHeap = companion.pre.sigma
+        goal.env.config.termination match {
+          case `totalSize` => totalLT(budHeap, companionHeap, goal.pre.phi)
+          case `lexicographic` => lexiLT(budHeap, companionHeap, goal.pre.phi)
+        }
+      }
+    }
+  }
+
+
+
   /*
   Close rule: unroll a predicate in the post-state
 
@@ -251,8 +325,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   object Close extends SynthesisRule {
 
     override def toString: Ident = "Close"
-
-    override def cost: Int = 1
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val post = goal.post
@@ -267,7 +339,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
-          val paramNames = params.map(_._2)
+          val paramNames = params.map(_._1)
 
           // [Cardinality] adjust cardinality of sub-clauses
           val substArgs = paramNames.zip(args).toMap + (selfCardVar -> card)

@@ -1,7 +1,6 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
-import java.io.{BufferedWriter, File, FileWriter}
 
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
@@ -16,7 +15,6 @@ import org.tygus.suslik.util.{SynLogging, SynStats}
 
 import scala.Console._
 import scala.annotation.tailrec
-import scala.io.StdIn
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey

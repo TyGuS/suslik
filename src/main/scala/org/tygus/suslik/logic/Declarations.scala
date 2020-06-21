@@ -27,7 +27,7 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
                    pre: Assertion, post: Assertion, var_decl: Formals = Nil) extends TopLevelDeclaration {
 
   def resolveOverloading(env: Environment): FunSpec = {
-    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environment: derived from the formals
+    val gamma0 = params.toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     this.copy(pre = pre.resolveOverloading(gamma), post = post.resolveOverloading(gamma))
   }
@@ -57,9 +57,17 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
   }
 
   def refreshExistentials(taken: Set[Var], suffix: String = ""): FunSpec = {
-    val sub = refreshVars(((post.vars -- pre.vars) -- params.map(_._2).toSet).toList, taken, suffix)
+    val sub = refreshVars(((post.vars -- pre.vars) -- params.map(_._1).toSet).toList, taken, suffix)
     val newPost = post.subst(sub)
     this.copy(post = newPost)
+  }
+
+  def refreshAll(taken: Set[Var], suffix: String = ""): FunSpec = {
+    val sub = refreshVars((post.vars ++ pre.vars ++ params.map(_._1).toSet).toList, taken, suffix)
+    val newParams = params.map({case (v, t) => (v.varSubst(sub), t)})
+    val newPre = pre.subst(sub)
+    val newPost = post.subst(sub)
+    this.copy(params = newParams, pre = newPre, post = newPost)
   }
 
 }
@@ -140,7 +148,7 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
   }
 
   def resolveOverloading(env:Environment): InductivePredicate = {
-    val gamma0 = params.map({ case (t, v) => (v, t) }).toMap // initial environemnt: derived from the params
+    val gamma0 = params.toMap // initial environemnt: derived from the params
     val gamma = resolve(gamma0, env)
     if (gamma.isEmpty) throw SepLogicException(s"Resolution error in predicate: ${this.pp}")
     this.copy(clauses = clauses.map(_.resolveOverloading(gamma.get)))
@@ -162,14 +170,14 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
     * @return inductive predicate
     */
   def refreshExistentials(vars: Set[Var], suffix: String = ""): InductivePredicate = {
-    val bound = Set(selfCardVar) ++ vars ++ params.map(_._2).toSet
+    val bound = Set(selfCardVar) ++ vars ++ params.map(_._1).toSet
     val sbst = refreshVars(existentials.toList, bound, suffix)
     this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
   }
 
   def vars: Set[Var] = clauses.flatMap(c => c.selector.vars ++ c.asn.vars).toSet
 
-  def existentials: Set[Var] = vars -- params.map(_._2).toSet -- Set(selfCardVar)
+  def existentials: Set[Var] = vars -- params.map(_._1).toSet -- Set(selfCardVar)
 
 }
 

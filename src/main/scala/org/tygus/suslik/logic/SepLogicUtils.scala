@@ -2,7 +2,6 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.smt.SMTSolving
 
 /**
@@ -12,6 +11,10 @@ import org.tygus.suslik.logic.smt.SMTSolving
   */
 
 trait SepLogicUtils extends PureLogicUtils {
+
+  // Multiset inclusion
+  def multiSubset[A](m1: Map[A, Int], m2: Map[A, Int]): Boolean =
+    m1.forall { case (k, v) => v <= m2.getOrElse(k, 0) }
 
   /**
     * A name used to refer to the size cardinality of the enclosing inductive predicate
@@ -77,11 +80,6 @@ trait SepLogicUtils extends PureLogicUtils {
         if (pts.length == sz) Some((h, pts))
         else None
     }
-  }
-
-  def getRootGoal(g: Goal): Goal = g.parent match {
-    case None => g
-    case Some(p) => getRootGoal(p)
   }
 
   /**

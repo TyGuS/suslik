@@ -1,6 +1,7 @@
 package org.tygus.suslik.synthesis.tactics
 
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
@@ -23,6 +24,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       anyPhaseRules ++ unfoldingPhaseRules ++
         postBlockPhaseRules ++ preBlockPhaseRules ++
         pointerPhaseRules ++ purePhaseRules
+    else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
     else anyPhaseRules ++ specBasedRules(node)
   }
 
@@ -75,12 +77,38 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     LogicalRules.SubstLeftVar,
     //    LogicalRules.SubstRightVar,
     LogicalRules.FrameUnfolding,
-    UnfoldingRules.CallRule,
+    UnfoldingRules.AbduceCallNew,
+//    UnfoldingRules.CallRule,
     UnfoldingRules.Open,
     UnificationRules.HeapUnifyUnfolding,
-    UnfoldingRules.AbduceCall,
+//    UnfoldingRules.AbduceCall,
     UnfoldingRules.Close,
   )
+
+  protected def callAbductionRules(goal: Goal): List[SynthesisRule] = {
+    List(FailRules.PostInconsistent,
+      FailRules.PostInvalid) ++
+      (if (goal.post.sigma.apps.nonEmpty)
+        List(LogicalRules.FrameUnfolding,
+          UnificationRules.HeapUnifyUnfolding)
+      else if (goal.post.sigma.blocks.nonEmpty)
+        List(LogicalRules.FrameBlock,
+          UnificationRules.HeapUnifyBlock,
+          OperationalRules.AllocRule)
+      else if (goal.hasExistentialPointers)
+        List(UnificationRules.SubstRight,
+          LogicalRules.FrameFlat,
+          OperationalRules.WriteRule,
+          UnificationRules.HeapUnifyPointer)
+      else
+        List(UnfoldingRules.CallNew,
+          UnificationRules.SubstRight,
+          LogicalRules.FrameFlat,
+          OperationalRules.WriteRule,
+          UnificationRules.HeapUnifyPure,
+          UnificationRules.PickCard,
+          UnificationRules.Pick))
+  }
 
   protected def postBlockPhaseRules: List[SynthesisRule] = List(
     if (config.branchAbduction) FailRules.AbduceBranch else FailRules.PostInvalid,

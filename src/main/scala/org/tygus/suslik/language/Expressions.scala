@@ -426,6 +426,8 @@ object Expressions {
     def subst(sigma: Subst): Expr =
       sigma.getOrElse(this, this)
 
+    def varSubst(sigma: Map[Var, Var]): Var = subst(sigma).asInstanceOf[Var]
+
     def refresh(taken: Set[Var], suffix: String): Var = {
       var count = 1
       val original = this.name + suffix

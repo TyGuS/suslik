@@ -1,6 +1,6 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.{FunSpec, Gamma}
+import org.tygus.suslik.logic.{Formals, FunSpec, Gamma}
 import org.tygus.suslik.logic.Specifications.GoalLabel
 import org.tygus.suslik.util.StringUtil._
 
@@ -257,11 +257,11 @@ object Statements {
   // A procedure
   case class Procedure(f: FunSpec, body: Statement) {
     
-    val (name: String, tp: SSLType, formals: Seq[(SSLType, Var)]) = (f.name, f.rType, f.params)
+    val (name: String, tp: SSLType, formals: Formals) = (f.name, f.rType, f.params)
 
     def pp: String =
       s"""
-         |${tp.pp} $name (${formals.map { case (t, i) => s"${t.pp} ${i.pp}" }.mkString(", ")}) {
+         |${tp.pp} $name (${formals.map { case (i, t) => s"${t.pp} ${i.pp}" }.mkString(", ")}) {
          |${body.pp}}
     """.stripMargin
 
