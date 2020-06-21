@@ -30,7 +30,7 @@ object Expressions {
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
-        case a@CSApp(_, args, _) =>
+        case a@CSApp(_, args, _, _) =>
           val acc1 = if (p(a)) acc + a.asInstanceOf[R] else acc
           args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
         case CPointsTo(loc, _, value) =>
@@ -57,8 +57,8 @@ object Expressions {
         CSetLiteral(elems.map(e => e.simplify))
       case CIfThenElse(cond, left, right) =>
         CIfThenElse(cond.simplify, left.simplify, right.simplify)
-      case CSApp(pred, args, tag) =>
-        CSApp(pred, args.map(_.simplify), tag)
+      case CSApp(pred, args, tag, card) =>
+        CSApp(pred, args.map(_.simplify), tag, card)
       case other => other
     }
 
@@ -132,12 +132,26 @@ object Expressions {
     override def pp: String = "empty"
   }
 
-  case class CSApp(pred: String, var args: Seq[CExpr], tag: Option[Int] = Some(0)) extends CExpr {
+  case class CSApp(pred: String, args: Seq[CExpr], tag: Option[Int] = Some(0), card: CExpr) extends CExpr {
     override def pp: String = s"$pred ${args.map(arg => arg.pp).mkString(" ")}"
     override def ppp: String = s"$pred ${args.map(arg => arg.ppp).mkString(" ")}"
+
+    val uniqueName: String = s"$pred${card.pp}"
+    val heapName: String = s"heap_$uniqueName"
+    val hypName: String = s"H_$uniqueName"
   }
 
   case class CSFormula(heapName: String, apps: Seq[CSApp], ptss: Seq[CPointsTo]) extends CExpr {
+    def unify(source: CSFormula): Map[CVar, CExpr] = {
+      val initialMap: Map[CVar, CExpr] = Map.empty
+      val m1 = source.ptss.zip(ptss).foldLeft(initialMap) {
+        case (acc, (p1, p2)) => acc ++ p1.vars.zip(p2.vars).toMap
+      }
+      source.apps.zip(apps).foldLeft(m1) {
+        case (acc, (a1, a2)) => acc ++ a1.vars.zip(a2.vars).toMap
+      }
+    }
+
     override def pp: String = {
       val hs = heapVars.map(_.pp)
       if (ptss.isEmpty) apps match {
@@ -159,6 +173,7 @@ object Expressions {
       }
     }
 
+    // TODO: deprecate
     def heapVars: Seq[CVar] =
       if (ptss.isEmpty) Seq.empty
       else (1 to apps.length).map(i => CVar(s"$heapName${"'" * i}"))

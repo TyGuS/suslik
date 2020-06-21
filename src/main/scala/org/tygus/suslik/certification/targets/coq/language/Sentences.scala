@@ -81,6 +81,10 @@ sealed abstract class Sentence extends PrettyPrinting {
 }
 
 case class CAssertion(phi: CExpr, sigma: CSFormula) extends Sentence {
+  def unify(source: CAssertion): Map[CVar, CExpr] = {
+    sigma.unify(source.sigma)
+  }
+
   def pureEx: Seq[CVar] =
     phi.collect(_.isInstanceOf[CVar]).toSeq
 

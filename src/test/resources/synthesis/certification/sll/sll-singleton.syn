@@ -3,15 +3,15 @@ singly-linked list: construct a list with one element
 
 #####
 
-{ true ; ret :-> a }
-void sll_singleton (int x, loc ret)
-{ elems =i {x} ; ret :-> y ** sll(y, elems) }
+{ true ; p :-> a }
+void sll_singleton (int x, loc p)
+{ elems =i {x} ; p :-> y ** sll(y, elems) }
 
 #####
 
-void sll_singleton (int x, loc ret) {
+void sll_singleton (int x, loc p) {
   let y = malloc(2);
-  *ret = y;
+  *p = y;
   *(y + 1) = 0;
   *y = x;
 }

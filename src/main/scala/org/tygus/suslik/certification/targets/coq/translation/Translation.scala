@@ -5,6 +5,7 @@ import org.tygus.suslik.certification.targets.coq.language.Expressions._
 import org.tygus.suslik.certification.targets.coq.language.Statements._
 import org.tygus.suslik.certification.targets.coq.language._
 import org.tygus.suslik.certification.targets.coq.logic.Proof.{CEnvironment, CGoal, CProof}
+import org.tygus.suslik.certification.targets.coq.logic.ProofSteps.Proof
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
@@ -82,7 +83,7 @@ object Translation {
     * @return the inductive predicates, fun spec, proof, and program translated to Coq
     */
   def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
-    (Seq[CInductivePredicate], CFunSpec, CProof, CProcedure) = {
+    (Seq[CInductivePredicate], CFunSpec, Proof, CProcedure) = {
     val cpreds = for (label <- (node.goal.pre.sigma.apps ++ node.goal.post.sigma.apps).map(_.pred).distinct) yield {
       val predicate = env.predicates(label)
       translateInductivePredicate(predicate.resolveOverloading(env))
@@ -160,12 +161,12 @@ object Translation {
     case IfThenElse(c, t, e) => CIfThenElse(translateExpr(c), translateExpr(t), translateExpr(e))
   }
 
-  private def translateHeaplet(el: Heaplet): CExpr = el match {
+  def translateHeaplet(el: Heaplet): CExpr = el match {
     case PointsTo(loc, offset, value) => CPointsTo(translateExpr(loc), offset, translateExpr(value))
-    case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr), tag)
+    case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr), tag, translateExpr(card))
   }
 
-  private def translateAsn(el: Assertion): CAssertion = {
+  def translateAsn(el: Assertion): CAssertion = {
     val phi: CExpr = translateExpr(el.phi.toExpr).simplify
     val sigma = translateSFormula(el.sigma)
     CAssertion(phi, sigma)

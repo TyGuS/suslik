@@ -154,7 +154,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         post.subst(x, y),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
-          val kont: StmtProducer = PrependProducer(Malloc(y, tpy, sz)) >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont: StmtProducer = ExistentialProducer(Map(x -> y)) >> PrependProducer(Malloc(y, tpy, sz)) >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
         case _ => Nil
       }

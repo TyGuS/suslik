@@ -23,6 +23,7 @@ Definition listfree_type :=
           lseg x S h,
       [vfun (_: unit) h =>
           h = empty      ]).
+
 Program Definition listfree : listfree_type :=
   Fix (fun (listfree : listfree_type) x =>
     Do (
@@ -38,11 +39,6 @@ Program Definition listfree : listfree_type :=
     )).
 Next Obligation.
   (* pull out precondition ghosts *)
-  (* apply: ghR. *)
-
-  (* move precondition heap to context *)
-  (* move=>h//=. *)
-
   ssl_ghostelim_pre.
 
   (* move precondition ghosts to context *)
