@@ -141,7 +141,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
-        trace.add(node.id, Succeeded(e.producer(Nil)))
+        trace.add(e, node)
         node.succeed(e.producer(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions

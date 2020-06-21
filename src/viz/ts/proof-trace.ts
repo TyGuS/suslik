@@ -13,6 +13,7 @@ class ProofTrace {
         byId: JSONMap<Data.NodeId, Data.NodeEntry>
         childrenById: JSONMap<Data.NodeId, Data.NodeEntry[]>
         statusById: JSONMap<Data.NodeId, Data.StatusEntry>
+        viewById: JSONMap<Data.NodeId, View.Node>
     }
 
     view: Vue
@@ -28,7 +29,8 @@ class ProofTrace {
     createIndex() {
         this.nodeIndex = {
             byId: new JSONMap(),
-            childrenById: new JSONMap(), statusById: new JSONMap()
+            childrenById: new JSONMap(), statusById: new JSONMap(),
+            viewById: new JSONMap()
         };
         // Build byId
         for (let node of this.data.nodes)
@@ -103,8 +105,10 @@ class ProofTrace {
     }
 
     createNode(node: Data.NodeEntry): View.Node {
-        return {value: node, children: undefined, focus: false, expanded: false,
-                status: this.getStatus(node)};
+        var v = {value: node, children: undefined, focus: false, expanded: false,
+                 status: this.getStatus(node)};
+        this.nodeIndex.viewById.set(node.id, v);
+        return v;
     }
 
     expandNode(nodeView: View.Node, focus: boolean = false) {
@@ -333,9 +337,9 @@ Vue.component('proof-trace-node', {
         </div>`,
     computed: {
         tag() {
-            return (this.value.tag == Data.NodeType.AndNode) ? this.value.id[0]
-                    : this.value.id.slice(0, 2)
-                        .reverse().filter((n:number) => n >= 0).join('→');
+            var pfx = (this.value.tag == Data.NodeType.OrNode) ? 2 : 1;
+            return this.value.id.slice(0, pfx)
+                   .reverse().filter((n:number) => n >= 0).join('→');
         },
         statusClass() {
             return this.status && `${this.status.tag}${this.status.from || ''}`;
