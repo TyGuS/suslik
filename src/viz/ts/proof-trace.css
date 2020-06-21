@@ -136,9 +136,11 @@
     background: #eef;
 }
 
+.proof-trace-node.AndNode.Succeeded,
 .proof-trace-node.AndNode.Succeeded\* {
     background: #486;
 }
+.proof-trace-node.AndNode.Succeeded:hover,
 .proof-trace-node.AndNode.Succeeded\*:hover {
     background: #499;
     color: #eee;
@@ -186,4 +188,15 @@
 #hint:not(:empty) {
     padding: .1em .5em;
     background: #ddd;
+}
+
+#notifications {
+    position: fixed;
+    top: 0;
+    right: 0;
+}
+#notifications > div {
+    background: #fbb;
+    color: #333;
+    padding: 9px;
 }
