@@ -1,7 +1,6 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
-import java.io.{BufferedWriter, File, FileWriter}
 
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
@@ -12,19 +11,16 @@ import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
-import org.tygus.suslik.util.{SynLogging, SynStats}
+import org.tygus.suslik.util.SynStats
 
 import scala.Console._
 import scala.annotation.tailrec
-import scala.io.StdIn
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
-
-  val trace = new ProofTrace("trace.out")
+class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace) extends SepLogicUtils {
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
@@ -92,12 +88,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
           log.print(List((s"Recalled FAIL", RED)))
-          trace.add(node.id, Failed)
+          trace.add(node.id, Failed, Some("cache"))
           Left(node.fail(withRest(Nil)))
         }
         case Some(Succeeded(sol)) => { // Same goal has succeeded before: return the same solution
           log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
-          trace.add(node.id, Succeeded(sol))
+          trace.add(node.id, Succeeded(sol), Some("cache"))
           node.succeed(sol, withRest(Nil))
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
@@ -145,7 +141,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
-        trace.add(node.id, Succeeded(e.producer(Nil)))
+        trace.add(e, node)
         node.succeed(e.producer(Nil), withRest(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions

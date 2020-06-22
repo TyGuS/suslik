@@ -170,6 +170,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(logToFile = b)
     }).text("log results to a csv file; default: false")
 
+    opt[String]('j', "traceToJsonFile").action(cfg { fn =>
+      _.copy(traceToJsonFile = Some(new File(fn)))
+    }).text("dump entire proof search trace to a json file; default: none")
+
     opt[Boolean](name = "memoization").action(cfg { b =>
       _.copy(memoization = b)
     }).text("enable memoization; default: true")
