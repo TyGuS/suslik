@@ -189,6 +189,14 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(memoization = b))
     }.text("enable memoization; default: true")
 
+    opt[Boolean](name="printTree").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printTree = b))
+    }.text("print tree of successful derivations to path; default: false")
+
+    opt[File](name="treeDest").action { (f, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(treeDest = f))
+    }.text("write tree of successful derivations to path; default: none")
+
     opt[CertificationTarget](name="certTarget").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
     }.text("set certification target; default: none")

@@ -1,5 +1,7 @@
 package org.tygus.suslik.synthesis
 
+import java.io.PrintWriter
+
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
@@ -36,6 +38,7 @@ trait Synthesis extends SepLogicUtils {
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
+          printTree
           val main = Procedure(fspec, body)
           (main :: helpers, stats)
         case None =>
@@ -143,7 +146,7 @@ trait Synthesis extends SepLogicUtils {
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
-        if (config.certTarget != null) {
+        if (config.certTarget != null || config.printTree) {
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
@@ -241,4 +244,15 @@ trait Synthesis extends SepLogicUtils {
     }
   }
 
+  protected def printTree(implicit config: SynConfig, ind: Int = 0): Unit = {
+    if (config.printTree) {
+      val tree = CertTree.pp()
+      println()
+      if (config.treeDest == null) println(tree) else {
+        new PrintWriter(config.treeDest) { write(tree); close() }
+        val msg = s"Successful derivations saved to ${config.treeDest.getCanonicalPath}"
+        println(s"$MAGENTA$msg")
+      }
+    }
+  }
 }

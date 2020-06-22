@@ -42,6 +42,8 @@ case class SynConfig(
                       timeOut: Long = 120000,
                       inputFormat: InputFormat = dotSyn,
                       startTime: Deadline = Deadline.now,
+                      printTree: Boolean = false,
+                      treeDest: File = null,
                       // Certification
                       certTarget: CertificationTarget = null,
                       certDest: File = null,

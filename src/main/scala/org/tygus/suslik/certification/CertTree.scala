@@ -30,6 +30,30 @@ object CertTree {
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[Node] && (obj.asInstanceOf[Node].id == this.id)
     override def hashCode(): Int = id.hashCode()
+
+    private def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "| " * ind
+
+    private def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$RESET"
+
+    def pp(implicit ind: Int): String = {
+      val builder = new StringBuilder()
+      builder.append(s"$RESET$getIndent")
+      builder.append(s"${RED}NODE ${id}\n")
+
+      builder.append(s"$RESET$getIndent")
+      builder.append(s"Goal to solve:\n")
+
+      builder.append(s"$RESET$getIndent")
+      builder.append(s"$BLUE${goal.pp.replaceAll("\n", s"\n$RESET$getIndent$BLUE")}\n")
+
+      builder.append(s"$RESET$getIndent")
+      builder.append(s"Rule applied: $YELLOW${rule}\n")
+
+      builder.append(s"$RESET$getIndent")
+      val childProds = if (children.nonEmpty) children.map(c => showFootprint(c.produce)).mkString(", ") else "nothing"
+      builder.append(s"Footprint: ${showFootprint(consume)} --> $childProds\n")
+      builder.toString()
+    }
   }
 
   // [Certify]: Maintain a certification tree as a pair of bidirectional hash maps
@@ -74,34 +98,15 @@ object CertTree {
     parentMap.clear
   }
 
-  // Pretty prints the tree roted at a node (tries the root node by default)
-  def pp(id: NodeId = Vector())(implicit ind: Int = 0): Unit = {
-    def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "| " * ind
-
-    def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$RESET"
-
-    def visit(n: Node)(implicit ind: Int): Unit = {
-      val children = n.children
-
-      print(s"$RESET$getIndent")
-      println(s"${RED}NODE ${n.id}")
-
-      print(s"$RESET$getIndent")
-      println(s"Goal to solve:")
-
-      print(s"$RESET$getIndent")
-      println(s"$BLUE${n.goal.pp.replaceAll("\n", s"\n$RESET$getIndent$BLUE")}")
-
-      print(s"$RESET$getIndent")
-      println(s"Rule applied: $YELLOW${n.rule}")
-
-      print(s"$RESET$getIndent")
-      val childProds = if (children.nonEmpty) children.map(c => showFootprint(c.produce)).mkString(", ") else "nothing"
-      println(s"Footprint: ${showFootprint(n.consume)} --> $childProds")
-
-      println()
-
-      for (child <- children) visit(child)(ind + 1)
+  // Pretty prints the tree rooted at a node (tries the root node by default)
+  def pp(id: NodeId = Vector())(implicit ind: Int = 0): String = {
+    def visit(n: Node)(implicit ind: Int): String = {
+      val builder = new StringBuilder()
+      builder.append(n.pp)
+      builder.append("\n")
+      for (child <- n.children)
+        builder.append(visit(child)(ind + 1))
+      builder.toString()
     }
 
     val n = get(id).getOrElse(throw SynthesisException(s"No node found matching id $id"))
