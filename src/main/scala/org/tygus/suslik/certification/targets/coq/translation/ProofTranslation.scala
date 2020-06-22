@@ -25,8 +25,8 @@ object ProofTranslation {
         (EmpStep(cenv.spec), cenv)
       case Load(to, _, _, _) =>
         (ReadStep(CVar(to.name)), cenv)
-      case Store(to, _, _) =>
-        (WriteStep(CVar(to.name)), cenv)
+      case Store(to, _, e) =>
+        (WriteStep(CVar(to.name), translateExpr(e)), cenv)
       case Malloc(to, tpe, sz) =>
         (AllocStep(CVar(to.name), translateSSLType(tpe), sz), cenv)
       case Free(v) =>
@@ -35,8 +35,8 @@ object ProofTranslation {
         (FreeStep(block.get.sz), cenv)
       case Call(_, _, _) =>
         val csub = cenv.existentials
-        val sapp = cenv.assumptions.flatMap(_.sigma.apps).head
-        val pureEx = cenv.spec.pureParams.map { case (_, v) => csub(v).asInstanceOf[CVar] }
+        val sapp = translateHeaplet(item.node.consume.pre.apps.head).asInstanceOf[CSApp]
+        val pureEx = cenv.spec.pureParams.filterNot(_._2.vars.exists(_.isCard)).map { case (_, v) => csub(v).asInstanceOf[CVar] }
         (CallStep(sapp, pureEx), cenv)
     }
 
@@ -49,7 +49,7 @@ object ProofTranslation {
         case PartiallyAppliedProducer(p, _) =>
           translateProducer(p, cenv)
         case ExistentialProducer(subst) =>
-          val csub = subst.map { case (v, e) => CVar(v.name) -> translateExpr(e) }
+          val csub = subst.map { case (v, e) => CVar(v.name) -> translateExpr(e) }.filterKeys(!_.isCard)
           val cenv1 = cenv.copy(existentials = cenv.existentials ++ csub)
           (IdProofProducer, cenv1)
         case ConstProducer(s) =>
@@ -58,16 +58,10 @@ object ProofTranslation {
         case PrependProducer(s) =>
           val (step, cenv1) = translateOperation(s, cenv)
           (PrependProofProducer(step), cenv1)
-        case BranchProducer(selectors) =>
-          val app = item.node.consume.pre.apps.headOption
-            .getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
-          val pred = cenv.predicates
-            .find(_.name == app.pred)
-            .getOrElse(throw TranslationException(s"No predicate matching label ${app.pred} found in environment"))
-          val clauses = selectors.map(s => pred.clauses.find(_.selector == translateExpr(s)).get)
+        case BranchProducer(_) =>
           val sapp = translateHeaplet(item.node.consume.pre.apps.head).asInstanceOf[CSApp]
           val subgoals = item.node.children.map(n => translateGoal(n.goal))
-          (BranchProofProducer(sapp, pred, clauses, subgoals), cenv)
+          (BranchProofProducer(sapp, subgoals), cenv)
         case GuardedProducer(_, _) =>
           (PrependProofProducer(AbduceBranchStep), cenv)
         case _ =>
@@ -75,14 +69,8 @@ object ProofTranslation {
       }
     }
 
-    def generateNextItems(p: ProofProducer, cenv: CEnvironment): Seq[TraversalItem] = p match {
-      case BranchProofProducer(_, _, clauses, _) =>
-        item.node.children.zip(clauses).map { case (node, clause) =>
-          val cenv1 = cenv.copy(assumptions = cenv.assumptions ++ Seq(clause.asn))
-          TraversalItem(node, cenv1)
-        }
-      case _ =>
-        item.node.children.map(node => TraversalItem(node, cenv))
+    def generateNextItems(p: ProofProducer, cenv: CEnvironment): Seq[TraversalItem] = {
+      item.node.children.map(node => TraversalItem(node, cenv))
     }
 
     // handle guard

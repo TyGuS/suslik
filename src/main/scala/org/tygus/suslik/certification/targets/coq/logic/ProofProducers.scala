@@ -6,9 +6,11 @@ import org.tygus.suslik.certification.targets.coq.logic.Proof.CGoal
 import org.tygus.suslik.certification.targets.coq.logic.ProofSteps.{OpenPostStep, OpenStep, ProofStep, SeqCompStep}
 
 object ProofProducers {
+  type Kont = Seq[ProofStep] => ProofStep
+
   sealed abstract class ProofProducer {
     val arity: Int
-    val fn: Seq[ProofStep] => ProofStep
+    val fn: Kont
 
     def apply(children: Seq[ProofStep]): ProofStep = {
       assert(children.lengthCompare(arity) == 0, s"Producer expects $arity children and got ${children.length}")
@@ -33,7 +35,7 @@ object ProofProducers {
 
   case class ChainedProofProducer(p1: ProofProducer, p2: ProofProducer) extends ProofProducer {
     val arity: Int = p1.arity + p2.arity - 1
-    val fn: Seq[ProofStep] => ProofStep = steps => {
+    val fn: Kont = steps => {
       val (steps1, steps2) = steps.splitAt(p1.arity)
       val step = p1.fn(steps1)
       p2.fn(step +: steps2)
@@ -42,37 +44,37 @@ object ProofProducers {
 
   case class PartiallyAppliedProofProducer(p: ProofProducer, s: ProofStep) extends ProofProducer {
     val arity: Int = p.arity - 1
-    val fn: Seq[ProofStep] => ProofStep = steps => {
+    val fn: Kont = steps => {
       p.apply(s +: steps)
     }
   }
 
   case object IdProofProducer extends ProofProducer {
     val arity: Int = 1
-    val fn: Seq[ProofStep] => ProofStep = _.head
+    val fn: Kont = _.head
   }
 
   case class ConstProofProducer(step: ProofStep) extends ProofProducer {
     val arity: Int = 0
-    val fn: Seq[ProofStep] => ProofStep = _ => step
+    val fn: Kont = _ => step
   }
 
   case class PrependProofProducer(s: ProofStep) extends ProofProducer {
     val arity: Int = 1
-    val fn: Seq[ProofStep] => ProofStep = steps => SeqCompStep(s, steps.head).simplify
+    val fn: Kont = steps => SeqCompStep(s, steps.head).simplify
   }
 
   case class AppendProofProducer(s: ProofStep) extends ProofProducer {
     val arity: Int = 1
-    val fn: Seq[ProofStep] => ProofStep = steps => SeqCompStep(steps.head, s).simplify
+    val fn: Kont = steps => SeqCompStep(steps.head, s).simplify
   }
 
-  case class BranchProofProducer(app: CSApp, pred: CInductivePredicate, clauses: Seq[CInductiveClause], subgoals: Seq[CGoal]) extends ProofProducer {
-    val arity: Int = clauses.length
-    val fn: Seq[ProofStep] => ProofStep = steps =>
+  case class BranchProofProducer(app: CSApp, subgoals: Seq[CGoal]) extends ProofProducer {
+    val arity: Int = subgoals.length
+    val fn: Kont = steps =>
       if (steps.length == 1) steps.head else {
-        val condBranches = clauses.zip(steps).zip(subgoals).reverse.map{ case ((c, s), g) =>
-          SeqCompStep(OpenPostStep(app, pred, c, g), s)
+        val condBranches = steps.zip(subgoals).reverse.map{ case (s, g) =>
+          SeqCompStep(OpenPostStep(app, g), s)
         }
         val ctail = condBranches.tail
         val finalBranch = condBranches.head
@@ -82,18 +84,18 @@ object ProofProducers {
 
   case class FoldProofProducer[T](op: (T, ProofProducer) => ProofStep, item: T, bp: ProofProducer) extends ProofProducer {
     val arity: Int = 1
-    val fn: Seq[ProofStep] => ProofStep = steps => {
+    val fn: Kont = steps => {
       // partially apply a produced step to the BranchProducer of the downstream `bp`
       @scala.annotation.tailrec
       def isBase(curr: ProofProducer): Boolean = curr match {
         case PartiallyAppliedProofProducer(p, _) => isBase(p)
-        case BranchProofProducer(_, _, _, _) => true
+        case _: BranchProofProducer => true
         case _ => false
       }
       def update(curr: ProofProducer): ProofProducer = curr match {
         case FoldProofProducer(op, item, bp) => FoldProofProducer(op, item, update(bp))
         case ChainedProofProducer(p1, p2) => ChainedProofProducer(update(p1), update(p2))
-        case _:PartiallyAppliedProofProducer | _:BranchProofProducer if isBase(curr) => curr.partApply(steps.head)
+        case _: PartiallyAppliedProofProducer | _: BranchProofProducer if isBase(curr) => curr.partApply(steps.head)
         case _ => curr
       }
       op(item, update(bp))

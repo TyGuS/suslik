@@ -22,8 +22,8 @@ object ProofSteps {
 
     def collect[R <: CExpr](p: CExpr => Boolean): Set[R] = {
       def collector(acc: Set[R])(st: ProofStep): Set[R] = st match {
-        case WriteStep(to) =>
-          acc ++ to.collect(p)
+        case WriteStep(to, e) =>
+          acc ++ to.collect(p) ++ e.collect(p)
         case ReadStep(to) =>
           acc ++ to.collect(p)
         case AllocStep(to, _, _) =>
@@ -31,9 +31,10 @@ object ProofSteps {
         case SeqCompStep(s1,s2) =>
           val acc1 = collector(acc)(s1)
           collector(acc1)(s2)
-        case CallStep(app, _) =>
+        case CallStep(app, pureEx) =>
           val argVars = app.args.flatMap(arg => arg.collect(p)).toSet
-          acc ++ argVars
+          val pureExVars = pureEx.flatMap(e => e.collect(p)).toSet
+          acc ++ argVars ++ pureExVars
         case _ =>
           acc
       }
@@ -48,8 +49,8 @@ object ProofSteps {
     def simplify: ProofStep = {
       (s1, s2) match {
         case (ReadStep(to), _) => simplifyBinding(to)
-        case (WriteStep(to), _) => simplifyBinding(to)
-        case (AllocStep(to, _, _), _) => simplifyBinding(to)
+//        case (WriteStep(to), _) => simplifyBinding(to)
+//        case (AllocStep(to, _, _), _) => simplifyBinding(to)
         case _ => this
       }
     }
@@ -62,7 +63,7 @@ object ProofSteps {
     }
   }
 
-  case class WriteStep(to: CVar) extends ProofStep {
+  case class WriteStep(to: CVar, e: CExpr) extends ProofStep {
     override def pp: String = s"ssl_write.\nssl_write_post ${to.pp}.\n"
   }
 
@@ -85,17 +86,15 @@ object ProofSteps {
     override def pp: String = "case: ifP=>H_cond.\n"
   }
 
-  case class OpenPostStep(app: CSApp, pred: CInductivePredicate, clause: CInductiveClause, goal: CGoal) extends ProofStep {
+  case class OpenPostStep(app: CSApp, goal: CGoal) extends ProofStep {
     override def pp: String = {
       val builder = new StringBuilder()
       builder.append(s"case ${app.hypName}; rewrite H_cond=>//= _.\n")
 
-      val asn = clause.asn
-      val subst = goal.pre.unify(asn)
-      val ve0 = (asn.spatialEx ++ asn.pureEx).diff(pred.params.map(_._2)).distinct
-      val ve = ve0.map(subst(_))
-      val ptss = asn.sigma.ptss
-      val apps = asn.sigma.apps
+      val asn = goal.pre
+      val ve = asn.valueEx.filterNot(app.vars.contains).distinct
+      val ptss = goal.pre.sigma.ptss
+      val apps = goal.pre.sigma.apps
 
       // move constructor's value existentials to context
       if (ve.nonEmpty) {
@@ -195,7 +194,7 @@ object ProofSteps {
       // instantiate any existentials from the fun spec post
       val post = spec.post
       val programVars = spec.programVars
-      val ve = (post.spatialEx ++ post.pureEx).diff(programVars).distinct
+      val ve = post.valueEx.filterNot(programVars.contains).distinct
 
 //      if (ve.nonEmpty) {
 //        val subs = ve.map(e => {

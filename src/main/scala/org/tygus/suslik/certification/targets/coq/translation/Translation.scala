@@ -103,7 +103,7 @@ object Translation {
     val goal = node.goal
     val pureParams = goal.universalGhosts
       .intersect(goal.gamma.keySet)
-      .map(v => translateParam((goal.gamma(v), v))).toList
+      .map(v => translateParam((goal.gamma(v), v))).filterNot(_._2.isCard).toList
     val ctp = translateSSLType(tp)
     val cparams = goal.formals.map(translateParam)
     val cpre = translateAsn(goal.pre)
@@ -146,7 +146,7 @@ object Translation {
     val post = translateAsn(goal.post)
     val gamma = goal.gamma.map { case (value, lType) => (CVar(value.name), translateSSLType(lType)) }
     val programVars = goal.programVars.map(v => CVar(v.name))
-    val universalGhosts = goal.universalGhosts.intersect(goal.gamma.keySet).map(v => CVar(v.name)).toSeq
+    val universalGhosts = goal.universalGhosts.intersect(goal.gamma.keySet).map(v => CVar(v.name)).toSeq.filterNot(_.isCard)
     CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
   }
 

@@ -9,29 +9,29 @@ object Expressions {
     private def isMetadata: Boolean =
       !this.vars.exists(v => v.name != selfCardVar.name && !v.name.startsWith(cardinalityPrefix))
 
-    def collect[R <: CExpr](p: CExpr => Boolean): Set[R] = {
+    def collect[R <: CExpr](p: CExpr => Boolean): Seq[R] = {
 
-      def collector(acc: Set[R])(exp: CExpr): Set[R] = exp match {
-        case v@CVar(_) if p(v) => acc + v.asInstanceOf[R]
-        case c@CNatConst(_) if p(c) => acc + c.asInstanceOf[R]
-        case c@CBoolConst(_) if p(c) => acc + c.asInstanceOf[R]
+      def collector(acc: Seq[R])(exp: CExpr): Seq[R] = exp match {
+        case v@CVar(_) if p(v) => acc :+ v.asInstanceOf[R]
+        case c@CNatConst(_) if p(c) => acc :+ c.asInstanceOf[R]
+        case c@CBoolConst(_) if p(c) => acc :+ c.asInstanceOf[R]
         case b@CBinaryExpr(_, l, r) =>
-          val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
+          val acc1 = if (p(b)) acc :+ b.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(l)
           collector(acc2)(r)
         case u@CUnaryExpr(_, arg) =>
-          val acc1 = if (p(u)) acc + u.asInstanceOf[R] else acc
+          val acc1 = if (p(u)) acc :+ u.asInstanceOf[R] else acc
           collector(acc1)(arg)
         case s@CSetLiteral(elems) =>
-          val acc1 = if (p(s)) acc + s.asInstanceOf[R] else acc
+          val acc1 = if (p(s)) acc :+ s.asInstanceOf[R] else acc
           elems.foldLeft(acc1)((a,e) => collector(a)(e))
         case i@CIfThenElse(cond, l, r) =>
-          val acc1 = if (p(i)) acc + i.asInstanceOf[R] else acc
+          val acc1 = if (p(i)) acc :+ i.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
         case a@CSApp(_, args, _, _) =>
-          val acc1 = if (p(a)) acc + a.asInstanceOf[R] else acc
+          val acc1 = if (p(a)) acc :+ a.asInstanceOf[R] else acc
           args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
         case CPointsTo(loc, _, value) =>
           collector(collector(acc)(loc))(value)
@@ -41,7 +41,7 @@ object Expressions {
         case _ => acc
       }
 
-      collector(Set.empty)(this)
+      collector(Seq.empty)(this)
     }
 
     def simplify: CExpr = this match {
@@ -62,11 +62,12 @@ object Expressions {
       case other => other
     }
 
-    def vars: Seq[CVar] = collect(_.isInstanceOf[CVar]).toSeq
+    def vars: Seq[CVar] = collect(_.isInstanceOf[CVar])
   }
 
   case class CVar(name: String) extends CExpr {
     override def pp: String = name
+    val isCard: Boolean = name.startsWith(cardinalityPrefix)
   }
 
   case class CBoolConst(value: Boolean) extends CExpr {

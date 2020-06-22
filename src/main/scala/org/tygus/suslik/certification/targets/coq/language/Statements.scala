@@ -7,9 +7,9 @@ object Statements {
 
   sealed abstract class CStatement extends ProgramPrettyPrinting {
     // Expression-collector
-    def collectE[R <: CExpr](p: CExpr => Boolean): Set[R] = {
+    def collectE[R <: CExpr](p: CExpr => Boolean): Seq[R] = {
 
-      def collector(acc: Set[R])(st: CStatement): Set[R] = st match {
+      def collector(acc: Seq[R])(st: CStatement): Seq[R] = st match {
         case CSkip => acc
         case CHole => acc
         case CError => acc
@@ -23,7 +23,7 @@ object Statements {
         case CFree(x, _) =>
           acc ++ x.collect(p)
         case CCall(fun, args) =>
-          acc ++ fun.collect(p) ++ args.flatMap(_.collect(p)).toSet
+          acc ++ fun.collect(p) ++ args.flatMap(_.collect(p))
         case CSeqComp(s1,s2) =>
           val acc1 = collector(acc)(s1)
           collector(acc1)(s2)
@@ -35,10 +35,10 @@ object Statements {
           collector(acc1)(eb)
       }
 
-      collector(Set.empty)(this)
+      collector(Seq.empty)(this)
     }
 
-    def usedVars: Set[CVar] = this match {
+    def usedVars: Seq[CVar] = this match {
       case _ => collectE(_.isInstanceOf[CVar])
     }
 
@@ -56,13 +56,16 @@ object Statements {
           case CMalloc(to, _, sz) =>
             builder.append(mkSpaces(offset))
             builder.append(s"${to.ppp} <-- allocb ${to.ppp} $sz")
-          case CFree(v, off) =>
-            builder.append(mkSpaces(offset))
-            if (off > 0) {
-              builder.append(s"dealloc (${v.ppp} .+ $off)")
-            } else {
-              builder.append(s"dealloc ${v.ppp}")
+          case CFree(v, sz) =>
+            val deallocs = for (off <- 0 until sz) yield {
+              if (off > 0) {
+                s"dealloc (${v.ppp} .+ $off)"
+              } else {
+                s"dealloc ${v.ppp}"
+              }
             }
+            builder.append(mkSpaces(offset))
+            builder.append(deallocs.mkString(s";;\n${mkSpaces(offset)}"))
           case CStore(to, off, e) =>
             builder.append(mkSpaces(offset))
             val t = if (off <= 0) to.ppp else s"(${to.ppp} .+ $off)"
@@ -123,7 +126,7 @@ object Statements {
 
   case class CMalloc(to: CVar, tpe: CoqType, sz: Int = 1) extends CStatement with ReturnsValue
 
-  case class CFree(v: CVar, offset: Int = 0) extends CStatement
+  case class CFree(v: CVar, sz: Int = 1) extends CStatement
 
   case class CLoad(to: CVar, tpe: CoqType, from: CVar, offset: Int = 0) extends CStatement with ReturnsValue
 

@@ -14,7 +14,7 @@ sealed abstract class Sentence extends PrettyPrinting {
 
     def build(el: Sentence, offset: Int = 0, vars: Seq[CVar] = Seq.empty) : Unit = el match {
       case el@CAssertion(phi, sigma) =>
-        val ve = (el.spatialEx ++ el.pureEx).diff(vars).distinct
+        val ve = el.valueEx.filterNot(vars.contains).distinct
         val he = el.heapEx
         // existentials
         if (ve.nonEmpty) {
@@ -85,13 +85,16 @@ case class CAssertion(phi: CExpr, sigma: CSFormula) extends Sentence {
     sigma.unify(source.sigma)
   }
 
-  def pureEx: Seq[CVar] =
-    phi.collect(_.isInstanceOf[CVar]).toSeq
+  val pureEx: Seq[CVar] =
+    phi.collect(_.isInstanceOf[CVar]).asInstanceOf[Seq[CVar]].filterNot(_.isCard)
 
-  def spatialEx: Seq[CVar] =
-    sigma.collect(_.isInstanceOf[CVar]).toSeq
+  val spatialEx: Seq[CVar] =
+    sigma.collect(_.isInstanceOf[CVar]).asInstanceOf[Seq[CVar]].filterNot(_.isCard)
 
-  def heapEx: Seq[CVar] =
+  val valueEx: Seq[CVar] =
+    spatialEx ++ pureEx
+
+  val heapEx: Seq[CVar] =
     sigma.heapVars
 }
 
