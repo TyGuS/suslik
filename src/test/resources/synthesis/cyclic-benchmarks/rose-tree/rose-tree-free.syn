@@ -1,15 +1,17 @@
-# -o 2 -x true
+# -o 2 -x true -p true --lexi true
 
 should be able to deallocate a rose tree
 
 ###
 
-{ rose_tree(x)<a> }
+{ rose_tree(x, s)<a> }
   void rose_tree_free(loc x)
 { emp }
 
 ###
 
+{true ; rose_tree(x, s)<a>}
+{true ; emp}
 void rose_tree_free (loc x) {
   if (x == 0) {
   } else {
@@ -17,6 +19,8 @@ void rose_tree_free (loc x) {
   }
 }
 
+{not (x == 0) && zx < a ; x :-> bx ** buds(bx, s)<zx>[1] ** [x, 1]}
+{true ; emp}
 void rose_tree_free10 (loc x) {
   let b = *x;
   if (b == 0) {

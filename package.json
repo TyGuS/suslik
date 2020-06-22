@@ -1,0 +1,31 @@
+{
+  "name": "suslik",
+  "version": "1.0.0",
+  "description": "Synthestic Separation Logic -- low-level pointer program synthesis",
+  "main": "dist/index.html",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TyGuS/suslik.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TyGuS/suslik/issues"
+  },
+  "homepage": "https://github.com/TyGuS/suslik#readme",
+  "dependencies": {
+    "jquery": "^3.5.0",
+    "vue": "^2.6.11"
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.3.34",
+    "@types/node": "^13.11.1",
+    "cssnano": "^4.1.10",
+    "nw-vue-devtools-prebuilt": "0.0.10",
+    "typescript": "^3.8.3"
+  },
+  "browserslist": [
+    "Chrome 80"
+  ],
+  "chromium-args": "--load-extension='./node_modules/nw-vue-devtools-prebuilt/extension'"
+}

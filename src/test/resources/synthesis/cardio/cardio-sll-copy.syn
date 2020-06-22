@@ -1,10 +1,11 @@
-should be able to synthesize list copy with cardinalities 
+# --lexi 1
+should be able to synthesize list copy with cardinalities
 
 #####
 
-{true ; r :-> x ** sll_card(x, s)<a>}
+{r :-> x ** sll_card(x, s)}
 void sll_copy(loc r)
-{b <= a /\ a <= b ; r :-> y ** sll_card(x, s)<a> ** sll_card(y, s)<b> }
+{r :-> y ** sll_card(x, s) ** sll_card(y, s) }
 
 #####
 
@@ -19,8 +20,7 @@ void sll_copy (loc r) {
     let yx = *x;
     let y = malloc(2);
     *r = y;
-    *(x + 1) = yx;
-    *(y + 1) = n;
+    *(y + 1) = yx;
     *x = v;
     *y = v;
   }

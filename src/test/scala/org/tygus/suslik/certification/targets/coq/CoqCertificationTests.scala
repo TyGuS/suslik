@@ -4,8 +4,7 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.suslik.synthesis.instances.PhasedSynthesis
-import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil, defaultConfig}
+import org.tygus.suslik.synthesis.{SynConfig, SynthesisRunnerUtil, defaultConfig}
 
 import scala.sys.process._
 
@@ -14,7 +13,6 @@ import scala.sys.process._
   */
 
 class CoqCertificationTests extends FunSpec with Matchers with SynthesisRunnerUtil {
-  val synthesis: Synthesis = new PhasedSynthesis
   val certRoot: File = Files.createTempDirectory("suslik-").toFile
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =

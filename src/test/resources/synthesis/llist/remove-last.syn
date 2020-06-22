@@ -1,0 +1,20 @@
+# -x true
+Remove last element
+
+###
+
+{true; ret :-> x ** lsegs(x, y, s) ** [y, 1] ** y :-> 0}
+  void remove_last(loc ret, loc y)
+{true ; ret :-> z ** lsegs(z, 0, s) }
+
+###
+
+void remove_last (loc ret, loc y) {
+  let x = *ret;
+  if (x == y) {
+    free(x);
+    *ret = 0;
+  } else {
+    remove_last(x, y);
+  }
+}

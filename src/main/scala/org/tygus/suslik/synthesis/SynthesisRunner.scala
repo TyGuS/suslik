@@ -4,8 +4,8 @@ import java.io.File
 
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.certification.targets._
-import org.tygus.suslik.synthesis.instances.PhasedSynthesis
-import org.tygus.suslik.util.{SynLogLevels, SynLogging}
+import org.tygus.suslik.report.Log
+import org.tygus.suslik.util.SynLogLevels
 
 /**
   * @author Ilya Sergey
@@ -14,11 +14,7 @@ import org.tygus.suslik.util.{SynLogLevels, SynLogging}
 object SynthesisRunner extends SynthesisRunnerUtil {
 
   // Enable verbose logging
-  override implicit val log: SynLogging = SynLogLevels.Verbose
-
-  import log._
-
-  val synthesis: Synthesis = new PhasedSynthesis
+  override implicit val log = new Log(SynLogLevels.Verbose)
 
   /**
     * Command line args:
@@ -32,16 +28,12 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * -o, --maxOpenDepth <value>     maximum unfolding depth in the pre-condition; default: 1
     * -x, --auxAbduction <value>     abduce auxiliary functions; default: false
     * -b, --branchAbduction <value>  abduce conditional branches; default: false
-    * --commute <value>              only try commutative rule applications in one order; default: true
     * --phased <value>               split rules into unfolding and flat phases; default: true
-    * --fail <value>                 enable early failure rules; default: true
-    * --invert <value>               enable invertible rules; default: true
     * -d, --depth <value>            depth first search; default: false
     * -i, --interactive <value>      interactive mode; default: false
     * -s, --printStats <value>       print synthesis stats; default: true
     * -e, --printEnv <value>         print synthesis context; default: false
     * -f, --printFail <value>        print failed rule applications; default: false
-    * -g, --tags <value>             print predicate application tags in derivations; default: false
     * -l, --log <value>              log results to a csv file; default: true
     * --memoization <value>          enable memoization; default: true
     * --certTarget <value>           set certification target; default: none
@@ -96,9 +88,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }
   }
 
-  private val parser = new {
-
-  } with scopt.OptionParser[RunConfig](SCRIPTNAME) {
+  private val parser = new scopt.OptionParser[RunConfig](SCRIPTNAME) {
     // See examples at https://github.com/scopt/scopt
 
     head(TOOLNAME, VERSION_STRING)
@@ -109,85 +99,88 @@ object SynthesisRunner extends SynthesisRunnerUtil {
         case _ => ???
       }
 
+    private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =
+      Function.uncurried { (c:C) => lens =>= f(c) }
+
+    private val configLens = scalaz.Lens.lensu[RunConfig, SynConfig](
+      (c, v) => c.copy(synConfig = v), _.synConfig)
+    private def cfg[C](f:C => SynConfig => SynConfig) = uncurryLens(configLens)(f)
+
     arg[String]("fileName").action { (x, c) =>
       c.copy(fileName = x)
     }.text("a synthesis file name (the file under the specified folder, called filename.syn)")
 
-    opt[Boolean]('r', "trace").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printDerivations = b))
-    }.text("print the entire derivation trace; default: false")
+    opt[Boolean]('r', "trace").action(cfg { b =>
+      _.copy(printDerivations = b)
+    }).text("print the entire derivation trace; default: false")
 
-    opt[Long]('t', "timeout").action { (t, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(timeOut = t))
-    }.text("timeout for the derivation; default (in milliseconds): 300000 (5 min)")
+    opt[Long]('t', "timeout").action(cfg { t =>
+      _.copy(timeOut = t)
+    }).text("timeout for the derivation; default (in milliseconds): 300000 (5 min)")
 
-    opt[Boolean]('a', "assert").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(assertSuccess = b))
-    }.text("check that the synthesized result against the expected one; default: true")
+    opt[Boolean]('a', "assert").action(cfg { b =>
+      _.copy(assertSuccess = b)
+    }).text("check that the synthesized result against the expected one; default: true")
 
-    opt[Int]('c', "maxCloseDepth").action { (d, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(maxCloseDepth = d))
-    }.text("maximum unfolding depth in the post-condition; default: 1")
+    opt[Int]('c', "maxCloseDepth").action(cfg { d =>
+      _.copy(maxCloseDepth = d)
+    }).text("maximum unfolding depth in the post-condition; default: 1")
 
-    opt[Int]('o', "maxOpenDepth").action { (d, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(maxOpenDepth = d))
-    }.text("maximum unfolding depth in the pre-condition; default: 1")
+    opt[Int]('o', "maxOpenDepth").action(cfg { d =>
+      _.copy(maxOpenDepth = d)
+    }).text("maximum unfolding depth in the pre-condition; default: 1")
 
-    opt[Boolean]('x', "auxAbduction").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(auxAbduction = b))
-    }.text("abduce auxiliary functions; default: false")
+    opt[Boolean]('x', "auxAbduction").action(cfg { b =>
+      _.copy(auxAbduction = b)
+    }).text("abduce auxiliary functions; default: false")
 
-    opt[Boolean]('b', "branchAbduction").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(branchAbduction = b))
-    }.text("abduce conditional branches; default: false")
+    opt[Boolean]('b', "branchAbduction").action(cfg { b =>
+      _.copy(branchAbduction = b)
+    }).text("abduce conditional branches; default: false")
 
-    opt[Boolean](name = "commute").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(commute = b))
-    }.text("only try commutative rule applications in one order; default: true")
+    opt[Boolean](name = "phased").action(cfg { b =>
+      _.copy(phased = b)
+    }).text("split rules into unfolding and flat phases; default: true")
 
-    opt[Boolean](name = "phased").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(phased = b))
-    }.text("split rules into unfolding and flat phases; default: true")
+    opt[Boolean]('d', name = "depth").action(cfg { b =>
+      _.copy(depthFirst = b)
+    }).text("depth first search; default: false")
 
-    opt[Boolean](name = "fail").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(fail = b))
-    }.text("enable early failure rules; default: true")
+    opt[Boolean]('i', "interactive").action(cfg { b =>
+      _.copy(interactive = b)
+    }).text("interactive mode; default: false")
 
-    opt[Boolean](name = "invert").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(invert = b))
-    }.text("enable invertible rules; default: true")
+    opt[Boolean]('s', "printStats").action(cfg { b =>
+      _.copy(printStats = b)
+    }).text("print synthesis stats; default: false")
 
-    opt[Boolean]('d', name = "depth").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(depthFirst = b))
-    }.text("depth first search; default: false")
-
-    opt[Boolean]('i', "interactive").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(interactive = b))
-    }.text("interactive mode; default: false")
-
-    opt[Boolean]('s', "printStats").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printStats = b))
-    }.text("print synthesis stats; default: false")
+    opt[Boolean]('p', "printSpecs").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printSpecs = b))
+    }.text("print specifications for synthesized functions; default: false")
 
     opt[Boolean]('e', "printEnv").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
     }.text("print synthesis context; default: false")
 
-    opt[Boolean]('f', "printFail").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printFailed = b))
-    }.text("print failed rule applications; default: false")
+    opt[Boolean]('f', "printFail").action(cfg { b =>
+      _.copy(printFailed = b)
+    }).text("print failed rule applications; default: false")
 
-    opt[Boolean]('g', "tags").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printTags = b))
-    }.text("print predicate application tags in derivations; default: false")
+    opt[Boolean]('l', "log").action(cfg { b =>
+      _.copy(logToFile = b)
+    }).text("log results to a csv file; default: false")
 
-    opt[Boolean]('l', "log").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(logToFile = b))
-    }.text("log results to a csv file; default: false")
+    opt[String]('j', "traceToJsonFile").action(cfg { fn =>
+      _.copy(traceToJsonFile = Some(new File(fn)))
+    }).text("dump entire proof search trace to a json file; default: none")
 
-    opt[Boolean](name = "memoization").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(memoization = b))
-    }.text("enable memoization; default: true")
+    opt[Boolean](name = "memoization").action(cfg { b =>
+      _.copy(memoization = b)
+    }).text("enable memoization; default: true")
+
+    opt[Boolean](name = "lexi").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(termination = if (b) lexicographic else totalSize))
+    }.text("use lexicographic termination metric (as opposed to total size); default: false")
 
     opt[Boolean](name="printTree").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printTree = b))
@@ -201,9 +194,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
     }.text("set certification target; default: none")
 
-    opt[File](name="certDest").action { (f, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(certDest = f))
-    }.text("write certificate to path; default: none")
+    opt[File](name="certDest").action(cfg { f =>
+      _.copy(certDest = f)
+    }).text("write certificate to path; default: none")
 
     help("help").text("prints this usage text")
 

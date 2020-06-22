@@ -4,15 +4,15 @@ import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
 import org.tygus.suslik.certification.targets.coq.language.Statements._
 import org.tygus.suslik.certification.targets.coq.language._
-import org.tygus.suslik.certification.targets.coq.logic.Proof.{CEnvironment, CGoal, CProof}
+import org.tygus.suslik.certification.targets.coq.logic.Proof.{CEnvironment, CGoal}
 import org.tygus.suslik.certification.targets.coq.logic.ProofSteps.Proof
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.{ChainedProducer, PartiallyAppliedProducer, StmtProducer}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.Open
+import org.tygus.suslik.synthesis.{ChainedProducer, PartiallyAppliedProducer, StmtProducer}
 
 object Translation {
   case class TranslationException(msg: String) extends Exception(msg)

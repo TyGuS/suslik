@@ -78,7 +78,7 @@ object SpatialUnification extends SepLogicUtils with PureLogicUtils {
     * Tries to unify two heaplets `target` and `source`, assuming `source` has
     * variables that are either free or in `cantBeSubstituted`.
     *
-    * If successful, returns a substitution from `source`'tFrame fresh variables to `target`'tFrame variables
+    * If successful, returns a substitution from `source` free variables to `target` variables
     */
   def tryUnify(target: UAtom,
                source: UAtom,

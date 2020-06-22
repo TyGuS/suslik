@@ -3,9 +3,9 @@ should be able to morhp a tree
 (same cardinality is important)
 ###
 
-{true ; tree(x)<a>}
+{true ; tree(x)}
   void morhp_tree(loc x, int i)
-{true ; tree_elem(x, i)<a> }
+{true ; tree_elem(x, i) }
 
 ###
 

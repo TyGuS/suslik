@@ -1,11 +1,8 @@
 package org.tygus.suslik.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
-import org.tygus.suslik.synthesis.instances.PhasedSynthesis
 
 class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
-
-  val synthesis: Synthesis = new PhasedSynthesis
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
     super.doRun(testName, desc, in, out, params)
@@ -38,8 +35,8 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
     runAllTestsFromDir("paper-benchmarks/tree")
   }
 
-//  describe("Binary search trees") {
-//    runAllTestsFromDir("paper-benchmarks/bst")
-//  }
+  describe("Binary search trees") {
+    runAllTestsFromDir("paper-benchmarks/bst")
+  }
 
 }

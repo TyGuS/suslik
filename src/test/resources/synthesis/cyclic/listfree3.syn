@@ -3,7 +3,7 @@ Deallocate three linked lists
 
 ###
 
-{true; lseg(x) ** lseg(y) ** lseg(z)}
+{true; list(x) ** list(y) ** list(z)}
   void listfree3(loc x, loc y, loc z)
 {true ; emp }
 

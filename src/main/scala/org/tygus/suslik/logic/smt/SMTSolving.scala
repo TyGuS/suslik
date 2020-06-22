@@ -36,6 +36,10 @@ object SMTSolving extends Core
     solverObject = new SMTSolver(defaultSolver, new SMTInit())
     for (cmd <- prelude) { solverObject.eval(Raw(cmd)) }
 
+    // Warm-up the SMT solver on start-up to avoid future delays
+    for (i <- 1 to 5; j <- 1 to 2; k <- 1 to 3) {
+      checkSat(convertBoolExpr(BinaryExpr(OpLeq, IntConst(i), BinaryExpr(OpPlus, IntConst(j), IntConst(k)))))
+    }
   }
 
   /** Communication with the solver  */

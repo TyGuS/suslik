@@ -19,13 +19,6 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-fail"
 
-  // Noop rule: never applies (used to replace disabled rules)
-  object Noop extends SynthesisRule {
-    override def toString: String = "Noop"
-
-    def apply(goal: Goal): Seq[RuleResult] = Nil
-  }
-
   // Short-circuits failure if pure post is inconsistent with the pre
   object PostInconsistent extends SynthesisRule with InvertibleRule {
     override def toString: String = "PostInconsistent"
@@ -118,8 +111,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
           // Abduction failed
-          if (goal.env.config.fail) List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
-          else Nil // fail optimization is disabled, so pretend this rule doesn't apply
+          List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
         else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
       }
     }
