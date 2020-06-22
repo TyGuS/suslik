@@ -41,3 +41,18 @@ By providing the `--certDest` flag, SuSLik writes out this certificate as a file
 ```bash
 ./suslik examples/listfree.syn --assert false --certTarget coq --certDest .
 ```
+
+### Viewing The Trace
+
+This package extracts the successful derivations from the synthesis process into a tree structure, for post-hoc access to information needed for certification.
+
+A standalone representation of this tree can be printed via the the following flags.
+
+- `--printTree <value>`: Set to `true` to enable printing.
+- `--treeDest <value>` (optional): Specifies the path to output the tree as a file. If not provided, logs output to console instead. 
+
+For example, the following command logs the tree to a file called `trace.out` in the project root directory.
+
+```bash
+./suslik examples/listfree.syn --assert false --printTree true --treeDest trace.out
+```

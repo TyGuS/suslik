@@ -238,7 +238,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     }
   }
 
-  protected def printTree(implicit config: SynConfig, ind: Int = 0): Unit = {
+  protected def printTree(implicit config: SynConfig): Unit = {
     if (config.printTree) {
       val tree = CertTree.pp()
       println()
