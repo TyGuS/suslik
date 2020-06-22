@@ -1,4 +1,4 @@
-# -x true -p true
+# -x true -p true --lexi true
 Deallocate two trees
 
 ###
