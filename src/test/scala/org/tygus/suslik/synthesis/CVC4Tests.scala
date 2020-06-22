@@ -41,6 +41,18 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
   test("Translate ints to SYGUS") {
     val goal = goal1
     val smtTask = PureSynthesis.toSMTTask(goal)
+    assert(smtTask == """(set-logic ALL)
+                        |
+                        |(synth-fun target_m ((r Int) (x Int) (y Int) ) Int
+                        |  ((Start Int (0 r x y ))))
+                        |
+                        |(declare-var r Int)
+                        |(declare-var x Int)
+                        |(declare-var y Int)
+                        |
+                        |(constraint
+                        |    (=> (and (not (= r 0) ) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)))))
+                        |(check-synth)""".stripMargin.replaceAllLiterally("\r\n","\n"))
   }
   test("All ints, one existential") {
 
