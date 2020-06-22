@@ -2,9 +2,10 @@ package org.tygus.suslik.certification
 
 import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
-import org.tygus.suslik.synthesis.StmtProducer
+import org.tygus.suslik.synthesis.{StmtProducer, SynthesisException}
 import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
 
+import scala.Console._
 import scala.collection.mutable
 
 object CertTree {
@@ -71,5 +72,39 @@ object CertTree {
   def clear(): Unit = {
     childrenMap.clear
     parentMap.clear
+  }
+
+  // Pretty prints the tree roted at a node (tries the root node by default)
+  def pp(id: NodeId = Vector())(implicit ind: Int = 0): Unit = {
+    def getIndent(implicit ind: Int): String = if (ind <= 0) "" else "| " * ind
+
+    def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$RESET"
+
+    def visit(n: Node)(implicit ind: Int): Unit = {
+      val children = n.children
+
+      print(s"$RESET$getIndent")
+      println(s"${RED}NODE ${n.id}")
+
+      print(s"$RESET$getIndent")
+      println(s"Goal to solve:")
+
+      print(s"$RESET$getIndent")
+      println(s"$BLUE${n.goal.pp.replaceAll("\n", s"\n$RESET$getIndent$BLUE")}")
+
+      print(s"$RESET$getIndent")
+      println(s"Rule applied: $YELLOW${n.rule}")
+
+      print(s"$RESET$getIndent")
+      val childProds = if (children.nonEmpty) children.map(c => showFootprint(c.produce)).mkString(", ") else "nothing"
+      println(s"Footprint: ${showFootprint(n.consume)} --> $childProds")
+
+      println()
+
+      for (child <- children) visit(child)(ind + 1)
+    }
+
+    val n = get(id).getOrElse(throw SynthesisException(s"No node found matching id $id"))
+    visit(n)
   }
 }
