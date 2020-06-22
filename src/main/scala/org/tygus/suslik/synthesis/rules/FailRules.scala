@@ -29,7 +29,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       if (!SMTSolving.sat((pre && post).toExpr))
         // post inconsistent with pre
-        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, this))
       else
         Nil
     }
@@ -43,7 +43,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // If precondition does not contain predicates, we can't get get new facts from anywhere
       if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
         // universal post not implies by pre
-        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, this))
       else
         Nil
     }
@@ -101,7 +101,6 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           childId = Some(1))
       } yield RuleResult(List(thenGoal, elseGoal),
         GuardedProducer(cond, bGoal),
-        goal.allHeaplets,
         this)
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -111,7 +110,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
           // Abduction failed
-          List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
+          List(RuleResult(List(goal.unsolvableChild), IdProducer, this)) // pre doesn't imply post: goal is unsolvable
         else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
       }
     }
@@ -137,7 +136,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         }) // or has a heaplet in pre with the same LHS
         Nil
       else
-        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, this)) // spatial parts do not match: only magic can save us
     }
   }
 

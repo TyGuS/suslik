@@ -20,7 +20,7 @@ object SearchTree {
     * represents a synthesis goal to solve.
     * For this node to succeed, one of its children has to succeed.
     */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], produce: Footprint) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode]) {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -136,7 +136,7 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, consume: Footprint, rule: SynthesisRule) {
+  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, rule: SynthesisRule) {
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true

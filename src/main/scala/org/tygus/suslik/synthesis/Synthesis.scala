@@ -52,7 +52,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   protected def synthesize(goal: Goal)
                           (stats: SynStats): Option[Solution] = {
     // Initialize worklist: root or-node containing the top-level goal
-    val root = OrNode(Vector(), goal, None, goal.allHeaplets)
+    val root = OrNode(Vector(), goal, None)
     val worklist = List(root)
     processWorkList(worklist)(stats, goal.env.config)
   }
@@ -147,11 +147,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule)
+          andNode = AndNode(i +: node.id, e.producer, node, e.rule)
           nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
-          ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
-          else e.subgoals.zip(e.produces(goal)).zipWithIndex
-        } yield OrNode(j +: andNode.id, g, Some(andNode), p)
+          (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
+                    else e.subgoals.zipWithIndex
+        } yield OrNode(j +: andNode.id, g, Some(andNode))
 
         // Suspend nodes with older and-siblings
         newNodes.foreach (n => {

@@ -1,7 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.PrettyPrinting
-import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
+import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.StmtProducer
 
@@ -12,13 +11,7 @@ object Rules {
     * sub-goals to be solved and
     * a statement producer that assembles the sub-goal results
     */
-  case class RuleResult(subgoals: Seq[Goal], producer: StmtProducer, consume: Footprint, rule: SynthesisRule)
-    extends PrettyPrinting with PureLogicUtils {
-
-    override def pp: String = rule.toString // s"[${subgoals.map(_.label.pp).mkString(", ")}]"
-
-    def produces(parent: Goal): Seq[Footprint] = subgoals.map(g => g.allHeaplets - (parent.allHeaplets - consume))
-  }
+  case class RuleResult(subgoals: Seq[Goal], producer: StmtProducer, rule: SynthesisRule)
 
   /**
     * A generic class for a deductive rule to be applied
@@ -28,8 +21,6 @@ object Rules {
   abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get all possible sub-derivations
     def apply(goal: Goal): Seq[RuleResult]
-
-    def cost: Int = 0
   }
 
   /**

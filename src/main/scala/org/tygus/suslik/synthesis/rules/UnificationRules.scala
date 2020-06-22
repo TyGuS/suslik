@@ -43,7 +43,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
         val newGoal = goal.spawnChild(post = newPost)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), this)
+        RuleResult(List(newGoal), kont, this)
       }
       val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
       derivations.sortBy(s => -s.subgoals.head.similarity)
@@ -103,7 +103,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _s2 = s2.subst(x, e)
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
           val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
+          List(RuleResult(List(newGoal), kont, this))
         case _ => Nil
       }
     }
@@ -132,7 +132,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this)
     }
   }
 
@@ -156,7 +156,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this)
     }
   }
 
@@ -191,7 +191,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma = Map(ex -> sol)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this)
     }
   }
 

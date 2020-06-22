@@ -10,7 +10,7 @@ object Specifications extends SepLogicUtils {
   case class Assertion(phi: PFormula, sigma: SFormula) extends HasExpressions[Assertion]
     with PureLogicUtils {
 
-    def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
+    def pp: String = if (phi.conjuncts.isEmpty) s"{${sigma.pp}}" else s"{${phi.pp} ; ${sigma.pp}}"
 
     // Collect arbitrary expressions
     def collect[R <: Expr](p: Expr => Boolean): Set[R] =
@@ -22,6 +22,9 @@ object Specifications extends SepLogicUtils {
       for (s@SApp(_, _, _, _) <- sigma.chunks if p(s)) yield s
 
     def hasBlocks: Boolean = sigma.chunks.exists(_.isInstanceOf[Block])
+
+    // Difference between two assertions
+    def -(other: Assertion): Assertion = Assertion(PFormula(phi.conjuncts -- other.phi.conjuncts), sigma - other.sigma)
 
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
@@ -90,23 +93,9 @@ object Specifications extends SepLogicUtils {
   /**
     * Spatial pre-post pair; used to determine independence of rule applications.
     */
-  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting with HasExpressions[Footprint] {
-    def +(other: Footprint): Footprint = Footprint(pre + other.pre, post + other.post)
-
+  case class Footprint(pre: Assertion, post: Assertion) {
     def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
-
-    def disjoint(other: Footprint): Boolean = pre.disjoint(other.pre) && post.disjoint(other.post)
-
-    override def pp: String = s"{${pre.pp}}{${post.pp}}"
-
-    def subst(sigma: Map[Var, Expr]): Footprint = Footprint(pre.subst(sigma), post.subst(sigma))
-
-    override def resolveOverloading(gamma: Gamma): Footprint = Footprint(pre.resolveOverloading(gamma), post.resolveOverloading(gamma))
-
-    override def collect[R <: Expr](p: Expr => Boolean): Set[R] = pre.collect(p) ++ post.collect(p)
   }
-
-  def emptyFootprint: Footprint = Footprint(emp, emp)
 
   /**
     * A label uniquely identifies a goal within a derivation tree (but not among alternative derivations!)
@@ -185,7 +174,7 @@ object Specifications extends SepLogicUtils {
       Call(Var(f.name), f.params.map(_._2), None)
     }
 
-    def allHeaplets: Footprint = Footprint(pre.sigma, post.sigma)
+    def toFootprint: Footprint = Footprint(pre, post)
 
     def spawnChild(pre: Assertion = this.pre,
                    post: Assertion = this.post,

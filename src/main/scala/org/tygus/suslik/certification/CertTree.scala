@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification
 
-import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
+import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.StmtProducer
 import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
@@ -15,15 +15,11 @@ object CertTree {
     * @param goal the current synthesis goal
     * @param kont the continuation that produces the statement for the goal
     * @param rule the synthesis rule that was successfully applied to prove the goal
-    * @param produce the `produce` footprint of the associated or-node
-    * @param consume the `consume` footprint of the associated and-node
     */
   case class Node(id: NodeId,
                   goal: Goal,
                   kont: StmtProducer,
-                  rule: SynthesisRule,
-                  produce: Footprint,
-                  consume: Footprint) {
+                  rule: SynthesisRule) {
     def children: List[Node] = childrenMap.getOrElse(this, List.empty).reverse
     def parent: Option[Node] = parentMap.get(this)
 
@@ -53,7 +49,7 @@ object CertTree {
     @scala.annotation.tailrec
     def traverse(an: AndNode, kont: Node => Unit): Unit = {
       val on = an.parent
-      val n = Node(on.id, on.goal, an.kont, an.rule, on.produce, an.consume)
+      val n = Node(on.id, on.goal, an.kont, an.rule)
       on.parent match {
         case Some(parentAn) if !parentMap.contains(n) =>  // only continue if parent hasn't been added before
           traverse(parentAn, mkKont(n, kont))
@@ -62,11 +58,11 @@ object CertTree {
       }
     }
 
-    val terminalAn = AndNode(Vector(), e.producer, terminal, e.consume, e.rule)
+    val terminalAn = AndNode(Vector(), e.producer, terminal, e.rule)
     traverse(terminalAn, _ => ())
   }
 
-  def get(id: NodeId): Option[Node] = childrenMap.keySet.find(_ == Node(id, null, null, null, null, null))
+  def get(id: NodeId): Option[Node] = childrenMap.keySet.find(_ == Node(id, null, null, null))
 
   def clear(): Unit = {
     childrenMap.clear

@@ -25,8 +25,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
-    override def cost: Int = 1
-
     def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
       val pre = goal.pre
       val env = goal.env
@@ -68,7 +66,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
             val kont = BranchProducer(selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
-            Some(RuleResult(subGoals, kont, Footprint(singletonHeap(heaplet), emp), this))
+            Some(RuleResult(subGoals, kont, this))
         }
       } yield s
     }
@@ -84,8 +82,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
   object CallRule extends SynthesisRule with GeneratesCode {
 
     override def toString: Ident = "Call"
-
-    override def cost: Int = 1
 
     def apply(goal: Goal): Seq[RuleResult] = {
       // look at all proper ancestors starting from the root
@@ -124,7 +120,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         callGoal = mkCallGoal(f, sub, callSubPre, goal)
       } yield {
         val kont: StmtProducer = PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
+        RuleResult(List(callGoal), kont, this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
     }
@@ -207,7 +203,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         (writeGoal, remainingGoal) <- writesAndRestGoals(actualSub, relaxedSub, f, goal)
       } yield {
         val kont = SeqCompProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(writeGoal, remainingGoal), kont, Footprint(largPreSubHeap, emp), this)
+        RuleResult(List(writeGoal, remainingGoal), kont, this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.last.pre)
     }
@@ -252,8 +248,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Close"
 
-    override def cost: Int = 1
-
     def apply(goal: Goal): Seq[RuleResult] = {
       val post = goal.post
       val env = goal.env
@@ -291,7 +285,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
             val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
-            RuleResult(List(goal.spawnChild(post = newPost)), kont, Footprint(emp, singletonHeap(h)), this)
+            RuleResult(List(goal.spawnChild(post = newPost)), kont, this)
           }
           subDerivations
         case _ => Nil

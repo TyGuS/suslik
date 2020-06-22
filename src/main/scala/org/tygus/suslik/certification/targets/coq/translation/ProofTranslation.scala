@@ -13,6 +13,7 @@ import org.tygus.suslik.certification.targets.coq.logic.rules.UnificationRules.C
 import org.tygus.suslik.certification.targets.coq.translation.Translation._
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.SepLogicUtils
 import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules.EmpRule
@@ -21,7 +22,7 @@ import org.tygus.suslik.synthesis.rules.UnfoldingRules
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 import org.tygus.suslik.synthesis.{BranchProducer, ExistentialProducer, GuardedProducer, PrependProducer}
 
-object ProofTranslation {
+object ProofTranslation extends SepLogicUtils {
   type ProofProducer = Producer[CProofStep]
 
   private case class TraversalItem(node: CertTree.Node, stmt: Statement, cenv: CEnvironment) extends Traversable
@@ -43,8 +44,9 @@ object ProofTranslation {
   private def deriveCRuleApp(item: TraversalItem, currStmt: Option[Statement]): Option[CRuleApp] = {
     val TraversalItem(node, _, cenv) = item
 
-    val footprint = node.consume
     val goal = node.goal
+    // TODO: check this
+    val parentPre = node.goal.parent.map(_.pre.sigma).getOrElse(emp)
     val stmtProducer = unwrapStmtProducer(node.kont)
     (node.rule, stmtProducer) match {
       case (EmpRule, _) =>
@@ -59,7 +61,7 @@ object ProofTranslation {
       case (WriteRule, PrependProducer(Store(to, _, _))) =>
         Some(CWriteApp(CVar(to.name), cenv))
       case (FreeRule, PrependProducer(Free(v))) =>
-        footprint.pre.blocks.find(_.loc == v).map(b => CFreeApp(b.sz, cenv))
+        parentPre.blocks.find(_.loc == v).map(b => CFreeApp(b.sz, cenv))
       case (CallRule, PrependProducer(Call(fun, _, _))) =>
         val allCands = goal.companionCandidates.reverse
         val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
@@ -101,7 +103,7 @@ object ProofTranslation {
         }
         Some(CCallApp(fun.name, csub, cenv))
       case (Open, BranchProducer(selectors)) =>
-        val app = footprint.pre.apps.headOption
+        val app = parentPre.apps.headOption
           .getOrElse(throw TranslationException("Open rule was called, but no predicate applications found"))
         val pred = cenv.predicates
           .find(_.name == app.pred)
