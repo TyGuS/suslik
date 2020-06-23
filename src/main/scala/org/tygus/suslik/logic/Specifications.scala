@@ -145,6 +145,7 @@ object Specifications extends SepLogicUtils {
 
     override def pp: String =
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
+        s"[${universalGhosts.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}]" +
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
         s"${pre.pp}\n${sketch.pp}${post.pp}"
 

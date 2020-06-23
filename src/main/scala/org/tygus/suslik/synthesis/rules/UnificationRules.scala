@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
+import org.tygus.suslik.language.CardType
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.IntType
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
@@ -151,7 +151,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       for {
         ex <- least(goal.existentials) // since all existentials must go, no point trying them in different order
         v <- toSorted(goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)) ++ constants
-        if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
+        if goal.getType(ex) == v.getType(goal.gamma).get
         sigma = Map(ex -> v)
         if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
@@ -180,7 +180,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       val lower_bounded = for {
         ex <- goal.existentials.toList
-        if goal.getType(ex).conformsTo(Some(IntType))
+        if goal.getType(ex) == CardType
         boundOpts = goal.post.phi.conjuncts.filter(_.vars.contains(ex)).map(e => getLowerBound(e, ex))
         if boundOpts.forall(_.isDefined)
       } yield (ex, boundOpts.map(_.get).toList)
