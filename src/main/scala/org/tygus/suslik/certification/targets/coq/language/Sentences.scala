@@ -31,9 +31,9 @@ sealed abstract class Sentence extends PrettyPrinting {
           case CBoolConst(true) => builder.append(sigma.pp)
           case _ => builder.append(s"${phi.pp} /\\ ${sigma.pp}")
         }
-      case CInductiveClause(name, selector, asn) =>
+      case CInductiveClause(pred, idx, selector, asn) =>
         builder.append(mkSpaces(offset))
-        builder.append(s"| $name of ${selector.pp} of\n")
+        builder.append(s"| $pred$idx of ${selector.pp} of\n")
         build(asn, offset + 2, vars)
       case CInductivePredicate(name, params, clauses) =>
         builder.append(mkSpaces(offset))
@@ -98,7 +98,7 @@ case class CAssertion(phi: CExpr, sigma: CSFormula) extends Sentence {
     sigma.heapVars
 }
 
-case class CInductiveClause(name: String, selector: CExpr, asn: CAssertion) extends Sentence
+case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion) extends Sentence
 
 case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause]) extends Sentence
 

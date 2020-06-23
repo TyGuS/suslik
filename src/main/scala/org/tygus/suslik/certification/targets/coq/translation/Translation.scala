@@ -65,16 +65,16 @@ object Translation {
 
   private def translateInductivePredicate(el: InductivePredicate): CInductivePredicate = {
     val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
-    val cClauses = el.clauses.zipWithIndex.map { case (c, i) => translateClause(s"${el.name}$i", c) }
+    val cClauses = el.clauses.zipWithIndex.map { case (c, i) => translateClause(c, el.name, i) }
     CInductivePredicate(el.name, cParams, cClauses)
   }
 
   private def translateParam(el: (SSLType, Var)): (CoqType, CVar) =
     (translateSSLType(el._1), CVar(el._2.name))
 
-  private def translateClause(name: String, el: InductiveClause): CInductiveClause = {
+  def translateClause(el: InductiveClause, pred: String, idx: Int): CInductiveClause = {
     val selector = translateExpr(el.selector)
-    CInductiveClause(name, selector, translateAsn(el.asn))
+    CInductiveClause(pred, idx, selector, translateAsn(el.asn))
   }
 
   def translateSSLType(el: SSLType): CoqType = el match {
@@ -116,7 +116,7 @@ object Translation {
     CAssertion(phi, sigma)
   }
 
-  private def translateSFormula(el: SFormula): CSFormula = {
+  def translateSFormula(el: SFormula): CSFormula = {
     val ptss = el.ptss.map(translateHeaplet).asInstanceOf[List[CPointsTo]]
     val apps = el.apps.map(translateHeaplet).asInstanceOf[List[CSApp]]
     CSFormula("h", apps, ptss)

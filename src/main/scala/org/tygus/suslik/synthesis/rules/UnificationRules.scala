@@ -104,7 +104,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _p2 = rest2.subst(x, e)
           val _s2 = s2.subst(x, e)
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
-          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstProducer(Map(x -> e)) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
         case _ => Nil
       }
@@ -205,7 +205,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma = Map(ex -> v)
         if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-        kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = SubstProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }
@@ -240,7 +240,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sol = if (bounds.isEmpty) IntConst(0) else BinaryExpr(OpPlus, maxExpr(bounds), IntConst(1))
         sigma = Map(ex -> sol)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-        kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = SubstProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
     }
   }

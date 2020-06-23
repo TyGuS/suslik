@@ -11,18 +11,16 @@ object Proof {
                    universalGhosts: Seq[CVar],
                    fname: String)
 
-  case class UnfoldedSApp(substArgs: Map[CVar, CExpr], substEx: Map[CVar, CExpr], asn: CAssertion)
-
   case class CEnvironment(spec: CFunSpec,
                           predicates: Seq[CInductivePredicate],
-                          existentials: Map[CVar, CExpr] = Map.empty,
-                          predUnfoldings: Map[CSApp, UnfoldedSApp] = Map.empty
+                          subst: Map[CVar, CExpr] = Map.empty,
+                          heapSubst: Map[CSApp, (CSFormula, CInductiveClause)] = Map.empty,
                          ) {
     def copy(spec: CFunSpec = this.spec,
              predicates: Seq[CInductivePredicate] = this.predicates,
-             existentials: Map[CVar, CExpr] = this.existentials,
-             predUnfoldings: Map[CSApp, UnfoldedSApp] = this.predUnfoldings,
+             subst: Map[CVar, CExpr] = this.subst,
+             heapSubst: Map[CSApp, (CSFormula, CInductiveClause)] = this.heapSubst
             ): CEnvironment =
-      CEnvironment(spec, predicates, existentials, predUnfoldings)
+      CEnvironment(spec, predicates, subst, heapSubst)
   }
 }

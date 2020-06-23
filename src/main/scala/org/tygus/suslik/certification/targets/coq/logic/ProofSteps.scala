@@ -72,7 +72,7 @@ object ProofSteps {
   }
 
   case class AllocStep(to: CVar, tpe: CoqType, sz: Int) extends ProofStep {
-    override def pp: String = s"ssl_alloc $to.\n"
+    override def pp: String = s"ssl_alloc ${to.pp}.\n"
   }
 
   case class FreeStep(size: Int) extends ProofStep {
@@ -185,7 +185,7 @@ object ProofSteps {
     override def pp: String = "case: ifP=>H_cond.\n"
   }
 
-  case class EmpStep(spec: CFunSpec, existentials: Map[CVar, CExpr]) extends ProofStep {
+  case class EmpStep(predicates: Seq[CInductivePredicate], spec: CFunSpec, subst: Map[CVar, CExpr], heapSubst: Map[CSApp, (CSFormula, CInductiveClause)]) extends ProofStep {
     override def pp: String = {
       val builder = new StringBuilder()
       builder.append("ssl_emp;\n")
@@ -193,20 +193,43 @@ object ProofSteps {
 
       // instantiate any existentials from the fun spec post
       val post = spec.post
+      val postApps = post.sigma.apps
       val programVars = spec.programVars
       val ve = post.valueEx.filterNot(programVars.contains).distinct
 
       if (ve.nonEmpty) {
-        val subs = ve.map(e => {
-          // first, see if it matches any existentials produced by the Pick rule
-          existentials.get(e) match {
-            case Some(v) => v.pp
-            case None =>
-            // TODO: if that doesn't work, match from the unrolled predicates
-              ""
-          }
-        })
-        builder.append(s"exists ${subs.mkString(", ")};\n")
+        val subs = ve.map(e => e.subst(subst))
+        builder.append(s"exists ${subs.map(s => s"(${s.pp})").mkString(", ")};\n")
+      }
+
+      def expand(app: CSApp): Seq[CPointsTo] = {
+        val (expandedApp, _) = heapSubst(app)
+        val rest = expandedApp.apps.flatMap(expand)
+        expandedApp.ptss ++ rest
+      }
+      for (postApp <- postApps) {
+        val expandedHeap = expand(postApp).map(ptss => ptss.subst(subst).pp)
+        val expandedHeapStr = if (expandedHeap.nonEmpty) expandedHeap.mkString(" \\+ ") else "empty"
+        builder.append(s"exists $expandedHeapStr;\n")
+      }
+
+      def expand2(app: CSApp): Unit = {
+        val (expandedApp, clause) = heapSubst(app)
+        val pred = predicates.find(_.name == clause.pred).get
+        builder.append(s"constructor ${clause.idx + 1}=>//;\n")
+        val valueEx = clause.asn.valueEx.filterNot(pred.params.map(_._2).contains).distinct.map(_.subst(subst).pp)
+        if (valueEx.nonEmpty) {
+          builder.append(s"exists ${valueEx.mkString(", ")};\n")
+        }
+        if (expandedApp.apps.nonEmpty) {
+          val expandedHeap = expandedApp.apps.flatMap(expand)
+          val expandedHeapStr = if (expandedHeap.nonEmpty) expandedHeap.map(_.pp).mkString(" \\+ ") else "empty"
+          builder.append(s"exists $expandedHeapStr;\n")
+        }
+        expandedApp.apps.foreach(expand2)
+      }
+      for (postApp <- postApps) {
+        expand2(postApp)
       }
 
       builder.append("ssl_emp_post.\n")

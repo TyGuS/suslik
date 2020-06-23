@@ -1,6 +1,7 @@
 package org.tygus.suslik.certification.targets.coq.translation
 
 import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.targets.coq.language.CInductiveClause
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
 import org.tygus.suslik.certification.targets.coq.logic.Proof._
 import org.tygus.suslik.certification.targets.coq.logic.ProofProducers._
@@ -8,6 +9,7 @@ import org.tygus.suslik.certification.targets.coq.logic.ProofSteps._
 import org.tygus.suslik.certification.targets.coq.translation.Translation._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.Close
 
 object ProofTranslation {
   private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment) extends Traversable
@@ -21,7 +23,7 @@ object ProofTranslation {
   def traverseProof(item: TraversalItem, kont: ProofProducer): ProofStep = {
     def translateOperation(s: Statement, cenv: CEnvironment): (ProofStep, CEnvironment) = s match {
       case Skip =>
-        (EmpStep(cenv.spec, cenv.existentials), cenv)
+        (EmpStep(cenv.predicates, cenv.spec, cenv.subst, cenv.heapSubst), cenv)
       case Load(to, _, _, _) =>
         (ReadStep(CVar(to.name)), cenv)
       case Store(to, _, e) =>
@@ -33,7 +35,7 @@ object ProofTranslation {
         assert(block.nonEmpty)
         (FreeStep(block.get.sz), cenv)
       case Call(_, _, _) =>
-        val csub = cenv.existentials
+        val csub = cenv.subst
         val sapp = translateHeaplet(item.node.consume.pre.apps.head).asInstanceOf[CSApp]
         val pureEx = cenv.spec.pureParams.filterNot(_._2.vars.exists(_.isCard)).map { case (_, v) => csub(v).asInstanceOf[CVar] }
         (CallStep(sapp, pureEx), cenv)
@@ -47,9 +49,20 @@ object ProofTranslation {
           (k1 >> k2, cenv2)
         case PartiallyAppliedProducer(p, _) =>
           translateProducer(p, cenv)
-        case ExistentialProducer(subst) =>
+        case SubstProducer(subst) =>
           val csub = subst.map { case (v, e) => CVar(v.name) -> translateExpr(e) }.filterKeys(!_.isCard)
-          val cenv1 = cenv.copy(existentials = cenv.existentials ++ csub)
+          val cenv1 = cenv.copy(subst = cenv.subst ++ csub)
+          (IdProofProducer, cenv1)
+        case UnrollProducer(predName, clause, substEx) =>
+          val csub = substEx.map { case (v, e) => CVar(v.name) -> translateExpr(e) }.filterKeys(!_.isCard)
+          val src = translateHeaplet(item.node.consume.post.apps.head).asInstanceOf[CSApp]
+          val dst = translateSFormula(item.node.children.head.produce.post)
+
+          val pred = cenv.predicates.find(_.name == predName).get
+          val selector = translateExpr(clause.selector)
+          val clauseIdx = pred.clauses.indexWhere(_.selector == selector)
+          val cclause = CInductiveClause(predName, clauseIdx, selector, translateAsn(clause.asn))
+          val cenv1 = cenv.copy(subst = cenv.subst ++ csub, heapSubst = cenv.heapSubst ++ Map(src -> (dst, cclause)))
           (IdProofProducer, cenv1)
         case ConstProducer(s) =>
           val (step, cenv1) = translateOperation(s, cenv)

@@ -55,7 +55,7 @@ object Statements {
           case CMagic => ???
           case CMalloc(to, _, sz) =>
             builder.append(mkSpaces(offset))
-            builder.append(s"${to.ppp} <-- allocb ${to.ppp} $sz")
+            builder.append(s"${to.ppp} <-- allocb null $sz")
           case CFree(v, sz) =>
             val deallocs = for (off <- 0 until sz) yield {
               if (off > 0) {

@@ -44,6 +44,29 @@ object Expressions {
       collector(Seq.empty)(this)
     }
 
+    def subst(sigma: Map[CVar, CExpr]): CExpr = this match {
+      case v: CVar =>
+        sigma.get(v).map(_.subst(sigma)).getOrElse(v)
+      case CBinaryExpr(op, l, r) =>
+        CBinaryExpr(op, l.subst(sigma), r.subst(sigma))
+      case CUnaryExpr(op, arg) =>
+        CUnaryExpr(op, arg.subst(sigma))
+      case CSetLiteral(elems) =>
+        CSetLiteral(elems.map(_.subst(sigma)))
+      case CIfThenElse(cond, l, r) =>
+        CIfThenElse(cond.subst(sigma), l.subst(sigma), r.subst(sigma))
+      case CSApp(pred, args, tag, card) =>
+        CSApp(pred, args.map(_.subst(sigma)), tag, card.subst(sigma))
+      case CPointsTo(loc, offset, value) =>
+        CPointsTo(loc.subst(sigma), offset, value.subst(sigma))
+      case CSFormula(heapName, apps, ptss) =>
+        val apps1 = apps.map(_.subst(sigma).asInstanceOf[CSApp])
+        val ptss1 = ptss.map(_.subst(sigma).asInstanceOf[CPointsTo])
+        CSFormula(heapName, apps1, ptss1)
+      case _ =>
+        this
+    }
+
     def simplify: CExpr = this match {
       case CBinaryExpr(op, left, right) =>
         if (op == COpAnd) {
@@ -67,7 +90,7 @@ object Expressions {
 
   case class CVar(name: String) extends CExpr {
     override def pp: String = name
-    val isCard: Boolean = name.startsWith(cardinalityPrefix)
+    val isCard: Boolean = name.startsWith(cardinalityPrefix) || name == selfCardVar.name
   }
 
   case class CBoolConst(value: Boolean) extends CExpr {
@@ -174,10 +197,9 @@ object Expressions {
       }
     }
 
-    // TODO: deprecate
-    def heapVars: Seq[CVar] =
-      if (ptss.isEmpty) Seq.empty
-      else (1 to apps.length).map(i => CVar(s"$heapName${"'" * i}"))
+    val heapVars: Seq[CVar] =
+      if (ptss.isEmpty && apps.length == 1) Seq.empty
+      else apps.map(a => CVar(a.heapName))
 
     override def vars: Seq[CVar] = super.vars ++ heapVars
   }

@@ -123,7 +123,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // Check that the goal's subheap had at least one unfolding
         callGoal = mkCallGoal(f, sub, callSubPre, goal)
       } yield {
-        val kont: StmtProducer = ExistentialProducer(sub) >> PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = SubstProducer(sub) >> PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(callGoal), kont, Footprint(largSubHeap, emp), this)
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
@@ -264,7 +264,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          val InductivePredicate(predName, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val paramNames = params.map(_._2)
@@ -273,7 +273,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val substArgs = paramNames.zip(args).toMap + (selfCardVar -> card)
 
           val subDerivations = for {
-            InductiveClause(selector, asn) <- clauses
+            clause@InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
             asnExistentials = asn.vars -- paramNames.toSet -- Set(selfCardVar)
             freshSuffix = args.take(1).map(_.pp).mkString("_")
@@ -289,7 +289,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = UnfoldingProducer(h, substArgs, freshExistentialsSubst, actualAssertion) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = UnrollProducer(predName, clause, freshExistentialsSubst) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, Footprint(emp, singletonHeap(h)), this)
           }

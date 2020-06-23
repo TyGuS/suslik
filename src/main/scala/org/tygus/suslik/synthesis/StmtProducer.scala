@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.SApp
+import org.tygus.suslik.logic.{InductiveClause, SApp, SFormula}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.synthesis.rules.RuleUtils
 
@@ -162,18 +162,14 @@ case class GuardedProducer(cond: Expr, goal: Goal) extends StmtProducer {
   val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, goal.label))
 }
 
-// Captures the existential substitution map produced by the Pick rule
-case class ExistentialProducer(subst: Map[Var, Expr]) extends StmtProducer {
+// Captures variable substitutions
+case class SubstProducer(subst: Map[Var, Expr]) extends StmtProducer {
   val arity: Int = 1
   val fn: Kont = liftToSolutions(stmts => stmts.head)
 }
 
-// Captures a predicate unfolding due to the Close rule
-case class UnfoldingProducer(sapp: SApp,                 // the unfolded predicate application
-                             substArgs: Map[Var, Expr],  // substitutions for predicate parameters
-                             substEx: Map[Var, Expr],    // substitutions for predicate post existentials
-                             asn: Assertion              // the unfolded result
-                            ) extends StmtProducer {
+// Captures an unrolled predicate
+case class UnrollProducer(pred: String, clause: InductiveClause, substEx: Map[Var, Expr]) extends StmtProducer {
   val arity: Int = 1
   val fn: Kont = liftToSolutions(stmts => stmts.head)
 }
