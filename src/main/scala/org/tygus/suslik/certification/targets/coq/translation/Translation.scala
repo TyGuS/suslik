@@ -19,62 +19,6 @@ object Translation {
 
   trait Traversable
 
-  type Producer[A] = List[A] => A
-
-  /**
-    * Composes two producer continuations
-    * @param f the continuation to apply first
-    * @param g the continuation to apply to the result of f
-    * @return the composed result
-    */
-  def composeProducer[A](f: Producer[A], g: Producer[A]): Producer[A] =
-    (steps: List[A]) => g(List(f(steps)))
-
-  /**
-    * Creates a new continuation that prepends items to the argument of an existing continuation `kont`
-    * @param args arguments to prepend to `kont`
-    * @param kont the original continuation
-    * @return a new continuation
-    */
-  def prependArgsProducer[A](args: List[A], kont: Producer[A]): Producer[A] =
-    (args1: List[A]) => kont(args ++ args1)
-
-  /**
-    * Creates a new continuation that combines the result of multiple traversals at a branching point
-    * @param items a list of things to traverse
-    * @param kont the final (root) continuation to apply after collecting all child results
-    * @return a new continuation
-    */
-  def joinProducer[A, T <: Traversable](op: (T, Producer[A]) => A)(items: List[T], kont: Producer[A]): Producer[A] =
-    items.foldLeft(kont) {
-      case (kontAcc, arg) =>
-        items1 => op(arg, prependArgsProducer[A](items1, kontAcc))
-    }
-
-  /**
-    * Given a program point, derives the currently focused statement and its children
-    * @param stmt the program point
-    * @return a tuple of an optional current statement and a sequence of child statements
-    */
-  def expandStmt(stmt: Statement) : (Option[Statement], Seq[Statement]) = stmt match {
-    case SeqComp(s1, s2) => (Some(s1), Seq(s2))
-    case If(_, tb, eb) => (None, Seq(tb, eb))
-    case Guarded(_, body, els, _) => (None, Seq(body, els))
-    case _ => (Some(stmt), Seq())
-  }
-
-  /**
-    * Unwraps a statement producer to get to the part relevant to certification
-    * @param p the producer
-    * @return an unwrapped producer
-    */
-  @scala.annotation.tailrec
-  def unwrapStmtProducer(p: StmtProducer) : StmtProducer = p match {
-    case PartiallyAppliedProducer(p, _) => unwrapStmtProducer(p)
-    case ChainedProducer(p1, _) => unwrapStmtProducer(p1)
-    case p => p
-  }
-
   /**
     * Produces a Coq certificate from the tree of successful derivations and a synthesized procedure
     * @param node the root of the derivation tree

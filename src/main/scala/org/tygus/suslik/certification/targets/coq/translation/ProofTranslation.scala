@@ -13,8 +13,7 @@ object ProofTranslation {
   private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment) extends Traversable
 
   def translate(node: CertTree.Node, proc: Procedure, goal: CGoal, cenv: CEnvironment): Proof = {
-    val nextEnv = cenv.copy(usedVars = goal.universalGhosts.toSet)
-    val traversalItem = TraversalItem(node, nextEnv)
+    val traversalItem = TraversalItem(node, cenv)
     val proofBody = traverseProof(traversalItem, PrependProofProducer(GhostElimStep(goal)))
     Proof(proofBody)
   }
