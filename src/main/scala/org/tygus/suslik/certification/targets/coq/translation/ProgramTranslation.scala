@@ -50,15 +50,17 @@ object ProgramTranslation {
         PrependCStmtProducer(stmt)
       case BranchProducer(selectors) =>
         BranchCStmtProducer(selectors.map(translateExpr))
+      case GuardedProducer(cond, _) =>
+        GuardedCStmtProducer(translateExpr(cond))
       case _ =>
         IdCStmtProducer
     }
 
     def generateNextItems: Seq[TraversalItem] =
-      item.node.children.map(n => TraversalItem(n)) // TODO: remove stmt
+      item.node.children.map(n => TraversalItem(n))
 
     def updateProducerPost(nextItems: Seq[TraversalItem], nextKont: CStmtProducer): CStmtProducer = nextKont match {
-      case _: BranchCStmtProducer =>
+      case _: Branching =>
         nextItems.tail.foldLeft(nextKont >> kont) {
           case (foldedP, item) => FoldCStmtProducer(traverseStmt, item, foldedP)
         }

@@ -3,10 +3,12 @@ package org.tygus.suslik.certification.targets.coq.logic
 import org.tygus.suslik.certification.targets.coq.language.{CInductiveClause, CInductivePredicate}
 import org.tygus.suslik.certification.targets.coq.language.Expressions._
 import org.tygus.suslik.certification.targets.coq.logic.Proof.CGoal
-import org.tygus.suslik.certification.targets.coq.logic.ProofSteps.{OpenPostStep, OpenStep, ProofStep, SeqCompStep}
+import org.tygus.suslik.certification.targets.coq.logic.ProofSteps.{AbduceBranchStep, OpenPostStep, OpenStep, ProofStep, SeqCompStep}
 
 object ProofProducers {
   type Kont = Seq[ProofStep] => ProofStep
+
+  trait Branching
 
   sealed abstract class ProofProducer {
     val arity: Int
@@ -69,7 +71,7 @@ object ProofProducers {
     val fn: Kont = steps => SeqCompStep(steps.head, s).simplify
   }
 
-  case class BranchProofProducer(app: CSApp, subgoals: Seq[CGoal]) extends ProofProducer {
+  case class BranchProofProducer(app: CSApp, subgoals: Seq[CGoal]) extends ProofProducer with Branching {
     val arity: Int = subgoals.length
     val fn: Kont = steps =>
       if (steps.length == 1) steps.head else {
@@ -82,6 +84,17 @@ object ProofProducers {
       }
   }
 
+  case object GuardedProofProducer extends ProofProducer with Branching {
+    val arity: Int = 2
+    val fn: Kont = steps =>
+      if (steps.length == 1) steps.head else {
+        val condBranches = steps.reverse
+        val ctail = condBranches.tail
+        val finalBranch = condBranches.head
+        SeqCompStep(AbduceBranchStep, ctail.foldLeft(finalBranch) { case (eb, tb) => SeqCompStep(tb, eb) })
+      }
+  }
+
   case class FoldProofProducer[T](op: (T, ProofProducer) => ProofStep, item: T, bp: ProofProducer) extends ProofProducer {
     val arity: Int = 1
     val fn: Kont = steps => {
@@ -89,13 +102,13 @@ object ProofProducers {
       @scala.annotation.tailrec
       def isBase(curr: ProofProducer): Boolean = curr match {
         case PartiallyAppliedProofProducer(p, _) => isBase(p)
-        case _: BranchProofProducer => true
+        case _: Branching => true
         case _ => false
       }
       def update(curr: ProofProducer): ProofProducer = curr match {
         case FoldProofProducer(op, item, bp) => FoldProofProducer(op, item, update(bp))
         case ChainedProofProducer(p1, p2) => ChainedProofProducer(update(p1), update(p2))
-        case _: PartiallyAppliedProofProducer | _: BranchProofProducer if isBase(curr) => curr.partApply(steps.head)
+        case _: PartiallyAppliedProofProducer | _: Branching if isBase(curr) => curr.partApply(steps.head)
         case _ => curr
       }
       op(item, update(bp))

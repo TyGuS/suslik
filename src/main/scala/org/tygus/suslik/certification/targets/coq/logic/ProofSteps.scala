@@ -185,7 +185,7 @@ object ProofSteps {
     override def pp: String = "case: ifP=>H_cond.\n"
   }
 
-  case class EmpStep(spec: CFunSpec) extends ProofStep {
+  case class EmpStep(spec: CFunSpec, existentials: Map[CVar, CExpr]) extends ProofStep {
     override def pp: String = {
       val builder = new StringBuilder()
       builder.append("ssl_emp;\n")
@@ -196,18 +196,18 @@ object ProofSteps {
       val programVars = spec.programVars
       val ve = post.valueEx.filterNot(programVars.contains).distinct
 
-//      if (ve.nonEmpty) {
-//        val subs = ve.map(e => {
-//          // first, see if it matches any existentials produced by the Pick rule
-//          env.existentials.get(e) match {
-//            case Some(v) => v.pp
-//            case None =>
-//            // if that doesn't work, match from the unrolled predicates
-//
-//          }
-//        })
-//        builder.append(s"exists ${subs.mkString(", ")};\n")
-//      }
+      if (ve.nonEmpty) {
+        val subs = ve.map(e => {
+          // first, see if it matches any existentials produced by the Pick rule
+          existentials.get(e) match {
+            case Some(v) => v.pp
+            case None =>
+            // TODO: if that doesn't work, match from the unrolled predicates
+              ""
+          }
+        })
+        builder.append(s"exists ${subs.mkString(", ")};\n")
+      }
 
       builder.append("ssl_emp_post.\n")
 

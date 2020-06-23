@@ -21,7 +21,7 @@ object ProofTranslation {
   def traverseProof(item: TraversalItem, kont: ProofProducer): ProofStep = {
     def translateOperation(s: Statement, cenv: CEnvironment): (ProofStep, CEnvironment) = s match {
       case Skip =>
-        (EmpStep(cenv.spec), cenv)
+        (EmpStep(cenv.spec, cenv.existentials), cenv)
       case Load(to, _, _, _) =>
         (ReadStep(CVar(to.name)), cenv)
       case Store(to, _, e) =>
@@ -62,7 +62,7 @@ object ProofTranslation {
           val subgoals = item.node.children.map(n => translateGoal(n.goal))
           (BranchProofProducer(sapp, subgoals), cenv)
         case GuardedProducer(_, _) =>
-          (PrependProofProducer(AbduceBranchStep), cenv)
+          (GuardedProofProducer, cenv)
         case _ =>
           (IdProofProducer, cenv)
       }
@@ -74,7 +74,7 @@ object ProofTranslation {
 
     // handle guard
     def updateProducerPost(nextItems: Seq[TraversalItem], nextKont: ProofProducer, cenv: CEnvironment): ProofProducer = nextKont match {
-      case _: BranchProofProducer =>
+      case _: Branching =>
         nextItems.tail.foldLeft(nextKont >> kont) {
           case (foldedP, item) => FoldProofProducer(traverseProof, item, foldedP)
         }
