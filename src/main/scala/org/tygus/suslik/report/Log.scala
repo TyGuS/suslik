@@ -5,7 +5,7 @@ import org.tygus.suslik.synthesis.SynConfig
 import org.tygus.suslik.synthesis.rules.Rules.RuleResult
 import org.tygus.suslik.util.SynLogging
 
-import scala.Console.{GREEN, MAGENTA, RESET}
+import scala.Console.{GREEN, MAGENTA, RESET, BLUE}
 
 class Log(val out: SynLogging) {
 
@@ -15,13 +15,13 @@ class Log(val out: SynLogging) {
     def apply(goal: Goal): Context = Context(Some(goal))
   }
 
-  def showChild(goal: Goal)(c: RuleResult): String = {
+  def showChildren(goal: Goal)(c: RuleResult): String = {
     def showFootprint(f: Footprint): String = s"$GREEN${f.pre.pp}$MAGENTA${f.post.pp}$RESET"
-    def showTransition(subgoal: Goal):String = s"${showFootprint(goal.toFootprint - subgoal.toFootprint)} --> ${showFootprint(subgoal.toFootprint - goal.toFootprint)}"
+    def showDiff(subgoal: Goal):String = s"${showFootprint(goal.toFootprint - subgoal.toFootprint)} --> ${showFootprint(subgoal.toFootprint - goal.toFootprint)}"
 
     c.subgoals.length match {
       case 0 => showFootprint(goal.toFootprint)
-      case _ => c.subgoals.map(showTransition).mkString(", ")
+      case _ => c.subgoals.map(showDiff).mkString("; ") ++ s"$BLUE[${c.transitions.map(_.pp).mkString("; ")}]$RESET"
     }
   }
 

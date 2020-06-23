@@ -38,7 +38,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
         goal.existentials.isEmpty &&             // no existentials
         SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
-        List(RuleResult(Nil, ConstProducer(Skip), this))      // we are done
+        List(RuleResult(Nil, ConstProducer(Skip), this, goal))      // we are done
       else Nil
     }
   }
@@ -56,7 +56,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre.phi.toExpr
 
       if (!SMTSolving.sat(pre))
-        List(RuleResult(Nil, ConstProducer(Error), this)) // pre inconsistent: return error
+        List(RuleResult(Nil, ConstProducer(Error), this, goal)) // pre inconsistent: return error
       else
         Nil
     }
@@ -85,7 +85,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPost = Assertion(post.phi, newPostSigma)
           val newGoal = goal.spawnChild(newPre, newPost)
           val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-          List(RuleResult(List(newGoal), kont, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
     }
@@ -143,9 +143,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        val preHeaplets = for (h@PointsTo(l, _, _) <- pre.sigma.chunks if prePointers.contains(l)) yield h
-        val postHeaplets = for (h@PointsTo(l, _, _) <- post.sigma.chunks if postPointers.contains(l)) yield h
-        List(RuleResult(List(newGoal), kont, this))
+        List(RuleResult(List(newGoal), kont, this, goal))
       }
     }
   }
@@ -184,13 +182,13 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case (None, None) => Nil
         case (Some((p1, ss1)), None) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
-          List(RuleResult(List(newGoal), kont, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
         case (None, Some((p2, ss2))) =>
           val newGoal = goal.spawnChild(post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
         case (Some((p1, ss1)), Some((p2, ss2))) =>
           val newGoal = goal.spawnChild(pre = Assertion(p1, s1), post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
 //        case (None, _) => Nil
 //        case (Some(p1), _) =>
 //          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
@@ -231,7 +229,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(
             Assertion(_p1, _s1),
             Assertion(_p2, _s2))
-            List(RuleResult(List(newGoal), kont, this))
+            List(RuleResult(List(newGoal), kont, this, goal))
         case _ => Nil
       }
     }
@@ -281,7 +279,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
             Assertion(_p1, _s1),
             Assertion(_p2, _s2),
             preNormalized = true)
-          List(RuleResult(List(newGoal), kont, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
       }
     }
   }
@@ -325,7 +323,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val _p2 = p2.subst(sub)
           val _s2 = s2.subst(sub)
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), postNormalized = true)
-          List(RuleResult(List(newGoal), kont, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
       }
     }
   }

@@ -194,7 +194,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
-          val childFootprints = children.map(log.showChild(goal))
+          val childFootprints = children.map(log.showChildren(goal))
           log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
           for {c <- childFootprints.tail}
             log.print(List((s" <|>  $c", CYAN)))
