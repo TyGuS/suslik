@@ -22,8 +22,8 @@ object Rules {
 
   object Transition {
     // Default transition between a goal and subgoal:
-    // assumes the variable names have the same meaning between goal and subgoal.
-    // This should not be used for rules that perform unification or formed backlinks.
+    // assumes the variable names have the same meaning between the two goals.
+    // This should not be used for backlinks.
     def apply(goal: Goal, subgoal: Goal): Transition = {
       // TODO: beef up with SMT reasoning if we want to support different card constraints
       val strictInequalities = for {

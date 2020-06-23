@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.Ident
+import org.tygus.suslik.language.{CardType, Ident}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -116,11 +116,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         args = f.params.map { case (_, x) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
         if goalCompanionPureUnifies(goal.pre.phi, f.pre.phi, sub)
-        // Check that the goal's subheap had at least one unfolding
         callGoal = mkCallGoal(f, sub, callSubPre, goal)
       } yield {
+        val postCallTransition = Transition(goal, callGoal)
         val kont: StmtProducer = PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(callGoal), kont, this, goal)
+        RuleResult(List(callGoal), kont, this, List(postCallTransition) ++ companionTransition(l, f, sub, goal))
       }
       nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
     }
@@ -142,7 +142,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     /**
       * Make a call goal for `f` with a given precondition
       */
-    def mkCallGoal(f: FunSpec, sub: Map[Var, Expr], callSubPre: Assertion, goal: Goal): Goal = {
+    def mkCallGoal(f: FunSpec, sub: Subst, callSubPre: Assertion, goal: Goal): Goal = {
       //      val freshSuffix = sub.values.map(_.pp).mkString("_")
       val freshSuffix = f.params.map(_._2.subst(sub).pp).mkString("_")
       val callPost = f.refreshExistentials(goal.vars, freshSuffix).post.subst(sub)
@@ -153,6 +153,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val restPreChunks = (goal.pre.sigma.chunks.toSet -- callSubPre.sigma.chunks.toSet) ++ acs.chunks
       val restPre = Assertion(goal.pre.phi && callPost.phi, mkSFormula(restPreChunks.toList))
       goal.spawnChild(restPre)
+    }
+
+    def companionTransition(l: Option[GoalLabel], f: FunSpec, sub: Subst, goal: Goal): Option[Transition] = l match {
+      case None => None // Non-recursive call does not correspond to transition in the trace
+      case Some(_) => {
+        // Note: technically we should look up those vars in the companion goal, but we never kick anything out of gamma
+        val cardVars = f.pre.vars.filter(_.getType(goal.gamma).contains(CardType)).toList
+        val nonProgressing = cardVars.zip(cardVars.map(_.subst(sub).asInstanceOf[Var])).map(_.swap)
+        Some(Transition(List(), nonProgressing))
+      }
     }
   }
 

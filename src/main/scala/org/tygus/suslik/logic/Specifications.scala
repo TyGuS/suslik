@@ -29,7 +29,6 @@ object Specifications extends SepLogicUtils {
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     /**
-      *
       * @param takenNames  -- names that are already taken
       * @param globalNames -- variables that shouldn't be renamed
       * @return
