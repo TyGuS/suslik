@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.RelOp
+import scala.sys.process._
 import org.tygus.suslik.language.{BoolType, Expressions, IntSetType, IntType, LocType, SSLType}
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.logic.Specifications.Goal
@@ -97,7 +97,24 @@ object PureSynthesis {
     sb ++= "\n(check-synth)"
     sb.toString
   }
+  val cvc4exe = "C:\\utils\\cvc4\\cvc4-1.7-win64-opt.exe"
+  val cvc4Cmd = cvc4exe + " --sygus-out=status-or-def --lang sygus" //" --cegqi-si=all --sygus-out=status-or-def --lang sygus"
+  def invokeCVC(task: String): List[String] = { //<-- if we ever get the library compiled, fix it here
+    var out: List[String] = null
+    val io = BasicIO.standard{ostream =>
+      ostream.write(task.getBytes)
+      ostream.flush();
+      ostream.close()
+    }.withOutput{istream =>
+      out = scala.io.Source.fromInputStream(istream).getLines().toList
+    }
+    val cvc4 = cvc4Cmd.run(io)
+    if(cvc4.exitValue() != 0) Nil
+    else if (out.head == "unknown") Nil //unsynthesizable
+    else out
+  }
   def apply(goal: Specifications.Goal): Option[Goal] = {
+    val smtTask = toSMTTask(goal)
 
     None
   }

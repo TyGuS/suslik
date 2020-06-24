@@ -54,6 +54,28 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |    (=> (and (not (= r 0) ) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)) )))
                         |(check-synth)""".stripMargin.replaceAllLiterally("\r\n","\n"))
   }
+  test("Parsing a synthesis fail") {
+    val synthRes = PureSynthesis.invokeCVC(
+    """(set-logic ALL)
+      |
+      |(synth-fun target_m ((r Int) (x Int) (y Int)) Int
+      |  ((Start Int (0 r x y))))
+      |
+      |
+      |(declare-var r Int)
+      |(declare-var x Int)
+      |(declare-var y Int)
+      |
+      |; exists v2  [= (target x y)]
+      |(constraint
+      |    (=> (and (not (= r 0)) (< x y)) (and (> x (target_m r x y)) (<= y (target_m r x y)))))
+      |
+      |
+      |
+      |(check-synth)""".stripMargin)
+    assert(synthRes == Nil)
+  }
+
   test("All ints, one existential") {
 
     val goal = goal1
