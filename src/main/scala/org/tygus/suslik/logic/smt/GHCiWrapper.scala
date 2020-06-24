@@ -13,7 +13,7 @@ import scala.util.{Failure, Success}
   *
   * @author Ilya Sergey
   */
-object SolverTest {
+object GHCiWrapper {
 
   // Timeout for the I/O Future
   val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
