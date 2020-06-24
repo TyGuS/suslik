@@ -7,6 +7,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.SpatialUnification
+import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule.canEmitCall
@@ -157,11 +158,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     def companionTransition(l: Option[GoalLabel], f: FunSpec, sub: Subst, goal: Goal): Option[Transition] = l match {
       case None => None // Non-recursive call does not correspond to transition in the trace
-      case Some(_) => {
+      case Some(label) => {
         // Note: technically we should look up those vars in the companion goal, but we never kick anything out of gamma
         val cardVars = f.pre.vars.filter(_.getType(goal.gamma).contains(CardType)).toList
         val nonProgressing = cardVars.zip(cardVars.map(_.subst(sub).asInstanceOf[Var])).map(_.swap)
-        Some(Transition(List(), nonProgressing))
+        Some(Transition(goal.label, label, List(), nonProgressing))
       }
     }
   }

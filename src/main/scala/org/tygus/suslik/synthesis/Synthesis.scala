@@ -9,6 +9,7 @@ import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.report.{Log, ProofTrace}
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
+import org.tygus.suslik.synthesis.Termination._
 import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
@@ -34,7 +35,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
-//          log.print(List((succeededLeaves.map(_.goal.label.pp).mkString("\n"), Console.BLUE)))
+          val trace = collectTrace(succeededLeaves)
+          log.print(List((trace.map(_.pp).mkString("\n"), Console.CYAN)))
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
         case None =>
@@ -149,7 +151,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.producer, node, e.rule)
+          andNode = AndNode(i +: node.id, node, e)
           nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
           (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
                     else e.subgoals.zipWithIndex

@@ -58,7 +58,7 @@ object CertTree {
       }
     }
 
-    val terminalAn = AndNode(Vector(), e.producer, terminal, e.rule)
+    val terminalAn = AndNode(Vector(), terminal, e)
     traverse(terminalAn, _ => ())
   }
 

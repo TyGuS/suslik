@@ -5,7 +5,7 @@ import org.tygus.suslik.synthesis.SynConfig
 import org.tygus.suslik.synthesis.rules.Rules.RuleResult
 import org.tygus.suslik.util.SynLogging
 
-import scala.Console.{GREEN, MAGENTA, RESET, CYAN}
+import scala.Console.{GREEN, MAGENTA, RESET}
 
 class Log(val out: SynLogging) {
 
@@ -21,7 +21,7 @@ class Log(val out: SynLogging) {
 
     c.subgoals.length match {
       case 0 => showFootprint(goal.toFootprint)
-      case _ => c.subgoals.map(showDiff).mkString("; ") ++ s"$CYAN[${c.transitions.map(_.pp).mkString("; ")}]$RESET"
+      case _ => c.subgoals.map(showDiff).mkString("; ") // ++ s"$CYAN[${c.transitions.map(_.pp).mkString("; ")}]$RESET"
     }
   }
 

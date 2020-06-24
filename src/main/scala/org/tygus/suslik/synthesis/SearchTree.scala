@@ -3,7 +3,8 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
-import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
+import org.tygus.suslik.synthesis.Termination.Transition
+import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
 import org.tygus.suslik.util.SynStats
 
 /**
@@ -149,7 +150,7 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, rule: SynthesisRule) {
+  case class AndNode(id: NodeId, parent: OrNode, kont: StmtProducer, rule: SynthesisRule, transitions: Seq[Transition]) {
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true
@@ -166,6 +167,11 @@ object SearchTree {
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[AndNode] && (obj.asInstanceOf[AndNode].id == this.id)
     override def hashCode(): Int = id.hashCode()
+  }
+
+  object AndNode {
+    def apply(id: NodeId, parent: OrNode, result: RuleResult): AndNode =
+      new AndNode(id, parent, result.producer, result.rule, result.transitions)
   }
 
 }
