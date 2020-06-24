@@ -20,6 +20,9 @@ object SearchTree {
   // List of nodes to process
   var worklist: Worklist = List()
 
+  // List of leaf nodes that succeeded
+  var succeededLeaves: Worklist = List()
+
   // Initialize worklist: root or-node containing the top-level goal
   def init(initialGoal: Goal): Unit = {
     val root = OrNode(Vector(), initialGoal, None)
@@ -62,6 +65,7 @@ object SearchTree {
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
           worklist = pruneDescendants(an.id, worklist)  // prune all other descendants of an
+          succeededLeaves = pruneDescendants(an.id, succeededLeaves) // also from the list of succeeded leaves
           if (!worklist.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
             an.parent.fail
           }

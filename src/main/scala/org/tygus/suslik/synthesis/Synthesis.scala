@@ -34,6 +34,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
+//          log.print(List((succeededLeaves.map(_.goal.label.pp).mkString("\n"), Console.BLUE)))
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
         case None =>
@@ -141,6 +142,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           CertTree.addSuccessfulPath(node, e)
         }
         trace.add(e, node)
+        succeededLeaves = node :: succeededLeaves
         worklist = addNewNodes(Nil)
         node.succeed(e.producer(Nil))
       case None => { // no terminals: add all expansions to worklist
