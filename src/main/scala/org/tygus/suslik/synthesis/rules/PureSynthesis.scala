@@ -1,9 +1,20 @@
 package org.tygus.suslik.synthesis.rules
 
+
+import org.bitbucket.franck44.scalasmt.parser.{SMTLIB2Parser, SMTLIB2Syntax}
+import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.{Command, ConstantTerm, FunDef, GetModelFunDefResponseSuccess, GetModelResponses, ModelResponse, NumLit, QIdTerm, SSymbol, SimpleQId, Sort, SortedVar, SymbolId}
+import org.bitbucket.inkytonik.kiama.util.StringSource
+import org.tygus.suslik.language.Expressions.IntConst
+
 import scala.sys.process._
 import org.tygus.suslik.language.{BoolType, Expressions, IntSetType, IntType, LocType, SSLType}
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.logic.Specifications.Goal
+
+import scala.util.parsing.combinator.lexical.StdLexical
+import scala.util.parsing.combinator.syntactical.StandardTokenParsers
+import scala.util.parsing.input.CharArrayReader
+import scala.util.{Failure, Success}
 
 object PureSynthesis {
   def typeToSMT(lType: SSLType): String = lType match {
@@ -99,24 +110,53 @@ object PureSynthesis {
   }
   val cvc4exe = "C:\\utils\\cvc4\\cvc4-1.7-win64-opt.exe"
   val cvc4Cmd = cvc4exe + " --sygus-out=status-or-def --lang sygus" //" --cegqi-si=all --sygus-out=status-or-def --lang sygus"
-  def invokeCVC(task: String): List[String] = { //<-- if we ever get the library compiled, fix it here
-    var out: List[String] = null
+  def invokeCVC(task: String): Option[String] = { //<-- if we ever get the library compiled, fix it here
+    var out: String = null
     val io = BasicIO.standard{ostream =>
       ostream.write(task.getBytes)
       ostream.flush();
       ostream.close()
     }.withOutput{istream =>
-      out = scala.io.Source.fromInputStream(istream).getLines().toList
+      out = scala.io.Source.fromInputStream(istream).mkString
     }
     val cvc4 = cvc4Cmd.run(io)
-    if(cvc4.exitValue() != 0) Nil
-    else if (out.head == "unknown") Nil //unsynthesizable
-    else out
+    if(cvc4.exitValue() != 0) None
+    else if (out.trim == "unknown") None //unsynthesizable
+    else Some(out)
   }
+
+
+
+  val parser = SMTLIB2Parser [GetModelResponses]
+  def parseAssignments(cvc4Res: String): Map[Expressions.Var, Expressions.Expr] = {
+    //〈FunDefCmd〉::=  (define-fun〈Symbol〉((〈Symbol〉 〈SortExpr〉)∗)〈SortExpr〉 〈Term〉
+    parser.apply(StringSource("(model " + cvc4Res + ")")) match {
+      case Failure(exception) => Map.empty
+      case Success(GetModelFunDefResponseSuccess( responses ) ) =>
+        responses.map{ response =>
+          val existential = response.funDef.sMTLIB2Symbol.asInstanceOf[SSymbol].simpleSymbol.drop(7)
+          val expr = response.funDef.term match {
+            case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) => Expressions.Var(simpleSymbol)
+            case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
+          }
+          Expressions.Var(existential) -> expr
+        }.toMap
+    }
+  }
+//  for(cvc4func <- cvc4Res) yield {
+//
+//    }
+//  }
+
   def apply(goal: Specifications.Goal): Option[Goal] = {
     val smtTask = toSMTTask(goal)
-
-    None
+    val cvc4Res = invokeCVC(smtTask)
+    if (cvc4Res.isEmpty) None
+    else {
+      //parse me
+      val assignments: Map[Expressions.Var,Expressions.Expr] = parseAssignments(cvc4Res.get)
+      ???
+    }
   }
 
 }

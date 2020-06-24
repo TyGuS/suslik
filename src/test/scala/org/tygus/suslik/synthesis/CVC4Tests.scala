@@ -73,7 +73,16 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
       |
       |
       |(check-synth)""".stripMargin)
-    assert(synthRes == Nil)
+    assert(synthRes == None)
+  }
+
+  test("Parse CVC4 synthesis results") {
+    assert(PureSynthesis.parseAssignments(
+      """(define-fun target_m ((r Int) (x Int) (y Int)) Int y)""") == Map(Expressions.Var("m") -> Expressions.Var("y")))
+    assert(PureSynthesis.parseAssignments(
+      """(define-fun target_a1 ((x Int) (y (Set Int))) Int 0)
+        |(define-fun target_q ((x Int) (y (Set Int))) (Set Int) x)""".stripMargin) ==
+      Map(Expressions.Var("a1") -> IntConst(0), Expressions.Var("q") -> Expressions.Var("x")))
   }
 
   test("All ints, one existential") {
