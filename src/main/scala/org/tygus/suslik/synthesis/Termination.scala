@@ -3,7 +3,8 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Expressions.{BinaryExpr, OpLt, Var}
 import org.tygus.suslik.language.{CardType, PrettyPrinting}
 import org.tygus.suslik.logic.Specifications.{Goal, GoalLabel}
-import org.tygus.suslik.synthesis.SearchTree.OrNode
+import org.tygus.suslik.report.Log
+import org.tygus.suslik.synthesis.SearchTree.{AndNode, OrNode}
 
 object Termination {
 
@@ -52,9 +53,24 @@ object Termination {
   }
 
   // Collect all transition from nodes reachable from leaves
-  def collectTrace(leaves: List[OrNode]): Seq[Transition] = {
+  def collectTrace(leaves: List[OrNode], newTransitions: Seq[Transition] = List()): Seq[Transition] = {
     def traceFrom(leaf: OrNode): List[Transition] = leaf.andAncestors.flatMap(_.transitions)
-    leaves.flatMap(traceFrom).distinct.sorted
+    (leaves.flatMap(traceFrom) ++ newTransitions).distinct.sorted
+  }
+
+  // Checks that the proof generated so far in the same branch of the search as andNode
+  // satisfies the global soundness condition of cyclic proofs after adding new transitions of the andNode
+  def isTerminatingExpansion(andNode: AndNode)(implicit log: Log, config: SynConfig): Boolean = {
+    if (andNode.transitions.exists(_.isBacklink)) {
+      // Construct the trace using only success leaves from my branch of the search and my own proof branch
+      val relevantSucceessLeaves = SearchTree.successLeaves.filter(_.isAndSibling(andNode.parent))
+      val trace = collectTrace(andNode.parent :: relevantSucceessLeaves, andNode.transitions)
+      log.print(List((s"New backlink formed by ${andNode.rule}; checking termination.", Console.CYAN)))
+      log.print(List((trace.map(_.pp).mkString("\n"), Console.CYAN)))
+      // TODO: actually call Cyclist from here and return its result
+      true
+    }
+    else true // This expansion does not form a backlink, so cannot break termination
   }
 
 }

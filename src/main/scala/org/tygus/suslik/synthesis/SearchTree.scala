@@ -22,7 +22,7 @@ object SearchTree {
   var worklist: Worklist = List()
 
   // List of leaf nodes that succeeded
-  var succeededLeaves: Worklist = List()
+  var successLeaves: Worklist = List()
 
   // Initialize worklist: root or-node containing the top-level goal
   def init(initialGoal: Goal): Unit = {
@@ -66,7 +66,7 @@ object SearchTree {
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
           worklist = pruneDescendants(an.id, worklist)  // prune all other descendants of an
-          succeededLeaves = pruneDescendants(an.id, succeededLeaves) // also from the list of succeeded leaves
+          successLeaves = pruneDescendants(an.id, successLeaves) // also from the list of succeeded leaves
           if (!worklist.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
             an.parent.fail
           }
@@ -123,6 +123,21 @@ object SearchTree {
 
     // Number of proper ancestors
     def depth: Int = ancestors.length
+
+    // Is other from the same branch of the search as myself?
+    def isAndSibling(other: OrNode): Boolean = {
+      val leastCommonAndAncestor = andAncestors.find(an => other.andAncestors.contains(an))
+      leastCommonAndAncestor match {
+        case None => false // this can happen if the only common ancestor is root
+        case Some(lcan) => {
+          val lcon = ancestors.find(on => other.ancestors.contains(on)).get
+          // Since these are least common ancestors, one must be the parent of the other
+          assert(lcon.parent.contains(lcan) || lcan.parent == lcon)
+          // we are and-siblings if our least common and-ancestor is below our least common or-ancestor:
+          lcan.parent == lcon
+        }
+      }
+    }
 
     def pp(d: Int = 0): String = parent match {
       case None => "-"

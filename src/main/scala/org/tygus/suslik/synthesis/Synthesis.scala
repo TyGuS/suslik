@@ -35,8 +35,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
-          val trace = collectTrace(succeededLeaves)
-          log.print(List((trace.map(_.pp).mkString("\n"), Console.CYAN)))
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
         case None =>
@@ -136,8 +134,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     val allExpansions = applyRules(rules)(node, stats, config, ctx)
     val expansions = tactic.filterExpansions(allExpansions)
 
-    // TODO: Insert termination check here
-
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
@@ -146,7 +142,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           CertTree.addSuccessfulPath(node, e)
         }
         trace.add(e, node)
-        succeededLeaves = node :: succeededLeaves
+        successLeaves = node :: successLeaves
         worklist = addNewNodes(Nil)
         node.succeed(e.producer(Nil))
       case None => { // no terminals: add all expansions to worklist
@@ -154,6 +150,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
           andNode = AndNode(i +: node.id, node, e)
+          if isTerminatingExpansion(andNode) // termination check
           nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
           (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
                     else e.subgoals.zipWithIndex
