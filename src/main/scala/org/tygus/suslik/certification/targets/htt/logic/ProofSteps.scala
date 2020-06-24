@@ -1,8 +1,8 @@
-package org.tygus.suslik.certification.targets.coq.logic
+package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.coq.language._
-import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.certification.targets.coq.logic.Proof.CGoal
+import org.tygus.suslik.certification.targets.htt.language._
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.logic.Proof.CGoal
 
 object ProofSteps {
   case class Proof(root: ProofStep) {

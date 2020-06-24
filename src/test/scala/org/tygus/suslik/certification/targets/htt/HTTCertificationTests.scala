@@ -1,4 +1,4 @@
-package org.tygus.suslik.certification.targets.coq
+package org.tygus.suslik.certification.targets.htt
 
 import java.io.File
 import java.nio.file.{Files, Paths}
@@ -12,12 +12,12 @@ import scala.sys.process._
   * @author Yasunari Watanabe
   */
 
-class CoqCertificationTests extends FunSpec with Matchers with SynthesisRunnerUtil {
+class HTTCertificationTests extends FunSpec with Matchers with SynthesisRunnerUtil {
   val certRoot: File = Files.createTempDirectory("suslik-").toFile
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
     it(s"certifies that it $desc") {
-      synthesizeFromSpec(testName, in, out, params.copy(assertSuccess = false, certTarget = Coq, certDest = certRoot))
+      synthesizeFromSpec(testName, in, out, params.copy(assertSuccess = false, certTarget = HTT, certDest = certRoot))
       val fname = testName.split('/').last
       val pathToCertificate = Paths.get(certRoot.getCanonicalPath, s"${fname.replace('-', '_')}.v").toFile.getCanonicalPath
 

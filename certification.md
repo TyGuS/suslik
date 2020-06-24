@@ -1,8 +1,8 @@
 # Certified Synthesis
 
-Generation of correctness certificates for synthesized programs. Currently, we support Coq as the certification backend.
+Generation of correctness certificates for synthesized programs. Currently, we support HTT as the certification backend.
 
-## Coq
+## HTT
 
 ### Requirements
 
@@ -27,19 +27,19 @@ Before verifying a generated Coq certificate, make sure to compile the predefine
 
 Add the following flags to run synthesis with certification.
 
-- `--certTarget <value>`: Currently supports value `coq`.
+- `--certTarget <value>`: Currently supports value `htt`.
 - `--certDest <value>` (optional): Specifies the directory in which to generate a certificate file. Logs output to console if not provided.
 
-For example, the following command produces a Coq certificate of the specification `listfree.syn`, and logs its contents to the console.
+For example, the following command produces a HTT certificate of the specification `listfree.syn`, and logs its contents to the console.
 
 ```bash
-./suslik examples/listfree.syn --assert false --certTarget coq
+./suslik examples/listfree.syn --assert false --certTarget htt
 ```
 
-By providing the `--certDest` flag, SuSLik writes out this certificate as a file to the specified directory. The following example command writes a Coq certificate named `listfree.v` to the project root directory.
+By providing the `--certDest` flag, SuSLik writes out this certificate as a file to the specified directory. The following example command writes a HTT certificate named `listfree.v` to the project root directory.
 
 ```bash
-./suslik examples/listfree.syn --assert false --certTarget coq --certDest .
+./suslik examples/listfree.syn --assert false --certTarget htt --certDest .
 ```
 
 ### Viewing The Trace

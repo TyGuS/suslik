@@ -95,7 +95,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     implicit val certTargetRead: scopt.Read[CertificationTarget] =
       scopt.Read.reads {
-        case "coq" => coq.Coq
+        case "htt" => htt.HTT
         case _ => ???
       }
 

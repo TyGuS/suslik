@@ -1,9 +1,9 @@
-package org.tygus.suslik.certification.targets.coq.logic
+package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.coq.language.{CInductiveClause, CInductivePredicate}
-import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.certification.targets.coq.logic.Proof.CGoal
-import org.tygus.suslik.certification.targets.coq.logic.ProofSteps.{AbduceBranchStep, OpenPostStep, OpenStep, ProofStep, SeqCompStep}
+import org.tygus.suslik.certification.targets.htt.language.{CInductiveClause, CInductivePredicate}
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.logic.Proof.CGoal
+import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.{AbduceBranchStep, OpenPostStep, OpenStep, ProofStep, SeqCompStep}
 
 object ProofProducers {
   type Kont = Seq[ProofStep] => ProofStep

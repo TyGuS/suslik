@@ -1,11 +1,11 @@
-package org.tygus.suslik.certification.targets.coq.translation
+package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.certification.targets.coq.language.Statements._
-import org.tygus.suslik.certification.targets.coq.language._
-import org.tygus.suslik.certification.targets.coq.logic.Proof.{CEnvironment, CGoal}
-import org.tygus.suslik.certification.targets.coq.logic.ProofSteps.Proof
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.language.Statements._
+import org.tygus.suslik.certification.targets.htt.language._
+import org.tygus.suslik.certification.targets.htt.logic.Proof.{CEnvironment, CGoal}
+import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.Proof
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
@@ -20,11 +20,11 @@ object Translation {
   trait Traversable
 
   /**
-    * Produces a Coq certificate from the tree of successful derivations and a synthesized procedure
+    * Produces a HTT certificate from the tree of successful derivations and a synthesized procedure
     * @param node the root of the derivation tree
     * @param proc the synthesized procedure
     * @param env the synthesis environment
-    * @return the inductive predicates, fun spec, proof, and program translated to Coq
+    * @return the inductive predicates, fun spec, proof, and program translated to HTT
     */
   def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
     (Seq[CInductivePredicate], CFunSpec, Proof, CProcedure) = {

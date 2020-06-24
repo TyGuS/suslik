@@ -1,7 +1,7 @@
-package org.tygus.suslik.certification.targets.coq.language
+package org.tygus.suslik.certification.targets.htt.language
 
-import org.tygus.suslik.certification.targets.coq.language.Expressions.CExpr
-import org.tygus.suslik.certification.targets.coq.language.Statements.{CGuarded, CIf, CSeqComp, CStatement}
+import org.tygus.suslik.certification.targets.htt.language.Expressions.CExpr
+import org.tygus.suslik.certification.targets.htt.language.Statements.{CGuarded, CIf, CSeqComp, CStatement}
 
 object StatementProducers {
   type Kont = Seq[CStatement] => CStatement

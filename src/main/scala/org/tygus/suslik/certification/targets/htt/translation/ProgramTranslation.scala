@@ -1,11 +1,11 @@
-package org.tygus.suslik.certification.targets.coq.translation
+package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.certification.targets.coq.language.StatementProducers._
-import org.tygus.suslik.certification.targets.coq.language.Statements._
-import org.tygus.suslik.certification.targets.coq.logic.Proof._
-import org.tygus.suslik.certification.targets.coq.translation.Translation._
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.language.StatementProducers._
+import org.tygus.suslik.certification.targets.htt.language.Statements._
+import org.tygus.suslik.certification.targets.htt.logic.Proof._
+import org.tygus.suslik.certification.targets.htt.translation.Translation._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._
 

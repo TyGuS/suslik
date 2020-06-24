@@ -1,12 +1,12 @@
-package org.tygus.suslik.certification.targets.coq.translation
+package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.coq.language.CInductiveClause
-import org.tygus.suslik.certification.targets.coq.language.Expressions._
-import org.tygus.suslik.certification.targets.coq.logic.Proof._
-import org.tygus.suslik.certification.targets.coq.logic.ProofProducers._
-import org.tygus.suslik.certification.targets.coq.logic.ProofSteps._
-import org.tygus.suslik.certification.targets.coq.translation.Translation._
+import org.tygus.suslik.certification.targets.htt.language.CInductiveClause
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.logic.Proof._
+import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
+import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
+import org.tygus.suslik.certification.targets.htt.translation.Translation._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.Close

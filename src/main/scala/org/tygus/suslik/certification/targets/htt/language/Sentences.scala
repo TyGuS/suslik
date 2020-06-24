@@ -1,6 +1,6 @@
-package org.tygus.suslik.certification.targets.coq.language
+package org.tygus.suslik.certification.targets.htt.language
 
-import org.tygus.suslik.certification.targets.coq.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.util.StringUtil.mkSpaces
 
 sealed abstract class Sentence extends PrettyPrinting {

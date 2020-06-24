@@ -1,16 +1,16 @@
-package org.tygus.suslik.certification.targets.coq
+package org.tygus.suslik.certification.targets.htt
 
 import java.nio.file.Paths
 
 import org.tygus.suslik.certification._
-import org.tygus.suslik.certification.targets.coq.translation.Translation
-import org.tygus.suslik.certification.targets.coq.translation.Translation.TranslationException
+import org.tygus.suslik.certification.targets.htt.translation.Translation
+import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 
-object Coq extends CertificationTarget {
-  val name: String = "Coq"
-  private val loadPath = Paths.get("certification/coq").toFile.getCanonicalPath
+object HTT extends CertificationTarget {
+  val name: String = "HTT"
+  private val loadPath = Paths.get("certification/htt").toFile.getCanonicalPath
   private val prelude = s"""Add LoadPath "$loadPath" as SSL.
 From mathcomp
 Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
@@ -23,7 +23,7 @@ Require Import core.
 
 """
 
-  def certify(proc: Procedure, env: Environment): CoqCertificate = {
+  def certify(proc: Procedure, env: Environment): HTTCertificate = {
     val root = CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
     val builder = new StringBuilder
     builder.append(prelude)
@@ -37,6 +37,6 @@ Require Import core.
 
     CertTree.clear() // [Certify]: Clear tree after certification complete
 
-    CoqCertificate(builder.toString(), proc.name)
+    HTTCertificate(builder.toString(), proc.name)
   }
 }

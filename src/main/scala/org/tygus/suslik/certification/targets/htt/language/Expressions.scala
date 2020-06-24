@@ -1,4 +1,4 @@
-package org.tygus.suslik.certification.targets.coq.language
+package org.tygus.suslik.certification.targets.htt.language
 
 import org.tygus.suslik.LanguageUtils.cardinalityPrefix
 import org.tygus.suslik.logic.Specifications.selfCardVar

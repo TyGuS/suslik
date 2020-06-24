@@ -67,7 +67,7 @@ ssl_write.
 ssl_write_post y2.
 
 apply: val_ret; rewrite !unitL=>v1 v2 v3 v4/=.
-exists y2, [::x], (y2 :-> x \+ y2 .+ 1 :-> null).
+exists y2, [::x] ++ [::], (y2 :-> x \+ y2 .+ 1 :-> null).
 split=>//; split=>//.
 - by rewrite joinA joinC joinA. 
 - constructor 2=>//; first by rewrite defPtUnO in v2; case/andP: v2=>//.

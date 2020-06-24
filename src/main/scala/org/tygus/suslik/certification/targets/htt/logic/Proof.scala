@@ -1,7 +1,7 @@
-package org.tygus.suslik.certification.targets.coq.logic
+package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.coq.language._
-import org.tygus.suslik.certification.targets.coq.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.language._
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
 
 object Proof {
   case class CGoal(pre: CAssertion,
