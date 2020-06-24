@@ -51,7 +51,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |(declare-var y Int)
                         |
                         |(constraint
-                        |    (=> (and (not (= r 0) ) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)))))
+                        |    (=> (and (not (= r 0) ) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)) )))
                         |(check-synth)""".stripMargin.replaceAllLiterally("\r\n","\n"))
   }
   test("All ints, one existential") {

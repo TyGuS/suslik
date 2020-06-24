@@ -15,8 +15,8 @@ object PureSynthesis {
     IntType -> List("0"), LocType -> List("0")
   )
 
-  def toSmtExpr(c: Expressions.Expr, sb: StringBuilder): Unit = c match {
-    case Expressions.Var(name) => sb ++= name
+  def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var,String], sb: StringBuilder): Unit = c match {
+    case v: Expressions.Var => sb ++= (if (existentials contains v) existentials(v) else v.name)
     case const: Expressions.Const => sb ++= const.pp
     case Expressions.BinaryExpr(op, left, right) => sb ++= "(" ++= (op match {
       case Expressions.OpAnd => "and"
@@ -36,26 +36,31 @@ object PureSynthesis {
 //      case Expressions.OpDiff =>
 //      case Expressions.OpIntersect =>
     }) ++= " "
-      toSmtExpr(left,sb)
+      toSmtExpr(left,existentials,sb)
       sb ++= " "
-      toSmtExpr(right,sb)
+      toSmtExpr(right,existentials,sb)
       sb ++= ") "
     //case Expressions.OverloadedBinaryExpr(overloaded_op, left, right) =>
     case Expressions.UnaryExpr(op, arg) => sb ++= "(" ++= (op match {
       case Expressions.OpNot => "not"
       case Expressions.OpUnaryMinus => "-"
     }) ++= " "
-    toSmtExpr(arg,sb)
+    toSmtExpr(arg,existentials,sb)
       sb ++= ") "
     //case Expressions.SetLiteral(elems) =>
     case Expressions.IfThenElse(cond, left, right) =>
   }
 
-  def toSmt(phi: PFormula, sb: StringBuilder): Unit = phi.conjuncts.size match {
+  def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var,String] =
+    existentials.map{ex =>
+      (ex,  "(target_" + ex.name + (for (v <- otherVars) yield v._1.name).mkString(" ", " ", "") + ")")
+    }.toMap
+
+  def toSmt(phi: PFormula, existentials: Map[Expressions.Var,String], sb: StringBuilder): Unit = phi.conjuncts.size match {
     case 0 => sb ++= "true"
-    case 1 => toSmtExpr(phi.conjuncts.head,sb)
+    case 1 => toSmtExpr(phi.conjuncts.head,existentials,sb)
     case _ => sb ++= "(and "
-              for (c <- phi.conjuncts) toSmtExpr(c,sb)
+              for (c <- phi.conjuncts) toSmtExpr(c,existentials,sb)
               sb ++= ")"
   }
 
@@ -63,7 +68,7 @@ object PureSynthesis {
     val sb = new StringBuilder
     sb ++= "(set-logic ALL)\n\n"
 
-    val otherVars = goal.gamma -- goal.existentials
+    val otherVars = (goal.gamma -- goal.existentials).toList
     for(ex <- goal.existentials) {
       val etypeOpt = ex.getType(goal.gamma)
       val etypeStr = typeToSMT(etypeOpt.get)
@@ -84,9 +89,10 @@ object PureSynthesis {
       sb ++= "(declare-var " ++= v._1.name ++= " " ++= typeToSMT(v._2) ++= ")\n"
     sb ++= "\n(constraint\n"
     sb ++= "    (=> "
-    toSmt(goal.pre.phi,sb)
+    lazy val existentialMap = mkExistentialCalls(goal.existentials,otherVars)
+    toSmt(goal.pre.phi,existentialMap,sb)
     sb ++= " "
-    toSmt(goal.post.phi,sb)
+    toSmt(goal.post.phi,existentialMap,sb)
     sb ++= "))"
     sb ++= "\n(check-synth)"
     sb.toString
