@@ -98,29 +98,61 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |  ??
                         |{x <= y && y <= y ; r :-> y}""".stripMargin)
   }
-
-  test("Goal with set and int") {
-    // {true ; emp}??{{v} ++ S1 =i {v1} ++ S11 ; emp}
-    val goal = Goal(
-      Assertion(PFormula(Set[Expr]()),SFormula(Nil)), //pre
-      Assertion(PFormula(Set[Expr](BinaryExpr(Expressions.OpSetEq,BinaryExpr(Expressions.OpUnion,SetLiteral(List(Expressions.Var("v"))),Expressions.Var("S1")),
-                                                                  BinaryExpr(Expressions.OpUnion, SetLiteral(List(Expressions.Var("v1"))),Expressions.Var("S11"))))),
-        SFormula(Nil)), //post
-      Map(Expressions.Var("x") -> LocType,
-        Expressions.Var("S1") -> IntSetType,
-        Expressions.Var("v") -> IntType,
-        Expressions.Var("S11") -> IntSetType,
-        Expressions.Var("S") -> IntSetType,
-        Expressions.Var("v1") -> IntType),
-      List(Expressions.Var("x")),
-      Set(Expressions.Var("S"), Expressions.Var("v"), Expressions.Var("S1")),
-      "foo",
-      GoalLabel(List(1), Nil),
-      None,
-      Environment(Map.empty, Map.empty, params,new SynStats(params.timeOut)),
-      Statements.Hole,
-      false,
-      false
-    )
+  val goal2 = Goal(
+    Assertion(PFormula(Set[Expr]()),SFormula(Nil)), //pre
+    Assertion(PFormula(Set[Expr](BinaryExpr(Expressions.OpSetEq,BinaryExpr(Expressions.OpUnion,SetLiteral(List(Expressions.Var("v"))),Expressions.Var("S1")),
+      BinaryExpr(Expressions.OpUnion, SetLiteral(List(Expressions.Var("v1"))),Expressions.Var("S11"))))),
+      SFormula(Nil)), //post
+    Map(Expressions.Var("x") -> LocType,
+      Expressions.Var("S1") -> IntSetType,
+      Expressions.Var("v") -> IntType,
+      Expressions.Var("S11") -> IntSetType,
+      Expressions.Var("S") -> IntSetType,
+      Expressions.Var("v1") -> IntType),
+    List(Expressions.Var("x")),
+    Set(Expressions.Var("S"), Expressions.Var("v"), Expressions.Var("S1")),
+    "foo",
+    GoalLabel(List(1), Nil),
+    None,
+    Environment(Map.empty, Map.empty, params,new SynStats(params.timeOut)),
+    Statements.Hole,
+    false,
+    false
+  )
+  test("Translate goal with set to SyGuS") {
+    val smtTask = PureSynthesis.toSMTTask(goal2)
+    assert(smtTask == """(set-logic ALL)
+                        |
+                        |(define-fun empset () (Set Int) (as emptyset (Set Int)))
+                        |
+                        |(synth-fun target_v1 ((x Int) (S1 (Set Int)) (v Int) (S (Set Int)) ) Int
+                        |  ((Start Int (0 x v ))))
+                        |(synth-fun target_S11 ((x Int) (S1 (Set Int)) (v Int) (S (Set Int)) ) (Set Int)
+                        |  ((Start (Set Int) (empset S1 S ))))
+                        |
+                        |(declare-var x Int)
+                        |(declare-var S1 (Set Int))
+                        |(declare-var v Int)
+                        |(declare-var S (Set Int))
+                        |
+                        |(constraint
+                        |    (=> true (= (union (singleton v) S1)  (union (singleton (target_v1 x S1 v S)) (target_S11 x S1 v S)) ) ))
+                        |(check-synth)""".stripMargin)
   }
+  test("Goal with set and int") {
+    // loc x [int v1, intset S11] |-
+    //{true ; emp}
+    //  ??
+    //{{v} ++ S1 =i {v1} ++ S11 ; emp}
+
+  }
+
+  test("Translating set literal with more than one elem") {
+    val lit = SetLiteral(List(IntConst(1), IntConst(2), Expressions.Var("y")))
+    val sb = new StringBuilder
+    PureSynthesis.toSmtExpr(lit,Map.empty,sb)
+    assert(sb.toString == "(insert 1 2 (singleton y))")
+
+  }
+  test("Something with \\in set") { ??? }
 }

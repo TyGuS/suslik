@@ -4,7 +4,7 @@ package org.tygus.suslik.synthesis.rules
 import org.bitbucket.franck44.scalasmt.parser.{SMTLIB2Parser, SMTLIB2Syntax}
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.{Command, ConstantTerm, FunDef, GetModelFunDefResponseSuccess, GetModelResponses, ModelResponse, NumLit, QIdTerm, SSymbol, SimpleQId, Sort, SortedVar, SymbolId}
 import org.bitbucket.inkytonik.kiama.util.StringSource
-import org.tygus.suslik.language.Expressions.IntConst
+import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral}
 
 import scala.sys.process._
 import org.tygus.suslik.language.{BoolType, Expressions, IntSetType, IntType, LocType, SSLType}
@@ -23,29 +23,45 @@ object PureSynthesis {
     case IntSetType => "(Set Int)"
   }
   val typeConstants: Map[SSLType,List[String]] = Map(
-    IntType -> List("0"), LocType -> List("0")
+    IntType -> List("0"), LocType -> List("0"), IntSetType -> List("empset")
   )
 
   def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var,String], sb: StringBuilder): Unit = c match {
     case v: Expressions.Var => sb ++= (if (existentials contains v) existentials(v) else v.name)
     case const: Expressions.Const => sb ++= const.pp
+    case SetLiteral(elems) => elems.length match {
+      case 0 => sb ++= "empset"
+      case 1 =>
+        sb ++= "(singleton "
+        toSmtExpr(elems.head,existentials,sb)
+        sb ++= ")"
+      case _ =>
+        sb ++= "(insert "
+        for (e <- elems.dropRight(1)) {
+          toSmtExpr(e,existentials,sb)
+          sb ++= " "
+        }
+        sb ++= "(singleton "
+        toSmtExpr(elems.last,existentials,sb)
+        sb ++= "))"
+    }
     case Expressions.BinaryExpr(op, left, right) => sb ++= "(" ++= (op match {
       case Expressions.OpAnd => "and"
       case Expressions.OpOr => "or"
       case Expressions.OpImplication => "=>"
       case Expressions.OpPlus => "+"
       case Expressions.OpMinus => "-"
-      case Expressions.OpMultiply => "(*"
+      case Expressions.OpMultiply => "*"
       case Expressions.OpEq => "="
-      case Expressions.OpBoolEq => "="
+      case Expressions.OpBoolEq | Expressions.OpSetEq => "="
       case Expressions.OpLeq => "<="
       case Expressions.OpLt => "<"
-      //case Expressions.OpIn =>
-      //case Expressions.OpSetEq =>
-      //case Expressions.OpSubset =>
-//      case Expressions.OpUnion =>
-//      case Expressions.OpDiff =>
-//      case Expressions.OpIntersect =>
+      //Set ops all come from here: https://cvc4.github.io/sets-and-relations
+      //case Expressions.OpIn => "member" //commented out so we can figure out arg order
+      case Expressions.OpSubset => "subset"
+      case Expressions.OpUnion => "union"
+//      case Expressions.OpDiff => "setminus"
+      case Expressions.OpIntersect => "intersection"
     }) ++= " "
       toSmtExpr(left,existentials,sb)
       sb ++= " "
@@ -59,7 +75,7 @@ object PureSynthesis {
     toSmtExpr(arg,existentials,sb)
       sb ++= ") "
     //case Expressions.SetLiteral(elems) =>
-    case Expressions.IfThenElse(cond, left, right) =>
+    //case Expressions.IfThenElse(cond, left, right) =>
   }
 
   def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var,String] =
@@ -78,6 +94,9 @@ object PureSynthesis {
   def toSMTTask(goal: Specifications.Goal): String = {
     val sb = new StringBuilder
     sb ++= "(set-logic ALL)\n\n"
+
+    if (goal.gamma.exists{case (v, t) => t == IntSetType && goal.isExistential(v)})
+      sb ++= "(define-fun empset () (Set Int) (as emptyset (Set Int)))\n\n"
 
     val otherVars = (goal.gamma -- goal.existentials).toList
     for(ex <- goal.existentials) {
