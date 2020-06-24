@@ -101,7 +101,7 @@ object PureSynthesis {
     sb ++= "\n(constraint\n"
     sb ++= "    (=> "
     lazy val existentialMap = mkExistentialCalls(goal.existentials,otherVars)
-    toSmt(goal.pre.phi,existentialMap,sb)
+    toSmt(goal.pre.phi,Map.empty,sb) //no existential vars in pre
     sb ++= " "
     toSmt(goal.post.phi,existentialMap,sb)
     sb ++= "))"
@@ -143,10 +143,6 @@ object PureSynthesis {
         }.toMap
     }
   }
-//  for(cvc4func <- cvc4Res) yield {
-//
-//    }
-//  }
 
   def apply(goal: Specifications.Goal): Option[Goal] = {
     val smtTask = toSMTTask(goal)
@@ -155,7 +151,8 @@ object PureSynthesis {
     else {
       //parse me
       val assignments: Map[Expressions.Var,Expressions.Expr] = parseAssignments(cvc4Res.get)
-      ???
+      val newGoal = goal.spawnChild(post = goal.post.subst(assignments))
+      Some(newGoal)
     }
   }
 

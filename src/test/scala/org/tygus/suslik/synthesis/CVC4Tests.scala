@@ -52,7 +52,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |
                         |(constraint
                         |    (=> (and (not (= r 0) ) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)) )))
-                        |(check-synth)""".stripMargin.replaceAllLiterally("\r\n","\n"))
+                        |(check-synth)""".stripMargin)
   }
   test("Parsing a synthesis fail") {
     val synthRes = PureSynthesis.invokeCVC(
@@ -93,7 +93,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     //res.map(_.subgoals.head.pp + "\n").foreach(println)
     assert(!res.isEmpty)
     val resGoal: Goal = res.get
-    assert(goal.pp == """loc r, int x, int y [] |-
+    assert(resGoal.pp == """loc r, int x, int y [] |-
                         |{not (r == 0) && x < y ; r :-> 0}
                         |  ??
                         |{x <= y && y <= y ; r :-> y}""".stripMargin)
