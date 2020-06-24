@@ -50,8 +50,7 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
 
   override def add(result: Rules.RuleResult, parent: OrNode) {
     if (result.subgoals.isEmpty) {
-      val resolution = AndNode(-1 +: parent.id, result.producer, parent,
-                               result.consume, result.rule)
+      val resolution = AndNode(-1 +: parent.id, parent, result)
       val status = Memoization.Succeeded(null) // ignoring solution, sry
       add(resolution, 0)
       add(resolution.id, status)

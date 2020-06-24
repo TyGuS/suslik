@@ -4,13 +4,14 @@ import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
+import Ordering.Implicits._
 
 object Specifications extends SepLogicUtils {
 
   case class Assertion(phi: PFormula, sigma: SFormula) extends HasExpressions[Assertion]
     with PureLogicUtils {
 
-    def pp: String = s"{${phi.pp} ; ${sigma.pp}}"
+    def pp: String = if (phi.conjuncts.isEmpty) s"{${sigma.pp}}" else s"{${phi.pp} ; ${sigma.pp}}"
 
     // Collect arbitrary expressions
     def collect[R <: Expr](p: Expr => Boolean): Set[R] =
@@ -23,10 +24,12 @@ object Specifications extends SepLogicUtils {
 
     def hasBlocks: Boolean = sigma.chunks.exists(_.isInstanceOf[Block])
 
+    // Difference between two assertions
+    def -(other: Assertion): Assertion = Assertion(PFormula(phi.conjuncts -- other.phi.conjuncts), sigma - other.sigma)
+
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     /**
-      *
       * @param takenNames  -- names that are already taken
       * @param globalNames -- variables that shouldn't be renamed
       * @return
@@ -90,23 +93,9 @@ object Specifications extends SepLogicUtils {
   /**
     * Spatial pre-post pair; used to determine independence of rule applications.
     */
-  case class Footprint(pre: SFormula, post: SFormula) extends PrettyPrinting with HasExpressions[Footprint] {
-    def +(other: Footprint): Footprint = Footprint(pre + other.pre, post + other.post)
-
+  case class Footprint(pre: Assertion, post: Assertion) {
     def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
-
-    def disjoint(other: Footprint): Boolean = pre.disjoint(other.pre) && post.disjoint(other.post)
-
-    override def pp: String = s"{${pre.pp}}{${post.pp}}"
-
-    def subst(sigma: Map[Var, Expr]): Footprint = Footprint(pre.subst(sigma), post.subst(sigma))
-
-    override def resolveOverloading(gamma: Gamma): Footprint = Footprint(pre.resolveOverloading(gamma), post.resolveOverloading(gamma))
-
-    override def collect[R <: Expr](p: Expr => Boolean): Set[R] = pre.collect(p) ++ post.collect(p)
   }
-
-  def emptyFootprint: Footprint = Footprint(emp, emp)
 
   /**
     * A label uniquely identifies a goal within a derivation tree (but not among alternative derivations!)
@@ -115,11 +104,15 @@ object Specifications extends SepLogicUtils {
     * For example, a label ([2, 1], [0]) means go 2 steps down from the root, take 0-th child, then go 1 more step down.
     * This label is pretty-printed as "2-0.1"
     */
-  case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting {
+  case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting with Ordered[GoalLabel]  {
     override def pp: String = {
       val d :: ds = depths.reverse
       d.toString ++ children.reverse.zip(ds).map(x => "-" + x._1.toString + "." + x._2.toString).mkString
     }
+
+    private def toList: List[Int] = (List(depths.head) ++ children.zip(depths.tail).flatMap {case (i, j) => List(i, j)}).reverse
+
+    def compare(that: GoalLabel): Int = implicitly[Ordering[List[Int]]].compare(toList, that.toList)
 
     def bumpUp(childId: Option[Int]): GoalLabel = {
       childId match {
@@ -156,6 +149,7 @@ object Specifications extends SepLogicUtils {
 
     override def pp: String =
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
+        s"[${universalGhosts.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}]" +
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
         s"${pre.pp}\n${sketch.pp}${post.pp}"
 
@@ -185,7 +179,7 @@ object Specifications extends SepLogicUtils {
       Call(Var(f.name), f.params.map(_._2), None)
     }
 
-    def allHeaplets: Footprint = Footprint(pre.sigma, post.sigma)
+    def toFootprint: Footprint = Footprint(pre, post)
 
     def spawnChild(pre: Assertion = this.pre,
                    post: Assertion = this.post,

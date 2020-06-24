@@ -164,8 +164,8 @@ object Expressions {
   object OpEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=="
-    def lType: SSLType = IntType
-    def rType: SSLType = IntType
+    def lType: SSLType = LocType
+    def rType: SSLType = LocType
   }
 
   object OpBoolEq extends RelOp with SymmetricOp {
@@ -305,7 +305,7 @@ object Expressions {
 
     def resolve(gamma: Gamma, target: Option[SSLType]): Option[Gamma] = this match {
       case v@Var(_) => gamma.get(v) match {
-        case Some(t) => t.supertype(target) match {
+        case Some(t) => t.subtype(target) match {
           case None => None
           case Some(t1) => Some(gamma + (v -> t1))
         }

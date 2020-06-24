@@ -1,9 +1,7 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.language.CardType
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.language.{Ident, IntType}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
@@ -45,7 +43,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
         val newGoal = goal.spawnChild(post = newPost)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), this)
+        RuleResult(List(newGoal), kont, this, goal)
       }
       val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
       derivations.sortBy(s => -s.subgoals.head.similarity)
@@ -105,7 +103,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _s2 = s2.subst(x, e)
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2))
           val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
         case _ => Nil
       }
     }
@@ -134,55 +132,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
-    }
-  }
-
-  /*
-    Γ, l ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l * Q}[l/m] ---> S   m is existential
-  --------------------------------------------------------------------------------[pick-from-env]
-     Γ ; {φ ; x.f -> - * P} ; {ψ ; x.f -> m * Q} ---> *x.f := l ; S
-   */
-  object PickFromEnvRule extends SynthesisRule with InvertibleRule {
-
-    override def toString: Ident = "WriteFromEnv"
-
-    def apply(goal: Goal): Seq[RuleResult] = {
-
-      val pre = goal.pre
-      val post = goal.post
-
-      def isSuitable: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, v@Var(_)) =>
-          !goal.isGhost(x) && goal.isExistential(v) && LanguageUtils.isNotDefaultFreshVar(v)
-        case _ => false
-      }
-
-      def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
-        case _ => false
-      }
-
-      // When do two heaplets match
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && isSuitable(hr)
-
-      if (post.sigma.chunks.size > 1) return Nil
-
-      findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
-        case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, m@Var(_)))) =>
-          for {
-            // Try variables from the context
-            l <- goal.programVars
-            if goal.gamma(l).conformsTo(Some(IntType))
-            newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** PointsTo(x, offset, l))
-            subGoal = goal.spawnChild(newPre, post.subst(m, l))
-            kont = PrependProducer(Store(x, offset, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
-          } yield RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this)
-        case Some((hl, hr)) =>
-          ruleAssert(false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
-          Nil
-      }
+      } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
 
@@ -201,12 +151,12 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       for {
         ex <- least(goal.existentials) // since all existentials must go, no point trying them in different order
         v <- toSorted(goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)) ++ constants
-        if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
+        if goal.getType(ex) == v.getType(goal.gamma).get
         sigma = Map(ex -> v)
         if sigma.nonEmpty
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
 
@@ -230,7 +180,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       val lower_bounded = for {
         ex <- goal.existentials.toList
-        if goal.getType(ex).conformsTo(Some(IntType))
+        if goal.getType(ex) == CardType
         boundOpts = goal.post.phi.conjuncts.filter(_.vars.contains(ex)).map(e => getLowerBound(e, ex))
         if boundOpts.forall(_.isDefined)
       } yield (ex, boundOpts.map(_.get).toList)
@@ -241,7 +191,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma = Map(ex -> sol)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
 

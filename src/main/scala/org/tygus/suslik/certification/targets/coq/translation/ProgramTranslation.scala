@@ -6,13 +6,14 @@ import org.tygus.suslik.certification.targets.coq.language.Statements._
 import org.tygus.suslik.certification.targets.coq.logic.Proof._
 import org.tygus.suslik.certification.targets.coq.translation.Translation._
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.SepLogicUtils
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules._
 import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 
-object ProgramTranslation {
+object ProgramTranslation extends SepLogicUtils {
   type CStmtProducer = Producer[CStatement]
 
   private case class TraversalItem(node: CertTree.Node, stmt: Statement) extends Traversable
@@ -44,7 +45,8 @@ object ProgramTranslation {
   private def deriveCStmtProducer(item: TraversalItem, currStmt: Option[Statement]): Option[CStmtProducer] = {
     val node = item.node
 
-    val footprint = node.consume
+    // TODO: check this
+    val parentPre = node.goal.parent.map(_.pre.sigma).getOrElse(emp)
     val stmtProducer = unwrapStmtProducer(node.kont)
     (node.rule, stmtProducer) match {
       case (EmpRule, _) =>
@@ -61,7 +63,7 @@ object ProgramTranslation {
         val s = CStore(CVar(to.name), offset, translateExpr(e))
         Some(seqCompProducer(s))
       case (FreeRule, PrependProducer(Free(v))) =>
-        footprint.pre.blocks.find(_.loc == v).map { b =>
+        parentPre.blocks.find(_.loc == v).map { b =>
           val s = (1 until b.sz).foldLeft[CStatement](CFree(CVar(v.name))){
             (acc, n) => CSeqComp(CFree(CVar(v.name), n), acc)
           }
