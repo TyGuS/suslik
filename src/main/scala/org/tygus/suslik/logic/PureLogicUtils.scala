@@ -208,9 +208,9 @@ trait PureLogicUtils {
     * @param bound identifiers whose names are already taken
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
-  def refreshVars(vs: List[Var], bound: Set[Var], suffix: String = ""): Map[Var, Var] = {
+  def refreshVars(vs: List[Var], bound: Set[Var], suffix: String = ""): SubstVar = {
 
-    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] =
+    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): SubstVar =
       vsToRefresh match {
         case Nil => acc
         case x :: xs =>

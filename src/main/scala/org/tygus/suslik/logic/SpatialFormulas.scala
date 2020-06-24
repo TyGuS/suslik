@@ -82,7 +82,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     for {
       gamma1 <- loc.resolve(gamma, Some(LocType))
-      gamma2 <- value.resolve(gamma1, Some(IntType))
+      gamma2 <- value.resolve(gamma1, Some(LocType))
     } yield gamma2
   }
 
@@ -164,7 +164,7 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
       throw SynthesisException(s"predicate $pred is undefined")
     }
 
-    val gamma1 = card.resolve(gamma, Some(IntType))
+    val gamma1 = card.resolve(gamma, Some(CardType))
     val formals = env.predicates(pred).params
     if (formals.length == args.length) {
       (formals, args).zipped.foldLeft[Option[Gamma]](gamma1) { case (go, (formal, actual)) => go match {

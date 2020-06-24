@@ -62,12 +62,13 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     this.copy(post = newPost)
   }
 
-  def refreshAll(taken: Set[Var], suffix: String = ""): FunSpec = {
+  def refreshAll(taken: Set[Var], suffix: String = ""): (SubstVar, FunSpec) = {
     val sub = refreshVars((post.vars ++ pre.vars ++ params.map(_._1).toSet).toList, taken, suffix)
     val newParams = params.map({case (v, t) => (v.varSubst(sub), t)})
+    val newVarDecl = var_decl.map({case (v, t) => (v.varSubst(sub), t)})
     val newPre = pre.subst(sub)
     val newPost = post.subst(sub)
-    this.copy(params = newParams, pre = newPre, post = newPost)
+    (sub, this.copy(params = newParams, pre = newPre, post = newPost, var_decl = newVarDecl))
   }
 
 }

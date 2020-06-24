@@ -15,23 +15,15 @@ class Log(val out: SynLogging) {
     def apply(goal: Goal): Context = Context(Some(goal))
   }
 
-  private def showFootprint(f: Footprint): String = s"$GREEN{${f.pre.pp}}$MAGENTA{${f.post.pp}}$RESET"
+  def showChildren(goal: Goal)(c: RuleResult): String = {
+    def showFootprint(f: Footprint): String = s"$GREEN${f.pre.pp}$MAGENTA${f.post.pp}$RESET"
+    def showDiff(subgoal: Goal):String = s"${showFootprint(goal.toFootprint - subgoal.toFootprint)} --> ${showFootprint(subgoal.toFootprint - goal.toFootprint)}"
 
-  private def showSubgoal(consume: Footprint, goal: Goal, subgoal: Goal): String = {
-    val prod = subgoal.allHeaplets - (goal.allHeaplets - consume)
-    val purePostDiff = subgoal.post.phi.conjuncts.diff(goal.post.phi.conjuncts)
-    s"${showFootprint(prod)}$MAGENTA[${purePostDiff.map(_.pp).mkString(" && ")}]$RESET"
-  }
-
-  def showChild(goal: Goal)(c: RuleResult): String =
     c.subgoals.length match {
-      case 0 => showFootprint(c.consume)
-      case _ => s"${showFootprint(c.consume)} --> ${c.subgoals.map(sub => showSubgoal(c.consume, goal, sub)).mkString(", ")}"
-//      case 1 =>
-//        s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}"
-//      case _ =>
-//        s"${showFootprint(c.consume)} --> ${showFootprint(c.produces(goal).head)}, ..."
+      case 0 => showFootprint(goal.toFootprint)
+      case _ => c.subgoals.map(showDiff).mkString("; ") // ++ s"$CYAN[${c.transitions.map(_.pp).mkString("; ")}]$RESET"
     }
+  }
 
   private def getIndent(ind: Int): String = if (ind <= 0) "" else "|  " * ind
 

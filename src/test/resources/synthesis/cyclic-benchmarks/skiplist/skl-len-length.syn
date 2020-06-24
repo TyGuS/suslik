@@ -1,0 +1,12 @@
+# -o 2 -x true -p true --lexi true
+
+should be able to compute the length of a skip list
+
+###
+
+{ r :-> z ** skl_len(x, p, s, n)<a> }
+  void skl_simple_len(loc r, loc p)
+{ r :-> n ** skl_len(x, p, s, n) }
+
+###
+

@@ -151,7 +151,7 @@ trait SynthesisRunnerUtil {
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
 
     def printHotNode(hotNode: AndNode, descs: Int): String =
-      s"${hotNode.rule.toString} ${hotNode.consume.pp} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
+      s"${hotNode.rule.toString} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
 
     def printStats(stats: SynStats) = {
       testPrintln(s"Goals generated: ${stats.numGoalsGenerated}")

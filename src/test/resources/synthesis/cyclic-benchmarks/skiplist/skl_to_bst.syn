@@ -1,0 +1,14 @@
+# -o 2 -x true -p true --lexi true
+
+[AuxRec]
+
+Should be able to convert a skip list into a BST, synthesising BST-insert 
+
+###
+
+{ r :-> x ** skl(x, p, s, n, lo, hi)<a> }
+  void skl_to_srtl(loc r, loc p)
+{ r :-> y ** bst(y, n, lo, hi) ** skl(x, p, s, n, lo, hi) }
+
+###
+

@@ -1,8 +1,8 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.language.CardType
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.IntType
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
@@ -43,10 +43,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
       } yield {
         val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        val newCallGoal = goal.callGoal.map(_.subst(sub))
+        val newCallGoal = goal.callGoal.map(_.updateSubstitution(sub))
         val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets + Footprint(singletonHeap(t), emp), this)
+        RuleResult(List(newGoal), kont, this, goal)
       }
       val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
       derivations.sortBy(s => -s.subgoals.head.similarity)
@@ -112,10 +112,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val sigma = Map(x -> e)
           val _p2 = rest2.subst(sigma)
           val _s2 = s2.subst(sigma)
-          val newCallGoal = goal.callGoal.map(_.subst(sigma))
+          val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
           val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-          List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
+          List(RuleResult(List(newGoal), kont, this, goal))
         case _ => Nil
       }
     }
@@ -144,7 +144,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sigma <- PureUnification.tryUnify(t, s, goal.existentials)
         newGoal = goal.spawnChild(post = goal.post.subst(sigma))
         kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
 
@@ -163,13 +163,13 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       for {
         ex <- least(goal.existentials) // since all existentials must go, no point trying them in different order
         v <- toSorted(goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)) ++ constants
-        if goal.getType(ex).conformsTo(Some(v.getType(goal.gamma).get))
+        if goal.getType(ex) == v.getType(goal.gamma).get
         sigma = Map(ex -> v)
         newPost = goal.post.subst(sigma)
-        newCallGoal = goal.callGoal.map(_.subst(sigma))
+        newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
 
@@ -193,7 +193,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       val lower_bounded = for {
         ex <- goal.existentials.toList
-        if goal.getType(ex).conformsTo(Some(IntType))
+        if goal.getType(ex) == CardType
         boundOpts = goal.post.phi.conjuncts.filter(_.vars.contains(ex)).map(e => getLowerBound(e, ex))
         if boundOpts.forall(_.isDefined)
       } yield (ex, boundOpts.map(_.get).toList)
@@ -203,10 +203,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sol = if (bounds.isEmpty) IntConst(0) else BinaryExpr(OpPlus, maxExpr(bounds), IntConst(1))
         sigma = Map(ex -> sol)
         newPost = goal.post.subst(sigma)
-        newCallGoal = goal.callGoal.map(_.subst(sigma))
+        newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this)
+      } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
 
@@ -220,24 +220,23 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "PickArg"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      def isUnsubstituted(e: Expr) = e.isInstanceOf[Var] && !goal.allUniversals.contains(e.asInstanceOf[Var])
-
       if (goal.callGoal.isEmpty) return Nil // no suspended call
       val callGoal = goal.callGoal.get
 
       if (callGoal.call.companion.isEmpty) return Nil // suspended call is not recursive
       val companion = goal.ancestorWithLabel(callGoal.call.companion.get).get.toFunSpec
 
+      def isUnsubstituted(e: Expr) = e.isInstanceOf[Var] && !callGoal.freshToActual.keySet.contains(e.asInstanceOf[Var])
       val i = callGoal.call.args.indexWhere(isUnsubstituted)
       if (i < 0) return Nil // no unsubstituted arguments remain
 
       val arg = companion.params(i)._1
       val sigma = Map(callGoal.call.args(i).asInstanceOf[Var] -> arg)
       val newPost = goal.post.subst(sigma)
-      val newCallGoal = goal.callGoal.map(_.subst(sigma))
+      val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
       val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
       val kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      List(RuleResult(List(newGoal), kont, goal.allHeaplets - newGoal.allHeaplets, this))
+      List(RuleResult(List(newGoal), kont, this, goal))
     }
   }
 
