@@ -4,6 +4,7 @@ import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
+import Ordering.Implicits._
 
 object Specifications extends SepLogicUtils {
 
@@ -103,11 +104,15 @@ object Specifications extends SepLogicUtils {
     * For example, a label ([2, 1], [0]) means go 2 steps down from the root, take 0-th child, then go 1 more step down.
     * This label is pretty-printed as "2-0.1"
     */
-  case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting {
+  case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting with Ordered[GoalLabel]  {
     override def pp: String = {
       val d :: ds = depths.reverse
       d.toString ++ children.reverse.zip(ds).map(x => "-" + x._1.toString + "." + x._2.toString).mkString
     }
+
+    private def toList: List[Int] = (List(depths.head) ++ children.zip(depths.tail).flatMap {case (i, j) => List(i, j)}).reverse
+
+    def compare(that: GoalLabel): Int = implicitly[Ordering[List[Int]]].compare(toList, that.toList)
 
     def bumpUp(childId: Option[Int]): GoalLabel = {
       childId match {

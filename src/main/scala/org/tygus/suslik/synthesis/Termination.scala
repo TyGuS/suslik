@@ -17,13 +17,17 @@ object Termination {
   case class Transition(from: GoalLabel,
                         to: GoalLabel,
                         progressing: List[TracePair],
-                        nonProgressing: List[TracePair]) extends PrettyPrinting {
+                        nonProgressing: List[TracePair]) extends PrettyPrinting with Ordered[Transition] {
+    // Is this transition a cyclic backlink?
+    def isBacklink: Boolean = to < from
 
     private def showTracePairs(pairs: List[TracePair]): String =
       pairs.map { case (v1, v2) => s"(${v1.pp}, ${v2.pp})"}.mkString(", ")
 
     override def pp : String =
       s"${from.pp} -> ${to.pp} : {${showTracePairs(progressing)}}, {${showTracePairs(nonProgressing)}}"
+
+    override def compare(that: Transition): Int = (from, to).compare(that.from, that.to)
   }
 
   object Transition {
@@ -47,9 +51,10 @@ object Termination {
     }
   }
 
-  def collectTrace(leaves: List[OrNode]): Set[Transition] = {
+  // Collect all transition from nodes reachable from leaves
+  def collectTrace(leaves: List[OrNode]): Seq[Transition] = {
     def traceFrom(leaf: OrNode): List[Transition] = leaf.andAncestors.flatMap(_.transitions)
-    leaves.flatMap(traceFrom).toSet
+    leaves.flatMap(traceFrom).distinct.sorted
   }
 
 }

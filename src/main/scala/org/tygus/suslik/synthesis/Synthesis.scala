@@ -136,6 +136,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     val allExpansions = applyRules(rules)(node, stats, config, ctx)
     val expansions = tactic.filterExpansions(allExpansions)
 
+    // TODO: Insert termination check here
+
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
