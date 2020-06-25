@@ -5,6 +5,7 @@ import org.tygus.suslik.language.IntType
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -99,7 +100,9 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         elseGoal = bGoal.spawnChild(
           pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
           childId = Some(1))
-      } yield RuleResult(List(thenGoal, elseGoal), GuardedProducer(cond, bGoal), this, goal)
+        thenTransition = Transition(goal, thenGoal)
+        elseTransition = Transition(bGoal, elseGoal)
+      } yield RuleResult(List(thenGoal, elseGoal), GuardedProducer(cond, bGoal), this, List(thenTransition, elseTransition))
 
     def apply(goal: Goal): Seq[RuleResult] = {
       if (SMTSolving.valid(goal.pre.phi ==> goal.universalPost))

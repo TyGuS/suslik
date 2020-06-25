@@ -122,7 +122,7 @@ where the necessary arguments and options are
   -r, --trace <value>      print the entire derivation trace; default: true
   -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 300000 (5 min)
   -d, --depth <value>      derivation depth; default: 100
-  -a, --assert <value>     check that the synthesized result against the expected one; default: true
+  -a, --assert <value>     check that the synthesized result against the expected one; default: false
   -c, --maxCloseDepth <value>
                            maximum unfolding depth in the post-condition; default: 1
   -o, --maxOpenDepth <value>

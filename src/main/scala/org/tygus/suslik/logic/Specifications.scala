@@ -149,6 +149,7 @@ object Specifications extends SepLogicUtils {
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
+//      s"${label.pp}\n" +
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
         s"[${universalGhosts.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}]" +
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
