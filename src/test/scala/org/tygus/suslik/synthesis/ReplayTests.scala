@@ -11,8 +11,8 @@ class ReplayTests extends FunSpec with Matchers with SynthesisRunnerUtil {
     }
   }
 
-  describe("Replay binary search trees") {
-    runAllTestsFromDir("replay/bst")
-  }
+//  describe("Replay binary search trees") {
+//    runAllTestsFromDir("replay/bst")
+//  }
 
 }
