@@ -5,22 +5,31 @@ import java.io.{BufferedWriter, File, FileWriter}
 import org.tygus.suslik.language.Expressions
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.Memoization
-import org.tygus.suslik.synthesis.Memoization.{GoalStatus}
+import org.tygus.suslik.synthesis.Memoization.GoalStatus
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.rules.Rules
 import upickle.default.{macroRW, ReadWriter => RW}
 
 
 sealed abstract class ProofTrace {
+  import ProofTrace._
   def add(node: OrNode) { }
   def add(node: AndNode, nChildren: Int) { }
   def add(at: NodeId, status: GoalStatus, from: Option[String] = None) { }
   def add(result: Rules.RuleResult, parent: OrNode) { }
+  def add(backlink: BackLink) { }
+}
+
+object ProofTrace {
+  case class BackLink(bud: Goal, companion: Goal)
+
+  var current: ProofTrace = ProofTraceNone  // oops, not thread-safe
 }
 
 object ProofTraceNone extends ProofTrace
 
 class ProofTraceJson(val outputFile: File) extends ProofTrace {
+  import ProofTrace._
   import ProofTraceJson._
 
   val writer = new BufferedWriter(new FileWriter(outputFile))
@@ -43,7 +52,7 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
     val st = status match {
       case Memoization.Succeeded(_) => Succeeded
       case Memoization.Failed => Failed
-      case _ => throw new RuntimeException(s"cannot serialize ${status}")
+      case _ => throw new RuntimeException(s"cannot serialize $status")
     }
     writeObject(StatusEntry(at, st.copy(from = from)))
   }
@@ -56,6 +65,11 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
       add(resolution.id, status)
       add(parent.id, status)
     }
+  }
+
+  override def add(backlink: BackLink) {
+    writeObject(CyclicEntry(
+      BackLinkEntry(backlink.bud.label.pp, backlink.companion.label.pp)))
   }
 }
 
@@ -87,8 +101,8 @@ object ProofTraceJson {
   }
 
   case class GoalStatusEntry(tag: String, from: Option[String] = None)
-  val Succeeded = GoalStatusEntry("Succeeded")
-  val Failed = GoalStatusEntry("Failed")
+  val Succeeded = new GoalStatusEntry("Succeeded")
+  val Failed = new GoalStatusEntry("Failed")
 
   object GoalStatusEntry {
     implicit val readWriter: RW[GoalStatusEntry] = macroRW
@@ -97,5 +111,15 @@ object ProofTraceJson {
   case class StatusEntry(at: Vector[Int], status: GoalStatusEntry)
   object StatusEntry {
     implicit val rw: RW[StatusEntry] = macroRW
+  }
+
+  case class CyclicEntry(backlink: BackLinkEntry)
+  object CyclicEntry {
+    implicit val rw: RW[CyclicEntry] = macroRW
+  }
+
+  case class BackLinkEntry(bud: String, companion: String)
+  object BackLinkEntry {
+    implicit val rw: RW[BackLinkEntry] = macroRW
   }
 }
