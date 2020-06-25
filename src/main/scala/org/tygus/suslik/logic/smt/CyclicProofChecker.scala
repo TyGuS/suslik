@@ -1,6 +1,5 @@
 package org.tygus.suslik.logic.smt
 
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 import org.bitbucket.franck44.expect.Expect
@@ -44,12 +43,15 @@ object CyclicProofChecker {
 
   // Check cyclic proof
   def checkProof(trace: String): Boolean = {
-    if (!configured) return true
+    if (!configured) {
+      // [Termination] This is an unsound default
+      return true
+    }
     
     computeResultOperation(trace) match {
       case Left("YES") => true
       case Left("NO") => false
-      case z => throw SynthesisException(s"Cyclic Checker error: $z\n")
+      case z => throw SynthesisException(s"Cyclic Proof Checker error: $z\n")
     }
   }
 
