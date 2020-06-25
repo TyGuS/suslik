@@ -28,6 +28,7 @@ object SearchTree {
   def init(initialGoal: Goal): Unit = {
     val root = OrNode(Vector(), initialGoal, None)
     worklist = List(root)
+    successLeaves = List()
   }
 
   /**

@@ -67,6 +67,7 @@ object Termination {
       // Construct the trace using only success leaves from my branch of the search and my own proof branch
       val relevantSucceessLeaves = SearchTree.successLeaves.filter(_.isAndSibling(andNode.parent))
       val trace = collectTrace(andNode.parent :: relevantSucceessLeaves, andNode.transitions)
+//      log.print(List((s"${trace.map(_.pp).mkString("\n")};", Console.CYAN)))
       val result = CyclicProofChecker.checkProof(s"${trace.map(_.pp).mkString("\n")};")
       result
     }
