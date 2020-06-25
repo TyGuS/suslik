@@ -3,6 +3,7 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Expressions.{BinaryExpr, OpLt, Var}
 import org.tygus.suslik.language.{CardType, PrettyPrinting}
 import org.tygus.suslik.logic.Specifications.{Goal, GoalLabel}
+import org.tygus.suslik.logic.smt.CyclicProofChecker
 import org.tygus.suslik.report.Log
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, OrNode}
 
@@ -65,10 +66,8 @@ object Termination {
       // Construct the trace using only success leaves from my branch of the search and my own proof branch
       val relevantSucceessLeaves = SearchTree.successLeaves.filter(_.isAndSibling(andNode.parent))
       val trace = collectTrace(andNode.parent :: relevantSucceessLeaves, andNode.transitions)
-      log.print(List((s"New backlink formed by ${andNode.rule}; checking termination.", Console.CYAN)))
-      log.print(List((trace.map(_.pp).mkString("\n"), Console.CYAN)))
-      // TODO: actually call Cyclist from here and return its result
-      true
+      val result = CyclicProofChecker.checkProof(s"${trace.map(_.pp).mkString("\n")};")
+      result
     }
     else true // This expansion does not form a backlink, so cannot break termination
   }

@@ -25,7 +25,7 @@ object GHCiWrapper {
   // so needs to be trimmed away
   val prefix = "Prelude> "
 
-  private val solverProcess = startSolver()
+  private lazy val solverProcess = startSolver()
 
   def main(args: Array[String]): Unit = {
     // Warm-up
