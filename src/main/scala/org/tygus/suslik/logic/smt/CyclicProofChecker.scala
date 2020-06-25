@@ -63,7 +63,7 @@ object CyclicProofChecker {
         checker = startChecker()
         checkProof(trace)
       }
-      case z => throw SynthesisException(s"Cyclic Proof Checker error: $z\n")
+      case z => throw SynthesisException(s"Cyclic Proof Checker error: $z\nTrace:\n$trace\n\n")
     }
   }
 
