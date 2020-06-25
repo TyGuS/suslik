@@ -140,6 +140,29 @@ object SearchTree {
       }
     }
 
+    // All alternative partial derivations that this node is participating in
+    // (each partial derivation is represented as a subset of success leaves)
+    def allPartialDerivations: List[List[OrNode]] = {
+      // These nodes are in the same branch as me, but not necessarily with each other
+      val relevantNodes = successLeaves.filter(isAndSibling)
+
+      // Are all nodes in s pairwise and-siblings?
+      def allAndSiblings(s: Set[OrNode]): Boolean = {
+        val results: Set[Boolean] = for { x <- s ; y <- s - x} yield x.isAndSibling(y)
+        results.forall(x => x)
+      }
+
+      val candidateDerivations = relevantNodes.toSet.subsets.filter(allAndSiblings).toList
+      assert(candidateDerivations.nonEmpty, "Candidate derivations should not be empty")
+      val maximalDerivations = for {
+        d <- candidateDerivations
+        // Only keep d if it's maximal, i.e. there is no candidate derivation that is a strict superset of d
+        if candidateDerivations.forall(c => c == d || !d.subsetOf(c))
+      } yield d.toList
+      assert(maximalDerivations.nonEmpty)
+      maximalDerivations
+    }
+
     def pp(d: Int = 0): String = parent match {
       case None => "-"
       case Some(p) =>
