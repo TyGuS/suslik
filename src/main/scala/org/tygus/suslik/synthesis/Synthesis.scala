@@ -1,11 +1,10 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
-
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.logic.smt.{CyclicProofChecker, SMTSolving}
 import org.tygus.suslik.report.{Log, ProofTrace}
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
@@ -28,6 +27,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     implicit val stats: SynStats = env.stats
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
 
+    if (!CyclicProofChecker.isConfigured()) {
+      log.print(List((s"Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n", Console.RED)))
+    } else {
+      log.print(List((s"The mighty cyclic proof checker is available. Well done!\n", Console.GREEN)))
+    }
+    
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
     SMTSolving.init()
@@ -113,9 +118,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   // Given a worklist, return the next node to work on
   // and a strategy for combining its children with the rest of the list
   protected def selectNode(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
-    if (config.depthFirst)  // DFS? Pick the first one
+    if (config.depthFirst) // DFS? Pick the first one
       (worklist.head, _ ++ worklist.tail)
-    else {  // Otherwise pick a minimum-cost node that is not suspended
+    else { // Otherwise pick a minimum-cost node that is not suspended
       val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
       val idx = worklist.indexOf(best)
       (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))
@@ -153,11 +158,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           if isTerminatingExpansion(andNode) // termination check
           nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
           (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
-                    else e.subgoals.zipWithIndex
+          else e.subgoals.zipWithIndex
         } yield OrNode(j +: andNode.id, g, Some(andNode))
 
         // Suspend nodes with older and-siblings
-        newNodes.foreach (n => {
+        newNodes.foreach(n => {
           val idx = n.childIndex
           if (idx > 0) {
             val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get

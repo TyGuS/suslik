@@ -24,9 +24,9 @@ object Termination {
     def isBacklink: Boolean = to < from
 
     private def showTracePairs(pairs: List[TracePair]): String =
-      pairs.map { case (v1, v2) => s"(${v1.pp}, ${v2.pp})"}.mkString(", ")
+      pairs.map { case (v1, v2) => s"(${v1.pp}, ${v2.pp})" }.mkString(", ")
 
-    override def pp : String =
+    override def pp: String =
       s"${from.pp} -> ${to.pp} : {${showTracePairs(progressing)}}, {${showTracePairs(nonProgressing)}}"
 
     override def compare(that: Transition): Int = (from, to).compare(that.from, that.to)
@@ -56,6 +56,7 @@ object Termination {
   // Collect all transition from nodes reachable from leaves
   def collectTrace(leaves: List[OrNode], newTransitions: Seq[Transition] = List()): Seq[Transition] = {
     def traceFrom(leaf: OrNode): List[Transition] = leaf.andAncestors.flatMap(_.transitions)
+
     (leaves.flatMap(traceFrom) ++ newTransitions).distinct.sorted
   }
 

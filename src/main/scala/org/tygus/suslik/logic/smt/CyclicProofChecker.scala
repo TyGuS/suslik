@@ -1,11 +1,13 @@
 package org.tygus.suslik.logic.smt
 
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 import org.bitbucket.franck44.expect.Expect
 import org.tygus.suslik.synthesis.SynthesisException
 
 import scala.concurrent.duration.FiniteDuration
+import scala.sys.process._
 import scala.util.{Failure, Success}
 
 /**
@@ -25,12 +27,25 @@ object CyclicProofChecker {
   val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
   val timeout = new FiniteDuration(2000, TimeUnit.MILLISECONDS)
 
-  private val checker: Expect = startChecker()
+  private lazy val checker: Expect = startChecker()
   private var warm = false
+  private var configured = false
+  
+  def isConfigured(): Boolean = {
+    configured = try {
+      val result = Process(s"type $checkerCommand").run(ProcessLogger(_ => ())).exitValue()
+      result == 0
+    } catch {
+      case _: Throwable => false
+    }
+    configured
+  }
   
 
   // Check cyclic proof
   def checkProof(trace: String): Boolean = {
+    if (!configured) return true
+    
     computeResultOperation(trace) match {
       case Left("YES") => true
       case Left("NO") => false
@@ -62,15 +77,15 @@ object CyclicProofChecker {
   }
 
   private def warmUp(): Unit = {
-    val yesResult = checkProof(warmUpYes)
+    val yesResult = checkProof(yesQuery)
     assert(yesResult)
 
-    val noResult = checkProof(warmUpNo)
+    val noResult = checkProof(noQuery)
     assert(!noResult)
   }
 
 
-  private val warmUpYes =
+  private val yesQuery =
     """
       |0 -> 0-0.0 : {}, {(a, a)}
       |0 -> 0-1.0 : {(a, zx)}, {(a, a)}
@@ -90,7 +105,7 @@ object CyclicProofChecker {
       |0-1.1-1.5-1.0 -> 0-1.1-1.5-1.1 : {(zx, ybx2), (zx, zbx2), (a, zx)}, {(zx, zx), (a, a), (zbx2, zbx2), (ybx2, ybx2)};
     """.stripMargin
 
-  private val warmUpNo =
+  private val noQuery =
     """
       |0 -> 0-0.0 : {}, {(a, a)}
       |0 -> 0-1.0 : {(a, zx)}, {(a, a)}
