@@ -1,0 +1,22 @@
+
+ul[role=menu] {
+    font-family: sans-serif;
+    font-size: 10pt;
+    line-height: 15pt;
+    padding: 2px 0;
+    background: #eeee;
+}
+
+ul[role=menu] > li > a {
+    padding: 1px 1rem;
+}
+
+ul[role=menu] > li > a:hover {
+    background: rgb(46, 103, 160);
+    color: white;
+    cursor: default;
+}
+
+button:focus, button:active {
+    outline: none;
+}

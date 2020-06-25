@@ -1,6 +1,11 @@
+import arreq from 'array-equal';
 import $ from 'jquery';
 import Vue from 'vue/dist/vue';
+import { VueContext } from 'vue-context'
+import 'vue-context/dist/css/vue-context.css';
+
 import './proof-trace.css';
+import './menu.css';
 
 
 
@@ -17,6 +22,7 @@ class ProofTrace {
     }
 
     view: Vue
+    menus: {node: Vue}
 
     constructor(data: ProofTrace.Data) {
         this.data = data;
@@ -33,15 +39,16 @@ class ProofTrace {
             viewById: new JSONMap()
         };
         // Build byId
-        for (let node of this.data.nodes)
-            this.nodeIndex.byId.set(node.id, node);
+        for (let node of this.data.nodes) {
+            if (!this.nodeIndex.byId.get(node.id))
+                this.nodeIndex.byId.set(node.id, node);
+        }
 
         // Build childrenById
-        var m = this.nodeIndex.childrenById;
         for (let node of this.data.nodes) {
             if (node.id.length >= 1) {
                 var parent = node.id.slice(1);
-                m.set(parent, (m.get(parent) || []).concat([node]));
+                this.addChild(parent, node);
             }
         }
 
@@ -72,6 +79,14 @@ class ProofTrace {
         }
     }
 
+    addChild(parent: Data.NodeId, child: Data.NodeEntry) {
+        var m = this.nodeIndex.childrenById;
+        // Note: nodes can re-occur if they were suspended during the search
+        var l = m.get(parent) || [];
+        if (!l.some(u => arreq(u.id, child.id)))
+            m.set(parent, l.concat([child]));
+    }
+
     children(node: Data.NodeEntry) {
         function lex2(a1: number[], a2: number[]) {
             let n = Math.min(2, a1.length, a2.length);
@@ -93,10 +108,15 @@ class ProofTrace {
         this.view.root = this.createNode(this.root);
         this.expandNode(this.view.root);
         this.expandNode(this.view.root.children[0]);
-        //this.expandAll(this.view.root);
         this.view.$mount();
 
-        this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev))
+        this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
+
+        this.menus = {
+            node: new (Vue.component('proof-trace-context-menu'))()
+        };
+        $(document.body).append(this.menus.node.$mount().$el);
+        this.menus.node.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
     }
 
     getStatus(node: Data.NodeEntry): Data.GoalStatusEntry { 
@@ -132,6 +152,11 @@ class ProofTrace {
         if (view) this.expandNode(view, focus);
     }
 
+    expandByIds(nodes: Data.NodeId[]) {
+        var sorted = nodes.slice().sort((a, b) => a.length - b.length);
+        for (let node of sorted) this.expandById(node);
+    }
+
     expandBranch(tip: Data.NodeId, focus: boolean = false) {
         var prefixes = tip.slice(1).map((_,i,u) => u.slice(-(i + 1)));
         for (let pfx of prefixes)
@@ -151,7 +176,15 @@ class ProofTrace {
             this.expandOrNode(ev.target, true); break;
         case 'expandAll':
             this.expandAll(ev.target); break;
+        case 'menu':
+            this.menus.node.open(ev); break;
+        case 'copyNodeId':
+            this.copyJson(ev.target.value.id); break;
         }
+    }
+
+    copyJson(o: any) { 
+        navigator.clipboard.writeText(JSON.stringify(o));
     }
 
 }
@@ -232,8 +265,10 @@ namespace ProofTrace {
         };
 
         export type ActionEvent = {
-            type: "expand" | "collapse" | "expandAll",
+            type: "expand" | "collapse" | "expandAll" | "menu"
+                | "copyNodeId" | "copyGoalId" | "copyGoal",
             target: Node
+            $event: MouseEvent
         };
 
         const OPERATORS = new Map([
@@ -252,7 +287,7 @@ namespace ProofTrace {
                 else if (s.match(/^[(){}[\]]$/))
                     return {kind: 'brace', text: s};
                 else if (mo = s.match(/^<(\w+)>$/)) {
-                    return {kind: 'cardinality', text:s, pp: pprintIdentifier(mo[1])};
+                    return {kind: 'cardinality', text: s, pp: pprintIdentifier(mo[1])};
                 }
                 else if (s != '')
                     return {kind: 'unknown', text: s};
@@ -343,7 +378,8 @@ Vue.component('proof-trace-node', {
         <div class="proof-trace-node" :class="[value.tag, statusClass]"
                 @click="toggle" @click.capture="clickCapture"
                 @mouseenter="showId" @mouseleave="hideId" @mousedown="clickStart"
-                @mouseover="showRefs" @mouseout="hideRefs">
+                @mouseover="showRefs" @mouseout="hideRefs"
+                @contextmenu.prevent="action({type: 'menu', $event})">
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
                 <span class="tag">{{tag}}</span>
@@ -443,7 +479,29 @@ Vue.component('proof-trace-formula', {
     methods: {
         tokenize: View.tokenize
     }
-})
+});
+
+Vue.component('proof-trace-context-menu', {
+    template: `
+        <vue-context ref="m">
+            <li><a name="expandAll" @click="action">Expand all</a></li>
+            <li><a name="copyNodeId" @click="action">Copy Node Id</a></li>
+            <li><a name="copyGoal" @click="action">Copy goal</a></li>
+        </vue-context>`,
+    components: {VueContext},
+    methods: {
+        open(ev: View.ActionEvent) {
+            this._target = ev.target;
+            this.$refs.m.open(ev.$event);
+        },
+        action(ev) {
+            this.$emit('action', {
+                type: ev.currentTarget.name,
+                target: this._target
+            });
+        }
+    }
+});
 
 
 
