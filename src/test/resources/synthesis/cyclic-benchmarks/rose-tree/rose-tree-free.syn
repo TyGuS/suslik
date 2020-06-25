@@ -10,8 +10,8 @@ should be able to deallocate a rose tree
 
 ###
 
-{true ; rose_tree(x, s)<a>}
-{true ; emp}
+{rose_tree(x, s)<a>}
+{emp}
 void rose_tree_free (loc x) {
   if (x == 0) {
   } else {
@@ -20,7 +20,7 @@ void rose_tree_free (loc x) {
 }
 
 {not (x == 0) && zx < a ; x :-> bx ** buds(bx, s)<zx>[1] ** [x, 1]}
-{true ; emp}
+{emp}
 void rose_tree_free10 (loc x) {
   let b = *x;
   if (b == 0) {
