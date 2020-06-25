@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis
 
 import org.scalatest.FunSuite
-import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, IntConst, SetLiteral, UnaryExpr}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, IntConst, OpIn, SetLiteral, UnaryExpr}
 import org.tygus.suslik.language.{Expressions, IntSetType, IntType, LocType, Statements}
 import org.tygus.suslik.logic.{Environment, Gamma, PFormula, PointsTo, SFormula}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, GoalLabel}
@@ -51,7 +51,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |(declare-var y Int)
                         |
                         |(constraint
-                        |    (=> (and (not (= r 0) ) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)) )))
+                        |    (=> (and (not (= r 0)) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)) )))
                         |(check-synth)""".stripMargin)
   }
   test("Parsing a synthesis fail") {
@@ -136,7 +136,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |(declare-var S (Set Int))
                         |
                         |(constraint
-                        |    (=> true (= (union (singleton v) S1)  (union (singleton (target_v1 x S1 v S)) (target_S11 x S1 v S)) ) ))
+                        |    (=> true (= (union (singleton v) S1) (union (singleton (target_v1 x S1 v S)) (target_S11 x S1 v S)))))
                         |(check-synth)""".stripMargin)
   }
   test("Goal with set and int") {
@@ -144,7 +144,14 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     //{true ; emp}
     //  ??
     //{{v} ++ S1 =i {v1} ++ S11 ; emp}
-
+    val res = PureSynthesis(goal2)
+    //res.map(_.subgoals.head.pp + "\n").foreach(println)
+    assert(!res.isEmpty)
+    val resGoal: Goal = res.get
+    assert(resGoal.pp == """loc x [] |-
+                           |{true ; emp}
+                           |  ??
+                           |{{v} ++ S1 =i {v} ++ S1 ; emp}""".stripMargin)
   }
 
   test("Translating set literal with more than one elem") {
@@ -152,7 +159,21 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     val sb = new StringBuilder
     PureSynthesis.toSmtExpr(lit,Map.empty,sb)
     assert(sb.toString == "(insert 1 2 (singleton y))")
-
   }
-  test("Something with \\in set") { ??? }
+  test ("Translating some missing exprs") {
+    //Expressions.OpIn
+    //x in S
+    val inSet = BinaryExpr(OpIn,Expressions.Var("x"),Expressions.Var("S"))
+    val sb = new StringBuilder
+    PureSynthesis.toSmtExpr(inSet,Map.empty,sb)
+    assert(sb.toString == "(member x S)")
+
+    val setDiff = BinaryExpr(Expressions.OpDiff,Expressions.Var("S1"),Expressions.Var("S2"))
+    sb.clear()
+    PureSynthesis.toSmtExpr(setDiff,Map.empty,sb)
+    assert(sb.toString == "(setminus S1 S2)")
+
+    //Expressions.IfThenElse(cond, left, right)
+    
+  }
 }

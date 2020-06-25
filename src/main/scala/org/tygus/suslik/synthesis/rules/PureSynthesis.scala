@@ -57,24 +57,23 @@ object PureSynthesis {
       case Expressions.OpLeq => "<="
       case Expressions.OpLt => "<"
       //Set ops all come from here: https://cvc4.github.io/sets-and-relations
-      //case Expressions.OpIn => "member" //commented out so we can figure out arg order
+      case Expressions.OpIn => "member"
       case Expressions.OpSubset => "subset"
       case Expressions.OpUnion => "union"
-//      case Expressions.OpDiff => "setminus"
+      case Expressions.OpDiff => "setminus"
       case Expressions.OpIntersect => "intersection"
     }) ++= " "
       toSmtExpr(left,existentials,sb)
       sb ++= " "
       toSmtExpr(right,existentials,sb)
-      sb ++= ") "
+      sb ++= ")"
     //case Expressions.OverloadedBinaryExpr(overloaded_op, left, right) =>
     case Expressions.UnaryExpr(op, arg) => sb ++= "(" ++= (op match {
       case Expressions.OpNot => "not"
       case Expressions.OpUnaryMinus => "-"
     }) ++= " "
     toSmtExpr(arg,existentials,sb)
-      sb ++= ") "
-    //case Expressions.SetLiteral(elems) =>
+    sb ++= ")"
     //case Expressions.IfThenElse(cond, left, right) =>
   }
 
@@ -87,7 +86,10 @@ object PureSynthesis {
     case 0 => sb ++= "true"
     case 1 => toSmtExpr(phi.conjuncts.head,existentials,sb)
     case _ => sb ++= "(and "
-              for (c <- phi.conjuncts) toSmtExpr(c,existentials,sb)
+              for (c <- phi.conjuncts) {
+                toSmtExpr(c,existentials,sb)
+                sb ++= " "
+              }
               sb ++= ")"
   }
 
