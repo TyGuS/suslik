@@ -6,6 +6,7 @@ import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
+import org.tygus.suslik.synthesis.rules.UnificationRules._
 import org.tygus.suslik.synthesis.rules._
 
 class PhasedSynthesis(config: SynConfig) extends Tactic {
@@ -32,15 +33,17 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   protected def specBasedRules(node: OrNode): List[SynthesisRule] = {
     val goal = node.goal
-    if (node.parent.isDefined && node.parent.get.rule == AbduceCall && node.id.head > 0)
+    if (node.parent.map(_.rule).contains(AbduceCall) && node.id.head > 0)
     // TODO: This is a hack: AbduceCall does not make progress,
     // and hence has to be followed by Call, otherwise synthesis gets stuck.
     // Proper fix: merge the two rules
       List(CallRule)
     else if (goal.hasPredicates())
-      // Only if can unfold further
       // Unfolding phase: get rid of predicates
-      unfoldingPhaseRules
+      if (node.parent.map(_.rule).contains(HeapUnifyUnfolding) || node.parent.map(_.rule).contains(Close))
+        // Once a rule that works on post was used, only use those
+        unfoldingPostPhaseRules
+      else unfoldingPhaseRules
     else if (goal.post.hasBlocks)
     // Block phase: get rid of blocks
       postBlockPhaseRules
@@ -83,6 +86,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     UnfoldingRules.Open,
     UnificationRules.HeapUnifyUnfolding,
 //    UnfoldingRules.AbduceCall,
+    UnfoldingRules.Close,
+  )
+
+  protected def unfoldingPostPhaseRules: List[SynthesisRule] = List(
+    LogicalRules.FrameUnfolding,
+    UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.Close,
   )
 

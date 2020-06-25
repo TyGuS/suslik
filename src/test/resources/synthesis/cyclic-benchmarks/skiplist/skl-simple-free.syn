@@ -10,8 +10,8 @@ should be able to deallocate a skip list
 
 ###
 
-{true ; skl_simple(x, p, s)<a>}
-{true ; emp}
+{skl_simple(x, p, s)<a>}
+{emp}
 void skl_simple_free (loc x, loc p) {
   if (x == p) {
   } else {

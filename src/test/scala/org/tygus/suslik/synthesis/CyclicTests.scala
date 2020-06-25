@@ -11,16 +11,24 @@ class CyclicTests extends FunSpec with Matchers with SynthesisRunnerUtil {
     }
   }
 
-  describe("Synthesis with cyclic proofs") {
-    runAllTestsFromDir("cyclic")
+  describe("Contrived cyclic benchmarks") {
+    runAllTestsFromDir("cyclic-benchmarks/contrived")
   }
 
-  describe("Cyclic paper benchmarks: tree") {
-    runAllTestsFromDir("cyclic-benchmarks/tree")
-  }
-
-  describe("Cyclic paper benchmarks: rose tree") {
+  describe("Rose tree") {
     runAllTestsFromDir("cyclic-benchmarks/rose-tree")
+  }
+
+//  describe("Skiplist") {
+//    runAllTestsFromDir("cyclic-benchmarks/skiplist")
+//  }
+
+//  describe("Single-Linked Lists") {
+//    runAllTestsFromDir("cyclic-benchmarks/sll")
+//  }
+
+  describe("Trees") {
+    runAllTestsFromDir("cyclic-benchmarks/tree")
   }
 
 }
