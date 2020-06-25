@@ -77,8 +77,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   /*
   Application rule: apply the inductive hypothesis
-
-  TODO: Make sure it works on non-trivial sub-heaps
    */
 
   object CallRule extends SynthesisRule with GeneratesCode {
@@ -301,7 +299,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
       {
         // TODO: get rid of the 2
-        val calleePost = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 1)
+        val calleePost = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 2)
         val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePost)
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
