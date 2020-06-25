@@ -1,5 +1,6 @@
 package org.tygus.suslik.logic.smt
 
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 import org.bitbucket.franck44.expect.Expect
@@ -26,7 +27,13 @@ object CyclicProofChecker {
   val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
   val timeout = new FiniteDuration(2000, TimeUnit.MILLISECONDS)
 
-  private lazy val checker: Expect = startChecker()
+  private var checker: Expect = null 
+  
+  // Start the checker
+  {
+    checker = startChecker()
+  }
+  
   private var warm = false
   private var configured = false
   
@@ -51,6 +58,11 @@ object CyclicProofChecker {
     computeResultOperation(trace) match {
       case Left("YES") => true
       case Left("NO") => false
+      case Right(_: IOException) => {
+        // The checker broke at the previous iteration, just restart it
+        checker = startChecker()
+        checkProof(trace)
+      }
       case z => throw SynthesisException(s"Cyclic Proof Checker error: $z\n")
     }
   }
@@ -85,8 +97,7 @@ object CyclicProofChecker {
     val noResult = checkProof(noQuery)
     assert(!noResult)
   }
-
-
+  
   private val yesQuery =
     """
       |0 -> 0-0.0 : {}, {(a, a)}
