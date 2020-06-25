@@ -166,7 +166,7 @@ object Specifications extends SepLogicUtils {
 
     // Ancestors before progress was last made
     def companionCandidates: List[Goal] = {
-      ancestors.dropWhile(_.label.depths.length == this.label.depths.length)
+      ancestors.dropWhile(_.label.depths.length == this.label.depths.length).filter(_.callGoal.isEmpty)
       // TODO: actually sufficient to consider everything before last open
     }
 
@@ -318,7 +318,7 @@ object Specifications extends SepLogicUtils {
                                freshToActual: Subst = Map.empty) {
     def updateSubstitution(sigma: Subst): SuspendedCallGoal = {
       assertNoOverlap(freshToActual, sigma)
-      this.copy(freshToActual = freshToActual ++ sigma)
+      this.copy(freshToActual = compose(freshToActual, sigma) ++ sigma)
     }
 
     // Substitute existentials in the callee postcondition and the call statement

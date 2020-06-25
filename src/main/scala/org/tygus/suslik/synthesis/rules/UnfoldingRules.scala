@@ -206,7 +206,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SpatialUnification.checkGhostFlow(relaxedSub, targetAsn, targetParams, sourceAsn, sourceParams)
 
         // Preserve regular variables and fresh existentials back to what they were, if applicable
-        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose1(exSub, relaxedSub)
+        actualSub = relaxedSub.filterNot { case (k, v) => exSub.keySet.contains(k) } ++ compose(exSub, relaxedSub)
 
         if canEmitCall(largPreSubHeap, lilHeap, goal, f)
 
@@ -273,8 +273,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
-//      nubBy[RuleResult, Assertion](results, r => r.subgoals.head.pre)
-      results
+//      nubBy[RuleResult, SFormula](results, r => r.subgoals.head.post.sigma)
+      nubBy[RuleResult, SProfile](results, r => r.subgoals.head.pre.sigma.profile)
+//      results
     }
   }
 
@@ -294,11 +295,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       if (post.sigma.isEmp &&                                   // companion's transformed pre-heap is empty
         goal.existentials.isEmpty &&                            // no existentials
         noGhostArgs &&                                          // TODO: if slow, move this check to when substitution is made
-//        canEmitCall(budHeap, goal, callGoal.call.companion) &&  // termination
+        canEmitCall(budHeap, goal, callGoal.call.companion) &&  // termination
         SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
       {
         // TODO: get rid of the 2
-        val calleePost = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 2)
+        val calleePost = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 1)
         val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePost)
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
@@ -322,18 +323,18 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       }
     }
 
-//    // [Cardinality] Checking size constraints before emitting the call
-//    def canEmitCall(budHeap: SFormula, goal: Goal, l: Option[GoalLabel]): Boolean = l match {
-//      case None => true // non-recursive call
-//      case Some(label) => {
-//        val companion = goal.ancestorWithLabel(label).get
-//        val companionHeap = companion.pre.sigma
-//        goal.env.config.termination match {
-//          case `totalSize` => totalLT(budHeap, companionHeap, goal.pre.phi)
-//          case `lexicographic` => lexiLT(budHeap, companionHeap, goal.pre.phi)
-//        }
-//      }
-//    }
+    // [Cardinality] Checking size constraints before emitting the call
+    def canEmitCall(budHeap: SFormula, goal: Goal, l: Option[GoalLabel]): Boolean = l match {
+      case None => true // non-recursive call
+      case Some(label) => {
+        val companion = goal.ancestorWithLabel(label).get
+        val companionHeap = companion.pre.sigma
+        goal.env.config.termination match {
+          case `totalSize` => totalLT(budHeap, companionHeap, goal.pre.phi)
+          case `lexicographic` => lexiLT(budHeap, companionHeap, goal.pre.phi)
+        }
+      }
+    }
   }
 
 

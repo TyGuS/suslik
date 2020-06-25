@@ -59,7 +59,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,
-    LogicalRules.WeakenPre,
+//    LogicalRules.WeakenPre,
     OperationalRules.ReadRule,
     //    LogicalRules.SubstLeft,
   )

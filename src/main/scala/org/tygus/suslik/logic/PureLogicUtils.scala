@@ -16,18 +16,7 @@ trait PureLogicUtils {
     assert(sbst1.keySet.intersect(sbst2.keySet).isEmpty, s"Two substitutions overlap:\n:$sbst1\n$sbst2")
   }
 
-  def compose(subst1: SubstVar, subst2: Subst): Subst = {
-    subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
-  }
-
-  def compose1(subst1: Subst, subst2: Subst): Subst =
-    subst1.map {
-      case (k, v) => k -> (v match {
-        case w@Var(_) => subst2.getOrElse(w, v)
-        case _ => v
-      })
-    }
-
+  def compose(subst1: Subst, subst2: Subst): Subst = subst1.map { case (k, e) => k -> e.subst(subst2) }
 
   def ppSubst(m: Subst): String = {
     s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
