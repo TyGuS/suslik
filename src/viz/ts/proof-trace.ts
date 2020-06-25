@@ -212,6 +212,7 @@ namespace ProofTrace {
         export enum NodeType { AndNode = 'AndNode', OrNode = 'OrNode' };
 
         export type GoalEntry = {
+            id: string
             pre: string, post: string, sketch: string,
             programVars:  [string, string][]
             existentials: [string, string][]
@@ -382,7 +383,8 @@ Vue.component('proof-trace-node', {
                 @contextmenu.prevent="action({type: 'menu', $event})">
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
-                <span class="tag">{{tag}}</span>
+                <span class="goal-id" v-if="value.goal">{{value.goal.id}}</span>
+                <span class="tag" v-else>{{tag}}</span>
             </div>
             <proof-trace-goal v-if="value.goal" :value="value.goal"
                 @click.native.stop="action"/>
