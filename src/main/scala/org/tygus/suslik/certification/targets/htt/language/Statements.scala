@@ -69,7 +69,8 @@ object Statements {
           case CStore(to, off, e) =>
             builder.append(mkSpaces(offset))
             val t = if (off <= 0) to.ppp else s"(${to.ppp} .+ $off)"
-            builder.append(s"$t ::= ${e.ppp}")
+            val v = if (e == CNatConst(0)) "null" else e.ppp
+            builder.append(s"$t ::= $v")
           case CLoad(to, tpe, from, off) =>
             builder.append(mkSpaces(offset))
             val f = if (off <= 0) from.ppp else s"(${from.ppp} .+ $off)"

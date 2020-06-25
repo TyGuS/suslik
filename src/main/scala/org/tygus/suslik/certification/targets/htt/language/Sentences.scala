@@ -16,10 +16,11 @@ sealed abstract class Sentence extends PrettyPrinting {
       case el@CAssertion(phi, sigma) =>
         val ve = el.valueEx.filterNot(vars.contains).distinct
         val he = el.heapEx
+        val types = el.inferredTypes
         // existentials
         if (ve.nonEmpty) {
           builder.append(mkSpaces(offset))
-          builder.append(s"exists ${ve.map(_.pp).mkString(" ")},\n")
+          builder.append(s"exists ${ve.map(v => types.get(v).map(t => s"(${v.pp} : ${t.pp})").getOrElse(v.pp)).mkString(" ")},\n")
         }
         if (he.nonEmpty) {
           builder.append(mkSpaces(offset))
@@ -96,6 +97,22 @@ case class CAssertion(phi: CExpr, sigma: CSFormula) extends Sentence {
 
   val heapEx: Seq[CVar] =
     sigma.heapVars
+
+  val inferredTypes: Map[CVar, CoqType] = {
+    def collectPhi(el: CExpr, m: Map[CVar, CoqType]): Map[CVar, CoqType] = el match {
+      case CBinaryExpr(COpSetEq, left: CVar, right: CVar) => m ++ Map(left -> CNatSeqType, right -> CNatSeqType)
+      case CBinaryExpr(COpSetEq, left: CVar, right) => collectPhi(right, m ++ Map(left -> CNatSeqType))
+      case CBinaryExpr(COpSetEq, left, right: CVar) => collectPhi(left, m ++ Map(right -> CNatSeqType))
+      case _ => m
+    }
+    def collectSigma: Map[CVar, CoqType] = {
+      val ptss = sigma.ptss
+      ptss.foldLeft[Map[CVar, CoqType]](Map.empty){ case (acc, CPointsTo(loc, _, _)) => acc ++ Map(loc.asInstanceOf[CVar] -> CPtrType)}
+    }
+    val mPhi = collectPhi(phi, Map.empty)
+    val mSigma = collectSigma
+    mPhi ++ mSigma
+  }
 }
 
 case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion) extends Sentence

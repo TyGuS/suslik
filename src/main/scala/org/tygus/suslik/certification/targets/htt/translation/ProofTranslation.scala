@@ -26,8 +26,8 @@ object ProofTranslation {
         (EmpStep(cenv.predicates, cenv.spec, cenv.subst, cenv.heapSubst), cenv)
       case Load(to, _, _, _) =>
         (ReadStep(CVar(to.name)), cenv)
-      case Store(to, _, e) =>
-        (WriteStep(CVar(to.name), translateExpr(e)), cenv)
+      case Store(to, offset, e) =>
+        (WriteStep(CVar(to.name), offset, translateExpr(e)), cenv)
       case Malloc(to, tpe, sz) =>
         (AllocStep(CVar(to.name), translateSSLType(tpe), sz), cenv)
       case Free(v) =>

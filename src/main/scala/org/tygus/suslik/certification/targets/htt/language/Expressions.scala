@@ -9,6 +9,8 @@ object Expressions {
     private def isMetadata: Boolean =
       !this.vars.exists(v => v.name != selfCardVar.name && !v.name.startsWith(cardinalityPrefix))
 
+    def typeOf: Option[CoqType] = None
+
     def collect[R <: CExpr](p: CExpr => Boolean): Seq[R] = {
 
       def collector(acc: Seq[R])(exp: CExpr): Seq[R] = exp match {
@@ -94,24 +96,36 @@ object Expressions {
   }
 
   case class CBoolConst(value: Boolean) extends CExpr {
+    override def typeOf: Option[CoqType] = Some(CBoolType)
     override def pp: String = value.toString
   }
 
   case class CNatConst(value: Int) extends CExpr {
+    override def typeOf: Option[CoqType] = Some(CNatType)
     override def pp: String = value.toString
   }
 
   case class CSetLiteral(elems: List[CExpr]) extends CExpr {
+    override def typeOf: Option[CoqType] = Some(CNatSeqType)
     override def pp: String = if (elems.isEmpty) "nil" else s"[:: ${elems.map(_.pp).mkString("; ")}]"
     override def ppp: String = if (elems.isEmpty) "nil" else s"[:: ${elems.map(_.ppp).mkString("; ")}]"
   }
 
   case class CIfThenElse(cond: CExpr, left: CExpr, right: CExpr) extends CExpr {
+    override def typeOf: Option[CoqType] = left.typeOf
     override def pp: String = s"if ${cond.pp} then ${left.pp} else ${right.pp}"
     override def ppp: String = s"if ${cond.ppp} then ${left.ppp} else ${right.ppp}"
   }
 
   case class CBinaryExpr(op: CBinOp, left: CExpr, right: CExpr) extends CExpr {
+    override def typeOf: Option[CoqType] = op match {
+      case COpPlus | COpMinus | COpMinus => Some(CNatType)
+      case COpBoolEq | COpLeq | COpLt => Some(CBoolType)
+      case COpAnd | COpOr | COpSetEq => Some(CPropType)
+      case COpHeapJoin => Some(CHeapType)
+      case COpUnion | COpDiff => Some(CNatSeqType)
+      case _ => None
+    }
     override def equals(that: Any): Boolean = that match {
       case CUnaryExpr(COpNot, COverloadedBinaryExpr(COpOverloadedEq, left1, right1)) => left == left1 && right == right1
       case CBinaryExpr(op1, left1, right1) => op == op1 && left == left1 && right == right1
@@ -148,8 +162,8 @@ object Expressions {
   case class CPointsTo(loc: CExpr, offset: Int = 0, value: CExpr) extends CExpr {
     def locPP: String = if (offset == 0) loc.pp else s"${loc.pp} .+ $offset"
     def locPPP: String = if (offset == 0) loc.ppp else s"${loc.ppp} .+ $offset"
-    override def pp: String = s"$locPP :-> ${value.pp}"
-    override def ppp: String = s"$locPPP :-> ${value.ppp}"
+    override def pp: String = if (value == CNatConst(0)) s"$locPP :-> null" else s"$locPP :-> ${value.pp}"
+    override def ppp: String = if (value == CNatConst(0)) s"$locPPP :-> null" else s"$locPPP :-> ${value.ppp}"
   }
 
   case object CEmpty extends CExpr {

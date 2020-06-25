@@ -10,39 +10,25 @@ Notation empty := Unit.
 Coercion ptr_nat : nat >-> ptr.
 Definition skip := ret tt.
 
-Ltac put_to_head h :=
-  (* make everything left associative*)
-  repeat match goal with
-         | [|- context[?X \+ (?Y \+ ?Z)]] => rewrite -(joinA X Y Z)
-         end;
-  (* bring to head *)
-  match goal with
-  | [|- context[?X \+ h]] => rewrite (joinC _ h)
-  end;
-  (* make the remainder left associative*)
-  repeat match goal with
-         | [|- context[h \+ ?Y \+ ?Z]] => rewrite -(joinA h Y Z)
-         end.
+Ltac put_to_tail_ptr p :=
+  rewrite -?joinA; rewrite ?(joinC (p :-> _) _); rewrite ?joinA.
 
-Ltac ssl_read_pre x :=
-  match goal with
-  | [|- context[x :-> ?V]] => put_to_head (x :-> ?V)
-  end.
+Ltac put_to_tail h :=
+  rewrite -?joinA; rewrite ?(joinC h _); rewrite ?joinA.
+
+Ltac put_to_head h :=
+  put_to_tail h;
+  rewrite (joinC _ h).
 
 Ltac ssl_read := apply: bnd_readR=>/=.
 
 Ltac ssl_write := apply: bnd_writeR=>/=.
 
 Ltac ssl_write_post x :=
-  rewrite -?joinA;
-  match goal with
-  | [ |- verify (x :-> _ \+ _) _ _ ] =>
-    rewrite ?(joinC (x :-> _))
-  | [ |- verify (x :-> _)  _ _ ] =>
-    rewrite -(unitL (x :-> _))
-  end;
-  rewrite ?joinA;
-  apply frame.
+  (put_to_tail_ptr x + rewrite -(unitL (x :-> _))); apply frame.
+
+Ltac ssl_alloc x :=
+  apply: bnd_allocbR=>x//=.
 
 Ltac ssl_dealloc :=
   apply: bnd_seq;
@@ -58,15 +44,42 @@ Ltac ssl_dealloc :=
   end
 .
 
-Ltac ssl_emp := apply: val_ret=>*//=.
+Ltac non_null :=
+  rewrite defPtUnO;
+  case/andP;
+  let not_null := fresh "not_null" in move=>not_null;
+  case/andP;
+  rewrite ?unitL;
+  match goal with
+  | [|- context[valid empty] ] =>
+    repeat match goal with
+           | [|- _ -> _] => move=>_
+           end
+  | _ => non_null
+  end.
+
+Ltac store_valid_hyps :=
+  match goal with
+  | [|- _ ->  _ -> _ ] =>
+    let hyp := fresh "H_valid" in move=>hyp;
+    store_valid_hyps
+  | [|-  _ = _ ->  _ ] =>
+    move=>_
+  | [|-  _ ->  _ ] =>
+    let hyp := fresh "H_valid" in move=>hyp;
+    try (move:(hyp); non_null)
+  end.
+
+Ltac ssl_emp := apply: val_ret; rewrite ?unitL; store_valid_hyps; move=>//.
 
 Ltac ssl_emp_post :=
-  try repeat hhauto ||
-  match goal with
-  | [H_cond: _ |- _] => case: ltngtP H_cond
+  repeat match goal with
+  | [|- _ /\ _] => split=>//
+  | [|- _ = _] => rewrite ?unitL; rewrite ?unitR; hhauto
+  | [H_cond: _ |- _] => case: ltngtP H_cond=>//
   end.
 
 Ltac ssl_ghostelim_pre := try apply: ghR; move=>h.
 
-Ltac ssl_ghostelim_post := move=>->Vh.
+Ltac ssl_ghostelim_post := try store_valid_hyps.
 
