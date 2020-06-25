@@ -27,17 +27,17 @@ object CyclicProofChecker {
   val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
   val timeout = new FiniteDuration(2000, TimeUnit.MILLISECONDS)
 
-  private var checker: Expect = null 
-  
+  private var checker: Expect = null
+
   // Start the checker
   {
     checker = startChecker()
   }
-  
+
   private var warm = false
   private var configured = false
-  
-  def isConfigured(): Boolean = {
+
+  def isConfigured(): Boolean = this.synchronized {
     configured = try {
       val result = Process(s"type $checkerCommand").run(ProcessLogger(_ => ())).exitValue()
       result == 0
@@ -46,15 +46,15 @@ object CyclicProofChecker {
     }
     configured
   }
-  
+
 
   // Check cyclic proof
-  def checkProof(trace: String): Boolean = {
+  def checkProof(trace: String): Boolean = this.synchronized {
     if (!configured) {
       // [Termination] This is an unsound default
       return true
     }
-    
+
     computeResultOperation(trace) match {
       case Left("YES") => true
       case Left("NO") => false
@@ -66,22 +66,25 @@ object CyclicProofChecker {
       case z => throw SynthesisException(s"Cyclic Proof Checker error: $z\nTrace:\n$trace\n\n")
     }
   }
+  
+  /////////////////////////////////////////////////////////////////////////
+  // Private methods
+  /////////////////////////////////////////////////////////////////////////
 
   // Can be used concurrently by Scala tests
   private def computeResultOperation(command: String): Either[String, Throwable] = {
-    if (!warm) {
-      warm  = true
-      warmUp()
-    }
-  
-    this.synchronized {
-      // Send command, then expect an answer
-      checker.send(command) flatMap (_ => checker.expect(delimiter, timeout)) match {
-        case Success(value) => Left(value)
-        case Failure(exception) => Right(exception)
-      }
+    //    if (!warm) {
+    //      warm = true
+    //      warmUp()
+    //    }
+
+    // Send command, then expect an answer
+    checker.send(command) flatMap (_ => checker.expect(delimiter, timeout)) match {
+      case Success(value) => Left(value)
+      case Failure(exception) => Right(exception)
     }
   }
+
 
   private def startChecker(): Expect = {
     disableLogging()
@@ -97,7 +100,7 @@ object CyclicProofChecker {
     val noResult = checkProof(noQuery)
     assert(!noResult)
   }
-  
+
   private val yesQuery =
     """
       |0 -> 0-0.0 : {}, {(a, a)}
