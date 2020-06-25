@@ -161,19 +161,22 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     assert(sb.toString == "(insert 1 2 (singleton y))")
   }
   test ("Translating some missing exprs") {
-    //Expressions.OpIn
     //x in S
     val inSet = BinaryExpr(OpIn,Expressions.Var("x"),Expressions.Var("S"))
     val sb = new StringBuilder
     PureSynthesis.toSmtExpr(inSet,Map.empty,sb)
     assert(sb.toString == "(member x S)")
 
+    //S1 -- S2
     val setDiff = BinaryExpr(Expressions.OpDiff,Expressions.Var("S1"),Expressions.Var("S2"))
     sb.clear()
     PureSynthesis.toSmtExpr(setDiff,Map.empty,sb)
     assert(sb.toString == "(setminus S1 S2)")
 
     //Expressions.IfThenElse(cond, left, right)
-    
+    val ite = Expressions.IfThenElse(Expressions.BoolConst(true),Expressions.Var("x"),IntConst(3))
+    sb.clear()
+    PureSynthesis.toSmtExpr(ite,Map.empty,sb)
+    assert(sb.toString == "(ite true x 3)")
   }
 }

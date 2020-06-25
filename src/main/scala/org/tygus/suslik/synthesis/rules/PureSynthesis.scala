@@ -74,7 +74,14 @@ object PureSynthesis {
     }) ++= " "
     toSmtExpr(arg,existentials,sb)
     sb ++= ")"
-    //case Expressions.IfThenElse(cond, left, right) =>
+    case Expressions.IfThenElse(cond, left, right) =>
+      sb ++= "(ite "
+      toSmtExpr(cond,existentials,sb)
+      sb ++= " "
+      toSmtExpr(left,existentials,sb)
+      sb ++= " "
+      toSmtExpr(right,existentials,sb)
+      sb ++= ")"
   }
 
   def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var,String] =
