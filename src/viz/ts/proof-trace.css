@@ -21,6 +21,7 @@
     cursor: default;
 }
 
+.proof-trace-node > .title > span.goal-id,
 .proof-trace-node > .title > span.tag {
     float: right;
     margin-left: 1em;

@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis.Termination.Transition
+import org.tygus.suslik.report.ProofTrace
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.CallRule.canEmitCall
@@ -119,6 +120,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if goalCompanionPureUnifies(goal.pre.phi, f.pre.phi, sub)
         callGoal = mkCallGoal(f, sub, callSubPre, goal)
       } yield {
+        ProofTrace.current.add(ProofTrace.BackLink(goal, g))
         val postCallTransition = Transition(goal, callGoal)
         val kont: StmtProducer = PrependProducer(Call(Var(f.name), args, l)) >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(callGoal), kont, this, List(postCallTransition) ++ companionTransition(l, f, sub, goal))
