@@ -4,8 +4,9 @@ import org.tygus.suslik.language.Expressions.{BinaryExpr, OpLt, Var}
 import org.tygus.suslik.language.{CardType, PrettyPrinting}
 import org.tygus.suslik.logic.Specifications.{Goal, GoalLabel}
 import org.tygus.suslik.logic.smt.CyclicProofChecker
-import org.tygus.suslik.report.Log
+import org.tygus.suslik.report.{Log, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, OrNode}
+import org.tygus.suslik.util.SynStats
 
 object Termination {
 
@@ -62,15 +63,16 @@ object Termination {
 
   // Checks that the proof generated so far in the same branch of the search as andNode
   // satisfies the global soundness condition of cyclic proofs after adding new transitions of the andNode
-  def isTerminatingExpansion(andNode: AndNode)(implicit log: Log, config: SynConfig): Boolean = {
+  def isTerminatingExpansion(andNode: AndNode)(implicit log: Log, config: SynConfig, stats: SynStats): Boolean = {
     if (andNode.transitions.exists(_.isBacklink)) {
       val results = for {
         // Construct the trace using only success leaves from my branch of the search and my own proof branch
         relevantSucceessLeaves <- andNode.parent.allPartialDerivations
         trace = collectTrace(andNode.parent :: relevantSucceessLeaves, andNode.transitions)
-//        () = log.print(List((s"New backlink formed by ${andNode.rule}", Console.CYAN)))
-//        () = log.print(List((s"${trace.map(_.pp).mkString("\n")};", Console.CYAN)))
-        result = CyclicProofChecker.checkProof(s"${trace.map(_.pp).mkString("\n")};")
+        //        () = log.print(List((s"New backlink formed by ${andNode.rule}", Console.CYAN)))
+        //        () = log.print(List((s"${trace.map(_.pp).mkString("\n")};", Console.CYAN)))
+        traceToCheck = s"${trace.map(_.pp).mkString("\n")};"
+        result = stats.recordCyclistTime(CyclicProofChecker.checkProof(traceToCheck))
       } yield result
       results.reduce(_ && _)
     }

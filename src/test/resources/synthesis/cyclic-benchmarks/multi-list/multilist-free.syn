@@ -1,0 +1,11 @@
+# -o 2 -x true -p true
+
+should be able to deallocate a multi-list
+
+###
+
+{ multilist(x, len, s)<a> }
+  void multilist_free(loc r)
+{ emp }
+
+###
