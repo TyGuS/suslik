@@ -9,6 +9,8 @@ import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
+import scala.collection.immutable.SortedSet
+
 /**
   * Logical rules simplify specs and terminate the derivation;
   * they do not eliminate existentials.
@@ -69,18 +71,17 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "WeakenPre"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val weakenedPres = for {
-        subPre <- goal.pre.phi.conjuncts.subsets
-        subPreVars = subPre.toList.map(_.vars).fold(Set.empty)(_ ++ _)
-        if subPreVars.nonEmpty
-        restPre = goal.pre.phi.conjuncts -- subPre
-        restVars = restPre.toList.map(_.vars).fold(Set.empty)(_ ++ _) ++ goal.pre.sigma.vars ++ goal.post.vars
-        if subPreVars.intersect(restVars).isEmpty
-      } yield restPre
-      if (weakenedPres.isEmpty) Nil
+      def unusedConjuncts(unused: SortedSet[Expr], restVars: Set[Var]): SortedSet[Expr] = {
+        val (newUnused, newUsed) = unused.partition(_.vars.intersect(restVars).isEmpty)
+        if (newUsed.isEmpty) unused
+        else unusedConjuncts(newUnused, restVars ++ newUsed.flatMap(_.vars))
+      }
+
+      val unused = unusedConjuncts(goal.pre.phi.conjuncts, goal.pre.sigma.vars ++ goal.post.vars)
+      if (unused.isEmpty) Nil
       else {
-        val smallest = weakenedPres.minBy(_.size)
-        val newPre = Assertion(PFormula(smallest), goal.pre.sigma)
+        val used = goal.pre.phi.conjuncts -- unused
+        val newPre = Assertion(PFormula(used), goal.pre.sigma)
         val newGoal = goal.spawnChild(pre = newPre)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this, goal))

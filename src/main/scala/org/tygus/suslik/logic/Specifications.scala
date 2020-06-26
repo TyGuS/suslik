@@ -203,10 +203,12 @@ object Specifications extends SepLogicUtils {
       // Sort heaplets from old to new and simplify pure parts
       val preSimple = Assertion(simplify(pre.phi), pre.sigma)
       val postSimple = Assertion(simplify(post.phi), post.sigma)
-      val newUniversalGhosts = this.universalGhosts ++ preSimple.vars -- programVars
+      val usedVars = preSimple.vars ++ postSimple.vars ++ programVars.toSet
+      val newGamma = gammaFinal.filterKeys(usedVars.contains)
+      val newUniversalGhosts = this.universalGhosts.intersect(usedVars) ++ preSimple.vars -- programVars
 
       Goal(preSimple, postSimple,
-        gammaFinal, programVars, newUniversalGhosts,
+        newGamma, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
         callGoal,
         preNormalized, postNormalized)
