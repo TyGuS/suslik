@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis
 
-import org.scalatest.FunSuite
+import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, IntConst, OpIn, SetLiteral, UnaryExpr}
 import org.tygus.suslik.language.{Expressions, IntSetType, IntType, LocType, Statements}
 import org.tygus.suslik.logic.{Environment, Gamma, PFormula, PointsTo, SFormula}
@@ -10,7 +10,11 @@ import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
 import org.tygus.suslik.synthesis.rules.UnificationRules.Pick
 import org.tygus.suslik.util.SynStats
 
-class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
+class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll {
+  override def beforeAll(): Unit = {
+    assert(DelegatePureSynthesis.isConfigured())
+  }
+
   val params: SynConfig = defaultConfig
   //loc r, int x, int y [int m] |-
   //{not (r == 0) && x < y ; r :-> 0}
@@ -94,7 +98,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     assert(res.length == 1)
     assert(res.head.subgoals.size == 1)
     val resGoal: Goal = res.head.subgoals.head
-    assert(resGoal.pp == """loc r, int x, int y [] |-
+    assert(resGoal.pp == """loc r, int x, int y [][] |-
                         |{not (r == 0) && x < y ; r :-> 0}
                         |  ??
                         |{x <= y && y <= y ; r :-> y}""".stripMargin)
@@ -141,7 +145,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |(check-synth)""".stripMargin)
   }
   test("Goal with set and int") {
-    // loc x [int v1, intset S11] |-
+    // loc x [intset S, int v, intset S1][int v1, intset S11] |-
     //{true ; emp}
     //  ??
     //{{v} ++ S1 =i {v1} ++ S11 ; emp}
@@ -150,8 +154,8 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     assert(res.length == 1)
     assert(res.head.subgoals.size == 1)
     val resGoal: Goal = res.head.subgoals.head
-    assert(resGoal.pp == """loc x [] |-
-                           |{true ; emp}
+    assert(resGoal.pp == """loc x [intset S, int v, intset S1][] |-
+                           |{emp}
                            |  ??
                            |{{v} ++ S1 =i {v} ++ S1 ; emp}""".stripMargin)
   }
