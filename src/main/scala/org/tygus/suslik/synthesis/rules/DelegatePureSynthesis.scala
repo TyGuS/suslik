@@ -7,7 +7,7 @@ import org.bitbucket.inkytonik.kiama.util.StringSource
 import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral}
 
 import scala.sys.process._
-import org.tygus.suslik.language.{BoolType, Expressions, IntSetType, IntType, LocType, SSLType}
+import org.tygus.suslik.language.{BoolType, CardType, Expressions, IntSetType, IntType, LocType, SSLType}
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
@@ -22,12 +22,12 @@ object DelegatePureSynthesis extends SynthesisRule {
   override def toString: String = "PureSynthesis"
 
   def typeToSMT(lType: SSLType): String = lType match {
-    case IntType | LocType => "Int"
+    case IntType | LocType | CardType => "Int"
     case BoolType => "Bool"
     case IntSetType => "(Set Int)"
   }
   val typeConstants: Map[SSLType,List[String]] = Map(
-    IntType -> List("0"), LocType -> List("0"), IntSetType -> List("empset")
+    IntType -> List("0"), LocType -> List("0"), IntSetType -> List("empset"), CardType -> List("0")
   )
 
   def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var,String], sb: StringBuilder): Unit = c match {
@@ -197,7 +197,6 @@ object DelegatePureSynthesis extends SynthesisRule {
       //parse me
       val assignments: Map[Expressions.Var,Expressions.Expr] = parseAssignments(cvc4Res.get)
       val newGoal = goal.spawnChild(post = goal.post.subst(assignments))
-      println("Picked!")
       val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       RuleResult(List(newGoal), kont, this, goal) :: Nil
     }
