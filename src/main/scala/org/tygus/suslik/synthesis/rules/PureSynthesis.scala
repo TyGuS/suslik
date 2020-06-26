@@ -10,13 +10,17 @@ import scala.sys.process._
 import org.tygus.suslik.language.{BoolType, Expressions, IntSetType, IntType, LocType, SSLType}
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
+import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
 
 import scala.util.parsing.combinator.lexical.StdLexical
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.input.CharArrayReader
 import scala.util.{Failure, Success}
 
-object PureSynthesis {
+object PureSynthesis extends SynthesisRule {
+  override def toString: String = "PureSynthesis"
+
   def typeToSMT(lType: SSLType): String = lType match {
     case IntType | LocType => "Int"
     case BoolType => "Bool"
@@ -182,15 +186,20 @@ object PureSynthesis {
     }
   }
 
-  def apply(goal: Specifications.Goal): Option[Goal] = {
+  def apply(goal: Goal): Seq[RuleResult] = {
+  //def apply(goal: Specifications.Goal): Option[(Goal,Map[Expressions.Var,Expressions.Expr])] = {
+    if (!configured) return Nil
+
     val smtTask = toSMTTask(goal)
     val cvc4Res = invokeCVC(smtTask)
-    if (cvc4Res.isEmpty) None
+    if (cvc4Res.isEmpty) Nil
     else {
       //parse me
       val assignments: Map[Expressions.Var,Expressions.Expr] = parseAssignments(cvc4Res.get)
       val newGoal = goal.spawnChild(post = goal.post.subst(assignments))
-      Some(newGoal)
+      println("Picked!")
+      val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      RuleResult(List(newGoal), kont, this, goal) :: Nil
     }
   }
 

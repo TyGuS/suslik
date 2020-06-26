@@ -91,8 +91,9 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
 
     val res = PureSynthesis(goal)
     //res.map(_.subgoals.head.pp + "\n").foreach(println)
-    assert(!res.isEmpty)
-    val resGoal: Goal = res.get
+    assert(res.length == 1)
+    assert(res.head.subgoals.size == 1)
+    val resGoal: Goal = res.head.subgoals.head
     assert(resGoal.pp == """loc r, int x, int y [] |-
                         |{not (r == 0) && x < y ; r :-> 0}
                         |  ??
@@ -146,8 +147,9 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     //{{v} ++ S1 =i {v1} ++ S11 ; emp}
     val res = PureSynthesis(goal2)
     //res.map(_.subgoals.head.pp + "\n").foreach(println)
-    assert(!res.isEmpty)
-    val resGoal: Goal = res.get
+    assert(res.length == 1)
+    assert(res.head.subgoals.size == 1)
+    val resGoal: Goal = res.head.subgoals.head
     assert(resGoal.pp == """loc x [] |-
                            |{true ; emp}
                            |  ??
