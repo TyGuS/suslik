@@ -6,7 +6,7 @@ import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
-import org.tygus.suslik.synthesis.rules.UnificationRules._
+import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
 import org.tygus.suslik.synthesis.rules._
 
 class PhasedSynthesis(config: SynConfig) extends Tactic {
@@ -40,10 +40,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       List(CallRule)
     else if (goal.hasPredicates())
       // Unfolding phase: get rid of predicates
+      // TODO: this is not actually complete, see rose-tree-copy
       if (node.parent.map(_.rule).contains(HeapUnifyUnfolding) || node.parent.map(_.rule).contains(Close))
         // Once a rule that works on post was used, only use those
         unfoldingPostPhaseRules
       else unfoldingPhaseRules
+//      unfoldingPhaseRules
     else if (goal.post.hasBlocks)
     // Block phase: get rid of blocks
       postBlockPhaseRules

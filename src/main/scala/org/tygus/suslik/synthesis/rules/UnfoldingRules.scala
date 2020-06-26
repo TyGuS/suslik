@@ -274,7 +274,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         RuleResult(List(newGoal), kont, this, goal)
       }
 //      nubBy[RuleResult, SFormula](results, r => r.subgoals.head.post.sigma)
-      nubBy[RuleResult, SProfile](results, r => r.subgoals.head.post.sigma.profile)
+      nubBy[RuleResult, (SProfile, SProfile)](results, r => (r.subgoals.head.post.sigma.profile, r.subgoals.head.callGoal.get.calleePost.sigma.profile))
 //      results
     }
   }
