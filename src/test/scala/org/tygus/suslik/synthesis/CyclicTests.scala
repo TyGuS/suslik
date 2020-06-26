@@ -31,4 +31,8 @@ class CyclicTests extends FunSpec with Matchers with SynthesisRunnerUtil {
     runAllTestsFromDir("cyclic-benchmarks/tree")
   }
 
+  describe("Sorted lists") {
+    runAllTestsFromDir("cyclic-benchmarks/srtl")
+  }
+
 }

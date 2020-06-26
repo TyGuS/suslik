@@ -1,0 +1,75 @@
+#. -b true -c 2 -x true
+sorted list: merge
+
+#####
+
+{ 0 <= nx /\ 0 <= ny /\ 0 <= lox /\ lox <= 7 /\ 0 <= loy /\ loy <= 7 /\ 0 <= hix /\ hix <= 7 /\ 0 <= hiy /\ hiy <= 7 ; r :-> x ** srtl(x, nx, lox, hix) ** srtl(y, ny, loy, hiy) }
+void srtl_merge (loc y, loc r)
+{ n == nx + ny /\  lo == (lox <= loy ? lox : loy)  /\ hi == (hix <= hiy ? hiy : hix) ; r :-> z ** srtl(z, n, lo, hi) }
+
+#####
+
+void srtl_merge (loc y, loc r) {
+  let x = *r;
+  if (x == 0) {
+    *r = y;
+  } else {
+    srtl_merge10(x, y, r);
+  }
+}
+
+void srtl_merge10 (loc x2, loc y, loc r) {
+  let vx = *x2;
+  let nx = *(x2 + 1);
+  if (y == 0) {
+  } else {
+    let v = *y;
+    if (v <= vx) {
+      let n = *(y + 1);
+      srtl_merge10(x2, n, r);
+      let z = *r;
+      *(y + 1) = z;
+      *r = y;
+    } else {
+      *x2 = y;
+      srtl_merge10(y, nx, x2);
+      let z = *x2;
+      *(x2 + 1) = z;
+      *x2 = vx;
+    }
+  }
+}
+
+#####
+
+1
+2
+1
+2
+3
+1
+1
+1
+1
+2
+2
+1
+2
+3
+1
+3
+1
+1
+1
+1
+2
+1
+1
+1
+3
+1
+3
+1
+1
+1
+1
