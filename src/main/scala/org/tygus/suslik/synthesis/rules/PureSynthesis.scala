@@ -136,7 +136,7 @@ object PureSynthesis {
     sb ++= "\n(check-synth)"
     sb.toString
   }
-  val cvc4exe = "C:\\utils\\cvc4\\cvc4-1.7-win64-opt.exe"
+  val cvc4exe = "cvc4"
   val cvc4Cmd = cvc4exe + " --sygus-out=status-or-def --lang sygus" //" --cegqi-si=all --sygus-out=status-or-def --lang sygus"
   def invokeCVC(task: String): Option[String] = { //<-- if we ever get the library compiled, fix it here
     var out: String = null
@@ -153,6 +153,16 @@ object PureSynthesis {
     else Some(out)
   }
 
+  private var configured = false
+
+  def isConfigured(): Boolean = this.synchronized {
+    configured = try {
+      cvc4Cmd.! == 0
+    } catch {
+      case _: Throwable => false
+    }
+    configured
+  }
 
 
   val parser = SMTLIB2Parser [GetModelResponses]
