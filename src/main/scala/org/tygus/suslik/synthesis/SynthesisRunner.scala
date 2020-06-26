@@ -120,7 +120,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('a', "assert").action(cfg { b =>
       _.copy(assertSuccess = b)
-    }).text("check that the synthesized result against the expected one; default: true")
+    }).text("check that the synthesized result against the expected one; default: false")
 
     opt[Int]('c', "maxCloseDepth").action(cfg { d =>
       _.copy(maxCloseDepth = d)
@@ -169,6 +169,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean]('l', "log").action(cfg { b =>
       _.copy(logToFile = b)
     }).text("log results to a csv file; default: false")
+
+    opt[String]('j', "traceToJsonFile").action(cfg { fn =>
+      _.copy(traceToJsonFile = Some(new File(fn)))
+    }).text("dump entire proof search trace to a json file; default: none")
 
     opt[Boolean](name = "memoization").action(cfg { b =>
       _.copy(memoization = b)

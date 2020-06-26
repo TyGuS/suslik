@@ -35,8 +35,9 @@ case class SynConfig(
                       printFailed: Boolean = false,
                       printEnv: Boolean = false,
                       printColor: Boolean = true,
-                      assertSuccess: Boolean = true,
+                      assertSuccess: Boolean = false,
                       logToFile: Boolean = true,
+                      traceToJsonFile: Option[File] = None,
                       timeOut: Long = 120000,
                       // Certification
                       certTarget: CertificationTarget = null,

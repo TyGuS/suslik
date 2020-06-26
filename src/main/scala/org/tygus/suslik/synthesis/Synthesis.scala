@@ -1,40 +1,43 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
-import java.io.{BufferedWriter, File, FileWriter}
-
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.logic.smt.{CyclicProofChecker, SMTSolving}
 import org.tygus.suslik.report.{Log, ProofTrace}
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
+import org.tygus.suslik.synthesis.Termination._
 import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
-import org.tygus.suslik.util.{SynLogging, SynStats}
+import org.tygus.suslik.util.SynStats
 
 import scala.Console._
 import scala.annotation.tailrec
-import scala.io.StdIn
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
-class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
-
-  val trace = new ProofTrace("trace.out")
+class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace) extends SepLogicUtils {
 
   def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
     implicit val config: SynConfig = env.config
     implicit val stats: SynStats = env.stats
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
 
+    if (!CyclicProofChecker.isConfigured()) {
+      log.print(List((s"Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n", Console.RED)))
+    } else {
+      log.print(List((s"The mighty cyclic proof checker is available. Well done!\n", Console.GREEN)))
+    }
+    
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
     SMTSolving.init()
     memo.clear()
+    ProofTrace.current = trace
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
@@ -51,18 +54,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
     }
   }
 
-  type Worklist = List[OrNode]
-
   protected def synthesize(goal: Goal)
                           (stats: SynStats): Option[Solution] = {
-    // Initialize worklist: root or-node containing the top-level goal
-    val root = OrNode(Vector(), goal, None, goal.allHeaplets)
-    val worklist = List(root)
-    processWorkList(worklist)(stats, goal.env.config)
+    init(goal)
+    processWorkList(stats, goal.env.config)
   }
 
-  @tailrec final def processWorkList(worklist: Worklist)
-                                    (implicit
+  @tailrec final def processWorkList(implicit
                                      stats: SynStats,
                                      config: SynConfig): Option[Solution] = {
     // Check for timeouts
@@ -77,9 +75,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
 
     if (worklist.isEmpty) None // No more goals to try: synthesis failed
     else {
-      val (node, withRest) = selectNode(worklist) // Select next node to expand
+      val (node, addNewNodes) = selectNode // Select next node to expand
       val goal = node.goal
-      implicit val ctx = log.Context(goal)
+      implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
       log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW)))
       if (config.printEnv) {
@@ -92,42 +90,46 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
           log.print(List((s"Recalled FAIL", RED)))
-          trace.add(node.id, Failed)
-          Left(node.fail(withRest(Nil)))
+          trace.add(node.id, Failed, Some("cache"))
+          worklist = addNewNodes(Nil)
+          node.fail
+          None
         }
         case Some(Succeeded(sol)) => { // Same goal has succeeded before: return the same solution
           log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
-          trace.add(node.id, Succeeded(sol))
-          node.succeed(sol, withRest(Nil))
+          trace.add(node.id, Succeeded(sol), Some("cache"))
+          worklist = addNewNodes(Nil)
+          node.succeed(sol)
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
           log.print(List(("Suspend", RED)))
           memo.suspend(node)
-          Left(withRest(List(node)))
+          worklist = addNewNodes(List(node))
+          None
         }
-        case None => expandNode(node, withRest) // First time we see this goal: do expand
+        case None => expandNode(node, addNewNodes) // First time we see this goal: do expand
       }
       res match {
-        case Left(newWorklist) => processWorkList(newWorklist)
-        case Right(solution) => Some(solution)
+        case None => processWorkList
+        case sol => sol
       }
     }
   }
 
   // Given a worklist, return the next node to work on
   // and a strategy for combining its children with the rest of the list
-  protected def selectNode(worklist: Worklist)(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
-    if (config.depthFirst)  // DFS? Pick the first one
+  protected def selectNode(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
+    if (config.depthFirst) // DFS? Pick the first one
       (worklist.head, _ ++ worklist.tail)
-    else {  // Otherwise pick a minimum-cost node that is not suspended
+    else { // Otherwise pick a minimum-cost node that is not suspended
       val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
       val idx = worklist.indexOf(best)
       (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))
     }
 
   // Expand node and return either a new worklist or the final solution
-  protected def expandNode(node: OrNode, withRest: List[OrNode] => List[OrNode])(implicit stats: SynStats,
-                                         config: SynConfig): Either[List[OrNode], Solution] = {
+  protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode])(implicit stats: SynStats,
+                                                                                    config: SynConfig): Option[Solution] = {
     val goal = node.goal
     memo.save(goal, Expanded)
     implicit val ctx = log.Context(goal)
@@ -145,20 +147,23 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e)
         }
-        trace.add(node.id, Succeeded(e.producer(Nil)))
-        node.succeed(e.producer(Nil), withRest(Nil))
+        trace.add(e, node)
+        successLeaves = node :: successLeaves
+        worklist = addNewNodes(Nil)
+        node.succeed(e.producer(Nil))
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, e.producer, node, e.consume, e.rule)
+          andNode = AndNode(i +: node.id, node, e)
+          if isTerminatingExpansion(andNode) // termination check
           nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
-          ((g, p), j) <- if (nSubs == 1) List(((e.subgoals.head, e.produces(goal).head), -1)) // this is here only for logging
-          else e.subgoals.zip(e.produces(goal)).zipWithIndex
-        } yield OrNode(j +: andNode.id, g, Some(andNode), p)
+          (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
+          else e.subgoals.zipWithIndex
+        } yield OrNode(j +: andNode.id, g, Some(andNode))
 
         // Suspend nodes with older and-siblings
-        newNodes.foreach (n => {
+        newNodes.foreach(n => {
           val idx = n.childIndex
           if (idx > 0) {
             val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
@@ -167,15 +172,16 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
           }
         })
 
+        worklist = addNewNodes(newNodes.toList)
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
           trace.add(node.id, Failed)
-          Left(node.fail(withRest(Nil)))
+          node.fail
         } else {
           stats.addGeneratedGoals(newNodes.size)
-          Left(withRest(newNodes.toList))
         }
+        None
       }
     }
   }
@@ -198,7 +204,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log) extends SepLogicUtils {
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
-          val childFootprints = children.map(log.showChild(goal))
+          val childFootprints = children.map(log.showChildren(goal))
           log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
           for {c <- childFootprints.tail}
             log.print(List((s" <|>  $c", CYAN)))

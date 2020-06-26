@@ -1,6 +1,11 @@
+import arreq from 'array-equal';
 import $ from 'jquery';
 import Vue from 'vue/dist/vue';
+import { VueContext } from 'vue-context'
+import 'vue-context/dist/css/vue-context.css';
+
 import './proof-trace.css';
+import './menu.css';
 
 
 
@@ -13,9 +18,11 @@ class ProofTrace {
         byId: JSONMap<Data.NodeId, Data.NodeEntry>
         childrenById: JSONMap<Data.NodeId, Data.NodeEntry[]>
         statusById: JSONMap<Data.NodeId, Data.StatusEntry>
+        viewById: JSONMap<Data.NodeId, View.Node>
     }
 
     view: Vue
+    menus: {node: Vue}
 
     constructor(data: ProofTrace.Data) {
         this.data = data;
@@ -28,18 +35,20 @@ class ProofTrace {
     createIndex() {
         this.nodeIndex = {
             byId: new JSONMap(),
-            childrenById: new JSONMap(), statusById: new JSONMap()
+            childrenById: new JSONMap(), statusById: new JSONMap(),
+            viewById: new JSONMap()
         };
         // Build byId
-        for (let node of this.data.nodes)
-            this.nodeIndex.byId.set(node.id, node);
+        for (let node of this.data.nodes) {
+            if (!this.nodeIndex.byId.get(node.id))
+                this.nodeIndex.byId.set(node.id, node);
+        }
 
         // Build childrenById
-        var m = this.nodeIndex.childrenById;
         for (let node of this.data.nodes) {
             if (node.id.length >= 1) {
                 var parent = node.id.slice(1);
-                m.set(parent, (m.get(parent) || []).concat([node]));
+                this.addChild(parent, node);
             }
         }
 
@@ -60,13 +69,22 @@ class ProofTrace {
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
                     case Data.NodeType.AndNode:
-                        if (children.every(x => x && x.status.tag === 'Succeeded'))
+                        if (children.length == node.nChildren &&
+                            children.every(x => x && x.status.tag === 'Succeeded'))
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
                     }
                 }
             }
         }
+    }
+
+    addChild(parent: Data.NodeId, child: Data.NodeEntry) {
+        var m = this.nodeIndex.childrenById;
+        // Note: nodes can re-occur if they were suspended during the search
+        var l = m.get(parent) || [];
+        if (!l.some(u => arreq(u.id, child.id)))
+            m.set(parent, l.concat([child]));
     }
 
     children(node: Data.NodeEntry) {
@@ -90,10 +108,15 @@ class ProofTrace {
         this.view.root = this.createNode(this.root);
         this.expandNode(this.view.root);
         this.expandNode(this.view.root.children[0]);
-        //this.expandAll(this.view.root);
         this.view.$mount();
 
-        this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev))
+        this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
+
+        this.menus = {
+            node: new (Vue.component('proof-trace-context-menu'))()
+        };
+        $(document.body).append(this.menus.node.$mount().$el);
+        this.menus.node.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
     }
 
     getStatus(node: Data.NodeEntry): Data.GoalStatusEntry { 
@@ -102,8 +125,10 @@ class ProofTrace {
     }
 
     createNode(node: Data.NodeEntry): View.Node {
-        return {value: node, children: undefined, focus: false, expanded: false,
-                status: this.getStatus(node)};
+        var v = {value: node, children: undefined, focus: false, expanded: false,
+                 status: this.getStatus(node)};
+        this.nodeIndex.viewById.set(node.id, v);
+        return v;
     }
 
     expandNode(nodeView: View.Node, focus: boolean = false) {
@@ -122,6 +147,23 @@ class ProofTrace {
         }
     }
 
+    expandById(node: Data.NodeId, focus: boolean = false) {
+        var view = this.nodeIndex.viewById.get(node);
+        if (view) this.expandNode(view, focus);
+    }
+
+    expandByIds(nodes: Data.NodeId[]) {
+        var sorted = nodes.slice().sort((a, b) => a.length - b.length);
+        for (let node of sorted) this.expandById(node);
+    }
+
+    expandBranch(tip: Data.NodeId, focus: boolean = false) {
+        var prefixes = tip.slice(1).map((_,i,u) => u.slice(-(i + 1)));
+        for (let pfx of prefixes)
+            this.expandById(pfx);
+        // @todo focus tip
+    }
+
     expandAll(nodeView: View.Node = this.view.root) {
         this.expandNode(nodeView);
         for (let c of nodeView.children)
@@ -132,7 +174,17 @@ class ProofTrace {
         switch (ev.type) {
         case 'expand':
             this.expandOrNode(ev.target, true); break;
+        case 'expandAll':
+            this.expandAll(ev.target); break;
+        case 'menu':
+            this.menus.node.open(ev); break;
+        case 'copyNodeId':
+            this.copyJson(ev.target.value.id); break;
         }
+    }
+
+    copyJson(o: any) { 
+        navigator.clipboard.writeText(JSON.stringify(o));
     }
 
 }
@@ -152,6 +204,7 @@ namespace ProofTrace {
             tag: NodeType
             pp: string
             goal: GoalEntry
+            nChildren: number
         };
 
         export type NodeId = number[];
@@ -159,6 +212,7 @@ namespace ProofTrace {
         export enum NodeType { AndNode = 'AndNode', OrNode = 'OrNode' };
 
         export type GoalEntry = {
+            id: string
             pre: string, post: string, sketch: string,
             programVars:  [string, string][]
             existentials: [string, string][]
@@ -172,7 +226,7 @@ namespace ProofTrace {
             status: GoalStatusEntry
         };
 
-        export type GoalStatusEntry = {tag: "Succeeded" | "Failed", from?: string};
+        export type GoalStatusEntry = {tag: "Succeeded" | "Failed", from?: string | string[]};
 
         export function parse(traceText: string): Data {
             var entries = traceText.split('\n\n').filter(x => x).map(ln =>
@@ -183,7 +237,7 @@ namespace ProofTrace {
                 else if (e.status) statuses.push(e);
             }
             return {nodes, statuses};
-        };
+        }
 
         export function envOfGoal(goal: GoalEntry) {
             var d: Environment = new Map;
@@ -212,8 +266,10 @@ namespace ProofTrace {
         };
 
         export type ActionEvent = {
-            type: "expand",
+            type: "expand" | "collapse" | "expandAll" | "menu"
+                | "copyNodeId" | "copyGoalId" | "copyGoal",
             target: Node
+            $event: MouseEvent
         };
 
         const OPERATORS = new Map([
@@ -224,7 +280,7 @@ namespace ProofTrace {
             return pp.split(/(\s+|[(){}[\],])/).map(s => {
                 var v = env.get(s), op = OPERATORS.get(s), mo: RegExpMatchArray;
                 if (v)
-                    return {kind: 'var', text: s, ...v};
+                    return {kind: 'var', text: s, pp: pprintIdentifier(s), ...v};
                 else if (op)
                     return {kind: 'op', text: s, ...op};
                 else if (s.match(/^\s+$/))
@@ -232,12 +288,16 @@ namespace ProofTrace {
                 else if (s.match(/^[(){}[\]]$/))
                     return {kind: 'brace', text: s};
                 else if (mo = s.match(/^<(\w+)>$/)) {
-                    return {kind: 'cardinality', text: mo[1]};
+                    return {kind: 'cardinality', text: s, pp: pprintIdentifier(mo[1])};
                 }
                 else if (s != '')
                     return {kind: 'unknown', text: s};
             })
             .filter(x => x);
+        }
+
+        export function pprintIdentifier(v: string) {
+            return v.replace('_alpha_', 'α');
         }
         
     }
@@ -272,6 +332,9 @@ Vue.component('proof-trace', {
             <template v-if="root">
                 <proof-trace-node :value="root.value" :status="root.status"
                                   @action="nodeAction"/>
+                <div class="proof-trace-expand-all" :class="{root: root.value.id.length == 0}">
+                    <span @click="expandAll">++</span>
+                </div>
                 <div class="subtrees" ref="subtrees" v-if="root.expanded">
                     <template v-for="child in root.children">
                         <proof-trace :root="child" @action="action"/>
@@ -296,6 +359,7 @@ Vue.component('proof-trace', {
             }
             this.action({...ev, target: this.root});
         },
+        expandAll() { this.action({type: 'expandAll', target: this.root})},
         focusElement(el: HTMLElement) {
             var box = el.getBoundingClientRect(), clrse = 50,
                 viewport = (<any>window).visualViewport,
@@ -314,33 +378,41 @@ Vue.component('proof-trace-node', {
     template: `
         <div class="proof-trace-node" :class="[value.tag, statusClass]"
                 @click="toggle" @click.capture="clickCapture"
-                @mouseenter="showId" @mousedown="clickStart"
-                @mouseover="showRefs" @mouseout="hideRefs">
+                @mouseenter="showId" @mouseleave="hideId" @mousedown="clickStart"
+                @mouseover="showRefs" @mouseout="hideRefs"
+                @contextmenu.prevent="action({type: 'menu', $event})">
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
-                <span class="tag">{{tag}}</span>
+                <span class="goal-id" v-if="value.goal">{{value.goal.id}}</span>
+                <span class="tag" v-else>{{tag}}</span>
             </div>
             <proof-trace-goal v-if="value.goal" :value="value.goal"
                 @click.native.stop="action"/>
         </div>`,
     computed: {
         tag() {
-            return (this.value.tag == Data.NodeType.AndNode) ? this.value.id[0]
-                    : this.value.id.slice(0, 2)
-                        .reverse().filter((n:number) => n >= 0).join('→');
+            var pfx = (this.value.tag == Data.NodeType.OrNode) ? 2 : 1;
+            return this.value.id.slice(0, pfx)
+                   .reverse().filter((n:number) => n >= 0).join('→');
         },
         statusClass() {
-            return this.status && `${this.status.tag}${this.status.from || ''}`;
+            if (this.status) {
+                var {tag, from: fr} = this.status,
+                    suffix = fr ? (fr === '*' ? '*' : `-${fr}`) : ''
+                return `${tag}${suffix}`;
+            }
+            else return undefined;
         }
     },
     methods: {
         action(ev) { this.$emit('action', ev); },
         toggle() { this.action({type: 'expand/collapse', target: this.value}); },
         showId() { $('#hint').text(JSON.stringify(this.value.id)); },
+        hideId() { $('#hint').empty(); },
 
         showRefs(ev) {
             var el = ev.target;
-            if (['var', 'name'].some(c => el.classList.contains(c))) {
+            if (['var', 'name', 'cardinality'].some(c => el.classList.contains(c))) {
                 this.varSpans(el.textContent).addClass('highlight');
             }
         },
@@ -351,7 +423,7 @@ Vue.component('proof-trace-node', {
             if (nm) return this.varSpans().filter((_,x: Node) => x.textContent == nm);
             else {
                 var el = $(this.$el);
-                return el.find('span.var').add(el.find('.proof-trace-vars span.name'));
+                return el.find('span.var, span.cardinality, .proof-trace-vars span.name');
             }
         },
 
@@ -388,10 +460,13 @@ Vue.component('proof-trace-vars', {
             <template v-for="v in value">
                 <span>
                     <span class="type">{{v[0]}}</span>
-                    <span class="name">{{v[1]}}</span>
+                    <span class="name">{{pp(v[1])}}</span>
                 </span>
             </template>
-        </div>`
+        </div>`,
+    methods: {
+        pp: View.pprintIdentifier
+    }
 });
 
 Vue.component('proof-trace-formula', {
@@ -406,7 +481,29 @@ Vue.component('proof-trace-formula', {
     methods: {
         tokenize: View.tokenize
     }
-})
+});
+
+Vue.component('proof-trace-context-menu', {
+    template: `
+        <vue-context ref="m">
+            <li><a name="expandAll" @click="action">Expand all</a></li>
+            <li><a name="copyNodeId" @click="action">Copy Node Id</a></li>
+            <li><a name="copyGoal" @click="action">Copy goal</a></li>
+        </vue-context>`,
+    components: {VueContext},
+    methods: {
+        open(ev: View.ActionEvent) {
+            this._target = ev.target;
+            this.$refs.m.open(ev.$event);
+        },
+        action(ev) {
+            this.$emit('action', {
+                type: ev.currentTarget.name,
+                target: this._target
+            });
+        }
+    }
+});
 
 
 

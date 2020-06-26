@@ -7,6 +7,7 @@ import org.bitbucket.franck44.scalasmt.theories._
 import org.bitbucket.franck44.scalasmt.typedterms.{Commands, QuantifiedTerm, TypedTerm, VarTerm}
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic._
+import org.tygus.suslik.report.LazyTiming
 
 import scala.util.Success
 
@@ -21,7 +22,8 @@ object SMTSolving extends Core
   with Commands
   with PureLogicUtils
   with ArrayExBool
-  with ArrayExOperators {
+  with ArrayExOperators
+  with LazyTiming {
 
 //  val defaultSolver = "CVC4"
   val defaultSolver = "Z3"
@@ -80,12 +82,12 @@ object SMTSolving extends Core
   } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean =
-    this.synchronized {
+    this.synchronized { timed {
       push(1)
       val res = isSat(term)
       pop(1)
       res != Success(UnSat()) // Unknown counts as SAT
-    }
+    } }
 
   /** Translating expression into SMT  */
 
