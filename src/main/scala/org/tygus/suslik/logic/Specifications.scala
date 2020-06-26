@@ -208,12 +208,13 @@ object Specifications extends SepLogicUtils {
       // Sort heaplets from old to new and simplify pure parts
       val preSimple = Assertion(simplify(pre.phi), pre.sigma)
       val postSimple = Assertion(simplify(post.phi), post.sigma)
-      val usedVars = preSimple.vars ++ postSimple.vars ++ programVars.toSet
-      val newGamma = gammaFinal.filterKeys(usedVars.contains)
-      val newUniversalGhosts = this.universalGhosts.intersect(usedVars) ++ preSimple.vars -- programVars
+//      val usedVars = preSimple.vars ++ postSimple.vars ++ programVars.toSet
+//      val newGamma = gammaFinal.filterKeys(usedVars.contains)
+//      val newUniversalGhosts = this.universalGhosts.intersect(usedVars) ++ preSimple.vars -- programVars
+      val newUniversalGhosts = this.universalGhosts ++ preSimple.vars -- programVars
 
       Goal(preSimple, postSimple,
-        newGamma, programVars, newUniversalGhosts,
+        gammaFinal, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
         callGoal,
         preNormalized, postNormalized)
@@ -329,11 +330,7 @@ object Specifications extends SepLogicUtils {
       this.copy(freshToActual = compose(freshToActual, sigma) ++ sigma)
     }
 
-    // Substitute existentials in the callee postcondition and the call statement
-    def applySubstitution: SuspendedCallGoal = {
-      val newCall = call.copy(args = call.args.map(_.subst(freshToActual)))
-      this.copy(calleePost = calleePost.subst(freshToActual), call = newCall)
-    }
+    def actualCall: Call = call.copy(args = call.args.map(_.subst(freshToActual)))
   }
 }
 

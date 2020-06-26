@@ -288,23 +288,28 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       val pre = goal.pre
       val post = goal.post
-      val callGoal = goal.callGoal.get.applySubstitution
+      val callGoal = goal.callGoal.get
+      val call = callGoal.actualCall
       val budHeap = callGoal.callerPre.sigma - goal.pre.sigma
-      val noGhostArgs = callGoal.call.args.forall(_.vars.subsetOf(goal.programVars.toSet))
+      val noGhostArgs = call.args.forall(_.vars.subsetOf(goal.programVars.toSet))
 
       if (post.sigma.isEmp &&                                   // companion's transformed pre-heap is empty
         goal.existentials.isEmpty &&                            // no existentials
         noGhostArgs &&                                          // TODO: if slow, move this check to when substitution is made
-        canEmitCall(budHeap, goal, callGoal.call.companion) &&  // termination
+        canEmitCall(budHeap, goal, call.companion) &&           // termination
         SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
       {
+        // We would like to substitute all the fresh vars in calleePost, but we can't
+        // since it might have predicates and their arguments must be variables.
+        // So instead we are adding the substitution as the pure precondition
         // TODO: get rid of the 2
-        val calleePost = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 2)
-        val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePost)
+        val calleePostSigma = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 2)
+        val calleePostPhi = callGoal.calleePost.phi && substToFormula(callGoal.freshToActual).resolveOverloading(goal.gamma)
+        val newPre = Assertion(pre.phi && calleePostPhi, pre.sigma ** calleePostSigma)
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
         val postCallTransition = Transition(goal, newGoal)
-        val kont: StmtProducer = PrependProducer(callGoal.call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }

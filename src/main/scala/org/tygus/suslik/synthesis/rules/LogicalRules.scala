@@ -9,8 +9,6 @@ import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
-import scala.collection.immutable.SortedSet
-
 /**
   * Logical rules simplify specs and terminate the derivation;
   * they do not eliminate existentials.
@@ -71,17 +69,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "WeakenPre"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      def unusedConjuncts(unused: SortedSet[Expr], restVars: Set[Var]): SortedSet[Expr] = {
-        val (newUnused, newUsed) = unused.partition(_.vars.intersect(restVars).isEmpty)
-        if (newUsed.isEmpty) unused
-        else unusedConjuncts(newUnused, restVars ++ newUsed.flatMap(_.vars))
-      }
-
-      val unused = unusedConjuncts(goal.pre.phi.conjuncts, goal.pre.sigma.vars ++ goal.post.vars)
-      if (unused.isEmpty) Nil
+      val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
+      if (unused.conjuncts.isEmpty) Nil
       else {
-        val used = goal.pre.phi.conjuncts -- unused
-        val newPre = Assertion(PFormula(used), goal.pre.sigma)
+        val newPre = Assertion(goal.pre.phi - unused, goal.pre.sigma)
         val newGoal = goal.spawnChild(pre = newPre)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this, goal))
@@ -185,9 +176,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "*Partial"
 
     def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[(PFormula, SFormula)] = {
-      val ptrs = (for (PointsTo(x, _, _) <- s.chunks) yield x).toSet
+      val ptrs = (for (PointsTo(x, o, _) <- s.chunks) yield (o, x)).groupBy(_._1).mapValues(_.map(_._2))
       // All pairs of pointers
-      val pairs = for (x <- ptrs; y <- ptrs if x != y) yield (x, y)
+      val pairs = for (o <- ptrs.keySet; x <- ptrs(o); y <- ptrs(o) if x != y) yield (x, y)
       val newPairs = pairs.filter {
         case (x, y) => excludeVars.intersect(x.vars ++ y.vars).isEmpty &&
           p != pFalse && !p.conjuncts.contains(x |/=| y) && !p.conjuncts.contains(y |/=| x)
@@ -284,8 +275,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       val normalizedPre = snapshot(goal)
       val diff = p1 - normalizedPre
+      val diffDependent = p1 - p1.indepedentOf(diff.vars)
       val varCandidates =
-          (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diff.vars.contains(x))
+          (goal.programVars ++ goal.universalGhosts.toList.sortBy(_.name)).filter(x => diffDependent.vars.contains(x))
 
       val subs: List[(Var, Var)] = for {
         v1 <- varCandidates.reverse // prefer replacing later vars

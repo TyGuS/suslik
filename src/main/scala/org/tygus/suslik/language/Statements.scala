@@ -142,12 +142,18 @@ object Statements {
       case Guarded(cond, b, eb, _) => 1 + cond.size + b.size + eb.size
     }
 
+    // All atomic statements (load, store, malloc, free, call) inside this statement
+    def atomicStatements: List[Statement] = this match {
+      case Skip => List()
+      case SeqComp(s1,s2) => s1.atomicStatements ++ s2.atomicStatements
+      case If(_, tb, eb) => tb.atomicStatements ++ eb.atomicStatements
+      case Guarded(_, b, eb, _) => b.atomicStatements ++ eb.atomicStatements
+      case _ => List(this)
+    }
+
     // Companions of all calls inside this statement
-    def companions: List[GoalLabel] = this match {
+    def companions: List[GoalLabel] = atomicStatements.flatMap {
       case Call(_, _, Some(comp)) => List(comp)
-      case SeqComp(s1,s2) => s1.companions ++ s2.companions
-      case If(_, tb, eb) => tb.companions ++ eb.companions
-      case Guarded(_, b, eb, _) => b.companions ++ eb.companions
       case _ => Nil
     }
 

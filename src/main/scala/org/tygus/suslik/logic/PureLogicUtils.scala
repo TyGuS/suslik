@@ -148,6 +148,10 @@ trait PureLogicUtils {
     if (cs.contains(eFalse)) pFalse else PFormula(cs)
   }
 
+  def substToFormula(sigma: Subst): PFormula = {
+    PFormula(sigma.map{ case (v,e) => v |===| e}.toSet)
+  }
+
   val isRelationPFormula: (Expr) => Boolean = {
     case BinaryExpr(op, e1, e2) => op.isInstanceOf[RelOp] && isAtomicExpr(e1) && isAtomicExpr(e2)
     case _ => false

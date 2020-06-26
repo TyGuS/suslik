@@ -44,6 +44,15 @@ case class PFormula(conjuncts: SortedSet[Expr]) extends PrettyPrinting with HasE
   def ==> (other: Expr): Expr = this.toExpr ==> other
 
   def size: Int = conjuncts.map(_.size).sum
+
+  // Subset of my conjuncts that cannot influence variables vs
+  // (i.e. does directly contain those variables or any variables that participate in the same conjunct with them)
+  def indepedentOf(vs: Set[Var]): PFormula = {
+    val (newUnused, newUsed) = conjuncts.partition(_.vars.intersect(vs).isEmpty)
+    if (newUsed.isEmpty) this
+    else copy(conjuncts = newUnused).indepedentOf(vs ++ newUsed.toList.flatMap(_.vars))
+  }
+
 }
 
 object PFormula {
