@@ -155,7 +155,12 @@ object Specifications extends SepLogicUtils {
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
         s"${pre.pp}\n${sketch.pp}${post.pp}"
 
-    lazy val universalPost: PFormula = PFormula(post.phi.conjuncts.filterNot(p => p.vars.exists(this.isExistential)))
+    lazy val splitPost: (PFormula, PFormula) = {
+      val (ex, uni) = post.phi.conjuncts.partition(p => p.vars.exists(this.isExistential))
+      (PFormula(uni), PFormula(ex))
+    }
+
+    def universalPost: PFormula = splitPost._1
 
     // Ancestors of this goal in the derivation (root last)
     lazy val ancestors: List[Goal] = parent match {

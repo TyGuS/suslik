@@ -99,7 +99,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   protected def callAbductionRules(goal: Goal): List[SynthesisRule] = {
     List(FailRules.PostInconsistent,
-      FailRules.PostInvalid) ++
+      FailRules.CheckPost) ++
       (if (goal.post.sigma.apps.nonEmpty)
         List(LogicalRules.FrameUnfolding,
           UnificationRules.HeapUnifyUnfolding)
@@ -124,7 +124,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
   protected def postBlockPhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.PostInvalid,
+    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
     LogicalRules.FrameBlock,
     UnificationRules.HeapUnifyBlock,
     OperationalRules.AllocRule
@@ -135,7 +135,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def pointerPhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.PostInvalid,
+    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
     FailRules.HeapUnreachable,
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
@@ -145,7 +145,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def purePhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.PostInvalid,
+    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
     LogicalRules.EmpRule,
     FailRules.HeapUnreachable,
     LogicalRules.SubstLeft,

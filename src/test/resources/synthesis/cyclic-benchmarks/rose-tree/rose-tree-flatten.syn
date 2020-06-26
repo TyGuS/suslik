@@ -1,0 +1,93 @@
+# -o 5 -x true -p true --lexi true
+
+should be able to flatten a rose tree into a list
+
+###
+
+{ r :-> x ** rose_tree(x, s) }
+  void rose_tree_flatten(loc r)
+{ r :-> y ** sll(y, s) }
+
+###
+
+{r :-> x ** rose_tree(x, s)<_alpha_514>}
+{r :-> y ** sll(y, s)<_alpha_515>}
+void rose_tree_flatten (loc r) {
+  let x = *r;
+  if (x == 0) {
+  } else {
+    rose_tree_flatten10(x, r);
+  }
+}
+
+{not (r == 0) && not (x2 == 0) && zx2 < _alpha_514 ; r :-> x2 ** x2 :-> bx2 ** buds(bx2, s)<zx2>[1] ** [x2, 1]}
+{r :-> y ** sll(y, s)<_alpha_515>}
+void rose_tree_flatten10 (loc x2, loc r) {
+  let b = *x2;
+  if (b == 0) {
+    free(x2);
+    *r = 0;
+  } else {
+    let v = *b;
+    let rb = *(b + 1);
+    let n = *(b + 2);
+    *r = rb;
+    rose_tree_flatten(r);
+    let y = *r;
+    *x2 = n;
+    *r = x2;
+    rose_tree_flatten10(x2, r);
+    rose_tree_flatten12121(y, n, rb, v, b, x2, r);
+  }
+}
+
+{not (bx22 == 0) && not (bx22 == r) && not (bx22 == x2) && not (r == 0) && not (r == x2) && not (x2 == 0) && s =i {vbx222} ++ s1bx22 ++ s2bx22 && ybx22 < zx2 && zbx22 < zx2 && zx2 < _alpha_514 ; (bx22 + 1) :-> rbx222 ** (bx22 + 2) :-> nxtbx222 ** bx22 :-> vbx222 ** r :-> y1 ** sll(y1, s2bx22)<_alpha_5152>[4] ** sll(y12, s1bx22)<_alpha_5151>[4] ** [bx22, 3]}
+{r :-> y ** sll(y, s)<_alpha_515>}
+void rose_tree_flatten12121 (loc y12, loc nxtbx222, loc rbx222, int vbx222, loc bx22, loc x2, loc r) {
+  let y1 = *r;
+  if (y12 == 0) {
+    let y = malloc(2);
+    free(bx22);
+    *r = y;
+    *(y + 1) = y1;
+    *y = vbx222;
+  } else {
+    let n = *(y12 + 1);
+    rose_tree_flatten12121(n, nxtbx222, rbx222, vbx222, bx22, x2, r);
+    let y = *r;
+    *(y12 + 1) = y;
+    *r = y12;
+  }
+}
+
+###
+
+1
+1
+1
+1
+1
+3
+1
+1
+2
+1
+1
+3
+2
+2
+1
+1
+1
+1
+3
+1
+1
+1
+1
+1
+1
+2
+1
+1
+1

@@ -37,16 +37,26 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   }
 
   // Short-circuits failure if universal part of post is too strong
-  object PostInvalid extends SynthesisRule with InvertibleRule {
-    override def toString: String = "PostInvalid"
+  object CheckPost extends SynthesisRule with InvertibleRule {
+    override def toString: String = "CheckPost"
+
+    def filterOutValidPost(goal: Goal, exPost: PFormula): Seq[RuleResult] = {
+      val validExConjuncts = exPost.conjuncts.filter(c => SMTSolving.valid(goal.pre.phi ==> c))
+      if (validExConjuncts.isEmpty) Nil
+      else {
+        val newPost = Assertion(exPost - PFormula(validExConjuncts), goal.post.sigma)
+        val newGoal = goal.spawnChild(post = newPost)
+        List(RuleResult(List(newGoal), IdProducer, this, goal))
+      }
+    }
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      // If precondition does not contain predicates, we can't get get new facts from anywhere
-      if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
-        // universal post not implies by pre
+      val (uniPost, exPost) = goal.splitPost
+      // If precondition does not contain predicates, we can't get new facts from anywhere
+      if (!SMTSolving.valid(goal.pre.phi ==> uniPost))
+        // universal post not implied by pre
         List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
-      else
-        Nil
+      else filterOutValidPost(goal, exPost)
     }
   }
 
@@ -105,8 +115,9 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       } yield RuleResult(List(thenGoal, elseGoal), GuardedProducer(cond, bGoal), this, List(thenTransition, elseTransition))
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      if (SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
-        Nil // valid so far, nothing to say
+      val (uniPost, exPost) = goal.splitPost
+      if (SMTSolving.valid(goal.pre.phi ==> uniPost))
+        CheckPost.filterOutValidPost(goal, exPost)
       else {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
