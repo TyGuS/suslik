@@ -8,7 +8,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -161,6 +161,7 @@ trait SynthesisRunnerUtil {
       testPrintln(s"Maximum goal depth: ${stats.maxGoalDepth}")
       testPrintln(s"Final memo size: ${stats.memoSize}")
       testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
+      testPrintln(s"Time spent cycling: ${stats.timeCycling}ms")
       val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
       testPrintln(s"Hot nodes:\n $hotNodesString")
     }

@@ -15,6 +15,12 @@ class StopWatch {
 
   import StopWatch._
 
+  def reset(): Unit = {
+    init = 0
+    from = 0
+    elapsed = 0
+  }
+
   def nowMs: Long = {
     val ctm = System.currentTimeMillis()
     if (init == 0) init = ctm
@@ -26,11 +32,20 @@ class StopWatch {
     Instant(ctm - init, new Date(ctm))
   }
 
-  def start() { if (running == 0) from = nowMs; running += 1 }
-  def stop()  { running -= 1; if (running == 0) elapsed += (nowMs - from) }
+  def start() {
+    if (running == 0) from = nowMs; running += 1
+  }
+
+  def stop() {
+    running -= 1; if (running == 0) elapsed += (nowMs - from)
+  }
 
   def timed[T](op: => T): T =
-    try { start(); op } finally { stop() }
+    try {
+      start(); op
+    } finally {
+      stop()
+    }
 }
 
 
@@ -42,13 +57,16 @@ object StopWatch {
 
   lazy val instance = new StopWatch
 
-  class FactoryMap[K,V] extends mutable.HashMap[K,V] {
+  class FactoryMap[K, V] extends mutable.HashMap[K, V] {
     override def apply(key: K): V = {
       val result = findEntry(key)
-      if (result eq null) { val v = default(key); put(key, v); v }
+      if (result eq null) {
+        val v = default(key); put(key, v); v
+      }
       else result.value
     }
   }
+
   object factory extends FactoryMap[String, StopWatch] {
     override def default(key: String) = new StopWatch
   }
@@ -56,13 +74,26 @@ object StopWatch {
   def summary: Table[_] =
     new Table((for ((k, v) <- factory) yield List(k, v.elapsed)).toList)
       .withTotals(Seq(1), Table.sumInts[Long])
+
+  def timed[T](op: => T): (T, Long) = {
+    val t1 = System.currentTimeMillis()
+    val res = op
+    val t2 = System.currentTimeMillis()
+    (res, t2 - t1)
+  }
+
 }
 
 
 trait LazyTiming {
   protected def watchName: String = getClass.getSimpleName
+
   @transient
   protected lazy val watch: StopWatch = StopWatch.factory(watchName)
 
   def timed[T](op: => T): T = watch.timed(op)
+
+  def elapsed: Long = watch.elapsed
+
+  def reset() = watch.from
 }

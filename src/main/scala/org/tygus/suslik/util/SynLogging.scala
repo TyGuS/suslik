@@ -3,6 +3,7 @@ package org.tygus.suslik.util
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.report.StopWatch
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.{Memoization, SynConfig}
 
@@ -85,6 +86,10 @@ class SynStats(timeOut: Long) {
   private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
   // Rule applications picked interactively
   private var expansionChoices: List[Int] = List()
+  // Time spent in SMT
+  private var smtTime: Long = 0
+  // Time spent in Cyclist
+  private var cyclistTime: Long = 0
 
   // Have we reached the timeout yet?
   def timedOut: Boolean = (startTime + timeOut.milliseconds).isOverdue()
@@ -130,7 +135,19 @@ class SynStats(timeOut: Long) {
     val maxNodes = failedNodes.toList.sortBy(n => -descendantsExplored(n.id)).take(count)
     maxNodes.map(n => (n, descendantsExplored(n.id)))
   }
+  
+  def recordSMTTime[T](op: => T): T = {
+    val (result, time) = StopWatch.timed(op)
+    smtTime += time
+    result
+  }
 
+  def recordCyclistTime[T](op: => T): T = {
+    val (result, time) = StopWatch.timed(op)
+    cyclistTime += time
+    result
+  }
+  
   def numGoalsGenerated: Int = goalsGenerated
   def numGoalsExpanded: Int = goalsExpanded
   def numGoalsFailed: Int = failedNodes.size
@@ -139,6 +156,7 @@ class SynStats(timeOut: Long) {
   def smtCacheSize: Int = SMTSolving.cacheSize
   def memoSize: (Int, Int, Int) = Memoization.memo.size
   def getExpansionChoices: List[Int] = expansionChoices
+  def timeCycling: Long = cyclistTime
 }
 
 // TODO: refactor me to make more customizable
