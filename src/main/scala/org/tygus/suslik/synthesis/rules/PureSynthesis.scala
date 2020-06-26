@@ -18,7 +18,7 @@ import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.input.CharArrayReader
 import scala.util.{Failure, Success}
 
-object PureSynthesis extends SynthesisRule {
+object DelegatePureSynthesis extends SynthesisRule {
   override def toString: String = "PureSynthesis"
 
   def typeToSMT(lType: SSLType): String = lType match {

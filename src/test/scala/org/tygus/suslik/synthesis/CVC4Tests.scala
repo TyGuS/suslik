@@ -6,7 +6,7 @@ import org.tygus.suslik.language.{Expressions, IntSetType, IntType, LocType, Sta
 import org.tygus.suslik.logic.{Environment, Gamma, PFormula, PointsTo, SFormula}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, GoalLabel}
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.synthesis.rules.PureSynthesis
+import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
 import org.tygus.suslik.synthesis.rules.UnificationRules.Pick
 import org.tygus.suslik.util.SynStats
 
@@ -40,7 +40,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
 
   test("Translate ints to SYGUS") {
     val goal = goal1
-    val smtTask = PureSynthesis.toSMTTask(goal)
+    val smtTask = DelegatePureSynthesis.toSMTTask(goal)
     assert(smtTask == """(set-logic ALL)
                         |
                         |(synth-fun target_m ((r Int) (x Int) (y Int) ) Int
@@ -55,7 +55,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
                         |(check-synth)""".stripMargin)
   }
   test("Parsing a synthesis fail") {
-    val synthRes = PureSynthesis.invokeCVC(
+    val synthRes = DelegatePureSynthesis.invokeCVC(
     """(set-logic ALL)
       |
       |(synth-fun target_m ((r Int) (x Int) (y Int)) Int
@@ -77,9 +77,9 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
   }
 
   test("Parse CVC4 synthesis results") {
-    assert(PureSynthesis.parseAssignments(
+    assert(DelegatePureSynthesis.parseAssignments(
       """(define-fun target_m ((r Int) (x Int) (y Int)) Int y)""") == Map(Expressions.Var("m") -> Expressions.Var("y")))
-    assert(PureSynthesis.parseAssignments(
+    assert(DelegatePureSynthesis.parseAssignments(
       """(define-fun target_a1 ((x Int) (y (Set Int))) Int 0)
         |(define-fun target_q ((x Int) (y (Set Int))) (Set Int) x)""".stripMargin) ==
       Map(Expressions.Var("a1") -> IntConst(0), Expressions.Var("q") -> Expressions.Var("x")))
@@ -89,7 +89,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
 
     val goal = goal1
 
-    val res = PureSynthesis(goal)
+    val res = DelegatePureSynthesis(goal)
     //res.map(_.subgoals.head.pp + "\n").foreach(println)
     assert(res.length == 1)
     assert(res.head.subgoals.size == 1)
@@ -121,7 +121,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     false
   )
   test("Translate goal with set to SyGuS") {
-    val smtTask = PureSynthesis.toSMTTask(goal2)
+    val smtTask = DelegatePureSynthesis.toSMTTask(goal2)
     assert(smtTask == """(set-logic ALL)
                         |
                         |(define-fun empset () (Set Int) (as emptyset (Set Int)))
@@ -145,7 +145,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
     //{true ; emp}
     //  ??
     //{{v} ++ S1 =i {v1} ++ S11 ; emp}
-    val res = PureSynthesis(goal2)
+    val res = DelegatePureSynthesis(goal2)
     //res.map(_.subgoals.head.pp + "\n").foreach(println)
     assert(res.length == 1)
     assert(res.head.subgoals.size == 1)
@@ -159,26 +159,26 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil {
   test("Translating set literal with more than one elem") {
     val lit = SetLiteral(List(IntConst(1), IntConst(2), Expressions.Var("y")))
     val sb = new StringBuilder
-    PureSynthesis.toSmtExpr(lit,Map.empty,sb)
+    DelegatePureSynthesis.toSmtExpr(lit,Map.empty,sb)
     assert(sb.toString == "(insert 1 2 (singleton y))")
   }
   test ("Translating some missing exprs") {
     //x in S
     val inSet = BinaryExpr(OpIn,Expressions.Var("x"),Expressions.Var("S"))
     val sb = new StringBuilder
-    PureSynthesis.toSmtExpr(inSet,Map.empty,sb)
+    DelegatePureSynthesis.toSmtExpr(inSet,Map.empty,sb)
     assert(sb.toString == "(member x S)")
 
     //S1 -- S2
     val setDiff = BinaryExpr(Expressions.OpDiff,Expressions.Var("S1"),Expressions.Var("S2"))
     sb.clear()
-    PureSynthesis.toSmtExpr(setDiff,Map.empty,sb)
+    DelegatePureSynthesis.toSmtExpr(setDiff,Map.empty,sb)
     assert(sb.toString == "(setminus S1 S2)")
 
     //Expressions.IfThenElse(cond, left, right)
     val ite = Expressions.IfThenElse(Expressions.BoolConst(true),Expressions.Var("x"),IntConst(3))
     sb.clear()
-    PureSynthesis.toSmtExpr(ite,Map.empty,sb)
+    DelegatePureSynthesis.toSmtExpr(ite,Map.empty,sb)
     assert(sb.toString == "(ite true x 3)")
   }
 }
