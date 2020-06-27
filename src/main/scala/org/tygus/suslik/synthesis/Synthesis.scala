@@ -34,7 +34,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       log.print(List((s"The mighty cyclic proof checker is available. Well done!\n", Console.GREEN)))
     }
 
-    if (!DelegatePureSynthesis.isConfigured()) {
+    if (config.delegatePure && !DelegatePureSynthesis.isConfigured()) {
       log.print(List((s"CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n", Console.RED)))
     }
     

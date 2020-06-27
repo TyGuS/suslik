@@ -1,21 +1,17 @@
 package org.tygus.suslik.synthesis.rules
 
 
-import org.bitbucket.franck44.scalasmt.parser.{SMTLIB2Parser, SMTLIB2Syntax}
-import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax.{Command, ConstantTerm, FunDef, GetModelFunDefResponseSuccess, GetModelResponses, ModelResponse, NumLit, QIdTerm, SSymbol, SimpleQId, Sort, SortedVar, SymbolId}
+import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Parser
+import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
 import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral}
+import org.tygus.suslik.language._
+import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.logic.{PFormula, Specifications}
+import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
+import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
 
 import scala.sys.process._
-import org.tygus.suslik.language.{BoolType, CardType, Expressions, IntSetType, IntType, LocType, SSLType}
-import org.tygus.suslik.logic.{PFormula, Specifications}
-import org.tygus.suslik.logic.Specifications.Goal
-import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
-import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
-
-import scala.util.parsing.combinator.lexical.StdLexical
-import scala.util.parsing.combinator.syntactical.StandardTokenParsers
-import scala.util.parsing.input.CharArrayReader
 import scala.util.{Failure, Success}
 
 object DelegatePureSynthesis extends SynthesisRule {
@@ -188,7 +184,7 @@ object DelegatePureSynthesis extends SynthesisRule {
 
   def apply(goal: Goal): Seq[RuleResult] = {
   //def apply(goal: Specifications.Goal): Option[(Goal,Map[Expressions.Var,Expressions.Expr])] = {
-    if (!configured) return Nil
+    if (!goal.env.config.delegatePure || !configured) return Nil
 
     val smtTask = toSMTTask(goal)
     val cvc4Res = invokeCVC(smtTask)
