@@ -148,7 +148,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean](name = "delegate").action(cfg { b =>
       _.copy(delegatePure = b)
-    }).text("delegate pure synthesis to CVC4; default: false")
+    }).text("delegate pure synthesis to CVC4; default: true")
 
     opt[Boolean]('i', "interactive").action(cfg { b =>
       _.copy(interactive = b)

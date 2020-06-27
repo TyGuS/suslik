@@ -1,13 +1,11 @@
 package org.tygus.suslik.synthesis
 
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
-import org.tygus.suslik.language.Expressions.{BinaryExpr, Expr, IntConst, OpIn, SetLiteral, UnaryExpr}
-import org.tygus.suslik.language.{Expressions, IntSetType, IntType, LocType, Statements}
-import org.tygus.suslik.logic.{Environment, Gamma, PFormula, PointsTo, SFormula}
+import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, GoalLabel}
-import org.tygus.suslik.parsing.SSLParser
+import org.tygus.suslik.logic.{Environment, PFormula, PointsTo, SFormula}
 import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
-import org.tygus.suslik.synthesis.rules.UnificationRules.Pick
 import org.tygus.suslik.util.SynStats
 
 class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll {
@@ -15,7 +13,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     assert(DelegatePureSynthesis.isConfigured())
   }
 
-  val params: SynConfig = defaultConfig
+  val params: SynConfig = defaultConfig.copy(delegatePure = true)
   //loc r, int x, int y [int m] |-
   //{not (r == 0) && x < y ; r :-> 0}
   //  ??
