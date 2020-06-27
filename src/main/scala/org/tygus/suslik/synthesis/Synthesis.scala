@@ -10,6 +10,7 @@ import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.synthesis.Termination._
 import org.tygus.suslik.synthesis.tactics.Tactic
+import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
 
@@ -31,6 +32,10 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       log.print(List((s"Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n", Console.RED)))
     } else {
       log.print(List((s"The mighty cyclic proof checker is available. Well done!\n", Console.GREEN)))
+    }
+
+    if (!DelegatePureSynthesis.isConfigured()) {
+      log.print(List((s"CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n", Console.RED)))
     }
     
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
