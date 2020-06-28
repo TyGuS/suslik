@@ -27,6 +27,7 @@ case class SynConfig(
                       depthFirst: Boolean = false,
                       memoization: Boolean = true,
                       termination: TerminationMetric = totalSize,
+                      delegatePure: Boolean = true,
                       // Timeout and logging
                       interactive: Boolean = false,
                       printStats: Boolean = true,

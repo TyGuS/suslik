@@ -1,0 +1,11 @@
+# -o 2 -x true -p true
+
+should be able to flatten a multi-list into a sll
+
+###
+
+{ r :-> x ** multilist(x, len, s)<a> }
+  void multilist_length(loc r)
+{ r :-> y ** sll(y, len, s) }
+
+###

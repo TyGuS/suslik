@@ -4,6 +4,7 @@ import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.StmtProducer
 import org.tygus.suslik.synthesis.Termination.Transition
+import org.tygus.suslik.util.SynStats
 
 object Rules {
   
