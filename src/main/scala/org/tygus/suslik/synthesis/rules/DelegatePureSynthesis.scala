@@ -4,7 +4,7 @@ package org.tygus.suslik.synthesis.rules
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Parser
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
-import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral}
+import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.{PFormula, Specifications}
@@ -192,8 +192,10 @@ object DelegatePureSynthesis extends SynthesisRule with InvertibleRule {
     if (cvc4Res.isEmpty) Nil
     else {
       //parse me
-      val assignments: Map[Expressions.Var,Expressions.Expr] = parseAssignments(cvc4Res.get)
-      val newGoal = goal.spawnChild(post = goal.post.subst(assignments))
+      val assignments: Subst = parseAssignments(cvc4Res.get)
+      val newPost = goal.post.subst(assignments)
+      val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
+      val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
       val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       RuleResult(List(newGoal), kont, this, goal) :: Nil
     }
