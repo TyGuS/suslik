@@ -117,8 +117,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           UnificationRules.SubstRight,
           LogicalRules.FrameFlat,
           OperationalRules.WriteRule,
-          UnificationRules.HeapUnifyPure,
           UnificationRules.PickCard,
+          UnificationRules.HeapUnifyPure,
+          DelegatePureSynthesis,
           UnificationRules.PickArg,
           UnificationRules.Pick))
   }
@@ -153,9 +154,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     LogicalRules.FrameFlat,
     OperationalRules.WriteRule,
     //    UnificationRules.PureUnify,
+    UnificationRules.PickCard,
     UnificationRules.HeapUnifyPure,
     DelegatePureSynthesis,
-    UnificationRules.PickCard,
     UnificationRules.Pick,
   )
 

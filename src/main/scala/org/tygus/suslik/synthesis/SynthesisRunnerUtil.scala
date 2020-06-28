@@ -167,7 +167,7 @@ trait SynthesisRunnerUtil {
       testPrintln(s"Time spent cycling: ${stats.timeCycling}ms")
 //      val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
 //      testPrintln(s"Hot nodes:\n $hotNodesString")
-      val expensiveRuleString = stats.expensiveRules(5).map {case (n, s) => printRuleApplication(n, s)}.mkString("\n")
+      val expensiveRuleString = stats.expensiveRules(30).map {case (n, s) => printRuleApplication(n, s)}.mkString("\n")
       testPrintln(s"Expensive rules:\n $expensiveRuleString\n")
     }
 

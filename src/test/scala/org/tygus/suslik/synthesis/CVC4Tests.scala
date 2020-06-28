@@ -36,6 +36,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
     Statements.Hole,
+    None,
     false,
     false
   )
@@ -119,6 +120,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params,new SynStats(params.timeOut)),
     Statements.Hole,
+    None,
     false,
     false
   )

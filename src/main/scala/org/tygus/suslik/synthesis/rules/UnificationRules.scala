@@ -177,7 +177,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     * Special pure synthesis rule for integer existentials that are only constrained by lower bounds
     * (useful for cardinalities).
     */
-  object PickCard extends SynthesisRule {
+  object PickCard extends SynthesisRule with InvertibleRule {
     override def toString: String = "PickCard"
 
     def apply(goal: Goal): Seq[RuleResult] = {

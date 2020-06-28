@@ -8,13 +8,13 @@ import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.{PFormula, Specifications}
-import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
+import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
 
 import scala.sys.process._
 import scala.util.{Failure, Success}
 
-object DelegatePureSynthesis extends SynthesisRule {
+object DelegatePureSynthesis extends SynthesisRule with InvertibleRule {
   override def toString: String = "PureSynthesis"
 
   def typeToSMT(lType: SSLType): String = lType match {
@@ -185,6 +185,7 @@ object DelegatePureSynthesis extends SynthesisRule {
   def apply(goal: Goal): Seq[RuleResult] = {
   //def apply(goal: Specifications.Goal): Option[(Goal,Map[Expressions.Var,Expressions.Expr])] = {
     if (!goal.env.config.delegatePure || !configured) return Nil
+    if (goal.existentials.isEmpty) return Nil
 
     val smtTask = toSMTTask(goal)
     val cvc4Res = invokeCVC(smtTask)
