@@ -69,6 +69,8 @@ object SynLogLevels {
 
 }
 
+case class RuleStat(numSuccess: Int, timeSuccess: Long, numFail: Int, timeFail: Long)
+
 class SynStats(timeOut: Long) {
   // When did the synthesis start?
   private var startTime: Deadline = Deadline.now
@@ -84,6 +86,8 @@ class SynStats(timeOut: Long) {
   private val descendantsExplored: mutable.Map[NodeId, Int] = mutable.Map()
   // Nodes that have been backtracked out of
   private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
+  // Which rules were applied how many times and how long they took
+  private val ruleApplications: mutable.Map[String, RuleStat] = mutable.Map()
   // Rule applications picked interactively
   private var expansionChoices: List[Int] = List()
   // Time spent in SMT
@@ -146,6 +150,20 @@ class SynStats(timeOut: Long) {
     val (result, time) = StopWatch.timed(op)
     cyclistTime += time
     result
+  }
+
+  def recordRuleApplication[T](name: String, op: => Seq[T]): Seq[T] = {
+    val (result, time) = StopWatch.timed(op)
+    val oldStat = ruleApplications.getOrElse(name, RuleStat(0,0,0,0))
+    if (result.isEmpty)
+      ruleApplications.update(name, oldStat.copy(numFail = oldStat.numFail + 1, timeFail = oldStat.timeFail + time))
+    else
+      ruleApplications.update(name, oldStat.copy(numSuccess = oldStat.numSuccess + 1, timeSuccess = oldStat.timeSuccess + time))
+    result
+  }
+
+  def expensiveRules(count: Int = 5): List[(String, RuleStat)] = {
+    ruleApplications.toList.sortBy{ case (_, stat) => -stat.timeSuccess - stat.timeFail }.take(count)
   }
   
   def numGoalsGenerated: Int = goalsGenerated
