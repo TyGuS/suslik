@@ -201,7 +201,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case r :: rs =>
         // Invoke the rule
-        val children = r(goal)
+        val children = stats.recordRuleApplication(r.toString, r(goal))
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules

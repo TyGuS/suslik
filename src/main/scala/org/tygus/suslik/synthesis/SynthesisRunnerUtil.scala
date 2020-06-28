@@ -8,7 +8,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -153,6 +153,9 @@ trait SynthesisRunnerUtil {
     def printHotNode(hotNode: AndNode, descs: Int): String =
       s"${hotNode.rule.toString} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
 
+    def printRuleApplication(name: String, stat: RuleStat): String =
+      s"$name: succeeded ${stat.numSuccess} times (${stat.timeSuccess}ms), failed ${stat.numFail} times (${stat.timeFail}ms)"
+
     def printStats(stats: SynStats) = {
       testPrintln(s"Goals generated: ${stats.numGoalsGenerated}")
       testPrintln(s"Goals expanded: ${stats.numGoalsExpanded}")
@@ -162,8 +165,10 @@ trait SynthesisRunnerUtil {
       testPrintln(s"Final memo size: ${stats.memoSize}")
       testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
       testPrintln(s"Time spent cycling: ${stats.timeCycling}ms")
-      val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
-      testPrintln(s"Hot nodes:\n $hotNodesString")
+//      val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
+//      testPrintln(s"Hot nodes:\n $hotNodesString")
+      val expensiveRuleString = stats.expensiveRules(5).map {case (n, s) => printRuleApplication(n, s)}.mkString("\n")
+      testPrintln(s"Expensive rules:\n $expensiveRuleString\n")
     }
 
     sresult._1 match {
