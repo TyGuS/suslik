@@ -1,0 +1,10 @@
+# -x true
+Deallocate a tree and a list
+
+###
+
+{true; tree(x) ** list(y)}
+  void treelistfree(loc x, loc y)
+{true ; emp }
+
+###
