@@ -8,7 +8,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -169,6 +169,7 @@ trait SynthesisRunnerUtil {
 //      testPrintln(s"Hot nodes:\n $hotNodesString")
       val expensiveRuleString = stats.expensiveRules(5).map {case (n, s) => printRuleApplication(n, s)}.mkString("\n")
       testPrintln(s"Expensive rules:\n $expensiveRuleString\n")
+      testPrintln(StopWatch.summary.toString)
     }
 
     sresult._1 match {

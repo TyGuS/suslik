@@ -4,6 +4,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 import org.bitbucket.franck44.expect.Expect
+import org.tygus.suslik.report.LazyTiming
 import org.tygus.suslik.synthesis.SynthesisException
 
 import scala.concurrent.duration.FiniteDuration
@@ -15,7 +16,7 @@ import scala.util.{Failure, Success}
   *
   * @author Ilya Sergey
   */
-object CyclicProofChecker {
+object CyclicProofChecker extends LazyTiming {
 
   // Command, should be in your PATH
   val checkerCommand = "checkproof"
@@ -26,6 +27,8 @@ object CyclicProofChecker {
   // Timeout for the I/O Future
   val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
   val timeout = new FiniteDuration(2000, TimeUnit.MILLISECONDS)
+
+  override val watchName = "CyclicProofChecker"
 
   private var checker: Expect = null
 
@@ -50,20 +53,22 @@ object CyclicProofChecker {
 
   // Check cyclic proof
   def checkProof(trace: String): Boolean = this.synchronized {
-    if (!configured) {
-      // [Termination] This is an unsound default
-      return true
-    }
-
-    computeResultOperation(trace) match {
-      case Left("YES") => true
-      case Left("NO") => false
-      case Right(_: IOException) => {
-        // The checker broke at the previous iteration, just restart it
-        checker = startChecker()
-        checkProof(trace)
+    timed {
+      if (!configured) {
+        // [Termination] This is an unsound default
+        return true
       }
-      case z => throw SynthesisException(s"Cyclic Proof Checker error: $z\nTrace:\n$trace\n\n")
+
+      computeResultOperation(trace) match {
+        case Left("YES") => true
+        case Left("NO") => false
+        case Right(_: IOException) => {
+          // The checker broke at the previous iteration, just restart it
+          checker = startChecker()
+          checkProof(trace)
+        }
+        case z => throw SynthesisException(s"Cyclic Proof Checker error: $z\nTrace:\n$trace\n\n")
+      }
     }
   }
   

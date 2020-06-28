@@ -28,6 +28,8 @@ object SMTSolving extends Core
   //  val defaultSolver = "CVC4"
   val defaultSolver = "Z3"
 
+  override val watchName = "SMTSolving"
+
   implicit private var solverObject: SMTSolver = null
 
   {

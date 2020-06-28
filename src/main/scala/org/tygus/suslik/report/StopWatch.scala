@@ -3,6 +3,9 @@ package org.tygus.suslik.report
 import java.util.Date
 import scala.collection.mutable
 
+import org.tygus.suslik.report.Table.Summable
+
+
 /**
   * An auxiliary class for measuring how long operations take to complete.
   */
@@ -51,11 +54,21 @@ class StopWatch {
 
 object StopWatch {
 
+  lazy val instance = new StopWatch
+
   case class Instant(offset: Long, time: Date) {
     override def toString: String = s"${time} [+${offset}]"
   }
 
-  lazy val instance = new StopWatch
+  case class DurationMs(ms: Long) {
+    override def toString: String = s"${ms}ms"
+    def +(other: DurationMs): DurationMs = DurationMs(ms + other.ms)
+  }
+
+  implicit object DurationMsIsSummable extends Summable[DurationMs] {
+    override val zero: DurationMs = DurationMs(0)
+    override def plus(x: DurationMs, y: DurationMs): DurationMs = x + y
+  }
 
   class FactoryMap[K, V] extends mutable.HashMap[K, V] {
     override def apply(key: K): V = {
@@ -72,8 +85,8 @@ object StopWatch {
   }
 
   def summary: Table[_] =
-    new Table((for ((k, v) <- factory) yield List(k, v.elapsed)).toList)
-      .withTotals(Seq(1), Table.sumInts[Long])
+    new Table((for ((k, v) <- factory) yield List(k, DurationMs(v.elapsed))).toList)
+      .withTotals(Seq(1), Table.sum[DurationMs])
 
   def timed[T](op: => T): (T, Long) = {
     val t1 = System.currentTimeMillis()
