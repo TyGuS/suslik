@@ -3,8 +3,37 @@ Deallocate a tree and a list
 
 ###
 
-{true; tree(x) ** list(y)}
+{true; tree(x)<a> ** list(y)<b>}
   void treelistfree(loc x, loc y)
 {true ; emp }
 
 ###
+
+void treelistfree (loc x, loc y) {
+  if (y == 0) {
+    treelistfree00(x, y);
+  } else {
+    let n = *y;
+    treelistfree(x, n);
+    free(y);
+  }
+}
+
+void treelistfree00 (loc x, loc y) {
+  if (x == 0) {
+  } else {
+    let l = *x;
+    let r = *(x + 1);
+    treelistfree00(l, 0);
+    treelistfree00(r, 0);
+    free(x);
+  }
+}
+
+###
+
+2
+1
+1
+1
+1
