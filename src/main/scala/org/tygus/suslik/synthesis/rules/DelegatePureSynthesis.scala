@@ -100,11 +100,14 @@ object DelegatePureSynthesis {
       sb ++= ")"
   }
 
+  def usesEmptyset(a: Specifications.Assertion): Boolean = a.phi.conjuncts.exists(e => !e.collect(expr =>
+    expr.isInstanceOf[Expressions.SetLiteral] && expr.asInstanceOf[Expressions.SetLiteral].elems.isEmpty).isEmpty)
+
   def toSMTTask(goal: Specifications.Goal): String = {
     val sb = new StringBuilder
     sb ++= "(set-logic ALL)\n\n"
 
-    if (goal.gamma.exists { case (v, t) => t == IntSetType && goal.isExistential(v) })
+    if (goal.gamma.exists { case (v, t) => t == IntSetType && goal.isExistential(v) } || usesEmptyset(goal.post) || usesEmptyset(goal.pre))
       sb ++= "(define-fun empset () (Set Int) (as emptyset (Set Int)))\n\n"
 
     val otherVars = (goal.gamma -- goal.existentials).toList
