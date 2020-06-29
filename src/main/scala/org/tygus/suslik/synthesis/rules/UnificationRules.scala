@@ -23,21 +23,16 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
-    def heapletTransform(goal:Goal, h: Heaplet): Heaplet = h
-
-    def varFilter(h: Heaplet, v: Var): Boolean = true
-
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
 
-      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p)).map(h => heapletTransform(goal, h))
+      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
 
       val alternatives = for {
         s <- postCandidates
         t <- pre.sigma.chunks
-        wholeSub <- SpatialUnification.tryUnify(t, s, goal.universals)
-        sub = wholeSub.filterKeys(v => varFilter(s, v))
+        sub <- SpatialUnification.tryUnify(t, s, goal.universals)
         if sub.nonEmpty
         newPostSigma = post.sigma.subst(sub)
         if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
@@ -61,10 +56,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "HeapUnifyBlock"
   }
 
-  object HeapUnifyPointer extends HeapUnify with FlatPhase {
+  object HeapUnifyPointer extends HeapUnify with FlatPhase with InvertibleRule {
     override def toString: String = "HeapUnifyPointer"
 
-    override def heapletTransform(goal:Goal, h: Heaplet): Heaplet = h match {
+    def heapletTransform(goal:Goal, h: Heaplet): Heaplet = h match {
       case PointsTo(x, o, _) => {
         val f = LanguageUtils.generateFreshExistential(goal.vars)
         PointsTo(x, o, f)
@@ -72,9 +67,40 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       case _ => h
     }
 
-    override def varFilter(h: Heaplet, v: Var): Boolean = h match {
+    def varFilter(h: Heaplet, v: Var): Boolean = h match {
       case PointsTo(x, _, _) => v == x
       case _ => false
+    }
+
+    override def apply(goal: Goal): Seq[RuleResult] = {
+      val pre = goal.pre
+      val post = goal.post
+      val prePtss = pre.sigma.ptss
+      val postPtss = post.sigma.ptss
+
+      def lcpLen(s1: String, s2: String): Int = s1.zip(s2).takeWhile(Function.tupled(_ == _)).length
+
+      // TODO: fix this if lhss can be non-variables
+      val alternatives = for {
+        PointsTo(y@Var(_), oy, _) <- postPtss
+        if goal.isExistential(y)
+        t@PointsTo(x@Var(_), ox, _) <- prePtss
+        if ox == oy
+        if !postPtss.exists(sameLhs(t))
+      } yield (y -> x)
+
+      alternatives.sortBy{ case (v1, v2) => -lcpLen(v1.name, v2.name) }.headOption match {
+        case None => Nil
+        case Some((y, x)) => {
+          val sub = Map(y -> x)
+          val newPostSigma = post.sigma.subst(sub)
+          val newPost = Assertion(post.phi.subst(sub), newPostSigma)
+          val newCallGoal = goal.callGoal.map(_.updateSubstitution(sub))
+          val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
+          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          List(RuleResult(List(newGoal), kont, this, goal))
+        }
+      }
     }
   }
 

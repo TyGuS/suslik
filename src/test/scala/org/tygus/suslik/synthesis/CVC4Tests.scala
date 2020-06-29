@@ -92,7 +92,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
 
     val goal = goal1
 
-    val res = DelegatePureSynthesis(goal)
+    val res = DelegatePureSynthesis.PureSynthesisFinal(goal)
     //res.map(_.subgoals.head.pp + "\n").foreach(println)
     assert(res.length == 1)
     assert(res.head.subgoals.size == 1)
@@ -149,7 +149,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     //{true ; emp}
     //  ??
     //{{v} ++ S1 =i {v1} ++ S11 ; emp}
-    val res = DelegatePureSynthesis(goal2)
+    val res = DelegatePureSynthesis.PureSynthesisFinal(goal2)
     //res.map(_.subgoals.head.pp + "\n").foreach(println)
     assert(res.length == 1)
     assert(res.head.subgoals.size == 1)

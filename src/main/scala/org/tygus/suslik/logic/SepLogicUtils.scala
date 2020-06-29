@@ -135,23 +135,6 @@ trait SepLogicUtils extends PureLogicUtils {
   }
   
   def getCardinalities(sigma: SFormula) = for (SApp(_, _, _, c) <- sigma.chunks) yield c
-  
-
-  /*def respectsOrdering(goalSubHeap: SFormula, adaptedFunPre: SFormula): Boolean = {
-    def compareTags(lilTag: Option[Int], largTag: Option[Int]): Int = lilTag.getOrElse(0) - largTag.getOrElse(0)
-
-    val pairTags = for {
-      SApp(name, args, t, c) <- adaptedFunPre.chunks
-      SApp(_name, _args, _t, _c) <- goalSubHeap.chunks.find {
-        case SApp(_name, _args, _, _c) => _name == name && _args == args
-        case _ => false
-      }
-    } yield (t, _t)
-    val comparisons = pairTags.map { case (t, s) => compareTags(t, s) }
-    val allGeq = comparisons.forall(_ <= 0)
-    val atLeastOneLarger = comparisons.exists(_ < 0)
-    allGeq && atLeastOneLarger
-  }*/
 
 
   /**
@@ -192,32 +175,6 @@ trait SepLogicUtils extends PureLogicUtils {
     }
 
     goFind(small.chunks, large.chunks, List(Nil)).map(SFormula)
-  }
-
-  def findBlockRootedSubHeap(b: Block, sf: SFormula): Option[SFormula] = {
-    if (!sf.chunks.contains(b)) return None
-    val Block(x, sz) = b
-    if (!x.isInstanceOf[Var]) return None
-    val ps = for {p@PointsTo(y, o, _) <- sf.chunks if x == y} yield p
-    val offsets = ps.map { case PointsTo(_, o, _) => o }.sorted
-    val goodChunks = offsets.size == sz && // All offsets are present
-      offsets.distinct.size == offsets.size && // No repetitions
-      offsets.forall(o => o < sz) // all smaller than sz
-    if (goodChunks) Some(mkSFormula(b :: ps)) else None
-  }
-
-  def chunksForUnifying(f: SFormula): List[Heaplet] = {
-    val blocks = f.blocks
-    val apps = f.apps
-    val ptss = f.ptss
-    // Now remove block-dependent chunks
-    val chunksToRemove = (for {
-      b <- blocks
-      sf <- findBlockRootedSubHeap(b, f).toList
-      c <- sf.chunks
-    } yield c).toSet
-    val res = blocks ++ apps ++ ptss.filterNot(p => chunksToRemove.contains(p))
-    res
   }
 
 }

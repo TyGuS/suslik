@@ -9,8 +9,8 @@ import org.tygus.suslik.report.{Log, ProofTrace}
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.synthesis.Termination._
-import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
+import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
 

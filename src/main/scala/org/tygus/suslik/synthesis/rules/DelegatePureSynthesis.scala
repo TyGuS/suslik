@@ -14,35 +14,35 @@ import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGua
 import scala.sys.process._
 import scala.util.{Failure, Success}
 
-object DelegatePureSynthesis extends SynthesisRule with InvertibleRule {
-  override def toString: String = "PureSynthesis"
+object DelegatePureSynthesis {
 
   def typeToSMT(lType: SSLType): String = lType match {
     case IntType | LocType | CardType => "Int"
     case BoolType => "Bool"
     case IntSetType => "(Set Int)"
   }
-  val typeConstants: Map[SSLType,List[String]] = Map(
+
+  val typeConstants: Map[SSLType, List[String]] = Map(
     IntType -> List("0"), LocType -> List("0"), IntSetType -> List("empset"), CardType -> List("0")
   )
 
-  def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var,String], sb: StringBuilder): Unit = c match {
+  def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var, String], sb: StringBuilder): Unit = c match {
     case v: Expressions.Var => sb ++= (if (existentials contains v) existentials(v) else v.name)
     case const: Expressions.Const => sb ++= const.pp
     case SetLiteral(elems) => elems.length match {
       case 0 => sb ++= "empset"
       case 1 =>
         sb ++= "(singleton "
-        toSmtExpr(elems.head,existentials,sb)
+        toSmtExpr(elems.head, existentials, sb)
         sb ++= ")"
       case _ =>
         sb ++= "(insert "
         for (e <- elems.dropRight(1)) {
-          toSmtExpr(e,existentials,sb)
+          toSmtExpr(e, existentials, sb)
           sb ++= " "
         }
         sb ++= "(singleton "
-        toSmtExpr(elems.last,existentials,sb)
+        toSmtExpr(elems.last, existentials, sb)
         sb ++= "))"
     }
     case Expressions.BinaryExpr(op, left, right) => sb ++= "(" ++= (op match {
@@ -63,52 +63,52 @@ object DelegatePureSynthesis extends SynthesisRule with InvertibleRule {
       case Expressions.OpDiff => "setminus"
       case Expressions.OpIntersect => "intersection"
     }) ++= " "
-      toSmtExpr(left,existentials,sb)
+      toSmtExpr(left, existentials, sb)
       sb ++= " "
-      toSmtExpr(right,existentials,sb)
+      toSmtExpr(right, existentials, sb)
       sb ++= ")"
     //case Expressions.OverloadedBinaryExpr(overloaded_op, left, right) =>
     case Expressions.UnaryExpr(op, arg) => sb ++= "(" ++= (op match {
       case Expressions.OpNot => "not"
       case Expressions.OpUnaryMinus => "-"
     }) ++= " "
-    toSmtExpr(arg,existentials,sb)
-    sb ++= ")"
+      toSmtExpr(arg, existentials, sb)
+      sb ++= ")"
     case Expressions.IfThenElse(cond, left, right) =>
       sb ++= "(ite "
-      toSmtExpr(cond,existentials,sb)
+      toSmtExpr(cond, existentials, sb)
       sb ++= " "
-      toSmtExpr(left,existentials,sb)
+      toSmtExpr(left, existentials, sb)
       sb ++= " "
-      toSmtExpr(right,existentials,sb)
+      toSmtExpr(right, existentials, sb)
       sb ++= ")"
   }
 
-  def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var,String] =
-    existentials.map{ex =>
-      (ex,  "(target_" + ex.name + (for (v <- otherVars) yield v._1.name).mkString(" ", " ", "") + ")")
+  def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var, String] =
+    existentials.map { ex =>
+      (ex, "(target_" + ex.name + (for (v <- otherVars) yield v._1.name).mkString(" ", " ", "") + ")")
     }.toMap
 
-  def toSmt(phi: PFormula, existentials: Map[Expressions.Var,String], sb: StringBuilder): Unit = phi.conjuncts.size match {
+  def toSmt(phi: PFormula, existentials: Map[Expressions.Var, String], sb: StringBuilder): Unit = phi.conjuncts.size match {
     case 0 => sb ++= "true"
-    case 1 => toSmtExpr(phi.conjuncts.head,existentials,sb)
+    case 1 => toSmtExpr(phi.conjuncts.head, existentials, sb)
     case _ => sb ++= "(and "
-              for (c <- phi.conjuncts) {
-                toSmtExpr(c,existentials,sb)
-                sb ++= " "
-              }
-              sb ++= ")"
+      for (c <- phi.conjuncts) {
+        toSmtExpr(c, existentials, sb)
+        sb ++= " "
+      }
+      sb ++= ")"
   }
 
   def toSMTTask(goal: Specifications.Goal): String = {
     val sb = new StringBuilder
     sb ++= "(set-logic ALL)\n\n"
 
-    if (goal.gamma.exists{case (v, t) => t == IntSetType && goal.isExistential(v)})
+    if (goal.gamma.exists { case (v, t) => t == IntSetType && goal.isExistential(v) })
       sb ++= "(define-fun empset () (Set Int) (as emptyset (Set Int)))\n\n"
 
     val otherVars = (goal.gamma -- goal.existentials).toList
-    for(ex <- goal.existentials) {
+    for (ex <- goal.existentials) {
       val etypeOpt = ex.getType(goal.gamma)
       val etypeStr = typeToSMT(etypeOpt.get)
       sb ++= "(synth-fun target_" ++= ex.name ++= " ("
@@ -128,27 +128,28 @@ object DelegatePureSynthesis extends SynthesisRule with InvertibleRule {
       sb ++= "(declare-var " ++= v._1.name ++= " " ++= typeToSMT(v._2) ++= ")\n"
     sb ++= "\n(constraint\n"
     sb ++= "    (=> "
-    lazy val existentialMap = mkExistentialCalls(goal.existentials,otherVars)
-    toSmt(goal.pre.phi,Map.empty,sb) //no existential vars in pre
+    lazy val existentialMap = mkExistentialCalls(goal.existentials, otherVars)
+    toSmt(goal.pre.phi, Map.empty, sb) //no existential vars in pre
     sb ++= " "
-    toSmt(goal.post.phi,existentialMap,sb)
+    toSmt(goal.post.phi, existentialMap, sb)
     sb ++= "))"
     sb ++= "\n(check-synth)"
     sb.toString
   }
+
   val cvc4exe = "cvc4"
   val cvc4Cmd = cvc4exe + " --sygus-out=status-or-def --lang sygus" //" --cegqi-si=all --sygus-out=status-or-def --lang sygus"
   def invokeCVC(task: String): Option[String] = { //<-- if we ever get the library compiled, fix it here
     var out: String = null
-    val io = BasicIO.standard{ostream =>
+    val io = BasicIO.standard { ostream =>
       ostream.write(task.getBytes)
       ostream.flush();
       ostream.close()
-    }.withOutput{istream =>
+    }.withOutput { istream =>
       out = scala.io.Source.fromInputStream(istream).mkString
     }
     val cvc4 = cvc4Cmd.run(io)
-    if(cvc4.exitValue() != 0) None
+    if (cvc4.exitValue() != 0) None
     else if (out.trim == "unknown") None //unsynthesizable
     else Some(out)
   }
@@ -165,15 +166,17 @@ object DelegatePureSynthesis extends SynthesisRule with InvertibleRule {
   }
 
 
-  val parser = SMTLIB2Parser [GetModelResponses]
-  def parseAssignments(cvc4Res: String): Map[Expressions.Var, Expressions.Expr] = {
+  val parser = SMTLIB2Parser[GetModelResponses]
+
+  def parseAssignments(cvc4Res: String): Subst = {
     //〈FunDefCmd〉::=  (define-fun〈Symbol〉((〈Symbol〉 〈SortExpr〉)∗)〈SortExpr〉 〈Term〉
     parser.apply(StringSource("(model " + cvc4Res + ")")) match {
       case Failure(exception) => Map.empty
-      case Success(GetModelFunDefResponseSuccess( responses ) ) =>
-        responses.map{ response =>
+      case Success(GetModelFunDefResponseSuccess(responses)) =>
+        responses.map { response =>
           val existential = response.funDef.sMTLIB2Symbol.asInstanceOf[SSymbol].simpleSymbol.drop(7)
           val expr = response.funDef.term match {
+            case QIdTerm(SimpleQId(SymbolId(SSymbol("empset")))) => Expressions.SetLiteral(List())
             case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) => Expressions.Var(simpleSymbol)
             case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
           }
@@ -182,23 +185,33 @@ object DelegatePureSynthesis extends SynthesisRule with InvertibleRule {
     }
   }
 
-  def apply(goal: Goal): Seq[RuleResult] = {
-  //def apply(goal: Specifications.Goal): Option[(Goal,Map[Expressions.Var,Expressions.Expr])] = {
-    if (!goal.env.config.delegatePure || !configured) return Nil
-    if (goal.existentials.isEmpty) return Nil
+  abstract class PureSynthesis extends SynthesisRule {
+    def apply(goal: Goal): Seq[RuleResult] = {
+      //def apply(goal: Specifications.Goal): Option[(Goal,Map[Expressions.Var,Expressions.Expr])] = {
+      if (!goal.env.config.delegatePure || !configured) return Nil
+      if (goal.existentials.isEmpty) return Nil
 
-    val smtTask = toSMTTask(goal)
-    val cvc4Res = invokeCVC(smtTask)
-    if (cvc4Res.isEmpty) Nil
-    else {
-      //parse me
-      val assignments: Subst = parseAssignments(cvc4Res.get)
-      val newPost = goal.post.subst(assignments)
-      val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
-      val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-      val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      RuleResult(List(newGoal), kont, this, goal) :: Nil
+      val smtTask = toSMTTask(goal)
+      val cvc4Res = invokeCVC(smtTask)
+      if (cvc4Res.isEmpty) Nil
+      else {
+        //parse me
+        val assignments: Subst = parseAssignments(cvc4Res.get)
+        val newPost = goal.post.subst(assignments)
+        val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
+        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
+        val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        RuleResult(List(newGoal), kont, this, goal) :: Nil
+      }
     }
+  }
+
+  object PureSynthesisFinal extends PureSynthesis with InvertibleRule {
+    override def toString: String = "PureSynthesisFinal"
+  }
+
+  object PureSynthesisNonfinal extends PureSynthesis {
+    override def toString: String = "PureSynthesisNonFinal"
   }
 
 }
