@@ -2,6 +2,11 @@
     padding-bottom: 25%;
 }
 
+.proof-trace-pane-area {
+    transform: scale(var(--zoom));
+    transform-origin: 0 0;
+}
+
 .proof-trace .subtrees {
     white-space: nowrap;
 }
@@ -193,6 +198,29 @@
     opacity: 1;
     display: inline;
 }
+
+/* Filters */
+
+.proof-trace-filter--only-success .proof-trace:not(.Succeeded):not(.Succeeded\*) {
+    display: none;
+}
+
+.proof-trace-filter--only-expanded .proof-trace.no-children {
+    display: none;
+}
+
+/* Toobar */
+
+.proof-trace-toolbar {
+    position: fixed;
+    top: 0;
+    left: 20em;
+    background: #ffffffd0;
+    padding: 1em 5em .75em 1em;
+    z-index: 1;
+}
+
+/* Status bar */
 
 #hint {
     position: fixed;
