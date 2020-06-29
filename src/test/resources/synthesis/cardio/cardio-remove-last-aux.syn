@@ -8,7 +8,6 @@ should be able to synthesize removal of the second element of the list
 void aux(loc r)
 { b == 0 /\ (y == 0 \/ y == x) ; r :-> y ** sll_card0(y)<b> }
 
-
 { a >= 4 ; r :-> x ** sll_card0(x)<a>}
 void remove_second(loc r)
 {b == a - 2 /\ (y == 0 \/ y == x); r :-> y ** sll_card0(y)<b> }

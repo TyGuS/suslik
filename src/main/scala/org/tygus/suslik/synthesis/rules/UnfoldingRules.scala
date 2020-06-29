@@ -267,7 +267,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap // Add f's (fresh) variables to gamma
         call = Call(Var(f.name), f.params.map(_._1), l)
-        suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, f.post, call, freshSub))
+        calleePostSigma = f.post.sigma.setUpSAppTags(goal.env.config.callCost)
+        callePost = Assertion(f.post.phi, calleePostSigma)
+        suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
         val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
@@ -302,8 +304,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // We would like to substitute all the fresh vars in calleePost, but we can't
         // since it might have predicates and their arguments must be variables.
         // So instead we are adding the substitution as the pure precondition
-        // TODO: get rid of the 2
-        val calleePostSigma = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + 2)
+        val calleePostSigma = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + goal.env.config.callCost)
         val calleePostPhi = callGoal.calleePost.phi && substToFormula(callGoal.freshToActual).resolveOverloading(goal.gamma)
         val newPre = Assertion(pre.phi && calleePostPhi, pre.sigma ** calleePostSigma)
         val newPost = callGoal.callerPost
