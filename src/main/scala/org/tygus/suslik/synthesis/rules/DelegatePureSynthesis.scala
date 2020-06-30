@@ -22,15 +22,16 @@ object DelegatePureSynthesis {
     case IntSetType => "(Set Int)"
   }
 
+  val empsetName = "empset"
   val typeConstants: Map[SSLType, List[String]] = Map(
-    IntType -> List("0"), LocType -> List("0"), IntSetType -> List("empset"), CardType -> List("0")
+    IntType -> List("0"), LocType -> List("0"), IntSetType -> List(empsetName), CardType -> List("0")
   )
 
   def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var, String], sb: StringBuilder): Unit = c match {
     case v: Expressions.Var => sb ++= (if (existentials contains v) existentials(v) else v.name)
     case const: Expressions.Const => sb ++= const.pp
     case SetLiteral(elems) => elems.length match {
-      case 0 => sb ++= "empset"
+      case 0 => sb ++= empsetName
       case 1 =>
         sb ++= "(singleton "
         toSmtExpr(elems.head, existentials, sb)
@@ -108,7 +109,7 @@ object DelegatePureSynthesis {
     sb ++= "(set-logic ALL)\n\n"
 
     if (goal.gamma.exists { case (v, t) => t == IntSetType && goal.isExistential(v) } || usesEmptyset(goal.post) || usesEmptyset(goal.pre))
-      sb ++= "(define-fun empset () (Set Int) (as emptyset (Set Int)))\n\n"
+      sb ++= s"(define-fun $empsetName () (Set Int) (as emptyset (Set Int)))\n\n"
 
     val otherVars = (goal.gamma -- goal.existentials).toList
     for (ex <- goal.existentials) {
@@ -179,8 +180,8 @@ object DelegatePureSynthesis {
         responses.map { response =>
           val existential = response.funDef.sMTLIB2Symbol.asInstanceOf[SSymbol].simpleSymbol.drop(7)
           val expr = response.funDef.term match {
-            case QIdTerm(SimpleQId(SymbolId(SSymbol("empset")))) => Expressions.SetLiteral(List())
-            case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) => Expressions.Var(simpleSymbol)
+            case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) => if (simpleSymbol == empsetName) Expressions.SetLiteral(List())
+                                                                        else Expressions.Var(simpleSymbol)
             case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
           }
           Expressions.Var(existential) -> expr
