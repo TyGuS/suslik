@@ -7,13 +7,13 @@ import { ProofTrace } from './proof-trace';
 
 class MainDocument {
 
-    container: JQuery
+    pane: JQuery
     notifications: JQuery
 
     storage: {'suslik:doc:lastUrl'?: string} = <any>localStorage;
 
-    constructor(container: JQuery, notifications: JQuery) { 
-        this.container = container;
+    constructor(pane: JQuery, notifications: JQuery) { 
+        this.pane = pane;
         this.notifications = notifications;
     }
 
@@ -26,7 +26,7 @@ class MainDocument {
                 var data = ProofTrace.Data.parse(content),
                     pt = new ProofTrace(data);
 
-                this.container.empty().append(pt.view.$el);
+                this.pane.replaceWith(this.pane = $(pt.view.$el));
                 return pt;
             }
             catch (e) {

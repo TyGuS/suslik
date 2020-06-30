@@ -22,7 +22,6 @@ class ProofTrace {
     }
 
     view: Vue
-    menus: {node: Vue}
 
     constructor(data: ProofTrace.Data) {
         this.data = data;
@@ -104,19 +103,13 @@ class ProofTrace {
     }
 
     createView() {
-        this.view = new (Vue.component('proof-trace'))();
+        this.view = new (Vue.component('proof-trace-pane'))();
         this.view.root = this.createNode(this.root);
         this.expandNode(this.view.root);
         this.expandNode(this.view.root.children[0]);
         this.view.$mount();
 
         this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
-
-        this.menus = {
-            node: new (Vue.component('proof-trace-context-menu'))()
-        };
-        $(document.body).append(this.menus.node.$mount().$el);
-        this.menus.node.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
     }
 
     getStatus(node: Data.NodeEntry): Data.GoalStatusEntry { 
@@ -176,8 +169,6 @@ class ProofTrace {
             this.expandOrNode(ev.target, true); break;
         case 'expandAll':
             this.expandAll(ev.target); break;
-        case 'menu':
-            this.menus.node.open(ev); break;
         case 'copyNodeId':
             this.copyJson(ev.target.value.id); break;
         }
@@ -325,12 +316,36 @@ class JSONMap<K, V> extends KeyedMap<K, V, string> {
 }
 
 
+Vue.component('proof-trace-pane', {
+    props: ['root'],
+    data: () => ({options: {}, zoom: 1}),
+    template: `
+        <div id="proof-trace-pane" 
+            :class="{'proof-trace-filter--only-success': options.proofOnly,
+                     'proof-trace-filter--only-expanded': options.expandedOnly}">
+            <proof-trace-toolbar :options="options"/>
+            <proof-trace-context-menu ref="contextMenu" @action="toplevelAction"/>
+            <div class="proof-trace-pane-area" :style="{'--zoom': zoom}">
+                <proof-trace :root="root" @action="toplevelAction"/>
+            </div>
+        </div>`,
+    methods: {
+        toplevelAction(ev) {
+            switch (ev.type) {
+            case 'menu': this.$refs.contextMenu.open(ev); break;
+            }
+            this.$emit('action', ev);
+        }
+    }
+});
+
 Vue.component('proof-trace', {
     props: ['root'],
+    data: () => ({statusClass: undefined}),
     template: `
-        <div class="proof-trace">
+        <div class="proof-trace" :class="[statusClass, root && root.children && root.children.length == 0 ? 'no-children' : 'has-children']">
             <template v-if="root">
-                <proof-trace-node :value="root.value" :status="root.status"
+                <proof-trace-node ref="nroot" :value="root.value" :status="root.status"
                                   @action="nodeAction"/>
                 <div class="proof-trace-expand-all" :class="{root: root.value.id.length == 0}">
                     <span @click="expandAll">++</span>
@@ -349,6 +364,8 @@ Vue.component('proof-trace', {
                     this.focusElement(this.$refs.subtrees);
             });
         });
+        if (this.$refs.nroot)
+            this.statusClass = this.$refs.nroot.statusClass;
     },
     methods: {
         action(ev) { this.$emit('action', ev); },
@@ -481,6 +498,20 @@ Vue.component('proof-trace-formula', {
     methods: {
         tokenize: View.tokenize
     }
+});
+
+Vue.component('proof-trace-toolbar', {
+    props: {options: {default: () => ({})}},
+    template: `
+        <div class="proof-trace-toolbar">
+            <form>
+                Show:
+                <input type="checkbox" name="proof-only" id="proof-only" v-model="options.proofOnly">
+                <label for="proof-only">Proof only</label>
+                <input type="checkbox" name="expanded-only" id="expanded-only" v-model="options.expandedOnly">
+                <label for="expended-only">Expanded only</label>
+            </form>
+        </div>`
 });
 
 Vue.component('proof-trace-context-menu', {
