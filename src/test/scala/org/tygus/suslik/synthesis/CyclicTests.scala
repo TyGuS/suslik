@@ -27,9 +27,9 @@ class CyclicTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 //    runAllTestsFromDir("cyclic-benchmarks/skiplist")
 //  }
 
-//  describe("Single-Linked Lists") {
-//    runAllTestsFromDir("cyclic-benchmarks/sll")
-//  }
+  describe("Single-Linked Lists") {
+    runAllTestsFromDir("cyclic-benchmarks/sll")
+  }
 
   describe("Trees") {
     runAllTestsFromDir("cyclic-benchmarks/tree")
