@@ -91,8 +91,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      def isSuitable(hPost: Heaplet): Boolean = !hPost.vars.exists(goal.isExistential) && heapletFilter(hPost)
-      def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && isSuitable(hPost)
+      def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && heapletFilter(hPost)
 
       findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
         case None => Nil

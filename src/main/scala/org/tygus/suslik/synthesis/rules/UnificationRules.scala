@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.CardType
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
@@ -20,7 +19,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   val exceptionQualifier: String = "rule-unification"
 
-  abstract class HeapUnify extends SynthesisRule {
+  abstract class HeapUnifyOld extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -48,6 +47,33 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     }
   }
 
+  abstract class HeapUnify extends SynthesisRule {
+    def heapletFilter(h: Heaplet): Boolean
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val pre = goal.pre
+      val post = goal.post
+
+      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
+
+      val alternatives = for {
+        s <- postCandidates
+        t <- pre.sigma.chunks
+        sub <- t.unify(s)
+        subExpr = goal.substToFormula(sub)
+        newPostSigma = (post.sigma - s) ** t.copyTag(s)
+        if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
+      } yield {
+        val newPost = Assertion(post.phi && subExpr, newPostSigma)
+        val newGoal = goal.spawnChild(post = newPost)
+        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        RuleResult(List(newGoal), kont, this, goal)
+      }
+      nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
+    }
+  }
+
+
   object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase {
     override def toString: String = "HeapUnifyUnfold"
   }
@@ -58,14 +84,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   object HeapUnifyPointer extends HeapUnify with FlatPhase with InvertibleRule {
     override def toString: String = "HeapUnifyPointer"
-
-    def heapletTransform(goal:Goal, h: Heaplet): Heaplet = h match {
-      case PointsTo(x, o, _) => {
-        val f = LanguageUtils.generateFreshExistential(goal.vars)
-        PointsTo(x, o, f)
-      }
-      case _ => h
-    }
 
     def varFilter(h: Heaplet, v: Var): Boolean = h match {
       case PointsTo(x, _, _) => v == x
@@ -82,21 +100,20 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       // TODO: fix this if lhss can be non-variables
       val alternatives = for {
-        PointsTo(y@Var(_), oy, _) <- postPtss
-        if goal.isExistential(y)
-        t@PointsTo(x@Var(_), ox, _) <- prePtss
+        PointsTo(y, oy, _) <- postPtss
+        if y.vars.exists(goal.isExistential)
+        t@PointsTo(x, ox, _) <- prePtss
         if ox == oy
         if !postPtss.exists(sameLhs(t))
       } yield (y -> x)
 
-      alternatives.sortBy{ case (v1, v2) => -lcpLen(v1.name, v2.name) }.headOption match {
+      alternatives.sortBy{ case (e1, e2) => -lcpLen(e1.pp, e2.pp) }.headOption match {
         case None => Nil
         case Some((y, x)) => {
-          val sub = Map(y -> x)
-          val newPostSigma = post.sigma.subst(sub)
-          val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-          val newCallGoal = goal.callGoal.map(_.updateSubstitution(sub))
-          val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
+          val subExpr = goal.substToFormula(Map(y -> x))
+          val newPost = Assertion(post.phi && subExpr, post.sigma)
+//          val newCallGoal = goal.callGoal.map(_.updateSubstitution(sub))
+          val newGoal = goal.spawnChild(post = newPost)
           val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         }

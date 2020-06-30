@@ -63,12 +63,6 @@ object Specifications extends SepLogicUtils {
       (this.copy(sigma = newSigma), sub)
     }
 
-    def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
-      this.copy(sigma = this.sigma.bumpUpSAppTags(cond))
-
-    def lockSAppTags(cond: Heaplet => Boolean = _ => true): Assertion =
-      this.copy(sigma = this.sigma.lockSAppTags(cond))
-
     def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
       for {
         gamma1 <- phi.resolve(gamma)
@@ -270,6 +264,10 @@ object Specifications extends SepLogicUtils {
       }
     }
 
+    def substToFormula(sigma: ExprSubst): PFormula = {
+      PFormula(sigma.map{ case (e1,e2) => e1 |===| e2}.toSet).resolveOverloading(gamma)
+    }
+
     def formals: Formals = programVars.map(v => (v, getType(v)))
 
     def depth: Int = ancestors.length
@@ -329,6 +327,12 @@ object Specifications extends SepLogicUtils {
     def updateSubstitution(sigma: Subst): SuspendedCallGoal = {
       assertNoOverlap(freshToActual, sigma)
       this.copy(freshToActual = compose(freshToActual, sigma) ++ sigma)
+    }
+
+    def applySubstitution: SuspendedCallGoal = {
+      val newCalleePost = calleePost.subst(freshToActual)
+      val newCall = call.copy(args = call.args.map(_.subst(freshToActual)))
+      this.copy(calleePost = newCalleePost, call = newCall)
     }
 
     def actualCall: Call = call.copy(args = call.args.map(_.subst(freshToActual)))

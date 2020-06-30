@@ -27,9 +27,11 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     collector(Set.empty)(this)
   }
 
-  def compare(that: Heaplet): Int = this.pp.compare(that.pp)
+  // Unify with that modulo theories:
+  // produce pairs of expressions that must be equal for the this and that to be the same heaplet
+  def unify(that: Heaplet): Option[ExprSubst]
 
-  def |-(other: Heaplet): Boolean
+  def compare(that: Heaplet): Int = this.pp.compare(that.pp)
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
@@ -37,6 +39,12 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
 
   def eqModTags(other: Heaplet): Boolean = {
     this.adjustTag(_ => None) == other.adjustTag(_ => None)
+  }
+
+  // If this is a predicate instance, assume that from is too and copy its tag
+  def copyTag(from: Heaplet): Heaplet = this match {
+    case SApp(pred, args, _, card) => SApp(pred, args, from.asInstanceOf[SApp].tag, card)
+    case _ => this
   }
 
   // Size of the heaplet (in AST nodes)
@@ -74,11 +82,6 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   def subst(sigma: Map[Var, Expr]): Heaplet =
     PointsTo(loc.subst(sigma), offset, value.subst(sigma))
 
-  def |-(other: Heaplet): Boolean = other match {
-    case PointsTo(_loc, _offset, _value) => this.loc == _loc && this.offset == _offset && this.value == _value
-    case _ => false
-  }
-
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     for {
       gamma1 <- loc.resolve(gamma, Some(LocType))
@@ -89,6 +92,12 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   override def compare(that: Heaplet) = that match {
     case SApp(pred, args, tag, card) => -1
     case _ => super.compare(that)
+  }
+
+  // This only unifies the rhs of the points-to, because lhss are unified by a separate rule
+  override def unify(that: Heaplet): Option[ExprSubst] = that match {
+    case PointsTo(l, o, v) if l == loc && o == offset => Some(Map(value -> v))
+    case _ => None
   }
 }
 
@@ -107,13 +116,16 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
     Block(loc.subst(sigma), sz)
   }
 
-  def |-(other: Heaplet): Boolean = false
-
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
 
   override def compare(that: Heaplet) = that match {
     case SApp(pred, args, tag, card) => -1
     case _ => super.compare(that)
+  }
+
+  override def unify(that: Heaplet): Option[ExprSubst] = that match {
+    case Block(l, s) if sz == s => Some(Map(loc -> l))
+    case _ => None
   }
 }
 
@@ -157,8 +169,6 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
     this.copy(args = newArgs, card = newCard)
   }
 
-  def |-(other: Heaplet): Boolean = false
-
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     if (!(env.predicates contains pred)) {
       throw SynthesisException(s"predicate $pred is undefined")
@@ -176,6 +186,11 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
   }
 
   override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
+
+  override def unify(that: Heaplet): Option[ExprSubst] = that match {
+    case SApp(p, as, _, c) if pred == p => Some((card :: args.toList).zip(c :: as.toList).toMap)
+    case _ => None
+  }
 }
 
 
@@ -206,14 +221,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
   /**
     * Change tags for applications, to avoid re-applying the rule
     */
-  def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h))
-
   def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
     SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h))
-
-  def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h))
 
   def maxSAppTag: Int = chunks.map(_ match {
     case SApp(_, _, Some(n), _) => n

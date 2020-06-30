@@ -290,8 +290,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
       val pre = goal.pre
       val post = goal.post
-      val callGoal = goal.callGoal.get
-      val call = callGoal.actualCall
+      val callGoal = goal.callGoal.get.applySubstitution
+      val call = callGoal.call
       val budHeap = callGoal.callerPre.sigma - goal.pre.sigma
       val noGhostArgs = call.args.forall(_.vars.subsetOf(goal.programVars.toSet))
 
@@ -305,8 +305,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // since it might have predicates and their arguments must be variables.
         // So instead we are adding the substitution as the pure precondition
         val calleePostSigma = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + goal.env.config.callCost)
-        val calleePostPhi = callGoal.calleePost.phi && substToFormula(callGoal.freshToActual).resolveOverloading(goal.gamma)
-        val newPre = Assertion(pre.phi && calleePostPhi, pre.sigma ** calleePostSigma)
+        val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePostSigma)
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
         val postCallTransition = Transition(goal, newGoal)

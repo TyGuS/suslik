@@ -38,15 +38,15 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     // and hence has to be followed by Call, otherwise synthesis gets stuck.
     // Proper fix: merge the two rules
       List(CallRule)
-    else if (goal.hasPredicates())
+    else if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
-      // TODO: this is not actually complete, see rose-tree-copy
-      if (node.parent.map(_.rule).contains(HeapUnifyUnfolding) || node.parent.map(_.rule).contains(Close))
-        // Once a rule that works on post was used, only use those
+      val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules.contains).headOption
+      if (lastUnfoldingRule.contains(HeapUnifyUnfolding) || lastUnfoldingRule.contains(Close))
+      // Once a rule that works on post was used, only use those
         unfoldingPostPhaseRules
       else unfoldingPhaseRules
-//      unfoldingPhaseRules
-    else if (goal.post.hasBlocks)
+      //      unfoldingPhaseRules
+    } else if (goal.post.hasBlocks)
     // Block phase: get rid of blocks
       postBlockPhaseRules
     else if (goal.hasBlocks)
@@ -64,9 +64,10 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,
+    LogicalRules.SubstLeft,
+    UnificationRules.SubstRight,
     LogicalRules.WeakenPre,
-    OperationalRules.ReadRule,
-    //    LogicalRules.SubstLeft,
+    OperationalRules.ReadRule
   )
 
   protected def symbolicExecutionRules: List[SynthesisRule] = List(
@@ -80,7 +81,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def unfoldingPhaseRules: List[SynthesisRule] = List(
-    LogicalRules.SubstLeftVar,
+//    LogicalRules.SubstLeftVar,
     //    LogicalRules.SubstRightVar,
     LogicalRules.FrameUnfolding,
     UnfoldingRules.AbduceCallNew,
@@ -98,7 +99,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def callAbductionRules(goal: Goal): List[SynthesisRule] = {
-    List(FailRules.PostInconsistent,
+    List(LogicalRules.SubstLeft,
+      UnificationRules.SubstRight,
+      FailRules.PostInconsistent,
       FailRules.CheckPost) ++
       (if (goal.post.sigma.apps.nonEmpty)
         List(LogicalRules.FrameUnfolding,
@@ -108,13 +111,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           UnificationRules.HeapUnifyBlock,
           OperationalRules.AllocRule)
       else if (goal.hasExistentialPointers)
-        List(UnificationRules.SubstRight,
-          LogicalRules.FrameFlat,
+        List(LogicalRules.FrameFlat,
           OperationalRules.WriteRule,
           UnificationRules.HeapUnifyPointer)
       else
         List(UnfoldingRules.CallNew,
-          UnificationRules.SubstRight,
+//          UnificationRules.SubstRight,
           LogicalRules.FrameFlat,
           OperationalRules.WriteRule,
           UnificationRules.PickArg,
@@ -142,7 +144,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     UnificationRules.SubstRight,
     FailRules.HeapUnreachable,
     LogicalRules.FrameFlat,
-    OperationalRules.WriteRule,
+    OperationalRules.WriteRule,// Remove?
     UnificationRules.HeapUnifyPointer,
   )
 
