@@ -246,7 +246,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "PickArg"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      if (goal.callGoal.isEmpty) return Nil // no suspended call
+      if (goal.callGoal.isEmpty || goal.existentials.nonEmpty) return Nil // no suspended call or still has existentials
       val callGoal = goal.callGoal.get
 
       if (callGoal.call.companion.isEmpty) return Nil // suspended call is not recursive

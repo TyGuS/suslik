@@ -6,7 +6,7 @@ import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
 import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
-import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
@@ -188,7 +188,11 @@ object DelegatePureSynthesis {
     }
   }
 
-  abstract class PureSynthesis extends SynthesisRule {
+  abstract class PureSynthesis extends SynthesisRule with RuleUtils {
+    val exceptionQualifier: String = "rule-pure-synthesis"
+
+    def moreOptions(goal: Goal): Seq[RuleResult]
+
     def apply(goal: Goal): Seq[RuleResult] = {
       //def apply(goal: Specifications.Goal): Option[(Goal,Map[Expressions.Var,Expressions.Expr])] = {
       if (!goal.env.config.delegatePure || !configured) return Nil
@@ -204,17 +208,22 @@ object DelegatePureSynthesis {
         val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
         val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(newGoal), kont, this, goal) :: Nil
+        val alternatives = RuleResult(List(newGoal), kont, this, goal) :: moreOptions(goal).toList
+        nubBy[RuleResult,Assertion](alternatives, res => res.subgoals.head.post)
       }
     }
   }
 
   object PureSynthesisFinal extends PureSynthesis with InvertibleRule {
     override def toString: String = "PureSynthesisFinal"
+
+    override def moreOptions(goal: Goal): Seq[RuleResult] = Nil
   }
 
   object PureSynthesisNonfinal extends PureSynthesis {
     override def toString: String = "PureSynthesisNonFinal"
+
+    override def moreOptions(goal: Goal): Seq[RuleResult] = UnificationRules.Pick(goal)
   }
 
 }

@@ -117,11 +117,11 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           UnificationRules.SubstRight,
           LogicalRules.FrameFlat,
           OperationalRules.WriteRule,
+          UnificationRules.PickArg,
           UnificationRules.PickCard,
           UnificationRules.HeapUnifyPure,
-          DelegatePureSynthesis.PureSynthesisNonfinal,
-          UnificationRules.Pick,
-          UnificationRules.PickArg
+          DelegatePureSynthesis.PureSynthesisNonfinal
+//          UnificationRules.Pick
           ))
   }
 
@@ -146,19 +146,20 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     UnificationRules.HeapUnifyPointer,
   )
 
-  protected def purePhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
-    LogicalRules.EmpRule,
-    LogicalRules.SubstLeft,
-    UnificationRules.SubstRight,
-    FailRules.HeapUnreachable,
-    LogicalRules.FrameFlat,
-    OperationalRules.WriteRule,
-    //    UnificationRules.PureUnify,
-    UnificationRules.PickCard,
-    UnificationRules.HeapUnifyPure,
-    DelegatePureSynthesis.PureSynthesisFinal,
-    UnificationRules.Pick,
-  )
+  protected def purePhaseRules: List[SynthesisRule] = {
+    List(
+      if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
+      LogicalRules.EmpRule,
+      LogicalRules.SubstLeft,
+      UnificationRules.SubstRight,
+      FailRules.HeapUnreachable,
+      LogicalRules.FrameFlat,
+      OperationalRules.WriteRule,
+      //    UnificationRules.PureUnify,
+      UnificationRules.PickCard,
+      UnificationRules.HeapUnifyPure,
+      DelegatePureSynthesis.PureSynthesisFinal) ++
+    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
+  }
 
 }
