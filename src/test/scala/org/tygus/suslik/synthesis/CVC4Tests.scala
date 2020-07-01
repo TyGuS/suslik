@@ -185,4 +185,46 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     DelegatePureSynthesis.toSmtExpr(ite,Map.empty,sb)
     assert(sb.toString == "(ite true x 3)")
   }
+  val goal3 = Goal(
+    Assertion(PFormula(Set[Expr](UnaryExpr(Expressions.OpNot,BinaryExpr(Expressions.OpEq,Expressions.Var("r"),IntConst(0))),
+      BinaryExpr(Expressions.OpEq,Expressions.Var("x"),Expressions.Var("y")))),
+      SFormula(List(PointsTo(Expressions.Var("r"),0,IntConst(0))))), //pre
+    Assertion(PFormula(Set[Expr](BinaryExpr(Expressions.OpLeq,Expressions.Var("x"),Expressions.Var("m")),
+      BinaryExpr(Expressions.OpLeq,Expressions.Var("y"),Expressions.Var("m")))),
+      SFormula(List(PointsTo(Expressions.Var("r"),0,Expressions.Var("m"))))), //post
+    Map(Expressions.Var("r") -> LocType,
+      Expressions.Var("x") -> IntType,
+      Expressions.Var("y") -> IntType,
+      Expressions.Var("m") -> IntType),
+    List(Expressions.Var("r"), Expressions.Var("x"),Expressions.Var("y")),
+    Set(),
+    "maxish",
+    GoalLabel(List(1), Nil),
+    None,
+    Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
+    Statements.Hole,
+    None,
+    false,
+    false
+  )
+  test("to SMT with exclusions") {
+    val smt = DelegatePureSynthesis.toSMTTask(goal3,Some((Expressions.Var("m"),Expressions.Var("x"))))
+    assert(smt == """(set-logic ALL)
+                    |
+                    |(synth-fun target_m ((r Int) (x Int) (y Int) ) Int
+                    |  ((Start Int (0 r y ))))
+                    |
+                    |(declare-var r Int)
+                    |(declare-var x Int)
+                    |(declare-var y Int)
+                    |
+                    |(constraint
+                    |    (=> (and (not (= r 0)) (= x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)) )))
+                    |(check-synth)""".stripMargin)
+  }
+  test("Is there second result") {
+    val assignment : Subst = Map(Expressions.Var("m")-> Expressions.Var("y"))
+    assert(!DelegatePureSynthesis.hasSecondResult(goal1,assignment))
+    assert(DelegatePureSynthesis.hasSecondResult(goal3,assignment))
+  }
 }
