@@ -234,9 +234,6 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case BinaryExpr(OpEq, v1@Var(_), e2) => !e2.vars.contains(v1)
         case BinaryExpr(OpSetEq, v1@Var(_), e2) => !e2.vars.contains(v1)
         case BinaryExpr(OpBoolEq, v1@Var(_), e2) => !e2.vars.contains(v1)
-//        case BinaryExpr(OpEq, v1@Var(_), v2) => v1 != v2
-//        case BinaryExpr(OpSetEq, v1@Var(_), v2) => v1 != v2
-//        case BinaryExpr(OpBoolEq, v1@Var(_), v2) => v1 != v2
         case _ => false
       }, p1) match {
         case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>

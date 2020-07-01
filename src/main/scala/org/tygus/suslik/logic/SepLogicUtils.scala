@@ -127,11 +127,12 @@ trait SepLogicUtils extends PureLogicUtils {
     * Compare two heaps according to their total size
     */
   def totalLT(sigma1: SFormula, sigma2: SFormula, cond: PFormula): Boolean = {
-    val (_, card1) = heapCardinality(sigma1)
-    val (_, card2) = heapCardinality(sigma2)
-    val goal = BinaryExpr(OpLt, card1, card2)
-    val res = SMTSolving.valid(cond ==> goal)
-    res
+//    val (_, card1) = heapCardinality(sigma1)
+//    val (_, card2) = heapCardinality(sigma2)
+//    val goal = BinaryExpr(OpLt, card1, card2)
+//    val res = SMTSolving.valid(cond ==> goal)
+//    res
+    true
   }
   
   def getCardinalities(sigma: SFormula) = for (SApp(_, _, _, c) <- sigma.chunks) yield c

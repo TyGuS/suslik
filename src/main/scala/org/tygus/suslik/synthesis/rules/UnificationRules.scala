@@ -62,7 +62,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sub <- t.unify(s)
         subExpr = goal.substToFormula(sub)
         newPostSigma = (post.sigma - s) ** t.copyTag(s)
-        if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
+        if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substitution if is produces duplicate chunks in the post
       } yield {
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
