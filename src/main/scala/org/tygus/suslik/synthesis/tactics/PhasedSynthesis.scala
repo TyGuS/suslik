@@ -4,6 +4,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.LogicalRules.FrameUnfolding
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
@@ -41,7 +42,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     else if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
       val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules.contains).headOption
-      if (lastUnfoldingRule.contains(HeapUnifyUnfolding) || lastUnfoldingRule.contains(Close))
+      if (lastUnfoldingRule.contains(HeapUnifyUnfolding) || lastUnfoldingRule.contains(FrameUnfolding))
+        unfoldingNoUnfoldPhaseRules
+      else if (lastUnfoldingRule.contains(Close))
       // Once a rule that works on post was used, only use those
         unfoldingPostPhaseRules
       else unfoldingPhaseRules
@@ -81,14 +84,10 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def unfoldingPhaseRules: List[SynthesisRule] = List(
-//    LogicalRules.SubstLeftVar,
-    //    LogicalRules.SubstRightVar,
     LogicalRules.FrameUnfolding,
-    UnfoldingRules.AbduceCallNew,
-//    UnfoldingRules.CallRule,
-    UnfoldingRules.Open,
     UnificationRules.HeapUnifyUnfolding,
-//    UnfoldingRules.AbduceCall,
+    UnfoldingRules.AbduceCallNew,
+    UnfoldingRules.Open,
     UnfoldingRules.Close,
   )
 
@@ -96,6 +95,11 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     LogicalRules.FrameUnfolding,
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.Close,
+  )
+
+  protected def unfoldingNoUnfoldPhaseRules: List[SynthesisRule] = List(
+    LogicalRules.FrameUnfoldingFinal,
+    UnificationRules.HeapUnifyUnfolding,
   )
 
   protected def callAbductionRules(goal: Goal): List[SynthesisRule] = {

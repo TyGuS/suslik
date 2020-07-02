@@ -112,6 +112,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "FrameUnfold"
   }
 
+  object FrameUnfoldingFinal extends Frame with UnfoldingPhase with InvertibleRule {
+    override def toString: String = "FrameUnfold"
+  }
+
   object FrameBlock extends Frame with BlockPhase with InvertibleRule {
     override def toString: String = "FrameBlock"
   }
