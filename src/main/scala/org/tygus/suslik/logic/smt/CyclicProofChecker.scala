@@ -97,7 +97,7 @@ object CyclicProofChecker extends LazyTiming {
     disableLogging()
     val checkerREPL = Expect(checkerCommand, Nil)
     if (!sys.env.isDefinedAt("TERM")) {
-      checkerREPL.expect(delimi ter, superLongTimeout)
+      checkerREPL.expect(delimiter, superLongTimeout)
     }
     checkerREPL
   }
