@@ -22,11 +22,11 @@ object CyclicProofChecker extends LazyTiming {
   val checkerCommand = "checkproof"
 
   // A delimiter after each token read from the output.
-  val delimiter = "(\r\n)|(\n)".r
+  val delimiter = "\n".r
 
   // Timeout for the I/O Future
-  val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
-  val timeout = new FiniteDuration(2000, TimeUnit.MILLISECONDS)
+  val superLongTimeout = new FiniteDuration(5000, TimeUnit.MILLISECONDS)
+  val timeout = new FiniteDuration(1000, TimeUnit.MILLISECONDS)
 
   override val watchName = "CyclicProofChecker"
 
@@ -36,7 +36,7 @@ object CyclicProofChecker extends LazyTiming {
   {
     if (isConfigured()) {
       checker = startChecker()
-    } 
+    }
   }
 
   private var warm = false
@@ -44,7 +44,7 @@ object CyclicProofChecker extends LazyTiming {
 
   def isConfigured(): Boolean = this.synchronized {
     configured = try {
-      val result = s"which $checkerCommand".!! 
+      val result = s"which $checkerCommand".!!
       result.trim.nonEmpty
     } catch {
       case _: Throwable => false
@@ -73,7 +73,7 @@ object CyclicProofChecker extends LazyTiming {
       }
     }
   }
-  
+
   /////////////////////////////////////////////////////////////////////////
   // Private methods
   /////////////////////////////////////////////////////////////////////////
@@ -96,7 +96,9 @@ object CyclicProofChecker extends LazyTiming {
   private def startChecker(): Expect = {
     disableLogging()
     val checkerREPL = Expect(checkerCommand, Nil)
-    checkerREPL.expect(delimiter, superLongTimeout)
+    if (!sys.env.isDefinedAt("TERM")) {
+      checkerREPL.expect(delimiter, superLongTimeout)
+    }
     checkerREPL
   }
 
