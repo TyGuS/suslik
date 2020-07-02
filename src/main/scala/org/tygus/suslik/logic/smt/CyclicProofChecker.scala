@@ -21,6 +21,9 @@ object CyclicProofChecker extends LazyTiming {
   // Command, should be in your PATH
   val checkerCommand = "checkproof"
 
+  // If we are on windows, invoke checkproof inside wsl
+  lazy val useWSL = sys.props.get("os.name").get.toLowerCase.startsWith("windows")
+
   // A delimiter after each token read from the output.
   val delimiter = "\n".r
 
@@ -44,7 +47,7 @@ object CyclicProofChecker extends LazyTiming {
 
   def isConfigured(): Boolean = this.synchronized {
     configured = try {
-      val result = s"which $checkerCommand".!!
+      val result = if (useWSL) s"wsl which $checkerCommand".!! else s"which $checkerCommand".!!
       result.trim.nonEmpty
     } catch {
       case _: Throwable => false
@@ -95,8 +98,8 @@ object CyclicProofChecker extends LazyTiming {
 
   private def startChecker(): Expect = {
     disableLogging()
-    val checkerREPL = Expect(checkerCommand, Nil)
-    if (!sys.env.isDefinedAt("TERM")) {
+    val checkerREPL = if (useWSL) Expect("wsl", List(checkerCommand)) else Expect(checkerCommand, Nil)
+    if (!useWSL && !sys.env.isDefinedAt("TERM")) {
       checkerREPL.expect(delimiter, superLongTimeout)
     }
     checkerREPL
