@@ -3,7 +3,7 @@ Deallocate two trees
 
 ###
 
-{true; tree(x) ** tree(y)}
+{true; tree(x, s1) ** tree(y, s2)}
   void treefree2(loc x, loc y)
 {true ; emp }
 
