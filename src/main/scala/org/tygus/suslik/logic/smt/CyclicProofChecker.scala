@@ -42,8 +42,8 @@ object CyclicProofChecker extends LazyTiming {
 
   def isConfigured(): Boolean = this.synchronized {
     configured = try {
-      val result = Process(s"type $checkerCommand").run(ProcessLogger(_ => ())).exitValue()
-      result == 0
+      val result = s"which $checkerCommand".!! 
+      result.trim.nonEmpty
     } catch {
       case _: Throwable => false
     }
