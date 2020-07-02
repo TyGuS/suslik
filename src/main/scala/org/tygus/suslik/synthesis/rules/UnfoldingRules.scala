@@ -111,7 +111,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
 
         // G is a companion goal
-        if canEmitCall(largSubHeap, lilHeap, goal, f)
+        //if canEmitCall(largSubHeap, lilHeap, goal, f)
 
         args = f.params.map { case (x, _) => x.subst(sub) }
         if args.flatMap(_.vars).toSet.subsetOf(goal.vars)
@@ -298,7 +298,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       if (post.sigma.isEmp &&                                   // companion's transformed pre-heap is empty
         goal.existentials.isEmpty &&                            // no existentials
         noGhostArgs &&                                          // TODO: if slow, move this check to when substitution is made
-        canEmitCall(budHeap, goal, call.companion) &&           // termination
+        // canEmitCall(budHeap, goal, call.companion) &&           // termination
         SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
       {
         // We would like to substitute all the fresh vars in calleePost, but we can't

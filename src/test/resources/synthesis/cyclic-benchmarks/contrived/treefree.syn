@@ -3,7 +3,7 @@ Deallocate a tree
 
 ###
 
-{true; tree(x)}
+{true; tree(x)<a>}
   void treefree(loc x)
 {true ; emp }
 

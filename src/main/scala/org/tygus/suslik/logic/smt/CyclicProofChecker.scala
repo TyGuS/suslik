@@ -21,12 +21,15 @@ object CyclicProofChecker extends LazyTiming {
   // Command, should be in your PATH
   val checkerCommand = "checkproof"
 
+  // If we are on windows, invoke checkproof inside wsl
+  lazy val useWSL = sys.props.get("os.name").get.toLowerCase.startsWith("windows")
+
   // A delimiter after each token read from the output.
   val delimiter = "\n".r
 
   // Timeout for the I/O Future
-  val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
-  val timeout = new FiniteDuration(2000, TimeUnit.MILLISECONDS)
+  val superLongTimeout = new FiniteDuration(5000, TimeUnit.MILLISECONDS)
+  val timeout = new FiniteDuration(1000, TimeUnit.MILLISECONDS)
 
   override val watchName = "CyclicProofChecker"
 
@@ -34,7 +37,9 @@ object CyclicProofChecker extends LazyTiming {
 
   // Start the checker
   {
-    checker = startChecker()
+    if (isConfigured()) {
+      checker = startChecker()
+    }
   }
 
   private var warm = false
@@ -42,8 +47,8 @@ object CyclicProofChecker extends LazyTiming {
 
   def isConfigured(): Boolean = this.synchronized {
     configured = try {
-      val result = Process(s"type $checkerCommand").run(ProcessLogger(_ => ())).exitValue()
-      result == 0
+      val result = if (useWSL) s"wsl which $checkerCommand".!! else s"which $checkerCommand".!!
+      result.trim.nonEmpty
     } catch {
       case _: Throwable => false
     }
@@ -71,7 +76,7 @@ object CyclicProofChecker extends LazyTiming {
       }
     }
   }
-  
+
   /////////////////////////////////////////////////////////////////////////
   // Private methods
   /////////////////////////////////////////////////////////////////////////
@@ -93,8 +98,10 @@ object CyclicProofChecker extends LazyTiming {
 
   private def startChecker(): Expect = {
     disableLogging()
-    val checkerREPL = Expect(checkerCommand, Nil)
-    checkerREPL.expect(delimiter, superLongTimeout)
+    val checkerREPL = if (useWSL) Expect("wsl", List(checkerCommand)) else Expect(checkerCommand, Nil)
+    if (!useWSL && !sys.env.isDefinedAt("TERM")) {
+      checkerREPL.expect(delimiter, superLongTimeout)
+    }
     checkerREPL
   }
 
