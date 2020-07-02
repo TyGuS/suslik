@@ -22,7 +22,7 @@ object CyclicProofChecker extends LazyTiming {
   val checkerCommand = "checkproof"
 
   // A delimiter after each token read from the output.
-  val delimiter = "\n".r
+  val delimiter = "(\r\n)|(\n)".r
 
   // Timeout for the I/O Future
   val superLongTimeout = new FiniteDuration(10000, TimeUnit.MILLISECONDS)
@@ -34,7 +34,9 @@ object CyclicProofChecker extends LazyTiming {
 
   // Start the checker
   {
-    checker = startChecker()
+    if (isConfigured()) {
+      checker = startChecker()
+    } 
   }
 
   private var warm = false
