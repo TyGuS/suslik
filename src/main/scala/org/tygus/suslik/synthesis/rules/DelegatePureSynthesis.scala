@@ -4,10 +4,11 @@ package org.tygus.suslik.synthesis.rules
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Parser
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
-import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Subst}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.{PFormula, Specifications}
+import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis.TaskType.TaskType
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
 
@@ -26,6 +27,7 @@ object DelegatePureSynthesis {
   val typeConstants: Map[SSLType, List[String]] = Map(
     IntType -> List("0"), LocType -> List("0"), IntSetType -> List(empsetName), CardType -> List("0")
   )
+  val condName = "cond"
 
   def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var, String], sb: StringBuilder): Unit = c match {
     case v: Expressions.Var => sb ++= (if (existentials contains v) existentials(v) else v.name)
@@ -104,7 +106,35 @@ object DelegatePureSynthesis {
   def usesEmptyset(a: Specifications.Assertion): Boolean = a.phi.conjuncts.exists(e => !e.collect(expr =>
     expr.isInstanceOf[Expressions.SetLiteral] && expr.asInstanceOf[Expressions.SetLiteral].elems.isEmpty).isEmpty)
 
-  def toSMTTask(goal: Specifications.Goal, grammarExclusion: Option[(Expressions.Var,Expressions.Expr)] = None): String = {
+  def makeSynthesisTarget(targetName: String, etypeOpt: Option[SSLType], otherVars: List[(Expressions.Var,SSLType)], grammarExclusion: Option[Expressions.Expr], taskType: TaskType, sb: StringBuilder): Unit = {
+    val etypeStr = typeToSMT(etypeOpt.get)
+    sb ++= "(synth-fun target_" ++= targetName ++= " ("
+    for (v <- otherVars)
+      sb ++= "(" ++= v._1.name ++= " " ++= typeToSMT(v._2) ++= ") "
+    sb ++= ") " ++= etypeStr ++= "\n"
+    sb ++= "  ((Start " ++= etypeStr ++= " ("
+    if (taskType == TaskType.existentials) {
+      for (c <- typeConstants(etypeOpt.get))
+        sb ++= c ++= " "
+      for (v <- otherVars; if grammarExclusion.map(a => v._1 != a).getOrElse(true); if v._2.conformsTo(etypeOpt))
+        sb ++= v._1.name ++= " "
+    }
+    else {
+      sb ++= "flatBool conjBool))\n   (nInt Int ("
+      for (v <- otherVars; if grammarExclusion.map(a => v._1 != a).getOrElse(true); if v._2.conformsTo(Some(IntType)))
+        sb ++= v._1.name ++= " "
+      sb ++= "))\n   (flatBool Bool ((<= nInt nInt)))\n   (conjBool Bool ((and flatBool flatBool)"
+    }
+    sb ++= ")))"
+    sb ++= ")\n"
+  }
+
+  object TaskType extends Enumeration
+  {
+    type TaskType = Value
+    val existentials, condition = Value
+  }
+  def toSMTTask(goal: Specifications.Goal, grammarExclusion: Option[(Expressions.Var,Expressions.Expr)] = None, taskType: TaskType = TaskType.existentials): String = {
     val sb = new StringBuilder
     sb ++= "(set-logic ALL)\n\n"
 
@@ -112,30 +142,27 @@ object DelegatePureSynthesis {
       sb ++= s"(define-fun $empsetName () (Set Int) (as emptyset (Set Int)))\n\n"
 
     val otherVars = (goal.gamma -- goal.existentials).toList
-    for (ex <- goal.existentials) {
+    if (taskType == TaskType.condition) makeSynthesisTarget(condName,Some(BoolType),otherVars,None,taskType,sb)
+    else for (ex <- goal.existentials) {
       val etypeOpt = ex.getType(goal.gamma)
-      val etypeStr = typeToSMT(etypeOpt.get)
-      sb ++= "(synth-fun target_" ++= ex.name ++= " ("
-      for (v <- otherVars)
-        sb ++= "(" ++= v._1.name ++= " " ++= typeToSMT(v._2) ++= ") "
-      sb ++= ") " ++= etypeStr ++= "\n"
-      sb ++= "  ((Start " ++= etypeStr ++= " ("
-      for (c <- typeConstants(etypeOpt.get))
-        sb ++= c ++= " "
-      for (v <- otherVars; if grammarExclusion.map(a => !(ex == a._1 && v._1 == a._2)).getOrElse(true); if v._2.conformsTo(etypeOpt))
-        sb ++= v._1.name ++= " "
-      sb ++= ")))"
-      sb ++= ")\n"
+      makeSynthesisTarget(ex.name,etypeOpt,otherVars,grammarExclusion.filter(_._1 == ex).map(_._2),taskType,sb)
     }
+
     sb ++= "\n"
     for (v <- otherVars)
       sb ++= "(declare-var " ++= v._1.name ++= " " ++= typeToSMT(v._2) ++= ")\n"
     sb ++= "\n(constraint\n"
     sb ++= "    (=> "
+    if (taskType == TaskType.condition) sb ++= "(and "
     lazy val existentialMap = mkExistentialCalls(goal.existentials, otherVars)
     toSmt(goal.pre.phi, Map.empty, sb) //no existential vars in pre
+    if (taskType == TaskType.condition){
+      sb ++= s" (target_$condName "
+      for (v <- otherVars) sb ++= v._1.name ++= " "
+      sb ++= "))"
+    }
     sb ++= " "
-    toSmt(goal.post.phi, existentialMap, sb)
+    toSmt(if (taskType == TaskType.condition) goal.universalPost else goal.post.phi, existentialMap, sb)
     sb ++= "))"
     sb ++= "\n(check-synth)"
     sb.toString
@@ -189,6 +216,20 @@ object DelegatePureSynthesis {
     }
   }
 
+  def parseConditions(cvc4Res: String): Set[Expressions.Expr] = {
+    def extractLeq(term: LessThanEqualTerm): Expressions.Expr = term match {
+      case LessThanEqualTerm(QIdTerm(SimpleQId(SymbolId(SSymbol(lhs)))),QIdTerm(SimpleQId(SymbolId(SSymbol(rhs))))) =>
+        BinaryExpr(Expressions.OpLeq,Expressions.Var(lhs),Expressions.Var(rhs))
+    }
+    parser.apply(StringSource("(model " + cvc4Res + ")")) match {
+      case Failure(exception) => Set()
+      case Success(GetModelFunDefResponseSuccess(responses)) => responses.head.funDef.term match {
+        case leq: LessThanEqualTerm => Set(extractLeq(leq))
+        case AndTerm(term,terms) => terms.map(t => extractLeq(t.asInstanceOf[LessThanEqualTerm])).toSet + extractLeq(term.asInstanceOf[LessThanEqualTerm])
+      }
+    }
+  }
+
   def hasSecondResult(goal:Goal, assignment: Subst): Boolean = {
     for (a <- assignment) {
       val newSmtTask = toSMTTask(goal,Some(a))
@@ -198,6 +239,12 @@ object DelegatePureSynthesis {
     false
   }
 
+  def synthesizeGuard(abductGoal: Goal): Set[Expressions.Expr] = {
+    val task = toSMTTask(abductGoal, taskType = DelegatePureSynthesis.TaskType.condition)
+    val res = invokeCVC(task)
+    if (res.isEmpty) Set.empty
+    else  parseConditions(res.get)
+  }
 
   abstract class PureSynthesis(val isFinal: Boolean) extends SynthesisRule with RuleUtils {
     val exceptionQualifier: String = "rule-pure-synthesis"

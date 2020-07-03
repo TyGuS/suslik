@@ -2,6 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Statements.Hole
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, GoalLabel}
 import org.tygus.suslik.logic.{Environment, PFormula, PointsTo, SFormula}
@@ -226,5 +227,44 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     val assignment : Subst = Map(Expressions.Var("m")-> Expressions.Var("y"))
     assert(!DelegatePureSynthesis.hasSecondResult(goal1,assignment))
     assert(DelegatePureSynthesis.hasSecondResult(goal3,assignment))
+  }
+  val abductGoal = Goal(
+    Assertion(PFormula.apply(UnaryExpr(Expressions.OpNot,BinaryExpr(OpEq,Expressions.Var("r"),IntConst(0)))),SFormula(List(PointsTo(Var("r"),0,IntConst(0))))),
+    Assertion(PFormula(Set[Expr](BinaryExpr(OpLeq,Var("x"),Var("x")),BinaryExpr(OpLeq,Var("x"),Var("y")))),SFormula(List(PointsTo(Var("r"),0,Var("x"))))),
+    Map((Var("r"),LocType),(Var("x"),IntType),(Var("y"),IntType),(Var("m"),IntType)),
+    List(Var("r"),Var("x"),Var("y")),
+    Set.empty,
+    "min2",
+    GoalLabel(List(2),List()),
+    None,
+    Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
+    Hole,
+    None,false,false
+  )
+  test("Make abduction cvc4 task"){
+    assert(DelegatePureSynthesis.toSMTTask(abductGoal, taskType = DelegatePureSynthesis.TaskType.condition) ==
+        """(set-logic ALL)
+          |
+          |(synth-fun target_cond ((r Int) (x Int) (y Int) (m Int) ) Bool
+          |  ((Start Bool (flatBool conjBool))
+          |   (nInt Int (r x y m ))
+          |   (flatBool Bool ((<= nInt nInt)))
+          |   (conjBool Bool ((and flatBool flatBool)))))
+          |
+          |(declare-var r Int)
+          |(declare-var x Int)
+          |(declare-var y Int)
+          |(declare-var m Int)
+          |
+          |(constraint
+          |    (=> (and (not (= r 0)) (target_cond r x y m )) (and (<= x x) (<= x y) )))
+          |(check-synth)""".stripMargin)
+  }
+  test("Abduct condition"){
+
+
+    val condition = DelegatePureSynthesis.synthesizeGuard(abductGoal)
+    assert(condition.size == 1)
+    assert(condition.head.pp == "x <= y")
   }
 }
