@@ -4,9 +4,9 @@ should be able to flatten the tree into a list
 
 ####
 
-{ z :-> x ** tree(x, s) }
+{ z :-> x ** tree(x, s)<a> }
 void flatten(loc z)
-{ z :-> y ** sll(y, s) }
+{ z :-> y ** sll(y, s)<b> }
 
 ####
 
