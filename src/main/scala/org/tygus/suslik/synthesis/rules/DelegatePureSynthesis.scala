@@ -216,16 +216,16 @@ object DelegatePureSynthesis {
     }
   }
 
-  def parseConditions(cvc4Res: String): Set[Expressions.Expr] = {
+  def parseConditions(cvc4Res: String): Option[Expressions.Expr] = {
     def extractLeq(term: LessThanEqualTerm): Expressions.Expr = term match {
       case LessThanEqualTerm(QIdTerm(SimpleQId(SymbolId(SSymbol(lhs)))),QIdTerm(SimpleQId(SymbolId(SSymbol(rhs))))) =>
         BinaryExpr(Expressions.OpLeq,Expressions.Var(lhs),Expressions.Var(rhs))
     }
     parser.apply(StringSource("(model " + cvc4Res + ")")) match {
-      case Failure(exception) => Set()
+      case Failure(exception) => None
       case Success(GetModelFunDefResponseSuccess(responses)) => responses.head.funDef.term match {
-        case leq: LessThanEqualTerm => Set(extractLeq(leq))
-        case AndTerm(term,terms) => terms.map(t => extractLeq(t.asInstanceOf[LessThanEqualTerm])).toSet + extractLeq(term.asInstanceOf[LessThanEqualTerm])
+        case leq: LessThanEqualTerm => Some(extractLeq(leq))
+        case AndTerm(term,terms) => Some (terms.foldLeft(extractLeq(term.asInstanceOf[LessThanEqualTerm])){case (a,t) => a && extractLeq(t.asInstanceOf[LessThanEqualTerm])})
       }
     }
   }
@@ -239,11 +239,11 @@ object DelegatePureSynthesis {
     false
   }
 
-  def synthesizeGuard(abductGoal: Goal): Set[Expressions.Expr] = {
+  def synthesizeGuard(abductGoal: Goal): Seq[Expressions.Expr] = {
     val task = toSMTTask(abductGoal, taskType = DelegatePureSynthesis.TaskType.condition)
     val res = invokeCVC(task)
-    if (res.isEmpty) Set.empty
-    else  parseConditions(res.get)
+    if (res.isEmpty) Nil
+    else  parseConditions(res.get).toSeq
   }
 
   abstract class PureSynthesis(val isFinal: Boolean) extends SynthesisRule with RuleUtils {
