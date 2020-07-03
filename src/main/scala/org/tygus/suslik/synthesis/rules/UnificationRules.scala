@@ -50,9 +50,13 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
+    // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
+    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
+
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
+      if (!profilesToMatch(pre.sigma, post.sigma, goal.callGoal.isEmpty)) return Nil
 
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
 
@@ -62,32 +66,46 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         sub <- t.unify(s)
         subExpr = goal.substToFormula(sub)
         newPostSigma = (post.sigma - s) ** t.copyTag(s)
+//        (varSub, subExpr) = goal.splitSubst(sub)
+//        newPostSigma = (post.sigma - s).subst(varSub) ** t.copyTag(s)
         if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substitution if is produces duplicate chunks in the post
       } yield {
+//        val newPost = Assertion((post.phi && subExpr).subst(varSub), newPostSigma)
+//        val newCallGoal = goal.callGoal.map(_.updateSubstitution(varSub))
+//        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
         val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
       nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
+//      val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
+//      derivations.sortBy(s => -s.subgoals.head.similarity)
     }
   }
 
 
   object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase {
     override def toString: String = "HeapUnifyUnfold"
+
+    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.apps == post.profile.apps else multiSubset(post.profile.apps, pre.profile.apps)
+    }
   }
 
   object HeapUnifyBlock extends HeapUnify with BlockPhase {
     override def toString: String = "HeapUnifyBlock"
+
+    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.blocks == post.profile.blocks else multiSubset(post.profile.blocks, pre.profile.blocks)
+    }
   }
 
   object HeapUnifyPointer extends HeapUnify with FlatPhase with InvertibleRule {
     override def toString: String = "HeapUnifyPointer"
 
-    def varFilter(h: Heaplet, v: Var): Boolean = h match {
-      case PointsTo(x, _, _) => v == x
-      case _ => false
+    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.ptss == post.profile.ptss else multiSubset(post.profile.ptss, pre.profile.ptss)
     }
 
     override def apply(goal: Goal): Seq[RuleResult] = {
@@ -123,6 +141,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   object HeapUnifyPure extends HeapUnify with FlatPhase {
     override def toString: String = "HeapUnifyPure"
+
+    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.ptss == post.profile.ptss else multiSubset(post.profile.ptss, pre.profile.ptss)
+    }
   }
 
   /*

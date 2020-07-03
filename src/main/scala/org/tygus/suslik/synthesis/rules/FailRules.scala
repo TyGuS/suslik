@@ -56,7 +56,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (!SMTSolving.valid(goal.pre.phi ==> uniPost))
         // universal post not implied by pre
         List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
-      else filterOutValidPost(goal, exPost)
+      else Nil // filterOutValidPost(goal, exPost)
     }
   }
 
@@ -117,7 +117,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val (uniPost, exPost) = goal.splitPost
       if (SMTSolving.valid(goal.pre.phi ==> uniPost))
-        CheckPost.filterOutValidPost(goal, exPost)
+        Nil // CheckPost.filterOutValidPost(goal, exPost)
       else {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)

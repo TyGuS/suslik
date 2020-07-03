@@ -268,6 +268,12 @@ object Specifications extends SepLogicUtils {
       PFormula(sigma.map{ case (e1,e2) => e1 |===| e2}.toSet).resolveOverloading(gamma)
     }
 
+    def splitSubst(sigma: ExprSubst): (Subst, PFormula) = {
+      sigma.partition{ case (e, _) => e.isInstanceOf[Var] && isExistential(e.asInstanceOf[Var]) } match {
+        case (sub, exprSub) => (sub.map { case (v, e) => (v.asInstanceOf[Var], e)}, substToFormula(exprSub))
+      }
+    }
+
     def formals: Formals = programVars.map(v => (v, getType(v)))
 
     def depth: Int = ancestors.length

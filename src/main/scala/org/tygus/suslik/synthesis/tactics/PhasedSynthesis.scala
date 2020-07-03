@@ -4,7 +4,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.LogicalRules.FrameUnfolding
+import org.tygus.suslik.synthesis.rules.LogicalRules.{FrameUnfolding, FrameUnfoldingFinal}
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
 import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
@@ -42,7 +42,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     else if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
       val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules.contains).headOption
-      if (lastUnfoldingRule.contains(HeapUnifyUnfolding) || lastUnfoldingRule.contains(FrameUnfolding))
+      if (lastUnfoldingRule.contains(HeapUnifyUnfolding) ||
+        lastUnfoldingRule.contains(FrameUnfolding) ||
+        lastUnfoldingRule.contains(FrameUnfoldingFinal))
         unfoldingNoUnfoldPhaseRules
       else if (lastUnfoldingRule.contains(Close))
       // Once a rule that works on post was used, only use those
@@ -92,12 +94,14 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def unfoldingPostPhaseRules: List[SynthesisRule] = List(
+    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
     LogicalRules.FrameUnfolding,
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.Close,
   )
 
   protected def unfoldingNoUnfoldPhaseRules: List[SynthesisRule] = List(
+    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
     LogicalRules.FrameUnfoldingFinal,
     UnificationRules.HeapUnifyUnfolding,
   )
