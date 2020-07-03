@@ -51,12 +51,12 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     def heapletFilter(h: Heaplet): Boolean
 
     // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
-    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      if (!profilesToMatch(pre.sigma, post.sigma, goal.callGoal.isEmpty)) return Nil
+      if (!profilesMatch(pre.sigma, post.sigma, goal.callGoal.isEmpty)) return Nil
 
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
 
@@ -87,26 +87,14 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase {
     override def toString: String = "HeapUnifyUnfold"
-
-    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
-      if (exact) pre.profile.apps == post.profile.apps else multiSubset(post.profile.apps, pre.profile.apps)
-    }
   }
 
   object HeapUnifyBlock extends HeapUnify with BlockPhase {
     override def toString: String = "HeapUnifyBlock"
-
-    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
-      if (exact) pre.profile.blocks == post.profile.blocks else multiSubset(post.profile.blocks, pre.profile.blocks)
-    }
   }
 
   object HeapUnifyPointer extends HeapUnify with FlatPhase with InvertibleRule {
     override def toString: String = "HeapUnifyPointer"
-
-    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
-      if (exact) pre.profile.ptss == post.profile.ptss else multiSubset(post.profile.ptss, pre.profile.ptss)
-    }
 
     override def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
@@ -116,7 +104,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
       def lcpLen(s1: String, s2: String): Int = s1.zip(s2).takeWhile(Function.tupled(_ == _)).length
 
-      // TODO: fix this if lhss can be non-variables
       val alternatives = for {
         PointsTo(y, oy, _) <- postPtss
         if y.vars.exists(goal.isExistential)
@@ -130,7 +117,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case Some((y, x)) => {
           val subExpr = goal.substToFormula(Map(y -> x))
           val newPost = Assertion(post.phi && subExpr, post.sigma)
-//          val newCallGoal = goal.callGoal.map(_.updateSubstitution(sub))
           val newGoal = goal.spawnChild(post = newPost)
           val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
@@ -141,10 +127,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   object HeapUnifyPure extends HeapUnify with FlatPhase {
     override def toString: String = "HeapUnifyPure"
-
-    def profilesToMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
-      if (exact) pre.profile.ptss == post.profile.ptss else multiSubset(post.profile.ptss, pre.profile.ptss)
-    }
   }
 
   /*

@@ -12,10 +12,6 @@ import org.tygus.suslik.logic.smt.SMTSolving
 
 trait SepLogicUtils extends PureLogicUtils {
 
-  // Multiset inclusion
-  def multiSubset[A](m1: Map[A, Int], m2: Map[A, Int]): Boolean =
-    m1.forall { case (k, v) => v <= m2.getOrElse(k, 0) }
-
   /**
     * A name used to refer to the size cardinality of the enclosing inductive predicate
     * from within its definition

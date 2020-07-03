@@ -4,7 +4,6 @@ import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.StmtProducer
 import org.tygus.suslik.synthesis.Termination.Transition
-import org.tygus.suslik.util.SynStats
 
 object Rules {
   
@@ -49,18 +48,34 @@ object Rules {
     def heapletFilter(h: Heaplet): Boolean = {
       h.isInstanceOf[SApp]
     }
+
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.apps == post.profile.apps else multiSubset(post.profile.apps, pre.profile.apps)
+    }
   }
 
   trait BlockPhase {
     def heapletFilter(h: Heaplet): Boolean = {
       h.isInstanceOf[Block]
     }
+
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+//      if (exact) pre.profile.blocks == post.profile.blocks else multiSubset(post.profile.blocks, pre.profile.blocks)
+      true // In the block phase we don't require them to match, because of how free and alloc are triggered
+    }
   }
 
   trait FlatPhase {
     def heapletFilter(h: Heaplet): Boolean = true
+
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.ptss == post.profile.ptss else multiSubset(post.profile.ptss, pre.profile.ptss)
+    }
   }
 
+  // Multiset inclusion
+  def multiSubset[A](m1: Map[A, Int], m2: Map[A, Int]): Boolean =
+    m1.forall { case (k, v) => v <= m2.getOrElse(k, 0) }
 
   def nubBy[A,B](l:List[A], p:A=>B):List[A] =
   {

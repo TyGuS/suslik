@@ -87,9 +87,13 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   abstract class Frame extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
+    // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
+
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
+      if (!profilesMatch(pre.sigma, post.sigma, goal.callGoal.isEmpty)) return Nil
 
       def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && heapletFilter(hPost)
 

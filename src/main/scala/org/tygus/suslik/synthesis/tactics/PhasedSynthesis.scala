@@ -50,18 +50,18 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       // Once a rule that works on post was used, only use those
         unfoldingPostPhaseRules
       else unfoldingPhaseRules
-      //      unfoldingPhaseRules
-    } else if (goal.post.hasBlocks)
-    // Block phase: get rid of blocks
+    } else if (goal.post.hasBlocks) {
+      // Block phase: get rid of blocks
       postBlockPhaseRules
-    else if (goal.hasBlocks)
+    } else if (goal.hasBlocks) {
       preBlockPhaseRules
-    else if (goal.hasExistentialPointers)
-    // Pointer phase: match all existential pointers
+    } else if (goal.hasExistentialPointers) {
+      // Pointer phase: match all existential pointers
       pointerPhaseRules
-    else
-    // Pure phase: get rid of all the heap
+    } else {
+      // Pure phase: get rid of all the heap
       purePhaseRules
+    }
   }
 
   protected def anyPhaseRules: List[SynthesisRule] = List(
@@ -136,14 +136,14 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
   protected def postBlockPhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
-    LogicalRules.FrameBlock,
-    UnificationRules.HeapUnifyBlock,
-    OperationalRules.AllocRule
+      (if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost),
+      LogicalRules.FrameBlock,
+      UnificationRules.HeapUnifyBlock,
+      OperationalRules.AllocRule
   )
 
   protected def preBlockPhaseRules: List[SynthesisRule] = List(
-    OperationalRules.FreeRule
+      OperationalRules.FreeRule
   )
 
   protected def pointerPhaseRules: List[SynthesisRule] = List(
@@ -152,7 +152,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     UnificationRules.SubstRight,
     FailRules.HeapUnreachable,
     LogicalRules.FrameFlat,
-    OperationalRules.WriteRule,// Remove?
     UnificationRules.HeapUnifyPointer,
   )
 
