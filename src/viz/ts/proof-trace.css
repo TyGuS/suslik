@@ -27,11 +27,28 @@
 }
 
 .proof-trace-node > .title > span.goal-id,
-.proof-trace-node > .title > span.tag {
-    float: right;
+.proof-trace-node > .title > span.cost,
+.proof-trace-node > .title > span.tag,
+.proof-trace-node > .title > span.num-descendants {
+        float: right;
     margin-left: 1em;
     font-family: 'Times New Roman', Times, serif;
     font-size: 90%;
+}
+
+.proof-trace-node > .title > span.goal-id:not(:empty)::before {
+    content: "🎯";
+    line-height: 1pt;
+}
+
+.proof-trace-node > .title > span.cost:not(:empty)::before {
+    content: "💲";
+    line-height: 1pt;
+}
+
+.proof-trace-node > .title > span.num-descendants:not(:empty)::before {
+    content: "🌲";
+    line-height: 1pt;
 }
 
 .proof-trace-goal {

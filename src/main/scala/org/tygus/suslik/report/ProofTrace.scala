@@ -43,10 +43,10 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
   }
 
   override def add(node: OrNode): Unit =
-    writeObject(NodeEntry(node.id, "OrNode", node.pp(), GoalEntry(node.goal), -1))
+    writeObject(NodeEntry(node.id, "OrNode", node.pp(), GoalEntry(node.goal), -1, node.cost))
 
   override def add(node: AndNode, nChildren: Int): Unit =
-    writeObject(NodeEntry(node.id, "AndNode", node.pp(), null, nChildren))
+    writeObject(NodeEntry(node.id, "AndNode", node.pp(), null, nChildren, -1))
 
   override def add(at: NodeId, status: GoalStatus, from: Option[String] = None): Unit = {
     val st = status match {
@@ -76,7 +76,8 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
 
 object ProofTraceJson {
 
-  case class NodeEntry(id: Vector[Int], tag: String, pp: String, goal: GoalEntry, nChildren: Int)
+  case class NodeEntry(id: Vector[Int], tag: String, pp: String, goal: GoalEntry,
+                       nChildren: Int, cost: Int)
   object NodeEntry {
     implicit val rw: RW[NodeEntry] = macroRW
   }
