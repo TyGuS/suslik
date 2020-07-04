@@ -61,7 +61,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
 
       val alternatives = for {
-        s <- postCandidates
+        s <- postCandidates.take(1) // DANGER: in block phase this relies on alloc and unify discovering existential heaplets in the same order
         t <- pre.sigma.chunks
         sub <- t.unify(s)
         subExpr = goal.substToFormula(sub)

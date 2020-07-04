@@ -177,7 +177,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
 
-      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
+      findBlockAndChunks(noGhosts, _ => true, goal.pre.sigma)
     }
 
     def apply(goal: Goal): Seq[RuleResult] = {
