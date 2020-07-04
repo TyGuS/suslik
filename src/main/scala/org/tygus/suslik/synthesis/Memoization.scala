@@ -99,6 +99,11 @@ object Memoization {
       suspended.values.exists(_.contains(node.id))
     }
 
+    // All and-siblings of node that are suspended waiting for it to succeed
+    def suspendedSiblings(node: OrNode): Set[NodeId] = {
+      suspended(trimGoal(node.goal)).filterNot(i => i == node.id)
+    }
+
     def suspendedSize: Int = suspended.size
 
     private def trimGoal(g: Goal): MemoGoal = {

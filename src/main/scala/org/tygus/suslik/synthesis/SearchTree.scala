@@ -163,6 +163,11 @@ object SearchTree {
       maximalDerivations
     }
 
+    def suspendedAndSiblings: List[OrNode] = {
+      val ids = (this :: ancestors).flatMap(memo.suspendedSiblings).toSet
+      worklist.filter(n => ids.contains(n.id))
+    }
+
     def pp(d: Int = 0): String = parent match {
       case None => "-"
       case Some(p) =>
@@ -174,10 +179,7 @@ object SearchTree {
     }
 
     lazy val cost: Int = {
-//      val history = ruleHistory
-//      val callCount = history.count(_ == CallRule)
-//      val hasAbduceCall = history.nonEmpty && history.head == AbduceCall
-      goal.cost  // (callCount + (if (hasAbduceCall) 1 else 0))
+      goal.cost + suspendedAndSiblings.map(_.goal.cost).sum
     }
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
