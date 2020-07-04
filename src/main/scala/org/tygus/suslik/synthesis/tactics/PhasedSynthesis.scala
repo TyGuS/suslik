@@ -34,12 +34,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   protected def specBasedRules(node: OrNode): List[SynthesisRule] = {
     val goal = node.goal
-    if (node.parent.map(_.rule).contains(AbduceCall) && node.id.head > 0)
-    // TODO: This is a hack: AbduceCall does not make progress,
-    // and hence has to be followed by Call, otherwise synthesis gets stuck.
-    // Proper fix: merge the two rules
-      List(CallRule)
-    else if (goal.hasPredicates()) {
+    if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
       val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules.contains).headOption
       if (lastUnfoldingRule.contains(HeapUnifyUnfolding) ||
@@ -82,13 +77,13 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     SymbolicExecutionRules.GuidedAlloc,
     SymbolicExecutionRules.GuidedFree,
     SymbolicExecutionRules.Conditional,
-    SymbolicExecutionRules.GuidedCall,
+//    SymbolicExecutionRules.GuidedCall, // TODO: Fix this later with new call rule
   )
 
   protected def unfoldingPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfolding,
     UnificationRules.HeapUnifyUnfolding,
-    UnfoldingRules.AbduceCallNew,
+    UnfoldingRules.AbduceCall,
     UnfoldingRules.Open,
     UnfoldingRules.Close,
   )
@@ -123,8 +118,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           OperationalRules.WriteRule,
           UnificationRules.HeapUnifyPointer)
       else
-        List(UnfoldingRules.CallNew,
-//          UnificationRules.SubstRight,
+        List(UnfoldingRules.CallRule,
+          UnificationRules.SubstRight,
           LogicalRules.FrameFlat,
           OperationalRules.WriteRule,
           UnificationRules.PickArg,
@@ -164,7 +159,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       FailRules.HeapUnreachable,
       LogicalRules.FrameFlat,
       OperationalRules.WriteRule,
-      //    UnificationRules.PureUnify,
       UnificationRules.PickCard,
       UnificationRules.HeapUnifyPure,
       DelegatePureSynthesis.PureSynthesisFinal) ++

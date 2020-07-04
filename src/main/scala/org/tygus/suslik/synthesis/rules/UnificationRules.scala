@@ -4,7 +4,6 @@ import org.tygus.suslik.language.CardType
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.unification.{PureUnification, SpatialUnification}
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -18,34 +17,6 @@ import org.tygus.suslik.synthesis.rules.Rules._
 object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   val exceptionQualifier: String = "rule-unification"
-
-  abstract class HeapUnifyOld extends SynthesisRule {
-    def heapletFilter(h: Heaplet): Boolean
-
-    def apply(goal: Goal): Seq[RuleResult] = {
-      val pre = goal.pre
-      val post = goal.post
-
-      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
-
-      val alternatives = for {
-        s <- postCandidates
-        t <- pre.sigma.chunks
-        sub <- SpatialUnification.tryUnify(t, s, goal.universals)
-        if sub.nonEmpty
-        newPostSigma = post.sigma.subst(sub)
-        if newPostSigma.chunks.distinct.size == newPostSigma.chunks.size // discard substituion if is produces duplicate chunks in the post
-      } yield {
-        val newPost = Assertion(post.phi.subst(sub), newPostSigma)
-        val newCallGoal = goal.callGoal.map(_.updateSubstitution(sub))
-        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        RuleResult(List(newGoal), kont, this, goal)
-      }
-      val derivations = nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
-      derivations.sortBy(s => -s.subgoals.head.similarity)
-    }
-  }
 
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
@@ -165,33 +136,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           List(RuleResult(List(newGoal), kont, this, goal))
         case _ => Nil
       }
-    }
-  }
-
-  /*
-     Γ ; {φ ∧ φ1 ; P} ; {ψ' ; Q'} ---> S
-             s = unify(φ1, φ2)
-       {ψ' ; Q'} = subst({ψ ; Q}, s)
-   --------------------------------------- [Pure-Unify]
-   Γ ; {φ ∧ φ1 ; P} ; {ψ ∧ φ2 ; Q} ---> S
-
-    */
-
-  object PureUnify extends SynthesisRule {
-    override def toString: String = "PureUnify"
-
-    def apply(goal: Goal): Seq[RuleResult] = {
-      // get post conjuncts with existentials
-      val postConjuncts = goal.post.phi.conjuncts.filter(p => p.vars.exists(goal.isExistential) && p.allowUnify).toList
-      val preConjuncts = goal.pre.phi.conjuncts.filter(p => p.allowUnify).toList
-
-      for {
-        s <- postConjuncts
-        t <- preConjuncts
-        sigma <- PureUnification.tryUnify(t, s, goal.existentials)
-        newGoal = goal.spawnChild(post = goal.post.subst(sigma))
-        kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
 

@@ -135,9 +135,7 @@ object Specifications extends SepLogicUtils {
                   parent: Option[Goal], // parent goal in the derivation
                   env: Environment, // predicates and components
                   sketch: Statement, // sketch
-                  callGoal: Option[SuspendedCallGoal],
-                  preNormalized: Boolean, // TODO: this ugliness is here to optimize SubstleftVar / SubstRightVar
-                  postNormalized: Boolean,
+                  callGoal: Option[SuspendedCallGoal]
                  )
 
     extends PrettyPrinting with PureLogicUtils {
@@ -192,9 +190,7 @@ object Specifications extends SepLogicUtils {
                    childId: Option[Int] = None,
                    env: Environment = this.env,
                    sketch: Statement = this.sketch,
-                   callGoal: Option[SuspendedCallGoal] = this.callGoal,
-                   preNormalized: Boolean = false,
-                   postNormalized: Boolean = false): Goal = {
+                   callGoal: Option[SuspendedCallGoal] = this.callGoal): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -211,8 +207,7 @@ object Specifications extends SepLogicUtils {
       Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
-        callGoal,
-        preNormalized, postNormalized)
+        callGoal)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -313,7 +308,7 @@ object Specifications extends SepLogicUtils {
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), None, false, false)
+      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), None)
   }
 
   /**
