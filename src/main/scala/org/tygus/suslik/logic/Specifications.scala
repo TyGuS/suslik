@@ -75,9 +75,6 @@ object Specifications extends SepLogicUtils {
         sigma = sigma.resolveOverloading(gamma))
     }
 
-    // TODO: take into account distance between pure parts
-    def similarity(other: Assertion): Int = this.sigma.similarity(other.sigma)
-
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
 
@@ -273,8 +270,6 @@ object Specifications extends SepLogicUtils {
 
     def depth: Int = ancestors.length
 
-    def similarity: Int = pre.similarity(post)
-
     // Size of the specification in this goal (in AST nodes)
     def specSize: Int = pre.size + post.size
 
@@ -338,7 +333,7 @@ object Specifications extends SepLogicUtils {
 
     def actualCall: Call = call.copy(args = call.args.map(_.subst(freshToActual)))
 
-    lazy val cost: Int = calleePost.cost + callerPost.cost
+    lazy val cost: Int = calleePost.cost
   }
 }
 

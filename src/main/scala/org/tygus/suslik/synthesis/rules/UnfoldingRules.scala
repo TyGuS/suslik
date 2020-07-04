@@ -29,7 +29,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       h match {
-        case SApp(pred, args, Some(t), card) if t < env.config.maxOpenDepth =>
+        case SApp(pred, args, PTag(cls, unf), card) if unf < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
           val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
@@ -44,7 +44,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             body = asn.sigma
             newPrePhi = pre.phi && constraints && sel
             // The tags in the body should be one more than in the current application:
-            _newPreSigma1 = mkSFormula(body.chunks).setUpSAppTags(t + 1)
+            _newPreSigma1 = mkSFormula(body.chunks).setSAppTags(PTag(cls, unf + 1))
             newPreSigma = _newPreSigma1 ** remainingSigma
           } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
 
@@ -92,7 +92,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap // Add f's (fresh) variables to gamma
         call = Call(Var(f.name), f.params.map(_._1), l)
-        calleePostSigma = f.post.sigma.setUpSAppTags(goal.env.config.callCost)
+        calleePostSigma = f.post.sigma.setSAppTags(PTag(1, 0))
         callePost = Assertion(f.post.phi, calleePostSigma)
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
@@ -129,7 +129,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         // We would like to substitute all the fresh vars in calleePost, but we can't
         // since it might have predicates and their arguments must be variables.
         // So instead we are adding the substitution as the pure precondition
-        val calleePostSigma = callGoal.calleePost.sigma.setUpSAppTags(budHeap.maxSAppTag + goal.env.config.callCost)
+        val calleePostSigma = callGoal.calleePost.sigma.setSAppTags(PTag(budHeap.maxCallTag + 1))
         val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePostSigma)
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
@@ -187,8 +187,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       def heapletResults(h: Heaplet): Seq[RuleResult] = h match {
-        case SApp(pred, args, Some(t), card) =>
-          if (t >= env.config.maxCloseDepth) return Nil
+        case SApp(pred, args, PTag(cls, unf), card) =>
+          if (unf >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
@@ -209,7 +209,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // Make sure that can unfold only once
             actualAssertion = asn.subst(freshExistentialsSubst).subst(substArgs)
             actualConstraints = actualAssertion.phi
-            actualBody = actualAssertion.sigma.setUpSAppTags(t + 1, _ => true)
+            actualBody = actualAssertion.sigma.setSAppTags(PTag(cls, unf + 1))
             // If we unfolded too much: back out
             //             if !actualBody.chunks.exists(h => exceedsMaxDepth(h))
           } yield {

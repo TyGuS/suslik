@@ -30,7 +30,7 @@ object Expressions {
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
-        case a@CSApp(_, args, _) =>
+        case a@CSApp(_, args) =>
           val acc1 = if (p(a)) acc + a.asInstanceOf[R] else acc
           args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
         case CPointsTo(loc, _, value) =>
@@ -57,8 +57,8 @@ object Expressions {
         CSetLiteral(elems.map(e => e.simplify))
       case CIfThenElse(cond, left, right) =>
         CIfThenElse(cond.simplify, left.simplify, right.simplify)
-      case CSApp(pred, args, tag) =>
-        CSApp(pred, args.map(_.simplify), tag)
+      case CSApp(pred, args) =>
+        CSApp(pred, args.map(_.simplify))
       case other => other
     }
 
@@ -132,7 +132,7 @@ object Expressions {
     override def pp: String = "empty"
   }
 
-  case class CSApp(pred: String, var args: Seq[CExpr], tag: Option[Int] = Some(0)) extends CExpr {
+  case class CSApp(pred: String, var args: Seq[CExpr]) extends CExpr {
     override def pp: String = s"$pred ${args.map(arg => arg.pp).mkString(" ")}"
     override def ppp: String = s"$pred ${args.map(arg => arg.ppp).mkString(" ")}"
   }

@@ -162,7 +162,7 @@ object Translation {
 
   private def translateHeaplet(el: Heaplet): CExpr = el match {
     case PointsTo(loc, offset, value) => CPointsTo(translateExpr(loc), offset, translateExpr(value))
-    case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr), tag)
+    case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr))
   }
 
   private def translateAsn(el: Assertion): CAssertion = {

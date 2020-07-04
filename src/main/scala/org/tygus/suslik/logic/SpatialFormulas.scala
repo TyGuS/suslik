@@ -3,7 +3,6 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
-import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 
 /**
   * Separation logic fragment
@@ -35,10 +34,12 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
-  def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this
+  def getTag: Option[PTag] = None
+
+  def setTag(t: PTag): Heaplet = this
 
   def eqModTags(other: Heaplet): Boolean = {
-    this.adjustTag(_ => None) == other.adjustTag(_ => None)
+    this.setTag(PTag()) == other.setTag(PTag())
   }
 
   // If this is a predicate instance, assume that from is too and copy its tag
@@ -55,13 +56,8 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   }
 
   def cost: Int = this match {
-    case PointsTo(_, _, _) => 0
-    case Block(_, _) => 0
-    case SApp(_, _, None, _) => 3
-    case SApp(_, _, Some(n), _) => n
-    //    case PointsTo(_, _, _) => 1
-    //    case Block(_, _) => 1
-    //    case SApp(_, _, _) => 10
+    case SApp(_, _, PTag(c, u), _) => c + u
+    case _ => 0
   }
 
 }
@@ -129,26 +125,27 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   }
 }
 
+case class PTag(calls: Int = 0, unrolls: Int = 0) extends PrettyPrinting {
+  override def pp: String = this match {
+    case PTag(0, 0) => "" // Default tag
+    case _ => s"[$calls,$unrolls]"
+  }
+}
+
 /**
   *
-  * @card is a cardinality of a current call. When equals None, treated as an existential
+  * @card is a cardinality of a current call.
   *
   *       Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: Expr) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], tag: PTag, card: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args = args.map(_.resolveOverloading(gamma)))
 
   override def pp: String = {
     def ppCard(e: Expr) = s"<${e.pp}>"
 
-    val ppTag: Option[Int] => String = {
-      case None => "[-]" // "[\uD83D\uDD12]" // "locked"
-      case Some(0) => "" // Default tag
-      case Some(t) => s"[$t]"
-    }
-
-    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${ppTag(tag)}"
+    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${tag.pp}"
   }
 
 
@@ -185,7 +182,9 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
     } else None
   }
 
-  override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
+  override def getTag: Option[PTag] = Some(tag)
+
+  override def setTag(t: PTag): Heaplet = this.copy(tag = t)
 
   override def unify(that: Heaplet): Option[ExprSubst] = that match {
     case SApp(p, as, _, c) if pred == p => Some((card :: args.toList).zip(c :: as.toList).toMap)
@@ -218,16 +217,9 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
     chunks.foldLeft(Set.empty[R])((a, h) => a ++ h.collect(p))
   }
 
-  /**
-    * Change tags for applications, to avoid re-applying the rule
-    */
-  def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h))
+  def setSAppTags(t: PTag): SFormula = SFormula(chunks.map(h => h.setTag(t)))
 
-  def maxSAppTag: Int = chunks.map(_ match {
-    case SApp(_, _, Some(n), _) => n
-    case _ => 0
-  }).max
+  def maxCallTag: Int = chunks.flatMap(_.getTag).map(_.calls).max
 
   def isEmp: Boolean = chunks.isEmpty
 
@@ -253,20 +245,6 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
       case None => None
       case Some(g) => h.resolve(g, env)
     })
-  }
-
-  // How many heaplets do the two formulas have in common?
-  def similarity(other: SFormula): Int = {
-    def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)
-
-    findMatchingHeaplets(_ => true, isMatch, this, other) match {
-      case None => 0
-      case Some((l, r)) => l.cost + (this - l).similarity(other - r)
-    }
-  }
-
-  def is_subheap_of(other: SFormula): Boolean = {
-    similarity(other) == this.chunks.length
   }
 
   def replace(what: SFormula, replacement: SFormula): SFormula = {
