@@ -104,7 +104,7 @@ object DelegatePureSynthesis {
   def usesEmptyset(a: Specifications.Assertion): Boolean = a.phi.conjuncts.exists(e => !e.collect(expr =>
     expr.isInstanceOf[Expressions.SetLiteral] && expr.asInstanceOf[Expressions.SetLiteral].elems.isEmpty).isEmpty)
 
-  def toSMTTask(goal: Specifications.Goal): String = {
+  def toSMTTask(goal: Specifications.Goal, grammarExclusion: Option[(Expressions.Var,Expressions.Expr)] = None): String = {
     val sb = new StringBuilder
     sb ++= "(set-logic ALL)\n\n"
 
@@ -122,7 +122,7 @@ object DelegatePureSynthesis {
       sb ++= "  ((Start " ++= etypeStr ++= " ("
       for (c <- typeConstants(etypeOpt.get))
         sb ++= c ++= " "
-      for (v <- otherVars; if v._2.conformsTo(etypeOpt))
+      for (v <- otherVars; if grammarExclusion.map(a => !(ex == a._1 && v._1 == a._2)).getOrElse(true); if v._2.conformsTo(etypeOpt))
         sb ++= v._1.name ++= " "
       sb ++= ")))"
       sb ++= ")\n"
@@ -189,13 +189,22 @@ object DelegatePureSynthesis {
     }
   }
 
-  abstract class PureSynthesis extends SynthesisRule with RuleUtils {
+  def hasSecondResult(goal:Goal, assignment: Subst): Boolean = {
+    for (a <- assignment) {
+      val newSmtTask = toSMTTask(goal,Some(a))
+      val newRes = invokeCVC(newSmtTask)
+      if (!newRes.isEmpty) return true
+    }
+    false
+  }
+
+
+  abstract class PureSynthesis(val isFinal: Boolean) extends SynthesisRule with RuleUtils {
     val exceptionQualifier: String = "rule-pure-synthesis"
 
     def moreOptions(goal: Goal): Seq[RuleResult]
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      //def apply(goal: Specifications.Goal): Option[(Goal,Map[Expressions.Var,Expressions.Expr])] = {
       if (!goal.env.config.delegatePure || !configured) return Nil
       if (goal.existentials.isEmpty) return Nil
 
@@ -208,20 +217,23 @@ object DelegatePureSynthesis {
         val newPost = goal.post.subst(assignments)
         val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
         val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
-        val alternatives = RuleResult(List(newGoal), kont, this, goal) :: moreOptions(goal).toList
-        nubBy[RuleResult,Assertion](alternatives, res => res.subgoals.head.post)
+        if (isFinal || !DelegatePureSynthesis.hasSecondResult(goal,assignments)) {
+          val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val alternatives = RuleResult(List(newGoal), kont, this, goal) :: Nil
+          nubBy[RuleResult, Assertion](alternatives, res => res.subgoals.head.post)
+        }
+        else moreOptions(goal).toList
       }
     }
   }
 
-  object PureSynthesisFinal extends PureSynthesis with InvertibleRule {
+  object PureSynthesisFinal extends PureSynthesis(true) with InvertibleRule {
     override def toString: String = "PureSynthesisFinal"
 
     override def moreOptions(goal: Goal): Seq[RuleResult] = Nil
   }
 
-  object PureSynthesisNonfinal extends PureSynthesis {
+  object PureSynthesisNonfinal extends PureSynthesis(false) {
     override def toString: String = "PureSynthesisNonFinal"
 
     override def moreOptions(goal: Goal): Seq[RuleResult] = UnificationRules.Pick(goal)
