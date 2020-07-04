@@ -17,6 +17,7 @@ class ProofTrace {
     nodeIndex: {
         byId: JSONMap<Data.NodeId, Data.NodeEntry>
         childrenById: JSONMap<Data.NodeId, Data.NodeEntry[]>
+        subtreeSizeById: JSONMap<Data.NodeId, number>
         statusById: JSONMap<Data.NodeId, Data.StatusEntry>
         viewById: JSONMap<Data.NodeId, View.Node>
     }
@@ -34,7 +35,8 @@ class ProofTrace {
     createIndex() {
         this.nodeIndex = {
             byId: new JSONMap(),
-            childrenById: new JSONMap(), statusById: new JSONMap(),
+            childrenById: new JSONMap(), subtreeSizeById: new JSONMap(),
+            statusById: new JSONMap(),
             viewById: new JSONMap()
         };
         // Build byId
@@ -59,7 +61,7 @@ class ProofTrace {
 
         for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
             if (!this.nodeIndex.statusById.get(node.id)) {
-                var children = (this.nodeIndex.childrenById.get(node.id) || [])
+                let children = (this.nodeIndex.childrenById.get(node.id) || [])
                                 .map(c => this.nodeIndex.statusById.get(c.id));
                 if (children.length) {
                     switch (node.tag) {
@@ -75,6 +77,14 @@ class ProofTrace {
                     }
                 }
             }
+        }
+
+        // Build subtreeSizeById
+        var sz = this.nodeIndex.subtreeSizeById;
+        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+            let children = (this.nodeIndex.childrenById.get(node.id) || []);
+            sz.set(node.id, 1 + children.map(u => sz.get(u.id) || 1)
+                                        .reduce((x,y) => x + y, 0));
         }
     }
 
@@ -117,9 +127,14 @@ class ProofTrace {
         return entry && entry.status;
     }
 
+    getSubtreeSize(node: Data.NodeEntry): number { 
+        return this.nodeIndex.subtreeSizeById.get(node.id) || 1;
+    }
+
     createNode(node: Data.NodeEntry): View.Node {
         var v = {value: node, children: undefined, focus: false, expanded: false,
-                 status: this.getStatus(node)};
+                 status: this.getStatus(node),
+                 numDescendants: this.getSubtreeSize(node)};
         this.nodeIndex.viewById.set(node.id, v);
         return v;
     }
@@ -251,6 +266,7 @@ namespace ProofTrace {
         export type Node = {
             value: Data.NodeEntry
             children: Node[]
+            numDescendants: number
             status: Data.GoalStatusEntry
             focus: boolean
             expanded: boolean
@@ -345,7 +361,8 @@ Vue.component('proof-trace', {
     template: `
         <div class="proof-trace" :class="[statusClass, root && root.children && root.children.length == 0 ? 'no-children' : 'has-children']">
             <template v-if="root">
-                <proof-trace-node ref="nroot" :value="root.value" :status="root.status"
+                <proof-trace-node ref="nroot" :value="root.value"
+                                  :status="root.status" :num-descendants="root.numDescendants"
                                   @action="nodeAction"/>
                 <div class="proof-trace-expand-all" :class="{root: root.value.id.length == 0}">
                     <span @click="expandAll">++</span>
@@ -390,7 +407,7 @@ Vue.component('proof-trace', {
 });
 
 Vue.component('proof-trace-node', {
-    props: ['value', 'status'],
+    props: ['value', 'status', 'numDescendants'],
     data: () => ({_anchor: false}),
     template: `
         <div class="proof-trace-node" :class="[value.tag, statusClass]"
@@ -400,6 +417,8 @@ Vue.component('proof-trace-node', {
                 @contextmenu.prevent="action({type: 'menu', $event})">
             <div @mousedown="stopDbl" class="title">
                 <span class="pp">{{value.pp}}</span>
+                <span class="cost" v-if="value.cost >= 0">{{value.cost}}</span>
+                <span class="num-descendants">{{numDescendants}}</span>
                 <span class="goal-id" v-if="value.goal">{{value.goal.id}}</span>
                 <span class="tag" v-else>{{tag}}</span>
             </div>
