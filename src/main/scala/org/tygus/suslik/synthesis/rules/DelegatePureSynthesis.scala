@@ -202,8 +202,6 @@ object DelegatePureSynthesis {
   abstract class PureSynthesis(val isFinal: Boolean) extends SynthesisRule with RuleUtils {
     val exceptionQualifier: String = "rule-pure-synthesis"
 
-    def moreOptions(goal: Goal): Seq[RuleResult]
-
     def apply(goal: Goal): Seq[RuleResult] = {
       if (!goal.env.config.delegatePure || !configured) return Nil
       if (goal.existentials.isEmpty) return Nil
@@ -222,21 +220,17 @@ object DelegatePureSynthesis {
           val alternatives = RuleResult(List(newGoal), kont, this, goal) :: Nil
           nubBy[RuleResult, Assertion](alternatives, res => res.subgoals.head.post)
         }
-        else moreOptions(goal).toList
+        else UnificationRules.Pick(goal)
       }
     }
   }
 
   object PureSynthesisFinal extends PureSynthesis(true) with InvertibleRule {
     override def toString: String = "PureSynthesisFinal"
-
-    override def moreOptions(goal: Goal): Seq[RuleResult] = Nil
   }
 
   object PureSynthesisNonfinal extends PureSynthesis(false) {
     override def toString: String = "PureSynthesisNonFinal"
-
-    override def moreOptions(goal: Goal): Seq[RuleResult] = UnificationRules.Pick(goal)
   }
 
 }

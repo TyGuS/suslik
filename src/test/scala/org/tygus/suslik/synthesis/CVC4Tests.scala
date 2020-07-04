@@ -199,9 +199,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
     Statements.Hole,
-    None,
-    false,
-    false
+    None
   )
   test("to SMT with exclusions") {
     val smt = DelegatePureSynthesis.toSMTTask(goal3,Some((Expressions.Var("m"),Expressions.Var("x"))))
