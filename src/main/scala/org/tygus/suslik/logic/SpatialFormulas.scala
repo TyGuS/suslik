@@ -56,7 +56,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   }
 
   def cost: Int = this match {
-    case SApp(_, _, PTag(c, u), _) => c.max(u)
+    case SApp(_, _, PTag(c, u), _) => c + u
     case _ => 0
   }
 

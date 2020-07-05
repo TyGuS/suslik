@@ -165,7 +165,10 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
           (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
           else e.subgoals.zipWithIndex
-        } yield OrNode(j +: andNode.id, g, Some(andNode))
+        } yield {
+          val extraCost = if (j == -1) 0 else e.subgoals.drop(j + 1).map(_.cost).sum
+          OrNode(j +: andNode.id, g, Some(andNode), node.extraCost + extraCost)
+        }
 
         // Suspend nodes with older and-siblings
         newNodes.foreach(n => {

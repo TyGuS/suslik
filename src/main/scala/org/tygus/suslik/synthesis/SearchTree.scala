@@ -36,7 +36,7 @@ object SearchTree {
     * represents a synthesis goal to solve.
     * For this node to succeed, one of its children has to succeed.
     */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode]) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -163,11 +163,6 @@ object SearchTree {
       maximalDerivations
     }
 
-    def suspendedAndSiblings: List[OrNode] = {
-      val ids = (this :: ancestors).flatMap(memo.suspendedSiblings).toSet
-      worklist.filter(n => ids.contains(n.id))
-    }
-
     def pp(d: Int = 0): String = parent match {
       case None => "-"
       case Some(p) =>
@@ -179,7 +174,7 @@ object SearchTree {
     }
 
     lazy val cost: Int = {
-      goal.cost + suspendedAndSiblings.map(_.goal.cost).sum
+      goal.cost + extraCost
     }
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
