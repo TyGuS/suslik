@@ -182,43 +182,28 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object StarPartial extends SynthesisRule with InvertibleRule {
     override def toString: String = "*Partial"
 
-    def extendPure(p: PFormula, s: SFormula, excludeVars: Set[Var]): Option[(PFormula, SFormula)] = {
+    def extendPure(p: PFormula, s: SFormula): PFormula = {
       val ptrs = (for (PointsTo(x, o, _) <- s.chunks) yield (o, x)).groupBy(_._1).mapValues(_.map(_._2))
       // All pairs of pointers
       val pairs = for (o <- ptrs.keySet; x <- ptrs(o); y <- ptrs(o) if x != y) yield (x, y)
       val newPairs = pairs.filter {
-        case (x, y) => excludeVars.intersect(x.vars ++ y.vars).isEmpty &&
-          p != pFalse && !p.conjuncts.contains(x |/=| y) && !p.conjuncts.contains(y |/=| x)
+        case (x, y) => !p.conjuncts.contains(x |/=| y) && !p.conjuncts.contains(y |/=| x)
       }
-      val allNewVars = newPairs.map(_._1).union(newPairs.map(_._2))
-      val heaplets = (for (h@PointsTo(x, _, _) <- s.chunks if allNewVars.contains(x)) yield h)
-      if (newPairs.isEmpty) None
-      else Some((p && PFormula(newPairs.map { case (x, y) => x |/=| y }), mkSFormula(heaplets)))
+      PFormula(newPairs.map { case (x, y) => x |/=| y })
     }
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val s1 = goal.pre.sigma
-      val s2 = goal.post.sigma
+      if (goal.pre.phi == pFalse) return Nil
       val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
-      (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, goal.existentials)) match {
-//      (extendPure(goal.pre.phi, s1, Set.empty), extendPure(goal.post.phi, s2, Set.empty)) match {
-          // TODO: make sure it's complete to include post, otherwise revert to pre only
-        case (None, None) => Nil
-        case (Some((p1, ss1)), None) =>
-          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
-          List(RuleResult(List(newGoal), kont, this, goal))
-        case (None, Some((p2, ss2))) =>
-          val newGoal = goal.spawnChild(post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont, this, goal))
-        case (Some((p1, ss1)), Some((p2, ss2))) =>
-          val newGoal = goal.spawnChild(pre = Assertion(p1, s1), post = Assertion(p2, s2))
-          List(RuleResult(List(newGoal), kont, this, goal))
-//        case (None, _) => Nil
-//        case (Some(p1), _) =>
-//          val newGoal = goal.spawnChild(pre = Assertion(p1, s1))
-//          List(Subderivation(List(newGoal), pureKont(toString)))
-      }
+      val newPrePhi = extendPure(goal.pre.phi, goal.pre.sigma)
+      val newPostPhi = extendPure(goal.post.phi, goal.post.sigma)
+
+      if (newPrePhi.conjuncts.isEmpty && newPostPhi.conjuncts.isEmpty) return Nil
+      val newPre = goal.pre.copy(phi = goal.pre.phi && newPrePhi)
+      val newPost = goal.post.copy(phi = goal.post.phi && newPostPhi)
+      val newGoal = goal.spawnChild(newPre, newPost)
+      List(RuleResult(List(newGoal), kont, this, goal))
     }
   }
 
