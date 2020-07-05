@@ -140,14 +140,14 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "NilNotLval"
 
     def apply(goal: Goal): Seq[RuleResult] = {
+      if (goal.pre.phi == pFalse) return Nil
 
       // Find pointers in `a` that are not yet known to be non-null
       def findPointers(a: Assertion): Set[Expr] = {
-        val p = a.phi
         // All pointers
         val allPointers = (for (PointsTo(l, _, _) <- a.sigma.chunks) yield l).toSet
         allPointers.filter(
-          x => p != pFalse && !p.conjuncts.contains(x |/=| NilPtr) && !p.conjuncts.contains(NilPtr |/=| x)
+          x => !a.phi.conjuncts.contains(x |/=| NilPtr) && !a.phi.conjuncts.contains(NilPtr |/=| x)
         )
       }
 
@@ -159,7 +159,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post
 
       val prePointers = findPointers(pre)
-      val postPointers = findPointers(post).filter(_.vars.forall(v => goal.isExistential(v)))
+      val postPointers = findPointers(post)
 
       if (prePointers.isEmpty && postPointers.isEmpty)
         Nil // no pointers to insert
