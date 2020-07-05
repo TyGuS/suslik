@@ -21,12 +21,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       anyPhaseRules.filterNot(_.isInstanceOf[GeneratesCode]) ++
         symbolicExecutionRules ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
+    else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
     else if (!config.phased)
-    // Phase distinction is disabled: use all non top-level rules
+    // Phase distinction is disabled: use all rules
       anyPhaseRules ++ unfoldingPhaseRules ++
         postBlockPhaseRules ++ preBlockPhaseRules ++
         pointerPhaseRules ++ purePhaseRules
-    else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
     else anyPhaseRules ++ specBasedRules(node)
   }
 

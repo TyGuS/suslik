@@ -1,10 +1,10 @@
 package org.tygus.suslik.logic
 
-import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
-import Ordering.Implicits._
+
+import scala.Ordering.Implicits._
 
 object Specifications extends SepLogicUtils {
 
@@ -41,27 +41,6 @@ object Specifications extends SepLogicUtils {
     }
 
     def ghosts(params: Set[Var]): Set[Var] = this.vars -- params
-
-    /**
-      * For all pointers x :-> v, changes v to a fresh variable $ex.
-      * Returns a substitution from $ex to v.
-      */
-    def relaxPTSImages: (Assertion, Subst) = {
-      val ptss = sigma.ptss
-      val (_, sub, newPtss) =
-        ptss.foldRight((Set.empty: Set[Var], Map.empty: Subst, Nil: List[PointsTo])) {
-          case (p@PointsTo(x, off, e), z@(taken, sbst, acc)) =>
-            // Only relax if the pure part is not affected!
-            if (e.vars.intersect(phi.vars).isEmpty) {
-              val freshName = LanguageUtils.generateFreshExistential(taken)
-              val taken1 = taken + freshName
-              val sub1 = sbst + (freshName -> e)
-              (taken1, sub1, PointsTo(x, off, freshName) :: acc)
-            } else (taken, sbst, p :: acc)
-        }
-      val newSigma = mkSFormula(sigma.chunks.filter(!ptss.contains(_)) ++ newPtss)
-      (this.copy(sigma = newSigma), sub)
-    }
 
     def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
       for {
