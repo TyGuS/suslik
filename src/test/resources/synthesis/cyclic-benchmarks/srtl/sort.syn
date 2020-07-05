@@ -1,0 +1,13 @@
+# -x true -b true -c 2 -p true
+
+sort a list
+
+#####
+
+{ 0 <= n ; r :-> 0 ** sll(x, n, lo, hi) }
+void sort (loc x, loc r)
+{ true ; r :-> y ** srtl(y, n, lo, hi) }
+
+#####
+
+

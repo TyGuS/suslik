@@ -258,9 +258,9 @@ object Specifications extends SepLogicUtils {
       */
     //    lazy val cost: Int = pre.cost.max(post.cost)
     lazy val cost: Int = callGoal match {
-      case None => pre.cost + post.cost + existentials.size
-      case Some(cg) => cg.callerPre.cost + cg.callerPost.cost + (cg.callerPost.vars -- allUniversals).size
-    }  // + callGoal.map(_.cost).getOrElse(0)
+      case None => pre.cost // + post.cost  // + existentials.size //
+      case Some(cg) => cg.callerPre.cost // + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
+    }
   }
 
   def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
