@@ -11,3 +11,11 @@ predicate srtl(loc x, int len, int lo, int hi) {
                       v <= lo1 /\ 0 <= v /\ v <= 7 ;
                       [x, 2] ** x :-> v ** (x + 1) :-> nxt ** srtl(nxt, len1, lo1, hi1) }
 }
+
+predicate descl(loc x, int len, int lo, int hi) {
+|  x == 0        => { len == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == 0)  => { len == 1 + len1  /\  0 <= len1  /\
+                      lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= lo1 /\ lo1 <= 7 /\ 0 <= hi1 /\ hi1 <= 7 /\
+                      v >= hi1 /\ 0 <= v /\ v <= 7 ;
+                      [x, 2] ** x :-> v ** (x + 1) :-> nxt ** descl(nxt, len1, lo1, hi1) }
+}
