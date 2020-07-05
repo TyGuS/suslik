@@ -1,4 +1,4 @@
-#. -b true -c 2 -x true -p true
+#. -b true -c 2 -x true -p true -f 1
 sorted list: merge
 
 #####

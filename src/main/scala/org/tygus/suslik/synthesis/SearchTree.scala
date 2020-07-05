@@ -174,7 +174,7 @@ object SearchTree {
     }
 
     lazy val cost: Int = {
-      goal.cost + extraCost
+      goal.cost.max(extraCost)
     }
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)

@@ -5,7 +5,6 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -80,15 +79,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      val gamma = goal.gamma
-
-      def alreadyLoaded(a:Var): Boolean = {
-        goal.programVars.exists(b => SMTSolving.valid(goal.pre.phi ==> (a |=| b)))
-      }
 
       def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(x@Var(_), _, a@Var(_)) =>
-           !goal.isGhost(x) && goal.isGhost(a) && ! alreadyLoaded(a)
+           !goal.isGhost(x) && goal.isGhost(a)
         case _ => false
       }
 

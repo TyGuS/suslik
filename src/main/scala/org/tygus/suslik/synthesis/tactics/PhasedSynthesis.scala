@@ -125,8 +125,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           UnificationRules.PickArg,
           UnificationRules.PickCard,
           UnificationRules.HeapUnifyPure,
-          DelegatePureSynthesis.PureSynthesisNonfinal
-//          UnificationRules.Pick
+//          DelegatePureSynthesis.PureSynthesisNonfinal
+          UnificationRules.Pick
           ))
   }
 

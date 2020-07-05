@@ -257,7 +257,10 @@ object Specifications extends SepLogicUtils {
       * for now just the number of heaplets in pre and post
       */
     //    lazy val cost: Int = pre.cost.max(post.cost)
-    lazy val cost: Int = pre.cost + post.cost + callGoal.map(_.cost).getOrElse(0)
+    lazy val cost: Int = callGoal match {
+      case None => pre.cost + post.cost + existentials.size
+      case Some(cg) => cg.callerPre.cost + cg.callerPost.cost + (cg.callerPost.vars -- allUniversals).size
+    }  // + callGoal.map(_.cost).getOrElse(0)
   }
 
   def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {

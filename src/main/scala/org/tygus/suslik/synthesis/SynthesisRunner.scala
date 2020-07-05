@@ -130,6 +130,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(maxOpenDepth = d)
     }).text("maximum unfolding depth in the pre-condition; default: 1")
 
+    opt[Int]('f', "maxCallDepth").action(cfg { d =>
+      _.copy(maxCalls = d)
+    }).text("maximum call depth; default: 1")
+
     opt[Boolean]('x', "auxAbduction").action(cfg { b =>
       _.copy(auxAbduction = b)
     }).text("abduce auxiliary functions; default: false")
@@ -166,7 +170,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
     }.text("print synthesis context; default: false")
 
-    opt[Boolean]('f', "printFail").action(cfg { b =>
+    opt[Boolean]("printFail").action(cfg { b =>
       _.copy(printFailed = b)
     }).text("print failed rule applications; default: false")
 

@@ -21,7 +21,7 @@ case class SynConfig(
                       // Synthesis params
                       maxOpenDepth: Int = 1,
                       maxCloseDepth: Int = 1,
-                      callCost: Int = 2,
+                      maxCalls: Int = 2,
                       auxAbduction: Boolean = false,
                       branchAbduction: Boolean = false,
                       phased: Boolean = true,

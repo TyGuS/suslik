@@ -89,6 +89,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         // Optimization: do not consider f if its pre has predicates that cannot possibly match ours
         if multiSubset(f.pre.sigma.profile.apps, goal.pre.sigma.profile.apps)
+        if goal.pre.sigma.callTags.min < goal.env.config.maxCalls
 
         newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap // Add f's (fresh) variables to gamma
         call = Call(Var(f.name), f.params.map(_._1), l)
@@ -117,19 +118,17 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val callGoal = goal.callGoal.get.applySubstitution
       val call = callGoal.call
-      val budHeap = callGoal.callerPre.sigma - goal.pre.sigma
+      val callTag = (callGoal.callerPre.sigma - goal.pre.sigma).callTags.max + 1
       val noGhostArgs = call.args.forall(_.vars.subsetOf(goal.programVars.toSet))
 
       if (post.sigma.isEmp &&                                   // companion's transformed pre-heap is empty
         goal.existentials.isEmpty &&                            // no existentials
+        callTag <= goal.env.config.maxCalls &&
         noGhostArgs &&                                          // TODO: if slow, move this check to when substitution is made
         // canEmitCall(budHeap, goal, call.companion) &&           // termination
         SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
       {
-        // We would like to substitute all the fresh vars in calleePost, but we can't
-        // since it might have predicates and their arguments must be variables.
-        // So instead we are adding the substitution as the pure precondition
-        val calleePostSigma = callGoal.calleePost.sigma.setSAppTags(PTag(budHeap.maxCallTag + 1))
+        val calleePostSigma = callGoal.calleePost.sigma.setSAppTags(PTag(callTag))
         val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePostSigma)
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
