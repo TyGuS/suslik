@@ -103,12 +103,12 @@ trait PureLogicUtils {
     case UnaryExpr(OpNot, BoolConst(true)) => eFalse
     case UnaryExpr(OpNot, BoolConst(false)) => eTrue
 
-    case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+    case BinaryExpr(OpEq, Var(n1), Var(n2)) if n1 == n2 => // remove trivial equality
       BoolConst(true)
     case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
       if (n1 <= n2) BinaryExpr(OpEq, v1, v2) else BinaryExpr(OpEq, v2, v1)
     case BinaryExpr(OpEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpEq, v, simplify(e))
-    case BinaryExpr(OpSetEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+    case BinaryExpr(OpSetEq, Var(n1), Var(n2)) if n1 == n2 => // remove trivial equality
       BoolConst(true)
     case BinaryExpr(OpSetEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
       if (n1 <= n2) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
@@ -146,30 +146,6 @@ trait PureLogicUtils {
   def simplify(p: PFormula): PFormula = {
     val cs = p.conjuncts.map(simplify) - eTrue
     if (cs.contains(eFalse)) pFalse else PFormula(cs)
-  }
-
-  val isRelationPFormula: (Expr) => Boolean = {
-    case BinaryExpr(op, e1, e2) => op.isInstanceOf[RelOp] && isAtomicExpr(e1) && isAtomicExpr(e2)
-    case _ => false
-  }
-
-  val isAtomicPFormula: Expr => Boolean = {
-    case BoolConst(true) | BoolConst(false) => true
-    case Var(_) => true // Not sure, because var might be non-bool, which is not very atomic (or is it atomic enough?)
-    case UnaryExpr(OpNot, Var(_)) => true // here var must be bool
-    case UnaryExpr(OpNot, p) => isRelationPFormula(p)
-    case p => isRelationPFormula(p)
-  }
-
-  val isDisjunction: Expr => Boolean = {
-    case BinaryExpr(OpAnd, _, _) => false
-    case BinaryExpr(OpOr, left, right) => isDisjunction(left) && isDisjunction(right)
-    case p => isAtomicPFormula(p)
-  }
-
-  val isCNF: Expr => Boolean = {
-    case BinaryExpr(OpAnd, left, right) => isCNF(left) && isCNF(right)
-    case p => isDisjunction(p)
   }
 
   def findCommon[T](cond: T => Boolean, ps1: List[T], ps2: List[T]): Option[(T, List[T], List[T])] = {

@@ -234,25 +234,29 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi
       val s1 = goal.pre.sigma
-      val p2 = goal.post.phi
-      val s2 = goal.post.sigma
-      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+
+      // Should only substitute for a ghost
+      def isGhostVar(e: Expr): Boolean = e.isInstanceOf[Var] && goal.universalGhosts.contains(e.asInstanceOf[Var])
 
       findConjunctAndRest({
-        case BinaryExpr(OpEq, v1@Var(_), e2) => !e2.vars.contains(v1)
-        case BinaryExpr(OpSetEq, v1@Var(_), e2) => !e2.vars.contains(v1)
-        case BinaryExpr(OpBoolEq, v1@Var(_), e2) => !e2.vars.contains(v1)
+        case BinaryExpr(OpEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
+        case BinaryExpr(OpBoolEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
+        case BinaryExpr(OpSetEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
         case _ => false
       }, p1) match {
-        case Some((BinaryExpr(_, x@Var(_), l), rest1)) =>
-          val _p1 = rest1.subst(x, l)
-          val _s1 = s1.subst(x, l)
-          val _p2 = p2.subst(x, l)
-          val _s2 = s2.subst(x, l)
-          val newGoal = goal.spawnChild(
-            Assertion(_p1, _s1),
-            Assertion(_p2, _s2))
-            List(RuleResult(List(newGoal), kont, this, goal))
+        case Some((BinaryExpr(_, l, r), rest1)) => {
+          val (x, e) = if (isGhostVar(l)) {
+            (l.asInstanceOf[Var], r)
+          } else {
+            (r.asInstanceOf[Var], l)
+          }
+          val _p1 = rest1.subst(x, e)
+          val _s1 = s1.subst(x, e)
+          val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))
+          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          assert(goal.callGoal.isEmpty)
+          List(RuleResult(List(newGoal), kont, this, goal))
+        }
         case _ => Nil
       }
     }

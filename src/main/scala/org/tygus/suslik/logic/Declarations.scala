@@ -49,19 +49,6 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
         s" ${pre.pp} ${post.pp}"
   }
 
-  def relaxFunSpec = {
-    val (relaxedPre, sub) = pre.relaxPTSImages
-    val reversedSub = for ((k, v@Var(_)) <- sub) yield v -> k
-    val relaxedPost = post.subst(reversedSub)
-    (this.copy(pre = relaxedPre, post = relaxedPost), sub)
-  }
-
-  def refreshExistentials(taken: Set[Var], suffix: String = ""): FunSpec = {
-    val sub = refreshVars(((post.vars -- pre.vars) -- params.map(_._1).toSet).toList, taken, suffix)
-    val newPost = post.subst(sub)
-    this.copy(post = newPost)
-  }
-
   def refreshAll(taken: Set[Var], suffix: String = ""): (SubstVar, FunSpec) = {
     val sub = refreshVars((post.vars ++ pre.vars ++ params.map(_._1).toSet).toList, taken, suffix)
     val newParams = params.map({case (v, t) => (v.varSubst(sub), t)})
@@ -79,8 +66,6 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
 case class InductiveClause(selector: Expr, asn: Assertion) extends PrettyPrinting with PureLogicUtils {
   override def pp: String =
     s"${selector.pp} => ${asn.pp}"
-
-  def valid: Boolean = isAtomicPFormula(selector)
 
   /*
     Get info about types
@@ -161,8 +146,6 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
     val cls = clauses.map(_.pp).mkString(" | ")
     prelude  + s"{ $cls }"
   }
-
-  def valid: Boolean = clauses.forall(_.valid)
 
   /**
     * Renames existentials so they wouldn't capture the parameters and `vars`
