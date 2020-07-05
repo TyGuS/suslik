@@ -75,11 +75,11 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val atoms = atomCandidates(goal)
       // Toggle this to enable abduction of conjunctions
       // (without branch pruning, produces too many branches)
-      atoms
-//      for {
-//        subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
-//        if subset.nonEmpty && subset.size <= 2
-//      } yield PFormula(subset).toExpr
+//      atoms
+      for {
+        subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
+        if subset.nonEmpty && subset.size <= 2
+      } yield PFormula(subset).toExpr
     }
 
     /**
