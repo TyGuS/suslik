@@ -1,10 +1,10 @@
-# -o 2 -x true -p true
+# -o 2 -c 2 -x true -p true
 
 should be able to compute a length of a multi-list
 
 ###
 
-{ true; r :-> z ** multilist(x, len, s)<a> }
+{ true; r :-> x ** multilist(x, len, s)<a> }
   void multilist_length(loc r)
 { true; r :-> len ** multilist(x, len, s) }
 

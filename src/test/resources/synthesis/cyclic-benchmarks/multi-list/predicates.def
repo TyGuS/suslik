@@ -4,7 +4,7 @@ predicate sll(loc x, int len, set s) {
 }
 
 predicate multilist(loc x, int size, set s) {
-|  x == 0        => { len == 0 /\ s == {} ; emp }
-|  not (x == 0)  => { size == len1 + len2 /\ s == s1 ++ s2 ; 
-                      [x, 2] ** x :-> h ** (x + 1) :-> t ** sll(h, len1, s1) ** multilist(t, len2, s2) }
+|  x == 0        => { size == 0 /\ s == {} ; emp }
+|  not (x == 0)  => { size == len1 + size2 /\ s == s1 ++ s2 ;
+                      [x, 2] ** x :-> h ** (x + 1) :-> t ** sll(h, len1, s1) ** multilist(t, size2, s2) }
 }
