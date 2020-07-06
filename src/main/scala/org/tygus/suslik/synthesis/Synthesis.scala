@@ -46,6 +46,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
+          log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
         case None =>
@@ -75,6 +76,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
     val sz = worklist.length
     log.print(List((s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
+    log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
     log.print(List((s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
@@ -100,12 +102,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           node.fail
           None
         }
-        case Some(Succeeded(sol)) => { // Same goal has succeeded before: return the same solution
-          log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
-          trace.add(node.id, Succeeded(sol), Some("cache"))
-          worklist = addNewNodes(Nil)
-          node.succeed(sol)
-        }
+        case Some(Succeeded(sol)) => expandNode(node, addNewNodes)
+//        { // Same goal has succeeded before: return the same solution
+//          log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
+//          trace.add(node.id, Succeeded(sol), Some("cache"))
+//          worklist = addNewNodes(Nil)
+//          node.succeed(sol)
+//        }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
           log.print(List(("Suspend", RED)))
           memo.suspend(node)

@@ -182,7 +182,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(traceToJsonFile = Some(new File(fn)))
     }).text("dump entire proof search trace to a json file; default: none")
 
-    opt[Boolean](name = "memoization").action(cfg { b =>
+    opt[Boolean](name = "memo").action(cfg { b =>
       _.copy(memoization = b)
     }).text("enable memoization; default: true")
 

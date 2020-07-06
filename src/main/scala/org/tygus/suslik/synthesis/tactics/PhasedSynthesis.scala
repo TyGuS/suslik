@@ -107,7 +107,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       FailRules.PostInconsistent,
       FailRules.CheckPost) ++
       (if (goal.post.sigma.apps.nonEmpty)
-        List(LogicalRules.FrameUnfolding,
+        List(LogicalRules.FrameUnfoldingFinal,
           UnificationRules.HeapUnifyUnfolding)
       else if (goal.post.sigma.blocks.nonEmpty)
         List(LogicalRules.FrameBlock,

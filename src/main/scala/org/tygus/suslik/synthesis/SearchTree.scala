@@ -78,16 +78,18 @@ object SearchTree {
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution)(implicit config: SynConfig): Option[Solution] = {
       memo.save(goal, Succeeded(s))
+      successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
         case None => Some(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
           worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
-          // Check if an has more open subgoals:
-          if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
-            an.parent.succeed(an.kont(List(s)))
-          } else { // there are other open subgoals: partially apply and replace in descendants
-            val newAN = an.copy(kont = an.kont.partApply(s))
-            worklist = worklist.map(_.replaceAncestor(an.id, newAN))
+          val newAN = an.copy(kont = an.kont.partApply(s)) // record solution in my parent
+          worklist = worklist.map(_.replaceAncestor(an.id, newAN)) // replace my parent in the tree
+          successLeaves = successLeaves.map(_.replaceAncestor(an.id, newAN))
+          // Check if my parent has more open subgoals:
+          if (newAN.kont.arity == 0) { // there are no more open subgoals: an has succeeded
+            newAN.parent.succeed(newAN.kont(List()))
+          } else { // there are other open subgoals:
             None
           }
         }
@@ -110,6 +112,14 @@ object SearchTree {
       }
     }
 
+    // Is n part of a branch of my descendants that hasn't yet fully succeeded?
+    // Yes if there's a incomplete and-node on the way from n to me
+    private def isFailedDescendant(n: OrNode): Boolean =
+      n.andAncestors.find(an => an.kont.arity > 0) match {
+      case None => false
+      case Some(an) => an.hasAncestor(this.id)
+    }
+
     // And nodes that are proper ancestors of this node in the search tree
     def andAncestors: List[AndNode] = parent match {
       case None => Nil
@@ -126,7 +136,7 @@ object SearchTree {
     def depth: Int = ancestors.length
 
     // Is other from the same branch of the search as myself?
-    def isAndSibling(other: OrNode): Boolean = {
+    private def isAndSibling(other: OrNode): Boolean = {
       val leastCommonAndAncestor = andAncestors.find(an => other.andAncestors.contains(an))
       leastCommonAndAncestor match {
         case None => false // this can happen if the only common ancestor is root
@@ -140,28 +150,8 @@ object SearchTree {
       }
     }
 
-    // All alternative partial derivations that this node is participating in
-    // (each partial derivation is represented as a subset of success leaves)
-    def allPartialDerivations: List[List[OrNode]] = {
-      // These nodes are in the same branch as me, but not necessarily with each other
-      val relevantNodes = successLeaves.filter(isAndSibling)
-
-      // Are all nodes in s pairwise and-siblings?
-      def allAndSiblings(s: Set[OrNode]): Boolean = {
-        val results: Set[Boolean] = for { x <- s ; y <- s - x} yield x.isAndSibling(y)
-        results.forall(x => x)
-      }
-
-      val candidateDerivations = relevantNodes.toSet.subsets.filter(allAndSiblings).toList
-      assert(candidateDerivations.nonEmpty, "Candidate derivations should not be empty")
-      val maximalDerivations = for {
-        d <- candidateDerivations
-        // Only keep d if it's maximal, i.e. there is no candidate derivation that is a strict superset of d
-        if candidateDerivations.forall(c => c == d || !d.subsetOf(c))
-      } yield d.toList
-      assert(maximalDerivations.nonEmpty)
-      maximalDerivations
-    }
+    // The partial derivation that this node is part of (represented as a subset of success leaves)
+    def partialDerivation: List[OrNode] = successLeaves.filter(isAndSibling)
 
     def pp(d: Int = 0): String = parent match {
       case None => "-"

@@ -4,7 +4,7 @@ import org.tygus.suslik.language.Expressions.{BinaryExpr, OpLt, Var}
 import org.tygus.suslik.language.{CardType, PrettyPrinting}
 import org.tygus.suslik.logic.Specifications.{Goal, GoalLabel}
 import org.tygus.suslik.logic.smt.CyclicProofChecker
-import org.tygus.suslik.report.{Log, StopWatch}
+import org.tygus.suslik.report.Log
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, OrNode}
 import org.tygus.suslik.util.SynStats
 
@@ -65,16 +65,16 @@ object Termination {
   // satisfies the global soundness condition of cyclic proofs after adding new transitions of the andNode
   def isTerminatingExpansion(andNode: AndNode)(implicit log: Log, config: SynConfig, stats: SynStats): Boolean = {
     if (andNode.transitions.exists(_.isBacklink)) {
-      val results = for {
-        // Construct the trace using only success leaves from my branch of the search and my own proof branch
-        relevantSucceessLeaves <- andNode.parent.allPartialDerivations
-        trace = collectTrace(andNode.parent :: relevantSucceessLeaves, andNode.transitions)
-        //        () = log.print(List((s"New backlink formed by ${andNode.rule}", Console.CYAN)))
-        //        () = log.print(List((s"${trace.map(_.pp).mkString("\n")};", Console.CYAN)))
-        traceToCheck = s"${trace.map(_.pp).mkString("\n")};"
-        result = stats.recordCyclistTime(CyclicProofChecker.checkProof(traceToCheck))
-      } yield result
-      results.reduce(_ && _)
+      val relevantSucceessLeaves = andNode.parent.partialDerivation
+      val trace = collectTrace(andNode.parent :: relevantSucceessLeaves, andNode.transitions)
+      // No duplicate transitions
+      assert(trace.groupBy(t => (t.from, t.to)).size == trace.size)
+//      log.print(List((s"New backlink formed by ${andNode.rule}", Console.CYAN)))
+//      log.print(List((s"${trace.map(_.pp).mkString("\n")};", Console.CYAN)))
+      val traceToCheck = s"${trace.map(_.pp).mkString("\n")};"
+      val res = stats.recordCyclistTime(CyclicProofChecker.checkProof(traceToCheck))
+//      log.print(List((res.toString, Console.CYAN)))
+      res
     }
     else true // This expansion does not form a backlink, so cannot break termination
   }
