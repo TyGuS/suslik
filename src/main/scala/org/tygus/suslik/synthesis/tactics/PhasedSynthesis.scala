@@ -112,7 +112,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       else if (goal.post.sigma.blocks.nonEmpty)
         List(LogicalRules.FrameBlock,
           UnificationRules.HeapUnifyBlock,
-          OperationalRules.AllocRule)
+//          OperationalRules.AllocRule
+        )
       else if (goal.hasExistentialPointers)
         List(LogicalRules.FrameFlat,
           OperationalRules.WriteRule,
