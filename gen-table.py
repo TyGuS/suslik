@@ -8,13 +8,14 @@ import csv
 # Globals
 CSV_FILE = 'stats.csv'                    # CSV-input file
 LATEX_FILE = 'results.tex'                  # Latex-output file
-PAPER_DIR = '/mnt/h/Work/papers/synsl/synsl/popl19-draft/tab' # Directory where to copy the latex file (if exists)
-TEST_DIR = 'src/test/resources/synthesis/paper-benchmarks/'
-SOURCES = ['natural', 'jennisys', 'dryad']
+PAPER_DIR = '/mnt/h/Work/papers/synsl/cyclic/current/tab' # Directory where to copy the latex file (if exists)
+TEST_DIR = 'src/test/resources/synthesis/cyclic-benchmarks/'
+SOURCES = ['eguchi', 'natural', 'jennisys']
+VARIANTS = []
 # VARIANTS = ['phased', 'invert', 'fail', 'commute', 
             # 'phased-invert', 'phased-fail', 'phased-commute', 'invert-fail', 'invert-commute', 'fail-commute',
             # 'phased-invert-fail', 'phased-invert-commute', 'invert-fail-commute']
-VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
+# VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
 
 class Benchmark:
   def __init__(self, name, description, source=[], ntime=-3.0):
@@ -31,7 +32,39 @@ class BenchmarkGroup:
     self.name = name            # Id
     self.benchmarks = benchmarks      # List of benchmarks in this group
 
-ALL_BENCHMARKS = [
+NEW_BENCHMARKS = [    
+  BenchmarkGroup("Singly Linked List", [
+    Benchmark('sll/listfree2', 'deallocate two'),
+    Benchmark('sll/multi-append', 'append three'),
+    Benchmark('sll/append-copy', 'non-destructive append'),
+    Benchmark('sll/intersect', 'intersection', ['eguchi']),
+    Benchmark('sll/diff', 'difference', ['eguchi']),
+    Benchmark('sll/unique', 'deduplicate', ['eguchi']),
+    ]),
+  BenchmarkGroup("List of Lists", [
+    Benchmark('multi-list/multilist-free', 'deallocate'),
+    Benchmark('multi-list/multilist-flatten', 'concatenate', ['eguchi']),
+    ]),    
+  BenchmarkGroup("Binary Tree", [
+    Benchmark('tree/treefree2', 'deallocate two'),
+    Benchmark('tree/tree-flatten', 'flatten into list'),
+    ]),
+  BenchmarkGroup("Rose Tree", [
+    Benchmark('rose-tree/rose-tree-free', 'deallocate'),
+    Benchmark('rose-tree/rose-tree-flatten', 'flatten into list'),
+    ]),
+  BenchmarkGroup("Sorted list", [
+    Benchmark('srtl/reverse', 'reverse', ['eguchi']),
+    Benchmark('srtl/sort', 'sort', ['eguchi']),
+    Benchmark('srtl/srtl-merge', 'merge', ['natural']),
+    ]),
+  BenchmarkGroup("BST", [
+    Benchmark('bst/list-to-bst', 'from list', ['eguchi']),
+    Benchmark('bst/bst-to-srtl', 'to sorted list', ['eguchi']),
+    ]),
+]
+
+OLD_BENCHMARKS = [
   BenchmarkGroup("Integers",  [
     Benchmark('ints/swap', 'swap two'),
     Benchmark('ints/min2', 'min of two', ['jennisys']),
@@ -67,10 +100,11 @@ ALL_BENCHMARKS = [
 ]
 
 class SynthesisResult:
-  def __init__(self, name, time, spec_size, code_size):
+  def __init__(self, name, time, spec_size, num_procs, code_size):
     self.name = name                                      # Benchmark name
     self.time = time                                      # Synthesis time (seconds)
     self.spec_size = spec_size                            # Cumulative specification size (in AST nodes)
+    self.num_procs = num_procs                            # Number of generated recursive procedures
     self.code_size = code_size                            # Cumulative synthesized code size (in AST nodes)
     self.variant_times = {var : -3.0 for var in VARIANTS} # Synthesis times for SuSLik variants:
       
@@ -110,6 +144,7 @@ def read_csv():
       name = row['Name']
       time = float(row['Time'])/1000
       spec_size = row['Spec Size']
+      num_procs = row['Num Procs']
       code_size = row['Code Size']
       
       is_var = False
@@ -118,15 +153,15 @@ def read_csv():
           # This is a test for a variant
           is_var = True
           suffix_len = len(var) + 1
-          store_result(name[:-suffix_len], time, spec_size, code_size, var)
+          store_result(name[:-suffix_len], time, spec_size, num_procs, code_size, var)
       if not is_var:
-        store_result(name, time, spec_size, code_size)
+        store_result(name, time, spec_size, num_procs, code_size)
       
-def store_result(name, time, spec_size, code_size, variant = 'none'):
+def store_result(name, time, spec_size, num_procs, code_size, variant = 'none'):
   timeOrTO = -1.0 if code_size == 'FAIL' else time
   
   if not(name in results):
-    results[name] = SynthesisResult(name, timeOrTO, spec_size, code_size)
+    results[name] = SynthesisResult(name, timeOrTO, spec_size, num_procs, code_size)
   
   if variant == 'none':
     results[name].time = timeOrTO
@@ -159,15 +194,16 @@ def write_latex():
         result = results [b.name]        
         row = \
           ' & ' + b.description + footnotes(b.source) +\
+          ' & ' + result.num_procs + \
           ' & ' + result.code_size + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
-          ' & ' + format_time(result.time) + \
-          ' & ' + format_time(result.variant_times['phased']) + \
-          ' & ' + format_time(result.variant_times['invert']) + \
-          ' & ' + format_time(result.variant_times['fail']) + \
-          ' & ' + format_time(result.variant_times['commute']) + \
-          ' & ' + format_time(result.variant_times['all']) + \
-          ' & ' + format_ratio(b.natural_time, result.time, 1) +' \\\\'
+          ' & ' + format_time(result.time) + ' \\\\'
+          # ' & ' + format_time(result.variant_times['phased']) + \
+          # ' & ' + format_time(result.variant_times['invert']) + \
+          # ' & ' + format_time(result.variant_times['fail']) + \
+          # ' & ' + format_time(result.variant_times['commute']) + \
+          # ' & ' + format_time(result.variant_times['all']) + \
+          # ' & ' + format_ratio(b.natural_time, result.time, 1) + \          
           
         outfile.write (row)
         outfile.write ('\n')
@@ -237,7 +273,7 @@ if __name__ == '__main__':
   cl_opts = cmdline()
   
   results = dict()
-  groups = ALL_BENCHMARKS
+  groups = NEW_BENCHMARKS
   
   if cl_opts.var:
     generate_variants()
