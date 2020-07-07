@@ -86,7 +86,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val goal = node.goal
       implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
-      log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW)))
+      log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW))) //      <goal: ${node.goal.label.pp}>
       if (config.printEnv) {
         log.print(List((s"${goal.env.pp}", Console.MAGENTA)))
       }

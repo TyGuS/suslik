@@ -6,7 +6,7 @@ import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.LogicalRules.{FrameUnfolding, FrameUnfoldingFinal}
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
-import org.tygus.suslik.synthesis.rules.UnfoldingRules._
+import org.tygus.suslik.synthesis.rules.UnfoldingRules.Close
 import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
 import org.tygus.suslik.synthesis.rules._
 
@@ -89,14 +89,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def unfoldingPostPhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
     LogicalRules.FrameUnfolding,
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.Close,
   )
 
   protected def unfoldingNoUnfoldPhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
     LogicalRules.FrameUnfoldingFinal,
     UnificationRules.HeapUnifyUnfolding,
   )
