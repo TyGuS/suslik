@@ -188,6 +188,18 @@ trait PureLogicUtils {
     go(vs, bound, Map.empty)
   }
 
+  def nubBy[A,B](l:List[A], p:A=>B):List[A] =
+  {
+    def go[A,B](l:List[A], p:A=>B, s:Set[B], acc:List[A]):List[A] = l match
+    {
+      case Nil => acc.reverse
+      case x::xs if s.contains(p(x)) => go(xs,p,s,acc)
+      case x::xs                     => go(xs,p,s+p(x),x::acc)
+    }
+    go(l,p,Set.empty,Nil)
+  }
+
+
 }
 
 case class PureLogicException(msg: String) extends SSLException("pure", msg)

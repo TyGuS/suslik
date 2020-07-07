@@ -138,10 +138,13 @@ object Specifications extends SepLogicUtils {
 
     def ancestorWithLabel(l: GoalLabel): Option[Goal] = ancestors.find(_.label == l)
 
-    // Ancestors before progress was last made
+    // Companion candidates for this goal:
+    // look at ancestors before progress was last made, only keep those with different heap profiles
     def companionCandidates: List[Goal] = {
-      ancestors.dropWhile(_.label.depths.length == this.label.depths.length).filter(_.callGoal.isEmpty)
-      // TODO: actually sufficient to consider everything before last open
+      val allCands = ancestors.dropWhile(_.label.depths.length == this.label.depths.length).filter(_.callGoal.isEmpty).reverse
+      val cands = if (env.config.auxAbduction) allCands else allCands.take(1)
+      nubBy[Goal, (SProfile, SProfile)](cands, c => (c.pre.sigma.profile, c.post.sigma.profile))
+      // TODO: replace this with proc rule
     }
 
     // Turn this goal into a helper function specification
