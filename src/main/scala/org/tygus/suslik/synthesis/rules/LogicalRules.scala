@@ -143,11 +143,11 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (goal.pre.phi == pFalse) return Nil
 
       // Find pointers in `a` that are not yet known to be non-null
-      def findPointers(a: Assertion): Set[Expr] = {
+      def findPointers(p: PFormula, s: SFormula): Set[Expr] = {
         // All pointers
-        val allPointers = (for (PointsTo(l, _, _) <- a.sigma.chunks) yield l).toSet
+        val allPointers = (for (PointsTo(l, _, _) <- s.chunks) yield l).toSet
         allPointers.filter(
-          x => !a.phi.conjuncts.contains(x |/=| NilPtr) && !a.phi.conjuncts.contains(NilPtr |/=| x)
+          x => !p.conjuncts.contains(x |/=| NilPtr) && !p.conjuncts.contains(NilPtr |/=| x)
         )
       }
 
@@ -158,8 +158,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val post = goal.post
 
-      val prePointers = findPointers(pre)
-      val postPointers = findPointers(post)
+      val prePointers = findPointers(pre.phi, pre.sigma)
+      val postPointers = findPointers(pre.phi && post.phi, post.sigma)
 
       if (prePointers.isEmpty && postPointers.isEmpty)
         Nil // no pointers to insert
@@ -197,7 +197,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
       val newPrePhi = extendPure(goal.pre.phi, goal.pre.sigma)
-      val newPostPhi = extendPure(goal.post.phi, goal.post.sigma)
+      val newPostPhi = extendPure(goal.pre.phi && goal.post.phi, goal.post.sigma)
 
       if (newPrePhi.conjuncts.isEmpty && newPostPhi.conjuncts.isEmpty) return Nil
       val newPre = goal.pre.copy(phi = goal.pre.phi && newPrePhi)
