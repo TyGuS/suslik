@@ -8,21 +8,22 @@ import csv
 # Globals
 CSV_FILE = 'stats.csv'                    # CSV-input file
 LATEX_FILE = 'results.tex'                  # Latex-output file
+OLD_LATEX_FILE = 'old_results.tex'          # Latex-output file
 PAPER_DIR = '/mnt/h/Work/papers/synsl/cyclic/current/tab' # Directory where to copy the latex file (if exists)
 TEST_DIR = 'src/test/resources/synthesis/cyclic-benchmarks/'
 SOURCES = ['eguchi', 'natural', 'jennisys']
-VARIANTS = []
+VARIANTS = ['memo', 'dfs', 'bfs']
 # VARIANTS = ['phased', 'invert', 'fail', 'commute', 
             # 'phased-invert', 'phased-fail', 'phased-commute', 'invert-fail', 'invert-commute', 'fail-commute',
             # 'phased-invert-fail', 'phased-invert-commute', 'invert-fail-commute']
 # VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
 
 class Benchmark:
-  def __init__(self, name, description, source=[], ntime=-3.0):
+  def __init__(self, name, description, source=[], stime=-3.0):
     self.name = name        # Id (corresponds to test file name)
     self.description = description  # Description (in the table)
     self.source = source      # Where is this benchmark from (in the table)
-    self.natural_time = ntime
+    self.suslik_time = stime
 
   def str(self):
     return self.name + ': ' + self.description
@@ -66,36 +67,36 @@ NEW_BENCHMARKS = [
 
 OLD_BENCHMARKS = [
   BenchmarkGroup("Integers",  [
-    Benchmark('ints/swap', 'swap two'),
-    Benchmark('ints/min2', 'min of two', ['jennisys']),
+    Benchmark('ints/swap', 'swap two', stime=0.0),
+    Benchmark('ints/min2', 'min of two', ['jennisys'], stime=0.1),
     ]),    
   BenchmarkGroup("Linked List", [
-    Benchmark('sll-bounds/sll-len', 'length', ['natural'], 12.0),
-    Benchmark('sll-bounds/sll-max', 'max', ['natural'], 11.0),
-    Benchmark('sll-bounds/sll-min', 'min', ['natural'], 23.0),
-    Benchmark('sll/sll-singleton', 'singleton', ['jennisys']),
-    Benchmark('sll/sll-free', 'dispose'),
-    Benchmark('sll/sll-init', 'initialize'),
-    Benchmark('sll/sll-copy', 'copy', ['dryad']),
-    Benchmark('sll/sll-append', 'append', ['dryad']),
-    Benchmark('sll/sll-delete-all', 'delete', ['dryad']),
+    Benchmark('sll-bounds/sll-len', 'length', ['natural'], stime=0.4),
+    Benchmark('sll-bounds/sll-max', 'max', ['natural'], stime=0.6),
+    Benchmark('sll-bounds/sll-min', 'min', ['natural'], stime=0.5),
+    Benchmark('sll/sll-singleton', 'singleton', ['jennisys'], stime=0.0),
+    Benchmark('sll/sll-free', 'dispose', stime=0.0),
+    Benchmark('sll/sll-init', 'initialize', stime=0.0),
+    Benchmark('sll/sll-copy', 'copy', ['dryad'], stime=0.2),
+    Benchmark('sll/sll-append', 'append', ['dryad'], stime=0.2),
+    Benchmark('sll/sll-delete-all', 'delete', ['dryad'], stime=0.7),
     ]),
   BenchmarkGroup("Sorted list", [
-    Benchmark('srtl/srtl-prepend', 'prepend', ['natural'], 8.0),
-    Benchmark('srtl/srtl-insert', 'insert', ['natural'], 28.0),
-    Benchmark('srtl/insertion-sort', 'insertion sort', ['natural'], 94.0),
+    Benchmark('srtl/srtl-prepend', 'prepend', ['natural'], stime=0.2),
+    Benchmark('srtl/srtl-insert', 'insert', ['natural'], stime=4.8),
+    Benchmark('srtl/insertion-sort', 'insertion sort', ['natural'], stime=1.1),
     ]),
   BenchmarkGroup("Tree", [
-    Benchmark('tree/tree-size', 'size'),
-    Benchmark('tree/tree-free', 'dispose'),
-    Benchmark('tree/tree-copy', 'copy'),
-    Benchmark('tree/tree-flatten', 'flatten w/append'),
-    Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
+    Benchmark('tree/tree-size', 'size', stime=0.2),
+    Benchmark('tree/tree-free', 'dispose', stime=0.0),
+    Benchmark('tree/tree-copy', 'copy', stime=0.4),
+    Benchmark('tree/tree-flatten', 'flatten w/append', stime=0.4),
+    Benchmark('tree/tree-flatten-acc', 'flatten w/acc', stime=0.6),
     ]),
   BenchmarkGroup("BST", [
-    Benchmark('bst/bst-insert', 'insert', ['natural'], 343.0),
-    Benchmark('bst/bst-left-rotate', 'rotate left', ['natural'], 17.0),
-    Benchmark('bst/bst-right-rotate', 'rotate right', ['natural'], 14.0),
+    Benchmark('bst/bst-insert', 'insert', ['natural'], stime=31.9),
+    Benchmark('bst/bst-left-rotate', 'rotate left', ['natural'], stime=37.7),
+    Benchmark('bst/bst-right-rotate', 'rotate right', ['natural'], stime=17.2),
     ]),
 ]
 
@@ -114,10 +115,16 @@ class SynthesisResult:
 
 # SuSLik command-line options to run the variant var    
 def var_option(var):
-  if var == 'all':
-    return ' '.join([var_option(v) for v in VARIANTS[:-1]])
-  else:
-    return ' '.join(['--' + v + ' false' for v in var.split('-')])
+  # if var == 'all':
+    # return ' '.join([var_option(v) for v in VARIANTS[:-1]])
+  # else:
+    # return ' '.join(['--' + v + ' false' for v in var.split('-')])
+  if var == 'dfs':
+    return '[--dfs true]'
+  elif var == 'bfs'
+    return '[--bfs true]'
+  elif var == 'memo'
+    return '[--memo false]'
     
 def format_time(t):
   if t < 0:
@@ -197,13 +204,13 @@ def write_latex():
           ' & ' + result.num_procs + \
           ' & ' + result.code_size + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
-          ' & ' + format_time(result.time) + ' \\\\'
-          # ' & ' + format_time(result.variant_times['phased']) + \
-          # ' & ' + format_time(result.variant_times['invert']) + \
-          # ' & ' + format_time(result.variant_times['fail']) + \
+          ' & ' + format_time(result.time)
+          ' & ' + format_time(result.variant_times['dfs']) + \
+          ' & ' + format_time(result.variant_times['bfs']) + \
+          ' & ' + format_time(result.variant_times['memo']) + ' \\\\'
           # ' & ' + format_time(result.variant_times['commute']) + \
           # ' & ' + format_time(result.variant_times['all']) + \
-          # ' & ' + format_ratio(b.natural_time, result.time, 1) + \          
+          # ' & ' + format_ratio(b.suslik_time, result.time, 1) + \                    
           
         outfile.write (row)
         outfile.write ('\n')
@@ -224,6 +231,46 @@ def write_latex():
   print 'Total:', total_count
   for var in VARIANTS:
     print 'TO', var, to_count[var]
+    
+def write_latex_old():
+  '''Generate Latex table from the results dictionary'''
+  
+  total_count = 0
+  to_count = {var : 0 for var in VARIANTS}
+
+  with open(LATEX_FILE, 'w') as outfile:
+    for group in groups:
+      outfile.write ('\multirow{')
+      outfile.write (str(group.benchmarks.__len__()))
+      outfile.write ('}{*}{\\parbox{1cm}{\center{')
+      outfile.write (group.name)
+      outfile.write ('}}}')      
+
+      for b in group.benchmarks:
+        result = results [b.name]        
+        row = \
+          ' & ' + b.description + footnotes(b.source) +\
+          ' & ' + result.code_size + \
+          ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
+          ' & ' + format_time(result.time)
+          ' & ' + format_ratio(b.suslik_time, result.time, 1) + ' \\\\'
+          
+        outfile.write (row)
+        outfile.write ('\n')
+        
+        total_count = total_count + 1
+        
+      outfile.write ('\\hline')
+      
+  # Copy latex file into the paper directory if properly set
+  if os.path.isdir(PAPER_DIR):
+    shutil.copy(OLD_LATEX_FILE, PAPER_DIR)
+  else:
+    print 'Paper not found in ', PAPER_DIR  
+      
+  print 'Total:', total_count
+  for var in VARIANTS:
+    print 'TO', var, to_count[var]    
   
 def generate_variants():
   '''Generate benchmark variants with disables optimizations'''
@@ -288,6 +335,12 @@ if __name__ == '__main__':
     
     # Generate Latex table
     write_latex()
+    
+  results = dict()
+  groups = OLD_BENCHMARKS
+  read_csv()
+  write_latex_old()
+    
     
 
     

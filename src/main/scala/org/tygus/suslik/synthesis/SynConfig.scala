@@ -26,6 +26,7 @@ case class SynConfig(
                       branchAbduction: Boolean = false,
                       phased: Boolean = true,
                       depthFirst: Boolean = false,
+                      breadthFirst: Boolean = false,
                       memoization: Boolean = true,
                       termination: TerminationMetric = lexicographic,
                       delegatePure: Boolean = true,

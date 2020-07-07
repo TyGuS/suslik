@@ -127,9 +127,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   // Given a worklist, return the next node to work on
   // and a strategy for combining its children with the rest of the list
   protected def selectNode(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
-    if (config.depthFirst) // DFS? Pick the first one
+    if (config.depthFirst) // DFS? Pick the first one, insert new nodes in the front
       (worklist.head, _ ++ worklist.tail)
-    else { // Otherwise pick a minimum-cost node that is not suspended
+    else if (config.breadthFirst) { // BFS? Pick the first one non-suspended, insert new nodes in the back
+      val best = worklist.minBy(n => memo.isSuspended(n))
+      val idx = worklist.indexOf(best)
+      (best, worklist.take(idx) ++ worklist.drop(idx + 1) ++ _)
+    } else { // Otherwise pick a minimum-cost node that is not suspended
       val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
       val idx = worklist.indexOf(best)
       (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))

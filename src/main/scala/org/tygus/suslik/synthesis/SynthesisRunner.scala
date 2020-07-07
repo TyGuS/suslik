@@ -146,9 +146,13 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(phased = b)
     }).text("split rules into unfolding and flat phases; default: true")
 
-    opt[Boolean]('d', name = "depth").action(cfg { b =>
+    opt[Boolean]('d', name = "dfs").action(cfg { b =>
       _.copy(depthFirst = b)
     }).text("depth first search; default: false")
+
+    opt[Boolean](name = "bfs").action(cfg { b =>
+      _.copy(breadthFirst = b)
+    }).text("breadth first search (ignore weights); default: false")
 
     opt[Boolean](name = "delegate").action(cfg { b =>
       _.copy(delegatePure = b)
