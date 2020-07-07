@@ -11,7 +11,7 @@ LATEX_FILE = 'results.tex'                  # Latex-output file
 OLD_LATEX_FILE = 'old_results.tex'          # Latex-output file
 PAPER_DIR = '/mnt/h/Work/papers/synsl/cyclic/current/tab' # Directory where to copy the latex file (if exists)
 TEST_DIR = 'src/test/resources/synthesis/cyclic-benchmarks/'
-SOURCES = ['eguchi', 'natural', 'jennisys']
+SOURCES = ['eguchi', 'natural', 'jennisys', 'dryad']
 VARIANTS = ['memo', 'dfs', 'bfs']
 # VARIANTS = ['phased', 'invert', 'fail', 'commute', 
             # 'phased-invert', 'phased-fail', 'phased-commute', 'invert-fail', 'invert-commute', 'fail-commute',
@@ -121,9 +121,9 @@ def var_option(var):
     # return ' '.join(['--' + v + ' false' for v in var.split('-')])
   if var == 'dfs':
     return '[--dfs true]'
-  elif var == 'bfs'
+  elif var == 'bfs':
     return '[--bfs true]'
-  elif var == 'memo'
+  elif var == 'memo':
     return '[--memo false]'
     
 def format_time(t):
@@ -204,7 +204,7 @@ def write_latex():
           ' & ' + result.num_procs + \
           ' & ' + result.code_size + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
-          ' & ' + format_time(result.time)
+          ' & ' + format_time(result.time) + \
           ' & ' + format_time(result.variant_times['dfs']) + \
           ' & ' + format_time(result.variant_times['bfs']) + \
           ' & ' + format_time(result.variant_times['memo']) + ' \\\\'
@@ -238,7 +238,7 @@ def write_latex_old():
   total_count = 0
   to_count = {var : 0 for var in VARIANTS}
 
-  with open(LATEX_FILE, 'w') as outfile:
+  with open(OLD_LATEX_FILE, 'w') as outfile:
     for group in groups:
       outfile.write ('\multirow{')
       outfile.write (str(group.benchmarks.__len__()))
@@ -249,11 +249,10 @@ def write_latex_old():
       for b in group.benchmarks:
         result = results [b.name]        
         row = \
-          ' & ' + b.description + footnotes(b.source) +\
+          ' & ' + b.description +\
           ' & ' + result.code_size + \
-          ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
-          ' & ' + format_time(result.time)
-          ' & ' + format_ratio(b.suslik_time, result.time, 1) + ' \\\\'
+          ' & ' + format_time(result.time) + \
+          ' & ' + format_time(b.suslik_time) + ' \\\\'
           
         outfile.write (row)
         outfile.write ('\n')
@@ -319,22 +318,22 @@ if __name__ == '__main__':
   
   cl_opts = cmdline()
   
-  results = dict()
-  groups = NEW_BENCHMARKS
+  # results = dict()
+  # groups = NEW_BENCHMARKS
   
-  if cl_opts.var:
-    generate_variants()
-  elif cl_opts.clean:
-    clean_variants()
-  else:        
-    # Read stats into a dictionary of synthesis results
-    read_csv()
+  # if cl_opts.var:
+    # generate_variants()
+  # elif cl_opts.clean:
+    # clean_variants()
+  # else:        
+    # # Read stats into a dictionary of synthesis results
+    # read_csv()
     
-    # for res in results:
-      # print results[res].str()
+    # # for res in results:
+      # # print results[res].str()
     
-    # Generate Latex table
-    write_latex()
+    # # Generate Latex table
+    # write_latex()
     
   results = dict()
   groups = OLD_BENCHMARKS
