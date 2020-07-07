@@ -8,7 +8,7 @@ Should be able to flatten a skip list into a sorted list
 
 { r :-> x ** skl(x, p, s, n, lo, hi)<a> }
   void skl_to_srtl(loc r, loc p)
-{ r :-> y ** srtl(y, n, lo, hi) ** skl(x, p, s, n, lo, hi) }
+{ r :-> y ** srtl(y, n, lo, hi) }
 
 ###
 

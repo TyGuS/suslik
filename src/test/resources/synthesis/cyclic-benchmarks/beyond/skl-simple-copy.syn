@@ -1,0 +1,14 @@
+# -p true --lexi true
+
+[AuxRec]
+
+should be able to flatten a skip list to a SLL
+
+###
+
+{ r :-> x ** skl_simple(x, p, s) }
+  void skl_simple_flatten(loc r, loc p, loc t)
+{ r :-> y ** skl_simple(x, p, s) ** skl_simple(y, t, s) }
+
+###
+

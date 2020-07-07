@@ -8,7 +8,7 @@ should be able to flatten a skip list to a SLL
 
 { r :-> x ** skl_simple(x, p, s)<a> }
   void skl_simple_flatten(loc r, loc p)
-{ r :-> y ** sll(y, s) ** skl_simple(x, p, s) }
+{ r :-> y ** sll(y, s) }
 
 ###
 
