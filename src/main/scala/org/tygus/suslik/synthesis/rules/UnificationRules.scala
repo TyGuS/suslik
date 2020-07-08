@@ -153,9 +153,18 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     def apply(goal: Goal): Seq[RuleResult] = {
       val constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
 
+      val exCandidates = // goal.existentials
+       if (goal.post.sigma.isEmp) goal.existentials else goal.existentials.intersect(goal.post.sigma.vars)
+
+      def uniCandidates(ex: Var): Set[Var] = {
+        if (goal.post.sigma.isEmp) goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)
+        else goal.programVars.toSet
+//        goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)
+      }
+
       for {
-        ex <- least(goal.existentials) // since all existentials must go, no point trying them in different order
-        v <- toSorted(goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)) ++ constants
+        ex <- least(exCandidates) // since all existentials must go, no point trying them in different order
+        v <- toSorted(uniCandidates(ex)) ++ constants
         if goal.getType(ex) == v.getType(goal.gamma).get
         sigma = Map(ex -> v)
         newPost = goal.post.subst(sigma)

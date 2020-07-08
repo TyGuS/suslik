@@ -1,4 +1,4 @@
-#. -b true -c 2 -x true -p true -f 1
+#. -b true -c 2 -x true -p true -f 1 --maxGuardConjuncts 1 --topLevelRecursion 0
 sorted list: merge
 
 #####
@@ -49,5 +49,3 @@ void srtl_merge10 (loc x2, loc y, loc r) {
 }
 
 #####
-
-

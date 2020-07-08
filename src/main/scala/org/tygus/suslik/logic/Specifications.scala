@@ -142,8 +142,11 @@ object Specifications extends SepLogicUtils {
     // look at ancestors before progress was last made, only keep those with different heap profiles
     def companionCandidates: List[Goal] = {
       val allCands = ancestors.dropWhile(_.label.depths.length == this.label.depths.length).filter(_.callGoal.isEmpty).reverse
-      val cands = if (env.config.auxAbduction) allCands else allCands.take(1)
-      nubBy[Goal, (SProfile, SProfile)](cands, c => (c.pre.sigma.profile, c.post.sigma.profile))
+      val cands =
+        if (env.config.auxAbduction) nubBy[Goal, (SProfile, SProfile)](allCands, c => (c.pre.sigma.profile, c.post.sigma.profile))
+        else allCands.take(1)
+      if (env.config.topLevelRecursion) cands
+      else cands.drop(1)
       // TODO: replace this with proc rule
     }
 

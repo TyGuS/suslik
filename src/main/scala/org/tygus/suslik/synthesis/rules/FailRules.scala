@@ -65,8 +65,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
-        lhs <- goal.programVars
-        rhs <- goal.programVars
+        lhs <- goal.programVars.filter(goal.post.phi.vars.contains)
+        rhs <- goal.programVars.filter(goal.post.phi.vars.contains)
         if lhs != rhs
         if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
       } yield lhs |<=| rhs
@@ -78,7 +78,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 //      atoms
       for {
         subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
-        if subset.nonEmpty && subset.size <= 2
+        if subset.nonEmpty && subset.size <= goal.env.config.maxGuardConjuncts
       } yield PFormula(subset).toExpr
     }
 
