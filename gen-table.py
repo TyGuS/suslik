@@ -213,17 +213,19 @@ def write_latex():
           ' & ' + result.code_size + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
           ' & ' + format_time(result.time) + \
-          ' & ' + result.total_goals + \
-          ' & ' + result.backtracked + \
           ' & ' + format_time(result.variant_times['dfs']) + \
-          ' & ' + result.variant_total_goals['dfs'] + \
-          ' & ' + result.variant_backtracked['dfs'] + \
           ' & ' + format_time(result.variant_times['bfs']) + \
-          ' & ' + result.variant_total_goals['bfs'] + \
-          ' & ' + result.variant_backtracked['bfs'] + \
-          ' & ' + format_time(result.variant_times['memo']) + \
-          ' & ' + result.variant_total_goals['memo'] + \
-          ' & ' + result.variant_backtracked['memo'] + ' \\\\'          
+          ' & ' + format_time(result.variant_times['memo']) + ' \\\\'
+
+          # ' & ' + result.total_goals + \
+          # ' & ' + result.backtracked + \
+          # ' & ' + result.variant_total_goals['dfs'] + \
+          # ' & ' + result.variant_backtracked['dfs'] + \
+          # ' & ' + result.variant_total_goals['bfs'] + \
+          # ' & ' + result.variant_backtracked['bfs'] + \
+          # ' & ' + result.variant_total_goals['memo'] + \
+          # ' & ' + result.variant_backtracked['memo'] + ' \\\\'          
+          
           
         outfile.write (row)
         outfile.write ('\n')
