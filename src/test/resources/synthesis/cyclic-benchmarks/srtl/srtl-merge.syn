@@ -3,9 +3,11 @@ sorted list: merge
 
 #####
 
-{ 0 <= nx /\ 0 <= ny /\ 0 <= lox /\ lox <= 7 /\ 0 <= loy /\ loy <= 7 /\ 0 <= hix /\ hix <= 7 /\ 0 <= hiy /\ hiy <= 7 ; r :-> x ** srtl(x, nx, lox, hix) ** srtl(y, ny, loy, hiy) }
+{ 0 <= nx /\ 0 <= ny ;
+    r :-> x ** srtl(x, nx, lox, hix) ** srtl(y, ny, loy, hiy) }
 void srtl_merge (loc y, loc r)
-{ n == nx + ny /\  lo == (lox <= loy ? lox : loy)  /\ hi == (hix <= hiy ? hiy : hix) ; r :-> z ** srtl(z, n, lo, hi) }
+{ n == nx + ny /\  lo == (lox <= loy ? lox : loy)  /\ hi == (hix <= hiy ? hiy : hix) ;
+    r :-> z ** srtl(z, n, lo, hi) }
 
 #####
 
