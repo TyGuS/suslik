@@ -201,7 +201,7 @@ object SynStatUtil {
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, res: List[Procedure], stats: SynStats): Unit = {
     if (config.logToFile) {
       val statRow = (res match {
-        case Nil => List("FAIL", stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
+        case Nil => List("FAIL", "FAIL", stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
         case procs => List(procs.length, procs.map(_.body.size).sum, stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
       }).mkString(", ")
 

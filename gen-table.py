@@ -19,11 +19,12 @@ VARIANTS = ['memo', 'dfs', 'bfs']
 # VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
 
 class Benchmark:
-  def __init__(self, name, description, source=[], stime=-3.0):
+  def __init__(self, name, description, source=[], stime=-3.0, scode=0):
     self.name = name        # Id (corresponds to test file name)
     self.description = description  # Description (in the table)
     self.source = source      # Where is this benchmark from (in the table)
     self.suslik_time = stime
+    self.suslik_code = scode
 
   def str(self):
     return self.name + ': ' + self.description
@@ -67,47 +68,51 @@ NEW_BENCHMARKS = [
 
 OLD_BENCHMARKS = [
   BenchmarkGroup("Integers",  [
-    Benchmark('ints/swap', 'swap two', stime=0.0),
-    Benchmark('ints/min2', 'min of two', ['jennisys'], stime=0.1),
+    Benchmark('ints/swap', 'swap two', stime=0.0, scode=12),
+    Benchmark('ints/min2', 'min of two', ['jennisys'], stime=0.1, scode=10),
     ]),    
   BenchmarkGroup("Linked List", [
-    Benchmark('sll-bounds/sll-len', 'length', ['natural'], stime=0.4),
-    Benchmark('sll-bounds/sll-max', 'max', ['natural'], stime=0.6),
-    Benchmark('sll-bounds/sll-min', 'min', ['natural'], stime=0.5),
-    Benchmark('sll/sll-singleton', 'singleton', ['jennisys'], stime=0.0),
-    Benchmark('sll/sll-free', 'dispose', stime=0.0),
-    Benchmark('sll/sll-init', 'initialize', stime=0.0),
-    Benchmark('sll/sll-copy', 'copy', ['dryad'], stime=0.2),
-    Benchmark('sll/sll-append', 'append', ['dryad'], stime=0.2),
-    Benchmark('sll/sll-delete-all', 'delete', ['dryad'], stime=0.7),
+    Benchmark('sll-bounds/sll-len', 'length', ['natural'], stime=0.4, scode=21),
+    Benchmark('sll-bounds/sll-max', 'max', ['natural'], stime=0.6, scode=27),
+    Benchmark('sll-bounds/sll-min', 'min', ['natural'], stime=0.5, scode=27),
+    Benchmark('sll/sll-singleton', 'singleton', ['jennisys'], stime=0.0, scode=11),
+    Benchmark('sll/sll-free', 'dispose', stime=0.0, scode=11),
+    Benchmark('sll/sll-init', 'initialize', stime=0.0, scode=13),
+    Benchmark('sll/sll-copy', 'copy', ['dryad'], stime=0.2, scode=35),
+    Benchmark('sll/sll-append', 'append', ['dryad'], stime=0.2, scode=19),
+    Benchmark('sll/sll-delete-all', 'delete', ['dryad'], stime=0.7, scode=44),
     ]),
   BenchmarkGroup("Sorted list", [
-    Benchmark('srtl/srtl-prepend', 'prepend', ['natural'], stime=0.2),
-    Benchmark('srtl/srtl-insert', 'insert', ['natural'], stime=4.8),
-    Benchmark('srtl/insertion-sort', 'insertion sort', ['natural'], stime=1.1),
+    Benchmark('srtl/srtl-prepend', 'prepend', ['natural'], stime=0.2, scode=11),
+    Benchmark('srtl/srtl-insert', 'insert', ['natural'], stime=4.8, scode=58),
+    Benchmark('srtl/insertion-sort', 'insertion sort', ['natural'], stime=1.1, scode=28),
     ]),
   BenchmarkGroup("Tree", [
-    Benchmark('tree/tree-size', 'size', stime=0.2),
-    Benchmark('tree/tree-free', 'dispose', stime=0.0),
-    Benchmark('tree/tree-copy', 'copy', stime=0.4),
-    Benchmark('tree/tree-flatten', 'flatten w/append', stime=0.4),
-    Benchmark('tree/tree-flatten-acc', 'flatten w/acc', stime=0.6),
+    Benchmark('tree/tree-size', 'size', stime=0.2, scode=38),
+    Benchmark('tree/tree-free', 'dispose', stime=0.0, scode=16),
+    Benchmark('tree/tree-copy', 'copy', stime=0.4, scode=55),
+    Benchmark('tree/tree-flatten', 'flatten w/append', stime=0.4, scode=48),
+    Benchmark('tree/tree-flatten-acc', 'flatten w/acc', stime=0.6, scode=35),
     ]),
   BenchmarkGroup("BST", [
-    Benchmark('bst/bst-insert', 'insert', ['natural'], stime=31.9),
-    Benchmark('bst/bst-left-rotate', 'rotate left', ['natural'], stime=37.7),
-    Benchmark('bst/bst-right-rotate', 'rotate right', ['natural'], stime=17.2),
+    Benchmark('bst/bst-insert', 'insert', ['natural'], stime=31.9, scode=58),
+    Benchmark('bst/bst-left-rotate', 'rotate left', ['natural'], stime=37.7, scode=15),
+    Benchmark('bst/bst-right-rotate', 'rotate right', ['natural'], stime=17.2, scode=15),
     ]),
 ]
 
 class SynthesisResult:
-  def __init__(self, name, time, spec_size, num_procs, code_size):
+  def __init__(self, name, time, spec_size, num_procs, code_size, total_goals, backtracked):
     self.name = name                                      # Benchmark name
     self.time = time                                      # Synthesis time (seconds)
     self.spec_size = spec_size                            # Cumulative specification size (in AST nodes)
     self.num_procs = num_procs                            # Number of generated recursive procedures
     self.code_size = code_size                            # Cumulative synthesized code size (in AST nodes)
+    self.total_goals = total_goals
+    self.backtracked = backtracked
     self.variant_times = {var : -3.0 for var in VARIANTS} # Synthesis times for SuSLik variants:
+    self.variant_total_goals = {var : '-' for var in VARIANTS}
+    self.variant_backtracked = {var : '-' for var in VARIANTS}
       
 
   def str(self):
@@ -115,16 +120,12 @@ class SynthesisResult:
 
 # SuSLik command-line options to run the variant var    
 def var_option(var):
-  # if var == 'all':
-    # return ' '.join([var_option(v) for v in VARIANTS[:-1]])
-  # else:
-    # return ' '.join(['--' + v + ' false' for v in var.split('-')])
   if var == 'dfs':
-    return '[--dfs true]'
+    return '--dfs true'
   elif var == 'bfs':
-    return '[--bfs true]'
+    return '--bfs true'
   elif var == 'memo':
-    return '[--memo false]'
+    return '--memo false'
     
 def format_time(t):
   if t < 0:
@@ -153,6 +154,8 @@ def read_csv():
       spec_size = row['Spec Size']
       num_procs = row['Num Procs']
       code_size = row['Code Size']
+      total_goals = row['Goals generated']
+      backtracked = row['And-nodes backtracked']
       
       is_var = False
       for var in VARIANTS:
@@ -160,21 +163,26 @@ def read_csv():
           # This is a test for a variant
           is_var = True
           suffix_len = len(var) + 1
-          store_result(name[:-suffix_len], time, spec_size, num_procs, code_size, var)
+          store_result(name[:-suffix_len], time, spec_size, num_procs, code_size, total_goals, backtracked, var)
       if not is_var:
-        store_result(name, time, spec_size, num_procs, code_size)
+        store_result(name, time, spec_size, num_procs, code_size, total_goals, backtracked)
       
-def store_result(name, time, spec_size, num_procs, code_size, variant = 'none'):
-  timeOrTO = -1.0 if code_size == 'FAIL' else time
+def store_result(name, time, spec_size, num_procs, code_size, total_goals, backtracked, variant = 'none'):
+  timeOrTO = -1.0 if num_procs == 'FAIL' else time
   
   if not(name in results):
-    results[name] = SynthesisResult(name, timeOrTO, spec_size, num_procs, code_size)
+    results[name] = SynthesisResult(name, timeOrTO, spec_size, num_procs, code_size, total_goals, backtracked)
   
   if variant == 'none':
     results[name].time = timeOrTO
+    results[name].total_goals = total_goals
+    results[name].backtracked = backtracked
+    results[name].num_procs = num_procs
     results[name].code_size = code_size
   else:
     results[name].variant_times[variant] = timeOrTO
+    results[name].variant_total_goals[variant] = total_goals
+    results[name].variant_backtracked[variant] = backtracked
       
 def footnotes(sources):
   res = ''
@@ -205,12 +213,17 @@ def write_latex():
           ' & ' + result.code_size + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
           ' & ' + format_time(result.time) + \
+          ' & ' + result.total_goals + \
+          ' & ' + result.backtracked + \
           ' & ' + format_time(result.variant_times['dfs']) + \
+          ' & ' + result.variant_total_goals['dfs'] + \
+          ' & ' + result.variant_backtracked['dfs'] + \
           ' & ' + format_time(result.variant_times['bfs']) + \
-          ' & ' + format_time(result.variant_times['memo']) + ' \\\\'
-          # ' & ' + format_time(result.variant_times['commute']) + \
-          # ' & ' + format_time(result.variant_times['all']) + \
-          # ' & ' + format_ratio(b.suslik_time, result.time, 1) + \                    
+          ' & ' + result.variant_total_goals['bfs'] + \
+          ' & ' + result.variant_backtracked['bfs'] + \
+          ' & ' + format_time(result.variant_times['memo']) + \
+          ' & ' + result.variant_total_goals['memo'] + \
+          ' & ' + result.variant_backtracked['memo'] + ' \\\\'          
           
         outfile.write (row)
         outfile.write ('\n')
@@ -251,6 +264,7 @@ def write_latex_old():
         row = \
           ' & ' + b.description +\
           ' & ' + result.code_size + \
+          ' & ' + str(b.suslik_code) + \
           ' & ' + format_time(result.time) + \
           ' & ' + format_time(b.suslik_time) + ' \\\\'
           
@@ -318,27 +332,27 @@ if __name__ == '__main__':
   
   cl_opts = cmdline()
   
-  # results = dict()
-  # groups = NEW_BENCHMARKS
-  
-  # if cl_opts.var:
-    # generate_variants()
-  # elif cl_opts.clean:
-    # clean_variants()
-  # else:        
-    # # Read stats into a dictionary of synthesis results
-    # read_csv()
-    
-    # # for res in results:
-      # # print results[res].str()
-    
-    # # Generate Latex table
-    # write_latex()
-    
   results = dict()
-  groups = OLD_BENCHMARKS
-  read_csv()
-  write_latex_old()
+  groups = NEW_BENCHMARKS
+  
+  if cl_opts.var:
+    generate_variants()
+  elif cl_opts.clean:
+    clean_variants()
+  else:        
+    # Read stats into a dictionary of synthesis results
+    read_csv()
+    
+    # for res in results:
+      # print results[res].str()
+    
+    # Generate Latex table
+    write_latex()
+    
+  # results = dict()
+  # groups = OLD_BENCHMARKS
+  # read_csv()
+  # write_latex_old()
     
     
 
