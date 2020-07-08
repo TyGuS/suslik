@@ -19,12 +19,13 @@ VARIANTS = ['memo', 'dfs', 'bfs']
 # VARIANTS = ['phased', 'invert', 'fail', 'commute', 'all']
 
 class Benchmark:
-  def __init__(self, name, description, source=[], stime=-3.0, scode=0):
+  def __init__(self, name, description, source=[], stime=-3.0, scode=0, mut_rec=False):
     self.name = name        # Id (corresponds to test file name)
     self.description = description  # Description (in the table)
     self.source = source      # Where is this benchmark from (in the table)
     self.suslik_time = stime
     self.suslik_code = scode
+    self.mut_rec = mut_rec
 
   def str(self):
     return self.name + ': ' + self.description
@@ -52,8 +53,8 @@ NEW_BENCHMARKS = [
     Benchmark('tree/tree-flatten', 'flatten into list'),
     ]),
   BenchmarkGroup("Rose Tree", [
-    Benchmark('rose-tree/rose-tree-free', 'deallocate'),
-    Benchmark('rose-tree/rose-tree-flatten', 'flatten into list'),
+    Benchmark('rose-tree/rose-tree-free', 'deallocate', mut_rec=True),
+    Benchmark('rose-tree/rose-tree-flatten', 'flatten into list',mut_rec=True),
     ]),
   BenchmarkGroup("Sorted list", [
     Benchmark('srtl/reverse', 'reverse', ['eguchi']),
@@ -190,6 +191,12 @@ def footnotes(sources):
     i = SOURCES.index(s) + 1
     res = res + '\\textsuperscript{' + str(i) + '}'
   return res  
+  
+def marks(flag):
+  if flag:
+    return '\\textsuperscript{$\dagger$}'
+  else:
+    return ''  
 
 def write_latex():
   '''Generate Latex table from the results dictionary'''
@@ -209,7 +216,7 @@ def write_latex():
         result = results [b.name]        
         row = \
           ' & ' + b.description + footnotes(b.source) +\
-          ' & ' + result.num_procs + \
+          ' & ' + result.num_procs + marks(b.mut_rec) + \
           ' & ' + result.code_size + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
           ' & ' + format_time(result.time) + \

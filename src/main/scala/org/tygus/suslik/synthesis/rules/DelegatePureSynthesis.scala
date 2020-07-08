@@ -208,7 +208,10 @@ object DelegatePureSynthesis {
 
       val smtTask = toSMTTask(goal)
       val cvc4Res = invokeCVC(smtTask)
-      if (cvc4Res.isEmpty) Nil
+      if (cvc4Res.isEmpty) {
+        if (goal.env.config.branchAbduction) UnificationRules.Pick(goal)
+        else List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
+      }
       else {
         //parse me
         val assignments: Subst = parseAssignments(cvc4Res.get)
