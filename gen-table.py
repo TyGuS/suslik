@@ -46,15 +46,15 @@ NEW_BENCHMARKS = [
     ]),
   BenchmarkGroup("List of Lists", [
     Benchmark('multi-list/multilist-free', 'deallocate'),
-    Benchmark('multi-list/multilist-flatten', 'concatenate', ['eguchi']),
+    Benchmark('multi-list/multilist-flatten', 'flatten', ['eguchi']),
     ]),    
   BenchmarkGroup("Binary Tree", [
     Benchmark('tree/treefree2', 'deallocate two'),
-    Benchmark('tree/tree-flatten', 'flatten into list'),
+    Benchmark('tree/tree-flatten', 'flatten'),
     ]),
   BenchmarkGroup("Rose Tree", [
     Benchmark('rose-tree/rose-tree-free', 'deallocate', marks=['M']),
-    Benchmark('rose-tree/rose-tree-flatten', 'flatten into list', marks=['M']),
+    Benchmark('rose-tree/rose-tree-flatten', 'flatten', marks=['M']),
     ]),
   BenchmarkGroup("Sorted list", [
     Benchmark('srtl/reverse', 'reverse', ['eguchi']),
@@ -72,11 +72,12 @@ OLD_BENCHMARKS = [
     Benchmark('ints/swap', 'swap two', stime=0.0, scode=12),
     Benchmark('ints/min2', 'min of two', ['jennisys'], stime=0.1, scode=10),
     ]),    
-  BenchmarkGroup("Linked List", [
+  BenchmarkGroup("Singly Linked List", [
     Benchmark('sll-bounds/sll-len', 'length', ['natural'], stime=0.4, scode=21),
     Benchmark('sll-bounds/sll-max', 'max', ['natural'], stime=0.6, scode=27),
     Benchmark('sll-bounds/sll-min', 'min', ['natural'], stime=0.5, scode=27),
     Benchmark('sll/sll-singleton', 'singleton', ['jennisys'], stime=0.0, scode=11),
+    Benchmark('sll/sll-dupleton', 'two-elem list', ['jennisys']),
     Benchmark('sll/sll-free', 'dispose', stime=0.0, scode=11),
     Benchmark('sll/sll-init', 'initialize', stime=0.0, scode=13),
     Benchmark('sll/sll-copy', 'copy', ['dryad'], stime=0.2, scode=35),
@@ -100,6 +101,12 @@ OLD_BENCHMARKS = [
     Benchmark('bst/bst-left-rotate', 'rotate left', ['natural'], stime=37.7, scode=15),
     Benchmark('bst/bst-right-rotate', 'rotate right', ['natural'], stime=17.2, scode=15),
     ]),
+  BenchmarkGroup("Doubly Linked List", [
+    Benchmark('dll/dll-copy', 'copy'),
+    Benchmark('dll/dll-append', 'append', ['dryad']),
+    Benchmark('dll/dll-delete-all', 'delete', ['dryad']),
+    Benchmark('dll/from-sll', 'single to double'),
+    ]),    
 ]
 
 class SynthesisResult:
@@ -142,6 +149,11 @@ def format_ratio(m, n, precision = 1):
   else:
     return ('{0:0.' + str(precision) + 'f}').format(m/n) + 'x'
     
+def format_code(n):
+  if n <= 0:
+    return '-'
+  else:
+    return str(n)    
 
 def read_csv():
   '''Read stats file into the results dictionary'''
@@ -272,9 +284,9 @@ def write_latex_old():
       for b in group.benchmarks:
         result = results [b.name]        
         row = \
-          ' & ' + b.description +\
+          ' & ' + b.description + footnotes(b.source) +\
           ' & ' + result.code_size + \
-          ' & ' + str(b.suslik_code) + \
+          ' & ' + format_code(b.suslik_code) + \
           ' & ' + format_time(result.time) + \
           ' & ' + format_time(b.suslik_time) + ' \\\\'
           
