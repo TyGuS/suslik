@@ -1,4 +1,4 @@
-# -b true -c 2
+# -b true -c 2 -f 1
 binary search tree: insert an element
 
 #####

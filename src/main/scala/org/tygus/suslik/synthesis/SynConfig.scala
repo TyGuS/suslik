@@ -22,7 +22,7 @@ case class SynConfig(
                       maxOpenDepth: Int = 1,
                       maxCloseDepth: Int = 1,
                       maxCalls: Int = 2,
-                      auxAbduction: Boolean = false,
+                      auxAbduction: Boolean = true,
                       branchAbduction: Boolean = false,
                       phased: Boolean = true,
                       depthFirst: Boolean = false,
