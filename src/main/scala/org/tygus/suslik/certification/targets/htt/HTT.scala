@@ -10,9 +10,7 @@ import org.tygus.suslik.logic.Environment
 
 object HTT extends CertificationTarget {
   val name: String = "HTT"
-  private val loadPath = Paths.get("certification/htt").toFile.getCanonicalPath
-  private val prelude = s"""Add LoadPath "$loadPath" as SSL.
-From mathcomp
+  private val prelude = s"""From mathcomp
 Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From fcsl
 Require Import prelude pred pcm unionmap heap.
