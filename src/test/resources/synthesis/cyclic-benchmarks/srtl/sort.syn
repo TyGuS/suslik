@@ -5,7 +5,7 @@ sort a list
 #####
 
 { 0 <= n ; sll(x, n, lo, hi) }
-void sort (loc x, loc r)
+void sort (loc x)
 { srtl(x, n, lo, hi) }
 
 #####

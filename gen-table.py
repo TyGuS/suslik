@@ -357,24 +357,24 @@ if __name__ == '__main__':
   results = dict()
   groups = NEW_BENCHMARKS
   
-  if cl_opts.var:
-    generate_variants()
-  elif cl_opts.clean:
-    clean_variants()
-  else:        
-    # Read stats into a dictionary of synthesis results
-    read_csv()
+  # if cl_opts.var:
+    # generate_variants()
+  # elif cl_opts.clean:
+    # clean_variants()
+  # else:        
+    # # Read stats into a dictionary of synthesis results
+    # read_csv()
     
-    # for res in results:
-      # print results[res].str()
+    # # for res in results:
+      # # print results[res].str()
     
-    # Generate Latex table
-    write_latex()
+    # # Generate Latex table
+    # write_latex()
     
-  # results = dict()
-  # groups = OLD_BENCHMARKS
-  # read_csv()
-  # write_latex_old()
+  results = dict()
+  groups = OLD_BENCHMARKS
+  read_csv()
+  write_latex_old()
     
     
 

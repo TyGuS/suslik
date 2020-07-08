@@ -6,7 +6,7 @@ reverse a list
 
 { 0 <= n ; srtl(x, n, lo, hi) }
 void reverse (loc x)
-{ true ; descl(x, n, lo, hi) }
+{ descl(x, n, lo, hi) }
 
 #####
 
