@@ -122,7 +122,7 @@ where the necessary arguments and options are
 ```
   fileName                 a synthesis file name (the file under the specified folder, called filename.syn)
   -r, --trace <value>      print the entire derivation trace; default: true
-  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 300000 (5 min)
+  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 120000 (2 min)
   -d, --depth <value>      derivation depth; default: 100
   -a, --assert <value>     check that the synthesized result against the expected one; default: false
   -c, --maxCloseDepth <value>

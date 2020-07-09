@@ -1,0 +1,62 @@
+# -x true -c 2 -p true
+
+binary search tree: delete root
+
+#####
+
+{ 0 <= sz1 /\  0 <= sz2  /\  
+  0 <= v /\ v <= 7 /\ hi1 <= v /\ v <= lo2 
+  ;
+  ret :-> 0 ** 
+  [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** 
+  bst(l, sz1, lo1, hi1)<a> ** bst(r, sz2, lo2, hi2)<b> }
+
+void bst_delete_root (loc x, loc ret)
+
+{ n1 == sz1 + sz2 /\
+  lo == (l == 0 ? (r == 0 ? 7 : lo2) : lo1) /\
+  hi == (r == 0 ? (l == 0 ? 0 : hi1) : hi2) 
+  ;
+  ret :-> y ** bst(y, n1, lo, hi)<c>  }
+
+#####
+
+{0 <= sz1 && 0 <= sz2 && 0 <= v && hi1 <= v && v <= 7 && v <= lo2 ; (x + 1) :-> l ** (x + 2) :-> r ** ret :-> 0 ** x :-> v ** bst(l, sz1, lo1, hi1)<a> ** bst(r, sz2, lo2, hi2)<b> ** [x, 3]}
+{hi == (r == 0 ? (l == 0 ? 0 : hi1) : hi2) && lo == (l == 0 ? (r == 0 ? 7 : lo2) : lo1) && n1 == sz1 + sz2 ; ret :-> y ** bst(y, n1, lo, hi)<c>}
+void bst_delete_root (loc x, loc ret) {
+  let v2 = *x;
+  let l2 = *(x + 1);
+  let r2 = *(x + 2);
+  if (l2 == 0) {
+    if (r2 == 0) {
+      free(x);
+    } else {
+      free(x);
+      *ret = r2;
+    }
+  } else {
+    let vl = *l2;
+    let ll = *(l2 + 1);
+    let rl = *(l2 + 2);
+    if (r2 == 0) {
+      free(x);
+      *ret = l2;
+    } else {
+      let v = *r2;
+      let l = *(r2 + 1);
+      let r = *(r2 + 2);
+      *(r2 + 1) = rl;
+      *(r2 + 2) = l;
+      *r2 = v2;
+      bst_delete_root(r2, ret);
+      let y = *ret;
+      *(l2 + 1) = x;
+      *(l2 + 2) = r;
+      *(x + 1) = ll;
+      *(x + 2) = y;
+      *ret = l2;
+      *l2 = v;
+      *x = vl;
+    }
+  }
+}
