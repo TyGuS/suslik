@@ -5,7 +5,6 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -47,22 +46,6 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-          // If rhs is conditional, try to simplify
-        case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2@IfThenElse(cond, left, right)))) =>
-          if (e1 == e2) {
-            return Nil
-          } // Do not write if RHSs are the same
-
-          val exprToWrite = if (SMTSolving.valid(pre.phi ==> (cond || (left |=| right)))) left
-                            else if (SMTSolving.valid(pre.phi ==> (cond.not || (left |=| right)))) right
-                            else e2
-
-          val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
-          val newPost = Assertion(post.phi, goal.post.sigma - hr)
-          val subGoal = goal.spawnChild(newPre, newPost)
-          val kont: StmtProducer = PrependProducer(Store(x, offset, exprToWrite)) >> HandleGuard(goal) >> ExtractHelper(goal)
-
-          List(RuleResult(List(subGoal), kont, this, goal))
         case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2))) =>
           if (e1 == e2) {
             return Nil

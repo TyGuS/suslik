@@ -80,6 +80,32 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
+  object SimplifyConditional extends SynthesisRule with InvertibleRule {
+    override def toString: String = "Simplify"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      goal.post.sigma.chunks.find {
+        case h@PointsTo(_, _, IfThenElse(_, _, _)) => h.vars.forall(v => !goal.isGhost(v))
+        case _ => false
+      } match {
+        case None => Nil
+        case Some(h@PointsTo(l, o, IfThenElse(c, t, e))) => {
+          if (SMTSolving.valid(goal.pre.phi ==> (c || (t |=| e)))) {
+            val thenSigma = (goal.post.sigma - h) ** PointsTo(l, o, t)
+            val thenPhi = goal.post.phi // && c
+            val thenGoal = goal.spawnChild(post = Assertion(thenPhi, thenSigma))
+            List(RuleResult(List(thenGoal), kont, this, goal))
+          } else if (SMTSolving.valid(goal.pre.phi ==> (c.not || (t |=| e)))) {
+            val elseSigma = (goal.post.sigma - h) ** PointsTo(l, o, e)
+            val elsePhi = goal.post.phi // && c.not
+            val elseGoal = goal.spawnChild(post = Assertion(elsePhi, elseSigma))
+            List(RuleResult(List(elseGoal), kont, this, goal))
+          } else Nil
+        }
+      }
+    }
+  }
 
   /*
    Remove an equivalent heaplet from pre and post

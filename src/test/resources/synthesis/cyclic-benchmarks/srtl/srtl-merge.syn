@@ -4,8 +4,8 @@ sorted list: merge
 #####
 
 { 0 <= nx /\ 0 <= ny ;
-    r :-> x ** srtl(x, nx, lox, hix) ** srtl(y, ny, loy, hiy) }
-void srtl_merge (loc y, loc r)
+    r :-> y ** srtl(x, nx, lox, hix) ** srtl(y, ny, loy, hiy) }
+void srtl_merge (loc x, loc r)
 { n == nx + ny /\  lo == (lox <= loy ? lox : loy)  /\ hi == (hix <= hiy ? hiy : hix) ;
     r :-> z ** srtl(z, n, lo, hi) }
 
