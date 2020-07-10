@@ -138,17 +138,29 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(auxAbduction = b)
     }).text("abduce auxiliary functions; default: false")
 
+    opt[Boolean]("topLevelRecursion").action(cfg { b =>
+      _.copy(topLevelRecursion = b)
+    }).text("allow top-level recursion; default: true")
+
     opt[Boolean]('b', "branchAbduction").action(cfg { b =>
       _.copy(branchAbduction = b)
     }).text("abduce conditional branches; default: false")
+
+    opt[Int]("maxGuardConjuncts").action(cfg { n =>
+      _.copy(maxGuardConjuncts = n)
+    }).text("maximum number of conjuncts in an abduced guard; default: 2")
 
     opt[Boolean](name = "phased").action(cfg { b =>
       _.copy(phased = b)
     }).text("split rules into unfolding and flat phases; default: true")
 
-    opt[Boolean]('d', name = "depth").action(cfg { b =>
+    opt[Boolean]('d', name = "dfs").action(cfg { b =>
       _.copy(depthFirst = b)
     }).text("depth first search; default: false")
+
+    opt[Boolean](name = "bfs").action(cfg { b =>
+      _.copy(breadthFirst = b)
+    }).text("breadth first search (ignore weights); default: false")
 
     opt[Boolean](name = "delegate").action(cfg { b =>
       _.copy(delegatePure = b)

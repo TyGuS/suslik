@@ -357,7 +357,7 @@ object Expressions {
       case IfThenElse(c, t, e) =>
         for {
           gamma1 <- c.resolve(gamma, Some(BoolType))
-          gamma2 <- t.resolve(gamma1, None)
+          gamma2 <- t.resolve(gamma1, target)
           t1 = t.getType(gamma2)
           gamma3 <- e.resolve(gamma2, t1)
           t2 = e.getType(gamma3)

@@ -40,9 +40,9 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object CheckPost extends SynthesisRule with InvertibleRule {
     override def toString: String = "CheckPost"
 
-    def filterOutValidPost(goal: Goal, exPost: PFormula): Seq[RuleResult] = {
+    def filterOutValidPost(goal: Goal, exPost: PFormula, uniPost: PFormula): Seq[RuleResult] = {
       val validExConjuncts = exPost.conjuncts.filter(c => SMTSolving.valid(goal.pre.phi ==> c))
-      if (validExConjuncts.isEmpty) Nil
+      if (validExConjuncts.isEmpty && uniPost.conjuncts.isEmpty) Nil
       else {
         val newPost = Assertion(exPost - PFormula(validExConjuncts), goal.post.sigma)
         val newGoal = goal.spawnChild(post = newPost)
@@ -56,7 +56,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       if (!SMTSolving.valid(goal.pre.phi ==> uniPost))
         // universal post not implied by pre
         List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
-      else Nil // filterOutValidPost(goal, exPost)
+      else filterOutValidPost(goal, exPost, uniPost)
     }
   }
 
@@ -65,8 +65,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
-        lhs <- goal.programVars
-        rhs <- goal.programVars
+        lhs <- goal.programVars.filter(goal.post.phi.vars.contains)
+        rhs <- goal.programVars.filter(goal.post.phi.vars.contains)
         if lhs != rhs
         if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
       } yield lhs |<=| rhs
@@ -78,7 +78,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 //      atoms
       for {
         subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
-        if subset.nonEmpty && subset.size <= 2
+        if subset.nonEmpty && subset.size <= goal.env.config.maxGuardConjuncts
       } yield PFormula(subset).toExpr
     }
 
@@ -117,7 +117,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val (uniPost, exPost) = goal.splitPost
       if (SMTSolving.valid(goal.pre.phi ==> uniPost))
-        Nil // CheckPost.filterOutValidPost(goal, exPost)
+        CheckPost.filterOutValidPost(goal, exPost, uniPost)
       else {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)

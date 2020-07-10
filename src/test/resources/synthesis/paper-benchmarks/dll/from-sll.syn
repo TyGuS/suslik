@@ -1,0 +1,41 @@
+# -c 2
+
+should be able to convert a singly-linked list to a double-linked list
+
+#######
+
+{ f :-> x ** sll(x, s)}
+void sll_to_dll(loc f)
+{ f :-> i ** dll(i, 0, s)}
+
+#######
+
+void sll_to_dll (loc f) {
+  let x = *f;
+  if (x == 0) {
+    *f = 0;
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    *f = n;
+    sll_to_dll(f);
+    let i1 = *f;
+    if (i1 == 0) {
+      let i = malloc(3);
+      free(x);
+      *f = i;
+      *(i + 1) = 0;
+      *i = v;
+      *(i + 2) = 0;
+    } else {
+      let i = malloc(3);
+      free(x);
+      *(i1 + 2) = i;
+      *f = i;
+      *(i + 1) = i1;
+      *i = v;
+      *(i + 2) = 0;
+    }
+  }
+}
+

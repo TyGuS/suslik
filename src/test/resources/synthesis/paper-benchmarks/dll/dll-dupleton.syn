@@ -1,11 +1,11 @@
-#. this -c 3
+# -c 3
 singly-linked list: construct a list with two elements
 
 #####
 
-{ true ; ret :-> a }
-void sll_dupleton (int x, int y, loc ret)
-{ len == 2  /\  elems =i {x, y} ; ret :-> z ** sll(z, len, elems) }
+{ ret :-> a }
+void dll_dupleton (int x, int y, loc ret)
+{ elems =i {x, y} ; ret :-> z ** dll(z, 0, elems) }
 
 #####
 

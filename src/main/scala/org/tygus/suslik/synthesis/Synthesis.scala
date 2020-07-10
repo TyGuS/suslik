@@ -86,7 +86,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val goal = node.goal
       implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
-      log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW)))
+      log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW))) //      <goal: ${node.goal.label.pp}>
       if (config.printEnv) {
         log.print(List((s"${goal.env.pp}", Console.MAGENTA)))
       }
@@ -102,13 +102,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           node.fail
           None
         }
-        case Some(Succeeded(sol)) => expandNode(node, addNewNodes)
-//        { // Same goal has succeeded before: return the same solution
-//          log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
-//          trace.add(node.id, Succeeded(sol), Some("cache"))
-//          worklist = addNewNodes(Nil)
-//          node.succeed(sol)
-//        }
+        case Some(Succeeded(sol)) =>
+        { // Same goal has succeeded before: return the same solution
+          log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
+          trace.add(node.id, Succeeded(sol), Some("cache"))
+          worklist = addNewNodes(Nil)
+          node.succeed(sol)
+        }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
           log.print(List(("Suspend", RED)))
           memo.suspend(node)
@@ -127,9 +127,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   // Given a worklist, return the next node to work on
   // and a strategy for combining its children with the rest of the list
   protected def selectNode(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
-    if (config.depthFirst) // DFS? Pick the first one
+    if (config.depthFirst) // DFS? Pick the first one, insert new nodes in the front
       (worklist.head, _ ++ worklist.tail)
-    else { // Otherwise pick a minimum-cost node that is not suspended
+    else if (config.breadthFirst) { // BFS? Pick the first one non-suspended, insert new nodes in the back
+      val best = worklist.minBy(n => memo.isSuspended(n))
+      val idx = worklist.indexOf(best)
+      (best, worklist.take(idx) ++ worklist.drop(idx + 1) ++ _)
+    } else { // Otherwise pick a minimum-cost node that is not suspended
       val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
       val idx = worklist.indexOf(best)
       (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))

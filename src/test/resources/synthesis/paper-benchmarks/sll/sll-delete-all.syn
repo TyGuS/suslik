@@ -1,0 +1,30 @@
+# -b true
+singly-linked list: delete all occurrences of x
+
+#####
+
+{true ; sll(x, s) ** ret :-> a}
+void sll_delete_all (loc x, loc ret)
+{s1 =i s -- {a} ; sll(y, s1) ** ret :-> y }
+
+#####
+
+void sll_delete_all (loc x, loc ret) {
+  let a2 = *ret;
+  if (x == 0) {
+    *ret = 0;
+  } else {
+    let v2 = *x;
+    if (true && v2 <= a2 && a2 <= v2) {
+      let nxt2 = *(x + 1);
+      sll_delete_all(nxt2, ret);
+      free(x);
+    } else {
+      let nxt2 = *(x + 1);
+      sll_delete_all(nxt2, ret);
+      let y12 = *ret;
+      *(x + 1) = y12;
+      *ret = x;
+    }
+  }
+}

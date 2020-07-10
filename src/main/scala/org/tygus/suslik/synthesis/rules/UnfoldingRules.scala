@@ -76,14 +76,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "AbduceCall"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      // look at all proper ancestors starting from the root
-      // and try to find a companion
-      // (If auxiliary abduction is disabled, only look at the root)
-      val allCands = goal.companionCandidates.reverse
-      val cands = if (goal.env.config.auxAbduction) allCands else allCands.take(1)
+      val cands = goal.companionCandidates
       val funLabels = cands.map(a => (a.toFunSpec, Some(a.label))) ++ // companions
         goal.env.functions.values.map(f => (f, None)) // components
-      val results = for {
+      for {
         (_f, l) <- funLabels
         (freshSub, f) = _f.refreshAll(goal.vars)
 
@@ -101,9 +97,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
-//      nubBy[RuleResult, SFormula](results, r => r.subgoals.head.post.sigma)
-      nubBy[RuleResult, (SProfile, SProfile)](results, r => (r.subgoals.head.post.sigma.profile, r.subgoals.head.callGoal.get.calleePost.sigma.profile))
-//      results
     }
   }
 

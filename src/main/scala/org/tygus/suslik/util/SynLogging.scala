@@ -185,7 +185,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Applications", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
+    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Goals generated", "And-nodes backtracked", "Max Worklist Size").mkString(", ") + "\n"
 
   def init(config: SynConfig){
     if (config.logToFile) {
@@ -201,8 +201,8 @@ object SynStatUtil {
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, res: List[Procedure], stats: SynStats): Unit = {
     if (config.logToFile) {
       val statRow = (res match {
-        case Nil => List("FAIL", stats.numGoalsFailed, stats.numGoalsGenerated, stats.maxWorklistSize, stats.smtCacheSize)
-        case procs => List(procs.map(_.body.size).sum, stats.numGoalsFailed, stats.numGoalsGenerated, stats.maxWorklistSize, stats.smtCacheSize)
+        case Nil => List("FAIL", "FAIL", stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
+        case procs => List(procs.length, procs.map(_.body.size).sum, stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
       }).mkString(", ")
 
       val specSize = spec.pre.size + spec.post.size

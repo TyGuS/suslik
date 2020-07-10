@@ -138,10 +138,16 @@ object Specifications extends SepLogicUtils {
 
     def ancestorWithLabel(l: GoalLabel): Option[Goal] = ancestors.find(_.label == l)
 
-    // Ancestors before progress was last made
+    // Companion candidates for this goal:
+    // look at ancestors before progress was last made, only keep those with different heap profiles
     def companionCandidates: List[Goal] = {
-      ancestors.dropWhile(_.label.depths.length == this.label.depths.length).filter(_.callGoal.isEmpty)
-      // TODO: actually sufficient to consider everything before last open
+      val allCands = ancestors.dropWhile(_.label.depths.length == this.label.depths.length).filter(_.callGoal.isEmpty).reverse
+      val cands =
+        if (env.config.auxAbduction) nubBy[Goal, (SProfile, SProfile)](allCands, c => (c.pre.sigma.profile, c.post.sigma.profile))
+        else allCands.take(1)
+      if (env.config.topLevelRecursion) cands
+      else cands.drop(1)
+      // TODO: replace this with proc rule
     }
 
     // Turn this goal into a helper function specification
@@ -258,8 +264,8 @@ object Specifications extends SepLogicUtils {
       */
     //    lazy val cost: Int = pre.cost.max(post.cost)
     lazy val cost: Int = callGoal match {
-      case None => pre.cost // + post.cost  // + existentials.size //
-      case Some(cg) => cg.callerPre.cost // + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
+      case None => 3*pre.cost + post.cost  // + existentials.size //
+      case Some(cg) => 10 + 3*cg.callerPre.cost + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
     }
   }
 
