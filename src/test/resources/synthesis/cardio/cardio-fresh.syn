@@ -1,10 +1,11 @@
-should be able to synthesize list copy with omitted cardinalities 
+# --lexi 0
+should be able to synthesize list copy with omitted cardinalities
 
 #####
 
-{true ; r :-> x ** sll_card(x, s)}
+{true ; r :-> x ** sll_card(x, s)<a>}
 void sll_copy(loc r)
-{b <= a /\ a <= b ; r :-> y ** sll_card(x, s) ** sll_card(y, s) }
+{b <= a /\ a <= b ; r :-> y ** sll_card(x, s)<a> ** sll_card(y, s)<b> }
 
 #####
 

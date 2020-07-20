@@ -164,8 +164,8 @@ object Expressions {
   object OpEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=="
-    def lType: SSLType = IntType
-    def rType: SSLType = IntType
+    def lType: SSLType = LocType
+    def rType: SSLType = LocType
   }
 
   object OpBoolEq extends RelOp with SymmetricOp {
@@ -305,7 +305,7 @@ object Expressions {
 
     def resolve(gamma: Gamma, target: Option[SSLType]): Option[Gamma] = this match {
       case v@Var(_) => gamma.get(v) match {
-        case Some(t) => t.supertype(target) match {
+        case Some(t) => t.subtype(target) match {
           case None => None
           case Some(t1) => Some(gamma + (v -> t1))
         }
@@ -357,7 +357,7 @@ object Expressions {
       case IfThenElse(c, t, e) =>
         for {
           gamma1 <- c.resolve(gamma, Some(BoolType))
-          gamma2 <- t.resolve(gamma1, None)
+          gamma2 <- t.resolve(gamma1, target)
           t1 = t.getType(gamma2)
           gamma3 <- e.resolve(gamma2, t1)
           t2 = e.getType(gamma3)
@@ -425,6 +425,8 @@ object Expressions {
 
     def subst(sigma: Subst): Expr =
       sigma.getOrElse(this, this)
+
+    def varSubst(sigma: Map[Var, Var]): Var = subst(sigma).asInstanceOf[Var]
 
     def refresh(taken: Set[Var], suffix: String): Var = {
       var count = 1
@@ -557,6 +559,7 @@ object Expressions {
    */
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
+  type ExprSubst = Map[Expr, Expr]
 
   def toSorted[A <: Expr](s: Set[A]): List[A] = s.toList.sorted(Ordering[Expr])
   def least[A <: Expr](s: Set[Var]): List[Var] = if (s.isEmpty) Nil else List(s.min(Ordering[Expr]))

@@ -3,6 +3,7 @@ package org.tygus.suslik.util
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.report.StopWatch
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.{Memoization, SynConfig}
 
@@ -68,6 +69,8 @@ object SynLogLevels {
 
 }
 
+case class RuleStat(numSuccess: Int, timeSuccess: Long, numFail: Int, timeFail: Long)
+
 class SynStats(timeOut: Long) {
   // When did the synthesis start?
   private var startTime: Deadline = Deadline.now
@@ -83,8 +86,14 @@ class SynStats(timeOut: Long) {
   private val descendantsExplored: mutable.Map[NodeId, Int] = mutable.Map()
   // Nodes that have been backtracked out of
   private val failedNodes: mutable.HashSet[AndNode] = mutable.HashSet()
+  // Which rules were applied how many times and how long they took
+  private val ruleApplications: mutable.Map[String, RuleStat] = mutable.Map()
   // Rule applications picked interactively
   private var expansionChoices: List[Int] = List()
+  // Time spent in SMT
+  private var smtTime: Long = 0
+  // Time spent in Cyclist
+  private var cyclistTime: Long = 0
 
   // Have we reached the timeout yet?
   def timedOut: Boolean = (startTime + timeOut.milliseconds).isOverdue()
@@ -130,7 +139,33 @@ class SynStats(timeOut: Long) {
     val maxNodes = failedNodes.toList.sortBy(n => -descendantsExplored(n.id)).take(count)
     maxNodes.map(n => (n, descendantsExplored(n.id)))
   }
+  
+  def recordSMTTime[T](op: => T): T = {
+    val (result, time) = StopWatch.timed(op)
+    smtTime += time
+    result
+  }
 
+  def recordCyclistTime[T](op: => T): T = {
+    val (result, time) = StopWatch.timed(op)
+    cyclistTime += time
+    result
+  }
+
+  def recordRuleApplication[T](name: String, op: => Seq[T]): Seq[T] = {
+    val (result, time) = StopWatch.timed(op)
+    val oldStat = ruleApplications.getOrElse(name, RuleStat(0,0,0,0))
+    if (result.isEmpty)
+      ruleApplications.update(name, oldStat.copy(numFail = oldStat.numFail + 1, timeFail = oldStat.timeFail + time))
+    else
+      ruleApplications.update(name, oldStat.copy(numSuccess = oldStat.numSuccess + 1, timeSuccess = oldStat.timeSuccess + time))
+    result
+  }
+
+  def expensiveRules(count: Int = 5): List[(String, RuleStat)] = {
+    ruleApplications.toList.sortBy{ case (_, stat) => -stat.timeSuccess - stat.timeFail }.take(count)
+  }
+  
   def numGoalsGenerated: Int = goalsGenerated
   def numGoalsExpanded: Int = goalsExpanded
   def numGoalsFailed: Int = failedNodes.size
@@ -139,6 +174,7 @@ class SynStats(timeOut: Long) {
   def smtCacheSize: Int = SMTSolving.cacheSize
   def memoSize: (Int, Int, Int) = Memoization.memo.size
   def getExpansionChoices: List[Int] = expansionChoices
+  def timeCycling: Long = cyclistTime
 }
 
 // TODO: refactor me to make more customizable
@@ -149,7 +185,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Spec Size", "Code Size", "Backtrackings", "Applications", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
+    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Goals generated", "And-nodes backtracked", "Max Worklist Size").mkString(", ") + "\n"
 
   def init(config: SynConfig){
     if (config.logToFile) {
@@ -165,8 +201,8 @@ object SynStatUtil {
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, res: List[Procedure], stats: SynStats): Unit = {
     if (config.logToFile) {
       val statRow = (res match {
-        case Nil => List("FAIL", stats.numGoalsFailed, stats.numGoalsGenerated, stats.maxWorklistSize, stats.smtCacheSize)
-        case procs => List(procs.map(_.body.size).sum, stats.numGoalsFailed, stats.numGoalsGenerated, stats.maxWorklistSize, stats.smtCacheSize)
+        case Nil => List("FAIL", "FAIL", stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
+        case procs => List(procs.length, procs.map(_.body.size).sum, stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
       }).mkString(", ")
 
       val specSize = spec.pre.size + spec.post.size

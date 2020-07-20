@@ -55,14 +55,14 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
       assert(goal.gamma(Var("b")) == BoolType)
     }
 
-    it("should resolve ambiguity as int by default") {
+    it("should resolve ambiguity as loc by default") {
       val code =
         """
           {emp} void foo (int v){ www==www;emp}
         """
 
       val goal = resolveFromSpec("foo", code)
-      assert(goal.gamma(Var("www")) == IntType)
+      assert(goal.gamma(Var("www")) == LocType)
     }
 
     it("should resolve type from equality chain") {

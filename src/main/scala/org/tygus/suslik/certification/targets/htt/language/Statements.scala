@@ -11,9 +11,7 @@ object Statements {
 
       def collector(acc: Seq[R])(st: CStatement): Seq[R] = st match {
         case CSkip => acc
-        case CHole => acc
         case CError => acc
-        case CMagic => acc
         case CStore(to, off, e) =>
           acc ++ to.collect(p) ++ e.collect(p)
         case CLoad(_, _, from, off) =>
@@ -50,9 +48,7 @@ object Statements {
           case CSkip =>
             builder.append(mkSpaces(offset))
             builder.append("ret tt")
-          case CHole => ???
           case CError => ???
-          case CMagic => ???
           case CMalloc(to, _, sz) =>
             builder.append(mkSpaces(offset))
             builder.append(s"${to.ppp} <-- allocb null $sz")
@@ -119,11 +115,7 @@ object Statements {
 
   case object CSkip extends CStatement
 
-  case object CHole extends CStatement
-
   case object CError extends CStatement
-
-  case object CMagic extends CStatement
 
   case class CMalloc(to: CVar, tpe: CoqType, sz: Int = 1) extends CStatement with ReturnsValue
 

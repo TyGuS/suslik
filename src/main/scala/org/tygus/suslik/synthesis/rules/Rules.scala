@@ -1,9 +1,9 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.PrettyPrinting
-import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
+import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.StmtProducer
+import org.tygus.suslik.synthesis.Termination.Transition
 
 object Rules {
   
@@ -12,13 +12,16 @@ object Rules {
     * sub-goals to be solved and
     * a statement producer that assembles the sub-goal results
     */
-  case class RuleResult(subgoals: Seq[Goal], producer: StmtProducer, consume: Footprint, rule: SynthesisRule)
-    extends PrettyPrinting with PureLogicUtils {
+  case class RuleResult(subgoals: Seq[Goal],
+                        producer: StmtProducer,
+                        rule: SynthesisRule,
+                        transitions: Seq[Transition])
 
-    override def pp: String = rule.toString // s"[${subgoals.map(_.label.pp).mkString(", ")}]"
-
-    def produces(parent: Goal): Seq[Footprint] = subgoals.map(g => g.allHeaplets - (parent.allHeaplets - consume))
+  object RuleResult {
+    def apply(subgoals: Seq[Goal], producer: StmtProducer, rule: SynthesisRule, goal: Goal) =
+      new RuleResult(subgoals, producer, rule, subgoals.map(sub => Transition(goal, sub)))
   }
+
 
   /**
     * A generic class for a deductive rule to be applied
@@ -28,8 +31,6 @@ object Rules {
   abstract class SynthesisRule extends PureLogicUtils {
     // Apply the rule and get all possible sub-derivations
     def apply(goal: Goal): Seq[RuleResult]
-
-    def cost: Int = 0
   }
 
   /**
@@ -47,18 +48,34 @@ object Rules {
     def heapletFilter(h: Heaplet): Boolean = {
       h.isInstanceOf[SApp]
     }
+
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.apps == post.profile.apps else multiSubset(post.profile.apps, pre.profile.apps)
+    }
   }
 
   trait BlockPhase {
     def heapletFilter(h: Heaplet): Boolean = {
       h.isInstanceOf[Block]
     }
+
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+//      if (exact) pre.profile.blocks == post.profile.blocks else multiSubset(post.profile.blocks, pre.profile.blocks)
+      true // In the block phase we don't require them to match, because of how free and alloc are triggered
+    }
   }
 
   trait FlatPhase {
     def heapletFilter(h: Heaplet): Boolean = true
+
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
+      if (exact) pre.profile.ptss == post.profile.ptss else multiSubset(post.profile.ptss, pre.profile.ptss)
+    }
   }
 
+  // Multiset inclusion
+  def multiSubset[A](m1: Map[A, Int], m2: Map[A, Int]): Boolean =
+    m1.forall { case (k, v) => v <= m2.getOrElse(k, 0) }
 
   def nubBy[A,B](l:List[A], p:A=>B):List[A] =
   {

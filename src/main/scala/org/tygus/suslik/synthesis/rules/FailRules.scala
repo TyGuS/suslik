@@ -5,6 +5,7 @@ import org.tygus.suslik.language.IntType
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -29,23 +30,33 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
       if (!SMTSolving.sat((pre && post).toExpr))
         // post inconsistent with pre
-        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
       else
         Nil
     }
   }
 
   // Short-circuits failure if universal part of post is too strong
-  object PostInvalid extends SynthesisRule with InvertibleRule {
-    override def toString: String = "PostInvalid"
+  object CheckPost extends SynthesisRule with InvertibleRule {
+    override def toString: String = "CheckPost"
+
+    def filterOutValidPost(goal: Goal, exPost: PFormula, uniPost: PFormula): Seq[RuleResult] = {
+      val validExConjuncts = exPost.conjuncts.filter(c => SMTSolving.valid(goal.pre.phi ==> c))
+      if (validExConjuncts.isEmpty && uniPost.conjuncts.isEmpty) Nil
+      else {
+        val newPost = Assertion(exPost - PFormula(validExConjuncts), goal.post.sigma)
+        val newGoal = goal.spawnChild(post = newPost)
+        List(RuleResult(List(newGoal), IdProducer, this, goal))
+      }
+    }
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      // If precondition does not contain predicates, we can't get get new facts from anywhere
-      if (!SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
-        // universal post not implies by pre
-        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this))
-      else
-        Nil
+      val (uniPost, exPost) = goal.splitPost
+      // If precondition does not contain predicates, we can't get new facts from anywhere
+      if (!SMTSolving.valid(goal.pre.phi ==> uniPost))
+        // universal post not implied by pre
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
+      else filterOutValidPost(goal, exPost, uniPost)
     }
   }
 
@@ -54,8 +65,8 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
-        lhs <- goal.programVars
-        rhs <- goal.programVars
+        lhs <- goal.programVars.filter(goal.post.phi.vars.contains)
+        rhs <- goal.programVars.filter(goal.post.phi.vars.contains)
         if lhs != rhs
         if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
       } yield lhs |<=| rhs
@@ -64,10 +75,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val atoms = atomCandidates(goal)
       // Toggle this to enable abduction of conjunctions
       // (without branch pruning, produces too many branches)
-      //      atoms
+//      atoms
       for {
         subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
-        if subset.nonEmpty
+        if subset.nonEmpty && subset.size <= goal.env.config.maxGuardConjuncts
       } yield PFormula(subset).toExpr
     }
 
@@ -99,19 +110,19 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         elseGoal = bGoal.spawnChild(
           pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
           childId = Some(1))
-      } yield RuleResult(List(thenGoal, elseGoal),
-        GuardedProducer(cond, bGoal),
-        goal.allHeaplets,
-        this)
+        thenTransition = Transition(goal, thenGoal)
+        elseTransition = Transition(bGoal, elseGoal)
+      } yield RuleResult(List(thenGoal, elseGoal), GuardedProducer(cond, bGoal), this, List(thenTransition, elseTransition))
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      if (SMTSolving.valid(goal.pre.phi ==> goal.universalPost))
-        Nil // valid so far, nothing to say
+      val (uniPost, exPost) = goal.splitPost
+      if (SMTSolving.valid(goal.pre.phi ==> uniPost))
+        CheckPost.filterOutValidPost(goal, exPost, uniPost)
       else {
         val guarded = guardedCandidates(goal)
         if (guarded.isEmpty)
           // Abduction failed
-          List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // pre doesn't imply post: goal is unsolvable
+          List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal)) // pre doesn't imply post: goal is unsolvable
         else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
       }
     }
@@ -123,21 +134,15 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object HeapUnreachable extends SynthesisRule with InvertibleRule {
     override def toString: String = "HeapUnreachable"
 
-    // How many chunks there are with each offset?
-    def profile(chunks: List[Heaplet]): Map[Int, Int] = chunks.groupBy { case PointsTo(_, o, _) => o }.mapValues(_.length)
-
     def apply(goal: Goal): Seq[RuleResult] = {
       assert(!(goal.hasPredicates() || goal.hasBlocks))
-      val preChunks = goal.pre.sigma.chunks
-      val postChunks = goal.post.sigma.chunks
-
-      if ((profile(preChunks) == profile(postChunks)) && // profiles must match
-        postChunks.forall { case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
+      if ((goal.pre.sigma.profile == goal.post.sigma.profile) && // profiles must match
+        goal.post.sigma.chunks.forall { case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
           findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined
         }) // or has a heaplet in pre with the same LHS
         Nil
       else
-        List(RuleResult(List(goal.unsolvableChild), IdProducer, goal.allHeaplets, this)) // spatial parts do not match: only magic can save us
+        List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal)) // spatial parts do not match: only magic can save us
     }
   }
 

@@ -7,6 +7,7 @@ import org.bitbucket.franck44.scalasmt.theories._
 import org.bitbucket.franck44.scalasmt.typedterms.{Commands, QuantifiedTerm, TypedTerm, VarTerm}
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic._
+import org.tygus.suslik.report.LazyTiming
 
 import scala.util.Success
 
@@ -21,10 +22,13 @@ object SMTSolving extends Core
   with Commands
   with PureLogicUtils
   with ArrayExBool
-  with ArrayExOperators {
+  with ArrayExOperators
+  with LazyTiming {
 
-//  val defaultSolver = "CVC4"
+  //  val defaultSolver = "CVC4"
   val defaultSolver = "Z3"
+
+  override val watchName = "SMTSolving"
 
   implicit private var solverObject: SMTSolver = null
 
@@ -34,7 +38,9 @@ object SMTSolving extends Core
     // create solver and assert axioms
     // TODO: destroy solver when we're done
     solverObject = new SMTSolver(defaultSolver, new SMTInit())
-    for (cmd <- prelude) { solverObject.eval(Raw(cmd)) }
+    for (cmd <- prelude) {
+      solverObject.eval(Raw(cmd))
+    }
 
     // Warm-up the SMT solver on start-up to avoid future delays
     for (i <- 1 to 5; j <- 1 to 2; k <- 1 to 3) {
@@ -52,13 +58,21 @@ object SMTSolving extends Core
   type SMTSetTerm = TypedTerm[SetTerm, Term]
 
   def setSort: Sort = SortId(SymbolId(SSymbol("SetInt")))
+
   def emptySetSymbol = SimpleQId(SymbolId(SSymbol("empty")))
+
   def setInsertSymbol = SimpleQId(SymbolId(SSymbol("insert")))
+
   def setUnionSymbol = SimpleQId(SymbolId(SSymbol("union")))
+
   def setDiffSymbol = SimpleQId(SymbolId(SSymbol("difference")))
+
   def setMemberSymbol = SimpleQId(SymbolId(SSymbol("member")))
+
   def setSubsetSymbol = SimpleQId(SymbolId(SSymbol("subset")))
+
   def setIntersectSymbol = SimpleQId(SymbolId(SSymbol("intersect")))
+
   def emptySetTerm: Term = QIdTerm(emptySetSymbol)
 
   // Commands to be executed before solving starts
@@ -73,18 +87,20 @@ object SMTSolving extends Core
       "(define-fun empty () SetInt ((as const SetInt) false))",
       "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
       "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))")
-//      "(define-fun subset ((s1 SetInt) (s2 SetInt)) Bool (= s1 (intersect s1 s2)))")
-//      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))",
-//      "(define-fun andNot ((b1 Bool) (b2 Bool)) Bool (and b1 (not b2)))",
-//      "(define-fun diff ((s1 SetInt) (s2 SetInt)) SetInt (((_ map andNot) s1 s2)))")
+    //      "(define-fun subset ((s1 SetInt) (s2 SetInt)) Bool (= s1 (intersect s1 s2)))")
+    //      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))",
+    //      "(define-fun andNot ((b1 Bool) (b2 Bool)) Bool (and b1 (not b2)))",
+    //      "(define-fun diff ((s1 SetInt) (s2 SetInt)) SetInt (((_ map andNot) s1 s2)))")
   } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean =
     this.synchronized {
-      push(1)
-      val res = isSat(term)
-      pop(1)
-      res != Success(UnSat()) // Unknown counts as SAT
+      timed {
+        push(1)
+        val res = isSat(term)
+        pop(1)
+        res != Success(UnSat()) // Unknown counts as SAT
+      }
     }
 
   /** Translating expression into SMT  */
@@ -96,7 +112,7 @@ object SMTSolving extends Core
     extends Exception(s"Unsupported solver: $solver.")
 
   private def convertSetExpr(e: Expr): SMTSetTerm = e match {
-    case Var(name) => new VarTerm[ SetTerm ]( name, setSort )
+    case Var(name) => new VarTerm[SetTerm](name, setSort)
     case SetLiteral(elems) => {
       val emptyTerm = new TypedTerm[SetTerm, Term](Set.empty, emptySetTerm)
       makeSetInsert(emptyTerm, elems)
@@ -144,12 +160,13 @@ object SMTSolving extends Core
         def makeInsertOne(setTerm: SMTSetTerm, eTerm: SMTIntTerm): SMTSetTerm =
           new TypedTerm[SetTerm, Term](setTerm.typeDefs ++ eTerm.typeDefs,
             QIdAndTermsTerm(setInsertSymbol, List(eTerm.termDef, setTerm.termDef)))
+
         eTerms.foldLeft(setTerm)(makeInsertOne)
       } else throw SolverUnsupportedExpr(defaultSolver)
     }
   }
 
-  private def convertBoolExpr(e: Expr): SMTBoolTerm =  e match {
+  private def convertBoolExpr(e: Expr): SMTBoolTerm = e match {
     case Var(name) => Bools(name)
     case BoolConst(true) => True()
     case BoolConst(false) => False()
@@ -157,37 +174,44 @@ object SMTSolving extends Core
     case BinaryExpr(OpAnd, left, right) => {
       val l = convertBoolExpr(left)
       val r = convertBoolExpr(right)
-      l & r }
+      l & r
+    }
     case BinaryExpr(OpOr, left, right) => {
       val l = convertBoolExpr(left)
       val r = convertBoolExpr(right)
-      l | r }
+      l | r
+    }
     case BinaryExpr(OpEq, left, right) => {
       val l = convertIntExpr(left)
       val r = convertIntExpr(right)
-      l === r }
+      l === r
+    }
     case BinaryExpr(OpBoolEq, left, right) => {
       val l = convertBoolExpr(left)
       val r = convertBoolExpr(right)
-      l === r }
+      l === r
+    }
     case BinaryExpr(OpLeq, left, right) => {
       val l = convertIntExpr(left)
       val r = convertIntExpr(right)
-      l <= r }
+      l <= r
+    }
     case BinaryExpr(OpLt, left, right) => {
       val l = convertIntExpr(left)
       val r = convertIntExpr(right)
-      l < r }
+      l < r
+    }
     case BinaryExpr(OpIn, left, right) => {
       val l = convertIntExpr(left)
       val r = convertSetExpr(right)
       new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(setMemberSymbol, List(l.termDef, r.termDef)))
-      }
+    }
     case BinaryExpr(OpSetEq, left, right) => {
       val l = convertSetExpr(left)
       val r = convertSetExpr(right)
-      l === r }
+      l === r
+    }
     case BinaryExpr(OpSubset, left, right) => {
       val l = convertSetExpr(left)
       val r = convertSetExpr(right)
@@ -208,18 +232,21 @@ object SMTSolving extends Core
         case OpMinus => l - r
         case OpMultiply => l * r
         case _ => throw SMTUnsupportedExpr(e)
-      }}
+      }
+    }
     case IfThenElse(cond, left, right) => {
       val c = convertBoolExpr(cond)
       val l = convertIntExpr(left)
       val r = convertIntExpr(right)
-      c.ite(l,r) }
+      c.ite(l, r)
+    }
     case _ => throw SMTUnsupportedExpr(e)
   }
 
   /** Caching */
 
   private val cache = collection.mutable.Map[Expr, Boolean]()
+
   def cacheSize: Int = cache.size
 
   // Call this before synthesizing a new function

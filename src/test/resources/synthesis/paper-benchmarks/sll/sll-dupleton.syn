@@ -1,0 +1,17 @@
+# -c 3
+singly-linked list: construct a list with two elements
+
+#####
+
+{ true ; ret :-> a }
+void sll_dupleton (int x, int y, loc ret)
+{ elems =i {x, y} ; ret :-> z ** sll(z, elems) }
+
+#####
+
+void sll_dupleton (int x, loc ret) {
+  let y2 = malloc(2);
+  *y2 = x;
+  *(y2 + 1) = 0;
+  *ret = y2;
+}

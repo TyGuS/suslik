@@ -29,6 +29,8 @@ Otherwise, check the building instructions below.
 * [Java SE Development Kit 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 * [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
 * [Z3 SMT solver](https://github.com/Z3Prover/z3)
+* [CVC4 SMT solver](https://cvc4.github.io/), version 1.7
+* [Cyclist Theorem Prover](http://www.cyclist-prover.org/installation)
 * [Scala](https://www.scala-lang.org/download/) (version >= 2.12.6) - to run the standalone artifact
 
 ### Building and Testing the Project
@@ -120,9 +122,9 @@ where the necessary arguments and options are
 ```
   fileName                 a synthesis file name (the file under the specified folder, called filename.syn)
   -r, --trace <value>      print the entire derivation trace; default: true
-  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 300000 (5 min)
+  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 120000 (2 min)
   -d, --depth <value>      derivation depth; default: 100
-  -a, --assert <value>     check that the synthesized result against the expected one; default: true
+  -a, --assert <value>     check that the synthesized result against the expected one; default: false
   -c, --maxCloseDepth <value>
                            maximum unfolding depth in the post-condition; default: 1
   -o, --maxOpenDepth <value>

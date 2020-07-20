@@ -14,8 +14,10 @@
   },
   "homepage": "https://github.com/TyGuS/suslik#readme",
   "dependencies": {
+    "array-equal": "^1.0.0",
     "jquery": "^3.5.0",
-    "vue": "^2.6.11"
+    "vue": "^2.6.11",
+    "vue-context": "^5.2.0"
   },
   "devDependencies": {
     "@types/jquery": "^3.3.34",

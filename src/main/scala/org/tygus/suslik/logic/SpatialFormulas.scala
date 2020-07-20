@@ -3,7 +3,6 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
-import org.tygus.suslik.synthesis.rules.LogicalRules.findMatchingHeaplets
 
 /**
   * Separation logic fragment
@@ -27,16 +26,26 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     collector(Set.empty)(this)
   }
 
-  def compare(that: Heaplet): Int = this.pp.compare(that.pp)
+  // Unify with that modulo theories:
+  // produce pairs of expressions that must be equal for the this and that to be the same heaplet
+  def unify(that: Heaplet): Option[ExprSubst]
 
-  def |-(other: Heaplet): Boolean
+  def compare(that: Heaplet): Int = this.pp.compare(that.pp)
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
 
-  def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this
+  def getTag: Option[PTag] = None
+
+  def setTag(t: PTag): Heaplet = this
 
   def eqModTags(other: Heaplet): Boolean = {
-    this.adjustTag(_ => None) == other.adjustTag(_ => None)
+    this.setTag(PTag()) == other.setTag(PTag())
+  }
+
+  // If this is a predicate instance, assume that from is too and copy its tag
+  def copyTag(from: Heaplet): Heaplet = this match {
+    case SApp(pred, args, _, card) => SApp(pred, args, from.asInstanceOf[SApp].tag, card)
+    case _ => this
   }
 
   // Size of the heaplet (in AST nodes)
@@ -47,13 +56,8 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   }
 
   def cost: Int = this match {
-    case PointsTo(_, _, _) => 0
-    case Block(_, _) => 0
-    case SApp(_, _, None, _) => 3
-    case SApp(_, _, Some(n), _) => n
-    //    case PointsTo(_, _, _) => 1
-    //    case Block(_, _) => 1
-    //    case SApp(_, _, _) => 10
+    case SApp(_, _, PTag(c, u), _) => 2 + 2*(c + u)
+    case _ => 1
   }
 
 }
@@ -74,21 +78,22 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
   def subst(sigma: Map[Var, Expr]): Heaplet =
     PointsTo(loc.subst(sigma), offset, value.subst(sigma))
 
-  def |-(other: Heaplet): Boolean = other match {
-    case PointsTo(_loc, _offset, _value) => this.loc == _loc && this.offset == _offset && this.value == _value
-    case _ => false
-  }
-
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     for {
       gamma1 <- loc.resolve(gamma, Some(LocType))
-      gamma2 <- value.resolve(gamma1, Some(IntType))
+      gamma2 <- value.resolve(gamma1, Some(LocType))
     } yield gamma2
   }
 
   override def compare(that: Heaplet) = that match {
     case SApp(pred, args, tag, card) => -1
     case _ => super.compare(that)
+  }
+
+  // This only unifies the rhs of the points-to, because lhss are unified by a separate rule
+  override def unify(that: Heaplet): Option[ExprSubst] = that match {
+    case PointsTo(l, o, v) if l == loc && o == offset => Some(Map(value -> v))
+    case _ => None
   }
 }
 
@@ -107,36 +112,40 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
     Block(loc.subst(sigma), sz)
   }
 
-  def |-(other: Heaplet): Boolean = false
-
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
 
   override def compare(that: Heaplet) = that match {
     case SApp(pred, args, tag, card) => -1
     case _ => super.compare(that)
   }
+
+  override def unify(that: Heaplet): Option[ExprSubst] = that match {
+    case Block(l, s) if sz == s => Some(Map(loc -> l))
+    case _ => None
+  }
+}
+
+case class PTag(calls: Int = 0, unrolls: Int = 0) extends PrettyPrinting {
+  override def pp: String = this match {
+    case PTag(0, 0) => "" // Default tag
+    case _ => s"[$calls,$unrolls]"
+  }
 }
 
 /**
   *
-  * @card is a cardinality of a current call. When equals None, treated as an existential
+  * @card is a cardinality of a current call.
   *
   *       Predicate application
   */
-case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: Expr) extends Heaplet {
+case class SApp(pred: Ident, args: Seq[Expr], tag: PTag, card: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args = args.map(_.resolveOverloading(gamma)))
 
   override def pp: String = {
     def ppCard(e: Expr) = s"<${e.pp}>"
 
-    val ppTag: Option[Int] => String = {
-      case None => "[-]" // "[\uD83D\uDD12]" // "locked"
-      case Some(0) => "" // Default tag
-      case Some(t) => s"[$t]"
-    }
-
-    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${ppTag(tag)}"
+    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${tag.pp}"
   }
 
 
@@ -157,25 +166,30 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: Option[Int] = Some(0), card: 
     this.copy(args = newArgs, card = newCard)
   }
 
-  def |-(other: Heaplet): Boolean = false
-
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     if (!(env.predicates contains pred)) {
       throw SynthesisException(s"predicate $pred is undefined")
     }
 
-    val gamma1 = card.resolve(gamma, Some(IntType))
+    val gamma1 = card.resolve(gamma, Some(CardType))
     val formals = env.predicates(pred).params
     if (formals.length == args.length) {
       (formals, args).zipped.foldLeft[Option[Gamma]](gamma1) { case (go, (formal, actual)) => go match {
         case None => None
-        case Some(g) => actual.resolve(g, Some(formal._1))
+        case Some(g) => actual.resolve(g, Some(formal._2))
       }
       }
     } else None
   }
 
-  override def adjustTag(f: Option[Int] => Option[Int]): Heaplet = this.copy(tag = f(this.tag))
+  override def getTag: Option[PTag] = Some(tag)
+
+  override def setTag(t: PTag): Heaplet = this.copy(tag = t)
+
+  override def unify(that: Heaplet): Option[ExprSubst] = that match {
+    case SApp(p, as, _, c) if pred == p => Some((card :: args.toList).zip(c :: as.toList).toMap)
+    case _ => None
+  }
 }
 
 
@@ -203,22 +217,9 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
     chunks.foldLeft(Set.empty[R])((a, h) => a ++ h.collect(p))
   }
 
-  /**
-    * Change tags for applications, to avoid re-applying the rule
-    */
-  def bumpUpSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(t => t.map(_ + 1)) else h))
+  def setSAppTags(t: PTag): SFormula = SFormula(chunks.map(h => h.setTag(t)))
 
-  def setUpSAppTags(i: Int, cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => Some(i)) else h))
-
-  def lockSAppTags(cond: Heaplet => Boolean = _ => true): SFormula =
-    SFormula(chunks.map(h => if (cond(h)) h.adjustTag(_ => None) else h))
-
-  def maxSAppTag: Int = chunks.map(_ match {
-    case SApp(_, _, Some(n), _) => n
-    case _ => 0
-  }).max
+  def callTags: List[Int] = chunks.flatMap(_.getTag).map(_.calls)
 
   def isEmp: Boolean = chunks.isEmpty
 
@@ -246,23 +247,17 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
     })
   }
 
-  // How many heaplets do the two formulas have in common?
-  def similarity(other: SFormula): Int = {
-    def isMatch(l: Heaplet, r: Heaplet): Boolean = l.eqModTags(r)
-
-    findMatchingHeaplets(_ => true, isMatch, this, other) match {
-      case None => 0
-      case Some((l, r)) => l.cost + (this - l).similarity(other - r)
-    }
-  }
-
-  def is_subheap_of(other: SFormula): Boolean = {
-    similarity(other) == this.chunks.length
-  }
-
   def replace(what: SFormula, replacement: SFormula): SFormula = {
     (this - what) ** replacement
   }
+
+  lazy val profile: SProfile = {
+    val appProfile = apps.groupBy(_.pred).mapValues(_.length)
+    val blockProfile = blocks.groupBy(_.sz).mapValues(_.length)
+    val ptsProfile = ptss.groupBy(_.offset).mapValues(_.length)
+    SProfile(appProfile, blockProfile, ptsProfile)
+  }
+
 
   // Size of the formula (in AST nodes)
   def size: Int = chunks.map(_.size).sum
@@ -271,5 +266,13 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   //  def cost: Int = chunks.foldLeft(0)((m, c) => m.max(c.cost))
 }
+
+/**
+  * Profile of a spatial formula (contains properties that cannot be changed by unification)
+  * @param apps how maybe applications there are of each predicate?
+  * @param blocks how many blocks there are of each size?
+  * @param ptss how many points-to chunks there are with each offset?
+  */
+case class SProfile(apps: Map[Ident, Int], blocks: Map[Int, Int], ptss: Map[Int, Int])
 
 

@@ -1,15 +1,15 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.htt.language.CInductiveClause
+import org.tygus.suslik.certification.targets.htt.language.{CCardType, CInductiveClause}
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.logic.Proof._
 import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
 import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
 import org.tygus.suslik.certification.targets.htt.translation.Translation._
+import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.UnfoldingRules.Close
 
 object ProofTranslation {
   private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment) extends Traversable
@@ -31,14 +31,22 @@ object ProofTranslation {
       case Malloc(to, tpe, sz) =>
         (AllocStep(CVar(to.name), translateSSLType(tpe), sz), cenv)
       case Free(v) =>
-        val block = item.node.consume.pre.blocks.find(_.loc == v)
+        val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
         assert(block.nonEmpty)
         (FreeStep(block.get.sz), cenv)
       case Call(_, _, _) =>
-        val csub = cenv.subst
-        val sapp = translateHeaplet(item.node.consume.pre.apps.head).asInstanceOf[CSApp]
-        val pureEx = cenv.spec.pureParams.filterNot(_._2.vars.exists(_.isCard)).map { case (_, v) => csub(v).asInstanceOf[CVar] }
-        (CallStep(sapp, pureEx), cenv)
+        assert(item.node.goal.callGoal.nonEmpty)
+        val callGoal = item.node.goal.callGoal.get
+        val actualValues = callGoal.freshToActual.values
+        val candidateApps = callGoal.callerPre.sigma.apps
+        val sapp = candidateApps.find(app => actualValues.exists(_ == app.card)).get
+        val csapp = translateHeaplet(sapp).asInstanceOf[CSApp]
+        val pureEx = cenv.spec.pureParams
+          .filterNot(_._1 == CCardType).map(_._2)
+          .flatMap(v => callGoal.companionToFresh.get(Var(v.name)))
+          .flatMap(v => callGoal.freshToActual.get(v))
+          .map(v => translateExpr(v).asInstanceOf[CVar])
+        (CallStep(csapp, pureEx), cenv)
     }
 
     def translateProducer(stmtProducer: StmtProducer, cenv: CEnvironment): (ProofProducer, CEnvironment) = {
@@ -55,14 +63,17 @@ object ProofTranslation {
           (IdProofProducer, cenv1)
         case UnrollProducer(predName, clause, substEx) =>
           val csub = substEx.map { case (v, e) => CVar(v.name) -> translateExpr(e) }.filterKeys(!_.isCard)
-          val src = translateHeaplet(item.node.consume.post.apps.head).asInstanceOf[CSApp]
-          val dst = translateSFormula(item.node.children.head.produce.post)
+          val srcFp = item.node.footprint - item.node.children.head.footprint
+          val dstFp = item.node.children.head.footprint - item.node.footprint
+
+          val csrc = translateHeaplet(srcFp.post.sigma.apps.head).asInstanceOf[CSApp]
+          val cdst = translateSFormula(dstFp.post.sigma)
 
           val pred = cenv.predicates.find(_.name == predName).get
           val selector = translateExpr(clause.selector)
           val clauseIdx = pred.clauses.indexWhere(_.selector == selector)
           val cclause = CInductiveClause(predName, clauseIdx, selector, translateAsn(clause.asn))
-          val cenv1 = cenv.copy(subst = cenv.subst ++ csub, heapSubst = cenv.heapSubst ++ Map(src -> (dst, cclause)))
+          val cenv1 = cenv.copy(subst = cenv.subst ++ csub, heapSubst = cenv.heapSubst ++ Map(csrc -> (cdst, cclause)))
           (IdProofProducer, cenv1)
         case ConstProducer(s) =>
           val (step, cenv1) = translateOperation(s, cenv)
@@ -71,7 +82,7 @@ object ProofTranslation {
           val (step, cenv1) = translateOperation(s, cenv)
           (PrependProofProducer(step), cenv1)
         case BranchProducer(_) =>
-          val sapp = translateHeaplet(item.node.consume.pre.apps.head).asInstanceOf[CSApp]
+          val sapp = translateHeaplet(item.node.footprint.pre.sigma.apps.head).asInstanceOf[CSApp]
           val subgoals = item.node.children.map(n => translateGoal(n.goal))
           (BranchProofProducer(sapp, subgoals), cenv)
         case GuardedProducer(_, _) =>

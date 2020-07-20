@@ -6,8 +6,7 @@ import org.tygus.suslik.logic.Specifications.selfCardVar
 object Expressions {
 
   sealed abstract class CExpr extends ProgramPrettyPrinting {
-    private def isMetadata: Boolean =
-      !this.vars.exists(v => v.name != selfCardVar.name && !v.name.startsWith(cardinalityPrefix))
+    private def isCard: Boolean = this.vars.forall(_.isCard)
 
     def typeOf: Option[CoqType] = None
 
@@ -32,7 +31,7 @@ object Expressions {
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
-        case a@CSApp(_, args, _, _) =>
+        case a@CSApp(_, args, _) =>
           val acc1 = if (p(a)) acc :+ a.asInstanceOf[R] else acc
           args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
         case CPointsTo(loc, _, value) =>
@@ -57,8 +56,8 @@ object Expressions {
         CSetLiteral(elems.map(_.subst(sigma)))
       case CIfThenElse(cond, l, r) =>
         CIfThenElse(cond.subst(sigma), l.subst(sigma), r.subst(sigma))
-      case CSApp(pred, args, tag, card) =>
-        CSApp(pred, args.map(_.subst(sigma)), tag, card.subst(sigma))
+      case CSApp(pred, args, card) =>
+        CSApp(pred, args.map(_.subst(sigma)), card.subst(sigma))
       case CPointsTo(loc, offset, value) =>
         CPointsTo(loc.subst(sigma), offset, value.subst(sigma))
       case CSFormula(heapName, apps, ptss) =>
@@ -72,8 +71,8 @@ object Expressions {
     def simplify: CExpr = this match {
       case CBinaryExpr(op, left, right) =>
         if (op == COpAnd) {
-          if (left == CBoolConst(true) || left.isMetadata) return right.simplify
-          else if (right == CBoolConst(true) || right.isMetadata) return left.simplify
+          if (left == CBoolConst(true) || left.isCard) return right.simplify
+          else if (right == CBoolConst(true) || right.isCard) return left.simplify
         }
         CBinaryExpr(op, left.simplify, right.simplify)
       case CUnaryExpr(op, arg) =>
@@ -82,8 +81,8 @@ object Expressions {
         CSetLiteral(elems.map(e => e.simplify))
       case CIfThenElse(cond, left, right) =>
         CIfThenElse(cond.simplify, left.simplify, right.simplify)
-      case CSApp(pred, args, tag, card) =>
-        CSApp(pred, args.map(_.simplify), tag, card)
+      case CSApp(pred, args, card) =>
+        CSApp(pred, args.map(_.simplify), card)
       case other => other
     }
 
@@ -91,7 +90,7 @@ object Expressions {
   }
 
   case class CVar(name: String) extends CExpr {
-    override def pp: String = name
+    override def pp: String = if (name.startsWith(cardinalityPrefix)) name.drop(cardinalityPrefix.length) else name
     val isCard: Boolean = name.startsWith(cardinalityPrefix) || name == selfCardVar.name
   }
 
@@ -170,12 +169,12 @@ object Expressions {
     override def pp: String = "empty"
   }
 
-  case class CSApp(pred: String, args: Seq[CExpr], tag: Option[Int] = Some(0), card: CExpr) extends CExpr {
+  case class CSApp(pred: String, var args: Seq[CExpr], card: CExpr) extends CExpr {
     override def pp: String = s"$pred ${args.map(arg => arg.pp).mkString(" ")}"
     override def ppp: String = s"$pred ${args.map(arg => arg.ppp).mkString(" ")}"
 
     val uniqueName: String = s"$pred${card.pp}"
-    val heapName: String = s"heap_$uniqueName"
+    val heapName: String = s"h_$uniqueName"
     val hypName: String = s"H_$uniqueName"
   }
 

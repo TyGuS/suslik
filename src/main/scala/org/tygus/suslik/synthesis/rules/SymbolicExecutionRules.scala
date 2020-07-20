@@ -5,7 +5,6 @@ import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.unification.SpatialUnification
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -54,7 +53,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
             val newPre = Assertion(pre.phi, (pre.sigma - h) ** PointsTo(to, offset, new_val))
             val subGoal = goal.spawnChild(newPre, sketch = rest)
             val kont: StmtProducer = PrependFromSketchProducer(cmd)
-            List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(h), emp), this))
+            List(RuleResult(List(subGoal), kont, this, goal))
           case Some(h) =>
             ruleAssert(false, s"Write rule matched unexpected heaplet ${h.pp}")
             Nil
@@ -105,7 +104,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
               programVars = to :: goal.programVars,
               sketch = rest)
             val kont: StmtProducer = PrependFromSketchProducer(cmd)
-            List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(h), emp), this))
+            List(RuleResult(List(subGoal), kont, this, goal))
           case Some(h) =>
             throw SymbolicExecutionError(cmd.pp + s" Read rule matched unexpected heaplet ${
               h.pp
@@ -142,7 +141,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           programVars = y :: goal.programVars,
           sketch = rest)
         val kont: StmtProducer = PrependFromSketchProducer(cmd)
-        List(RuleResult(List(subGoal), kont, goal.allHeaplets, this))
+        List(RuleResult(List(subGoal), kont, this, goal))
       }
       case _ => Nil
     }
@@ -178,7 +177,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
             val newPre = Assertion(pre.phi, pre.sigma - h - mkSFormula(pts.toList))
             val subGoal = goal.spawnChild(newPre, sketch = rest)
             val kont: StmtProducer = PrependFromSketchProducer(cmd)
-            List(RuleResult(List(subGoal), kont, goal.allHeaplets, this))
+            List(RuleResult(List(subGoal), kont, this, goal))
           case Some(what) => throw SymbolicExecutionError("Unexpected heaplet " + what + " found while executing " + cmd.pp)
         }
       }
@@ -186,57 +185,57 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     }
   }
 
-  object GuidedCall extends SynthesisRule with UnfoldingPhase with InvertibleRule {
-
-    override def toString: Ident = "SE-Call"
-
-    def apply(goal:Goal): Seq[RuleResult] = goal.sketch.uncons match {
-      case (cmd@Call(fun, actuals, _), rest) => {
-        val topLevelGoal = goal.companionCandidates.last
-        val funEnv = goal.env.functions + (goal.fname -> topLevelGoal.toFunSpec)
-
-        synAssert(funEnv.contains(fun.name), s"Undefined function in function call: ${cmd.pp}")
-        val actualVars = actuals.flatMap(_.vars).toSet
-        synAssert(actualVars.forall(x => goal.isProgramVar(x)), s"Undefined or ghost variables in function call arguments: ${cmd.pp}")
-        val _f = funEnv(fun.name)
-        synAssert(_f.params.size == actuals.size, s" Function ${_f.name} takes ${_f.params.size} arguments, but ${actuals.size} given: ${cmd.pp}")
-        val f = _f.refreshExistentials(goal.vars)
-
-        val lilHeap = f.pre.sigma
-        val largHeap = goal.pre.sigma
-
-        val subgoals = for {
-          // Find all subsets of the goal's pre that might be unified
-          largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
-          callSubPre = goal.pre.copy(sigma = largSubHeap)
-
-          sourceAsn = f.pre
-          targetAsn = callSubPre
-
-          // Try to unify f's precondition and found goal pre's subheaps
-          // We don't care if f's params are replaced with ghosts, we already checked earlier that actuals are not ghost
-          sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
-
-          // Checking ghost flow for a given substitution
-          sourceParams = f.params.map(_._2).toSet
-          targetParams = goal.programVars.toSet
-          if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
-
-          // Check that actuals supplied in the code are equal to those implied by the substitution
-          argsValid = PFormula(actuals.zip(f.params.map(_._2.subst(sub))).map { case (x, y) => x |=| y}.toSet)
-          if SMTSolving.valid(goal.pre.phi ==> (argsValid && f.pre.phi.subst(sub)))
-          callGoal = UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal)
-        } yield {
-          callGoal.copy(sketch = rest)
-        }
-        symExecAssert(subgoals.nonEmpty, cmd.pp + " function can't be called.")
-        assert(subgoals.size == 1, "Unexpected: function call produced multiple subgoals: " + cmd.pp)
-        List(RuleResult(subgoals, PrependProducer(cmd), goal.allHeaplets, this))
-      }
-      case _ => Nil
-    }
-
-  }
+//  object GuidedCall extends SynthesisRule with UnfoldingPhase with InvertibleRule {
+//
+//    override def toString: Ident = "SE-Call"
+//
+//    def apply(goal:Goal): Seq[RuleResult] = goal.sketch.uncons match {
+//      case (cmd@Call(fun, actuals, _), rest) => {
+//        val topLevelGoal = goal.companionCandidates.last
+//        val funEnv = goal.env.functions + (goal.fname -> topLevelGoal.toFunSpec)
+//
+//        synAssert(funEnv.contains(fun.name), s"Undefined function in function call: ${cmd.pp}")
+//        val actualVars = actuals.flatMap(_.vars).toSet
+//        synAssert(actualVars.forall(x => goal.isProgramVar(x)), s"Undefined or ghost variables in function call arguments: ${cmd.pp}")
+//        val _f = funEnv(fun.name)
+//        synAssert(_f.params.size == actuals.size, s" Function ${_f.name} takes ${_f.params.size} arguments, but ${actuals.size} given: ${cmd.pp}")
+//        val f = _f.refreshExistentials(goal.vars)
+//
+//        val lilHeap = f.pre.sigma
+//        val largHeap = goal.pre.sigma
+//
+//        val subgoals = for {
+//          // Find all subsets of the goal's pre that might be unified
+//          largSubHeap <- findLargestMatchingHeap(lilHeap, largHeap)
+//          callSubPre = goal.pre.copy(sigma = largSubHeap)
+//
+//          sourceAsn = f.pre
+//          targetAsn = callSubPre
+//
+//          // Try to unify f's precondition and found goal pre's subheaps
+//          // We don't care if f's params are replaced with ghosts, we already checked earlier that actuals are not ghost
+//          sub <- SpatialUnification.unify(targetAsn, sourceAsn).toList
+//
+//          // Checking ghost flow for a given substitution
+//          sourceParams = f.params.map(_._1).toSet
+//          targetParams = goal.programVars.toSet
+//          if SpatialUnification.checkGhostFlow(sub, targetAsn, targetParams, sourceAsn, sourceParams)
+//
+//          // Check that actuals supplied in the code are equal to those implied by the substitution
+//          argsValid = PFormula(actuals.zip(f.params.map(_._1.subst(sub))).map { case (x, y) => x |=| y}.toSet)
+//          if SMTSolving.valid(goal.pre.phi ==> (argsValid && f.pre.phi.subst(sub)))
+//          callGoal = UnfoldingRules.CallRule.mkCallGoal(f, sub, callSubPre, goal)
+//        } yield {
+//          callGoal.copy(sketch = rest)
+//        }
+//        symExecAssert(subgoals.nonEmpty, cmd.pp + " function can't be called.")
+//        assert(subgoals.size == 1, "Unexpected: function call produced multiple subgoals: " + cmd.pp)
+//        List(RuleResult(subgoals, PrependProducer(cmd), this, goal))
+//      }
+//      case _ => Nil
+//    }
+//
+//  }
 
   object Conditional extends SynthesisRule with InvertibleRule {
 
@@ -250,7 +249,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         val pre = goal.pre
         val thenGoal = goal.spawnChild(Assertion(pre.phi && cond, pre.sigma), sketch = tb)
         val elseGoal = goal.spawnChild(Assertion(pre.phi && cond.not, pre.sigma), sketch = eb)
-        List(RuleResult(List(thenGoal, elseGoal), BranchProducer(List(cond, cond.not)), goal.allHeaplets, this))
+        List(RuleResult(List(thenGoal, elseGoal), BranchProducer(List(cond, cond.not)), this, goal))
       }
       case (If(_, _, _), _) => {
         throw SynthesisException("Found conditional in the middle of the program. Conditionals only allowed at the end.")
@@ -272,7 +271,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         (selGoals, _) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
         (selector, subGoal) <- selGoals
         if SMTSolving.valid(goal.pre.phi ==> selector)
-      } yield RuleResult(List(subGoal), IdProducer, goal.allHeaplets, this)
+      } yield RuleResult(List(subGoal), IdProducer, this, goal)
     }
   }
 }

@@ -39,4 +39,8 @@ class PaperBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
     runAllTestsFromDir("paper-benchmarks/bst")
   }
 
+  describe("Doubly-linked list with set of elements") {
+    runAllTestsFromDir("paper-benchmarks/dll")
+  }
+
 }

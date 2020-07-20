@@ -5,7 +5,10 @@ name := "suslik"
 
 version := "0.1.0"
 
-scalaVersion := "2.12.6"
+scalaVersion := "2.12.7"
+
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint")
+scalacOptions += "-target:jvm-1.8"
 
 resolvers in ThisBuild ++= Seq(
     Resolver.sonatypeRepo("releases"),

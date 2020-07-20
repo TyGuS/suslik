@@ -1,0 +1,24 @@
+# -o 2 -x true -p true --lexi true
+
+should be able to deallocate a skip list
+
+###
+
+{ skl(x, p, s, n, lo, hi)<a> }
+  void skl_simple_free(loc x, loc p)
+{ emp }
+
+###
+
+{skl(x, p, s, n, lo, hi)<a>}
+{emp}
+void skl_simple_free (loc x, loc p) {
+  if (x == p) {
+  } else {
+    let d = *(x + 1);
+    let f = *(x + 2);
+    skl_simple_free(d, f);
+    skl_simple_free(f, p);
+    free(x);
+  }
+}

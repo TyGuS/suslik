@@ -3,7 +3,8 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
-import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
+import org.tygus.suslik.synthesis.Termination.Transition
+import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
 import org.tygus.suslik.util.SynStats
 
 /**
@@ -15,12 +16,27 @@ object SearchTree {
   // (index of each reflexive ancestor among its siblings; youngest to oldest)
   type NodeId = Vector[Int]
 
+  type Worklist = List[OrNode]
+
+  // List of nodes to process
+  var worklist: Worklist = List()
+
+  // List of leaf nodes that succeeded
+  var successLeaves: Worklist = List()
+
+  // Initialize worklist: root or-node containing the top-level goal
+  def init(initialGoal: Goal): Unit = {
+    val root = OrNode(Vector(), initialGoal, None)
+    worklist = List(root)
+    successLeaves = List()
+  }
+
   /**
     * Or-node in the search tree;
     * represents a synthesis goal to solve.
     * For this node to succeed, one of its children has to succeed.
     */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], produce: Footprint) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -44,35 +60,37 @@ object SearchTree {
     }
 
     // This node has failed: prune siblings from worklist
-    def fail(wl: List[OrNode])(implicit stats: SynStats, config: SynConfig): List[OrNode] = {
+    def fail(implicit stats: SynStats, config: SynConfig): Unit = {
       memo.save(goal, Failed)
       parent match {
-        case None => wl // this is the root; wl must already be empty
+        case None => assert(worklist.isEmpty)// this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
-          val newWL = pruneDescendants(an.id, wl)  // prune all other descendants of an
-          if (newWL.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
-            newWL
-          } else {
-            an.parent.fail(newWL)
+          worklist = pruneDescendants(an.id, worklist)  // prune all other descendants of an
+          successLeaves = pruneDescendants(an.id, successLeaves) // also from the list of succeeded leaves
+          if (!worklist.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
+            an.parent.fail
           }
         }
       }
     }
 
     // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution, wl: List[OrNode])(implicit config: SynConfig): Either[List[OrNode], Solution] = {
+    def succeed(s: Solution)(implicit config: SynConfig): Option[Solution] = {
       memo.save(goal, Succeeded(s))
+      successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
-        case None => Right(s) // this is the root: synthesis succeeded
+        case None => Some(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
-          val newWL = pruneDescendants(id, wl) // prune all my descendants from worklist
-          // Check if an has more open subgoals:
-          if (an.kont.arity == 1) { // there are no more open subgoals: an has succeeded
-            an.parent.succeed(an.kont(List(s)), newWL)
-          } else { // there are other open subgoals: partially apply and replace in descendants
-            val newAN = an.copy(kont = an.kont.partApply(s))
-            Left(newWL.map(_.replaceAncestor(an.id, newAN)))
+          worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
+          val newAN = an.copy(kont = an.kont.partApply(s)) // record solution in my parent
+          worklist = worklist.map(_.replaceAncestor(an.id, newAN)) // replace my parent in the tree
+          successLeaves = successLeaves.map(_.replaceAncestor(an.id, newAN))
+          // Check if my parent has more open subgoals:
+          if (newAN.kont.arity == 0) { // there are no more open subgoals: an has succeeded
+            newAN.parent.succeed(newAN.kont(List()))
+          } else { // there are other open subgoals:
+            None
           }
         }
       }
@@ -94,6 +112,14 @@ object SearchTree {
       }
     }
 
+    // Is n part of a branch of my descendants that hasn't yet fully succeeded?
+    // Yes if there's a incomplete and-node on the way from n to me
+    private def isFailedDescendant(n: OrNode): Boolean =
+      n.andAncestors.find(an => an.kont.arity > 0) match {
+      case None => false
+      case Some(an) => an.hasAncestor(this.id)
+    }
+
     // And nodes that are proper ancestors of this node in the search tree
     def andAncestors: List[AndNode] = parent match {
       case None => Nil
@@ -109,6 +135,48 @@ object SearchTree {
     // Number of proper ancestors
     def depth: Int = ancestors.length
 
+    // Is other from the same branch of the search as myself?
+    private def isAndSibling(other: OrNode): Boolean = {
+      val leastCommonAndAncestor = andAncestors.find(an => other.andAncestors.contains(an))
+      leastCommonAndAncestor match {
+        case None => false // this can happen if the only common ancestor is root
+        case Some(lcan) => {
+          val lcon = ancestors.find(on => other.ancestors.contains(on)).get
+          // Since these are least common ancestors, one must be the parent of the other
+          assert(lcon.parent.contains(lcan) || lcan.parent == lcon)
+          // we are and-siblings if our least common and-ancestor is below our least common or-ancestor:
+          lcan.parent == lcon
+        }
+      }
+    }
+
+    // The partial derivation that this node is part of (represented as a subset of success leaves)
+    def partialDerivation: List[OrNode] = successLeaves.filter(isAndSibling)
+
+    // All alternative partial derivations that this node is participating in
+    // (each partial derivation is represented as a subset of success leaves)
+    // this is needed when and-siblings are not necessarily suspended, e.g. when memo is off
+    def allPartialDerivations: List[List[OrNode]] = {
+      // These nodes are in the same branch as me, but not necessarily with each other
+      val relevantNodes = successLeaves.filter(isAndSibling)
+
+      // Are all nodes in s pairwise and-siblings?
+      def allAndSiblings(s: Set[OrNode]): Boolean = {
+        val results: Set[Boolean] = for { x <- s ; y <- s - x} yield x.isAndSibling(y)
+        results.forall(x => x)
+      }
+
+      val candidateDerivations = relevantNodes.toSet.subsets.filter(allAndSiblings).toList
+      assert(candidateDerivations.nonEmpty, "Candidate derivations should not be empty")
+      val maximalDerivations = for {
+        d <- candidateDerivations
+        // Only keep d if it's maximal, i.e. there is no candidate derivation that is a strict superset of d
+        if candidateDerivations.forall(c => c == d || !d.subsetOf(c))
+      } yield d.toList
+      assert(maximalDerivations.nonEmpty)
+      maximalDerivations
+    }
+
     def pp(d: Int = 0): String = parent match {
       case None => "-"
       case Some(p) =>
@@ -120,11 +188,7 @@ object SearchTree {
     }
 
     lazy val cost: Int = {
-//      val history = ruleHistory
-//      val callCount = history.count(_ == CallRule)
-//      val hasAbduceCall = history.nonEmpty && history.head == AbduceCall
-      // TODO: we'll need to include calls in the cost if we don't lock tags
-      goal.cost  // (callCount + (if (hasAbduceCall) 1 else 0))
+      goal.cost.max(extraCost)
     }
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
@@ -136,7 +200,7 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  case class AndNode(id: NodeId, kont: StmtProducer, parent: OrNode, consume: Footprint, rule: SynthesisRule) {
+  case class AndNode(id: NodeId, parent: OrNode, kont: StmtProducer, rule: SynthesisRule, transitions: Seq[Transition]) {
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true
@@ -153,6 +217,11 @@ object SearchTree {
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[AndNode] && (obj.asInstanceOf[AndNode].id == this.id)
     override def hashCode(): Int = id.hashCode()
+  }
+
+  object AndNode {
+    def apply(id: NodeId, parent: OrNode, result: RuleResult): AndNode =
+      new AndNode(id, parent, result.producer, result.rule, result.transitions)
   }
 
 }

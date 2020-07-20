@@ -143,6 +143,7 @@ node_modules
 /dist
 /public
 /build
+/scratch
 
 # traces
 *.out

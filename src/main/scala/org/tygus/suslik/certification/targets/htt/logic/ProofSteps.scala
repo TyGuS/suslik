@@ -205,8 +205,12 @@ object ProofSteps {
         builder.append(s"exists ${subs.map(s => s"(${s.pp})").mkString(", ")};\n")
       }
 
+      // Update heapSubst with the variable substitutions
+      val heapSubst1 = heapSubst.map(el => (el._1.subst(subst).asInstanceOf[CSApp], el._2))
+
       def expand(app: CSApp): Seq[CPointsTo] = {
-        val (expandedApp, _) = heapSubst(app)
+        val app1 = app.subst(subst).asInstanceOf[CSApp]
+        val expandedApp = heapSubst1(app1)._1
         val rest = expandedApp.apps.flatMap(expand)
         expandedApp.ptss ++ rest
       }
@@ -219,7 +223,8 @@ object ProofSteps {
       builder.append("ssl_emp_post.\n")
 
       def expand2(app: CSApp): Unit = {
-        val (expandedApp, clause) = heapSubst(app)
+        val app1 = app.subst(subst).asInstanceOf[CSApp]
+        val (expandedApp, clause) = heapSubst1(app1)
         val pred = predicates.find(_.name == clause.pred).get
         builder.append(s"constructor ${clause.idx + 1}=>//;\n")
         val valueEx = clause.asn.valueEx.filterNot(pred.params.map(_._2).contains).distinct.map(_.subst(subst).pp)

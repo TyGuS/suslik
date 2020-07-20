@@ -39,7 +39,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       | "set" ^^^ IntSetType
       | "void" ^^^ VoidType)
 
-  def formal: Parser[(SSLType, Var)] = typeParser ~ ident ^^ { case a ~ b => (a, Var(b)) }
+  def formal: Parser[(Var, SSLType)] = typeParser ~ ident ^^ { case a ~ b => (Var(b), a) }
 
   def intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))
@@ -115,7 +115,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
       ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
       ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("<" ~> expr <~ ">") ^^ {
-      case name ~ args ~ v => SApp(name, args, Some(0), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
+      case name ~ args ~ v => SApp(name, args, PTag(), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
     }
     )
 
@@ -203,7 +203,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     case goal ~ body => GoalContainer(goal, body)
   }
 
-  def programSUS: Parser[Program] = rep(indPredicate | (goalFunctionV1 ||| nonGoalFunction)) ^^ { pfs =>
+  def programSUS: Parser[Program] = phrase(rep(indPredicate | (goalFunctionV1 ||| nonGoalFunction))) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
     val goals = for (gc@GoalContainer(_, _) <- pfs) yield gc
@@ -217,7 +217,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     Program(ps, fs, goal)
   }
 
-  def programSYN: Parser[Program] = rep(indPredicate | goalFunctionSYN) ^^ { pfs =>
+  def programSYN: Parser[Program] = phrase(rep(indPredicate | goalFunctionSYN)) ^^ { pfs =>
     val ps = for (p@InductivePredicate(_, _, _) <- pfs) yield p
     val fs = for (f@FunSpec(_, _, _, _, _, _) <- pfs) yield f
     if (fs.isEmpty) {
@@ -230,7 +230,6 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def parse[T](p: Parser[T])(input: String): ParseResult[T] = p(new lexical.Scanner(input)) match {
     case e: Error => Failure(e.msg, e.next)
-    case Success(_, in) if !in.atEnd => Failure("Not fully parsed", in)
     case s => s
   }
 

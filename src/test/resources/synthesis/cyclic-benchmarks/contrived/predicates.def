@@ -1,0 +1,20 @@
+predicate list(loc x) {
+|  x == 0        => { true ; emp }
+|  not (x == 0)  => { true ; [x, 1] ** x :-> nxt ** list(nxt) }
+}
+
+predicate tree(loc x) {
+|  x == 0        => {true ; emp}
+|  not (x == 0)  => {true ; [x, 2] ** x :-> l ** (x + 1) :-> r ** tree(l)<al> ** tree(r)<ar>}
+}
+
+predicate treeS(loc x, set s) {
+|  x == 0        => {s == {}; emp}
+|  not (x == 0)  => {s == {v} ++ s1 ++ s2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeS(l, s1) ** treeS(r, s2)}
+}
+
+predicate sll(loc x, set s) {
+|  x == 0        => { s == {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}
+

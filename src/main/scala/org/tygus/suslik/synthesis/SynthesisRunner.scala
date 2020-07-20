@@ -120,7 +120,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('a', "assert").action(cfg { b =>
       _.copy(assertSuccess = b)
-    }).text("check that the synthesized result against the expected one; default: true")
+    }).text("check that the synthesized result against the expected one; default: false")
 
     opt[Int]('c', "maxCloseDepth").action(cfg { d =>
       _.copy(maxCloseDepth = d)
@@ -130,21 +130,41 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(maxOpenDepth = d)
     }).text("maximum unfolding depth in the pre-condition; default: 1")
 
+    opt[Int]('f', "maxCallDepth").action(cfg { d =>
+      _.copy(maxCalls = d)
+    }).text("maximum call depth; default: 1")
+
     opt[Boolean]('x', "auxAbduction").action(cfg { b =>
       _.copy(auxAbduction = b)
     }).text("abduce auxiliary functions; default: false")
+
+    opt[Boolean]("topLevelRecursion").action(cfg { b =>
+      _.copy(topLevelRecursion = b)
+    }).text("allow top-level recursion; default: true")
 
     opt[Boolean]('b', "branchAbduction").action(cfg { b =>
       _.copy(branchAbduction = b)
     }).text("abduce conditional branches; default: false")
 
+    opt[Int]("maxGuardConjuncts").action(cfg { n =>
+      _.copy(maxGuardConjuncts = n)
+    }).text("maximum number of conjuncts in an abduced guard; default: 2")
+
     opt[Boolean](name = "phased").action(cfg { b =>
       _.copy(phased = b)
     }).text("split rules into unfolding and flat phases; default: true")
 
-    opt[Boolean]('d', name = "depth").action(cfg { b =>
+    opt[Boolean]('d', name = "dfs").action(cfg { b =>
       _.copy(depthFirst = b)
     }).text("depth first search; default: false")
+
+    opt[Boolean](name = "bfs").action(cfg { b =>
+      _.copy(breadthFirst = b)
+    }).text("breadth first search (ignore weights); default: false")
+
+    opt[Boolean](name = "delegate").action(cfg { b =>
+      _.copy(delegatePure = b)
+    }).text("delegate pure synthesis to CVC4; default: true")
 
     opt[Boolean]('i', "interactive").action(cfg { b =>
       _.copy(interactive = b)
@@ -162,7 +182,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
     }.text("print synthesis context; default: false")
 
-    opt[Boolean]('f', "printFail").action(cfg { b =>
+    opt[Boolean]("printFail").action(cfg { b =>
       _.copy(printFailed = b)
     }).text("print failed rule applications; default: false")
 
@@ -174,7 +194,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(traceToJsonFile = Some(new File(fn)))
     }).text("dump entire proof search trace to a json file; default: none")
 
-    opt[Boolean](name = "memoization").action(cfg { b =>
+    opt[Boolean](name = "memo").action(cfg { b =>
       _.copy(memoization = b)
     }).text("enable memoization; default: true")
 

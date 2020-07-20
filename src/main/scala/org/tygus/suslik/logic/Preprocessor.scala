@@ -43,15 +43,6 @@ object Preprocessor extends SepLogicUtils {
       v <- card.vars
     } yield v).toSet
 
-
-    // Constant footprint
-    if (cardVars.isEmpty) {
-      val (_, clauseCard) = heapCardinality(sigma)
-      val cardConstraint = BinaryExpr(OpEq, selfCardVar, clauseCard) // self_card = constant heap size
-      val newPhi = PFormula(phi.conjuncts ++ Set(cardConstraint))
-      return InductiveClause(sel, Assertion(newPhi, sigma))
-    }
-
     val constrainedVars = sel.vars ++ phi.vars
     if (cardVars.subsetOf(constrainedVars)) return clause // No constraints to add
 

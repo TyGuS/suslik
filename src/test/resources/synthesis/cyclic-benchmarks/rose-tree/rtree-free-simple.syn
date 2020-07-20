@@ -1,0 +1,12 @@
+# -o 2 -x true -p true
+
+should be able to deallocate a rose tree
+
+###
+
+{ rtree(x)<a> }
+  void rtfree(loc x)
+{ emp }
+
+###
+

@@ -47,7 +47,9 @@ object Translation {
     val goal = node.goal
     val pureParams = goal.universalGhosts
       .intersect(goal.gamma.keySet)
-      .map(v => translateParam((goal.gamma(v), v))).filterNot(_._2.isCard).toList
+      .map(v => translateParam((v, goal.gamma(v))))
+      .filterNot(_._1 == CCardType) // exclude cardinality vars
+      .toList
     val ctp = translateSSLType(tp)
     val cparams = goal.formals.map(translateParam)
     val cpre = translateAsn(goal.pre)
@@ -69,8 +71,8 @@ object Translation {
     CInductivePredicate(el.name, cParams, cClauses)
   }
 
-  private def translateParam(el: (SSLType, Var)): (CoqType, CVar) =
-    (translateSSLType(el._1), CVar(el._2.name))
+  private def translateParam(el: (Var, SSLType)): (CoqType, CVar) =
+    (translateSSLType(el._2), CVar(el._1.name))
 
   def translateClause(el: InductiveClause, pred: String, idx: Int): CInductiveClause = {
     val selector = translateExpr(el.selector)
@@ -83,6 +85,7 @@ object Translation {
     case LocType => CPtrType
     case IntSetType => CNatSeqType
     case VoidType => CUnitType
+    case CardType => CCardType
   }
 
   def translateGoal(goal: Goal): CGoal = {
@@ -107,7 +110,7 @@ object Translation {
 
   def translateHeaplet(el: Heaplet): CExpr = el match {
     case PointsTo(loc, offset, value) => CPointsTo(translateExpr(loc), offset, translateExpr(value))
-    case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr), tag, translateExpr(card))
+    case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr), translateExpr(card))
   }
 
   def translateAsn(el: Assertion): CAssertion = {

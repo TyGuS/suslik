@@ -9,3 +9,8 @@ predicate tree(loc x, set s) {
 |  not (x == 0)  => {s =i {v} ++ s1 ++ s2 /\ y < self_card /\ z < self_card ; 
                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1)<y> ** tree(r, s2)<z>}
 }
+
+predicate ulist(loc x, set s) {
+|  x == 0        => { s == {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 /\ not (v in s1); [x, 2] ** x :-> v ** (x + 1) :-> nxt ** ulist(nxt, s1) }
+}

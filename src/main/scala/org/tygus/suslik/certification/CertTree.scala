@@ -11,34 +11,29 @@ object CertTree {
   private var counter: Int = 0
   /**
     * [Certify]: A utility for traversing a successful synthesis result during certification
-    * @param id the NodeId of the associated or-node in the synthesis search tree
+    * @param nodeId the NodeId of the associated or-node in the synthesis search tree
     * @param goal the current synthesis goal
     * @param kont the continuation that produces the statement for the goal
     * @param rule the synthesis rule that was successfully applied to prove the goal
-    * @param produce the `produce` footprint of the associated or-node
-    * @param consume the `consume` footprint of the associated and-node
     */
-  case class Node(id: NodeId,
+  case class Node(nodeId: NodeId,
                   goal: Goal,
                   kont: StmtProducer,
-                  rule: SynthesisRule,
-                  produce: Footprint,
-                  consume: Footprint) {
-    val cid: Int = { val n = counter; counter += 1; n }
+                  rule: SynthesisRule) {
+    lazy val footprint: Footprint = goal.toFootprint
+    val id: Int = hashCode()
+
     def children: List[Node] = childrenMap.getOrElse(this, List.empty).reverse
     def parent: Option[Node] = parentMap.get(this)
 
-    override def equals(obj: Any): Boolean = obj.isInstanceOf[Node] && (obj.asInstanceOf[Node].id == this.id)
-    override def hashCode(): Int = id.hashCode()
-
-
-    private def showFootprint(f: Footprint): String = s"{${f.pre.pp}}{${f.post.pp}}"
+    override def equals(obj: Any): Boolean = obj.isInstanceOf[Node] && (obj.asInstanceOf[Node].nodeId == this.nodeId)
+    override def hashCode(): Int = nodeId.hashCode()
 
     def pp: String = {
       val cs = children
 
       val builder = new StringBuilder()
-      builder.append(s"Node <${hashCode()}>\n")
+      builder.append(s"Node <$id>\n")
 
       builder.append(s"Goal to solve:\n")
 
@@ -46,13 +41,22 @@ object CertTree {
 
       builder.append(s"Rule applied: $rule\n")
 
-      val childProds = if (cs.nonEmpty) cs.map(c => showFootprint(c.produce)).mkString(", ") else "nothing"
-      builder.append(s"Footprint: ${showFootprint(consume)} --> $childProds\n")
+      builder.append(s"Footprint: $showChildren\n")
 
-      builder.append(s"Parent node: ${parent.map(_.hashCode()).getOrElse("none")}\n")
-      builder.append(s"Child nodes: [${cs.map(_.hashCode()).mkString(", ")}]\n")
+      builder.append(s"Parent node: ${parent.map(_.id).getOrElse("none")}\n")
+      builder.append(s"Child nodes: [${cs.map(_.id).mkString(", ")}]\n")
 
       builder.toString()
+    }
+
+    def showChildren: String = {
+      def showFootprint(f: Footprint): String = s"${f.pre.pp}${f.post.pp}"
+      def showDiff(child: Node):String = s"${showFootprint(footprint - child.footprint)} --> ${showFootprint(child.footprint - footprint)}"
+
+      children.length match {
+        case 0 => showFootprint(footprint)
+        case _ => children.map(showDiff).mkString("; ")
+      }
     }
   }
 
@@ -68,6 +72,17 @@ object CertTree {
     * @param e a successful rule expansion for the terminal or-node
     */
   def addSuccessfulPath(terminal: OrNode, e: RuleResult): Unit = {
+    traverse(terminal, e.producer, e.rule, _ => ())
+  }
+
+  def addSuccessFromCache(node: OrNode): Unit = {
+    for {
+      existingNode <- findByGoal(node.goal)
+    } yield traverse(node, existingNode.kont, existingNode.rule, _ => ())
+  }
+
+  @scala.annotation.tailrec
+  private def traverse(on: OrNode, stmtProducer: StmtProducer, rule: SynthesisRule, kont: Node => Unit): Unit = {
     def mkKont(n: Node, prevKont: Node => Unit): Node => Unit = parent => {
       prevKont(n)  // execute the rest of the continuation
       parentMap(n) = parent  // add link: child -> parent
@@ -75,23 +90,20 @@ object CertTree {
         n :: childrenMap.getOrElse(parent, List.empty)
     }
 
-    @scala.annotation.tailrec
-    def traverse(an: AndNode, kont: Node => Unit): Unit = {
-      val on = an.parent
-      val n = Node(on.id, on.goal, an.kont, an.rule, on.produce, an.consume)
-      on.parent match {
-        case Some(parentAn) if !parentMap.contains(n) =>  // only continue if parent hasn't been added before
-          traverse(parentAn, mkKont(n, kont))
-        case _ =>
-          kont(n)
-      }
+    val n = Node(on.id, on.goal, stmtProducer, rule)
+    on.parent match {
+      case Some(parentAn) if !parentMap.contains(n) =>  // only continue if parent hasn't been added before
+        traverse(parentAn.parent, parentAn.kont, parentAn.rule, mkKont(n, kont))
+      case _ =>
+        kont(n)
     }
-
-    val terminalAn = AndNode(Vector(), e.producer, terminal, e.consume, e.rule)
-    traverse(terminalAn, _ => ())
   }
 
-  def get(id: NodeId): Option[Node] = childrenMap.keySet.find(_ == Node(id, null, null, null, null, null))
+  private def findByGoal(goal: Goal): Option[Node] =
+    parentMap.keySet.find(n => n.goal.pre == goal.pre && n.goal.post == goal.post)
+
+  def get(id: NodeId): Option[Node] =
+    childrenMap.keySet.find(_ == Node(id, null, null, null))
 
   def clear(): Unit = {
     childrenMap.clear

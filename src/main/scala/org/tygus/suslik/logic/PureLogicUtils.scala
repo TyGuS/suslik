@@ -16,18 +16,7 @@ trait PureLogicUtils {
     assert(sbst1.keySet.intersect(sbst2.keySet).isEmpty, s"Two substitutions overlap:\n:$sbst1\n$sbst2")
   }
 
-  def compose(subst1: SubstVar, subst2: Subst): Subst = {
-    subst1.map { case (k, v) => k -> subst2.getOrElse(v, v) }
-  }
-
-  def compose1(subst1: Subst, subst2: Subst): Subst =
-    subst1.map {
-      case (k, v) => k -> (v match {
-        case w@Var(_) => subst2.getOrElse(w, v)
-        case _ => v
-      })
-    }
-
+  def compose(subst1: Subst, subst2: Subst): Subst = subst1.map { case (k, e) => k -> e.subst(subst2) }
 
   def ppSubst(m: Subst): String = {
     s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
@@ -114,12 +103,12 @@ trait PureLogicUtils {
     case UnaryExpr(OpNot, BoolConst(true)) => eFalse
     case UnaryExpr(OpNot, BoolConst(false)) => eTrue
 
-    case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+    case BinaryExpr(OpEq, Var(n1), Var(n2)) if n1 == n2 => // remove trivial equality
       BoolConst(true)
     case BinaryExpr(OpEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
       if (n1 <= n2) BinaryExpr(OpEq, v1, v2) else BinaryExpr(OpEq, v2, v1)
     case BinaryExpr(OpEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpEq, v, simplify(e))
-    case BinaryExpr(OpSetEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
+    case BinaryExpr(OpSetEq, Var(n1), Var(n2)) if n1 == n2 => // remove trivial equality
       BoolConst(true)
     case BinaryExpr(OpSetEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
       if (n1 <= n2) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
@@ -159,30 +148,6 @@ trait PureLogicUtils {
     if (cs.contains(eFalse)) pFalse else PFormula(cs)
   }
 
-  val isRelationPFormula: (Expr) => Boolean = {
-    case BinaryExpr(op, e1, e2) => op.isInstanceOf[RelOp] && isAtomicExpr(e1) && isAtomicExpr(e2)
-    case _ => false
-  }
-
-  val isAtomicPFormula: Expr => Boolean = {
-    case BoolConst(true) | BoolConst(false) => true
-    case Var(_) => true // Not sure, because var might be non-bool, which is not very atomic (or is it atomic enough?)
-    case UnaryExpr(OpNot, Var(_)) => true // here var must be bool
-    case UnaryExpr(OpNot, p) => isRelationPFormula(p)
-    case p => isRelationPFormula(p)
-  }
-
-  val isDisjunction: Expr => Boolean = {
-    case BinaryExpr(OpAnd, _, _) => false
-    case BinaryExpr(OpOr, left, right) => isDisjunction(left) && isDisjunction(right)
-    case p => isAtomicPFormula(p)
-  }
-
-  val isCNF: Expr => Boolean = {
-    case BinaryExpr(OpAnd, left, right) => isCNF(left) && isCNF(right)
-    case p => isDisjunction(p)
-  }
-
   def findCommon[T](cond: T => Boolean, ps1: List[T], ps2: List[T]): Option[(T, List[T], List[T])] = {
     for (p <- ps1 if cond(p)) {
       if (ps2.contains(p)) {
@@ -208,9 +173,9 @@ trait PureLogicUtils {
     * @param bound identifiers whose names are already taken
     * @return A substitution from old vars in assn to new ones, fresh wrt. `rotten`
     */
-  def refreshVars(vs: List[Var], bound: Set[Var], suffix: String = ""): Map[Var, Var] = {
+  def refreshVars(vs: List[Var], bound: Set[Var], suffix: String = ""): SubstVar = {
 
-    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): Map[Var, Var] =
+    def go(vsToRefresh: List[Var], taken: Set[Var], acc: Map[Var, Var]): SubstVar =
       vsToRefresh match {
         case Nil => acc
         case x :: xs =>
@@ -222,6 +187,18 @@ trait PureLogicUtils {
 
     go(vs, bound, Map.empty)
   }
+
+  def nubBy[A,B](l:List[A], p:A=>B):List[A] =
+  {
+    def go[A,B](l:List[A], p:A=>B, s:Set[B], acc:List[A]):List[A] = l match
+    {
+      case Nil => acc.reverse
+      case x::xs if s.contains(p(x)) => go(xs,p,s,acc)
+      case x::xs                     => go(xs,p,s+p(x),x::acc)
+    }
+    go(l,p,Set.empty,Nil)
+  }
+
 
 }
 

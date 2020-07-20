@@ -5,7 +5,6 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -57,7 +56,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = goal.spawnChild(newPre, newPost)
           val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> HandleGuard(goal) >> ExtractHelper(goal)
 
-          List(RuleResult(List(subGoal), kont, Footprint(singletonHeap(hl), singletonHeap(hr)), this))
+          List(RuleResult(List(subGoal), kont, this, goal))
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
           Nil
@@ -80,15 +79,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val post = goal.post
-      val gamma = goal.gamma
-
-      def alreadyLoaded(a:Var): Boolean = {
-        goal.programVars.exists(b => SMTSolving.valid(goal.pre.phi ==> (a |=| b)))
-      }
 
       def isGhostPoints: Heaplet => Boolean = {
         case PointsTo(x@Var(_), _, a@Var(_)) =>
-           !goal.isGhost(x) && goal.isGhost(a) && ! alreadyLoaded(a)
+           !goal.isGhost(x) && goal.isGhost(a)
         case _ => false
       }
 
@@ -103,7 +97,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
           val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
-          List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
+          List(RuleResult(List(subGoal), kont, this, goal))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
           Nil
@@ -155,7 +149,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
           val kont: StmtProducer = SubstProducer(Map(x -> y)) >> PrependProducer(Malloc(y, tpy, sz)) >> HandleGuard(goal) >> ExtractHelper(goal)
-          List(RuleResult(List(subGoal), kont, goal.allHeaplets - subGoal.allHeaplets, this))
+          List(RuleResult(List(subGoal), kont, this, goal))
         case _ => Nil
       }
     }
@@ -177,7 +171,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
 
-      findBlockAndChunks(noGhosts, noGhosts, goal.pre.sigma)
+      findBlockAndChunks(noGhosts, _ => true, goal.pre.sigma)
     }
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -192,7 +186,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = goal.spawnChild(newPre)
           val kont: StmtProducer = PrependProducer(Free(x)) >> HandleGuard(goal) >> ExtractHelper(goal)
 
-          List(RuleResult(List(subGoal), kont, Footprint(toRemove, emp), this))
+          List(RuleResult(List(subGoal), kont, this, goal))
         case Some(_) => Nil
       }
     }

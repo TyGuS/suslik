@@ -2,6 +2,11 @@
     padding-bottom: 25%;
 }
 
+.proof-trace-pane-area {
+    transform: scale(var(--zoom));
+    transform-origin: 0 0;
+}
+
 .proof-trace .subtrees {
     white-space: nowrap;
 }
@@ -21,11 +26,29 @@
     cursor: default;
 }
 
-.proof-trace-node > .title > span.tag {
-    float: right;
+.proof-trace-node > .title > span.goal-id,
+.proof-trace-node > .title > span.cost,
+.proof-trace-node > .title > span.tag,
+.proof-trace-node > .title > span.num-descendants {
+        float: right;
     margin-left: 1em;
     font-family: 'Times New Roman', Times, serif;
     font-size: 90%;
+}
+
+.proof-trace-node > .title > span.goal-id:not(:empty)::before {
+    content: "🎯";
+    line-height: 1pt;
+}
+
+.proof-trace-node > .title > span.cost:not(:empty)::before {
+    content: "💲";
+    line-height: 1pt;
+}
+
+.proof-trace-node > .title > span.num-descendants:not(:empty)::before {
+    content: "🌲";
+    line-height: 1pt;
 }
 
 .proof-trace-goal {
@@ -60,6 +83,9 @@
 .proof-trace-existentials {
     color: #464;
 }
+.proof-trace-existentials span.name {
+    color: #b44;
+}
 
 .proof-trace-existentials::before {
     content: "∃ ";
@@ -71,7 +97,7 @@
 }
 
 .proof-trace-formula span.var[data-of=programVars]  { color: #373; }
-.proof-trace-formula span.var[data-of=existentials] { color: #844; }
+.proof-trace-formula span.var[data-of=existentials] { color: #c00; }
 .proof-trace-formula span.var[data-of=ghosts]       { color: #888; }
 
 .proof-trace-vars span.name:hover,
@@ -90,13 +116,17 @@
     font-size: 60%;
     position: relative;
     top: -.5em;
-    color: #b00;
+    color: #e30;
+    cursor: default;
 }
 .proof-trace-formula span.cardinality::before {
     content: "⟨";
 }
 .proof-trace-formula span.cardinality::after {
     content: "⟩";
+}
+.proof-trace-formula span.cardinality:hover {
+    background: #eee;
 }
 
 .proof-trace:not(:last-child) {
@@ -129,6 +159,13 @@
 }
 .proof-trace-node.OrNode.Succeeded\* > .proof-trace-goal {
     background: #fafff8;
+}
+
+.proof-trace-node.OrNode.Succeeded-cache {
+    background: #ff8;
+}
+.proof-trace-node.OrNode.Succeeded-cache  > .proof-trace-goal {
+    background: #ffd;
 }
 
 .proof-trace-node.OrNode.Succeeded:hover,
@@ -178,6 +215,29 @@
     opacity: 1;
     display: inline;
 }
+
+/* Filters */
+
+.proof-trace-filter--only-success .proof-trace:not(.Succeeded):not(.Succeeded\*) {
+    display: none;
+}
+
+.proof-trace-filter--only-expanded .proof-trace.no-children {
+    display: none;
+}
+
+/* Toobar */
+
+.proof-trace-toolbar {
+    position: fixed;
+    top: 0;
+    left: 20em;
+    background: #ffffffd0;
+    padding: 1em 5em .75em 1em;
+    z-index: 1;
+}
+
+/* Status bar */
 
 #hint {
     position: fixed;

@@ -28,7 +28,7 @@ object ProgramTranslation {
       case Malloc(to, tpe, sz) =>
         CMalloc(CVar(to.name), translateSSLType(tpe), sz)
       case Free(v) =>
-        val block = item.node.consume.pre.blocks.find(_.loc == v)
+        val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
         assert(block.nonEmpty)
         CFree(CVar(v.name), block.get.sz)
       case Call(v, args, _) =>
@@ -71,7 +71,7 @@ object ProgramTranslation {
     // generated nested continuations for children
     val p = translateProducer(item.node.kont).simplify
     val nextItems = generateNextItems
-    val nextKont = updateProducerPost(nextItems, p)
+    val nextKont = updateProducerPost(nextItems, p).simplify
 
     nextItems.headOption match {
       case Some(childHead) =>

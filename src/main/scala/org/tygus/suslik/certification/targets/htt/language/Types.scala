@@ -29,3 +29,7 @@ case object CHeapType extends CoqType {
 case object CNatSeqType extends CoqType {
   override def pp: String = "seq nat"
 }
+
+case object CCardType extends CoqType {
+  override def pp: String = ""
+}
