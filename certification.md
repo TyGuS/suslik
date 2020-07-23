@@ -10,7 +10,7 @@ Visit the [`ssl-htt`](https://github.com/yasunariw/ssl-htt) repository to see ex
 
 ### Requirements
 
-- [Coq](https://coq.inria.fr/) (>= "8.9.0" & < "8.12~")
+- [Coq](https://coq.inria.fr/) (>= "8.10.0" & < "8.12~")
 - [Mathematical Components](http://math-comp.github.io/math-comp/) `ssreflect` (>= "1.10.0" & < "1.11~")
 - [FCSL PCM library](https://github.com/imdea-software/fcsl-pcm) (>= "1.0.0" & < "1.3~")
 - [HTT](https://github.com/TyGuS/htt)
