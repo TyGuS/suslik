@@ -148,7 +148,8 @@ object Statements {
 
   case class CGuarded(cond: CExpr, body: CStatement, els: CStatement) extends CStatement
 
-  case class CProcedure(name: String, tp: CoqType, formals: Seq[(CoqType, CVar)], body: CStatement, inductive: Boolean = false) extends CStatement {
+  case class CProcedure(name: String, tp: CoqType, formals: Seq[(CoqType, CVar)], body: CStatement) extends CStatement {
+    val inductive = body.usedVars.contains(CVar(name))
     override def pp: String = {
       val builder = new StringBuilder
       builder.append(s"Program Definition $name : ${name}_type :=\n")

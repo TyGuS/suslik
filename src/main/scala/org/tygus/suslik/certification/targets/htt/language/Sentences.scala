@@ -14,8 +14,8 @@ sealed abstract class Sentence extends PrettyPrinting {
 
     def build(el: Sentence, offset: Int = 0, vars: Seq[CVar] = Seq.empty) : Unit = el match {
       case el@CAssertion(phi, sigma) =>
-        val ve = el.valueEx.filterNot(vars.contains).distinct
-        val he = el.heapEx
+        val ve = el.valueVars.diff(vars).distinct
+        val he = el.heapVars
         val types = el.inferredTypes
         // existentials
         if (ve.nonEmpty) {
@@ -44,8 +44,9 @@ sealed abstract class Sentence extends PrettyPrinting {
           builder.append("\n")
         }
         builder.append(".")
-      case el@CFunSpec(name, rType, params, pureParams, pre, post, inductive) =>
+      case el@CFunSpec(name, rType, params, pureParams, pre, post) =>
         val paramsStr = params.map { case (t, v) => s"(${v.pp} : ${t.pp})" }.mkString(" ")
+        val pureParamsDestructuredStr = if (pureParams.length == 1) pureParams.head._2.pp else s"(${pureParams.map(_._2.pp).mkString(", ")})"
         builder.append(mkSpaces(offset))
         builder.append(s"Definition ${name}_type ")
         builder.append(":=\n")
@@ -53,8 +54,9 @@ sealed abstract class Sentence extends PrettyPrinting {
 
         // print pure params
         if (pureParams.nonEmpty) {
+          val pureParamsTypStr = pureParams.map(_._1.pp).mkString(" * ")
           builder.append(mkSpaces(offset + 2))
-          builder.append(s"{${pureParams.map { case (t, v) => s"(${v.pp} : ${t.pp})" }.mkString(" ")}},\n")
+          builder.append(s"{(args: $pureParamsTypStr)},\n")
         }
 
         // define goal
@@ -64,13 +66,22 @@ sealed abstract class Sentence extends PrettyPrinting {
         // pre-condition
         builder.append(mkSpaces(offset + 6))
         builder.append("fun h =>\n")
+        if (pureParams.nonEmpty) {
+          builder.append(mkSpaces(offset + 8))
+          builder.append(s"let: $pureParamsDestructuredStr := args in\n")
+        }
         build(pre, offset + 8, el.programVars)
         builder.append(",\n")
 
         // post-condition
         builder.append(mkSpaces(offset + 6))
         builder.append(s"[vfun (_: ${rType.pp}) h =>\n")
+        if (pureParams.nonEmpty) {
+          builder.append(mkSpaces(offset + 8))
+          builder.append(s"let: $pureParamsDestructuredStr := args in\n")
+        }
         build(post, offset + 8, el.programVars)
+        builder.append("\n")
 
         builder.append(mkSpaces(offset + 6))
         builder.append("]).")
@@ -86,16 +97,19 @@ case class CAssertion(phi: CExpr, sigma: CSFormula) extends Sentence {
     sigma.unify(source.sigma)
   }
 
-  val pureEx: Seq[CVar] =
-    phi.collect(_.isInstanceOf[CVar]).asInstanceOf[Seq[CVar]].filterNot(_.isCard)
+  def subst(sub: Map[CVar, CExpr]): CAssertion =
+    CAssertion(phi.subst(sub), sigma.subst(sub).asInstanceOf[CSFormula])
 
-  val spatialEx: Seq[CVar] =
-    sigma.collect(_.isInstanceOf[CVar]).asInstanceOf[Seq[CVar]].filterNot(_.isCard)
+  val pureVars: Seq[CVar] =
+    phi.vars.filterNot(_.isCard).distinct
 
-  val valueEx: Seq[CVar] =
-    spatialEx ++ pureEx
+  val spatialVars: Seq[CVar] =
+    sigma.vars.filterNot(_.isCard).distinct
 
-  val heapEx: Seq[CVar] =
+  val valueVars: Seq[CVar] =
+    (spatialVars ++ pureVars).distinct
+
+  val heapVars: Seq[CVar] =
     sigma.heapVars
 
   val inferredTypes: Map[CVar, CoqType] = {
@@ -119,6 +133,6 @@ case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAsser
 
 case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause]) extends Sentence
 
-case class CFunSpec(name: String, rType: CoqType, params: CFormals, pureParams: CFormals, pre: CAssertion, post: CAssertion, inductive: Boolean) extends Sentence {
+case class CFunSpec(name: String, rType: CoqType, params: CFormals, pureParams: CFormals, pre: CAssertion, post: CAssertion) extends Sentence {
   def programVars: Seq[CVar] = params.map(_._2) ++ pureParams.map(_._2)
 }

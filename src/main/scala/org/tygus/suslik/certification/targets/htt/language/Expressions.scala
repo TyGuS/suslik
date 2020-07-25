@@ -6,7 +6,8 @@ import org.tygus.suslik.logic.Specifications.selfCardVar
 object Expressions {
 
   sealed abstract class CExpr extends ProgramPrettyPrinting {
-    private def isCard: Boolean = this.vars.forall(_.isCard)
+    def isTrivial: Boolean = this == CBoolConst(true)
+    def isCard: Boolean = this.vars.exists(_.isCard)
 
     def typeOf: Option[CoqType] = None
 
@@ -91,7 +92,7 @@ object Expressions {
 
   case class CVar(name: String) extends CExpr {
     override def pp: String = if (name.startsWith(cardinalityPrefix)) name.drop(cardinalityPrefix.length) else name
-    val isCard: Boolean = name.startsWith(cardinalityPrefix) || name == selfCardVar.name
+    override val isCard: Boolean = name.startsWith(cardinalityPrefix) || name == selfCardVar.name
   }
 
   case class CBoolConst(value: Boolean) extends CExpr {
@@ -189,32 +190,19 @@ object Expressions {
       }
     }
 
-    override def pp: String = {
-      val hs = heapVars.map(_.pp)
-      if (ptss.isEmpty) apps match {
-        case Seq(_, _, _*) =>
-          s"$heapName = ${hs.mkString(" ")} /\\ ${
-            apps.zip(hs).map { case (a, h) => s"${a.pp} $h" } mkString " /\\ "
-          }"
-        case Seq(hd, _*) =>
-          s"${hd.pp} $heapName"
-        case Seq() =>
-          s"$heapName = empty"
-      } else apps match {
-        case Seq(_, _*) =>
-          s"$heapName = ${ptss.map(_.pp).mkString(" \\+ ")} \\+ ${hs.mkString(" \\+ ")} /\\ ${
-            apps.zip(hs).map { case (a, h) => s"${a.pp} $h" } mkString " /\\ "
-          }"
-        case Seq() =>
-          s"$heapName = ${ptss.map(_.pp).mkString(" \\+ ")}"
-      }
+    def ppHeap: String = if (ptss.isEmpty && apps.isEmpty) "empty" else {
+      val ptssStr = ptss.map(_.pp)
+      val appsStr = apps.map(_.heapName)
+      (ptssStr ++ appsStr).mkString(" \\+ ")
     }
 
-    val heapVars: Seq[CVar] =
-      if (ptss.isEmpty && apps.length == 1) Seq.empty
-      else apps.map(a => CVar(a.heapName))
+    override def pp: String = if (apps.isEmpty) s"$heapName = $ppHeap" else {
+      val heapVarsStr = heapVars.map(_.pp)
+      val appsStr = apps.zip(heapVarsStr).map { case (a, h) => s"${a.pp} $h"}.mkString(" /\\ ")
+      s"$heapName = $ppHeap /\\ $appsStr"
+    }
 
-    override def vars: Seq[CVar] = super.vars ++ heapVars
+    val heapVars: Seq[CVar] = apps.map(a => CVar(a.heapName))
   }
 
   case class CExists(override val vars: Seq[CVar], e: CExpr) extends CExpr {

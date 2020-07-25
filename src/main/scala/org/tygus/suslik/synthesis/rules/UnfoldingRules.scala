@@ -94,7 +94,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
-        val kont: StmtProducer = SubstProducer(freshSub) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = EnterCall(newGoal) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
     }
@@ -126,7 +126,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
         val postCallTransition = Transition(goal, newGoal)
-        val kont: StmtProducer = PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = ExitCall >> PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }
@@ -179,7 +179,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val env = goal.env
 
       def heapletResults(h: Heaplet): Seq[RuleResult] = h match {
-        case SApp(pred, args, PTag(cls, unf), card) =>
+        case a@SApp(pred, args, PTag(cls, unf), card) =>
           if (unf >= env.config.maxCloseDepth) return Nil
 
           ruleAssert(env.predicates.contains(pred),
@@ -193,7 +193,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           val substArgs = paramNames.zip(args).toMap + (selfCardVar -> card)
 
           val subDerivations = for {
-            clause@InductiveClause(selector, asn) <- clauses
+            InductiveClause(selector, asn) <- clauses
             // Make sure that existential in the body are fresh
             asnExistentials = asn.vars -- paramNames.toSet -- Set(selfCardVar)
             freshSuffix = args.take(1).map(_.pp).mkString("_")
@@ -209,7 +209,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = UnrollProducer(predName, clause, freshExistentialsSubst) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = UnrollProducer(a, selector, actualBody, freshExistentialsSubst) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, this, goal)
           }

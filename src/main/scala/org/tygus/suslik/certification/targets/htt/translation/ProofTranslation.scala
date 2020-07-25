@@ -7,8 +7,8 @@ import org.tygus.suslik.certification.targets.htt.logic.Proof._
 import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
 import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
 import org.tygus.suslik.certification.targets.htt.translation.Translation._
-import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.Block
 import org.tygus.suslik.synthesis._
 
 object ProofTranslation {
@@ -23,7 +23,7 @@ object ProofTranslation {
   def traverseProof(item: TraversalItem, kont: ProofProducer): ProofStep = {
     def translateOperation(s: Statement, cenv: CEnvironment): (ProofStep, CEnvironment) = s match {
       case Skip =>
-        (EmpStep(cenv.predicates, cenv.spec, cenv.subst, cenv.heapSubst), cenv)
+        (EmpStep(cenv), cenv)
       case Load(to, _, _, _) =>
         (ReadStep(CVar(to.name)), cenv)
       case Store(to, offset, e) =>
@@ -34,19 +34,6 @@ object ProofTranslation {
         val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
         assert(block.nonEmpty)
         (FreeStep(block.get.sz), cenv)
-      case Call(_, _, _) =>
-        assert(item.node.goal.callGoal.nonEmpty)
-        val callGoal = item.node.goal.callGoal.get
-        val actualValues = callGoal.freshToActual.values
-        val candidateApps = callGoal.callerPre.sigma.apps
-        val sapp = candidateApps.find(app => actualValues.exists(_ == app.card)).get
-        val csapp = translateHeaplet(sapp).asInstanceOf[CSApp]
-        val pureEx = cenv.spec.pureParams
-          .filterNot(_._1 == CCardType).map(_._2)
-          .flatMap(v => callGoal.companionToFresh.get(Var(v.name)))
-          .flatMap(v => callGoal.freshToActual.get(v))
-          .map(v => translateExpr(v).asInstanceOf[CVar])
-        (CallStep(csapp, pureEx), cenv)
     }
 
     def translateProducer(stmtProducer: StmtProducer, cenv: CEnvironment): (ProofProducer, CEnvironment) = {
@@ -57,28 +44,63 @@ object ProofTranslation {
           (k1 >> k2, cenv2)
         case PartiallyAppliedProducer(p, _) =>
           translateProducer(p, cenv)
+        case FrameProducer(h) =>
+          h match {
+            case _: Block =>
+              (IdProofProducer, cenv)
+            case _ =>
+              val framedHeaplets = cenv.framedHeaplets :+ translateHeaplet(h)
+              (IdProofProducer, cenv.copy(framedHeaplets = framedHeaplets))
+          }
+        case EnterCall(goal) =>
+          val cgoal = translateGoal(goal)
+          (IdProofProducer, cenv.copy(subst = Map.empty, call = Some(cgoal, cenv.ghostSubst, cenv.subst)))
+        case ExitCall =>
+          assert(item.node.goal.callGoal.isDefined)
+          val callGoal = item.node.goal.callGoal.get
+          val (initialGoal, prevGhostSubst, prevSubst) = cenv.call.get
+
+          // create call step
+          val companionToFresh = callGoal.companionToFresh.map{ case (k, v) => CVar(k.name) -> CVar(v.name)}
+          val freshToActual = callGoal.freshToActual.map{ case (k, v) => CVar(k.name) -> translateExpr(v)}
+          val outsideVars = initialGoal.programVars ++ initialGoal.universalGhosts
+          val pureEx = cenv.spec.pureParams.map(_._2).map(v => v.subst(companionToFresh)).map(v => v.subst(freshToActual))
+          val pre = initialGoal.post.subst(freshToActual)
+          val post = translateAsn(callGoal.calleePost).subst(freshToActual)
+
+          // end of call; reset subst map
+          val cenv1 = cenv.copy(ghostSubst = prevGhostSubst, subst = prevSubst, call = None)
+
+          (PrependProofProducer(CallStep(pre, post, outsideVars, pureEx)), cenv1)
         case SubstProducer(subst) =>
-          val csub = subst.map { case (v, e) => CVar(v.name) -> translateExpr(e) }.filterKeys(!_.isCard)
+          val csub = subst.map { case (v, e) => CVar(v.name) -> translateExpr(e) }
           val cenv1 = cenv.copy(subst = cenv.subst ++ csub)
           (IdProofProducer, cenv1)
-        case UnrollProducer(predName, clause, substEx) =>
-          val csub = substEx.map { case (v, e) => CVar(v.name) -> translateExpr(e) }.filterKeys(!_.isCard)
-          val srcFp = item.node.footprint - item.node.children.head.footprint
-          val dstFp = item.node.children.head.footprint - item.node.footprint
+        case GhostSubstProducer(subst) =>
+          val csub = subst.map { case (v, e) => CVar(v.name) -> CVar(e.name) }
+          val cenv1 = cenv.copy(ghostSubst = cenv.ghostSubst ++ csub)
+          (IdProofProducer, cenv1)
+        case UnrollProducer(app, selector, expansion, substEx) =>
+          val cselector = translateExpr(selector)
+          val capp = translateHeaplet(app).asInstanceOf[CSApp]
+          val csub = substEx.map { case (src, dst) => CVar(src.name) -> CVar(dst.name) }
+          val cexpansion = translateSFormula(expansion)
 
-          val csrc = translateHeaplet(srcFp.post.sigma.apps.head).asInstanceOf[CSApp]
-          val cdst = translateSFormula(dstFp.post.sigma)
+          // get clause existentials
+          val predicate = cenv.predicates.find(_.name == app.pred).get
+          val params = predicate.vars
+          val (clause, clauseIdx) = predicate.clauses.zipWithIndex.find(_._1.selector == cselector).get
+          val clauseEx = clause.asn.valueVars.diff(params).map(v => csub(v))
 
-          val pred = cenv.predicates.find(_.name == predName).get
-          val selector = translateExpr(clause.selector)
-          val clauseIdx = pred.clauses.indexWhere(_.selector == selector)
-          val cclause = CInductiveClause(predName, clauseIdx, selector, translateAsn(clause.asn))
-          val cenv1 = cenv.copy(subst = cenv.subst ++ csub, heapSubst = cenv.heapSubst ++ Map(csrc -> (cdst, cclause)))
+          val item = AppExpansion(clauseIdx, cexpansion, clauseEx)
+          val heapSubst = cenv.heapSubst ++ Map(capp -> item)
+          val cenv1 = cenv.copy(heapSubst = heapSubst)
           (IdProofProducer, cenv1)
         case ConstProducer(s) =>
           val (step, cenv1) = translateOperation(s, cenv)
           (ConstProofProducer(step), cenv1)
         case PrependProducer(s) =>
+          if (s.isInstanceOf[Call]) return (IdProofProducer, cenv)
           val (step, cenv1) = translateOperation(s, cenv)
           (PrependProofProducer(step), cenv1)
         case BranchProducer(_) =>
@@ -112,7 +134,7 @@ object ProofTranslation {
     val nextItems = generateNextItems(p, cenv1)
     val nextKont = updateProducerPost(nextItems, p, cenv1)
 
-    nextItems.headOption match {
+      nextItems.headOption match {
       case Some(childHead) =>
         traverseProof(childHead, nextKont)
       case None =>

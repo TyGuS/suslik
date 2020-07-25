@@ -2,7 +2,7 @@ package org.tygus.suslik.certification.targets.htt.logic
 
 import org.tygus.suslik.certification.targets.htt.language._
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.logic.Proof.CGoal
+import org.tygus.suslik.certification.targets.htt.logic.Proof._
 
 object ProofSteps {
   case class Proof(root: ProofStep) {
@@ -11,30 +11,122 @@ object ProofSteps {
   sealed abstract class ProofStep {
     def pp: String = ""
 
-    protected def nestedDestruct(items: Seq[CVar]): String = items.toList match {
+    protected def nestedDestructR(items: Seq[CVar]): String = items.toList match {
       case v1 :: v2 :: rest =>
-        s"[${v1.pp} ${nestedDestruct(v2 :: rest)}]"
+        s"[${v1.pp} ${nestedDestructR(v2 :: rest)}]"
       case v :: _ =>
         v.pp
       case Nil =>
         ""
     }
 
-    def collect[R <: CExpr](p: CExpr => Boolean): Set[R] = {
-      def collector(acc: Set[R])(st: ProofStep): Set[R] = st match {
+    protected def nestedDestructL(items: Seq[CVar]): String = {
+      def visit(items: Seq[CVar]): String = {
+        items.toList match {
+          case v1 :: v2 :: rest =>
+            s"[${visit(v2 :: rest)} ${v1.pp}]"
+          case v :: _ =>
+            v.pp
+          case Nil =>
+            ""
+        }
+      }
+      visit(items.reverse)
+    }
+
+    protected def buildValueExistentials(builder: StringBuilder, asn: CAssertion, outsideVars: Seq[CVar], nested: Boolean = false): Unit = {
+      val ve = asn.valueVars.diff(outsideVars)
+
+      // move value existentials to context
+      if (ve.nonEmpty) {
+        if (nested) {
+          builder.append(s"move=>${nestedDestructL(ve)}.\n")
+        } else {
+          builder.append(s"move=>${ve.map(v => s"[${v.pp}]").mkString(" ")}.\n")
+        }
+      }
+    }
+
+    protected def buildHeapExistentials(builder: StringBuilder, asn: CAssertion, outsideVars: Seq[CVar]): Unit = {
+      val he = asn.heapVars.diff(outsideVars)
+
+      // move heap existentials to context
+      if (he.nonEmpty) {
+        builder.append(s"move=>${he.map(v => s"[${v.pp}]").mkString(" ")}.\n")
+      }
+    }
+
+    protected def buildHeapExpansion(builder: StringBuilder, asn: CAssertion, uniqueName: String): Unit = {
+      val phi = asn.phi
+      val sigma = asn.sigma
+      val phiName = s"phi_$uniqueName"
+      val sigmaName = s"sigma_$uniqueName"
+
+      // move pure part to context
+      if (!phi.isTrivial) {
+        builder.append(s"move=>[$phiName].\n")
+      }
+
+      // move spatial part to context, and then substitute where appropriate
+      builder.append(s"move=>[$sigmaName].\n")
+      builder.append(s"rewrite->$sigmaName in *.\n")
+
+      // move predicate apps to context, if any
+      if (sigma.apps.nonEmpty) {
+        val appNames = sigma.apps.map(app => CVar(app.hypName))
+        val hApps = nestedDestructR(appNames)
+        builder.append(s"move=>$hApps.\n")
+      }
+    }
+
+    protected def existentialInstantiation(builder: StringBuilder, asn: CAssertion, ve: Seq[CExpr], heapSubst: Map[CSApp, AppExpansion]): Unit = {
+      if (ve.nonEmpty) {
+        builder.append(s"exists ${ve.map(v => s"(${v.pp})").mkString(", ")}.\n")
+      }
+
+      def expandSAppExistentials(app: CSApp): (Seq[CPointsTo], Seq[CSApp]) = heapSubst.get(app) match {
+        case Some(e) =>
+          val (ptss, apps) = e.heap.apps.map(expandSAppExistentials).unzip
+          (e.heap.ptss ++ ptss.flatten, apps.flatten)
+        case None =>
+          (Seq.empty, Seq(app))
+      }
+
+      val apps = asn.sigma.apps
+      for (app <- apps) {
+        val (expandedPtss, expandedApps) = expandSAppExistentials(app)
+        val h = CSFormula("", expandedApps, expandedPtss)
+        builder.append(s"exists (${h.ppHeap});\n")
+      }
+
+      // solve everything except sapps
+      builder.append("ssl_emp_post.\n")
+
+      for {
+        app <- apps
+        ae@AppExpansion(constructor, heap, _) <- heapSubst.get(app)
+      } {
+        builder.append(s"unfold_constructor ${constructor + 1};\n")
+        existentialInstantiation(builder, CAssertion(CBoolConst(true), heap), ae.ex, heapSubst)
+      }
+    }
+
+    def vars: Set[CVar] = {
+      def collector(acc: Set[CVar])(st: ProofStep): Set[CVar] = st match {
         case WriteStep(to, _, e) =>
-          acc ++ to.collect(p) ++ e.collect(p)
+          acc ++ to.vars ++ e.vars
         case ReadStep(to) =>
-          acc ++ to.collect(p)
+          acc ++ to.vars
         case AllocStep(to, _, _) =>
-          acc ++ to.collect(p)
+          acc ++ to.vars
         case SeqCompStep(s1,s2) =>
           val acc1 = collector(acc)(s1)
           collector(acc1)(s2)
-        case CallStep(app, pureEx) =>
-          val argVars = app.args.flatMap(arg => arg.collect(p)).toSet
-          val pureExVars = pureEx.flatMap(e => e.collect(p)).toSet
-          acc ++ argVars ++ pureExVars
+        case CallStep(pre, post, vars, pureEx) =>
+          val c1 = pre.sigma.vars
+          val c2 = post.sigma.vars
+          val c3 = pureEx.flatMap(e => e.vars).toSet
+          acc ++ c1 ++ c2 ++ c3
         case _ =>
           acc
       }
@@ -56,7 +148,7 @@ object ProofSteps {
     }
 
     def simplifyBinding(newvar: CVar): ProofStep = {
-      val used: Set[CVar] = s2.collect(_.isInstanceOf[CVar])
+      val used = s2.vars
       if (used.exists(v => newvar.name.startsWith(v.name))) {
         this
       } else s2 // Do not generate bindings for unused variables
@@ -94,52 +186,38 @@ object ProofSteps {
       val builder = new StringBuilder()
       builder.append(s"case ${app.hypName}; rewrite H_cond=>//= _.\n")
 
-      val asn = goal.pre
-      val ve = asn.valueEx.filterNot(app.vars.contains).distinct
-      val ptss = goal.pre.sigma.ptss
-      val apps = goal.pre.sigma.apps
+      buildValueExistentials(builder, goal.pre, app.vars)
+      buildHeapExistentials(builder, goal.pre, app.vars)
 
-      // move constructor's value existentials to context
-      if (ve.nonEmpty) {
-        builder.append(s"move=>${ve.map(v => s"[${v.pp}]").mkString(" ")}.\n")
-      }
-
-      // move constructor's heap existentials to context
-      if (apps.nonEmpty) {
-        builder.append(s"move=>${apps.map(app => s"[${app.heapName}]").mkString(" ")}.\n")
-      }
-
-      // move constructor's pure part to context
-      builder.append(s"move=>[phi_${app.uniqueName}].\n")
-
-      // substitute constructor's points-to assertions to conclusion
-      if (ptss.nonEmpty || apps.isEmpty) {
-        builder.append("move=>[->].\n")
-      }
-
-      // move constructor's predicate apps to context
-      if (apps.nonEmpty) {
-        val appNames = apps.map(app => CVar(s"${app.hypName}"))
-        val hApps = nestedDestruct(appNames)
-        builder.append(s"move=>$hApps.\n")
-      }
+      buildHeapExpansion(builder, goal.pre, app.uniqueName)
 
       builder.toString()
     }
   }
 
-  case class CallStep(app: CSApp, pureEx: Seq[CExpr]) extends ProofStep {
+  case class CallStep(pre: CAssertion, post: CAssertion, outsideVars: Seq[CVar], pureEx: Seq[CExpr]) extends ProofStep {
     override def pp: String = {
       val builder = new StringBuilder()
 
-      // rearrange heap to put recursive heap component to the head
-      builder.append(s"put_to_head ${app.heapName}.\n")
-      builder.append("apply: bnd_seq.\n")
+      val callHeap = pre.sigma
 
-      // identify how many ghost values to pass to the call
-      for (v <- pureEx) builder.append(s"apply: (gh_ex ${v.pp}).\n")
+      // put the part of the heap touched by the recursive call at the head
+      builder.append(s"ssl_call_pre (${callHeap.ppHeap}).\n")
 
-      builder.append("apply: val_do=>//= _ ? ->; rewrite unitL=>_.\n")
+      // provide universal ghosts and execute call
+      builder.append(s"ssl_call (${pureEx.map(_.pp).mkString(", ")}).\n")
+
+      existentialInstantiation(builder, pre, pre.valueVars.diff(outsideVars), Map.empty)
+
+      val callId = s"call${scala.math.abs(pre.hashCode())}"
+      builder.append(s"move=>h_$callId.\n")
+
+      buildValueExistentials(builder, post,  outsideVars)
+      buildHeapExistentials(builder, post,  outsideVars)
+      buildHeapExpansion(builder, post, callId)
+
+      // store validity hypotheses in context
+      builder.append("store_valid.\n")
 
       builder.toString()
     }
@@ -152,33 +230,12 @@ object ProofSteps {
       // Pull out any precondition ghosts and move precondition heap to the context
       builder.append("ssl_ghostelim_pre.\n")
 
-      val ghosts = goal.universalGhosts
-      val pre = goal.pre
-      val ptss = pre.sigma.ptss
-      val apps = pre.sigma.apps
+      buildValueExistentials(builder, goal.pre, goal.programVars, nested = true)
+      buildHeapExistentials(builder, goal.pre, goal.programVars)
+      buildHeapExpansion(builder, goal.pre, "root")
 
-      // move precondition's ghosts to context
-      if (ghosts.nonEmpty) {
-        builder.append("move=>")
-        builder.append(nestedDestruct(ghosts))
-        builder.append("//=.\n")
-      }
-
-      // substitute precondition's points-to assertions to conclusion
-      if (ptss.nonEmpty || apps.isEmpty) {
-        builder.append("move=>[->].\n")
-      }
-
-      // move precondition's predicate apps to context
-      if (apps.nonEmpty) {
-        val hApps = nestedDestruct(apps.map(app => CVar(app.hypName)))
-        builder.append(s"move=>$hApps.\n")
-      }
-
-      // move heap validity assertion generated by ghR to context
-      if (ghosts.nonEmpty) {
-        builder.append("ssl_ghostelim_post.\n")
-      }
+      // store heap validity assertions
+      builder.append("ssl_ghostelim_post.\n")
 
       builder.toString()
     }
@@ -188,60 +245,26 @@ object ProofSteps {
     override def pp: String = "case: ifP=>H_cond.\n"
   }
 
-  case class EmpStep(predicates: Seq[CInductivePredicate], spec: CFunSpec, subst: Map[CVar, CExpr], heapSubst: Map[CSApp, (CSFormula, CInductiveClause)]) extends ProofStep {
+  case class EmpStep(cenv: CEnvironment) extends ProofStep {
     override def pp: String = {
       val builder = new StringBuilder()
       builder.append("ssl_emp;\n")
 
-
-      // instantiate any existentials from the fun spec post
-      val post = spec.post
-      val postApps = post.sigma.apps
-      val programVars = spec.programVars
-      val ve = post.valueEx.filterNot(programVars.contains).distinct
-
-      if (ve.nonEmpty) {
-        val subs = ve.map(e => e.subst(subst))
-        builder.append(s"exists ${subs.map(s => s"(${s.pp})").mkString(", ")};\n")
+      val ghostSubst = cenv.ghostSubst
+      val subst = cenv.subst.mapValues(_.subst(ghostSubst))
+      val post = cenv.spec.post.subst(ghostSubst)
+      val programVars = cenv.spec.programVars.map(v => ghostSubst.getOrElse(v, v))
+      val ve = post.valueVars.diff(programVars).distinct.map(_.subst(subst))
+      val heapSubst = cenv.heapSubst.map { case (app, e) =>
+        val app1 = app.subst(ghostSubst).subst(subst).asInstanceOf[CSApp]
+        val e1 = AppExpansion(
+          e.constructor,
+          e.heap.subst(ghostSubst).subst(subst).asInstanceOf[CSFormula],
+          e.ex.map(_.subst(ghostSubst).subst(subst))
+        )
+        app1 -> e1
       }
-
-      // Update heapSubst with the variable substitutions
-      val heapSubst1 = heapSubst.map(el => (el._1.subst(subst).asInstanceOf[CSApp], el._2))
-
-      def expand(app: CSApp): Seq[CPointsTo] = {
-        val app1 = app.subst(subst).asInstanceOf[CSApp]
-        val expandedApp = heapSubst1(app1)._1
-        val rest = expandedApp.apps.flatMap(expand)
-        expandedApp.ptss ++ rest
-      }
-      for (postApp <- postApps) {
-        val expandedHeap = expand(postApp).map(ptss => ptss.subst(subst).pp)
-        val expandedHeapStr = if (expandedHeap.nonEmpty) expandedHeap.mkString(" \\+ ") else "empty"
-        builder.append(s"exists ($expandedHeapStr);\n")
-      }
-
-      builder.append("ssl_emp_post.\n")
-
-      def expand2(app: CSApp): Unit = {
-        val app1 = app.subst(subst).asInstanceOf[CSApp]
-        val (expandedApp, clause) = heapSubst1(app1)
-        val pred = predicates.find(_.name == clause.pred).get
-        builder.append(s"constructor ${clause.idx + 1}=>//;\n")
-        val valueEx = clause.asn.valueEx.filterNot(pred.params.map(_._2).contains).distinct.map(_.subst(subst).pp)
-        if (valueEx.nonEmpty) {
-          builder.append(s"exists ${valueEx.mkString(", ")};\n")
-        }
-        if (expandedApp.apps.nonEmpty) {
-          val expandedHeap = expandedApp.apps.flatMap(expand)
-          val expandedHeapStr = if (expandedHeap.nonEmpty) expandedHeap.map(_.pp).mkString(" \\+ ") else "empty"
-          builder.append(s"exists $expandedHeapStr;\n")
-        }
-        builder.append("ssl_emp_post.\n")
-        expandedApp.apps.foreach(expand2)
-      }
-      for (postApp <- postApps) {
-        expand2(postApp)
-      }
+      existentialInstantiation(builder, post.subst(subst), ve, heapSubst)
 
       builder.toString()
     }

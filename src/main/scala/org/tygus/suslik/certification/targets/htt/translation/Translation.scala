@@ -38,7 +38,7 @@ object Translation {
     val proof = ProofTranslation.translate(node, proc, initialGoal, initialCEnv)
     val stmtBody = ProgramTranslation.translate(node, proc, initialGoal)
 
-    val cproc = CProcedure(proc.name, translateSSLType(proc.tp), proc.formals.map(translateParam), stmtBody, spec.inductive)
+    val cproc = CProcedure(proc.name, translateSSLType(proc.tp), proc.formals.map(translateParam), stmtBody)
     (cpreds, spec, proof, cproc)
   }
 
@@ -60,8 +60,7 @@ object Translation {
       cparams,
       pureParams,
       cpre,
-      cpost,
-      node.rule == Open
+      cpost
     )
   }
 

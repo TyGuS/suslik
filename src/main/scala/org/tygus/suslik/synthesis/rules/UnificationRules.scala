@@ -207,7 +207,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = SubstProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
