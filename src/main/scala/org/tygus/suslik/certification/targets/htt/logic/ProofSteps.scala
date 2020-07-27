@@ -81,7 +81,7 @@ object ProofSteps {
 
     protected def existentialInstantiation(builder: StringBuilder, asn: CAssertion, ve: Seq[CExpr], heapSubst: Map[CSApp, AppExpansion]): Unit = {
       if (ve.nonEmpty) {
-        builder.append(s"exists ${ve.map(v => s"(${v.pp})").mkString(", ")}.\n")
+        builder.append(s"exists ${ve.map(v => s"(${v.pp})").mkString(", ")};\n")
       }
 
       def expandSAppExistentials(app: CSApp): (Seq[CPointsTo], Seq[CSApp]) = heapSubst.get(app) match {
@@ -113,10 +113,10 @@ object ProofSteps {
 
     def vars: Set[CVar] = {
       def collector(acc: Set[CVar])(st: ProofStep): Set[CVar] = st match {
-        case WriteStep(to, _, e) =>
+        case WriteStep(to, _, e, _) =>
           acc ++ to.vars ++ e.vars
-        case ReadStep(to) =>
-          acc ++ to.vars
+        case ReadStep(to, from) =>
+          acc ++ to.vars ++ from.vars
         case AllocStep(to, _, _) =>
           acc ++ to.vars
         case SeqCompStep(s1,s2) =>
@@ -140,7 +140,7 @@ object ProofSteps {
 
     def simplify: ProofStep = {
       (s1, s2) match {
-        case (ReadStep(to), _) => simplifyBinding(to)
+        case (ReadStep(to, _), _) => simplifyBinding(to)
 //        case (WriteStep(to), _) => simplifyBinding(to)
 //        case (AllocStep(to, _, _), _) => simplifyBinding(to)
         case _ => this
@@ -155,14 +155,16 @@ object ProofSteps {
     }
   }
 
-  case class WriteStep(to: CVar, offset: Int, e: CExpr) extends ProofStep {
+  case class WriteStep(to: CVar, offset: Int, e: CExpr, frame: Boolean = true) extends ProofStep {
     override def pp: String = {
       val ptr = if (offset == 0) to.pp else s"(${to.pp} .+ $offset)"
-      s"ssl_write.\nssl_write_post $ptr.\n"
+      val writeStep = "ssl_write.\n"
+      val writePostStep = if (frame) s"ssl_write_post $ptr.\n" else ""
+      writeStep + writePostStep
     }
   }
 
-  case class ReadStep(to: CVar) extends ProofStep {
+  case class ReadStep(to: CVar, from: CVar) extends ProofStep {
     override def pp: String = "ssl_read.\n"
   }
 
@@ -178,15 +180,15 @@ object ProofSteps {
   }
 
   case object OpenStep extends ProofStep {
-    override def pp: String = "case: ifP=>H_cond.\n"
+    override def pp: String = "ssl_open.\n"
   }
 
   case class OpenPostStep(app: CSApp, goal: CGoal) extends ProofStep {
     override def pp: String = {
       val builder = new StringBuilder()
-      builder.append(s"case ${app.hypName}; rewrite H_cond=>//= _.\n")
+      builder.append(s"ssl_open_post ${app.hypName}.\n")
 
-      buildValueExistentials(builder, goal.pre, app.vars)
+      buildValueExistentials(builder, goal.pre, app.vars ++ goal.programVars)
       buildHeapExistentials(builder, goal.pre, app.vars)
 
       buildHeapExpansion(builder, goal.pre, app.uniqueName)

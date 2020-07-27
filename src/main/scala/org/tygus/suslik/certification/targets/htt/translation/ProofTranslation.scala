@@ -24,10 +24,11 @@ object ProofTranslation {
     def translateOperation(s: Statement, cenv: CEnvironment): (ProofStep, CEnvironment) = s match {
       case Skip =>
         (EmpStep(cenv), cenv)
-      case Load(to, _, _, _) =>
-        (ReadStep(CVar(to.name)), cenv)
+      case Load(to, _, from, _) =>
+        (ReadStep(CVar(to.name), CVar(from.name)), cenv)
       case Store(to, offset, e) =>
-        (WriteStep(CVar(to.name), offset, translateExpr(e)), cenv)
+        val frame = item.node.goal.callGoal.isEmpty
+        (WriteStep(CVar(to.name), offset, translateExpr(e), frame), cenv)
       case Malloc(to, tpe, sz) =>
         (AllocStep(CVar(to.name), translateSSLType(tpe), sz), cenv)
       case Free(v) =>
