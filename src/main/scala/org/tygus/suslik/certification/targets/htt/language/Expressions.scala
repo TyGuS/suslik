@@ -132,7 +132,10 @@ object Expressions {
       case COverloadedBinaryExpr(op1, left1, right1) => op == op1 && left == left1 && right == right1
       case _ => false
     }
-    override def pp: String = s"${left.pp} ${op.pp} ${right.pp}"
+    override def pp: String = op match {
+      case COpSubset => s"{subset ${left.pp} ${op.pp} ${right.pp}}"
+      case _ => s"${left.pp} ${op.pp} ${right.pp}"
+    }
     override def ppp: String = s"${left.ppp} ${op.ppp} ${right.ppp}"
   }
 
@@ -333,7 +336,9 @@ object Expressions {
     override def pp: String = "="
   }
 
-  object COpSubset extends CBinOp
+  object COpSubset extends CBinOp {
+    override def pp: String = "<="
+  }
 
   object COpIntersect extends CBinOp
 

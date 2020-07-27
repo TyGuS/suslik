@@ -88,9 +88,10 @@ object ProofTranslation {
 
           // get clause existentials
           val predicate = cenv.predicates.find(_.name == app.pred).get
-          val params = predicate.vars
-          val (clause, clauseIdx) = predicate.clauses.zipWithIndex.find(_._1.selector == cselector).get
-          val clauseEx = clause.asn.valueVars.diff(params).map(v => csub(v))
+          val clauseIdx = predicate.clauses.indexWhere(_.selector == cselector)
+          val varsInExpansion = cexpansion.vars.distinct
+          val clauseExUnordered = csub.values.toList
+          val clauseEx = varsInExpansion.filter(clauseExUnordered.contains)
 
           val item = AppExpansion(clauseIdx, cexpansion, clauseEx)
           val heapSubst = cenv.heapSubst ++ Map(capp -> item)
