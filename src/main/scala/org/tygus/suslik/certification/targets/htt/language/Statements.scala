@@ -73,7 +73,7 @@ object Statements {
             builder.append(s"${to.ppp} <-- @read ${tpe.pp} $f")
           case CCall(fun, args) =>
             builder.append(mkSpaces(offset))
-            val function_call = s"${fun.ppp} ${args.map(_.ppp).mkString(" ")}"
+            val function_call = s"${fun.ppp} (${args.map(_.ppp).mkString(", ")})"
             // TODO: handle return types
             builder.append(function_call)
           case CSeqComp(s1, s2) =>
@@ -149,16 +149,17 @@ object Statements {
   case class CGuarded(cond: CExpr, body: CStatement, els: CStatement) extends CStatement
 
   case class CProcedure(name: String, tp: CoqType, formals: Seq[(CoqType, CVar)], body: CStatement) extends CStatement {
-    val inductive = body.usedVars.contains(CVar(name))
+    val inductive: Boolean = body.usedVars.contains(CVar(name))
     override def pp: String = {
+      val vprogs = "vprogs"
       val builder = new StringBuilder
       builder.append(s"Program Definition $name : ${name}_type :=\n")
-      val fvs = formals.map(f => f._2.ppp)
       if (inductive) {
-        builder.append(s"  Fix (fun ($name : ${name}_type) ${fvs.mkString(" ")} =>\n")
+        builder.append(s"  Fix (fun ($name : ${name}_type) $vprogs =>\n")
       } else {
-        builder.append(s"  fun ${fvs.mkString(" ")} =>\n")
+        builder.append(s"  fun $vprogs =>\n")
       }
+      builder.append(s"  let: (${formals.map(_._2.pp).mkString(", ")}) := $vprogs in\n")
       builder.append("    Do (\n")
       builder.append(body.ppp)
       builder.append("    )")

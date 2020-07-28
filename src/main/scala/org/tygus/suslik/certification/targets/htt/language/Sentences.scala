@@ -45,18 +45,34 @@ sealed abstract class Sentence extends PrettyPrinting {
         }
         builder.append(".")
       case el@CFunSpec(name, rType, params, pureParams, pre, post) =>
-        val paramsStr = params.map { case (t, v) => s"(${v.pp} : ${t.pp})" }.mkString(" ")
-        val pureParamsDestructuredStr = if (pureParams.length == 1) pureParams.head._2.pp else s"(${pureParams.map(_._2.pp).mkString(", ")})"
+        val vprogs = "vprogs"
+        val vghosts = "vghosts"
+
+        def formalsToStr(formals: CFormals): (String, String) = {
+          val (typs, names) = formals.unzip
+          val typsStr = typs.map(_.pp).mkString(" * ")
+          val namesStr = names.map(_.pp).mkString(", ")
+          (typsStr, namesStr)
+        }
+
+        val (typsStr, namesStr) = formalsToStr(params)
+        val (pureTypsStr, pureNamesStr) = formalsToStr(pureParams)
+
+        // first line
         builder.append(mkSpaces(offset))
         builder.append(s"Definition ${name}_type ")
         builder.append(":=\n")
-        builder.append(s"  forall $paramsStr,\n")
 
-        // print pure params
-        if (pureParams.nonEmpty) {
-          val pureParamsTypStr = pureParams.map(_._1.pp).mkString(" * ")
+        // program var signatures
+        if (params.nonEmpty) {
           builder.append(mkSpaces(offset + 2))
-          builder.append(s"{(args: $pureParamsTypStr)},\n")
+          builder.append(s"forall ($vprogs : $typsStr),\n")
+        }
+
+        // pure var signatures
+        if (pureParams.nonEmpty) {
+          builder.append(mkSpaces(offset + 2))
+          builder.append(s"{($vghosts : $pureTypsStr)},\n")
         }
 
         // define goal
@@ -66,9 +82,13 @@ sealed abstract class Sentence extends PrettyPrinting {
         // pre-condition
         builder.append(mkSpaces(offset + 6))
         builder.append("fun h =>\n")
+        if (params.nonEmpty) {
+          builder.append(mkSpaces(offset + 8))
+          builder.append(s"let: ($namesStr) := $vprogs in\n")
+        }
         if (pureParams.nonEmpty) {
           builder.append(mkSpaces(offset + 8))
-          builder.append(s"let: $pureParamsDestructuredStr := args in\n")
+          builder.append(s"let: ($pureNamesStr) := $vghosts in\n")
         }
         build(pre, offset + 8, el.programVars)
         builder.append(",\n")
@@ -76,9 +96,13 @@ sealed abstract class Sentence extends PrettyPrinting {
         // post-condition
         builder.append(mkSpaces(offset + 6))
         builder.append(s"[vfun (_: ${rType.pp}) h =>\n")
+        if (params.nonEmpty) {
+          builder.append(mkSpaces(offset + 8))
+          builder.append(s"let: ($namesStr) := $vprogs in\n")
+        }
         if (pureParams.nonEmpty) {
           builder.append(mkSpaces(offset + 8))
-          builder.append(s"let: $pureParamsDestructuredStr := args in\n")
+          builder.append(s"let: ($pureNamesStr) := $vghosts in\n")
         }
         build(post, offset + 8, el.programVars)
         builder.append("\n")

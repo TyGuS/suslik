@@ -1,12 +1,12 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.htt.language.{CCardType, CInductiveClause}
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.logic.Proof._
 import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
 import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
 import org.tygus.suslik.certification.targets.htt.translation.Translation._
+import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Block
 import org.tygus.suslik.synthesis._
@@ -17,7 +17,8 @@ object ProofTranslation {
   def translate(node: CertTree.Node, proc: Procedure, goal: CGoal, cenv: CEnvironment): Proof = {
     val traversalItem = TraversalItem(node, cenv)
     val proofBody = traverseProof(traversalItem, PrependProofProducer(GhostElimStep(goal)))
-    Proof(proofBody)
+    val inductive = proc.body.vars.contains(Var(proc.name))
+    Proof(proofBody, goal.programVars, inductive)
   }
 
   def traverseProof(item: TraversalItem, kont: ProofProducer): ProofStep = {

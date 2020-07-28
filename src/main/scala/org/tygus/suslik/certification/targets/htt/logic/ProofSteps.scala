@@ -5,34 +5,41 @@ import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.logic.Proof._
 
 object ProofSteps {
-  case class Proof(root: ProofStep) {
-    def pp: String = s"Next Obligation.\n${root.pp}\nQed.\n"
+  def nestedDestructR(items: Seq[CVar]): String = items.toList match {
+    case v1 :: v2 :: rest =>
+      s"[${v1.pp} ${nestedDestructR(v2 :: rest)}]"
+    case v :: _ =>
+      v.pp
+    case Nil =>
+      ""
+  }
+
+  def nestedDestructL(items: Seq[CVar]): String = {
+    def visit(items: Seq[CVar]): String = {
+      items.toList match {
+        case v1 :: v2 :: rest =>
+          s"[${visit(v2 :: rest)} ${v1.pp}]"
+        case v :: _ =>
+          v.pp
+        case Nil =>
+          ""
+      }
+    }
+    visit(items.reverse)
+  }
+
+  case class Proof(root: ProofStep, params: Seq[CVar], inductive: Boolean) {
+    def pp: String = {
+      val intro = if (inductive) "intro; " else ""
+      val obligationTactic = s"Obligation Tactic := ${intro}move=>${nestedDestructL(params)}; ssl_program_simpl."
+      val nextObligation = "Next Obligation."
+      val body = root.pp
+      val qed = "Qed.\n"
+      List(obligationTactic, nextObligation, body, qed).mkString("\n")
+    }
   }
   sealed abstract class ProofStep {
     def pp: String = ""
-
-    protected def nestedDestructR(items: Seq[CVar]): String = items.toList match {
-      case v1 :: v2 :: rest =>
-        s"[${v1.pp} ${nestedDestructR(v2 :: rest)}]"
-      case v :: _ =>
-        v.pp
-      case Nil =>
-        ""
-    }
-
-    protected def nestedDestructL(items: Seq[CVar]): String = {
-      def visit(items: Seq[CVar]): String = {
-        items.toList match {
-          case v1 :: v2 :: rest =>
-            s"[${visit(v2 :: rest)} ${v1.pp}]"
-          case v :: _ =>
-            v.pp
-          case Nil =>
-            ""
-        }
-      }
-      visit(items.reverse)
-    }
 
     protected def buildValueExistentials(builder: StringBuilder, asn: CAssertion, outsideVars: Seq[CVar], nested: Boolean = false): Unit = {
       val ve = asn.valueVars.diff(outsideVars)
