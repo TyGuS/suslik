@@ -41,6 +41,8 @@ object ProofSteps {
   sealed abstract class ProofStep {
     def pp: String = ""
 
+    def refreshVars(env: CEnvironment): ProofStep = this
+
     protected def buildValueExistentials(builder: StringBuilder, asn: CAssertion, outsideVars: Seq[CVar], nested: Boolean = false): Unit = {
       val ve = asn.valueVars.diff(outsideVars)
 
@@ -156,13 +158,16 @@ object ProofSteps {
 
     def simplifyBinding(newvar: CVar): ProofStep = {
       val used = s2.vars
-      if (used.exists(v => newvar.name.startsWith(v.name))) {
+      if (used.contains(newvar)) {
         this
       } else s2 // Do not generate bindings for unused variables
     }
   }
 
   case class WriteStep(to: CVar, offset: Int, e: CExpr, frame: Boolean = true) extends ProofStep {
+    override def refreshVars(env: CEnvironment): WriteStep =
+      WriteStep(env.ghostSubst.getOrElse(to, to), offset, e.subst(env.ghostSubst), frame)
+
     override def pp: String = {
       val ptr = if (offset == 0) to.pp else s"(${to.pp} .+ $offset)"
       val writeStep = "ssl_write.\n"
@@ -172,10 +177,16 @@ object ProofSteps {
   }
 
   case class ReadStep(to: CVar, from: CVar) extends ProofStep {
+    override def refreshVars(env: CEnvironment): ReadStep =
+      ReadStep(env.ghostSubst.getOrElse(to, to), env.ghostSubst.getOrElse(from, from))
+
     override def pp: String = "ssl_read.\n"
   }
 
   case class AllocStep(to: CVar, tpe: CoqType, sz: Int) extends ProofStep {
+    override def refreshVars(env: CEnvironment): AllocStep =
+      AllocStep(env.ghostSubst.getOrElse(to, to), tpe, sz)
+
     override def pp: String = s"ssl_alloc ${to.pp}.\n"
   }
 
@@ -190,21 +201,34 @@ object ProofSteps {
     override def pp: String = "ssl_open.\n"
   }
 
-  case class OpenPostStep(app: CSApp, goal: CGoal) extends ProofStep {
+  case class OpenPostStep(app: CSApp, pre: CAssertion, programVars: Seq[CVar]) extends ProofStep {
+    override def refreshVars(env: CEnvironment): OpenPostStep = OpenPostStep(
+      app.subst(env.ghostSubst).asInstanceOf[CSApp],
+      pre.subst(env.ghostSubst),
+      programVars.map(v => env.ghostSubst.getOrElse(v, v))
+    )
+
     override def pp: String = {
       val builder = new StringBuilder()
       builder.append(s"ssl_open_post ${app.hypName}.\n")
 
-      buildValueExistentials(builder, goal.pre, app.vars ++ goal.programVars)
-      buildHeapExistentials(builder, goal.pre, app.vars)
+      buildValueExistentials(builder, pre, app.vars ++ programVars)
+      buildHeapExistentials(builder, pre, app.vars)
 
-      buildHeapExpansion(builder, goal.pre, app.uniqueName)
+      buildHeapExpansion(builder, pre, app.uniqueName)
 
       builder.toString()
     }
   }
 
   case class CallStep(pre: CAssertion, post: CAssertion, outsideVars: Seq[CVar], pureEx: Seq[CExpr]) extends ProofStep {
+    override def refreshVars(env: CEnvironment): CallStep = CallStep (
+      pre.subst(env.ghostSubst),
+      post.subst(env.ghostSubst),
+      outsideVars.map(v => env.ghostSubst.getOrElse(v, v)),
+      pureEx.map(_.subst(env.ghostSubst))
+    )
+
     override def pp: String = {
       val builder = new StringBuilder()
 
@@ -232,16 +256,19 @@ object ProofSteps {
     }
   }
 
-  case class GhostElimStep(goal: CGoal) extends ProofStep {
+  case class GhostElimStep(pre: CAssertion, programVars: Seq[CVar]) extends ProofStep {
+    override def refreshVars(env: CEnvironment): GhostElimStep =
+      GhostElimStep(pre.subst(env.ghostSubst), programVars.map(v => env.ghostSubst.getOrElse(v, v)))
+
     override def pp: String = {
       val builder = new StringBuilder()
 
       // Pull out any precondition ghosts and move precondition heap to the context
       builder.append("ssl_ghostelim_pre.\n")
 
-      buildValueExistentials(builder, goal.pre, goal.programVars, nested = true)
-      buildHeapExistentials(builder, goal.pre, goal.programVars)
-      buildHeapExpansion(builder, goal.pre, "root")
+      buildValueExistentials(builder, pre, programVars, nested = true)
+      buildHeapExistentials(builder, pre, programVars)
+      buildHeapExpansion(builder, pre, "root")
 
       // store heap validity assertions
       builder.append("ssl_ghostelim_post.\n")

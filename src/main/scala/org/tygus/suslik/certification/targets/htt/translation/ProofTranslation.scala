@@ -16,12 +16,12 @@ object ProofTranslation {
 
   def translate(node: CertTree.Node, proc: Procedure, goal: CGoal, cenv: CEnvironment): Proof = {
     val traversalItem = TraversalItem(node, cenv)
-    val proofBody = traverseProof(traversalItem, PrependProofProducer(GhostElimStep(goal)))
+    val (proofBody, _) = traverseProof(traversalItem, PrependProofProducer(GhostElimStep(goal.pre, goal.programVars)))
     val inductive = proc.body.vars.contains(Var(proc.name))
     Proof(proofBody, goal.programVars, inductive)
   }
 
-  def traverseProof(item: TraversalItem, kont: ProofProducer): ProofStep = {
+  def traverseProof(item: TraversalItem, kont: ProofProducer): (ProofStep, CEnvironment) = {
     def translateOperation(s: Statement, cenv: CEnvironment): (ProofStep, CEnvironment) = s match {
       case Skip =>
         (EmpStep(cenv), cenv)
@@ -36,6 +36,7 @@ object ProofTranslation {
         val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
         assert(block.nonEmpty)
         (FreeStep(block.get.sz), cenv)
+      case _ => ???
     }
 
     def translateProducer(stmtProducer: StmtProducer, cenv: CEnvironment): (ProofProducer, CEnvironment) = {
@@ -101,7 +102,7 @@ object ProofTranslation {
           (IdProofProducer, cenv1)
         case ConstProducer(s) =>
           val (step, cenv1) = translateOperation(s, cenv)
-          (ConstProofProducer(step), cenv1)
+          (ConstProofProducer(step, cenv1), cenv1)
         case PrependProducer(s) =>
           if (s.isInstanceOf[Call]) return (IdProofProducer, cenv)
           val (step, cenv1) = translateOperation(s, cenv)
@@ -109,9 +110,9 @@ object ProofTranslation {
         case BranchProducer(_) =>
           val sapp = translateHeaplet(item.node.footprint.pre.sigma.apps.head).asInstanceOf[CSApp]
           val subgoals = item.node.children.map(n => translateGoal(n.goal))
-          (BranchProofProducer(sapp, subgoals), cenv)
+          (BranchProofProducer(sapp, subgoals, cenv), cenv)
         case GuardedProducer(_, _) =>
-          (GuardedProofProducer, cenv)
+          (GuardedProofProducer(cenv), cenv)
         case _ =>
           (IdProofProducer, cenv)
       }
@@ -135,7 +136,7 @@ object ProofTranslation {
     val (p0, cenv1) = translateProducer(item.node.kont, item.cenv)
     val p = p0.simplify
     val nextItems = generateNextItems(p, cenv1)
-    val nextKont = updateProducerPost(nextItems, p, cenv1)
+    val nextKont = updateProducerPost(nextItems, p, cenv1).simplify
 
       nextItems.headOption match {
       case Some(childHead) =>

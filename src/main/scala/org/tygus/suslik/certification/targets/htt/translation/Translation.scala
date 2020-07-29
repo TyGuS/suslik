@@ -46,7 +46,6 @@ object Translation {
     val FunSpec(_, tp, _, _, _, _) = node.goal.toFunSpec
     val goal = node.goal
     val pureParams = goal.universalGhosts
-      .intersect(goal.gamma.keySet)
       .map(v => translateParam((v, goal.gamma(v))))
       .filterNot(_._1 == CCardType) // exclude cardinality vars
       .toList
@@ -92,7 +91,7 @@ object Translation {
     val post = translateAsn(goal.post)
     val gamma = goal.gamma.map { case (value, lType) => (CVar(value.name), translateSSLType(lType)) }
     val programVars = goal.programVars.map(v => CVar(v.name))
-    val universalGhosts = goal.universalGhosts.intersect(goal.gamma.keySet).map(v => CVar(v.name)).toSeq.filterNot(_.isCard)
+    val universalGhosts = goal.universalGhosts.map(v => CVar(v.name)).toSeq.filterNot(_.isCard)
     CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
   }
 
