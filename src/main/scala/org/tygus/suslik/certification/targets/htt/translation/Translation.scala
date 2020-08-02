@@ -2,10 +2,10 @@ package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.language.Statements._
-import org.tygus.suslik.certification.targets.htt.language._
-import org.tygus.suslik.certification.targets.htt.logic.Proof.{CEnvironment, CGoal}
-import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.Proof
+import org.tygus.suslik.certification.targets.htt.program.Statements._
+import org.tygus.suslik.certification.targets.htt.language.Types._
+import org.tygus.suslik.certification.targets.htt.logic.Proof._
+import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._

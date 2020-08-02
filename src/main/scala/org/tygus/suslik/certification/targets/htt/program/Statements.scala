@@ -1,10 +1,11 @@
-package org.tygus.suslik.certification.targets.htt.language
+package org.tygus.suslik.certification.targets.htt.program
 
-import org.tygus.suslik.util.StringUtil._
+import org.tygus.suslik.certification.targets.htt.language.PrettyPrinting
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.language.Types._
+import org.tygus.suslik.util.StringUtil.mkSpaces
 
 object Statements {
-  import Expressions._
-
   sealed abstract class CStatement extends PrettyPrinting {
     // Expression-collector
     def collectE[R <: CExpr](p: CExpr => Boolean): Seq[R] = {

@@ -1,8 +1,8 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.htt.language.StatementProducers._
-import org.tygus.suslik.certification.targets.htt.language.Statements._
+import org.tygus.suslik.certification.targets.htt.program.StatementProducers._
+import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.translation.Translation._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._

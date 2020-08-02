@@ -1,11 +1,23 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.htt.language._
+import org.tygus.suslik.certification.targets.htt.language.Types._
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.{ProofStep, nestedDestructL}
+import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 
 object Proof {
   private var currCallId = 0
   def freshCallId: String = { currCallId += 1; s"call$currCallId" }
+
+  case class Proof(root: ProofStep, params: Seq[CVar]) {
+    def pp: String = {
+      val obligationTactic = s"Obligation Tactic := intro; move=>${nestedDestructL(params)}; ssl_program_simpl."
+      val nextObligation = "Next Obligation."
+      val body = root.pp
+      val qed = "Qed.\n"
+      List(obligationTactic, nextObligation, body, qed).mkString("\n")
+    }
+  }
 
   case class CGoal(pre: CAssertion,
                    post: CAssertion,

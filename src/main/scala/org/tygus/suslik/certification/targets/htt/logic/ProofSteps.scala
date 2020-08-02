@@ -1,8 +1,9 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.htt.language._
+import org.tygus.suslik.certification.targets.htt.language.Types._
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.logic.Proof._
+import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 
 object ProofSteps {
   def nestedDestructR(items: Seq[CExpr]): String = items match {
@@ -26,15 +27,6 @@ object ProofSteps {
     visit(items.reverse)
   }
 
-  case class Proof(root: ProofStep, params: Seq[CVar]) {
-    def pp: String = {
-      val obligationTactic = s"Obligation Tactic := intro; move=>${nestedDestructL(params)}; ssl_program_simpl."
-      val nextObligation = "Next Obligation."
-      val body = root.pp
-      val qed = "Qed.\n"
-      List(obligationTactic, nextObligation, body, qed).mkString("\n")
-    }
-  }
   sealed abstract class ProofStep {
     def pp: String = ""
 
