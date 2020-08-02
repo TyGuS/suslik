@@ -1,6 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.language
 
 import org.tygus.suslik.LanguageUtils.cardinalityPrefix
+import org.tygus.suslik.certification.targets.htt.logic.Proof.{Subst, SubstVar}
 import org.tygus.suslik.logic.Specifications.selfCardVar
 
 object Expressions {
@@ -45,7 +46,7 @@ object Expressions {
       collector(Seq.empty)(this)
     }
 
-    def subst(sigma: Map[CVar, CExpr]): CExpr = this match {
+    def subst(sigma: Subst): CExpr = this match {
       case v: CVar =>
         sigma.get(v) match {
           case None => v
@@ -88,7 +89,7 @@ object Expressions {
   case class CVar(name: String) extends CExpr {
     override def pp: String = if (name.startsWith(cardinalityPrefix)) name.drop(cardinalityPrefix.length) else name
     override val isCard: Boolean = name.startsWith(cardinalityPrefix) || name == selfCardVar.name
-    def substVar(sub: Map[CVar, CExpr]): CVar = sub.get(this) match {
+    def substVar(sub: Subst): CVar = sub.get(this) match {
       case Some(v@CVar(_)) => v
       case _ => this
     }
@@ -124,14 +125,14 @@ object Expressions {
   case class CPointsTo(loc: CExpr, offset: Int = 0, value: CExpr) extends CExpr {
     def locPP: String = if (offset == 0) loc.pp else s"${loc.pp} .+ $offset"
     override def pp: String = if (value == CNatConst(0)) s"$locPP :-> null" else s"$locPP :-> ${value.pp}"
-    override def subst(sigma: Map[CVar, CExpr]): CPointsTo =
+    override def subst(sigma: Subst): CPointsTo =
       CPointsTo(loc.subst(sigma), offset, value.subst(sigma))
   }
 
   case class CSApp(pred: String, var args: Seq[CExpr], card: CExpr) extends CExpr {
     override def pp: String = s"$pred ${args.map(arg => arg.pp).mkString(" ")}"
 
-    override def subst(sigma: Map[CVar, CExpr]): CSApp =
+    override def subst(sigma: Subst): CSApp =
       CSApp(pred, args.map(_.subst(sigma)), card.subst(sigma))
 
     val uniqueName: String = s"$pred${card.pp}"
@@ -140,8 +141,8 @@ object Expressions {
   }
 
   case class CSFormula(heapName: String, apps: Seq[CSApp], ptss: Seq[CPointsTo]) extends CExpr {
-    def unify(source: CSFormula): Map[CVar, CVar] = {
-      val initialMap: Map[CVar, CVar] = Map.empty
+    def unify(source: CSFormula): SubstVar = {
+      val initialMap: SubstVar = Map.empty
       val m1 = source.ptss.zip(ptss).foldLeft(initialMap) {
         case (acc, (p1, p2)) => acc ++ p1.vars.zip(p2.vars).filterNot(v => v._1 == v._2).toMap
       }
@@ -162,7 +163,7 @@ object Expressions {
       s"$heapName = $ppHeap /\\ $appsStr"
     }
 
-    override def subst(sigma: Map[CVar, CExpr]): CSFormula = {
+    override def subst(sigma: Subst): CSFormula = {
       val apps1 = apps.map(_.subst(sigma))
       val ptss1 = ptss.map(_.subst(sigma))
       CSFormula(heapName, apps1, ptss1)

@@ -15,10 +15,8 @@ import org.tygus.suslik.logic._
 object Translation {
   case class TranslationException(msg: String) extends Exception(msg)
 
-  trait Traversable
-
   /**
-    * Produces a HTT certificate from the tree of successful derivations and a synthesized procedure
+    * Produces the components of a HTT certificate, from the tree of successful derivations and a synthesized procedure
     * @param node the root of the derivation tree
     * @param proc the synthesized procedure
     * @param env the synthesis environment
@@ -30,26 +28,25 @@ object Translation {
     val goal = translateGoal(node.goal)
     val initialCEnv = CEnvironment(goal, cpreds)
     val proof = ProofTranslation.translate(node, initialCEnv)
-    val stmtBody = ProgramTranslation.translate(node, proc)
-
-    val cproc = CProcedure(proc.name, translateType(proc.tp), proc.formals.map(translateParam), stmtBody)
+    val cproc = ProgramTranslation.translate(node, proc)
     (cpreds, goal.toFunspec, proof, cproc)
   }
 
   private def translateInductivePredicate(el: InductivePredicate): CInductivePredicate = {
     val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
-    val cClauses = el.clauses.zipWithIndex.map { case (c, i) => translateClause(c, el.name, i, cParams) }
+
+    val cClauses = el.clauses.zipWithIndex.map { case (c, idx) =>
+      val selector = translateExpr(c.selector)
+      val asn = translateAsn(c.asn)
+
+      // Include the clause number so that we can use Coq's `constructor n` tactic
+      CInductiveClause(el.name, idx + 1, selector, asn, asn.existentials(cParams.map(_._2)))
+    }
     CInductivePredicate(el.name, cParams, cClauses)
   }
 
-  private def translateParam(el: (Var, SSLType)): (HTTType, CVar) =
+  def translateParam(el: (Var, SSLType)): (HTTType, CVar) =
     (translateType(el._2), translateVar(el._1))
-
-  private def translateClause(el: InductiveClause, pred: String, idx: Int, predParams: CFormals): CInductiveClause = {
-    val selector = translateExpr(el.selector)
-    val asn = translateAsn(el.asn)
-    CInductiveClause(pred, idx, selector, translateAsn(el.asn), asn.existentials(predParams.map(_._2)))
-  }
 
   def translateType(el: SSLType): HTTType = el match {
     case BoolType => CBoolType
@@ -86,7 +83,7 @@ object Translation {
   def translatePointsTo(el: PointsTo): CPointsTo = CPointsTo(translateExpr(el.loc), el.offset, translateExpr(el.value))
 
   def translateAsn(el: Assertion): CAssertion = {
-    val phi: CExpr = translateExpr(el.phi.toExpr).simplify
+    val phi = translateExpr(el.phi.toExpr).simplify
     val sigma = translateSFormula(el.sigma)
     CAssertion(phi, sigma)
   }

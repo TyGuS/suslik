@@ -122,6 +122,11 @@ object Statements {
   }
 
   case class CSeqComp(s1: CStatement, s2: CStatement) extends CStatement {
+    /**
+      * The synthesis removes some extraneous program statements that are unused in the final result, but
+      * the CertTree retains them as nodes. So, we remove them from our statements here.
+      * @return A simplified statement
+      */
     def simplify: CStatement = (s1, s2) match {
       case (CGuarded(cond, b, eb), _) => CGuarded(cond, CSeqComp(b, s2).simplify, eb)
       case (CLoad(y, _, _, _), CGuarded(cond, _, _)) if cond.vars.contains(y) => this

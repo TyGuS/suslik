@@ -6,6 +6,8 @@ import org.tygus.suslik.certification.targets.htt.logic.Proof._
 import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 
 object ProofSteps {
+
+  // Generate right-associative destructing pattern for a tuple of Coq expressions
   def nestedDestructR(items: Seq[CExpr]): String = items match {
     case Seq(e1, e2, rest @ _*) =>
       s"[${e1.pp} ${nestedDestructR(e2 +: rest)}]"
@@ -15,6 +17,7 @@ object ProofSteps {
       ""
   }
 
+  // Generate left-associative destructing pattern for a tuple of Coq expressions
   def nestedDestructL(items: Seq[CExpr]): String = {
     def visit(items: Seq[CExpr]): String = items match {
         case Seq(e1, e2, rest @ _*) =>
@@ -30,9 +33,21 @@ object ProofSteps {
   sealed abstract class ProofStep {
     def pp: String = ""
 
-    def refreshVars(env: CEnvironment): ProofStep = this
+    /**
+      * Retroactively refresh any ghost variables that were instantiated after this proof step was first generated
+ *
+      * @param sbst the certification environment
+      * @return the new proof step
+      */
+    def refreshGhostVars(sbst: SubstVar): ProofStep = this
 
-    protected def buildExistentials(builder: StringBuilder, ex: Seq[CExpr], nested: Boolean = false): Unit = {
+    /**
+      * Move a sequence of existential terms from goal to context
+      * @param builder the string builder
+      * @param ex the existential terms
+      * @param nested whether or not to format the existentials as tuples
+      */
+    protected def elimExistentials(builder: StringBuilder, ex: Seq[CExpr], nested: Boolean = false): Unit = {
       if (ex.nonEmpty) {
         if (nested) {
           builder.append(s"move=>${nestedDestructL(ex)}.\n")
@@ -42,7 +57,13 @@ object ProofSteps {
       }
     }
 
-    protected def buildHeapExpansion(builder: StringBuilder, asn: CAssertion, uniqueName: String): Unit = {
+    /**
+      * Given a precondition assertion, move all terms to the context
+      * @param builder the string builder
+      * @param asn the precondition assertion
+      * @param uniqueName a unique identifier
+      */
+    protected def initPre(builder: StringBuilder, asn: CAssertion, uniqueName: String): Unit = {
       val phi = asn.phi
       val sigma = asn.sigma
       val phiName = s"phi_$uniqueName"
@@ -65,36 +86,55 @@ object ProofSteps {
       }
     }
 
-    protected def existentialInstantiation(builder: StringBuilder, asn: CAssertion, vars: Seq[CExpr], unfoldings: Map[CSApp, CInductiveClause]): Unit = {
-      if (vars.nonEmpty) {
-        builder.append(s"exists ${vars.map(v => s"(${v.pp})").mkString(", ")};\n")
+    /**
+      * Execute the correct sequence of existential eliminations and constructor unfoldings needed to
+      * transform the goal into a given post condition assertion
+      * @param builder the string builder
+      * @param asn an assertion (or part of an assertion) in the post condition
+      * @param ex a sequence of existentials to eliminate
+      * @param unfoldings a map from predicate applications to their unfolded state
+      */
+    protected def solvePost(builder: StringBuilder, asn: CAssertion, ex: Seq[CExpr], unfoldings: Unfoldings): Unit = {
+      // Eliminate value existentials
+      if (ex.nonEmpty) {
+        builder.append(s"exists ${ex.map(v => s"(${v.pp})").mkString(", ")};\n")
       }
 
-      def unfoldSAppExistentials(app: CSApp): (Seq[CPointsTo], Seq[CSApp]) = unfoldings.get(app) match {
+      /**
+        * Existentials for the current assertion need to be provided eagerly, so look ahead to find out
+        * the maximally unfolded, "flattened" form of the heap
+        * @param app the predicate app to flatten
+        * @return the points-to's and pred apps in the unfolded heap; any pred apps that remain have already been
+        *         established as facts earlier on, so there is no need to unfold further
+        */
+      def toUnfoldedHeap(app: CSApp): (Seq[CPointsTo], Seq[CSApp]) = unfoldings.get(app) match {
         case Some(a) =>
           val sigma = a.asn.sigma
-          val (ptss, apps) = sigma.apps.map(unfoldSAppExistentials).unzip
+          val (ptss, apps) = sigma.apps.map(toUnfoldedHeap).unzip
           (sigma.ptss ++ ptss.flatten, apps.flatten)
         case None =>
           (Seq.empty, Seq(app))
       }
 
+      // Eliminate heap existentials (one for each predicate application in the assertion)
       val apps = asn.sigma.apps
       for (app <- apps) {
-        val (unfoldedPtss, unfoldedApps) = unfoldSAppExistentials(app)
+        val (unfoldedPtss, unfoldedApps) = toUnfoldedHeap(app)
         val h = CSFormula("", unfoldedApps, unfoldedPtss)
         builder.append(s"exists (${h.ppHeap});\n")
       }
 
-      // solve everything except sapps
+      // Solve everything except the predicate applications
       builder.append("ssl_emp_post.\n")
 
+      // For each predicate application, unfold the correct constructor and recursively solve its expanded form
       for {
         app <- apps
+        // If `app` isn't found in the unfoldings, its truth was already established earlier on
         c <- unfoldings.get(app)
       } {
-        builder.append(s"unfold_constructor ${c.idx + 1};\n")
-        existentialInstantiation(builder, c.asn, c.existentials, unfoldings)
+        builder.append(s"unfold_constructor ${c.idx};\n")
+        solvePost(builder, c.asn, c.existentials, unfoldings)
       }
     }
 
@@ -109,8 +149,8 @@ object ProofSteps {
         case SeqCompStep(s1,s2) =>
           val acc1 = collector(acc)(s1)
           collector(acc1)(s2)
-        case CallStep(goal, freshToActual, _) =>
-          acc ++ goal.existentials ++ freshToActual.values.flatMap(_.vars)
+        case CallStep(goal, _) =>
+          acc ++ goal.programVars ++ goal.universalGhosts ++ goal.existentials
         case _ =>
           acc
       }
@@ -119,9 +159,19 @@ object ProofSteps {
     }
   }
 
+  /**
+    * Sequentially compose two proof steps
+    * @param s1 the first step
+    * @param s2 the second step
+    */
   case class SeqCompStep(s1: ProofStep, s2: ProofStep) extends ProofStep {
     override def pp: String = s"${s1.pp}${s2.pp}"
 
+    /**
+      * The synthesis removes some extraneous program statements that are unused in the final result, but
+      * the CertTree retains them as nodes. So, we remove them from our proof script here.
+      * @return A simplified proof step
+      */
     def simplify: ProofStep = {
       (s1, s2) match {
         case (ReadStep(to, _), _) => simplifyBinding(to)
@@ -139,103 +189,138 @@ object ProofSteps {
     }
   }
 
+  /**
+    * Perform a write
+    * @param to the variable to write to
+    * @param offset the variable offset
+    * @param e the expression to write
+    * @param frame whether or not to frame out the heaplet after writing
+    */
   case class WriteStep(to: CVar, offset: Int, e: CExpr, frame: Boolean = true) extends ProofStep {
-    override def refreshVars(env: CEnvironment): WriteStep =
-      WriteStep(env.ghostSubst.getOrElse(to, to), offset, e.subst(env.ghostSubst), frame)
+    override def refreshGhostVars(sbst: SubstVar): WriteStep =
+      WriteStep(to.substVar(sbst), offset, e.subst(sbst), frame)
 
     override def pp: String = {
       val ptr = if (offset == 0) to.pp else s"(${to.pp} .+ $offset)"
       val writeStep = "ssl_write.\n"
+
+      // SSL's `Write` rule does an implicit frame under normal circumstances, but not during a call synthesis
       val writePostStep = if (frame) s"ssl_write_post $ptr.\n" else ""
+
       writeStep + writePostStep
     }
   }
 
+  /**
+    * Perform a read
+    * @param to the dst variable
+    * @param from the src variable
+    */
   case class ReadStep(to: CVar, from: CVar) extends ProofStep {
-    override def refreshVars(env: CEnvironment): ReadStep =
-      ReadStep(env.ghostSubst.getOrElse(to, to), env.ghostSubst.getOrElse(from, from))
+    override def refreshGhostVars(sbst: SubstVar): ReadStep =
+      ReadStep(to.substVar(sbst), from.substVar(sbst))
 
     override def pp: String = "ssl_read.\n"
   }
 
+  /**
+    * Allocate a memory block of size `sz` and bind it to a variable
+    * @param to the dst variable
+    * @param tpe the alloc type
+    * @param sz the size allocated
+    */
   case class AllocStep(to: CVar, tpe: HTTType, sz: Int) extends ProofStep {
-    override def refreshVars(env: CEnvironment): AllocStep =
-      AllocStep(env.ghostSubst.getOrElse(to, to), tpe, sz)
+    override def refreshGhostVars(sbst: SubstVar): AllocStep =
+      AllocStep(to.substVar(sbst), tpe, sz)
 
     override def pp: String = s"ssl_alloc ${to.pp}.\n"
   }
 
+  /**
+    * Free a memory block of size `sz`
+    * @param size the size of the block to free
+    */
   case class FreeStep(size: Int) extends ProofStep {
     override def pp: String = {
+      // In HTT, each location offset needs to be freed individually
       val deallocStmts = (1 to size).map(_ => "ssl_dealloc.")
       s"${deallocStmts.mkString("\n")}\n"
     }
   }
 
+  /**
+    * Execute the Open rule
+    */
   case object OpenStep extends ProofStep {
     override def pp: String = "ssl_open.\n"
   }
 
-  case class OpenPostStep(app: CSApp, pre: CAssertion, existentials: Seq[CExpr]) extends ProofStep {
-    override def refreshVars(env: CEnvironment): OpenPostStep = OpenPostStep(
-      app.subst(env.ghostSubst),
-      pre.subst(env.ghostSubst),
-      existentials.map(v => v.subst(env.ghostSubst))
+  /**
+    * Perform clean-up tasks at the start of each branch generated by the Open rule
+    * @param app the predicate application used in the Open rule
+    * @param pre the precondition for the predicate's constructor that was used for this branch of the Open rule
+    * @param preEx the value existentials for this precondition
+    */
+  case class OpenPostStep(app: CSApp, pre: CAssertion, preEx: Seq[CExpr]) extends ProofStep {
+    override def refreshGhostVars(sbst: SubstVar): OpenPostStep = OpenPostStep(
+      app.subst(sbst),
+      pre.subst(sbst),
+      preEx.map(v => v.subst(sbst))
     )
 
     override def pp: String = {
       val builder = new StringBuilder()
       builder.append(s"ssl_open_post ${app.hypName}.\n")
 
-      buildExistentials(builder, existentials)
-      buildExistentials(builder, pre.heapVars)
-
-      buildHeapExpansion(builder, pre, app.uniqueName)
+      elimExistentials(builder, preEx)
+      elimExistentials(builder, pre.heapVars)
+      initPre(builder, pre, app.uniqueName)
 
       builder.toString()
     }
   }
 
-  case class CallStep(goal: CGoal, freshToActual: Map[CVar, CExpr], callId: String) extends ProofStep {
-    override def refreshVars(env: CEnvironment): CallStep = CallStep (
-      goal.subst(env.ghostSubst),
-      freshToActual.mapValues(e => e.subst(env.ghostSubst).subst(env.subst)),
-      callId
-    )
+  /**
+    * Call a function
+    * @param goal the goal of the call synthesis
+    * @param callId a unique call identifier
+    */
+  case class CallStep(goal: CGoal, callId: String) extends ProofStep {
+    override def refreshGhostVars(sbst: SubstVar): CallStep =
+      CallStep(goal.subst(sbst), callId)
 
     override def pp: String = {
       val builder = new StringBuilder()
 
-      val refreshedPre = goal.pre.subst(freshToActual)
-      val refreshedPost = goal.post.subst(freshToActual)
-      val refreshedGhosts = goal.universalGhosts.map(_.subst(freshToActual))
-      val callHeap = refreshedPre.sigma
+      // Move the part of the heap relevant to the call abduction to the beginning
+      builder.append(s"ssl_call_pre (${goal.pre.sigma.ppHeap}).\n")
 
-      // put the part of the heap touched by the recursive call at the head
-      builder.append(s"ssl_call_pre (${callHeap.ppHeap}).\n")
-
-      // provide universal ghosts and execute call
-      builder.append(s"ssl_call (${refreshedGhosts.map(_.pp).mkString(", ")}).\n")
-
-      // pre has no value existentials
-      existentialInstantiation(builder, refreshedPre, Seq.empty, Map.empty)
+      // Provide the necessary existentials so that the precondition of the call goal is met,
+      // and then execute the call
+      builder.append(s"ssl_call (${goal.universalGhosts.map(_.pp).mkString(", ")}).\n")
+      solvePost(builder, goal.pre, Seq.empty, Map.empty)
 
       builder.append(s"move=>h_$callId.\n")
 
-      buildExistentials(builder, goal.existentials)
-      buildExistentials(builder, refreshedPost.heapVars)
-      buildHeapExpansion(builder, refreshedPost, callId)
+      // The postcondition of the call abduction becomes the precondition of the companion
+      elimExistentials(builder, goal.existentials)
+      elimExistentials(builder, goal.post.heapVars)
+      initPre(builder, goal.post, callId)
 
-      // store validity hypotheses in context
+      // Store validity hypotheses in context
       builder.append("store_valid.\n")
 
       builder.toString()
     }
   }
 
+  /**
+    * Eliminate the program's ghost variables and move them to the proof context
+    * @param goal the goal
+    */
   case class GhostElimStep(goal: CGoal) extends ProofStep {
-    override def refreshVars(env: CEnvironment): GhostElimStep =
-      GhostElimStep(goal.subst(env.ghostSubst))
+    override def refreshGhostVars(sbst: SubstVar): GhostElimStep =
+      GhostElimStep(goal.subst(sbst))
 
     override def pp: String = {
       val builder = new StringBuilder()
@@ -243,9 +328,9 @@ object ProofSteps {
       // Pull out any precondition ghosts and move precondition heap to the context
       builder.append("ssl_ghostelim_pre.\n")
 
-      buildExistentials(builder, goal.universalGhosts, nested = true)
-      buildExistentials(builder, goal.pre.heapVars)
-      buildHeapExpansion(builder, goal.pre, "self")
+      elimExistentials(builder, goal.universalGhosts, nested = true)
+      elimExistentials(builder, goal.pre.heapVars)
+      initPre(builder, goal.pre, "self")
 
       // store heap validity assertions
       builder.append("ssl_ghostelim_post.\n")
@@ -258,16 +343,17 @@ object ProofSteps {
     override def pp: String = "ssl_abduce_branch.\n"
   }
 
-  case class EmpStep(goal: CGoal, sub: Map[CVar, CExpr], unfoldings: Map[CSApp, CInductiveClause]) extends ProofStep {
+  /**
+    * At the end of a branch, transform the goal into the funspec's post-condition
+    * @param post the post-condition
+    * @param postEx the post-condition's value existentials
+    * @param unfoldings a map from predicate applications to their unfolded state
+    */
+  case class EmpStep(post: CAssertion, postEx: Seq[CExpr], unfoldings: Unfoldings) extends ProofStep {
     override def pp: String = {
       val builder = new StringBuilder()
       builder.append("ssl_emp;\n")
-
-      val post = goal.post.subst(sub)
-      val postEx = goal.existentials.map(_.subst(sub))
-      val unfoldings1 = unfoldings.map { case (app, e) => app.subst(sub) -> e.subst(sub) }
-      existentialInstantiation(builder, post, postEx, unfoldings1)
-
+      solvePost(builder, post, postEx, unfoldings)
       builder.toString()
     }
   }

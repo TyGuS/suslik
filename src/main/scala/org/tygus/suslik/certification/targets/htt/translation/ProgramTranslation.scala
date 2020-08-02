@@ -8,14 +8,12 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._
 
 object ProgramTranslation {
-  private case class TraversalItem(node: CertTree.Node) extends Traversable
-
-  def translate(node: CertTree.Node, proc: Procedure): CStatement = {
-    val traversalItem = TraversalItem(node)
-    traverseStmt(traversalItem, IdCStmtProducer)
+  def translate(node: CertTree.Node, proc: Procedure): CProcedure = {
+    val stmtBody = traverseStmt(node, IdCStmtProducer)
+    CProcedure(proc.name, translateType(proc.tp), proc.formals.map(translateParam), stmtBody)
   }
 
-  def traverseStmt(item: TraversalItem, kont: CStmtProducer): CStatement = {
+  def traverseStmt(node: CertTree.Node, kont: CStmtProducer): CStatement = {
     def translateOperation(s: Statement): CStatement = s match {
       case Skip =>
         CSkip
@@ -26,7 +24,7 @@ object ProgramTranslation {
       case Malloc(to, tpe, sz) =>
         CMalloc(translateVar(to), translateType(tpe), sz)
       case Free(v) =>
-        val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
+        val block = node.footprint.pre.sigma.blocks.find(_.loc == v)
         assert(block.nonEmpty)
         CFree(translateVar(v), block.get.sz)
       case Call(v, args, _) =>
@@ -56,10 +54,7 @@ object ProgramTranslation {
         IdCStmtProducer
     }
 
-    def generateNextItems: Seq[TraversalItem] =
-      item.node.children.map(n => TraversalItem(n))
-
-    def updateProducerPost(nextItems: Seq[TraversalItem], nextKont: CStmtProducer): CStmtProducer = nextKont match {
+    def updateProducerPost(nextItems: Seq[CertTree.Node], nextKont: CStmtProducer): CStmtProducer = nextKont match {
       case _: Branching =>
         nextItems.tail.foldLeft(nextKont >> kont) {
           case (foldedP, item) => FoldCStmtProducer(traverseStmt, item, foldedP)
@@ -69,8 +64,8 @@ object ProgramTranslation {
     }
 
     // generated nested continuations for children
-    val p = translateProducer(item.node.kont).simplify
-    val nextItems = generateNextItems
+    val p = translateProducer(node.kont).simplify
+    val nextItems = node.children
     val nextKont = updateProducerPost(nextItems, p).simplify
 
     nextItems.headOption match {

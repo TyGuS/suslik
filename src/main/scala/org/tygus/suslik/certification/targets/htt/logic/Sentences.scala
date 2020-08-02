@@ -3,6 +3,7 @@ package org.tygus.suslik.certification.targets.htt.logic
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.{CFormals, PrettyPrinting}
 import org.tygus.suslik.certification.targets.htt.language.Types._
+import org.tygus.suslik.certification.targets.htt.logic.Proof.Subst
 
 object Sentences {
   case class CAssertion(phi: CExpr, sigma: CSFormula) extends PrettyPrinting {
@@ -27,7 +28,7 @@ object Sentences {
       getIndent(depth) + builder.toString().replaceAll("\n", s"\n${getIndent(depth)}")
     }
 
-    def subst(sub: Map[CVar, CExpr]): CAssertion =
+    def subst(sub: Subst): CAssertion =
       CAssertion(phi.subst(sub), sigma.subst(sub))
 
     val valueVars: Seq[CVar] =
@@ -55,14 +56,14 @@ object Sentences {
   }
 
   case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CExpr]) extends PrettyPrinting {
-    def subst(sub: Map[CVar, CExpr]): CInductiveClause =
+    def subst(sub: Subst): CInductiveClause =
       CInductiveClause(pred, idx, selector.subst(sub), asn.subst(sub), existentials.map(_.subst(sub)))
   }
 
   case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause]) extends PrettyPrinting {
     val paramVars: Seq[CVar] = params.map(_._2)
 
-    def subst(sub: Map[CVar, CExpr]): CInductivePredicate =
+    def subst(sub: Subst): CInductivePredicate =
       CInductivePredicate(name, params.map(p => (p._1, p._2.substVar(sub))), clauses.map(_.subst(sub)))
 
     override def pp: String = {

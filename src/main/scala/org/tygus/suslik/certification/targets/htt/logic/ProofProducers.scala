@@ -64,7 +64,7 @@ object ProofProducers {
     val arity: Int = 1
     val fn: Kont = res => {
       val (step, env) = res.head
-      (SeqCompStep(s.refreshVars(env), step).simplify, env)
+      (SeqCompStep(s.refreshGhostVars(env.ghostSubst), step).simplify, env)
     }
   }
 
@@ -72,51 +72,74 @@ object ProofProducers {
     val arity: Int = 1
     val fn: Kont = res => {
       val (step, env) = res.head
-      (SeqCompStep(step, s.refreshVars(env)).simplify, env)
+      (SeqCompStep(step, s.refreshGhostVars(env.ghostSubst)).simplify, env)
     }
   }
 
-  case class BranchProofProducer(steps: Seq[ProofStep], branchEnv: CEnvironment) extends ProofProducer with Branching {
-    val arity: Int = steps.length
+  /**
+    *
+    * @param openPostSteps the steps to perform upon entering each branch
+    * @param branchEnv the state of the environment at the time of branching
+    */
+  case class BranchProofProducer(openPostSteps: Seq[OpenPostStep], branchEnv: CEnvironment) extends ProofProducer with Branching {
+    val arity: Int = openPostSteps.length
     val fn: Kont = res =>
       if (res.length == 1) res.head else {
-        val condBranches = res.zip(steps).reverse.map { case ((s, env), openPost) =>
-          SeqCompStep(openPost.refreshVars(env), s)
+        // For each certified branch, prepend the step that prepares the branch's execution
+        val condBranches = res.zip(openPostSteps).reverse.map { case ((s, env), openPost) =>
+          SeqCompStep(openPost.refreshGhostVars(env.ghostSubst), s)
         }
         val ctail = condBranches.tail
         val finalBranch = condBranches.head
+
+        // Compose the branch certification code in order, and prepend the Open step at the very beginning.
+        // Discard envs propagated from child branches, and return the env that was preserved at the time of branching.
         (SeqCompStep(OpenStep, ctail.foldLeft(finalBranch) { case (eb, tb) => SeqCompStep(tb, eb) }), branchEnv)
       }
   }
 
-  case class GuardedProofProducer(env: CEnvironment) extends ProofProducer with Branching {
+  case class GuardedProofProducer(branchEnv: CEnvironment) extends ProofProducer with Branching {
     val arity: Int = 2
     val fn: Kont = res =>
       if (res.length == 1) res.head else {
         val condBranches = res.reverse.map(_._1)
         val ctail = condBranches.tail
         val finalBranch = condBranches.head
-        (SeqCompStep(AbduceBranchStep, ctail.foldLeft(finalBranch) { case (eb, tb) => SeqCompStep(tb, eb) }), env)
+        (SeqCompStep(AbduceBranchStep, ctail.foldLeft(finalBranch) { case (eb, tb) => SeqCompStep(tb, eb) }), branchEnv)
       }
   }
 
+  /**
+    * One step in the CPS traversal of multiple branches. Partially applies the current branch's result to the
+    * branch producer (`bp`), and then initiates the certification of the next branch. A BranchProofProducer of arity N
+    * will have been fully applied after the N-th invocation of this FoldProofProducer.
+    * @param op a procedure that generates a KontResult
+    * @param item The start of the next branch to traverse
+    * @param bp the branch producer or its partially applied form
+    * @tparam T the unit of traversal in the algorithm
+    */
   case class FoldProofProducer[T](op: (T, ProofProducer) => KontResult, item: T, bp: ProofProducer) extends ProofProducer {
     val arity: Int = 1
     val fn: Kont = res => {
       val step = res.head._1
-      // partially apply a produced step to the BranchProducer of the downstream `bp`
+
+      // Partially apply a produced step to the BranchProducer of the downstream `bp`
       @scala.annotation.tailrec
       def isBase(curr: ProofProducer): Boolean = curr match {
         case PartiallyAppliedProofProducer(p, _) => isBase(p)
         case _: Branching => true
         case _ => false
       }
+
+      // Find the BranchProducer in the `bp`, and then partially apply `step`
       def update(curr: ProofProducer): ProofProducer = curr match {
         case FoldProofProducer(op, item, bp) => FoldProofProducer(op, item, update(bp))
         case ChainedProofProducer(p1, p2) => ChainedProofProducer(update(p1), update(p2))
         case _: PartiallyAppliedProofProducer | _: Branching if isBase(curr) => curr.partApply(step)
         case _ => curr
       }
+
+      // Update the `bp` with the new result and step into the next branch
       op(item, update(bp))
     }
   }

@@ -8,6 +8,9 @@ import org.tygus.suslik.logic.Environment
 
 object HTT extends CertificationTarget {
   val name: String = "HTT"
+  val suffix: String = ".v"
+
+  // Import Coq dependencies
   private val prelude = s"""From mathcomp
 Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From fcsl

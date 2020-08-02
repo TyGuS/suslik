@@ -1,7 +1,6 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.logic.Proof._
 import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
 import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
@@ -10,7 +9,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._
 
 object ProofTranslation {
-  private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment) extends Traversable
+  private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment)
 
   def translate(node: CertTree.Node, cenv: CEnvironment): Proof = {
     val initialGoal = translateGoal(node.goal)
@@ -20,11 +19,14 @@ object ProofTranslation {
     Proof(proofBody, initialGoal.programVars)
   }
 
-  def traverseProof(item: TraversalItem, kont: ProofProducer): (ProofStep, CEnvironment) = {
-    def translateOperation(s: Statement, cenv: CEnvironment): (ProofStep, CEnvironment) = s match {
+  def traverseProof(item: TraversalItem, kont: ProofProducer): KontResult = {
+    def translateOperation(s: Statement, cenv: CEnvironment): KontResult = s match {
       case Skip =>
         val goal = cenv.initialGoal.subst(cenv.ghostSubst)
-        (EmpStep(goal, cenv.subst, cenv.unfoldings), cenv)
+        val post = goal.post.subst(cenv.subst)
+        val postEx = goal.existentials.map(_.subst(cenv.subst))
+        val unfoldings = cenv.unfoldings.map { case (app, c) => app.subst(cenv.subst) -> c.subst(cenv.subst) }
+        (EmpStep(post, postEx, unfoldings), cenv)
       case Load(to, _, from, _) =>
         (ReadStep(translateVar(to), translateVar(from)), cenv)
       case Store(to, offset, e) =>
@@ -43,9 +45,9 @@ object ProofTranslation {
         // create call step
         val companionToFresh = callGoal.companionToFresh.map{ case (k, v) => translateVar(k) -> translateVar(v)}
         val freshToActual = callGoal.freshToActual.map{ case (k, v) => translateVar(k) -> translateExpr(v)}
-        val cgoal = cenv.initialGoal.subst(companionToFresh)
+        val cgoal = cenv.initialGoal.subst(companionToFresh).subst(freshToActual)
 
-        (CallStep(cgoal, freshToActual, freshCallId), cenv)
+        (CallStep(cgoal, freshCallId), cenv)
       case _ => throw TranslationException("Operation not supported")
     }
 
@@ -92,7 +94,7 @@ object ProofTranslation {
           val sapp = translateSApp(item.node.footprint.pre.sigma.apps.head)
           val pred = cenv.predicates(sapp.pred)
           val subgoals = item.node.children.map(n => translateGoal(n.goal))
-          val initialSub: Map[CVar, CVar] = Map.empty
+          val initialSub: SubstVar = Map.empty
           val sub = pred.clauses.zip(subgoals).foldLeft(initialSub){ case (acc, (c, g)) => acc ++ g.pre.sigma.unify(c.asn.sigma) }
           val actualPred = pred.subst(sub)
           val openPostSteps = actualPred.clauses.map(c => OpenPostStep(sapp, c.asn, c.existentials))
@@ -108,7 +110,7 @@ object ProofTranslation {
       item.node.children.map(node => TraversalItem(node, cenv))
     }
 
-    // handle guard
+    // If at a branching point, queue up the traversal of each branch as nested calls of `traverseProof` in the continuation
     def updateProducerPost(nextItems: Seq[TraversalItem], nextKont: ProofProducer, cenv: CEnvironment): ProofProducer = nextKont match {
       case _: Branching =>
         nextItems.tail.foldLeft(nextKont >> kont) {
@@ -118,7 +120,6 @@ object ProofTranslation {
         nextKont >> kont
     }
 
-    // generate nested continuations + environments for children
     val (p0, cenv1) = translateProducer(item.node.kont, item.cenv)
     val p = p0.simplify
     val nextItems = generateNextItems(p, cenv1)

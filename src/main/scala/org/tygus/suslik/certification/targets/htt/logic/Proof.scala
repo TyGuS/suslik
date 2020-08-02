@@ -9,6 +9,12 @@ object Proof {
   private var currCallId = 0
   def freshCallId: String = { currCallId += 1; s"call$currCallId" }
 
+  type Unfoldings = Map[CSApp, CInductiveClause]
+  type Subst = Map[CVar, CExpr]
+  type SubstVar = Map[CVar, CVar]
+  type Gamma = Map[CVar, HTTType]
+  type PredicateEnv = Map[String, CInductivePredicate]
+
   case class Proof(root: ProofStep, params: Seq[CVar]) {
     def pp: String = {
       val obligationTactic = s"Obligation Tactic := intro; move=>${nestedDestructL(params)}; ssl_program_simpl."
@@ -21,12 +27,12 @@ object Proof {
 
   case class CGoal(pre: CAssertion,
                    post: CAssertion,
-                   gamma: Map[CVar, HTTType],
+                   gamma: Gamma,
                    programVars: Seq[CVar],
                    universalGhosts: Seq[CVar],
                    fname: String) {
     val existentials: Seq[CVar] = post.valueVars.diff(programVars ++ universalGhosts)
-    def subst(sub: Map[CVar, CExpr]): CGoal = CGoal(
+    def subst(sub: Subst): CGoal = CGoal(
       pre.subst(sub),
       post.subst(sub),
       gamma.map { case (v, t) => v.substVar(sub) -> t },
@@ -43,15 +49,15 @@ object Proof {
   }
 
   case class CEnvironment(initialGoal: CGoal,
-                          predicates: Map[String, CInductivePredicate],
-                          ghostSubst: Map[CVar, CVar] = Map.empty,
-                          subst: Map[CVar, CExpr] = Map.empty,
-                          unfoldings: Map[CSApp, CInductiveClause] = Map.empty) {
+                          predicates: PredicateEnv,
+                          ghostSubst: SubstVar = Map.empty,
+                          subst: Subst = Map.empty,
+                          unfoldings: Unfoldings = Map.empty) {
     def copy(initialGoal: CGoal = this.initialGoal,
-             predicates: Map[String, CInductivePredicate] = this.predicates,
-             ghostSubst: Map[CVar, CVar] = this.ghostSubst,
-             subst: Map[CVar, CExpr] = this.subst,
-             unfoldings: Map[CSApp, CInductiveClause] = this.unfoldings,
+             predicates: PredicateEnv = this.predicates,
+             ghostSubst: SubstVar = this.ghostSubst,
+             subst: Subst = this.subst,
+             unfoldings: Unfoldings = this.unfoldings,
             ): CEnvironment =
       CEnvironment(initialGoal, predicates, ghostSubst, subst, unfoldings)
   }
