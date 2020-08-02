@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.Expressions.{Expr, Var}
+import org.tygus.suslik.language.Expressions.{Expr, Subst, SubstVar, Var}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.{Heaplet, InductiveClause, SApp, SFormula}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
@@ -168,19 +168,10 @@ trait Noop {
 }
 
 // Captures variable substitutions
-case class SubstProducer(subst: Map[Var, Expr]) extends StmtProducer with Noop
+case class SubstProducer(subst: Subst) extends StmtProducer with Noop
 
 // Captures ghost variable instantiations
-case class GhostSubstProducer(subst: Map[Var, Var]) extends StmtProducer with Noop
+case class GhostSubstProducer(subst: SubstVar) extends StmtProducer with Noop
 
-// Captures an unrolled predicate
-case class UnrollProducer(app: SApp, selector: Expr, expansion: SFormula, substEx: Map[Var, Var]) extends StmtProducer with Noop
-
-// Captures a frame
-case class FrameProducer(h: Heaplet) extends StmtProducer with Noop
-
-// Enters a call synthesis
-case class EnterCall(goal: Goal) extends StmtProducer with Noop
-
-// Exits a call synthesis
-case object ExitCall extends StmtProducer with Noop
+// Captures an unfolded predicate application
+case class UnfoldProducer(app: SApp, selector: Expr, substPred: SubstVar, substEx: SubstVar, substArgs: Subst) extends StmtProducer with Noop

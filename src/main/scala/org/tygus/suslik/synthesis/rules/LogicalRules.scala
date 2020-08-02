@@ -131,7 +131,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, newPreSigma)
           val newPost = Assertion(post.phi, newPostSigma)
           val newGoal = goal.spawnChild(newPre, newPost)
-          val kont = FrameProducer(hPre) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }

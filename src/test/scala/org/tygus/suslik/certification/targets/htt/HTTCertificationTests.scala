@@ -22,7 +22,7 @@ class HTTCertificationTests extends FunSpec with Matchers with SynthesisRunnerUt
       val pathToCertificate = Paths.get(certRoot.getCanonicalPath, s"${fname.replace('-', '_')}.v").toFile.getCanonicalPath
 
       // verify
-      val result = s"coqc -vok $pathToCertificate".!
+      val result = s"coqc -vok -w none $pathToCertificate".!
 
       // check that Coq compilation succeeded
       assert(result == 0)

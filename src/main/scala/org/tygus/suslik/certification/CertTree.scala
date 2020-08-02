@@ -8,7 +8,6 @@ import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
 import scala.collection.mutable
 
 object CertTree {
-  private var counter: Int = 0
   /**
     * [Certify]: A utility for traversing a successful synthesis result during certification
     * @param nodeId the NodeId of the associated or-node in the synthesis search tree

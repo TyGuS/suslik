@@ -1,151 +1,51 @@
 package org.tygus.suslik.certification.targets.htt.language
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.util.StringUtil.mkSpaces
 
-sealed abstract class Sentence extends PrettyPrinting {
-  def vars: Seq[CVar] = this match {
-    case CInductivePredicate(_, params, _) => params.map(_._2)
-    case _ => Seq.empty
-  }
-
-  override def pp: String = {
-    val builder = new StringBuilder()
-
-    def build(el: Sentence, offset: Int = 0, vars: Seq[CVar] = Seq.empty) : Unit = el match {
-      case el@CAssertion(phi, sigma) =>
-        val ve = el.valueVars.diff(vars).distinct
-        val he = el.heapVars
-        val types = el.inferredTypes
-        // existentials
-        if (ve.nonEmpty) {
-          builder.append(mkSpaces(offset))
-          builder.append(s"exists ${ve.map(v => types.get(v).map(t => s"(${v.pp} : ${t.pp})").getOrElse(v.pp)).mkString(" ")},\n")
-        }
-        if (he.nonEmpty) {
-          builder.append(mkSpaces(offset))
-          builder.append(s"exists ${he.map(_.pp).mkString(" ")},\n")
-        }
-        // body
-        builder.append(mkSpaces(offset + 2))
-        phi match {
-          case CBoolConst(true) => builder.append(sigma.pp)
-          case _ => builder.append(s"${phi.pp} /\\ ${sigma.pp}")
-        }
-      case CInductiveClause(pred, idx, selector, asn) =>
-        builder.append(mkSpaces(offset))
-        builder.append(s"| $pred$idx of ${selector.pp} of\n")
-        build(asn, offset + 2, vars)
-      case CInductivePredicate(name, params, clauses) =>
-        builder.append(mkSpaces(offset))
-        builder.append(s"Inductive $name ${params.map{ case (t, v) => s"(${v.pp} : ${t.pp})" }.mkString(" ")} : Prop :=\n")
-        for (c <- clauses) {
-          build(c, offset, vars)
-          builder.append("\n")
-        }
-        builder.append(".")
-      case el@CFunSpec(name, rType, params, pureParams, pre, post) =>
-        val vprogs = "vprogs"
-        val vghosts = "vghosts"
-
-        def formalsToStr(formals: CFormals): (String, String) = {
-          val (typs, names) = formals.unzip
-          val typsStr = typs.map(_.pp).mkString(" * ")
-          val namesStr = names.map(_.pp).mkString(", ")
-          (typsStr, namesStr)
-        }
-
-        val (typsStr, namesStr) = formalsToStr(params)
-        val (pureTypsStr, pureNamesStr) = formalsToStr(pureParams)
-
-        // first line
-        builder.append(mkSpaces(offset))
-        builder.append(s"Definition ${name}_type ")
-        builder.append(":=\n")
-
-        // program var signatures
-        if (params.nonEmpty) {
-          builder.append(mkSpaces(offset + 2))
-          builder.append(s"forall ($vprogs : $typsStr),\n")
-        }
-
-        // pure var signatures
-        if (pureParams.nonEmpty) {
-          builder.append(mkSpaces(offset + 2))
-          builder.append(s"{($vghosts : $pureTypsStr)},\n")
-        }
-
-        // define goal
-        builder.append(mkSpaces(offset + 4))
-        builder.append("STsep (\n")
-
-        // pre-condition
-        builder.append(mkSpaces(offset + 6))
-        builder.append("fun h =>\n")
-        if (params.nonEmpty) {
-          builder.append(mkSpaces(offset + 8))
-          builder.append(s"let: ($namesStr) := $vprogs in\n")
-        }
-        if (pureParams.nonEmpty) {
-          builder.append(mkSpaces(offset + 8))
-          builder.append(s"let: ($pureNamesStr) := $vghosts in\n")
-        }
-        build(pre, offset + 8, el.programVars)
-        builder.append(",\n")
-
-        // post-condition
-        builder.append(mkSpaces(offset + 6))
-        builder.append(s"[vfun (_: ${rType.pp}) h =>\n")
-        if (params.nonEmpty) {
-          builder.append(mkSpaces(offset + 8))
-          builder.append(s"let: ($namesStr) := $vprogs in\n")
-        }
-        if (pureParams.nonEmpty) {
-          builder.append(mkSpaces(offset + 8))
-          builder.append(s"let: ($pureNamesStr) := $vghosts in\n")
-        }
-        build(post, offset + 8, el.programVars)
-        builder.append("\n")
-
-        builder.append(mkSpaces(offset + 6))
-        builder.append("]).")
-    }
-
-    build(this, 0, vars)
-    builder.toString()
-  }
-}
+sealed abstract class Sentence extends PrettyPrinting
 
 case class CAssertion(phi: CExpr, sigma: CSFormula) extends Sentence {
-  def unify(source: CAssertion): Map[CVar, CExpr] = {
-    sigma.unify(source.sigma)
+  override def pp: String = if (phi.isTrivial) sigma.pp else s"${phi.pp} /\\ ${sigma.pp}"
+
+  def existentials(quantifiedVars: Seq[CVar]): Seq[CVar] = valueVars.diff(quantifiedVars)
+
+  def ppQuantified(quantifiedVars: Seq[CVar], depth: Int = 0): String = {
+    val builder = new StringBuilder()
+
+    val valueEx = existentials(quantifiedVars)
+    val heapEx = heapVars
+    if (valueEx.nonEmpty) {
+      builder.append(s"exists ${valueEx.map(v => inferredTypes.get(v).map(t => s"(${v.pp} : ${t.pp})").getOrElse(v.pp)).mkString(" ")},\n")
+    }
+    if (heapEx.nonEmpty) {
+      builder.append(s"exists ${heapEx.map(_.pp).mkString(" ")},\n")
+    }
+
+    builder.append(pp)
+
+    getIndent(depth) + builder.toString().replaceAll("\n", s"\n${getIndent(depth)}")
   }
 
   def subst(sub: Map[CVar, CExpr]): CAssertion =
-    CAssertion(phi.subst(sub), sigma.subst(sub).asInstanceOf[CSFormula])
-
-  val pureVars: Seq[CVar] =
-    phi.vars.filterNot(_.isCard).distinct
-
-  val spatialVars: Seq[CVar] =
-    sigma.vars.filterNot(_.isCard).distinct
+    CAssertion(phi.subst(sub), sigma.subst(sub))
 
   val valueVars: Seq[CVar] =
-    (spatialVars ++ pureVars).distinct
+    (phi.vars ++ sigma.vars).distinct.filterNot(_.isCard)
 
   val heapVars: Seq[CVar] =
     sigma.heapVars
 
-  val inferredTypes: Map[CVar, CoqType] = {
-    def collectPhi(el: CExpr, m: Map[CVar, CoqType]): Map[CVar, CoqType] = el match {
+  val inferredTypes: Map[CVar, HTTType] = {
+    @scala.annotation.tailrec
+    def collectPhi(el: CExpr, m: Map[CVar, HTTType]): Map[CVar, HTTType] = el match {
       case CBinaryExpr(COpSetEq, left: CVar, right: CVar) => m ++ Map(left -> CNatSeqType, right -> CNatSeqType)
       case CBinaryExpr(COpSetEq, left: CVar, right) => collectPhi(right, m ++ Map(left -> CNatSeqType))
       case CBinaryExpr(COpSetEq, left, right: CVar) => collectPhi(left, m ++ Map(right -> CNatSeqType))
       case _ => m
     }
-    def collectSigma: Map[CVar, CoqType] = {
+    def collectSigma: Map[CVar, HTTType] = {
       val ptss = sigma.ptss
-      ptss.foldLeft[Map[CVar, CoqType]](Map.empty){ case (acc, CPointsTo(loc, _, _)) => acc ++ Map(loc.asInstanceOf[CVar] -> CPtrType)}
+      ptss.foldLeft[Map[CVar, HTTType]](Map.empty){ case (acc, CPointsTo(loc, _, _)) => acc ++ Map(loc.asInstanceOf[CVar] -> CPtrType)}
     }
     val mPhi = collectPhi(phi, Map.empty)
     val mSigma = collectSigma
@@ -153,10 +53,84 @@ case class CAssertion(phi: CExpr, sigma: CSFormula) extends Sentence {
   }
 }
 
-case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion) extends Sentence
+case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CExpr]) extends Sentence {
+  def subst(sub: Map[CVar, CExpr]): CInductiveClause =
+    CInductiveClause(pred, idx, selector.subst(sub), asn.subst(sub), existentials.map(_.subst(sub)))
+}
 
-case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause]) extends Sentence
+case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause]) extends Sentence {
+  val paramVars: Seq[CVar] = params.map(_._2)
 
-case class CFunSpec(name: String, rType: CoqType, params: CFormals, pureParams: CFormals, pre: CAssertion, post: CAssertion) extends Sentence {
-  def programVars: Seq[CVar] = params.map(_._2) ++ pureParams.map(_._2)
+  def subst(sub: Map[CVar, CExpr]): CInductivePredicate =
+    CInductivePredicate(name, params.map(p => (p._1, p._2.substVar(sub))), clauses.map(_.subst(sub)))
+
+  override def pp: String = {
+    val builder = new StringBuilder()
+    builder.append(s"Inductive $name ${params.map{ case (t, v) => s"(${v.pp} : ${t.pp})" }.mkString(" ")} : Prop :=\n")
+
+    // clauses
+    val clausesStr = for {
+      CInductiveClause(pred, idx, selector, asn, _) <- clauses
+    } yield s"| $pred$idx of ${selector.pp} of\n${asn.ppQuantified(paramVars, 1)}"
+
+    builder.append(s"${clausesStr.mkString("\n")}.\n")
+    builder.toString()
+  }
+}
+
+case class CFunSpec(name: String, rType: HTTType, params: CFormals, ghostParams: CFormals, pre: CAssertion, post: CAssertion) extends Sentence {
+  val paramVars: Seq[CVar] = params.map(_._2)
+  val ghostParamVars: Seq[CVar] = ghostParams.map(_._2)
+
+  val progVarsAlias = "vprogs"
+  val ghostVarsAlias = "vghosts"
+
+  private def ppFormals(formals: CFormals): (String, String) = {
+    val (typs, names) = formals.unzip
+    val typsStr = typs.map(_.pp).mkString(" * ")
+    val namesStr = names.map(_.pp).mkString(", ")
+    (typsStr, namesStr)
+  }
+
+  override def pp: String = {
+    val builder = new StringBuilder()
+
+    val (typsStr, progVarsStr) = ppFormals(params)
+    val (ghostTypsStr, ghostVarsStr) = ppFormals(ghostParams)
+    val destructuredAliases = {
+      val destructuredParams = if (params.nonEmpty) s"${getIndent(3)}let: ($progVarsStr) := $progVarsAlias in\n" else ""
+      val destructuredGhostParams = if (ghostParams.nonEmpty) s"${getIndent(3)}let: ($ghostVarsStr) := $ghostVarsAlias in\n" else ""
+      destructuredParams + destructuredGhostParams
+    }
+
+    builder.append(s"Definition ${name}_type :=\n")
+
+    // program var signatures
+    if (params.nonEmpty) {
+      builder.append(s"${getIndent(1)}forall ($progVarsAlias : $typsStr),\n")
+    }
+
+    // ghost var signatures
+    if (ghostParams.nonEmpty) {
+      builder.append(s"${getIndent(1)}{($ghostVarsAlias : $ghostTypsStr)},\n")
+    }
+
+    builder.append(s"${getIndent(1)}STsep (\n")
+
+    // pre-condition
+    builder.append(s"${getIndent(2)}fun h =>\n")
+    builder.append(destructuredAliases)
+    builder.append(pre.ppQuantified(paramVars ++ ghostParamVars, 3))
+    builder.append(",\n")
+
+    // post-condition
+    builder.append(s"${getIndent(2)}[vfun (_: ${rType.pp}) h =>\n")
+    builder.append(destructuredAliases)
+    builder.append(post.ppQuantified(paramVars ++ ghostParamVars, 3))
+    builder.append("\n")
+
+    builder.append(s"${getIndent(2)}]).")
+
+    builder.toString()
+  }
 }

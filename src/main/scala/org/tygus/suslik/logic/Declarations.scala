@@ -151,12 +151,12 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
     * Renames existentials so they wouldn't capture the parameters and `vars`
     *
     * @param vars additional contextual variables that can be captures
-    * @return inductive predicate
+    * @return inductive predicate and substitution used
     */
-  def refreshExistentials(vars: Set[Var], suffix: String = ""): InductivePredicate = {
+  def refreshExistentials(vars: Set[Var], suffix: String = ""): (InductivePredicate, SubstVar) = {
     val bound = Set(selfCardVar) ++ vars ++ params.map(_._1).toSet
     val sbst = refreshVars(existentials.toList, bound, suffix)
-    this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
+    (this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst)))), sbst)
   }
 
   def vars: Set[Var] = clauses.flatMap(c => c.selector.vars ++ c.asn.vars).toSet

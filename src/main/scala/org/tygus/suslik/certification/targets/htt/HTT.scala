@@ -1,7 +1,5 @@
 package org.tygus.suslik.certification.targets.htt
 
-import java.nio.file.Paths
-
 import org.tygus.suslik.certification._
 import org.tygus.suslik.certification.targets.htt.translation.Translation
 import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
@@ -26,10 +24,10 @@ Require Import core.
     val builder = new StringBuilder
     builder.append(prelude)
     val (preds, spec, proof, cproc) = Translation.translate(root, proc)(env)
-    preds.foreach(pred => builder.append(pred.pp + "\n"))
+    preds.values.foreach(pred => builder.append(pred.pp + "\n"))
     builder.append(spec.pp)
     builder.append("\n")
-    builder.append(cproc.ppp)
+    builder.append(cproc.pp)
     builder.append("\n")
     builder.append(proof.pp)
 

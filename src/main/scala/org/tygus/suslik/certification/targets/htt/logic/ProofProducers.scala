@@ -1,8 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.logic.Proof.{CEnvironment, CGoal}
-import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.{AbduceBranchStep, OpenPostStep, OpenStep, ProofStep, SeqCompStep}
+import org.tygus.suslik.certification.targets.htt.logic.Proof.CEnvironment
+import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
 
 object ProofProducers {
   type KontResult = (ProofStep, CEnvironment)
@@ -77,16 +76,16 @@ object ProofProducers {
     }
   }
 
-  case class BranchProofProducer(app: CSApp, subgoals: Seq[CGoal], env: CEnvironment) extends ProofProducer with Branching {
-    val arity: Int = subgoals.length
+  case class BranchProofProducer(steps: Seq[ProofStep], branchEnv: CEnvironment) extends ProofProducer with Branching {
+    val arity: Int = steps.length
     val fn: Kont = res =>
       if (res.length == 1) res.head else {
-        val condBranches = res.zip(subgoals).reverse.map{ case ((s, env), g) =>
-          SeqCompStep(OpenPostStep(app, g.pre, g.programVars).refreshVars(env), s)
+        val condBranches = res.zip(steps).reverse.map { case ((s, env), openPost) =>
+          SeqCompStep(openPost.refreshVars(env), s)
         }
         val ctail = condBranches.tail
         val finalBranch = condBranches.head
-        (SeqCompStep(OpenStep, ctail.foldLeft(finalBranch) { case (eb, tb) => SeqCompStep(tb, eb) }), env)
+        (SeqCompStep(OpenStep, ctail.foldLeft(finalBranch) { case (eb, tb) => SeqCompStep(tb, eb) }), branchEnv)
       }
   }
 

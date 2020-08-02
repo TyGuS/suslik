@@ -32,7 +32,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         case SApp(pred, args, PTag(cls, unf), card) if unf < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
-          val InductivePredicate(_, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
+          val (InductivePredicate(_, params, clauses), _) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
           // [Cardinality] adjust cardinality of sub-clauses
           val sbst = params.map(_._1).zip(args).toMap + (selfCardVar -> card)
           val remainingSigma = pre.sigma - h
@@ -94,7 +94,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
-        val kont: StmtProducer = EnterCall(newGoal) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
     }
@@ -126,7 +126,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
         val postCallTransition = Transition(goal, newGoal)
-        val kont: StmtProducer = ExitCall >> PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }
@@ -184,7 +184,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
           ruleAssert(env.predicates.contains(pred),
             s"Close rule encountered undefined predicate: $pred")
-          val InductivePredicate(predName, params, clauses) = env.predicates(pred).refreshExistentials(goal.vars)
+          val (InductivePredicate(predName, params, clauses), predSbst) = env.predicates(pred).refreshExistentials(goal.vars)
 
           //ruleAssert(clauses.lengthCompare(1) == 0, s"Predicates with multiple clauses not supported yet: $pred")
           val paramNames = params.map(_._1)
@@ -209,7 +209,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = UnrollProducer(a, selector, actualBody, freshExistentialsSubst) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = UnfoldProducer(a, selector, predSbst, freshExistentialsSubst, substArgs) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, this, goal)
           }
