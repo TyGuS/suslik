@@ -1,8 +1,8 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.language.Expressions.{Expr, Var}
+import org.tygus.suslik.language.Expressions.{Expr, Subst, SubstVar, Var}
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.{InductiveClause, SApp, SFormula}
+import org.tygus.suslik.logic.{Heaplet, InductiveClause, SApp, SFormula}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.synthesis.rules.RuleUtils
 
@@ -162,14 +162,16 @@ case class GuardedProducer(cond: Expr, goal: Goal) extends StmtProducer {
   val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, goal.label))
 }
 
-// Captures variable substitutions
-case class SubstProducer(subst: Map[Var, Expr]) extends StmtProducer {
+trait Noop {
   val arity: Int = 1
-  val fn: Kont = liftToSolutions(stmts => stmts.head)
+  val fn: Kont = _.head
 }
 
-// Captures an unrolled predicate
-case class UnrollProducer(pred: String, clause: InductiveClause, substEx: Map[Var, Expr]) extends StmtProducer {
-  val arity: Int = 1
-  val fn: Kont = liftToSolutions(stmts => stmts.head)
-}
+// Captures variable substitutions
+case class SubstProducer(subst: Subst) extends StmtProducer with Noop
+
+// Captures ghost variable instantiations
+case class GhostSubstProducer(subst: SubstVar) extends StmtProducer with Noop
+
+// Captures an unfolded predicate application
+case class UnfoldProducer(app: SApp, selector: Expr, substPred: SubstVar, substEx: SubstVar, substArgs: Subst) extends StmtProducer with Noop

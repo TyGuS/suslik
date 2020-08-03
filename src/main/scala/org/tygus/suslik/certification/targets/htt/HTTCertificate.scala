@@ -1,7 +1,10 @@
 package org.tygus.suslik.certification.targets.htt
 
-import org.tygus.suslik.certification.Certificate
+import org.tygus.suslik.certification.{Certificate, CertificationTarget}
 
 case class HTTCertificate(body: String, name: String) extends Certificate {
-  val suffix: String = ".v"
+  val target: CertificationTarget = HTT
+
+  // Replace hyphens with underscores
+  override def fileName: String = super.fileName.replace('-', '_')
 }

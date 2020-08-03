@@ -1,17 +1,17 @@
-package org.tygus.suslik.certification.targets.htt.language
+package org.tygus.suslik.certification.targets.htt.program
 
-import org.tygus.suslik.util.StringUtil._
+import org.tygus.suslik.certification.targets.htt.language.PrettyPrinting
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.language.Types._
+import org.tygus.suslik.util.StringUtil.mkSpaces
 
 object Statements {
-  import Expressions._
-
-  sealed abstract class CStatement extends ProgramPrettyPrinting {
+  sealed abstract class CStatement extends PrettyPrinting {
     // Expression-collector
     def collectE[R <: CExpr](p: CExpr => Boolean): Seq[R] = {
 
       def collector(acc: Seq[R])(st: CStatement): Seq[R] = st match {
         case CSkip => acc
-        case CError => acc
         case CStore(to, off, e) =>
           acc ++ to.collect(p) ++ e.collect(p)
         case CLoad(_, _, from, off) =>
@@ -31,6 +31,8 @@ object Statements {
         case CGuarded(cond, b, eb) =>
           val acc1 = collector(acc ++ cond.collect(p))(b)
           collector(acc1)(eb)
+        case _ =>
+          acc
       }
 
       collector(Seq.empty)(this)
@@ -43,66 +45,53 @@ object Statements {
     override def pp: String = {
       val builder = new StringBuilder
 
-      def build(s: CStatement, offset: Int = 2) : Unit = {
+      def build(s: CStatement, depth: Int = 0) : Unit = {
+        val indent = getIndent(depth)
         s match {
           case CSkip =>
-            builder.append(mkSpaces(offset))
-            builder.append("ret tt")
-          case CError => ???
+            builder.append(s"${indent}ret tt")
           case CMalloc(to, _, sz) =>
-            builder.append(mkSpaces(offset))
-            builder.append(s"${to.ppp} <-- allocb null $sz")
+            builder.append(s"$indent${to.pp} <-- allocb null $sz")
           case CFree(v, sz) =>
             val deallocs = for (off <- 0 until sz) yield {
               if (off > 0) {
-                s"dealloc (${v.ppp} .+ $off)"
+                s"dealloc (${v.pp} .+ $off)"
               } else {
-                s"dealloc ${v.ppp}"
+                s"dealloc ${v.pp}"
               }
             }
-            builder.append(mkSpaces(offset))
-            builder.append(deallocs.mkString(s";;\n${mkSpaces(offset)}"))
+            builder.append(s"$indent${deallocs.mkString(s";;\n${mkSpaces(depth)}")}")
           case CStore(to, off, e) =>
-            builder.append(mkSpaces(offset))
-            val t = if (off <= 0) to.ppp else s"(${to.ppp} .+ $off)"
-            val v = if (e == CNatConst(0)) "null" else e.ppp
-            builder.append(s"$t ::= $v")
+            val t = if (off <= 0) to.pp else s"(${to.pp} .+ $off)"
+            val v = if (e == CNatConst(0)) "null" else e.pp
+            builder.append(s"$indent$t ::= $v")
           case CLoad(to, tpe, from, off) =>
-            builder.append(mkSpaces(offset))
-            val f = if (off <= 0) from.ppp else s"(${from.ppp} .+ $off)"
-            builder.append(s"${to.ppp} <-- @read ${tpe.pp} $f")
+            val f = if (off <= 0) from.pp else s"(${from.pp} .+ $off)"
+            builder.append(s"$indent${to.pp} <-- @read ${tpe.pp} $f")
           case CCall(fun, args) =>
-            builder.append(mkSpaces(offset))
-            val function_call = s"${fun.ppp} ${args.map(_.ppp).mkString(" ")}"
+            val function_call = s"$indent${fun.pp} (${args.map(_.pp).mkString(", ")})"
             // TODO: handle return types
             builder.append(function_call)
           case CSeqComp(s1, s2) =>
-            build(s1, offset)
+            build(s1, depth)
             s1 match {
               case _: ReturnsValue => builder.append(";\n")
               case _ => builder.append(";;\n")
             }
-            build(s2, offset)
+            build(s2, depth)
           case CIf(cond, tb, eb) =>
-            builder.append(mkSpaces(offset))
-            builder.append(s"if ${cond.ppp}\n")
-            builder.append(mkSpaces(offset))
-            builder.append(s"then\n")
-            build(tb, offset + 2)
-            builder.append("\n")
-            builder.append(mkSpaces(offset)).append(s"else\n")
-            build(eb, offset + 2)
-            builder.append("\n")
+            builder.append(s"${indent}if ${cond.pp}\n")
+            builder.append(s"${indent}then\n")
+            build(tb, depth + 1)
+            builder.append(s"\n${indent}else\n")
+            build(eb, depth + 1)
           case CGuarded(cond, body, els) =>
-            builder.append(mkSpaces(offset))
-            builder.append(s"if ${cond.ppp}\n")
-            builder.append(mkSpaces(offset))
-            builder.append(s"then\n")
-            build(body, offset + 2)
-            builder.append("\n")
-            builder.append(mkSpaces(offset)).append(s"else\n")
-            build(els, offset + 2)
-            builder.append("\n")
+            builder.append(s"${indent}if ${cond.pp}\n")
+            builder.append(s"${indent}then\n")
+            build(body, depth + 1)
+            builder.append(s"\n${indent}else\n")
+            build(els, depth + 1)
+          case _ =>
         }
       }
 
@@ -115,13 +104,11 @@ object Statements {
 
   case object CSkip extends CStatement
 
-  case object CError extends CStatement
-
-  case class CMalloc(to: CVar, tpe: CoqType, sz: Int = 1) extends CStatement with ReturnsValue
+  case class CMalloc(to: CVar, tpe: HTTType, sz: Int = 1) extends CStatement with ReturnsValue
 
   case class CFree(v: CVar, sz: Int = 1) extends CStatement
 
-  case class CLoad(to: CVar, tpe: CoqType, from: CVar, offset: Int = 0) extends CStatement with ReturnsValue
+  case class CLoad(to: CVar, tpe: HTTType, from: CVar, offset: Int = 0) extends CStatement with ReturnsValue
 
   case class CStore(to: CVar, offset: Int, e: CExpr) extends CStatement
 
@@ -130,13 +117,16 @@ object Statements {
   case class CIf(cond: CExpr, tb: CStatement, eb: CStatement) extends CStatement {
     def simplify: CStatement = (tb, eb) match {
       case (CSkip, CSkip) => CSkip
-      case (CError, _) => eb
-      case (_, CError) => tb
       case _ => this
     }
   }
 
   case class CSeqComp(s1: CStatement, s2: CStatement) extends CStatement {
+    /**
+      * The synthesis removes some extraneous program statements that are unused in the final result, but
+      * the CertTree retains them as nodes. So, we remove them from our statements here.
+      * @return A simplified statement
+      */
     def simplify: CStatement = (s1, s2) match {
       case (CGuarded(cond, b, eb), _) => CGuarded(cond, CSeqComp(b, s2).simplify, eb)
       case (CLoad(y, _, _, _), CGuarded(cond, _, _)) if cond.vars.contains(y) => this
@@ -148,23 +138,17 @@ object Statements {
 
   case class CGuarded(cond: CExpr, body: CStatement, els: CStatement) extends CStatement
 
-  case class CProcedure(name: String, tp: CoqType, formals: Seq[(CoqType, CVar)], body: CStatement, inductive: Boolean = false) extends CStatement {
+  case class CProcedure(name: String, tp: HTTType, formals: Seq[(HTTType, CVar)], body: CStatement) extends CStatement {
     override def pp: String = {
+      val vprogs = "vprogs"
       val builder = new StringBuilder
       builder.append(s"Program Definition $name : ${name}_type :=\n")
-      val fvs = formals.map(f => f._2.ppp)
-      if (inductive) {
-        builder.append(s"  Fix (fun ($name : ${name}_type) ${fvs.mkString(" ")} =>\n")
-      } else {
-        builder.append(s"  fun ${fvs.mkString(" ")} =>\n")
-      }
-      builder.append("    Do (\n")
-      builder.append(body.ppp)
-      builder.append("    )")
-      if (inductive) {
-        builder.append(")")
-      }
-      builder.append(".")
+      builder.append(s"${getIndent(1)}Fix (fun ($name : ${name}_type) $vprogs =>\n")
+
+      builder.append(s"${getIndent(2)}let: (${formals.map(_._2.pp).mkString(", ")}) := $vprogs in\n")
+      builder.append(s"${getIndent(2)}Do (\n")
+      builder.append(body.ppIndent(3))
+      builder.append(s"\n${getIndent(2)})).")
       builder.toString()
     }
   }

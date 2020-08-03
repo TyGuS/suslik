@@ -2,84 +2,53 @@ package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.language.Statements._
-import org.tygus.suslik.certification.targets.htt.language._
-import org.tygus.suslik.certification.targets.htt.logic.Proof.{CEnvironment, CGoal}
-import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.Proof
+import org.tygus.suslik.certification.targets.htt.program.Statements._
+import org.tygus.suslik.certification.targets.htt.language.Types._
+import org.tygus.suslik.certification.targets.htt.logic.Proof._
+import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.rules.UnfoldingRules.Open
-import org.tygus.suslik.synthesis.{ChainedProducer, PartiallyAppliedProducer, StmtProducer}
 
 object Translation {
   case class TranslationException(msg: String) extends Exception(msg)
 
-  trait Traversable
-
   /**
-    * Produces a HTT certificate from the tree of successful derivations and a synthesized procedure
+    * Produces the components of a HTT certificate, from the tree of successful derivations and a synthesized procedure
     * @param node the root of the derivation tree
     * @param proc the synthesized procedure
     * @param env the synthesis environment
     * @return the inductive predicates, fun spec, proof, and program translated to HTT
     */
   def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
-    (Seq[CInductivePredicate], CFunSpec, Proof, CProcedure) = {
-    val cpreds = for (label <- (node.goal.pre.sigma.apps ++ node.goal.post.sigma.apps).map(_.pred).distinct) yield {
-      val predicate = env.predicates(label)
-      translateInductivePredicate(predicate.resolveOverloading(env))
-    }
-    val initialGoal = translateGoal(node.goal)
-    val spec = translateFunSpec(node)
-    val initialCEnv = CEnvironment(spec, cpreds)
-    val proof = ProofTranslation.translate(node, proc, initialGoal, initialCEnv)
-    val stmtBody = ProgramTranslation.translate(node, proc, initialGoal)
-
-    val cproc = CProcedure(proc.name, translateSSLType(proc.tp), proc.formals.map(translateParam), stmtBody, spec.inductive)
-    (cpreds, spec, proof, cproc)
-  }
-
-  private def translateFunSpec(node: CertTree.Node)(implicit env: Environment): CFunSpec = {
-    val FunSpec(_, tp, _, _, _, _) = node.goal.toFunSpec
-    val goal = node.goal
-    val pureParams = goal.universalGhosts
-      .intersect(goal.gamma.keySet)
-      .map(v => translateParam((v, goal.gamma(v))))
-      .filterNot(_._1 == CCardType) // exclude cardinality vars
-      .toList
-    val ctp = translateSSLType(tp)
-    val cparams = goal.formals.map(translateParam)
-    val cpre = translateAsn(goal.pre)
-    val cpost = translateAsn(goal.post)
-    CFunSpec(
-      goal.fname,
-      ctp,
-      cparams,
-      pureParams,
-      cpre,
-      cpost,
-      node.rule == Open
-    )
+    (Map[String, CInductivePredicate], CFunSpec, Proof, CProcedure) = {
+    val cpreds = env.predicates.mapValues(p => translateInductivePredicate(p.resolveOverloading(env)))
+    val goal = translateGoal(node.goal)
+    val initialCEnv = CEnvironment(goal, cpreds)
+    val proof = ProofTranslation.translate(node, initialCEnv)
+    val cproc = ProgramTranslation.translate(node, proc)
+    (cpreds, goal.toFunspec, proof, cproc)
   }
 
   private def translateInductivePredicate(el: InductivePredicate): CInductivePredicate = {
     val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
-    val cClauses = el.clauses.zipWithIndex.map { case (c, i) => translateClause(c, el.name, i) }
+
+    val cClauses = el.clauses.zipWithIndex.map { case (c, idx) =>
+      val selector = translateExpr(c.selector)
+      val asn = translateAsn(c.asn)
+
+      // Include the clause number so that we can use Coq's `constructor n` tactic
+      CInductiveClause(el.name, idx + 1, selector, asn, asn.existentials(cParams.map(_._2)))
+    }
     CInductivePredicate(el.name, cParams, cClauses)
   }
 
-  private def translateParam(el: (Var, SSLType)): (CoqType, CVar) =
-    (translateSSLType(el._2), CVar(el._1.name))
+  def translateParam(el: (Var, SSLType)): (HTTType, CVar) =
+    (translateType(el._2), translateVar(el._1))
 
-  def translateClause(el: InductiveClause, pred: String, idx: Int): CInductiveClause = {
-    val selector = translateExpr(el.selector)
-    CInductiveClause(pred, idx, selector, translateAsn(el.asn))
-  }
-
-  def translateSSLType(el: SSLType): CoqType = el match {
+  def translateType(el: SSLType): HTTType = el match {
     case BoolType => CBoolType
     case IntType => CNatType
     case LocType => CPtrType
@@ -91,9 +60,9 @@ object Translation {
   def translateGoal(goal: Goal): CGoal = {
     val pre = translateAsn(goal.pre)
     val post = translateAsn(goal.post)
-    val gamma = goal.gamma.map { case (value, lType) => (CVar(value.name), translateSSLType(lType)) }
-    val programVars = goal.programVars.map(v => CVar(v.name))
-    val universalGhosts = goal.universalGhosts.intersect(goal.gamma.keySet).map(v => CVar(v.name)).toSeq.filterNot(_.isCard)
+    val gamma = goal.gamma.map { case (value, lType) => (translateVar(value), translateType(lType)) }
+    val programVars = goal.programVars.map(translateVar)
+    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(_.isCard)
     CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
   }
 
@@ -103,89 +72,55 @@ object Translation {
     case IntConst(value) => CNatConst(value)
     case el@UnaryExpr(_, _) => translateUnaryExpr(el)
     case el@BinaryExpr(_, _, _) => translateBinaryExpr(el)
-    case el@OverloadedBinaryExpr(_, _, _) => translateOverloadedBinaryExpr(el)
     case SetLiteral(elems) => CSetLiteral(elems.map(e => translateExpr(e)))
     case IfThenElse(c, t, e) => CIfThenElse(translateExpr(c), translateExpr(t), translateExpr(e))
+    case _ => throw TranslationException("Operation not supported")
   }
 
-  def translateHeaplet(el: Heaplet): CExpr = el match {
-    case PointsTo(loc, offset, value) => CPointsTo(translateExpr(loc), offset, translateExpr(value))
-    case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr), translateExpr(card))
-  }
+  def translateVar(el: Var): CVar = CVar(el.name)
+
+  def translateSApp(el: SApp): CSApp = CSApp(el.pred, el.args.map(translateExpr), translateExpr(el.card))
+  def translatePointsTo(el: PointsTo): CPointsTo = CPointsTo(translateExpr(el.loc), el.offset, translateExpr(el.value))
 
   def translateAsn(el: Assertion): CAssertion = {
-    val phi: CExpr = translateExpr(el.phi.toExpr).simplify
+    val phi = translateExpr(el.phi.toExpr).simplify
     val sigma = translateSFormula(el.sigma)
     CAssertion(phi, sigma)
   }
 
   def translateSFormula(el: SFormula): CSFormula = {
-    val ptss = el.ptss.map(translateHeaplet).asInstanceOf[List[CPointsTo]]
-    val apps = el.apps.map(translateHeaplet).asInstanceOf[List[CSApp]]
+    val ptss = el.ptss.map(translatePointsTo)
+    val apps = el.apps.map(translateSApp)
     CSFormula("h", apps, ptss)
   }
 
-  private def translateUnaryExpr(el: UnaryExpr) : CExpr = el match {
-    case UnaryExpr(OpNot, e) => e match {
-      case BinaryExpr(OpEq, left, right) => COverloadedBinaryExpr(COpNotEqual, translateExpr(left), translateExpr(right))
-      case _ => CUnaryExpr(COpNot, translateExpr(e))
-    }
-    case UnaryExpr(OpUnaryMinus, e) => ???
+  private def translateUnOp(op: UnOp): CUnOp = op match {
+    case OpNot => COpNot
+    case OpUnaryMinus => COpUnaryMinus
   }
 
-  private def translateOverloadedBinaryExpr(el: OverloadedBinaryExpr) : CExpr = el match {
-    case OverloadedBinaryExpr(OpOverloadedEq, l, r) =>
-      COverloadedBinaryExpr(COpOverloadedEq, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpNotEqual, l, r) =>
-      COverloadedBinaryExpr(COpNotEqual, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpGt, l, r) =>
-      COverloadedBinaryExpr(COpGt, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpGeq, l, r) =>
-      COverloadedBinaryExpr(COpGeq, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpGeq, l, r) =>
-      COverloadedBinaryExpr(COpGeq, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpOverloadedPlus, l, r) =>
-      COverloadedBinaryExpr(COpOverloadedPlus, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpOverloadedMinus, l, r) =>
-      COverloadedBinaryExpr(COpOverloadedMinus, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpOverloadedLeq, l, r) =>
-      COverloadedBinaryExpr(COpOverloadedLeq, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpOverloadedStar, l, r) =>
-      COverloadedBinaryExpr(COpOverloadedStar, translateExpr(l), translateExpr(r))
+  private def translateBinOp(op: BinOp): CBinOp = op match {
+    case OpImplication => COpImplication
+    case OpPlus => COpPlus
+    case OpMinus => COpMinus
+    case OpMultiply => COpMultiply
+    case OpEq => COpEq
+    case OpBoolEq => COpBoolEq
+    case OpLeq => COpLeq
+    case OpLt => COpLt
+    case OpAnd => COpAnd
+    case OpOr => COpOr
+    case OpUnion => COpUnion
+    case OpDiff => COpDiff
+    case OpIn => COpIn
+    case OpSetEq => COpSetEq
+    case OpSubset => COpSubset
+    case OpIntersect => COpIntersect
   }
 
-  private def translateBinaryExpr(el: BinaryExpr) : CExpr = el match {
-    case BinaryExpr(OpImplication, l, r) =>
-      CBinaryExpr(COpImplication, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpPlus, l, r) =>
-      CBinaryExpr(COpPlus, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpMinus, l, r) =>
-      CBinaryExpr(COpMinus, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpMultiply, l, r) =>
-      CBinaryExpr(COpMultiply, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpEq, l, r) =>
-      CBinaryExpr(COpEq, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpBoolEq, l, r) =>
-      CBinaryExpr(COpBoolEq, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpLeq, l, r) =>
-      CBinaryExpr(COpLeq, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpLt, l, r) =>
-      CBinaryExpr(COpLt, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpAnd, l, r) =>
-      CBinaryExpr(COpAnd, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpOr, l, r) =>
-      CBinaryExpr(COpOr, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpUnion, l, r) =>
-      CBinaryExpr(COpUnion, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpDiff, l, r) =>
-      CBinaryExpr(COpDiff, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpIn, l, r) =>
-      CBinaryExpr(COpIn, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpSetEq, l, r) =>
-      CBinaryExpr(COpSetEq, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpSubset, l, r) =>
-      CBinaryExpr(COpSubset, translateExpr(l), translateExpr(r))
-    case BinaryExpr(OpIntersect, l, r) =>
-      CBinaryExpr(COpIntersect, translateExpr(l), translateExpr(r))
-  }
+  private def translateUnaryExpr(el: UnaryExpr) : CExpr =
+    CUnaryExpr(translateUnOp(el.op), translateExpr(el.arg))
+
+  private def translateBinaryExpr(el: BinaryExpr) : CExpr =
+    CBinaryExpr(translateBinOp(el.op), translateExpr(el.left), translateExpr(el.right))
 }
