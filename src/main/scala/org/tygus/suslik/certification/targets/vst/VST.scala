@@ -12,6 +12,7 @@ import org.tygus.suslik.synthesis.{SynConfig, SynthesisException, SynthesisRunne
 import org.tygus.suslik.util.SynStats
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
+import org.tygus.suslik.certification.targets.vst.translation.Translation
 
 object VST extends CertificationTarget {
   override val name: String = "VST"
@@ -30,13 +31,15 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
     // retrieve the search tree
     val root =
       CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
-    val funspec = proc.f
-    val funbody = proc.body
-    val fun_name : String = funspec.name
+    val fun_name : String = proc.f.name
 
     val builder = new StringBuilder
     // append the coq prelude
     builder.append(coq_prelude(fun_name))
+
+
+    val c_prelude ="""#include <stddef.h>\n\nextern void free(void *p);\n\n"""
+
     val (preds, spec, proof, cproc) = Translation.translate(root, proc, env)
 
     ???
@@ -64,22 +67,15 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
     val synthesizer = SynthesisRunner.createSynthesizer(env)
     val sresult = synthesizer.synthesizeProc(spec, env, body)
 
-
-    println("Root:")
-    println(CertTree.pp())
-
     sresult._1 match {
       case Nil => throw SynthesisException(s"Failed to synthesize:\n$sresult")
 
       case procs =>
 
-        print("hello?\n")
-        print(procs.head)
-        print("\nhello?")
-
-
         val targetName = certTarget.name
+
         val certificate = certTarget.certify(procs.head, env)
+
         println(s"synthesized:\n${certificate.body}")
    }
 
