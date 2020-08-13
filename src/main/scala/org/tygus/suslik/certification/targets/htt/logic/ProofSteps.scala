@@ -125,7 +125,7 @@ object ProofSteps {
       }
 
       // Solve everything except the predicate applications
-      builder.append("ssl_emp_post.\n")
+      builder.append("sslauto.\n")
 
       // For each predicate application, unfold the correct constructor and recursively solve its expanded form
       for {

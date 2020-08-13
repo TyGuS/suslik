@@ -60,11 +60,9 @@ object ProofTranslation {
         case PartiallyAppliedProducer(p, _) =>
           translateProducer(p, cenv)
         case SubstProducer(subst) =>
-          if (item.node.goal.callGoal.isEmpty) {
-            val csub = subst.map { case (v, e) => translateVar(v) -> translateExpr(e).subst(cenv.ghostSubst) }
-            val cenv1 = cenv.copy(subst = cenv.subst ++ csub)
-            (IdProofProducer, cenv1)
-          } else (IdProofProducer, cenv)
+          val csub = subst.map { case (v, e) => translateVar(v) -> translateExpr(e).subst(cenv.ghostSubst) }
+          val cenv1 = cenv.copy(subst = cenv.subst ++ csub)
+          (IdProofProducer, cenv1)
         case GhostSubstProducer(ghostSubst) =>
           val newGhostSubst = ghostSubst.map { case (v, e) => translateVar(v) -> translateVar(e) }
           val newSubst = cenv.subst.map { case (v, e) => v.substVar(newGhostSubst) -> e.subst(newGhostSubst)}
