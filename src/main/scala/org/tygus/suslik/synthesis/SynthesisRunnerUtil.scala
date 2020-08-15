@@ -4,7 +4,8 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
-import org.tygus.suslik.logic.Environment
+import org.tygus.suslik.language.Statements.Procedure
+import org.tygus.suslik.logic.{Environment, FunSpec}
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
@@ -183,7 +184,16 @@ trait SynthesisRunnerUtil {
             List(pre, post, p.pp.trim).mkString("\n")
           }).mkString("\n\n")
         } else {
-          procs.map(_.pp.trim).mkString("\n\n")
+          val funstr = procs.map(proc => proc match {
+            case Procedure(f,_) => f.pp
+          })
+          val bodystr = procs.map(proc => proc match {
+            case Procedure(_,body) => body.pp
+          })
+          "Function spec:  "  + funstr.mkString("\n") + "\n\n" +
+            "Body:  " + bodystr.mkString("\n") + "\n\n"+
+          procs.map(_.pp.trim).mkString("\n\n") + "\n" +
+          procs.mkString("\n\n")
         }
           
         if (params.printStats) {
@@ -192,7 +202,7 @@ trait SynthesisRunnerUtil {
           testPrintln(s"${spec.pp}\n", Console.BLUE)
           testPrintln(s"Successfully synthesised in $duration milliseconds:", Console.GREEN)
           printStats(sresult._2)
-          testPrintln(result)
+          testPrintln(result, Console.YELLOW)
           testPrintln("-----------------------------------------------------")
         } else {
           println(result)

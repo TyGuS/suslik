@@ -26,13 +26,13 @@ class GoalParserTests extends FunSpec with Matchers {
     val parser = new SSLParser
     val result = parser.parseGoal(text)
     // So far, just assert that the result is a success
+    testPrintln(result.get.toString)
     assert(result.successful, result)
-    println(result.get.pp)
   }
 
   describe("Parser for SSL specs") {
     it("should parse simple specifications with one parameter") {
-      parseSimpleSpec(spec1)
+      parseSimpleSpec(spec2)
     }
 
     it("should parse simple specifications with multiple parameters") {
