@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
-import org.tygus.suslik.certification.targets.vst.language.Types.VSTType
+import org.tygus.suslik.certification.targets.vst.language.CTypes.VSTCType
 import org.tygus.suslik.certification.targets.vst.language.Expressions.{CExpr, CVar}
 import org.tygus.suslik.certification.targets.vst.language.CFormals
 import org.tygus.suslik.certification.targets.vst.logic.Proof.VSTPredicate
@@ -51,7 +51,7 @@ object Formulae {
   }
 
   case class CFunSpec(
-                       name: String, rType: VSTType,
+                       name: String, rType: VSTCType,
                        params: CFormals, ghostParams: CFormals,
                        pre: CAssertion, post: CAssertion) extends PrettyPrinting {
   }

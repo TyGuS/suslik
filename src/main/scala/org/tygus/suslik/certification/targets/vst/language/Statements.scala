@@ -1,10 +1,10 @@
-package org.tygus.suslik.certification.targets.vst.program
+package org.tygus.suslik.certification.targets.vst.language
 
-import org.tygus.suslik.certification.targets.vst.language.Types.{VSTType}
+import org.tygus.suslik.certification.targets.vst.language.CTypes.{VSTCType}
 import org.tygus.suslik.certification.targets.vst.language.Expressions.{CExpr, CVar}
-import org.tygus.suslik.certification.targets.vst.language.{PrettyPrinting, Types}
 import org.tygus.suslik.logic.Specifications.GoalLabel
 
+/** Encoding of C statements */
 object Statements {
 
   /** pretty printing a VST C Statement returns a C embedding */
@@ -28,7 +28,7 @@ object Statements {
   }
 
   // let to = malloc(n)
-  case class CMalloc(to: CVar, tpe: VSTType, sz: Int = 1) extends CStatement {
+  case class CMalloc(to: CVar, tpe: VSTCType, sz: Int = 1) extends CStatement {
     override def pp: String =
       s"${tpe.pp} ${to.pp} = (${tpe.pp})malloc(${sz.toString} * sizeof(${tpe.pp}));"
   }
@@ -41,8 +41,8 @@ object Statements {
   /** encoding of a load operation
     *  let to = *from.offset
     *  */
-  case class CLoad(to: CVar, elem_ty: VSTType, from: CVar,
-                  offset: Int = 0) extends CStatement {
+  case class CLoad(to: CVar, elem_ty: VSTCType, from: CVar,
+                   offset: Int = 0) extends CStatement {
     override def pp: String =
       if (offset == 0) {
         s"${elem_ty.pp} ${to.pp} = *(${elem_ty.pp}*)${from.pp};"
@@ -53,7 +53,7 @@ object Statements {
 
   /** Encoding of a store operation
     * *to.offset = e */
-  case class CStore(to: CVar, elem_ty: VSTType, offset: Int, e: CExpr) extends CStatement {
+  case class CStore(to: CVar, elem_ty: VSTCType, offset: Int, e: CExpr) extends CStatement {
     override def pp: String = {
       val cast = s"(${elem_ty.pp})"
       val ptr = s"(${elem_ty.pp}*)${to.pp}"
@@ -97,7 +97,11 @@ object Statements {
 
   /** Definition of a CProcedure */
   case class CProcedureDefinition(
-    name: String, rt: VSTType, params: Seq[(CVar, VSTType)], body: CStatement)  extends PrettyPrinting {
+                                   name: String,
+                                   rt: VSTCType,
+                                   params: Seq[(CVar, VSTCType)],
+                                   body: CStatement
+                                 )  extends PrettyPrinting {
     override def pp: String = {
       val body_string = body.ppIndent(1)
       val function_def =

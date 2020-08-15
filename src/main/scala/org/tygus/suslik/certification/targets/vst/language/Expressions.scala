@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.vst.language
 
-import org.tygus.suslik.certification.targets.vst.language.Types.{CBoolType, CIntType, VSTType}
+import org.tygus.suslik.certification.targets.vst.language.CTypes.{CBoolType, CIntType, VSTCType}
 import org.tygus.suslik.language.Expressions.SubstVar
 
 /** Encodes VST specific C expressions */
@@ -21,9 +21,6 @@ object Expressions {
     override def pp: String = value.toString
   }
 
-  case class CSetLiteral(elems: List[CExpr]) extends CExpr {
-  }
-
   case class CIfThenElse(cond: CExpr, left: CExpr, right: CExpr) extends CExpr {
     override def pp: String =
       s"(${cond.pp} ? ${left.pp} : ${right.pp})"
@@ -32,7 +29,6 @@ object Expressions {
   case class CBinaryExpr(op: CBinOp, left: CExpr, right: CExpr) extends CExpr {
     override def pp: String =
       op match {
-        case COpBoolEq => s"(${left.pp} == ${right.pp})"
         case COpEq => s"(${left.pp} == ${right.pp})"
         case COpLt => s"(${left.pp} < ${right.pp})"
         case COpLeq => s"(${left.pp} <= ${right.pp})"
@@ -52,74 +48,27 @@ object Expressions {
       }
   }
 
-  sealed abstract class CUnOp extends PrettyPrinting
+  sealed abstract class CUnOp
 
-  object COpNot extends CUnOp {
-    override def pp: String = "~~"
-  }
-
+  object COpNot extends CUnOp
   object COpUnaryMinus extends CUnOp
 
-  sealed abstract class CBinOp extends PrettyPrinting
+  sealed abstract class CBinOp
 
-  object COpImplication extends CBinOp {
-    override def pp: String = "->"
-  }
+  object COpPlus extends CBinOp
 
-  object COpPlus extends CBinOp {
-    override def pp: String = "+"
-  }
+  object COpMinus extends CBinOp
 
-  object COpMinus extends CBinOp {
-    override def pp: String = "-"
-  }
+  object COpMultiply extends CBinOp
 
-  object COpMultiply extends CBinOp {
-    override def pp: String = "*"
-  }
+  object COpEq extends CBinOp
 
-  object COpEq extends CBinOp {
-    override def pp: String = "=="
-  }
+  object COpLeq extends CBinOp
 
-  object COpBoolEq extends CBinOp {
-    override def pp: String = "="
-  }
+  object COpLt extends CBinOp
 
-  object COpLeq extends CBinOp {
-    override def pp: String = "<="
-  }
+  object COpAnd extends CBinOp
 
-  object COpLt extends CBinOp {
-    override def pp: String = "<"
-  }
-
-  object COpAnd extends CBinOp {
-    override def pp: String = "/\\"
-  }
-
-  object COpOr extends CBinOp {
-    override def pp: String = "\\/"
-  }
-
-  object COpUnion extends CBinOp {
-    override def pp: String = "++"
-  }
-
-  object COpDiff extends CBinOp {
-    override def pp: String = "--"
-  }
-
-  object COpIn extends CBinOp
-
-  object COpSetEq extends CBinOp {
-    override def pp: String = "="
-  }
-
-  object COpSubset extends CBinOp {
-    override def pp: String = "<="
-  }
-
-  object COpIntersect extends CBinOp
+  object COpOr extends CBinOp
 
 }
