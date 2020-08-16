@@ -1,7 +1,6 @@
 package org.tygus.suslik.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
-
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */

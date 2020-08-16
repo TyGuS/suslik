@@ -193,7 +193,10 @@ trait SynthesisRunnerUtil {
           "Function spec:  "  + funstr.mkString("\n") + "\n\n" +
             "Body:  " + bodystr.mkString("\n") + "\n\n"+
           procs.map(_.pp.trim).mkString("\n\n") + "\n" +
-          procs.mkString("\n\n")
+            "AST for Pre: \n" + procs.head.f.pre.toString() +  "\n\n" +
+            "AST for Post: \n" + procs.head.f.post.toString() + "\n\n" +
+            "AST for Body: \n" + procs.head.body.toString()
+
         }
           
         if (params.printStats) {
