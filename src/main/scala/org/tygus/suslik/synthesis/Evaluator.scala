@@ -31,11 +31,8 @@ object Evaluator {
           case Block(l,p) => if (l == to) {
             Block(curr_value,p)
           }
-          case SApp(pred, args, tag, card) => {
-            SApp(pred,args,tag,card)
-          }
         }.asInstanceOf[List[Heaplet]]
-        Assertion(new PFormula(TreeSet()), SFormula(new_sigma))
+        return Assertion(new PFormula(TreeSet()), SFormula(new_sigma))
       }
 
       case _ => ???
