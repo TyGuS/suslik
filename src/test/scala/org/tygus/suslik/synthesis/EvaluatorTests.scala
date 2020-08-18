@@ -25,48 +25,39 @@ class EvaluatorTests extends FunSpec with Matchers with SynthesisRunnerUtil {
       //let v = *x where *x = "new"
       //expected result: all instances of v become "new"
       val s: Statement = Load(Var("v"), LocType, Var("x"))
-      val pre: Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("v"), 0, Var("somethingOtherThan(x)")))))
-      val post: Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("new"), 0, Var("somethingOtherThan(x)")))))
+      val pre: Heap = List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("v"), 0, Var("somethingOtherThan(x)")))
+      val post: Heap = List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("new"), 0, Var("somethingOtherThan(x)")))
       assert(evaluate(s, pre) == post)
     }
     it("evaluates Load correctly in the 'from' parameter") {
       //let v = *x where *x = "new"
       //expected result: all instances of v become "new"
       val s: Statement = Load(Var("v"), LocType, Var("x"))
-      val pre: Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("somethingOtherThan(x)"), 0, Var("v")))))
-      val post: Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("somethingOtherThan(x)"), 0, Var("new")))))
+      val pre: Heap = List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("somethingOtherThan(x)"), 0, Var("v")))
+      val post: Heap = List(PointsTo(Var("x"), 0, Var("new")), PointsTo(Var("somethingOtherThan(x)"), 0, Var("new")))
       assert(evaluate(s, pre) == post)
     }
     it("evaluates Free correctly"){
       val s : Statement = Free(Var("y"))
-      val pre: Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"),0,(Var("y"))), PointsTo(Var("y"),0,IntConst(42)),
-                PointsTo(Var("y"),1,IntConst(43)), PointsTo(Var("y"),2,IntConst(44)), Block(Var("y"),3))))
-      val post: Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"),0,Var("y")))))
+      val pre: Heap = List(PointsTo(Var("x"),0,(Var("y"))), PointsTo(Var("y"),0,IntConst(42)),
+                PointsTo(Var("y"),1,IntConst(43)), PointsTo(Var("y"),2,IntConst(44)), Block(Var("y"),3))
+      val post: Heap = List(PointsTo(Var("x"),0,Var("y")))
       assert(evaluate(s,pre) == post)
     }
     it("evaluates Store correctly"){
       val s : Statement = SeqComp(Store(Var("x"),0,IntConst(43)), Store(Var("y"),1,IntConst(239)))
-      val pre : Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"),0,IntConst(1)),PointsTo(Var("y"),1,IntConst(2)),Block(Var("asdf"),3))))
-      val post : Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"),0,IntConst(43)),PointsTo(Var("y"),1,IntConst(239)),Block(Var("asdf"),3))))
+      val pre : Heap = List(PointsTo(Var("x"),0,IntConst(1)),PointsTo(Var("y"),1,IntConst(2)),Block(Var("asdf"),3))
+      val post : Heap = List(PointsTo(Var("x"),0,IntConst(43)),PointsTo(Var("y"),1,IntConst(239)),Block(Var("asdf"),3))
       assert(evaluate(s,pre)==post)
     }
     it("evaluates Malloc correctly for blocks"){
       val s: Statement =SeqComp(Malloc(Var("y"),LocType,3),SeqComp(Store(Var("x"),0,Var("y")),SeqComp(Store(Var("y"),0,IntConst(1)),
         SeqComp(Store(Var("y"),1,IntConst(2)),SeqComp(Store(Var("y"),2,Var("x")),Skip)))))
-      val pre : Assertion = Assertion(new PFormula(TreeSet()),
-        SFormula(List(PointsTo(Var("x"),0,IntConst(0)))))
-      val post: Assertion = Assertion(new PFormula(TreeSet()),SFormula(List(PointsTo(Var("x"),0,Var("y")),
-        Block(Var("y"),3), PointsTo(Var("y"),0,IntConst(1)), PointsTo(Var("y"),1,IntConst(2)), PointsTo(Var("y"),2,Var("x")))))
+      val pre : Heap = List(PointsTo(Var("x"),0,IntConst(0)))
+      val post: Heap = List(PointsTo(Var("x"),0,Var("y")),
+        Block(Var("y"),3), PointsTo(Var("y"),0,IntConst(1)), PointsTo(Var("y"),1,IntConst(2)), PointsTo(Var("y"),2,Var("x")))
       // assert equivalence up to formula re-arrangement by abusing property of set.
-      assert(evaluate(s,pre).sigma.chunks.toSet == post.sigma.chunks.toSet)
+      assert(evaluate(s,pre).toSet == post.toSet)
     }
   }
 
