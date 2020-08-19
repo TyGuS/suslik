@@ -1,18 +1,20 @@
 package org.tygus.suslik.certification.targets.vst.translation
 
+import java.io
+
 import org.tygus.suslik.certification.targets.htt.language.Expressions.CPointsTo
-import org.tygus.suslik.certification.targets.vst.clang.CTypes
+import org.tygus.suslik.certification.targets.vst.clang.{CTypes, PrettyPrinting}
 import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.CVar
 import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.{CDataAt, CSApp, VSTHeaplet}
 import org.tygus.suslik.certification.targets.vst.logic.{Proof, ProofTypes}
-import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions.{ProofCBinOp, ProofCBinaryExpr, ProofCBoolConst, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCOpAnd, ProofCOpBoolEq, ProofCOpDiff, ProofCOpImplication, ProofCOpIn, ProofCOpIntEq, ProofCOpIntersect, ProofCOpLeq, ProofCOpLt, ProofCOpMinus, ProofCOpMultiply, ProofCOpNot, ProofCOpOr, ProofCOpPlus, ProofCOpSetEq, ProofCOpSubset, ProofCOpUnaryMinus, ProofCOpUnion, ProofCSetLiteral, ProofCUnOp, ProofCUnaryExpr, ProofCVar}
-import org.tygus.suslik.certification.targets.vst.logic.Proof.{FormalCondition, FormalSpecification, IsTrueProp, IsValidInt, IsValidPointerOrNull}
+import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions.{ProofCBinOp, ProofCBinaryExpr, ProofCBoolConst, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCOpAnd, ProofCOpBoolEq, ProofCOpDiff, ProofCOpImplication, ProofCOpIn, ProofCOpIntEq, ProofCOpIntersect, ProofCOpLeq, ProofCOpLt, ProofCOpMinus, ProofCOpMultiply, ProofCOpNot, ProofCOpOr, ProofCOpPlus, ProofCOpPtrEq, ProofCOpSetEq, ProofCOpSubset, ProofCOpUnaryMinus, ProofCOpUnion, ProofCSetLiteral, ProofCUnOp, ProofCUnaryExpr, ProofCVar}
+import org.tygus.suslik.certification.targets.vst.logic.Proof.{CardConstructor, CardNull, CardOf, FormalCondition, FormalSpecification, IsTrueProp, IsValidInt, IsValidPointerOrNull, VSTPredicate, VSTPredicateClause}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqIntType, CoqListType, CoqNatType, CoqPtrType, VSTProofType}
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.{BoolType, CardType, Expressions, Ident, IntSetType, IntType, LocType, SSLType}
-import org.tygus.suslik.logic.{Block, FunSpec, Gamma, Heaplet, PointsTo, SApp}
+import org.tygus.suslik.logic.{Block, Environment, FunSpec, Gamma, Heaplet, InductiveClause, InductivePredicate, PointsTo, PredicateEnv, SApp}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 
 import scala.collection.immutable
@@ -35,7 +37,23 @@ object ProofTranslation {
 
 
   def translate_expression(context: Map[Ident, VSTProofType])(expr: Expressions.Expr): Proof.Expressions.ProofCExpr = {
-    def type_expr(left_1: ProofCExpr): VSTProofType = ???
+    def type_expr(left_1: ProofCExpr): VSTProofType =
+      left_1 match {
+        case ProofCVar(name, typ) => typ
+        case ProofCIntConst(value) => CoqIntType
+        case ProofCSetLiteral(elems) => CoqListType(CoqPtrType, Some(elems.length))
+        case ProofCIfThenElse(cond, left, right) => type_expr(left)
+        case ProofCBinaryExpr(op, left, right) =>
+          op match {
+            case ProofCOpPlus => CoqIntType
+            case ProofCOpMinus => CoqIntType
+            case ProofCOpMultiply => CoqIntType
+            case ProofCOpUnion => CoqListType(CoqPtrType, None)
+          }
+        case ProofCUnaryExpr(op, e) => op match {
+          case ProofCOpUnaryMinus => CoqIntType
+        }
+      }
 
     def translate_binop(op: Expressions.BinOp): ProofCBinOp = {
       op match {
@@ -99,7 +117,8 @@ object ProofTranslation {
                 ProofCBinaryExpr(ProofCOpIntEq, left_1, right_1)
               case CoqListType(_, _) =>
                 ProofCBinaryExpr(ProofCOpSetEq, left_1, right_1)
-              case ProofTypes.CoqPtrType => ??? /// TODO: Handle pointer equality? or fail?
+              case ProofTypes.CoqPtrType =>
+                ProofCBinaryExpr(ProofCOpPtrEq, left_1, right_1)
             }
           case Expressions.OpNotEqual =>
             val l1_ty: VSTProofType = type_expr(left_1)
@@ -268,5 +287,105 @@ object ProofTranslation {
     FormalSpecification(
       name, c_params, formal_params, existential_params, precondition, postcondition, return_type
     )
+  }
+
+
+  /** convert a list of cardinality relations (child, parent) (i.e child < parent) into a map
+    * from cardinality name to constructors */
+  def build_card_cons(card_conds: List[(String, String)]): Map[String, CardOf] = {
+    var child_map : Map[String, List[String]] = Map.empty
+    card_conds.foreach({case (child, parent) =>
+    child_map.get(parent) match {
+            case None => child_map = child_map.updated(parent, List(child))
+            case Some(children) => child_map = child_map.updated(parent, child :: children)
+    }})
+    child_map.map({ case (str, strings) => (str, CardOf(strings))})
+  }
+
+
+  def translate_predicate(env: Environment)(predicate: InductivePredicate): VSTPredicate = {
+
+
+    def is_card (s: String) : Boolean = s.startsWith("_") || s.contentEquals("self_card")
+    def extract_card_constructor(expr: Expressions.Expr) : Option[(String, String)] = {
+      expr match {
+        case Expressions.BinaryExpr(op, Var(left), Var(parent))
+        if is_card(left) && is_card(parent) =>
+          op match {
+            case op: Expressions.RelOp => op match {
+              case Expressions.OpLt =>
+                Some ((left, parent))
+              case _ => None
+            }
+            case _ => None
+          }
+        case Expressions.OverloadedBinaryExpr(overloaded_op, Var(left), Var(parent))
+        if is_card(left) && is_card(parent) =>
+          overloaded_op match {
+            case op: Expressions.BinOp => op match {
+              case op: Expressions.RelOp => op match {
+                case Expressions.OpLt => Some ((left, parent))
+                case _ => None
+              }
+              case _ => None
+            }
+            case Expressions.OpGt =>Some ((parent, left))
+            case _ => None
+          }
+        case _ => None
+      }
+
+    }
+
+    val base_context : List[(Ident, VSTProofType)] = {
+      var gamma: Gamma = Map.empty
+      predicate match {
+        case InductivePredicate(name, params, clauses) =>
+          clauses.foreach({case InductiveClause(selector, assn) =>
+            selector.resolve(gamma, Some(BoolType)).foreach(v => gamma = v)
+            assn.phi.conjuncts.foreach(expr =>
+              expr.resolve(gamma, Some(BoolType)).foreach(v => gamma = v)
+            )
+            assn.sigma.resolve(gamma, env).foreach(v => gamma = v)
+          })
+      }
+      gamma.map({case (Var(name), ty) => (name, translate_type(ty))}).toList
+    }
+
+    predicate match {
+      case InductivePredicate(name, raw_params, raw_clauses) => {
+
+        val params: List[(String, VSTProofType)] =
+          raw_params.map({case (Var(name), sType) => (name, translate_type(sType))})
+        val context: Map[Ident, VSTProofType] = (base_context ++ params).toMap
+
+
+        // separate clauses by cardinality constructors
+        // NOTE: here we assume that cardinality constructors are unique - i.e each clause maps to a
+        // unique cardinality constraint
+        val clauses: Map[CardConstructor, VSTPredicateClause] = raw_clauses.map({
+          case InductiveClause(selector, asn) =>
+            var (r_conds, r_card_conds) = asn.phi.conjuncts.map(expr =>
+              extract_card_constructor(expr) match {
+                case value@Some(_) => (None, value)
+                case None => (Some(expr), None)
+              }
+            ).toList.unzip
+
+            val select = translate_expression(context)(selector)
+            val conds = r_conds.flatMap({ case v => v }).map(translate_expression(context)).toList
+            val spat_conds = translate_heaplets(context)(asn.sigma.chunks.toList)
+            val card_conds = r_card_conds.flatMap({ case v => v })
+
+            card_conds match {
+              case card_conds@(::(_, _)) =>
+                val card_cons : Map[String, CardConstructor] = build_card_cons(card_conds)
+                (card_cons("self_card"), VSTPredicateClause(select :: conds, spat_conds, card_cons))
+              case Nil => (CardNull, VSTPredicateClause(select :: conds, spat_conds, Map.empty))
+            }
+        }).toMap
+        VSTPredicate(name, params, base_context, clauses)
+      }
+    }
   }
 }

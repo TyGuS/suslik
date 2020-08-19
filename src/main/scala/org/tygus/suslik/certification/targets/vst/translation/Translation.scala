@@ -3,10 +3,13 @@ package org.tygus.suslik.certification.targets.vst.translation
 
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
-import org.tygus.suslik.certification.targets.vst.logic.Proof.Proof
+import org.tygus.suslik.certification.targets.vst.logic.Proof.{Proof, VSTPredicate}
 import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
+import org.tygus.suslik.certification.targets.vst.logic.Proof
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
+
+import scala.collection.immutable
 
 object Translation {
 
@@ -18,7 +21,18 @@ object Translation {
     val spec = ProofTranslation.translate_conditions(procedure)(root.goal)
     println(procedure.pp)
     println(spec.pp)
+    println(
+      env.predicates.head._2.pp
+
+    )
+    val predicates: List[VSTPredicate] = env.predicates.map({ case (_, predicate) =>
+      ProofTranslation.translate_predicate(env)(predicate)
+    }).toList
+
+    predicates.foreach(v => println(v.pp))
     println(root.goal.gamma)
+
+
 
     // translate body into VST types, and build context of variables
     // var (body, ctx) = CTranslation.translate_body(proc.f, proc.body, root.goal.gamma)

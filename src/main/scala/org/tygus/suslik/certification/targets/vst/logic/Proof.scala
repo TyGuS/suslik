@@ -5,6 +5,7 @@ import org.tygus.suslik.certification.targets.vst.clang.Expressions.{CExpr, CVar
 import org.tygus.suslik.certification.targets.vst.clang.{CTypes, Expressions, PrettyPrinting}
 import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
+import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.VSTProofType
 import org.tygus.suslik.language.Ident
 
@@ -115,7 +116,9 @@ object Proof {
           case ProofCOpMultiply => s"(${left.pp} * ${right.pp})"
           case ProofCOpIntEq => s"(Zeq_bool ${left.pp} ${right.pp})"
           case ProofCOpBoolEq => s"(eqb ${left.pp} ${right.pp})"
-
+          case ProofCOpPtrEq => s"(${left.pp} = ${right.pp})"
+          case ProofCOpSetEq => s"(${left.pp} = ${right.pp})"
+          case ProofCOpUnion => s"(${left.pp} ++ ${right.pp})"
           // case ProofCOpSetEq => s"(eqb_list _ ${left.pp} ${right.pp})"
         }
     }
@@ -148,6 +151,8 @@ object Proof {
     object ProofCOpBoolEq extends ProofCBinOp
 
     object ProofCOpSetEq extends ProofCBinOp
+
+    object ProofCOpPtrEq extends ProofCBinOp
 
     object ProofCOpLeq extends ProofCBinOp
 
@@ -239,16 +244,162 @@ object Proof {
     }
   }
 
-  case class VSTClause() {
+  /**
+    * Abstract constructors mapping cardinality constraints to
+    * termination measures in Coq
+    */
+  sealed abstract class CardConstructor extends PrettyPrinting
+  /**
+    * Null constructor of 0 cardinality
+    */
+  case object CardNull extends CardConstructor {}
+  /** Cardinality constructor of multiple components
+    * @param args the variables produced by unwrwapping this element
+    */
+  case class CardOf(args: List[Ident]) extends CardConstructor {}
 
-  }
+
+  /** represents a clause of the VST predicate,
+    * @param pure are the pure assertions
+    * @param spatial are the spatial assertions
+    * @param sub_constructor are the subconstructors
+    * */
+  case class VSTPredicateClause(pure: List[ProofCExpr], spatial: List[VSTHeaplet], sub_constructor: Map[String,CardConstructor])
+  /**
+    * represents a VST inductive predicate defined in a format that satisfies Coq's termination checker
+    *
+    * The idea is to conver the cardinality constraints produced by suslik into an inductive datatype
+    * with the expectation that each clause of the suslik predicate maps to a unique constructor
+    *
+    * Constructors are identified by their cardinality, and each suslik predicate maps to a unique cardinality datatype
+    *
+    * @param name is the name of the predicate
+    * @param params is the list of arguments to the predicate
+    * @param clauses is the mapping from cardinality constructors to clauses
+    *  */
   case class VSTPredicate(
-                           predicate_name: Ident,
-                           params: Seq[(CVar, org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType)],
+                           name: Ident, params: List[(String,VSTProofType)],
+                           existentials: List[(String, VSTProofType)],
+                           clauses: Map[CardConstructor, VSTPredicateClause])
+    extends PrettyPrinting {
 
-                         ) {
+    def constructors: List[CardConstructor] =
+      clauses.flatMap({ case (constructor, VSTPredicateClause(_, _, sub_constructor)) =>
+        constructor :: sub_constructor.toList.map({ case (_, constructor) => constructor})
+      }).toList
 
+    def base_constructors: List[CardConstructor] =
+      clauses.map({ case (constructor, _) =>
+        constructor
+      }).toList
+
+    def constructor_args (constructor: CardConstructor) =
+      constructor match {
+        case CardNull => Nil
+        case CardOf(args) => args
+      }
+
+    def find_existentials(cons: CardConstructor)(pclause: VSTPredicateClause): List[(String, VSTProofType)] = {
+      val param_map = params.toMap
+      val exist_map : Map[String, VSTProofType] = existentials.toMap
+      val card_map = constructor_args(cons)
+      pclause match {
+        case VSTPredicateClause(pure, spatial, sub_clauses) =>
+          val clause_card_map = (card_map ++ sub_clauses.flatMap({ case (_, cons) => constructor_args(cons)})).toSet
+        def to_variables(exp: ProofCExpr) : List[String] = exp match {
+          case Expressions.ProofCVar(name, typ) =>
+            param_map.get(name) match {
+              case None if !clause_card_map.contains(name) => List(name)
+              case _ => List()
+            }
+          case Expressions.ProofCSetLiteral(elems) => elems.flatMap(to_variables)
+          case Expressions.ProofCIfThenElse(cond, left, right) =>
+            to_variables(cond) ++ to_variables(left) ++ to_variables(right)
+          case Expressions.ProofCBinaryExpr(op, left, right) =>
+            to_variables(left) ++ to_variables(right)
+          case Expressions.ProofCUnaryExpr(op, e) =>
+            to_variables(e)
+          case _ => List()
+        }
+        def to_variables_heap(heap: VSTHeaplet) : List[String] = heap match {
+          case Formulae.CDataAt(loc, elem_typ, count, elem) =>
+            to_variables(loc) ++ to_variables(elem)
+          case Formulae.CSApp(pred, args, card) =>
+            args.flatMap(to_variables).toList
+        }
+          (pure.flatMap(to_variables) ++ spatial.flatMap(to_variables_heap)  : List[String])
+            .toSet
+            .map((v: String) => (v, exist_map(v))).toList
+      }
+    }
+
+    override def pp: String = {
+      val constructor_map = base_constructors.map({
+        case CardNull => (0, CardNull )
+        case v@CardOf(args) => (args.length, v)
+      }).toMap
+
+      val inductive_name = s"${name}_card"
+
+      def constructor_name (constructor: CardConstructor) = {
+        val count = constructor match {
+          case CardNull => 0
+          case CardOf(args) => args.length
+        }
+        s"${inductive_name}_${count}"
+      }
+      def pp_constructor (constructor: CardConstructor) = {
+        constructor match {
+          case CardNull => s"${constructor_name(constructor)} : ${inductive_name}"
+          case CardOf(args) =>
+            s"${constructor_name(constructor)} : ${(args ++ List(inductive_name)).map(_ => inductive_name).mkString(" -> ")}"
+        }
+      }
+
+      val inductive_definition = {
+        s"""Inductive ${inductive_name} : Set :=
+           ${constructor_map.map({ case (_, constructor) =>
+          s"|    | ${pp_constructor(constructor)}"
+        }).mkString("\n")}.
+        |
+        |""".stripMargin
+      }
+
+      def expand_args(sub_constructor: Map[String, CardConstructor]) (idents: List[Ident]) : String = {
+        idents.map(arg =>
+          sub_constructor.get(arg) match {
+            case Some(constructor) =>
+              s"(${constructor_name(constructor)} ${expand_args(sub_constructor)(constructor_args(constructor))} as ${arg})"
+            case None => arg
+          }
+        ).mkString(" ")
+      }
+      val predicate_definition =
+        s"""Fixpoint ${name} ${params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})"}).mkString(" ")} (self_card: ${inductive_name}) : mpred := match self_card with
+           ${clauses.map({case (constructor, pclause@VSTPredicateClause(pure, spatial, sub_constructor)) =>
+         s"|    | ${constructor_name(constructor)} ${
+           expand_args(sub_constructor)(constructor_args(constructor))
+         } => ${
+           val clause_existentials: List[(String, VSTProofType)] = find_existentials(constructor)(pclause)
+           val str = clause_existentials.map({case (name, ty) => s"|      EX ${name} : ${ty.pp},"}).mkString("\n")
+           clause_existentials match {
+             case Nil => ""
+             case ::(_, _) => "\n" + str + "\n"
+           }
+         } ${
+           (pure.map(v => s"!!${v.pp}")
+           ++
+           List((spatial match { case Nil => List("emp") case v => v.map(_.pp)}).mkString(" * "))).mkString(" && ")
+         }"
+        }).mkString("\n")}
+           |end.
+           |""".stripMargin
+      /// IMPLEMENT THIS
+      s"${inductive_definition}${predicate_definition}"
+    }
   }
+
+
 
   case class Proof(params: Seq[CVar]) {
   }
