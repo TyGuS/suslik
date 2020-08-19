@@ -1,7 +1,4 @@
-package org.tygus.suslik.certification.targets.vst.language
-
-import org.tygus.suslik.certification.targets.vst.language.CTypes.{CBoolType, CIntType, VSTCType}
-import org.tygus.suslik.language.Expressions.SubstVar
+package org.tygus.suslik.certification.targets.vst.clang
 
 /** Encodes VST specific C expressions */
 object Expressions {

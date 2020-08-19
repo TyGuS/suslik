@@ -1,4 +1,4 @@
-package org.tygus.suslik.certification.targets.vst.language
+package org.tygus.suslik.certification.targets.vst.clang
 
 object CTypes {
 

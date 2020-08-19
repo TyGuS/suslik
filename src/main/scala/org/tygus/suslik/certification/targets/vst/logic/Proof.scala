@@ -1,15 +1,14 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import com.sun.imageio.plugins.bmp.BMPCompressionTypes
-import org.tygus.suslik.certification.targets.vst.language.Expressions.{CExpr, CVar}
-import org.tygus.suslik.certification.targets.vst.language.{CTypes, Expressions, PrettyPrinting}
-import org.tygus.suslik.certification.targets.vst.language.CTypes.VSTCType
-import org.tygus.suslik.certification.targets.vst.logic.ProofSteps.ProofStep
+import org.tygus.suslik.certification.targets.vst.clang.Expressions.{CExpr, CVar}
+import org.tygus.suslik.certification.targets.vst.clang.{CTypes, Expressions, PrettyPrinting}
+import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
+import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
+import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.VSTProofType
 import org.tygus.suslik.language.Ident
 
 object Proof {
-
-  case class FormalParamType() extends PrettyPrinting
 
   sealed abstract class PureFormula extends PrettyPrinting
 
@@ -28,11 +27,58 @@ object Proof {
   /** Redefinition of expressions for use in VST proofs
     *  */
   object Expressions {
-    sealed abstract class ProofCExpr extends PrettyPrinting {  }
+    sealed abstract class ProofCExpr extends PrettyPrinting {
+      /** prints the expression as though it were an element
+        * of type val (vst's encoding of C-values)
+        */
+      def pp_as_c_value : String = this match {
+        case ProofCVar(name, typ) => typ match {
+          case ProofTypes.CoqParamType(ty) => name
+          case ProofTypes.CoqPtrType => name
+          case ProofTypes.CoqIntType => s"(Vint (Int.repr ${name}))"
+          case ProofTypes.CoqNatType => s"(Vint (Int.repr (Z.of_nat ${name})))"
+          case ProofTypes.CoqListType(elem, length) => name
+        }
+        case ProofCIntConst(value) => s"(Vint (Int.repr ${value.toString}))"
+        case ProofCSetLiteral(elems) =>
+          s"[${elems.map(_.pp_as_c_value).mkString("; ")}]"
+        case value@ProofCBinaryExpr(op, _, _) =>
+          val is_int = op match {
+            case ProofCOpPlus => true
+            case ProofCOpMinus =>true
+            case ProofCOpMultiply =>true
+            case _ => false
+          }
+          if (is_int) {
+            s"(Vint (Int.repr ${value.pp}))"
+          } else {
+            value.pp
+          }
+        case value@ProofCUnaryExpr(op, _) => op match {
+          case ProofCOpNot => value.pp
+          case ProofCOpUnaryMinus => s"(Vint (Int.repr ${value.pp}))"
+        }
+        case v => v.pp
+      }
+    }
 
     /** a variable in a VST proof */
-    case class ProofCVar(name: String) extends ProofCExpr {
-      override def pp: String = s"(force_signed_int ${name})"
+    case class ProofCVar(name: String, typ: VSTProofType) extends ProofCExpr {
+      override def pp: String = typ match {
+        case ProofTypes.CoqPtrType => name
+        case ProofTypes.CoqIntType => name
+        case ProofTypes.CoqNatType => name
+        case ProofTypes.CoqParamType(ty) =>
+          // if the variable has a param type then
+          // its actually of type val, and we need to
+          // extract it's contained value
+          ty match {
+            case CTypes.CIntType => s"(force_signed_int ${name})"
+            case CTypes.CVoidPtrType => s"${name}"
+            case CTypes.CUnitType => ??? /// Unimplemented as we should never be dealing with unit types
+          }
+        case ProofTypes.CoqListType(elem, _) => name
+      }
     }
 
     /** boolean constant in a VST proof */
@@ -41,7 +87,7 @@ object Proof {
     }
 
     /** integer constant in a VST proof */
-    case class ProofCNatConst(value: Int) extends ProofCExpr {
+    case class ProofCIntConst(value: Int) extends ProofCExpr {
       override def pp: String = value.toString
     }
 
@@ -67,25 +113,26 @@ object Proof {
           case ProofCOpPlus => s"(${left.pp} + ${right.pp})"
           case ProofCOpMinus => s"(${left.pp} - ${right.pp})"
           case ProofCOpMultiply => s"(${left.pp} * ${right.pp})"
+          case ProofCOpIntEq => s"(Zeq_bool ${left.pp} ${right.pp})"
+          case ProofCOpBoolEq => s"(eqb ${left.pp} ${right.pp})"
 
-          // no real good way of doing equality
-          case ProofCOpEq => ???
+          // case ProofCOpSetEq => s"(eqb_list _ ${left.pp} ${right.pp})"
         }
     }
 
     case class ProofCUnaryExpr(op: ProofCUnOp, e: ProofCExpr) extends ProofCExpr {
       override def pp: String =
         op match {
-          case ProofCOpNot$ => s"(negb ${e.pp})"
-          case ProofCOpUnaryMinus$ => s"(-(${e.pp}))"
+          case ProofCOpNot => s"(negb ${e.pp})"
+          case ProofCOpUnaryMinus => s"(-(${e.pp}))"
         }
     }
 
     sealed abstract class ProofCUnOp
 
-    object ProofCOpNot$ extends ProofCUnOp
+    object ProofCOpNot extends ProofCUnOp
 
-    object ProofCOpUnaryMinus$ extends ProofCUnOp
+    object ProofCOpUnaryMinus extends ProofCUnOp
 
     sealed abstract class ProofCBinOp
 
@@ -96,7 +143,11 @@ object Proof {
 
     object ProofCOpMultiply extends ProofCBinOp
 
-    object ProofCOpEq extends ProofCBinOp
+    object ProofCOpIntEq extends ProofCBinOp
+
+    object ProofCOpBoolEq extends ProofCBinOp
+
+    object ProofCOpSetEq extends ProofCBinOp
 
     object ProofCOpLeq extends ProofCBinOp
 
@@ -105,22 +156,36 @@ object Proof {
     object ProofCOpAnd extends ProofCBinOp
 
     object ProofCOpOr extends ProofCBinOp
+
+    object ProofCOpIn extends ProofCBinOp
+
+    object ProofCOpSubset extends ProofCBinOp
+
+    object ProofCOpUnion extends ProofCBinOp
+    object ProofCOpDiff extends ProofCBinOp
+    object ProofCOpIntersect extends ProofCBinOp
+
   }
 
-  /** predicate encoding that a given boolean expression is true
-    * c_params are the list of parameter variables
+  /** prop predicate encoding that a given propositional expression is true
     *  */
+  case class IsTrueProp(expr: Expressions.ProofCExpr) extends PureFormula {
+    override def pp: String = {
+      s"${expr.pp}"
+    }
+  }
+
+  /** prop predicate encoding that a given boolean expression is true */
   case class IsTrue(expr: Expressions.ProofCExpr) extends PureFormula {
     override def pp: String = {
       s"(is_true ${expr.pp})"
     }
   }
 
-  sealed case class SpatialFormula() extends PrettyPrinting
 
   sealed case class FormalCondition(
                             pure_constraints: List[PureFormula],
-                            spatial_constraints: List[SpatialFormula]
+                            spatial_constraints: List[VSTHeaplet]
                             )
 
   /**
@@ -135,9 +200,9 @@ object Proof {
     */
   case class FormalSpecification(
                                   name: Ident,
-                                  c_params: List[(Ident,VSTCType)],
-                                  formal_params: List[(Ident,FormalParamType)],
-                                  existensial_params: List[(Ident,FormalParamType)],
+                                  c_params: Seq[(Ident,VSTCType)],
+                                  formal_params: Seq[(Ident,VSTProofType)],
+                                  existensial_params: Seq[(Ident,VSTProofType)],
                                   precondition: FormalCondition,
                                   postcondition: FormalCondition,
                                   return_type: VSTCType
@@ -161,12 +226,12 @@ object Proof {
          |   PROP( ${pre_pure_constraints.map(_.pp).mkString("; ")} )
          |   PARAMS(${c_params.map({case (var_name, _) => var_name}).mkString("; ")})
          |   SEP (${pre_spatial_constraints.map(_.pp).mkString("; ")})
-         |   POST[ ${as_vst_type(return_type)} ]|${existensial_params match {
+         |   POST[ ${as_vst_type(return_type)} ]${existensial_params match {
         case Nil => ""
           case _ =>
-            existensial_params.map({case (param_name, param_type) => s"   EX ${param_name}: ${param_type.pp}"}).mkString("\n")
-        }
-      }
+            "\n" ++
+            existensial_params.map({case (param_name, param_type) => s"|   EX ${param_name}: ${param_type.pp},"}).mkString("\n")
+        }}
          |   PROP( ${post_pure_constraints.map(_.pp).mkString("; ")} )
          |   LOCAL()
          |   SEP (${post_spatial_constraints.map(_.pp).mkString("; ")}).
@@ -179,13 +244,13 @@ object Proof {
   }
   case class VSTPredicate(
                            predicate_name: Ident,
-                           params: Seq[(CVar, org.tygus.suslik.certification.targets.vst.language.CTypes.VSTCType)],
+                           params: Seq[(CVar, org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType)],
 
                          ) {
 
   }
 
-  case class Proof(root: ProofStep, params: Seq[CVar]) {
+  case class Proof(params: Seq[CVar]) {
   }
 
 }

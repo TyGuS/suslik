@@ -1,9 +1,9 @@
 package org.tygus.suslik.certification.targets.vst.translation
 
-import org.tygus.suslik.certification.targets.vst.language.CTypes
-import org.tygus.suslik.certification.targets.vst.language.CTypes._
-import org.tygus.suslik.certification.targets.vst.language.Expressions._
-import org.tygus.suslik.certification.targets.vst.language.Statements._
+import org.tygus.suslik.certification.targets.vst.clang.CTypes
+import org.tygus.suslik.certification.targets.vst.clang.CTypes._
+import org.tygus.suslik.certification.targets.vst.clang.Expressions._
+import org.tygus.suslik.certification.targets.vst.clang.Statements._
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements.{Procedure, Statement}
@@ -25,7 +25,7 @@ object CTranslation {
   def translate_variable : Var => CVar = { case Var(name) => CVar(name) }
 
 
-   /* translates a unary operation to a C expression */
+   /** translates a unary operation to a C expression */
   def translate_binary_op: BinOp => CBinOp = {
     case OpPlus => COpPlus
     case OpMinus => COpMinus
@@ -95,7 +95,7 @@ object CTranslation {
   }
 
 
-  /** translates a suslik encoding of a procedure to a C one */
+  /** translates a suslik encoding of a procedure to a VST C one */
   def translate_function(proc:Procedure, gamma: Gamma) = {
     val ctx: Map[CVar, AnalysisVSTTypes] =
       gamma

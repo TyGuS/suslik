@@ -1,7 +1,7 @@
-package org.tygus.suslik.certification.targets.vst.language
+package org.tygus.suslik.certification.targets.vst.clang
 
-import org.tygus.suslik.certification.targets.vst.language.CTypes.{VSTCType}
-import org.tygus.suslik.certification.targets.vst.language.Expressions.{CExpr, CVar}
+import org.tygus.suslik.certification.targets.vst.clang.CTypes.{VSTCType}
+import org.tygus.suslik.certification.targets.vst.clang.Expressions.{CExpr, CVar}
 import org.tygus.suslik.logic.Specifications.GoalLabel
 
 /** Encoding of C statements */

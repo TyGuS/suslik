@@ -40,7 +40,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
     val c_prelude ="""#include <stddef.h>\n\nextern void free(void *p);\n\n"""
 
-    val (preds, spec, proof, cproc) = Translation.translate(root, proc, env)
+    val x = Translation.translate(root, proc, env)
 
     ???
   }
