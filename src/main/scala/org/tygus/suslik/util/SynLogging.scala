@@ -1,6 +1,7 @@
 package org.tygus.suslik.util
 
-import org.tygus.suslik.language.Statements.Procedure
+import org.tygus.suslik.language.Statements
+import org.tygus.suslik.language.Statements.{Procedure, Statement}
 import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.report.StopWatch
@@ -185,7 +186,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Goals generated", "And-nodes backtracked", "Max Worklist Size").mkString(", ") + "\n"
+    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Num Statements", "Goals generated", "And-nodes backtracked", "Max Worklist Size").mkString(", ") + "\n"
 
   def init(config: SynConfig){
     if (config.logToFile) {
@@ -198,11 +199,28 @@ object SynStatUtil {
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
       try f(resource) finally resource.close()
 
+  def countStmts(proc: Procedure): Int = {
+    def countInner(s: Statement): Int = s match {
+      case Statements.Skip => 0
+      //case Statements.Hole =>
+      case Statements.Error => 1
+      case Statements.Malloc(to, tpe, sz) => 1
+      case Statements.Free(_) => 1
+      case Statements.Load(_,_,_,_) => 1
+      case Statements.Store(_,_,_) => 1
+      case Statements.Call(_,_,_) => 1
+      case Statements.SeqComp(s1, s2) => countInner(s1) + countInner(s2)
+      case Statements.If(_, tb, eb) => 1 + countInner(tb) + countInner(eb)
+      //case Statements.Guarded(cond, body, els, branchPoint) =>
+    }
+    countInner(proc.body)
+  }
+
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, res: List[Procedure], stats: SynStats): Unit = {
     if (config.logToFile) {
       val statRow = (res match {
-        case Nil => List("FAIL", "FAIL", stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
-        case procs => List(procs.length, procs.map(_.body.size).sum, stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
+        case Nil => List("FAIL", "FAIL", "FAIL", stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
+        case procs => List(procs.length, procs.map(_.body.size).sum, procs.map(countStmts).sum, stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
       }).mkString(", ")
 
       val specSize = spec.pre.size + spec.post.size
