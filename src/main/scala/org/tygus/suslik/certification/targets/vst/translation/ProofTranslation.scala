@@ -22,6 +22,7 @@ import scala.collection.immutable
 /** translates suslik proof terms to VST compatible proof terms  */
 object ProofTranslation {
 
+  /** translate a suslik type into a VST proof type */
   def translate_type(lType: SSLType): VSTProofType =
     lType match {
       case IntType => CoqIntType
@@ -36,6 +37,7 @@ object ProofTranslation {
     }
 
 
+  /** translate a suslik expression into a VST proof expression (note: this is not the same as a VST C expression, so can support terms like list comparisons etc.) */
   def translate_expression(context: Map[Ident, VSTProofType])(expr: Expressions.Expr): Proof.Expressions.ProofCExpr = {
     def type_expr(left_1: ProofCExpr): VSTProofType =
       left_1 match {
@@ -167,6 +169,9 @@ object ProofTranslation {
   }
 
 
+  /** given a VST proof expression and a typing context,
+    * this function will type the expression and return
+    * a type */
   def type_expr(context: Map[Ident, VSTProofType]) (cvalue: Proof.Expressions.ProofCExpr) : VSTProofType =
     cvalue match {
       case ProofCVar(name, typ) => typ
@@ -183,10 +188,32 @@ object ProofTranslation {
       }
     }
 
+  /**
+    * Translate a list of suslik heaplets into a form accepted by VST
+    * @param context the typing context
+    * @param heaplets a list of suslik heaplets
+    * @return a VST encoding of these heaplets
+    *
+    * Note: Suslik encodes blocks of pointers slightly differently to
+    * VST - when dealing with a block of contiguous pointers in memory,
+    * Suslik first uses a block declaration to specify the size of the
+    * contiguous block, and then has a number of subsequent heaplets
+    * that assign values to each element of this block.
+    *
+    * VST combines these two declarations into one: `data_at` - a `data_at` declaration
+    * states what a given pointer points to - in the case of contiguous memory,
+    * we must list out the corresponding values in order - just as they would be encoded in memory
+    *
+    * This function performs the translation between suslik's encoding and VST's encoding
+    */
   def translate_heaplets(context: Map[Ident, VSTProofType])(heaplets: List[Heaplet]): List[VSTHeaplet] = {
-    var initial_map: Map[Ident, (List[PointsTo], Option[Block])] = Map.empty
+    val initial_map: Map[Ident, (List[PointsTo], Option[Block])] = Map.empty
 
-    var (map: Map[Ident, (List[PointsTo], Option[Block])], apps): (Map[Ident, (List[PointsTo], Option[Block])], List[CSApp]) =
+    // we first build up a mapping from pointer variables
+    // to the declarations that relate to them
+    // predicate applications are separated out unchanged
+    // as these translate directly to vst
+    val (map: Map[Ident, (List[PointsTo], Option[Block])], apps): (Map[Ident, (List[PointsTo], Option[Block])], List[CSApp]) =
       heaplets.foldLeft((initial_map, List(): List[CSApp]))({
         case ((map, acc), ty: Heaplet) =>
           ty match {
@@ -208,6 +235,9 @@ object ProofTranslation {
               )
           }
       })
+
+    // having built the mapping, we then translate each (k,v) pair in this
+    // mapping into a VST Data at declaration
     val blocks: List[CDataAt] = map.map({ case (var_nam, (points_to, o_block)) =>
       o_block match {
         case Some((_@Block(loc,sz))) =>
@@ -235,6 +265,7 @@ object ProofTranslation {
       }
     }).toList
 
+    // return the blocks and the applications
     blocks.map(_.asInstanceOf[VSTHeaplet]) ++ apps.map(_.asInstanceOf[VSTHeaplet])
   }
 
@@ -251,7 +282,6 @@ object ProofTranslation {
     }
     val existential_params: List[(Ident, VSTProofType)] =
       goal.existentials.map({ case variable@Var(name) => (name, translate_type(goal.gamma(variable))) }).toList
-
     val return_type: VSTCType = proc.rt
 
     val context = (
@@ -293,20 +323,60 @@ object ProofTranslation {
   /** convert a list of cardinality relations (child, parent) (i.e child < parent) into a map
     * from cardinality name to constructors */
   def build_card_cons(card_conds: List[(String, String)]): Map[String, CardOf] = {
+    // to perform this translation, we first construct a mapping of relations
+    // where for every constraint of the form (a < b), we set map(b) = a :: map(b),
+    // thus the mapping for a variable contains the list of other variables that are
+    // constrainted to be immediately smaller than it
     var child_map : Map[String, List[String]] = Map.empty
     card_conds.foreach({case (child, parent) =>
     child_map.get(parent) match {
             case None => child_map = child_map.updated(parent, List(child))
             case Some(children) => child_map = child_map.updated(parent, child :: children)
     }})
+    // the keys of the map now become variables that are destructured
+    // in the match case to produce the variables immediately below it
     child_map.map({ case (str, strings) => (str, CardOf(strings))})
   }
 
 
+  /** translates suslik's inductive predicate into a format that is
+    * accepted by VST
+    *
+    * In order to do this, we make use of the cardinality constraints that are
+    * associated with each clause, and use this to construct an inductive data
+    * type that encodes the proof of termination
+    *
+    * For example, consider the lseg predicate
+    *
+    * lseg(x, s) {
+    *
+    *  x == 0 ==> ... (no cardinality constraints)
+    *
+    *  x <> 0 ==> a < self_card ... lseg(x',s')<a>
+    *
+    * }
+    *
+    * Then we'd create a cardinality datatype as:
+    *
+    * Inductive lseg_card : Set :=
+    *
+    *   | lseg_card_0 : lseg_card
+    *
+    *   | lseg_card_1 : lseg_card -> lseg_card.
+    *
+    * And then implement lseg as taking in a third parameter being its cardinality,
+    * and matching on this - taking the first clause if the input is `lseg_card0` and the
+    * second clause if the input is `lseg_card1 a` (and recursing on `a`
+    *
+    * */
   def translate_predicate(env: Environment)(predicate: InductivePredicate): VSTPredicate = {
 
 
+    // Determines whether a given variable is a cardinality constraint
+    // TODO: I've definitely seen some function elsewhere that already does this
     def is_card (s: String) : Boolean = s.startsWith("_") || s.contentEquals("self_card")
+
+    // extracts a cardinality relation from an expression if it exists
     def extract_card_constructor(expr: Expressions.Expr) : Option[(String, String)] = {
       expr match {
         case Expressions.BinaryExpr(op, Var(left), Var(parent))
@@ -337,6 +407,8 @@ object ProofTranslation {
 
     }
 
+    // base context contains type information for every variable used in the
+    // predicate (even if it occurs at a top level or not)
     val base_context : List[(Ident, VSTProofType)] = {
       var gamma: Gamma = Map.empty
       predicate match {
@@ -365,18 +437,24 @@ object ProofTranslation {
         // unique cardinality constraint
         val clauses: Map[CardConstructor, VSTPredicateClause] = raw_clauses.map({
           case InductiveClause(selector, asn) =>
-            var (r_conds, r_card_conds) = asn.phi.conjuncts.map(expr =>
+            // first, split the pure conditions in the predicate between those that
+            // encode cardinality constraints and those that don't
+            val (r_conds, r_card_conds) = asn.phi.conjuncts.map(expr =>
               extract_card_constructor(expr) match {
                 case value@Some(_) => (None, value)
                 case None => (Some(expr), None)
               }
             ).toList.unzip
 
+            // translate the pure conditions into VST format
             val select = translate_expression(context)(selector)
-            val conds = r_conds.flatMap({ case v => v }).map(translate_expression(context)).toList
-            val spat_conds = translate_heaplets(context)(asn.sigma.chunks.toList)
-            val card_conds = r_card_conds.flatMap({ case v => v })
+            val conds = r_conds.flatten.map(translate_expression(context)).toList
 
+            // translate the spatial constraints
+            val spat_conds = translate_heaplets(context)(asn.sigma.chunks.toList)
+
+            // Convert the cardinality constraints into an associated constructor
+            val card_conds = r_card_conds.flatten
             card_conds match {
               case card_conds@(::(_, _)) =>
                 val card_cons : Map[String, CardConstructor] = build_card_cons(card_conds)

@@ -283,11 +283,29 @@ object Proof {
                            clauses: Map[CardConstructor, VSTPredicateClause])
     extends PrettyPrinting {
 
+    /** returns all instances of constructors and the bindings they expose */
     def constructors: List[CardConstructor] =
       clauses.flatMap({ case (constructor, VSTPredicateClause(_, _, sub_constructor)) =>
         constructor :: sub_constructor.toList.map({ case (_, constructor) => constructor})
       }).toList
 
+    /** returns all the constructors used in the base match, assumed to be a superset
+      * of the constructors used elsewhere
+      *
+      * Note: to see how there might be constructors elsewhere, suppose we had a cardinality
+      * constraint of the form:
+      *
+      * - `a < self_card`
+      *
+      * - `b < a`
+      *
+      * Then the corresponding match case would look like:
+      *
+      * `pred_1 ((pred_1 b) as a) => ... `
+      *
+      *  I don't this this actually happens in practice, so this is probably just a bit of
+      *  over-engineering
+      * */
     def base_constructors: List[CardConstructor] =
       clauses.map({ case (constructor, _) =>
         constructor
@@ -299,6 +317,13 @@ object Proof {
         case CardOf(args) => args
       }
 
+    /**
+      * For a given clause of the predicate and its associated constructor,
+      * return the list of existential variables used in the body of the clause
+      * @param cons a constructor matching some clause of the predicate
+      * @param pclause the corresponding clause of the predicate
+      * @return the list of pairs of (variable, variable_type) of all the existential variables in this clause
+      *  */
     def find_existentials(cons: CardConstructor)(pclause: VSTPredicateClause): List[(String, VSTProofType)] = {
       val param_map = params.toMap
       val exist_map : Map[String, VSTProofType] = existentials.toMap
@@ -333,21 +358,27 @@ object Proof {
       }
     }
 
+    /** returns the name of the associated cardinality datatype
+      * for this predicate */
+    def inductive_name : String = s"${name}_card"
+
+    /** Given a cardinality constructor, return the Coq name of the
+      * associated cardinality constructor */
+    def constructor_name (constructor: CardConstructor) : String = {
+      val count = constructor match {
+        case CardNull => 0
+        case CardOf(args) => args.length
+      }
+      s"${inductive_name}_${count}"
+    }
+
+    /** pretty print the constructor  */
     override def pp: String = {
       val constructor_map = base_constructors.map({
         case CardNull => (0, CardNull )
         case v@CardOf(args) => (args.length, v)
       }).toMap
 
-      val inductive_name = s"${name}_card"
-
-      def constructor_name (constructor: CardConstructor) = {
-        val count = constructor match {
-          case CardNull => 0
-          case CardOf(args) => args.length
-        }
-        s"${inductive_name}_${count}"
-      }
       def pp_constructor (constructor: CardConstructor) = {
         constructor match {
           case CardNull => s"${constructor_name(constructor)} : ${inductive_name}"
@@ -365,6 +396,10 @@ object Proof {
         |""".stripMargin
       }
 
+      // This function expands the arguments of a constructor and
+      // creates recursive pattern matches if necassary - i.e
+      //
+      // S ((S b) as a) => .....
       def expand_args(sub_constructor: Map[String, CardConstructor]) (idents: List[Ident]) : String = {
         idents.map(arg =>
           sub_constructor.get(arg) match {
@@ -374,6 +409,7 @@ object Proof {
           }
         ).mkString(" ")
       }
+
       val predicate_definition =
         s"""Fixpoint ${name} ${params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})"}).mkString(" ")} (self_card: ${inductive_name}) : mpred := match self_card with
            ${clauses.map({case (constructor, pclause@VSTPredicateClause(pure, spatial, sub_constructor)) =>
@@ -394,7 +430,6 @@ object Proof {
         }).mkString("\n")}
            |end.
            |""".stripMargin
-      /// IMPLEMENT THIS
       s"${inductive_definition}${predicate_definition}"
     }
   }
