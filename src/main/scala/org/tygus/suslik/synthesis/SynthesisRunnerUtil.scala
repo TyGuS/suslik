@@ -4,11 +4,12 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceCert, ProofTraceJson, ProofTraceNone, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -109,9 +110,11 @@ trait SynthesisRunnerUtil {
         new ReplaySynthesis(env.config)
       else
         new PhasedSynthesis(env.config)
-    val trace : ProofTrace = env.config.traceToJsonFile match {
-      case None => ProofTraceNone
-      case Some(file) => new ProofTraceJson(file)
+    val trace : ProofTrace = if (env.config.certTarget != null) new ProofTraceCert() else {
+      env.config.traceToJsonFile match {
+        case None => ProofTraceNone
+        case Some(file) => new ProofTraceJson(file)
+      }
     }
     new Synthesis(tactic, log, trace)
   }
@@ -172,6 +175,21 @@ trait SynthesisRunnerUtil {
       testPrintln(StopWatch.summary.toString)
     }
 
+    def initCertTree(trace: ProofTrace): Unit = trace match {
+      case trace: ProofTraceCert => CertTree.fromTrace(trace)
+      case _ =>
+    }
+
+    def printCertTree(): Unit = if (params.printTree) {
+      val tree = CertTree.pp()
+      println()
+      if (params.treeDest == null) println(tree) else {
+        new PrintWriter(params.treeDest) { write(tree); close() }
+        val msg = s"Successful derivations saved to ${params.treeDest.getCanonicalPath}"
+        testPrintln(msg, Console.MAGENTA)
+      }
+    }
+
     sresult._1 match {
       case Nil =>
         printStats(sresult._2)
@@ -185,7 +203,11 @@ trait SynthesisRunnerUtil {
         } else {
           procs.map(_.pp.trim).mkString("\n\n")
         }
-          
+
+        // [Certify] initialize and print cert tree
+        initCertTree(synthesizer.trace)
+        printCertTree()
+
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
