@@ -7,6 +7,7 @@ import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
 import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.VSTProofType
+import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.language.Ident
 
 object Proof {
@@ -16,7 +17,7 @@ object Proof {
   /** predicate encoding that C-parameter (of type val) is a valid pointer */
   case class IsValidPointerOrNull(name: CVar) extends PureFormula {
     override def pp: String =
-      s"is_valid_pointer_or_null(${name.pp})"
+      s"is_pointer_or_null(${name.pp})"
   }
 
   /** predicate encoding that C-parameter (of type val) is a valid int */
@@ -28,6 +29,11 @@ object Proof {
   /** Redefinition of expressions for use in VST proofs
     *  */
   object Expressions {
+
+    /** encoding of expressions in VST proof script
+      * By default any boolean value will print to prop
+      * use pp_as_bool_value to print as a boolean
+      */
     sealed abstract class ProofCExpr extends PrettyPrinting {
       /** prints the expression as though it were an element
         * of type val (vst's encoding of C-values)
@@ -37,8 +43,8 @@ object Proof {
           case ProofTypes.CoqParamType(ty) => name
           case ProofTypes.CoqPtrType => name
           case ProofTypes.CoqIntType => s"(Vint (Int.repr ${name}))"
-          case ProofTypes.CoqNatType => s"(Vint (Int.repr (Z.of_nat ${name})))"
           case ProofTypes.CoqListType(elem, length) => name
+          case ProofTypes.CoqCardType(_) => throw TranslationException("Error: inconsistent assumptions, attempting to print a cardinality as a c type")
         }
         case ProofCIntConst(value) => s"(Vint (Int.repr ${value.toString}))"
         case ProofCSetLiteral(elems) =>
@@ -61,6 +67,19 @@ object Proof {
         }
         case v => v.pp
       }
+
+      /** print as a pointer value
+        * @throws NotImplementedError if expression is not a variable or 0-int */
+      def pp_as_ptr_value : String = this match {
+        case ProofCVar(name, typ) => name
+        case ProofCBoolConst(value) => ???
+        case ProofCIntConst(value) => if (value == 0) { "nullval" } else { ??? }
+        case ProofCSetLiteral(elems) => ???
+        case ProofCIfThenElse(cond, left, right) => ???
+        case ProofCBinaryExpr(op, left, right) => ???
+        case ProofCUnaryExpr(op, e) => ???
+      }
+
     }
 
     /** a variable in a VST proof */
@@ -68,7 +87,7 @@ object Proof {
       override def pp: String = typ match {
         case ProofTypes.CoqPtrType => name
         case ProofTypes.CoqIntType => name
-        case ProofTypes.CoqNatType => name
+        case ProofTypes.CoqCardType(_) => name
         case ProofTypes.CoqParamType(ty) =>
           // if the variable has a param type then
           // its actually of type val, and we need to
@@ -95,13 +114,18 @@ object Proof {
     /** set literal (encoded as set) in a VST proof */
     case class ProofCSetLiteral(elems: List[ProofCExpr]) extends ProofCExpr {
       override def pp: String =
-        s"[${elems.map(_.pp).mkString("; ")}]"
+        s"[${elems.map(_.pp_as_c_value).mkString("; ")}]"
     }
 
     /** encodes a ternary expression in a VST proof */
     case class ProofCIfThenElse(cond: ProofCExpr, left: ProofCExpr, right: ProofCExpr) extends ProofCExpr {
-      override def pp: String =
-        s"(if ${cond.pp} then ${left.pp} else ${right.pp})"
+      override def pp: String = ???
+      // TODO: if statements don't seem to be used inside suslik proofs, so implementing this would be pointless
+      // if this assumption changes, then the correct implementation will look something like:
+      //
+      //        s"(if ${cond.pp_as_bool_value} then ${left.pp} else ${right.pp})"
+      //
+      // where pp_as_bool_value should be a method that prints expressions in boolean form
     }
 
     case class ProofCBinaryExpr(op: ProofCBinOp, left: ProofCExpr, right: ProofCExpr) extends ProofCExpr {
@@ -109,14 +133,14 @@ object Proof {
         op match {
           case ProofCOpLt => s"(${left.pp} < ${right.pp})"
           case ProofCOpLeq => s"(${left.pp} <= ${right.pp})"
-          case ProofCOpOr => s"(orb ${left.pp} ${right.pp})"
-          case ProofCOpAnd => s"(andb ${left.pp} ${right.pp})"
+          case ProofCOpOr => s"(${left.pp} \/ ${right.pp})"
+          case ProofCOpAnd => s"(${left.pp} /\ ${right.pp})"
           case ProofCOpPlus => s"(${left.pp} + ${right.pp})"
           case ProofCOpMinus => s"(${left.pp} - ${right.pp})"
           case ProofCOpMultiply => s"(${left.pp} * ${right.pp})"
-          case ProofCOpIntEq => s"(Zeq_bool ${left.pp} ${right.pp})"
-          case ProofCOpBoolEq => s"(eqb ${left.pp} ${right.pp})"
-          case ProofCOpPtrEq => s"(${left.pp} = ${right.pp})"
+          case ProofCOpIntEq => s"(${left.pp} = ${right.pp})"
+          case ProofCOpBoolEq => s"(${left.pp} = ${right.pp})"
+          case ProofCOpPtrEq => s"(${left.pp_as_ptr_value} = ${right.pp_as_ptr_value})"
           case ProofCOpSetEq => s"(${left.pp} = ${right.pp})"
           case ProofCOpUnion => s"(${left.pp} ++ ${right.pp})"
           // case ProofCOpSetEq => s"(eqb_list _ ${left.pp} ${right.pp})"
@@ -126,7 +150,7 @@ object Proof {
     case class ProofCUnaryExpr(op: ProofCUnOp, e: ProofCExpr) extends ProofCExpr {
       override def pp: String =
         op match {
-          case ProofCOpNot => s"(negb ${e.pp})"
+          case ProofCOpNot => s"(~ ${e.pp})"
           case ProofCOpUnaryMinus => s"(-(${e.pp}))"
         }
     }
@@ -176,7 +200,7 @@ object Proof {
     *  */
   case class IsTrueProp(expr: Expressions.ProofCExpr) extends PureFormula {
     override def pp: String = {
-      s"${expr.pp}"
+      s"${expr.pp_as_c_value}"
     }
   }
 

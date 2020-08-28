@@ -21,10 +21,6 @@ object Translation {
     val spec = ProofTranslation.translate_conditions(procedure)(root.goal)
     println(procedure.pp)
     println(spec.pp)
-    println(
-      env.predicates.head._2.pp
-
-    )
     val predicates: List[VSTPredicate] = env.predicates.map({ case (_, predicate) =>
       ProofTranslation.translate_predicate(env)(predicate)
     }).toList

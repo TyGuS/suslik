@@ -28,6 +28,7 @@ object ProofTypes {
       }
   }
 
+  /** represents a val type in vst that maps to a parameter to the function of type ty */
   case class CoqParamType(ty: VSTCType) extends VSTProofType {
     override def pp : String = "val"
   }
@@ -42,8 +43,8 @@ object ProofTypes {
   }
 
   /** type of natural numbers (used to type metavariables in Coq proofs) */
-  case object CoqNatType extends VSTProofType {
-    override def pp:String = "nat"
+  case class CoqCardType(pred_type: String) extends VSTProofType {
+    override def pp:String = s"${pred_type}_card"
   }
 
   sealed case class CoqListType(elem: VSTProofType, length: Option[Int]) extends VSTProofType {

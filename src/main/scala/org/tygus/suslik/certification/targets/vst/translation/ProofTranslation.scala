@@ -11,7 +11,8 @@ import org.tygus.suslik.certification.targets.vst.logic.Formulae.{CDataAt, CSApp
 import org.tygus.suslik.certification.targets.vst.logic.{Proof, ProofTypes}
 import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions.{ProofCBinOp, ProofCBinaryExpr, ProofCBoolConst, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCOpAnd, ProofCOpBoolEq, ProofCOpDiff, ProofCOpImplication, ProofCOpIn, ProofCOpIntEq, ProofCOpIntersect, ProofCOpLeq, ProofCOpLt, ProofCOpMinus, ProofCOpMultiply, ProofCOpNot, ProofCOpOr, ProofCOpPlus, ProofCOpPtrEq, ProofCOpSetEq, ProofCOpSubset, ProofCOpUnaryMinus, ProofCOpUnion, ProofCSetLiteral, ProofCUnOp, ProofCUnaryExpr, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.Proof.{CardConstructor, CardNull, CardOf, FormalCondition, FormalSpecification, IsTrueProp, IsValidInt, IsValidPointerOrNull, VSTPredicate, VSTPredicateClause}
-import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqIntType, CoqListType, CoqNatType, CoqPtrType, VSTProofType}
+import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqCardType, CoqIntType, CoqListType, CoqPtrType, VSTProofType}
+import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.{BoolType, CardType, Expressions, Ident, IntSetType, IntType, LocType, SSLType}
 import org.tygus.suslik.logic.{Block, Environment, FunSpec, Gamma, Heaplet, InductiveClause, InductivePredicate, PointsTo, PredicateEnv, SApp}
@@ -27,7 +28,7 @@ object ProofTranslation {
     lType match {
       case IntType => CoqIntType
       case LocType => CoqPtrType
-      case CardType => CoqNatType
+      case CardType => CoqCardType("") // TODO: add a safe version of this (only used when initializing base context)
 
       // TODO: WARNING: Suslik has a loose model of memory that allows elements of different types
       // to be allocated in the same block - i.e x :-> [loc; int] - this is technically possible
@@ -275,13 +276,35 @@ object ProofTranslation {
     val name: Ident = proc.name
     val c_params: Seq[(Ident, VSTCType)] = proc.params.map({ case (CVar(name), cType) => (name, cType) })
 
+
+    // collect all cardinality_params and their associated types
+    val cardinality_params: Map[String, CoqCardType] = (goal.pre.sigma.chunks ++ goal.post.sigma.chunks).flatMap({
+      case PointsTo(loc, offset, value) => None
+          case Block(loc, sz) => None
+          case SApp(pred, args, tag, Var(name)) => Some(name, CoqCardType(pred))
+          case _ => throw TranslationException("ERR: Expecting all predicate applications to be abstract variables")
+    }).toMap
+
     val formal_params: List[(Ident, VSTProofType)] = {
       val c_param_set = c_params.map(_._1).toSet
-      goal.universals.map({ case variable@Var(name) => (name, translate_type(goal.gamma(variable))) })
+      goal.universals
+        .map({ case variable@Var(name) =>
+        if (cardinality_params.contains(name)) {
+          (name, cardinality_params(name))
+        } else {
+          (name, translate_type(goal.gamma(variable)))
+        }})
         .filterNot({case (name, _) =>  c_param_set.contains(name)}).toList
     }
+
     val existential_params: List[(Ident, VSTProofType)] =
-      goal.existentials.map({ case variable@Var(name) => (name, translate_type(goal.gamma(variable))) }).toList
+      goal.existentials.map({ case variable@Var(name) =>
+        if (cardinality_params.contains(name)) {
+          (name, cardinality_params(name))
+        } else {
+          (name, translate_type(goal.gamma(variable)))
+        }
+      }).toList
     val return_type: VSTCType = proc.rt
 
     val context = (
