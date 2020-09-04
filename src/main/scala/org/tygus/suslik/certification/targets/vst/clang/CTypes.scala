@@ -30,7 +30,7 @@ object CTypes {
 
   /** encoding of void pointer types */
   case object CVoidPtrType extends VSTCType with PureType {
-    override def pp: String = s"void *"
+    override def pp: String = s"loc"
   }
 
   // the following types are only used in the program analysis, so don't form part of the

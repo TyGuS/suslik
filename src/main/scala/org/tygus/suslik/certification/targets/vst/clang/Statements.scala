@@ -1,7 +1,8 @@
 package org.tygus.suslik.certification.targets.vst.clang
 
-import org.tygus.suslik.certification.targets.vst.clang.CTypes.{VSTCType}
+import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.{CExpr, CVar}
+import org.tygus.suslik.certification.targets.vst.translation.Translation.{TranslationException, fail_with}
 import org.tygus.suslik.logic.Specifications.GoalLabel
 
 /** Encoding of C statements */
@@ -44,10 +45,10 @@ object Statements {
   case class CLoad(to: CVar, elem_ty: VSTCType, from: CVar,
                    offset: Int = 0) extends CStatement {
     override def pp: String =
-      if (offset == 0) {
-        s"${elem_ty.pp} ${to.pp} = *(${elem_ty.pp}*)${from.pp};"
-      }else {
-        s"${elem_ty.pp} ${to.pp} =  *((${elem_ty.pp}*)${from.pp} + ${offset.toString});"
+      elem_ty match {
+        case CTypes.CIntType => s"${elem_ty.pp} ${to.pp} = READ_INT(${from.pp}, ${offset});"
+        case CTypes.CVoidPtrType => s"${elem_ty.pp} ${to.pp} = READ_LOC(${from.pp}, ${offset});"
+        case CTypes.CUnitType => fail_with("inconsistent program - loading into a void variable")
       }
   }
 
@@ -55,12 +56,10 @@ object Statements {
     * *to.offset = e */
   case class CStore(to: CVar, elem_ty: VSTCType, offset: Int, e: CExpr) extends CStatement {
     override def pp: String = {
-      val cast = s"(${elem_ty.pp})"
-      val ptr = s"(${elem_ty.pp}*)${to.pp}"
-      if (offset == 0) {
-        s"*${ptr} = ${cast} ${e.pp};"
-      } else {
-        s"*(${ptr} + ${offset.toString}) = ${cast} ${e.pp};"
+      elem_ty match {
+        case CTypes.CIntType => s"WRITE_INT(${to.pp}, ${offset}, ${e.pp});"
+        case CTypes.CVoidPtrType => s"WRITE_LOC(${to.pp}, ${offset}, ${e.pp});"
+        case CTypes.CUnitType => fail_with("inconsistent program - writing into a void variable")
       }
     }
   }
@@ -83,7 +82,7 @@ object Statements {
     *  */
   case class CIf(cond: CExpr, tb: CStatement, eb: CStatement) extends CStatement {
     override def ppIndent(depth: Int): String =
-      s"${getIndent(depth)}if(${cond.pp}) {\n${tb.ppIndent(depth+1)}\n${getIndent(depth)}} else {\n${eb.ppIndent(depth+1)}\n${getIndent(depth)}}\n"
+      s"${getIndent(depth)}if(${cond.pp}) {\n${tb.ppIndent(depth+1)}\n${getIndent(depth)}} else {\n${eb.ppIndent(depth+1)}\n${getIndent(depth)}}"
   }
 
   /**

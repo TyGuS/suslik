@@ -315,13 +315,17 @@ object ProofTranslation {
     val precondition: FormalCondition = {
       val pure_conditions =
         goal.pre.phi.conjuncts.map(translate_expression(context))
-          .map(IsTrueProp).toList ++ c_params.flatMap({ case (ident, cType) =>
+          .map(IsTrueProp).toList ++ (c_params).flatMap({ case (ident, cType) =>
           cType match {
             case CTypes.CIntType => Some(IsValidInt(CVar(ident)))
             case CTypes.CUnitType => None
             case CTypes.CVoidPtrType => Some(IsValidPointerOrNull(CVar(ident)))
           }
-      })
+      }) ++ formal_params.flatMap({ case (ident, ty) => ty match {
+          case ProofTypes.CoqPtrType =>Some(IsValidPointerOrNull(CVar(ident)))
+          case ProofTypes.CoqIntType => Some(IsValidInt(CVar(ident)))
+          case _ => None
+        }})
       val spatial_conditions: List[VSTHeaplet] =
         translate_heaplets(context)(goal.pre.sigma.chunks)
 

@@ -16,11 +16,13 @@ object ProofTypes {
 
   /** proof types */
   sealed abstract class VSTProofType extends PrettyPrinting {
+
+    /** prints the type as a term of type type (VST's definition) in Coq  */
     def pp_as_ctype: String =
       this match {
         case CoqParamType(ty) => ty match {
           case CTypes.CIntType => "tint"
-          case CTypes.CVoidPtrType => "(tptr tvoid)"
+          case CTypes.CVoidPtrType => "(tptr (Tunion _sslval noattr))"
         }
         case CoqPtrType => "(tptr tvoid)"
         case CoqIntType => "tint"

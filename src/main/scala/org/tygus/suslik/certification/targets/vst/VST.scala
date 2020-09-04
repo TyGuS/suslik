@@ -38,7 +38,23 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
     builder.append(coq_prelude(fun_name))
 
 
-    val c_prelude ="""#include <stddef.h>\n\nextern void free(void *p);\n\n"""
+    val c_prelude =
+      """
+        |#include <stddef.h>
+        |
+        |extern void free(void *p);
+        |extern void *malloc(size_t size);
+        |
+        |typedef union sslval {
+        |  int ssl_int;
+        |  void *ssl_ptr;
+        |} *loc;
+        |#define READ_LOC(x,y) (*(x+y)).ssl_ptr
+        |#define READ_INT(x,y) (*(x+y)).ssl_int
+        |#define WRITE_LOC(x,y,z) (*(x+y)).ssl_ptr = z
+        |#define WRITE_INT(x,y,z) (*(x+y)).ssl_int = z
+        |
+        |""".stripMargin
 
     val x = Translation.translate(root, proc, env)
 

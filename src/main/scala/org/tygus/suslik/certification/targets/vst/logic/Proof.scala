@@ -23,7 +23,7 @@ object Proof {
   /** predicate encoding that C-parameter (of type val) is a valid int */
   case class IsValidInt(name: CVar) extends PureFormula {
     override def pp:String =
-      s"ssl_is_valid_int(s${name})"
+      s"ssl_is_valid_int(${name.pp})"
   }
 
   /** Redefinition of expressions for use in VST proofs
@@ -67,6 +67,37 @@ object Proof {
         }
         case v => v.pp
       }
+
+      def pp_as_ssl_union_value : String = this match {
+        case ProofCVar(name, typ) => typ match {
+          case ProofTypes.CoqParamType(ty) => ty match {
+            case CTypes.CIntType => s"inl ${name}"
+            case CTypes.CVoidPtrType =>s"inl ${name}"
+          }
+          case ProofTypes.CoqPtrType => s"inr ${name}"
+          case ProofTypes.CoqIntType => s"inl (Vint (Int.repr ${name}))"
+          case ProofTypes.CoqListType(elem, length) => name
+          case ProofTypes.CoqCardType(_) => throw TranslationException("Error: inconsistent assumptions, attempting to print a cardinality as a c type")
+        }
+        case ProofCIntConst(value) => s"inl (Vint (Int.repr ${value.toString}))"
+        case ProofCSetLiteral(elems) =>
+          s"[${elems.map(_.pp_as_ssl_union_value).mkString("; ")}]"
+        case value@ProofCBinaryExpr(op, _, _) =>
+          val is_int = op match {
+            case ProofCOpPlus => true
+            case ProofCOpMinus =>true
+            case ProofCOpMultiply =>true
+            case _ => false
+          }
+          if (is_int) {
+            s"inl (Vint (Int.repr ${value.pp}))"
+          } else {
+            ???
+          }
+        case value@ProofCUnaryExpr(op, _) => op match { case ProofCOpUnaryMinus => s"inl (Vint (Int.repr ${value.pp}))" }
+        case v => v.pp
+      }
+
 
       /** print as a pointer value
         * @throws NotImplementedError if expression is not a variable or 0-int */
@@ -240,7 +271,7 @@ object Proof {
     def as_vst_type(var_type: VSTCType) = var_type match {
       case CTypes.CIntType => "tint"
       case CTypes.CUnitType => "tvoid"
-      case CTypes.CVoidPtrType => "(tptr tvoid)"
+      case CTypes.CVoidPtrType => "(tptr (Tunion _sslval noattr))"
     }
 
     override def pp: String = {
