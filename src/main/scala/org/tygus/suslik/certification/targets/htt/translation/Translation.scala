@@ -62,7 +62,7 @@ object Translation {
     val post = translateAsn(goal.post)
     val gamma = goal.gamma.map { case (value, lType) => (translateVar(value), translateType(lType)) }
     val programVars = goal.programVars.map(translateVar)
-    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(_.isCard)
+    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(v => gamma(v) == CCardType)
     CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
   }
 

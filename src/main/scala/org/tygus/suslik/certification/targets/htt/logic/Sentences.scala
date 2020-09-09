@@ -32,22 +32,26 @@ object Sentences {
       CAssertion(phi.subst(sub), sigma.subst(sub))
 
     val valueVars: Seq[CVar] =
-      (phi.vars ++ sigma.vars).distinct.filterNot(_.isCard)
+      (phi.vars ++ sigma.vars).distinct.diff(phi.cardVars ++ sigma.cardVars)
 
     val heapVars: Seq[CVar] =
       sigma.heapVars
 
     val inferredTypes: Map[CVar, HTTType] = {
-      @scala.annotation.tailrec
       def collectPhi(el: CExpr, m: Map[CVar, HTTType]): Map[CVar, HTTType] = el match {
-        case CBinaryExpr(COpSetEq, left: CVar, right: CVar) => m ++ Map(left -> CNatSeqType, right -> CNatSeqType)
-        case CBinaryExpr(COpSetEq, left: CVar, right) => collectPhi(right, m ++ Map(left -> CNatSeqType))
-        case CBinaryExpr(COpSetEq, left, right: CVar) => collectPhi(left, m ++ Map(right -> CNatSeqType))
+        case CSetLiteral(elems) => m ++ elems.filter(_.isInstanceOf[CVar]).map { case v: CVar => v -> CNatType }
+        case CBinaryExpr(COpSetEq | COpUnion, left: CVar, right: CVar) => m ++ Map(left -> CNatSeqType, right -> CNatSeqType)
+        case CBinaryExpr(COpSetEq | COpUnion, left: CVar, right) => collectPhi(right, m + (left -> CNatSeqType))
+        case CBinaryExpr(COpSetEq | COpUnion, left, right: CVar) => collectPhi(left, m + (right -> CNatSeqType))
+        case CBinaryExpr(COpUnion, left, right) => collectPhi(right, collectPhi(left, m))
         case _ => m
       }
       def collectSigma: Map[CVar, HTTType] = {
         val ptss = sigma.ptss
-        ptss.foldLeft[Map[CVar, HTTType]](Map.empty){ case (acc, CPointsTo(loc, _, _)) => acc ++ Map(loc.asInstanceOf[CVar] -> CPtrType)}
+        ptss.foldLeft[Map[CVar, HTTType]](Map.empty){
+          case (acc, CPointsTo(loc: CVar, _, _)) => acc ++ Map(loc -> CPtrType)
+          case (acc, _) => acc
+        }
       }
       val mPhi = collectPhi(phi, Map.empty)
       val mSigma = collectSigma

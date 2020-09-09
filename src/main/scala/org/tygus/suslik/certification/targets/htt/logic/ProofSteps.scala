@@ -52,7 +52,7 @@ object ProofSteps {
         if (nested) {
           builder.append(s"move=>${nestedDestructL(ex)}.\n")
         } else {
-          builder.append(s"move=>${ex.map(v => s"[${v.pp}]").mkString(" ")}.\n")
+          builder.append(s"ex_elim ${ex.map(_.pp).mkString(" ")}.\n")
         }
       }
     }
@@ -76,7 +76,7 @@ object ProofSteps {
 
       // move spatial part to context, and then substitute where appropriate
       builder.append(s"move=>[$sigmaName].\n")
-      builder.append(s"rewrite->$sigmaName in *.\n")
+      builder.append(s"subst.\n")
 
       // move predicate apps to context, if any
       if (sigma.apps.nonEmpty) {
@@ -150,7 +150,7 @@ object ProofSteps {
           val acc1 = collector(acc)(s1)
           collector(acc1)(s2)
         case CallStep(goal, _) =>
-          acc ++ goal.programVars ++ goal.universalGhosts ++ goal.existentials
+          acc ++ goal.programVars
         case _ =>
           acc
       }
@@ -202,7 +202,7 @@ object ProofSteps {
 
     override def pp: String = {
       val ptr = if (offset == 0) to.pp else s"(${to.pp} .+ $offset)"
-      val writeStep = "ssl_write.\n"
+      val writeStep = s"ssl_write $ptr.\n"
 
       // SSL's `Write` rule does an implicit frame under normal circumstances, but not during a call synthesis
       val writePostStep = if (frame) s"ssl_write_post $ptr.\n" else ""

@@ -33,6 +33,7 @@ object Expressions {
           collector(acc3)(r)
         case a@CSApp(_, args, card) =>
           val acc1 = if (p(a)) acc :+ a.asInstanceOf[R] else acc
+          args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
           val acc2 = args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
           collector(acc2)(card)
         case CPointsTo(loc, _, value) =>
@@ -84,6 +85,8 @@ object Expressions {
     }
 
     def vars: Seq[CVar] = collect(_.isInstanceOf[CVar])
+
+    def cardVars: Seq[CVar] = collect(_.isInstanceOf[CSApp]).flatMap {v: CSApp => v.card.vars}
   }
 
   case class CVar(name: String) extends CExpr {
@@ -114,6 +117,7 @@ object Expressions {
   case class CBinaryExpr(op: CBinOp, left: CExpr, right: CExpr) extends CExpr {
     override def pp: String = op match {
       case COpSubset => s"{subset ${left.pp} ${op.pp} ${right.pp}}"
+      case COpSetEq => s"perm_eq (${left.pp}) (${right.pp})"
       case _ => s"${left.pp} ${op.pp} ${right.pp}"
     }
   }
@@ -135,7 +139,7 @@ object Expressions {
     override def subst(sigma: Subst): CSApp =
       CSApp(pred, args.map(_.subst(sigma)), card.subst(sigma))
 
-    val uniqueName: String = s"$pred${card.pp}"
+    val uniqueName: String = s"${pred}_${args.flatMap(_.vars).map(_.pp).mkString("")}_${card.pp}"
     val heapName: String = s"h_$uniqueName"
     val hypName: String = s"H_$uniqueName"
   }
@@ -232,9 +236,7 @@ object Expressions {
 
   object COpIn extends CBinOp
 
-  object COpSetEq extends CBinOp {
-    override def pp: String = "="
-  }
+  object COpSetEq extends CBinOp
 
   object COpSubset extends CBinOp {
     override def pp: String = "<="
