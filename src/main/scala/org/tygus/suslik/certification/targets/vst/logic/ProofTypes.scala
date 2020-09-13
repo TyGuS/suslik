@@ -39,6 +39,10 @@ object ProofTypes {
     override def pp: String = "val"
   }
 
+  case object CoqBoolType extends VSTProofType {
+    override def pp: String = ???
+  }
+
   /** type of integers (used to represent the values of variables in a C program) */
   case object CoqIntType extends VSTProofType {
     override def pp:String = "Z"

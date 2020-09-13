@@ -1,496 +1,642 @@
 package org.tygus.suslik.certification.targets.vst.translation
 
-import java.io
-
-import org.tygus.suslik.certification.targets.htt.language.Expressions.CPointsTo
-import org.tygus.suslik.certification.targets.vst.clang.{CTypes, PrettyPrinting}
-import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.CVar
-import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.{CDataAt, CSApp, VSTHeaplet}
-import org.tygus.suslik.certification.targets.vst.logic.{Proof, ProofTypes}
-import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions.{ProofCBinOp, ProofCBinaryExpr, ProofCBoolConst, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCOpAnd, ProofCOpBoolEq, ProofCOpDiff, ProofCOpImplication, ProofCOpIn, ProofCOpIntEq, ProofCOpIntersect, ProofCOpLeq, ProofCOpLt, ProofCOpMinus, ProofCOpMultiply, ProofCOpNot, ProofCOpOr, ProofCOpPlus, ProofCOpPtrEq, ProofCOpSetEq, ProofCOpSubset, ProofCOpUnaryMinus, ProofCOpUnion, ProofCSetLiteral, ProofCUnOp, ProofCUnaryExpr, ProofCVar}
-import org.tygus.suslik.certification.targets.vst.logic.Proof.{CardConstructor, CardNull, CardOf, FormalCondition, FormalSpecification, IsTrueProp, IsValidInt, IsValidPointerOrNull, VSTPredicate, VSTPredicateClause}
-import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqCardType, CoqIntType, CoqListType, CoqPtrType, VSTProofType}
-import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
-import org.tygus.suslik.language.Expressions.Var
-import org.tygus.suslik.language.{BoolType, CardType, Expressions, Ident, IntSetType, IntType, LocType, SSLType}
-import org.tygus.suslik.logic.{Block, Environment, FunSpec, Gamma, Heaplet, InductiveClause, InductivePredicate, PointsTo, PredicateEnv, SApp}
-import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
+import org.tygus.suslik.certification.targets.vst.logic.ProofRule.EmpRule
+import org.tygus.suslik.certification.targets.vst.logic.ProofSteps.AssertPropSubst
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCBinaryExpr, ProofCBoolConst, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCSetLiteral, ProofCUnaryExpr, ProofCVar}
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{VSTPredicate, VSTPredicateClause}
+import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqParamType, CoqPtrType, VSTProofType}
+import org.tygus.suslik.certification.targets.vst.{Debug, State}
+import org.tygus.suslik.certification.targets.vst.logic.{Formulae, Proof, ProofRule, ProofSteps, ProofTerms}
+import org.tygus.suslik.certification.targets.vst.translation.Translation.fail_with
+import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Var}
+import org.tygus.suslik.language.{Expressions, Ident, PrettyPrinting, Statements}
+import org.tygus.suslik.language.Statements.{Call, Free, Load, Malloc, Skip, Store}
+import org.tygus.suslik.logic.Preprocessor.{findMatchingHeaplets, sameLhs}
+import org.tygus.suslik.logic.Specifications.SuspendedCallGoal
+import org.tygus.suslik.logic.{Block, Heaplet, PFormula, PointsTo, SApp, SFormula}
+import org.tygus.suslik.synthesis.rules.LogicalRules.FrameBlock.profilesMatch
+import org.tygus.suslik.synthesis.rules.LogicalRules.StarPartial.extendPure
+import org.tygus.suslik.synthesis.rules.{DelegatePureSynthesis, FailRules, LogicalRules, OperationalRules, UnfoldingRules, UnificationRules}
+import org.tygus.suslik.synthesis.{AppendProducer, BranchProducer, ChainedProducer, ConstProducer, ExtractHelper, GhostSubstProducer, GuardedProducer, HandleGuard, IdProducer, PartiallyAppliedProducer, PrependFromSketchProducer, PrependProducer, SeqCompProducer, StmtProducer, SubstProducer, UnfoldProducer}
 
-import scala.collection.immutable
+import scala.annotation.tailrec
+import scala.collection.immutable.Map
 
-/** translates suslik proof terms to VST compatible proof terms  */
+
+
 object ProofTranslation {
 
-  /** translate a suslik type into a VST proof type */
-  def translate_type(lType: SSLType): VSTProofType =
-    lType match {
-      case IntType => CoqIntType
-      case LocType => CoqPtrType
-      case CardType => CoqCardType("") // TODO: add a safe version of this (only used when initializing base context)
+  case class ProofRuleTranslationException(msg: String) extends Exception {
+    override def toString: String = s"ProofRuleTranslationException(${msg})"
+  }
 
-      // TODO: WARNING: Suslik has a loose model of memory that allows elements of different types
-      // to be allocated in the same block - i.e x :-> [loc; int] - this is technically possible
-      // but doesn't mesh well with C in which an allocated array must have all elements of the same type
-      // otherwise a separate struct definition would be needed
-      case IntSetType => CoqListType(CoqPtrType, None)
+  /** converts a single proof node into a compressed rule */
+  def proof_rule_of_proof_node(node: CertTree.Node): ProofRule = {
+    def fail_with_bad_proof_structure(): Nothing = {
+      throw ProofRuleTranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
     }
 
+    def fail_with_bad_children(ls: List[CertTree.Node], count: Int): Nothing = {
+      throw ProofRuleTranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != ${count}")
+    }
 
-  /** translate a suslik expression into a VST proof expression (note: this is not the same as a VST C expression, so can support terms like list comparisons etc.) */
-  def translate_expression(context: Map[Ident, VSTProofType])(expr: Expressions.Expr): Proof.Expressions.ProofCExpr = {
-    def type_expr(left_1: ProofCExpr): VSTProofType =
-      left_1 match {
-        case ProofCVar(name, typ) => typ
-        case ProofCIntConst(value) => CoqIntType
-        case ProofCSetLiteral(elems) => CoqListType(CoqPtrType, Some(elems.length))
-        case ProofCIfThenElse(cond, left, right) => type_expr(left)
-        case ProofCBinaryExpr(op, left, right) =>
-          op match {
-            case ProofCOpPlus => CoqIntType
-            case ProofCOpMinus => CoqIntType
-            case ProofCOpMultiply => CoqIntType
-            case ProofCOpUnion => CoqListType(CoqPtrType, None)
+    node.rule match {
+      case LogicalRules.NilNotLval => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) => {
+          // find all pointers that are not yet known to be non-null
+          def find_pointers(p: PFormula, s: SFormula): Set[Expr] = {
+            // All pointers
+            val allPointers = (for (PointsTo(l, _, _) <- s.chunks) yield l).toSet
+            allPointers.filter(
+              x => !p.conjuncts.contains(x |/=| NilPtr) && !p.conjuncts.contains(NilPtr |/=| x)
+            )
           }
-        case ProofCUnaryExpr(op, e) => op match {
-          case ProofCOpUnaryMinus => CoqIntType
+
+          val pre_pointers = find_pointers(node.goal.pre.phi, node.goal.pre.sigma).toList
+
+          node.children match {
+            case ::(head, Nil) => ProofRule.NilNotLval(pre_pointers, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
         }
+        case v => fail_with_bad_proof_structure()
+      }
+      case FailRules.CheckPost => node.kont match {
+        case IdProducer => node.children match {
+          case ::(head, Nil) => ProofRule.CheckPost(proof_rule_of_proof_node(head))
+          case ls => fail_with_bad_children(ls, 1)
+        }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnificationRules.Pick => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.Pick(map, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case FailRules.AbduceBranch => node.kont match {
+        case GuardedProducer(cond, _) =>
+          node.children match {
+            case ::(if_true, ::(if_false, Nil)) => ProofRule.AbduceBranch(cond, proof_rule_of_proof_node(if_true), proof_rule_of_proof_node(if_false))
+            case ls => fail_with_bad_children(ls, 2)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case OperationalRules.WriteRule => node.kont match {
+        case ChainedProducer(ChainedProducer(PrependProducer(stmt@Store(_, _, _)), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.Write(stmt, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.WeakenPre => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
+          node.children match {
+            case ::(head, Nil) => ProofRule.WeakenPre(unused, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.EmpRule => node.kont match {
+        case ConstProducer(Skip) =>
+          node.children match {
+            case Nil => ProofRule.EmpRule
+            case ls => fail_with_bad_children(ls, 0)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case DelegatePureSynthesis.PureSynthesisFinal => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(assignments), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              ProofRule.PureSynthesis(true, assignments, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnfoldingRules.Open => node.kont match {
+        case ChainedProducer(ChainedProducer(BranchProducer(Some((heaplet, fresh_vars)), selectors), HandleGuard(_)), ExtractHelper(_)) =>
+          ProofRule.Open(heaplet, fresh_vars, selectors.zip(node.children).map({ case (expr, node) => (expr, proof_rule_of_proof_node(node)) }).toList)
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.SubstLeft => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.SubstL(map, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnificationRules.SubstRight => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.SubstR(map, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case OperationalRules.ReadRule => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(GhostSubstProducer(map), PrependProducer(stmt@Load(_, _, _, _))), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.Read(map, stmt, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnfoldingRules.AbduceCall => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) =>
+
+              // find out which new variables were added to the context
+              val new_vars =
+                head.goal.gamma.filterKeys(key => !(node.goal.gamma.contains(key)))
+              var f_pre = head.goal.post
+
+              var SuspendedCallGoal(_, _, callePost, call, freshSub, _) = head.goal.callGoal.get
+              ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnificationRules.HeapUnifyPure => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.HeapUnify(proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnificationRules.HeapUnifyUnfolding => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.HeapUnify(proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnificationRules.HeapUnifyBlock => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.HeapUnify(proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnificationRules.HeapUnifyPointer => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              val pre = goal.pre
+              val post = goal.post
+              val prePtss = pre.sigma.ptss
+              val postPtss = post.sigma.ptss
+
+              def lcpLen(s1: String, s2: String): Int = s1.zip(s2).takeWhile(Function.tupled(_ == _)).length
+
+              val alternatives = for {
+                PointsTo(y, oy, _) <- postPtss
+                if y.vars.exists(goal.isExistential)
+                t@PointsTo(x, ox, _) <- prePtss
+                if ox == oy
+                if !postPtss.exists(sameLhs(t))
+              } yield (y -> x)
+              alternatives.minBy { case (e1, e2) => -lcpLen(e1.pp, e2.pp) } match {
+                case (y: Var, x) => ProofRule.HeapUnifyPointer(Map(y -> x), proof_rule_of_proof_node(head))
+              }
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.FrameUnfolding => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              val pre = goal.pre
+              val post = goal.post
+
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameUnfolding.heapletFilter(hPost)
+
+              findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
+                case None => ???
+                case Some((h_pre, h_post)) =>
+                  ProofRule.FrameUnfold(h_pre, h_post, proof_rule_of_proof_node(head))
+              }
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.FrameUnfoldingFinal => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              val pre = goal.pre
+              val post = goal.post
+
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameUnfoldingFinal.heapletFilter(hPost)
+
+              findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
+                case None => ???
+                case Some((h_pre, h_post)) =>
+                  ProofRule.FrameUnfold(h_pre, h_post, proof_rule_of_proof_node(head))
+              }
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.FrameBlock => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              val pre = goal.pre
+              val post = goal.post
+
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameBlock.heapletFilter(hPost)
+
+              findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
+                case None => ???
+                case Some((h_pre, h_post)) =>
+                  ProofRule.FrameUnfold(h_pre, h_post, proof_rule_of_proof_node(head))
+              }
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.FrameFlat => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              val pre = goal.pre
+              val post = goal.post
+
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameFlat.heapletFilter(hPost)
+
+              findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
+                case None => ???
+                case Some((h_pre, h_post)) =>
+                  ProofRule.FrameUnfold(h_pre, h_post, proof_rule_of_proof_node(head))
+              }
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnfoldingRules.CallRule => node.kont match {
+        case ChainedProducer(ChainedProducer(PrependProducer(call: Call), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.Call(call, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case OperationalRules.FreeRule => node.kont match {
+        case ChainedProducer(ChainedProducer(PrependProducer(stmt@Free(Var(name))), HandleGuard(_)), ExtractHelper(_)) =>
+          val size : Int = node.goal.pre.sigma.blocks.find({ case Block(Var(ploc), sz) => ploc == name }).map({ case Block(_, sz) => sz }) match {
+            case Some(value) => value
+            case None => 1
+          }
+          node.children match {
+            case ::(head, Nil) => ProofRule.Free(stmt, size, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case OperationalRules.AllocRule => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(GhostSubstProducer(map), PrependProducer(stmt@Malloc(_, _, _))), HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              ProofRule.
+                Malloc(map, stmt, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case UnfoldingRules.Close => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(UnfoldProducer(app, selector, pred_subst, fresh_exist, subst_args), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+          node.children match {
+            case ::(head, Nil) =>
+              ProofRule.Close(app, selector, pred_subst, fresh_exist, subst_args, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+      }
+      case LogicalRules.StarPartial => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          val new_pre_phi = extendPure(goal.pre.phi, goal.pre.sigma)
+          val new_post_phi = extendPure(goal.pre.phi && goal.post.phi, goal.post.sigma)
+
+          node.children match {
+            case ::(head, Nil) =>
+              ProofRule.StarPartial(new_pre_phi, new_post_phi, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
       }
 
-    def translate_binop(op: Expressions.BinOp): ProofCBinOp = {
-      op match {
-        case op: Expressions.RelOp => op match {
-          case Expressions.OpEq => ProofCOpIntEq
-          case Expressions.OpBoolEq => ProofCOpBoolEq
-          case Expressions.OpLeq => ProofCOpLeq
-          case Expressions.OpLt => ProofCOpLt
-          case Expressions.OpIn => ProofCOpIn
-          case Expressions.OpSetEq => ProofCOpSetEq
-          case Expressions.OpSubset => ProofCOpSubset
-        }
-        case op: Expressions.LogicOp => op match {
-          case Expressions.OpAnd => ProofCOpAnd
-          case Expressions.OpOr => ProofCOpOr
-        }
-        case Expressions.OpImplication => ProofCOpImplication
-        case Expressions.OpPlus => ProofCOpPlus
-        case Expressions.OpMinus => ProofCOpMinus
-        case Expressions.OpMultiply => ProofCOpMultiply
-        case Expressions.OpUnion => ProofCOpUnion
-        case Expressions.OpDiff => ProofCOpDiff
-        case Expressions.OpIntersect => ProofCOpIntersect
+      case UnificationRules.PickCard => node.kont match {
+        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.PickCard(proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
       }
+      case UnificationRules.PickArg => node.kont match {
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
+          node.children match {
+            case ::(head, Nil) => ProofRule.PickArg(map, proof_rule_of_proof_node(head))
+            case ls => fail_with_bad_children(ls, 1)
+          }
+      }
+
     }
 
-    expr match {
-      case const: Expressions.Const => const match {
-        case Expressions.IntConst(value) => ProofCIntConst(value)
-        case Expressions.BoolConst(value) => ProofCBoolConst(value)
-      }
-      case Var(name) => ProofCVar(name, context(name))
-      case Expressions.SetLiteral(elems) => {
-        ProofCSetLiteral(elems.map(translate_expression(context)))
-      }
-      case Expressions.UnaryExpr(op, arg) =>
-        val top: ProofCUnOp = op match {
-          case Expressions.OpNot => ProofCOpNot
-          case Expressions.OpUnaryMinus => ProofCOpUnaryMinus
-        }
-        ProofCUnaryExpr(top, translate_expression(context)(arg))
-      case Expressions.BinaryExpr(op, left, right) =>
-        val top: ProofCBinOp = translate_binop(op)
-        ProofCBinaryExpr(top, translate_expression(context)(left), translate_expression(context)(right))
-      case Expressions.IfThenElse(cond, left, right) =>
-        ProofCIfThenElse(
-          translate_expression(context)(cond),
-          translate_expression(context)(left),
-          translate_expression(context)(right)
-        )
-      case Expressions.OverloadedBinaryExpr(overloaded_op, left, right) =>
-        val left_1 = translate_expression(context)(left)
-        val right_1 = translate_expression(context)(right)
-        overloaded_op match {
-          case op: Expressions.BinOp =>
-            ProofCBinaryExpr(translate_binop(op), left_1, right_1)
-          case Expressions.OpOverloadedEq =>
-            val l1_ty: VSTProofType = type_expr(left_1)
-            l1_ty match {
-              case ProofTypes.CoqIntType =>
-                ProofCBinaryExpr(ProofCOpIntEq, left_1, right_1)
-              case CoqListType(_, _) =>
-                ProofCBinaryExpr(ProofCOpSetEq, left_1, right_1)
-              case ProofTypes.CoqPtrType =>
-                ProofCBinaryExpr(ProofCOpPtrEq, left_1, right_1)
-            }
-          case Expressions.OpNotEqual =>
-            val l1_ty: VSTProofType = type_expr(left_1)
-            l1_ty match {
-              case ProofTypes.CoqIntType =>
-                ProofCUnaryExpr(ProofCOpNot, ProofCBinaryExpr(ProofCOpIntEq, left_1, right_1))
-              case CoqListType(elem, _) =>
-                ProofCUnaryExpr(ProofCOpNot, ProofCBinaryExpr(ProofCOpSetEq, left_1, right_1))
-              case ProofTypes.CoqPtrType => ??? // TODO: Handle pointer equality? or fail?
-            }
-          case Expressions.OpGt =>
-            ProofCUnaryExpr(ProofCOpNot, ProofCBinaryExpr(ProofCOpLeq, left_1, right_1))
-          case Expressions.OpGeq =>
-            ProofCUnaryExpr(ProofCOpNot, ProofCBinaryExpr(ProofCOpLt, left_1, right_1))
-          case Expressions.OpOverloadedPlus =>
-            val l1_ty: VSTProofType = type_expr(left_1)
-            l1_ty match {
-              case ProofTypes.CoqPtrType => ??? // TODO: handle pointer equality or fail?
-              case ProofTypes.CoqIntType =>
-                ProofCBinaryExpr(ProofCOpPlus, left_1, right_1)
-              case CoqListType(elem, _) =>
-                ProofCBinaryExpr(ProofCOpUnion, left_1, right_1)
-            }
-          case Expressions.OpOverloadedMinus =>
-            val l1_ty: VSTProofType = type_expr(left_1)
-            l1_ty match {
-              case ProofTypes.CoqPtrType => ??? // TODO: handle pointer equality or fail?
-              case ProofTypes.CoqIntType =>
-                ProofCBinaryExpr(ProofCOpMinus, left_1, right_1)
-              case CoqListType(elem, _) =>
-                ProofCBinaryExpr(ProofCOpDiff, left_1, right_1)
-            }
-          case Expressions.OpOverloadedLeq =>
-            val l1_ty: VSTProofType = type_expr(left_1)
-            l1_ty match {
-              case ProofTypes.CoqPtrType => ??? // TODO: handle pointer equality or fail?
-              case ProofTypes.CoqIntType =>
-                ProofCBinaryExpr(ProofCOpLeq, left_1, right_1)
-              case CoqListType(elem, _) =>
-                ProofCBinaryExpr(ProofCOpSubset, left_1, right_1)
-            }
-          case Expressions.OpOverloadedStar => ??? // TODO: Handle star operation
-        }
-
-    }
   }
 
 
-  /** given a VST proof expression and a typing context,
-    * this function will type the expression and return
-    * a type */
-  def type_expr(context: Map[Ident, VSTProofType]) (cvalue: Proof.Expressions.ProofCExpr) : VSTProofType =
-    cvalue match {
-      case ProofCVar(name, typ) => typ
-      case ProofCIntConst(value) => CoqIntType
-      case ProofCSetLiteral(elems) => CoqListType(type_expr(context)(elems.head), Some (elems.length))
-      case ProofCIfThenElse(cond, left, right) => type_expr(context)(left)
-      case ProofCBinaryExpr(op, left, right) => op match {
-        case ProofCOpPlus => CoqIntType
-        case ProofCOpMinus => CoqIntType
-        case ProofCOpMultiply => CoqIntType
+  def generate_args(new_variables: List[(String, VSTProofType)]) (card_args: List[String]) = {
+    var seen_variables_set : Set[String] = Set()
+    var contructor_map : Map[Ident, Ident] = Map()
+    val args = new_variables.flatMap({
+      case (variable_name, ty) =>
+      if (!seen_variables_set.contains(variable_name)){
+        seen_variables_set = seen_variables_set + variable_name
+        (card_args.find(name => variable_name.startsWith(name))) match {
+          case Some(name) =>
+            contructor_map = contructor_map + (name -> variable_name)
+            None
+          case None =>
+            Some(variable_name)
+        }
+      }   else {
+        None
       }
-      case ProofCUnaryExpr(op, e) => op match {
-        case ProofCOpUnaryMinus => CoqIntType
+    })
+    (args, card_args.map(arg => contructor_map(arg)))
+  }
+
+  def translate_proof(predicates: List[VSTPredicate], spec: ProofTerms.FormalSpecification, root: CertTree.Node, pre_cond: ProofTerms.FormalCondition): Proof = {
+    val pred_map = predicates.map(v => (v.name, v)).toMap
+
+    type FunSpec = (Ident, List[Ident])
+    type Context = (Map[Ident, VSTProofType], List[(Ident, List[Ident])])
+
+
+    def unify_expr (context: Map[Ident,Ident]) (pure:ProofCExpr) (call: ProofCExpr) : Map[Ident,Ident] =
+      (pure, call) match {
+        case (ProofCVar(name, _), ProofCVar(call_name, _)) => context + (name -> call_name)
+        case (ProofCBoolConst(_), ProofCBoolConst(_)) => context
+        case (ProofCIntConst(_), ProofCIntConst(_)) => context
+        case (ProofCSetLiteral(elems), ProofCSetLiteral(call_elems)) =>
+          elems.zip(call_elems).foldLeft(context)({case (context, (expr, call_expr)) => unify_expr(context)(expr)(call_expr)})
+        case (ProofCIfThenElse(cond, left, right), ProofCIfThenElse(call_cond, call_left, call_right)) =>
+          var new_context = unify_expr(context)(cond)(call_cond)
+          new_context = unify_expr(new_context)(left)(call_left)
+          unify_expr(new_context)(right)(call_right)
+        case (ProofCBinaryExpr(_, left, right),ProofCBinaryExpr(_, call_left, call_right)) =>
+          val new_context = unify_expr(context)(left)(call_left)
+          unify_expr(new_context)(right)(call_right)
+        case (ProofCUnaryExpr(_, e),ProofCUnaryExpr(_, call_e)) =>
+          unify_expr(context)(e)(call_e)
+      }
+
+    def unify_call_params (call_pre: ProofTerms.FormalCondition) : List[(Ident, VSTProofType)] = {
+      (pre_cond,call_pre) match {
+        case (ProofTerms.FormalCondition(pure, spatial),ProofTerms.FormalCondition(call_pure, call_spatial)) =>
+          def unify_pure(context: Map[Ident, Ident])(pure: ProofTerms.PureFormula) (call: ProofTerms.PureFormula) : Map[Ident,Ident] = {
+            (pure, call) match {
+              case (ProofTerms.IsValidPointerOrNull(CVar(name)),ProofTerms.IsValidPointerOrNull(CVar(name1))) =>
+                context + (name -> name1)
+              case (ProofTerms.IsValidInt(CVar(name)), ProofTerms.IsValidInt(CVar(name1))) =>
+                context + (name -> name1)
+              case (ProofTerms.IsTrueProp(expr), ProofTerms.IsTrueProp(expr1)) =>
+                unify_expr(context)(expr)(expr1)
+              case (ProofTerms.IsTrue(expr), ProofTerms.IsTrue(expr1)) =>
+                unify_expr(context)(expr)(expr1)
+            }
+          }
+          def unify_spatial(context: Map[Ident, Ident])(pure: VSTHeaplet)(call: VSTHeaplet) : Map[Ident,Ident] = {
+            (pure,call) match {
+              case (CDataAt(loc, elem_ty, count, elem), CDataAt(call_loc, call_elem_ty, call_count, call_elem)) =>
+                unify_expr(unify_expr(context)(loc)(call_loc))(elem)(call_elem)
+              case (CSApp(pred, args, card), CSApp(call_pred, call_args, call_card)) =>
+                assert(pred == call_pred)
+                unify_expr(args.zip(call_args).foldRight(context)({case ((exp, call_exp), context) =>
+                  unify_expr(context)(exp)(call_exp)
+                }))(card)(call_card)
+            }
+          }
+          var context =  pure.zip(call_pure).foldLeft(Map[Ident,Ident]())({case (context, (pure, call_pure)) => unify_pure(context)(pure)(call_pure)})
+          context =  spatial.zip(call_spatial).foldLeft(context)({case (context, (pure, call_pure)) => unify_spatial(context)(pure)(call_pure)})
+          spec.params.map({case (name, ty) => (context(name), ty)})
       }
     }
 
-  /**
-    * Translate a list of suslik heaplets into a form accepted by VST
-    * @param context the typing context
-    * @param heaplets a list of suslik heaplets
-    * @return a VST encoding of these heaplets
-    *
-    * Note: Suslik encodes blocks of pointers slightly differently to
-    * VST - when dealing with a block of contiguous pointers in memory,
-    * Suslik first uses a block declaration to specify the size of the
-    * contiguous block, and then has a number of subsequent heaplets
-    * that assign values to each element of this block.
-    *
-    * VST combines these two declarations into one: `data_at` - a `data_at` declaration
-    * states what a given pointer points to - in the case of contiguous memory,
-    * we must list out the corresponding values in order - just as they would be encoded in memory
-    *
-    * This function performs the translation between suslik's encoding and VST's encoding
-    */
-  def translate_heaplets(context: Map[Ident, VSTProofType])(heaplets: List[Heaplet]): List[VSTHeaplet] = {
-    val initial_map: Map[Ident, (List[PointsTo], Option[Block])] = Map.empty
+    def initial_context: Context =
+      ((spec.c_params.map({ case (name, ty) => (name, CoqParamType(ty)) }) ++
+        spec.formal_params).toMap, Nil)
 
-    // we first build up a mapping from pointer variables
-    // to the declarations that relate to them
-    // predicate applications are separated out unchanged
-    // as these translate directly to vst
-    val (map: Map[Ident, (List[PointsTo], Option[Block])], apps): (Map[Ident, (List[PointsTo], Option[Block])], List[CSApp]) =
-      heaplets.foldLeft((initial_map, List(): List[CSApp]))({
-        case ((map, acc), ty: Heaplet) =>
-          ty match {
-            case ty@PointsTo(loc@Var(name), offset, value) =>
-              val updated_map = map.get(name) match {
-                case None => map.updated(name, (List(ty), None))
-                case Some((points_to_acc: List[_], block_acc)) =>
-                  map.updated(name, (List(ty) ++ points_to_acc, block_acc))
-              }
-              (updated_map, acc: List[CSApp])
-            case ty@Block(loc@Var(name), sz) =>
-              val updated_map = map.get(name) match {
-                case None => map.updated(name, (List(), Some(ty)))
-                case Some((points_to_acc, None)) => map.updated(name, (points_to_acc, Some(ty)))
-              }
-              (updated_map, acc: List[CSApp])
-            case SApp(pred, args, tag, card) =>
-              (map, (List(CSApp(pred, args.map(translate_expression((context))), translate_expression(context)(card))) ++ acc)
+    def retrieve_typing_context: Context => Map[Ident, VSTProofType] = {
+      case (gamma, _) => gamma
+    }
+
+    def add_new_variables(new_params: Map[Ident, VSTProofType])(context: Context): Context = context match {
+      case (old_params, funs) => (old_params ++ new_params, funs)
+    }
+
+    def pop_function(context: Context): (FunSpec, Context) = context match {
+      case (old_params, fun :: funs) => (fun, (old_params, funs))
+    }
+
+    def push_function(fun_spec: FunSpec)(context: Context): Context = context match {
+      case (old_params, old_funs) => (old_params, fun_spec :: old_funs)
+    }
+
+    def record_variable_mapping(mapping: Map[Var, Expr])(context: Context): Context = {
+      val variable_mapping = mapping.flatMap({ case (Var(old_name), Var(new_name)) => Some((old_name, new_name)) case _ => None })
+      context match {
+        case (old_params, funs) =>
+          val new_params = old_params.map({ case (name, ty) => (variable_mapping.getOrElse(name, name), ty) })
+          val new_funs = funs.map({ case (fun_name, args) => (fun_name, args.map(arg => variable_mapping.getOrElse(arg, arg))) })
+          (new_params, new_funs)
+      }
+    }
+
+
+    def translate_proof_rules(rule: ProofRule)(context: Context): ProofSteps = {
+      rule match {
+        case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, cases) =>
+          val arg_set = args.toSet
+          val pred = pred_map(predicate_name)
+          ProofSteps.ForwardIfConstructor(
+            card_variable,
+            predicate_name,
+            pred.clauses.zip(cases).map({
+              case ((constructor, clause), (expr, rule)) =>
+                val new_variables = pred.constructor_existentials(constructor).map({
+                  case (variable, ty) =>
+                  fresh_vars.get(Var(variable)).map({case Var(new_name) => (new_name, ty)}).getOrElse((variable,ty))
+                })
+                val variable_map = new_variables.toMap
+                val new_context = add_new_variables(variable_map)(context)
+
+                val (args, constructor_args) = generate_args(new_variables)(constructor.constructor_args)
+
+                ((pred.constructor_name(constructor), constructor, constructor_args),
+                  ProofSpecTranslation.translate_expression(retrieve_typing_context(context).toMap)(expr),
+                  args,
+                  translate_proof_rules(rule)(new_context))
+            }).toList
+          )
+        case ProofRule.NilNotLval(vars, next) => ???
+        case ProofRule.CheckPost(next) => ???
+        case ProofRule.Pick(subst, next) => ???
+        case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => ???
+        case ProofRule.Write(stmt, next) => ???
+        case ProofRule.WeakenPre(unused, next) => translate_proof_rules(next)(context)
+        case ProofRule.EmpRule => ProofSteps.Forward(ProofSteps.Qed)
+        case ProofRule.PureSynthesis(is_final, assignments, next) => ???
+        case ProofRule.SubstL(map, next) =>
+          map.toList.foldRight(translate_proof_rules(next)(context))({
+            case ((Var(name), expr), next) =>
+              AssertPropSubst(
+                name,
+                ProofSpecTranslation.translate_expression(retrieve_typing_context(context))(expr),
+                next)
+          })
+        case ProofRule.SubstR(map, next) =>
+          map.toList match {
+            case ::((Var(old_name), Var(new_name)), _) =>
+              val new_context = record_variable_mapping(map)(context)
+              ProofSteps.Rename(old_name, new_name,
+              translate_proof_rules(next)(new_context)
               )
           }
-      })
-
-    // having built the mapping, we then translate each (k,v) pair in this
-    // mapping into a VST Data at declaration
-    val blocks: List[CDataAt] = map.map({ case (var_nam, (points_to, o_block)) =>
-      o_block match {
-        case Some((_@Block(loc,sz))) =>
-          val loc_pos = translate_expression(context)(loc)
-          val o_array : Array[Option[ProofCExpr]] = Array.fill(sz)(None)
-          points_to.foreach({case PointsTo(_, offset, value) =>
-              o_array.update(offset, Some(translate_expression(context)(value)))
-          })
-          val elems = o_array.map(_.get).toList
-          val elem_type = type_expr(context)(elems.head)
-          CDataAt(loc_pos, CoqListType(elem_type, Some(sz)), sz, ProofCSetLiteral(elems))
-        case None =>
-          assert(
-            points_to.length == 1,
-            "found multiple points to information (i.e x :-> 1, (x + 1) :-> 2) for a variable without an associated block"
-          )
-          (points_to.head : PointsTo) match {
-            case PointsTo(loc, 0, value) =>
-              val c_value = translate_expression(context)(value)
-              CDataAt(translate_expression(context)(loc), type_expr(context)(c_value), 0, c_value)
-            case PointsTo(_, _, _) =>
-              assert(false, "found points to information without a block that references a non-zero element (i.e (x + 1) :-> 2)")
-              ???
-          }
-      }
-    }).toList
-
-    // return the blocks and the applications
-    blocks.map(_.asInstanceOf[VSTHeaplet]) ++ apps.map(_.asInstanceOf[VSTHeaplet])
-  }
-
-  /** translates a Suslik function specification into a proof */
-  def translate_conditions(proc: CProcedureDefinition)(goal: Goal): FormalSpecification = {
-
-    val name: Ident = proc.name
-    val c_params: Seq[(Ident, VSTCType)] = proc.params.map({ case (CVar(name), cType) => (name, cType) })
-
-
-    // collect all cardinality_params and their associated types
-    val cardinality_params: Map[String, CoqCardType] = (goal.pre.sigma.chunks ++ goal.post.sigma.chunks).flatMap({
-      case PointsTo(loc, offset, value) => None
-          case Block(loc, sz) => None
-          case SApp(pred, args, tag, Var(name)) => Some(name, CoqCardType(pred))
-          case _ => throw TranslationException("ERR: Expecting all predicate applications to be abstract variables")
-    }).toMap
-
-    val formal_params: List[(Ident, VSTProofType)] = {
-      val c_param_set = c_params.map(_._1).toSet
-      goal.universals
-        .map({ case variable@Var(name) =>
-        if (cardinality_params.contains(name)) {
-          (name, cardinality_params(name))
-        } else {
-          (name, translate_type(goal.gamma(variable)))
-        }})
-        .filterNot({case (name, _) =>  c_param_set.contains(name)}).toList
-    }
-
-    val existential_params: List[(Ident, VSTProofType)] =
-      goal.existentials.map({ case variable@Var(name) =>
-        if (cardinality_params.contains(name)) {
-          (name, cardinality_params(name))
-        } else {
-          (name, translate_type(goal.gamma(variable)))
-        }
-      }).toList
-    val return_type: VSTCType = proc.rt
-
-    val context = (
-      formal_params ++ existential_params ++
-        c_params.map({ case (ident, cType) => (ident, ProofTypes.proof_type_of_c_type(cType)) })
-      ).toMap
-
-    val precondition: FormalCondition = {
-      val pure_conditions =
-        goal.pre.phi.conjuncts.map(translate_expression(context))
-          .map(IsTrueProp).toList ++ (c_params).flatMap({ case (ident, cType) =>
-          cType match {
-            case CTypes.CIntType => Some(IsValidInt(CVar(ident)))
-            case CTypes.CUnitType => None
-            case CTypes.CVoidPtrType => Some(IsValidPointerOrNull(CVar(ident)))
-          }
-      }) ++ formal_params.flatMap({ case (ident, ty) => ty match {
-          case ProofTypes.CoqPtrType =>Some(IsValidPointerOrNull(CVar(ident)))
-          case ProofTypes.CoqIntType => Some(IsValidInt(CVar(ident)))
-          case _ => None
-        }})
-      val spatial_conditions: List[VSTHeaplet] =
-        translate_heaplets(context)(goal.pre.sigma.chunks)
-
-      FormalCondition(pure_conditions, spatial_conditions)
-    }
-    val postcondition: FormalCondition = {
-      val pure_conditions =
-        goal.post.phi.conjuncts.map(translate_expression(context))
-          .map(IsTrueProp).toList
-      val spatial_conditions =
-        translate_heaplets(context)(goal.post.sigma.chunks)
-        // goal.post.sigma.chunks.map(translate_heaplet(context)).toList
-      FormalCondition(pure_conditions, spatial_conditions)
-    }
-
-    FormalSpecification(
-      name, c_params, formal_params, existential_params, precondition, postcondition, return_type
-    )
-  }
-
-
-  /** convert a list of cardinality relations (child, parent) (i.e child < parent) into a map
-    * from cardinality name to constructors */
-  def build_card_cons(card_conds: List[(String, String)]): Map[String, CardOf] = {
-    // to perform this translation, we first construct a mapping of relations
-    // where for every constraint of the form (a < b), we set map(b) = a :: map(b),
-    // thus the mapping for a variable contains the list of other variables that are
-    // constrainted to be immediately smaller than it
-    var child_map : Map[String, List[String]] = Map.empty
-    card_conds.foreach({case (child, parent) =>
-    child_map.get(parent) match {
-            case None => child_map = child_map.updated(parent, List(child))
-            case Some(children) => child_map = child_map.updated(parent, child :: children)
-    }})
-    // the keys of the map now become variables that are destructured
-    // in the match case to produce the variables immediately below it
-    child_map.map({ case (str, strings) => (str, CardOf(strings))})
-  }
-
-
-  /** translates suslik's inductive predicate into a format that is
-    * accepted by VST
-    *
-    * In order to do this, we make use of the cardinality constraints that are
-    * associated with each clause, and use this to construct an inductive data
-    * type that encodes the proof of termination
-    *
-    * For example, consider the lseg predicate
-    *
-    * lseg(x, s) {
-    *
-    *  x == 0 ==> ... (no cardinality constraints)
-    *
-    *  x <> 0 ==> a < self_card ... lseg(x',s')<a>
-    *
-    * }
-    *
-    * Then we'd create a cardinality datatype as:
-    *
-    * Inductive lseg_card : Set :=
-    *
-    *   | lseg_card_0 : lseg_card
-    *
-    *   | lseg_card_1 : lseg_card -> lseg_card.
-    *
-    * And then implement lseg as taking in a third parameter being its cardinality,
-    * and matching on this - taking the first clause if the input is `lseg_card0` and the
-    * second clause if the input is `lseg_card1 a` (and recursing on `a`
-    *
-    * */
-  def translate_predicate(env: Environment)(predicate: InductivePredicate): VSTPredicate = {
-
-
-    // Determines whether a given variable is a cardinality constraint
-    // TODO: I've definitely seen some function elsewhere that already does this
-    def is_card (s: String) : Boolean = s.startsWith("_") || s.contentEquals("self_card")
-
-    // extracts a cardinality relation from an expression if it exists
-    def extract_card_constructor(expr: Expressions.Expr) : Option[(String, String)] = {
-      expr match {
-        case Expressions.BinaryExpr(op, Var(left), Var(parent))
-        if is_card(left) && is_card(parent) =>
-          op match {
-            case op: Expressions.RelOp => op match {
-              case Expressions.OpLt =>
-                Some ((left, parent))
-              case _ => None
-            }
-            case _ => None
-          }
-        case Expressions.OverloadedBinaryExpr(overloaded_op, Var(left), Var(parent))
-        if is_card(left) && is_card(parent) =>
-          overloaded_op match {
-            case op: Expressions.BinOp => op match {
-              case op: Expressions.RelOp => op match {
-                case Expressions.OpLt => Some ((left, parent))
-                case _ => None
+        case ProofRule.Read(subst, operation, next) =>
+          subst.toList match {
+            case ::((Var(old_var), Var(new_var)), tl) =>
+              def is_variable_used_in_exp(variable: Ident)(expr: Expr): Boolean = expr match {
+                case Var(name) => (name == variable)
+                case const: Expressions.Const => false
+                case Expressions.BinaryExpr(op, left, right) => is_variable_used_in_exp(variable)(left) || is_variable_used_in_exp(variable)(right)
+                case Expressions.OverloadedBinaryExpr(overloaded_op, left, right) =>
+                  is_variable_used_in_exp(variable)(left) || is_variable_used_in_exp(variable)(right)
+                case Expressions.UnaryExpr(op, arg) => is_variable_used_in_exp(variable)(arg)
+                case Expressions.SetLiteral(elems) => elems.exists(is_variable_used_in_exp(variable))
+                case Expressions.IfThenElse(cond, left, right) =>
+                  is_variable_used_in_exp(variable)(cond) || is_variable_used_in_exp(variable)(left) || is_variable_used_in_exp(variable)(right)
               }
-              case _ => None
-            }
-            case Expressions.OpGt =>Some ((parent, left))
-            case _ => None
-          }
-        case _ => None
-      }
+              def is_variable_used_in_proof(variable: Ident)(rule: ProofRule): Boolean = {
+                def map_varaible(map: Map[Var, Expr]): Ident =
+                  map.get(Var(variable)).flatMap({ case Var(name) => Some(name) case _ => None }).getOrElse(variable)
 
-    }
-
-    // base context contains type information for every variable used in the
-    // predicate (even if it occurs at a top level or not)
-    val base_context : List[(Ident, VSTProofType)] = {
-      var gamma: Gamma = Map.empty
-      predicate match {
-        case InductivePredicate(name, params, clauses) =>
-          clauses.foreach({case InductiveClause(selector, assn) =>
-            selector.resolve(gamma, Some(BoolType)).foreach(v => gamma = v)
-            assn.phi.conjuncts.foreach(expr =>
-              expr.resolve(gamma, Some(BoolType)).foreach(v => gamma = v)
-            )
-            assn.sigma.resolve(gamma, env).foreach(v => gamma = v)
-          })
-      }
-      gamma.map({case (Var(name), ty) => (name, translate_type(ty))}).toList
-    }
-
-    predicate match {
-      case InductivePredicate(name, raw_params, raw_clauses) => {
-
-        val params: List[(String, VSTProofType)] =
-          raw_params.map({case (Var(name), sType) => (name, translate_type(sType))})
-        val context: Map[Ident, VSTProofType] = (base_context ++ params).toMap
-
-
-        // separate clauses by cardinality constructors
-        // NOTE: here we assume that cardinality constructors are unique - i.e each clause maps to a
-        // unique cardinality constraint
-        val clauses: Map[CardConstructor, VSTPredicateClause] = raw_clauses.map({
-          case InductiveClause(selector, asn) =>
-            // first, split the pure conditions in the predicate between those that
-            // encode cardinality constraints and those that don't
-            val (r_conds, r_card_conds) = asn.phi.conjuncts.map(expr =>
-              extract_card_constructor(expr) match {
-                case value@Some(_) => (None, value)
-                case None => (Some(expr), None)
+                rule match {
+                  case ProofRule.NilNotLval(vars, next) => is_variable_used_in_proof(variable)(next)
+                  case ProofRule.CheckPost(next) => is_variable_used_in_proof(variable)(next)
+                  case ProofRule.PickCard(next) => is_variable_used_in_proof(variable)(next)
+                  case ProofRule.PickArg(subst, next) =>
+                    val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
+                    (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
+                  case ProofRule.Pick(subst, next) =>
+                    val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
+                    (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
+                  case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+                    is_variable_used_in_exp(variable)(cond) ||
+                      is_variable_used_in_proof(variable)(ifTrue) ||
+                      is_variable_used_in_proof(variable)(ifFalse)
+                  case ProofRule.Write(Statements.Store(Var(tov), offset, e), next) =>
+                    (tov == variable) || is_variable_used_in_exp(variable)(e) || is_variable_used_in_proof(variable)(next)
+                  case ProofRule.WeakenPre(unused, next) => is_variable_used_in_proof(variable)(next)
+                  case ProofRule.EmpRule => false
+                  case ProofRule.PureSynthesis(is_final, assignments, next) =>
+                    is_variable_used_in_proof(variable)(next)
+                  case ProofRule.Open(pred, heaplet, cases) =>
+                    cases.exists({ case (expr, rule) =>
+                      is_variable_used_in_exp(variable)(expr) ||
+                        is_variable_used_in_proof(variable)(rule)
+                    })
+                  case ProofRule.SubstL(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
+                  case ProofRule.SubstR(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
+                  case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, next) =>
+                    is_variable_used_in_proof(variable)(next)
+                  case ProofRule.HeapUnify(next) => is_variable_used_in_proof(variable)(next)
+                  case ProofRule.HeapUnifyPointer(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
+                  case ProofRule.FrameUnfold(h_pre, h_post, next) => is_variable_used_in_proof(variable)(next)
+                  case ProofRule.Close(app, selector, pred_subst, fresh_exist, subst_args, next) =>
+                    is_variable_used_in_proof(variable)(next)
+                  case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) =>
+                    is_variable_used_in_proof(variable)(next)
+                  case ProofRule.Read(map, Load(Var(toe), _, Var(frome), offset), next) =>
+                    (frome == variable) || ((toe != variable) && is_variable_used_in_proof(variable)(next))
+                  case ProofRule.Call(Call(_, args, _), next) =>
+                    args.exists(is_variable_used_in_exp(variable)) ||
+                      is_variable_used_in_proof(variable)(next)
+                  case ProofRule.Free(Free(Var(v)), _, next) =>
+                    (v == variable) || is_variable_used_in_proof(variable)(next)
+                  case ProofRule.Malloc(map, Malloc(Var(toe), tpe, sz), next) =>
+                    (toe != variable) && is_variable_used_in_proof(variable)(next)
+                }
               }
-            ).toList.unzip
+              val new_context = record_variable_mapping(subst)(context)
+              val rest = (retrieve_typing_context(context).get(old_var)) match {
+                  case Some(CoqPtrType) =>
+                    ProofSteps.ValidPointerOrNull(new_var, translate_proof_rules(next)(new_context))
+                  case _ => translate_proof_rules(next)(new_context)
+                }
 
-            // translate the pure conditions into VST format
-            val select = translate_expression(context)(selector)
-            val conds = r_conds.flatten.map(translate_expression(context)).toList
-
-            // translate the spatial constraints
-            val spat_conds = translate_heaplets(context)(asn.sigma.chunks.toList)
-
-            // Convert the cardinality constraints into an associated constructor
-            val card_conds = r_card_conds.flatten
-            card_conds match {
-              case card_conds@(::(_, _)) =>
-                val card_cons : Map[String, CardConstructor] = build_card_cons(card_conds)
-                (card_cons("self_card"), VSTPredicateClause(select :: conds, spat_conds, card_cons))
-              case Nil => (CardNull, VSTPredicateClause(select :: conds, spat_conds, Map.empty))
-            }
-        }).toMap
-        VSTPredicate(name, params, base_context, clauses)
+              if (is_variable_used_in_proof(new_var)(next)) {
+                ProofSteps.Rename(old_var, new_var,
+                  ProofSteps.Forward(
+                    rest
+                  )
+                )
+              } else {
+                ProofSteps.Rename(old_var, new_var,
+                  rest
+                )
+              }
+          }
+        case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, next) =>
+          var typing_context = retrieve_typing_context(context)
+          f_pre.vars.foreach({case Var(name) => if (!typing_context.contains(name)) {
+            typing_context = typing_context + (name -> CoqPtrType)
+          } })
+          val call_precond = ProofSpecTranslation.translate_assertion(typing_context)(f_pre)
+          val call_args = unify_call_params(call_precond).map({case (name, _) => name})
+          var new_context = push_function((fun, call_args))(context)
+          translate_proof_rules(next)(new_context)
+        case ProofRule.HeapUnify(next) => translate_proof_rules(next)(context)
+        case ProofRule.HeapUnifyPointer(map, next) => translate_proof_rules(next)(context)
+        case ProofRule.FrameUnfold(h_pre, h_post, next) => translate_proof_rules(next)(context)
+        case ProofRule.Call(call, next) =>
+          val ((fun, args),new_context) = pop_function(context)
+          ProofSteps.ForwardCall(args, translate_proof_rules(next)(new_context))
+        case ProofRule.Free(Free(Var(name)), size, next) =>
+          ProofSteps.Free(name, size, translate_proof_rules(next)(context))
+        case ProofRule.Malloc(map, stmt, next) => ???
+        case ProofRule.Close(app, selector, pred_subst, fresh_exist, subst_args, next) => ???
+        case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => ???
+        case ProofRule.PickCard(next) => ???
+        case ProofRule.PickArg(map, next) => ???
       }
     }
+
+    val simplified = proof_rule_of_proof_node(root)
+    println(s"Converted proof:\n ${simplified.pp}")
+
+    val vst_proof: ProofSteps = translate_proof_rules(simplified)(initial_context)
+
+    println("Converted proof:")
+    println(vst_proof.pp)
+
+    //Debug.visualize_ctree(root)
+    //Debug.visualize_proof_tree(root.kont)
+
+    ???
   }
+
 }

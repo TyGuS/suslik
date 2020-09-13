@@ -145,7 +145,7 @@ case class HandleGuard(goal: Goal) extends StmtProducer {
 }
 
 // Produces a conditional that branches on the selectors
-case class BranchProducer(selectors: Seq[Expr]) extends StmtProducer {
+case class BranchProducer(pred: Option[(SApp, SubstVar)], selectors: Seq[Expr]) extends StmtProducer {
   val arity: Int = selectors.length
   val fn: Kont = liftToSolutions(stmts => {
     if (stmts.length == 1) stmts.head else {

@@ -3,15 +3,15 @@ package org.tygus.suslik.certification.targets.vst.logic
 import org.tygus.suslik.certification.targets.vst.clang.{CFormals, CTypes}
 import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.CExpr
-import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions
-import org.tygus.suslik.certification.targets.vst.logic.Proof.Expressions.ProofCExpr
+import ProofTerms.Expressions
+import ProofTerms.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqIntType, CoqListType, VSTProofType}
 import org.tygus.suslik.language.PrettyPrinting
 
 object Formulae {
 
   /** abstract type categorizing all spatial formulae  */
-  sealed trait VSTHeaplet extends PrettyPrinting
+  sealed abstract class VSTHeaplet extends PrettyPrinting
 
 
   /** Spatial formulae
