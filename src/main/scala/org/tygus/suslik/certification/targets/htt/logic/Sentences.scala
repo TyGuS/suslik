@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.language.{CFormals, PrettyPrinting}
+import org.tygus.suslik.certification.targets.htt.language.{CFormals, CGamma, PrettyPrinting}
 import org.tygus.suslik.certification.targets.htt.language.Types._
 import org.tygus.suslik.certification.targets.htt.logic.Proof.Subst
 
@@ -11,13 +11,13 @@ object Sentences {
 
     def existentials(quantifiedVars: Seq[CVar]): Seq[CVar] = valueVars.diff(quantifiedVars)
 
-    def ppQuantified(quantifiedVars: Seq[CVar], depth: Int = 0): String = {
+    def ppQuantified(quantifiedVars: Seq[CVar], depth: Int = 0, gamma: CGamma = Map.empty): String = {
       val builder = new StringBuilder()
 
       val valueEx = existentials(quantifiedVars)
       val heapEx = heapVars
       if (valueEx.nonEmpty) {
-        builder.append(s"exists ${valueEx.map(v => inferredTypes.get(v).map(t => s"(${v.pp} : ${t.pp})").getOrElse(v.pp)).mkString(" ")},\n")
+        builder.append(s"exists ${valueEx.map(v => gamma.get(v).map(t => s"(${v.pp} : ${t.pp})").getOrElse(v.pp)).mkString(" ")},\n")
       }
       if (heapEx.nonEmpty) {
         builder.append(s"exists ${heapEx.map(_.pp).mkString(" ")},\n")
@@ -36,27 +36,6 @@ object Sentences {
 
     val heapVars: Seq[CVar] =
       sigma.heapVars
-
-    val inferredTypes: Map[CVar, HTTType] = {
-      def collectPhi(el: CExpr, m: Map[CVar, HTTType]): Map[CVar, HTTType] = el match {
-        case CSetLiteral(elems) => m ++ elems.filter(_.isInstanceOf[CVar]).map { case v: CVar => v -> CNatType }
-        case CBinaryExpr(COpSetEq | COpUnion, left: CVar, right: CVar) => m ++ Map(left -> CNatSeqType, right -> CNatSeqType)
-        case CBinaryExpr(COpSetEq | COpUnion, left: CVar, right) => collectPhi(right, m + (left -> CNatSeqType))
-        case CBinaryExpr(COpSetEq | COpUnion, left, right: CVar) => collectPhi(left, m + (right -> CNatSeqType))
-        case CBinaryExpr(COpUnion, left, right) => collectPhi(right, collectPhi(left, m))
-        case _ => m
-      }
-      def collectSigma: Map[CVar, HTTType] = {
-        val ptss = sigma.ptss
-        ptss.foldLeft[Map[CVar, HTTType]](Map.empty){
-          case (acc, CPointsTo(loc: CVar, _, _)) => acc ++ Map(loc -> CPtrType)
-          case (acc, _) => acc
-        }
-      }
-      val mPhi = collectPhi(phi, Map.empty)
-      val mSigma = collectSigma
-      mPhi ++ mSigma
-    }
   }
 
   case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CExpr]) extends PrettyPrinting {
@@ -64,11 +43,16 @@ object Sentences {
       CInductiveClause(pred, idx, selector.subst(sub), asn.subst(sub), existentials.map(_.subst(sub)))
   }
 
-  case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause]) extends PrettyPrinting {
+  case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause], gamma: CGamma) extends PrettyPrinting {
     val paramVars: Seq[CVar] = params.map(_._2)
 
     def subst(sub: Subst): CInductivePredicate =
-      CInductivePredicate(name, params.map(p => (p._1, p._2.substVar(sub))), clauses.map(_.subst(sub)))
+      CInductivePredicate(
+        name,
+        params.map(p => (p._1, p._2.substVar(sub))),
+        clauses.map(_.subst(sub)),
+        gamma.map(g => (g._1.substVar(sub), g._2))
+      )
 
     override def pp: String = {
       val builder = new StringBuilder()
@@ -77,7 +61,7 @@ object Sentences {
       // clauses
       val clausesStr = for {
         CInductiveClause(pred, idx, selector, asn, _) <- clauses
-      } yield s"| $pred$idx of ${selector.pp} of\n${asn.ppQuantified(paramVars, 1)}"
+      } yield s"| $pred$idx of ${selector.pp} of\n${asn.ppQuantified(paramVars, 1, gamma)}"
 
       builder.append(s"${clausesStr.mkString("\n")}.\n")
       builder.toString()

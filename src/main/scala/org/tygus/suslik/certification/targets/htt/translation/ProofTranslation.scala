@@ -1,6 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.targets.htt.language.Expressions.CVar
 import org.tygus.suslik.certification.targets.htt.logic.Proof._
 import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
 import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
@@ -37,7 +38,7 @@ object ProofTranslation {
       case Free(v) =>
         val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
         assert(block.nonEmpty)
-        (FreeStep(block.get.sz), cenv)
+        (FreeStep(CVar(v.name), block.get.sz), cenv)
       case Call(_, _, _) =>
         assert(item.node.goal.callGoal.isDefined)
         val callGoal = item.node.goal.callGoal.get

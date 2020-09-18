@@ -60,7 +60,7 @@ object Statements {
                 s"dealloc ${v.pp}"
               }
             }
-            builder.append(s"$indent${deallocs.mkString(s";;\n${mkSpaces(depth)}")}")
+            builder.append(s"$indent${deallocs.mkString(s";;\n$indent")}")
           case CStore(to, off, e) =>
             val t = if (off <= 0) to.pp else s"(${to.pp} .+ $off)"
             val v = if (e == CNatConst(0)) "null" else e.pp

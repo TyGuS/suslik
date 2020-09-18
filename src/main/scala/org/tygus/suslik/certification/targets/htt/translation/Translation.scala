@@ -24,7 +24,11 @@ object Translation {
     */
   def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
     (Map[String, CInductivePredicate], CFunSpec, Proof, CProcedure) = {
-    val cpreds = env.predicates.mapValues(p => translateInductivePredicate(p.resolveOverloading(env)))
+    val cpreds = env.predicates.mapValues(p => {
+      val gamma = p.resolve(p.params.toMap, env).get
+      val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
+      translateInductivePredicate(p1, gamma)
+    })
     val goal = translateGoal(node.goal)
     val initialCEnv = CEnvironment(goal, cpreds)
     val proof = ProofTranslation.translate(node, initialCEnv)
@@ -32,8 +36,9 @@ object Translation {
     (cpreds, goal.toFunspec, proof, cproc)
   }
 
-  private def translateInductivePredicate(el: InductivePredicate): CInductivePredicate = {
+  private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {
     val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
+    val cGamma = gamma.map { case (v, t) => (CVar(v.name), translateType(t))}
 
     val cClauses = el.clauses.zipWithIndex.map { case (c, idx) =>
       val selector = translateExpr(c.selector)
@@ -42,7 +47,7 @@ object Translation {
       // Include the clause number so that we can use Coq's `constructor n` tactic
       CInductiveClause(el.name, idx + 1, selector, asn, asn.existentials(cParams.map(_._2)))
     }
-    CInductivePredicate(el.name, cParams, cClauses)
+    CInductivePredicate(el.name, cParams, cClauses, cGamma)
   }
 
   def translateParam(el: (Var, SSLType)): (HTTType, CVar) =

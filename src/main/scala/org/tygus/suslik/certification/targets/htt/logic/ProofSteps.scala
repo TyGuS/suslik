@@ -240,10 +240,10 @@ object ProofSteps {
     * Free a memory block of size `sz`
     * @param size the size of the block to free
     */
-  case class FreeStep(size: Int) extends ProofStep {
+  case class FreeStep(v: CVar, size: Int) extends ProofStep {
     override def pp: String = {
       // In HTT, each location offset needs to be freed individually
-      val deallocStmts = (1 to size).map(_ => "ssl_dealloc.")
+      val deallocStmts = (0 until size).map(i => s"ssl_dealloc (${v.pp}${if (i == 0) "" else s" .+ $i"}).")
       s"${deallocStmts.mkString("\n")}\n"
     }
   }
