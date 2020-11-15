@@ -77,7 +77,6 @@ OLD_BENCHMARKS = [
     Benchmark('sll-bounds/sll-max', 'max', ['natural'], stime=0.6, scode=27),
     Benchmark('sll-bounds/sll-min', 'min', ['natural'], stime=0.5, scode=27),
     Benchmark('sll/sll-singleton', 'singleton', ['jennisys'], stime=0.0, scode=11),
-    Benchmark('sll/sll-dupleton', 'two-elem list', ['jennisys']),
     Benchmark('sll/sll-free', 'dispose', stime=0.0, scode=11),
     Benchmark('sll/sll-init', 'initialize', stime=0.0, scode=13),
     Benchmark('sll/sll-copy', 'copy', ['dryad'], stime=0.2, scode=35),
@@ -110,12 +109,13 @@ OLD_BENCHMARKS = [
 ]
 
 class SynthesisResult:
-  def __init__(self, name, time, spec_size, num_procs, code_size, total_goals, backtracked):
+  def __init__(self, name, time, spec_size, num_procs, code_size, statements, total_goals, backtracked):
     self.name = name                                      # Benchmark name
     self.time = time                                      # Synthesis time (seconds)
     self.spec_size = spec_size                            # Cumulative specification size (in AST nodes)
     self.num_procs = num_procs                            # Number of generated recursive procedures
     self.code_size = code_size                            # Cumulative synthesized code size (in AST nodes)
+    self.statements = statements                          # Number of statements
     self.total_goals = total_goals
     self.backtracked = backtracked
     self.variant_times = {var : -3.0 for var in VARIANTS} # Synthesis times for SuSLik variants:
@@ -167,6 +167,7 @@ def read_csv():
       spec_size = row['Spec Size']
       num_procs = row['Num Procs']
       code_size = row['Code Size']
+      statements = row['Num Statements']
       total_goals = row['Goals generated']
       backtracked = row['And-nodes backtracked']
       
@@ -176,15 +177,15 @@ def read_csv():
           # This is a test for a variant
           is_var = True
           suffix_len = len(var) + 1
-          store_result(name[:-suffix_len], time, spec_size, num_procs, code_size, total_goals, backtracked, var)
+          store_result(name[:-suffix_len], time, spec_size, num_procs, code_size, statements, total_goals, backtracked, var)
       if not is_var:
-        store_result(name, time, spec_size, num_procs, code_size, total_goals, backtracked)
+        store_result(name, time, spec_size, num_procs, code_size, statements, total_goals, backtracked)
       
-def store_result(name, time, spec_size, num_procs, code_size, total_goals, backtracked, variant = 'none'):
+def store_result(name, time, spec_size, num_procs, code_size, statements, total_goals, backtracked, variant = 'none'):
   timeOrTO = -1.0 if num_procs == 'FAIL' else time
   
   if not(name in results):
-    results[name] = SynthesisResult(name, timeOrTO, spec_size, num_procs, code_size, total_goals, backtracked)
+    results[name] = SynthesisResult(name, timeOrTO, spec_size, num_procs, code_size, statements, total_goals, backtracked)
   
   if variant == 'none':
     results[name].time = timeOrTO
@@ -192,6 +193,7 @@ def store_result(name, time, spec_size, num_procs, code_size, total_goals, backt
     results[name].backtracked = backtracked
     results[name].num_procs = num_procs
     results[name].code_size = code_size
+    results[name].statements = statements
   else:
     results[name].variant_times[variant] = timeOrTO
     results[name].variant_total_goals[variant] = total_goals
@@ -230,6 +232,7 @@ def write_latex():
         row = \
           ' & ' + b.description + footnotes(b.source) +\
           ' & ' + result.num_procs + render_marks(b.marks) + \
+          ' & ' + result.statements + \
           ' & ' + result.code_size + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
           ' & ' + format_time(result.time) + \
