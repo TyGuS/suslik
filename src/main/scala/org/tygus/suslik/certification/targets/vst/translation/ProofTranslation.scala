@@ -39,7 +39,7 @@ object ProofTranslation {
       throw ProofRuleTranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
     }
 
-    def fail_with_bad_children(ls: List[CertTree.Node], count: Int): Nothing = {
+    def fail_with_bad_children(ls: Seq[CertTree.Node], count: Int): Nothing = {
       throw ProofRuleTranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != ${count}")
     }
 
