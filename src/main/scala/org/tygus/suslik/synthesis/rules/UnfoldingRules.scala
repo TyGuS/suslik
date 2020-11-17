@@ -24,15 +24,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
-    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
+    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], SApp, SubstVar)] = {
       val pre = goal.pre
       val env = goal.env
 
       h match {
-        case SApp(pred, args, PTag(cls, unf), card) if unf < env.config.maxOpenDepth =>
+        case h@SApp(pred, args, PTag(cls, unf), card) if unf < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
-          val (InductivePredicate(_, params, clauses), _) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
+          val (InductivePredicate(_, params, clauses), fresh_sbst) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
           // [Cardinality] adjust cardinality of sub-clauses
           val sbst = params.map(_._1).zip(args).toMap + (selfCardVar -> card)
           val remainingSigma = pre.sigma - h
@@ -52,7 +52,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
-          if (noGhosts) Some((newGoals, h)) else None
+          if (noGhosts) Some((newGoals, h, fresh_sbst)) else None
         case _ => None
       }
     }
@@ -62,9 +62,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         heaplet <- goal.pre.sigma.chunks
         s <- mkInductiveSubGoals(goal, heaplet) match {
           case None => None
-          case Some((selGoals, heaplet)) =>
+          case Some((selGoals, heaplet, fresh_subst)) =>
             val (selectors, subGoals) = selGoals.unzip
-            val kont = BranchProducer(selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = BranchProducer(Some (heaplet, fresh_subst), selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, this, goal))
         }
       } yield s

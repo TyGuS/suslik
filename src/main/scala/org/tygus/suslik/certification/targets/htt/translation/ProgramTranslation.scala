@@ -46,7 +46,7 @@ object ProgramTranslation {
       case PrependProducer(s) =>
         val stmt = translateOperation(s)
         PrependCStmtProducer(stmt)
-      case BranchProducer(selectors) =>
+      case BranchProducer(_, selectors) =>
         BranchCStmtProducer(selectors.map(translateExpr))
       case GuardedProducer(cond, _) =>
         GuardedCStmtProducer(translateExpr(cond))
