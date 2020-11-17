@@ -174,4 +174,4 @@ case class SubstProducer(subst: Subst) extends StmtProducer with Noop
 case class GhostSubstProducer(subst: SubstVar) extends StmtProducer with Noop
 
 // Captures an unfolded predicate application
-case class UnfoldProducer(app: SApp, selector: Expr, substPred: SubstVar, substEx: SubstVar, substArgs: Subst) extends StmtProducer with Noop
+case class UnfoldProducer(app: SApp, selector: Expr, asn: Assertion, substEx: SubstVar) extends StmtProducer with Noop

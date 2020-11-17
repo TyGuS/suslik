@@ -41,8 +41,8 @@ object Debug {
       s"GuardedProducer[${stmtProducer.arity}] {\n cond=${cond.pp}\n goal=${goal.pp}\n}"
     case SubstProducer(subst) => s"SubstProducer[${stmtProducer.arity}](${subst.toString})"
     case GhostSubstProducer(subst) => s"GhostSubstProducer[${stmtProducer.arity}](${subst.toString})"
-    case UnfoldProducer(app, selector, substPred, substEx, substArgs) =>
-      s"UnfoldProducer[${stmtProducer.arity}] {\n app=${app.pp}\n selector=${selector.pp}\n substPred=${substPred.toString}\n substEx=${substEx.toString}\n substArgs=${substArgs.map(_.toString()).mkString("; ")}\n}"
+    case UnfoldProducer(app, selector, asn, substEx) =>
+      s"UnfoldProducer[${stmtProducer.arity}] {\n app=${app.pp}\n selector=${selector.pp}\n asn=${asn.toString}\n substEx=${substEx.toString}\n}"
   }
 
 

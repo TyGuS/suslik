@@ -2,6 +2,7 @@ package org.tygus.suslik.certification.targets.vst.logic
 import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Subst, SubstVar, Var}
 import org.tygus.suslik.language.{PrettyPrinting, SSLType, Statements}
 import org.tygus.suslik.language.Statements.{Load, Skip, Store}
+import org.tygus.suslik.logic.Specifications.Assertion
 import org.tygus.suslik.logic.{Heaplet, PFormula, PointsTo, SApp, SFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.{DelegatePureSynthesis, FailRules, LogicalRules, OperationalRules, UnificationRules}
 import org.tygus.suslik.synthesis.{AppendProducer, BranchProducer, ChainedProducer, ConstProducer, ExtractHelper, GhostSubstProducer, GuardedProducer, HandleGuard, IdProducer, PartiallyAppliedProducer, PrependFromSketchProducer, PrependProducer, SeqCompProducer, StmtProducer, SubstProducer, UnfoldProducer}
@@ -134,8 +135,8 @@ case class AbduceCall(
   }
 
   /** close rule */
-  case class Close(app: SApp, selector: Expr, pred_subst: SubstVar, fresh_exist: SubstVar, subst_args: Subst, next: ProofRule) extends  ProofRule {
-    override def pp: String = s"${ind}Close(${app.pp}, ${sanitize(selector.pp)}, {${pred_subst.mkString(",")}}, {${fresh_exist.mkString(",")}, {${subst_args.mkString(",")});\n${next.pp}"
+  case class Close(app: SApp, selector: Expr, asn: Assertion, fresh_exist: SubstVar, next: ProofRule) extends  ProofRule {
+    override def pp: String = s"${ind}Close(${app.pp}, ${sanitize(selector.pp)}, ${asn.pp}, {${fresh_exist.mkString(",")}});\n${next.pp}"
   }
 
   /** star partial */

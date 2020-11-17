@@ -318,10 +318,10 @@ object ProofTranslation {
         case _ => fail_with_bad_proof_structure()
       }
       case UnfoldingRules.Close => node.kont match {
-        case ChainedProducer(ChainedProducer(ChainedProducer(UnfoldProducer(app, selector, pred_subst, fresh_exist, subst_args), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(UnfoldProducer(app, selector, asn, fresh_exist), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
             case ::(head, Nil) =>
-              ProofRule.Close(app, selector, pred_subst, fresh_exist, subst_args, proof_rule_of_proof_node(head))
+              ProofRule.Close(app, selector, asn, fresh_exist, proof_rule_of_proof_node(head))
             case ls => fail_with_bad_children(ls, 1)
           }
       }
@@ -566,7 +566,7 @@ object ProofTranslation {
                   case ProofRule.HeapUnify(next) => is_variable_used_in_proof(variable)(next)
                   case ProofRule.HeapUnifyPointer(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
                   case ProofRule.FrameUnfold(h_pre, h_post, next) => is_variable_used_in_proof(variable)(next)
-                  case ProofRule.Close(app, selector, pred_subst, fresh_exist, subst_args, next) =>
+                  case ProofRule.Close(app, selector, asn, fresh_exist, next) =>
                     is_variable_used_in_proof(variable)(next)
                   case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) =>
                     is_variable_used_in_proof(variable)(next)
@@ -618,7 +618,7 @@ object ProofTranslation {
         case ProofRule.Free(Free(Var(name)), size, next) =>
           ProofSteps.Free(name, size, translate_proof_rules(next)(context))
         case ProofRule.Malloc(map, stmt, next) => ???
-        case ProofRule.Close(app, selector, pred_subst, fresh_exist, subst_args, next) => ???
+        case ProofRule.Close(app, selector, asn, fresh_exist, next) => ???
         case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => ???
         case ProofRule.PickCard(next) => ???
         case ProofRule.PickArg(map, next) => ???
