@@ -39,6 +39,7 @@ class HTTCertificationTests extends FunSpec with Matchers with SynthesisRunnerUt
     runAllTestsFromDir("certification/tree")
     runAllTestsFromDir("certification/sll")
     runAllTestsFromDir("certification/dll")
+    runAllTestsFromDir("certification/bst")
   }
 
 }

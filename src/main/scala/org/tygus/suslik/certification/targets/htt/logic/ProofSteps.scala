@@ -174,6 +174,8 @@ object ProofSteps {
       */
     def simplify: ProofStep = {
       (s1, s2) match {
+        case (ErrorStep, _) => s2
+        case (_, ErrorStep) => s1
         case (ReadStep(to, _), _) => simplifyBinding(to)
 //        case (WriteStep(to), _) => simplifyBinding(to)
 //        case (AllocStep(to, _, _), _) => simplifyBinding(to)
@@ -357,4 +359,6 @@ object ProofSteps {
       builder.toString()
     }
   }
+
+  case object ErrorStep extends ProofStep
 }

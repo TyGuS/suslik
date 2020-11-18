@@ -52,6 +52,8 @@ object ProofTranslation {
         val cgoal = cenv.initialGoal.subst(companionToFresh).subst(freshToActual)
 
         (CallStep(cgoal, freshCallId), cenv)
+      case Error =>
+        (ErrorStep, cenv)
       case _ => throw TranslationException("Operation not supported")
     }
 
@@ -131,6 +133,7 @@ object ProofTranslation {
       case Some(childHead) =>
         traverseProof(childHead, nextKont)
       case None =>
+        if (item.node.rule == Inconsistency) {}
         nextKont(Nil)
     }
   }

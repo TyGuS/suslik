@@ -102,6 +102,8 @@ object Statements {
 
   trait ReturnsValue
 
+  case object CError extends CStatement
+
   case object CSkip extends CStatement
 
   case class CMalloc(to: CVar, tpe: HTTType, sz: Int = 1) extends CStatement with ReturnsValue
