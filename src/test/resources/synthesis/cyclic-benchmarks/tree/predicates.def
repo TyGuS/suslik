@@ -11,7 +11,7 @@ predicate tree(loc x, set s) {
 }
 
 predicate dll(loc x, loc z, set s) {
-|  x == 0 => { s =i {} ; emp }
+|  x == 0 => { s == {} ; emp }
 |  not (x == 0) =>
-   { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dll(w, x, s1) }
+   { s == {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dll(w, x, s1) }
 }

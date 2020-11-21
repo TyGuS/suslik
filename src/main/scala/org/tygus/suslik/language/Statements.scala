@@ -296,7 +296,7 @@ object Statements {
 
       val unusedArgs = unusedParams.map(_._1)
       def removeUnusedArgs(c:Call): Call = {
-        val newArgs = c.args.filterNot(a => unusedArgs.contains(c.args.indexOf(a)))
+        val newArgs = c.args.indices.filterNot(unusedArgs.contains(_)).map(i => c.args(i))
         c.copy(args = newArgs)
       }
       def removeCallArgs(s: Statement): Statement = if (isRecCall(s)) {

@@ -4,7 +4,7 @@ should be able to deallocate a multi-list
 
 ###
 
-{ multilist(x, len, s)<a> }
+{ multilist(x, len, s) }
   void multilist_free(loc x)
 { emp }
 

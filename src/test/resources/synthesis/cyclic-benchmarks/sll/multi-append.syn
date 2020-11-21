@@ -1,11 +1,11 @@
-# -x true --lexi true -p true
+# -x true -p true
 append multiple lists 
 
 ###
 
-{true; r :-> a ** sll(x, s1) ** sll(y, s2) ** sll(z, s3)}
+{r :-> a ** sll(x, s1) ** sll(y, s2) ** sll(z, s3)}
   void append3(loc x, loc y, loc z, loc r)
-{s =i s1 ++ s2 ++ s3; r :-> v ** sll(v, s) }
+{s == s1 ++ s2 ++ s3; r :-> v ** sll(v, s) }
 
 ###
 

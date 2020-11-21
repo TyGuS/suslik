@@ -1,11 +1,11 @@
-# -x true --lexi true
+# -x true
 Deallocate two trees
 
 ###
 
-{true; tree(x, s1) ** tree(y, s2)}
+{tree(x, s1) ** tree(y, s2)}
   void treefree2(loc x, loc y)
-{true ; emp }
+{emp }
 
 ###
 

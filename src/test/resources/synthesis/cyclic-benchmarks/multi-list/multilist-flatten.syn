@@ -4,7 +4,7 @@ should be able to flatten a multi-list into a sll
 
 ###
 
-{ r :-> x ** multilist(x, len, s)<a> }
+{ r :-> x ** multilist(x, len, s) }
   void multilist_flatten(loc r)
 { r :-> y ** sll(y, len, s) }
 
