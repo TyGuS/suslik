@@ -96,7 +96,7 @@ OLD_BENCHMARKS = [
     Benchmark('bst/bst-insert', 'insert', ['suslik','natural'], stime=31.9, scode=58),
     Benchmark('bst/bst-left-rotate', 'rotate left', ['suslik','natural'], stime=37.7, scode=15),
     Benchmark('bst/bst-right-rotate', 'rotate right', ['suslik','natural'], stime=17.2, scode=15),
-    Benchmark('bst/bst-delete-root', 'delete', ['natural']),
+    Benchmark('bst/bst-delete-root', 'delete root', ['natural']),
     ]),
   BenchmarkGroup("Doubly Linked List", [
     Benchmark('dll/dll-copy', 'copy'),
@@ -130,8 +130,6 @@ def var_option(var):
     return '--memo false'
     
 def format_time(t):
-  if t < -3.0:
-    return 'N/A'
   if t < 0:
     return '-'
   if t < 0.1:
@@ -385,18 +383,19 @@ if __name__ == '__main__':
     clean_variants()
   else:        
     # Read stats into a dictionary of synthesis results
-    read_csv()
+    # read_csv()
     
     # for res in results:
       # print results[res].str()
     
     # Generate Latex table
-    write_latex()
+    # write_latex()
+    # write_latex()
     
-  # results = dict()
-  # groups = OLD_BENCHMARKS
-  # read_csv()
-  # write_latex_old()
+    # results = dict()
+    groups = OLD_BENCHMARKS
+    read_csv()
+    write_latex_old()
     
     
 

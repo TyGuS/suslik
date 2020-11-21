@@ -1,4 +1,4 @@
-# -c 2 -p true
+# -c 2 -p true -t 3600000
 
 binary search tree: delete root
 
