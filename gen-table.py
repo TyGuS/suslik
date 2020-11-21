@@ -46,7 +46,7 @@ NEW_BENCHMARKS = [
     ]),    
   BenchmarkGroup("Binary Tree", [
     Benchmark('tree/treefree2', 'deallocate two'),
-    Benchmark('tree/tree-flatten', 'flatten', marks=['M']),
+    Benchmark('tree/tree-flatten', 'flatten'),
     Benchmark('tree/tree-flatten-dll', 'flatten to dll in place', marks=['M']),
     ]),
   BenchmarkGroup("Rose Tree", [

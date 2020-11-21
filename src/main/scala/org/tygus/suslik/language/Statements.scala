@@ -1,7 +1,7 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.{Formals, FunSpec, Gamma}
 import org.tygus.suslik.logic.Specifications.GoalLabel
+import org.tygus.suslik.logic.{Formals, FunSpec, Gamma}
 import org.tygus.suslik.util.StringUtil._
 
 /**
@@ -126,6 +126,14 @@ object Statements {
       case Guarded(cond, b, eb, l) => Guarded(cond.subst(sigma), b.subst(sigma), eb.subst(sigma), l)
       case _ => this
     }
+
+    def mapAtomic(f: Statement => Statement): Statement = this match {
+      case SeqComp(s1, s2) => SeqComp(s1.mapAtomic(f), s2.mapAtomic(f))
+      case If(cond, tb, eb) => If(cond, tb.mapAtomic(f), eb.mapAtomic(f))
+      case Guarded(cond, b, eb, l) => Guarded(cond, b.mapAtomic(f), eb.mapAtomic(f), l)
+      case _ => f(this)
+    }
+
 
     // Statement size in AST nodes
     def size: Int = this match {
@@ -270,6 +278,36 @@ object Statements {
          |${tp.pp} $name (${formals.map { case (i, t) => s"${t.pp} ${i.pp}" }.mkString(", ")}) {
          |${body.pp}}
     """.stripMargin
+
+    def removeUnusedParams(outerCall: Call): (Procedure, Call) = {
+
+      def isRecCall(s: Statement) = s.isInstanceOf[Call] && s.asInstanceOf[Call].fun.name == f.name
+      val recCalls = body.atomicStatements.filter(isRecCall).map(_.asInstanceOf[Call])
+      val rest = body.mapAtomic(s => if (isRecCall(s)) Skip else s)
+
+      def rmAtIndex(args: Seq[Expr], i: Int): Seq[Expr] = args.take(i) ++ args.drop(i + 1)
+
+      val unusedParams = for {
+        param <- f.params
+        if !rest.vars.contains(param._1)
+        ind = f.params.indexOf(param)
+        if recCalls.forall(c => !rmAtIndex(c.args, ind).flatMap(_.vars).contains(param._1))
+      } yield (ind, param)
+
+      val unusedArgs = unusedParams.map(_._1)
+      def removeUnusedArgs(c:Call): Call = {
+        val newArgs = c.args.filterNot(a => unusedArgs.contains(c.args.indexOf(a)))
+        c.copy(args = newArgs)
+      }
+      def removeCallArgs(s: Statement): Statement = if (isRecCall(s)) {
+        removeUnusedArgs(s.asInstanceOf[Call])
+      } else s
+
+      val usedParams = f.params.filterNot(p => unusedParams.map(_._2).contains(p))
+      val newProc = this.copy(f = this.f.copy(params = usedParams), body = this.body.mapAtomic(removeCallArgs))
+      val newCall = removeUnusedArgs(outerCall)
+      (newProc, newCall)
+    }
 
   }
 

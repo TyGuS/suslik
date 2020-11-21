@@ -158,7 +158,7 @@ object Specifications extends SepLogicUtils {
     }
 
     // Turn this goal into a helper function call
-    def toCall: Statement = {
+    def toCall: Call = {
       val f = this.toFunSpec
       Call(Var(f.name), f.params.map(_._1), None)
     }

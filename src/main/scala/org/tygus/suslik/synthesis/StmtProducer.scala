@@ -124,8 +124,8 @@ case class ExtractHelper(goal: Goal) extends StmtProducer {
     val (stmt, helpers) = sols.head
     if (stmt.companions.contains(goal.label) && !goal.isTopLevel) {
       val f = goal.toFunSpec
-      val newHelper = Procedure(f, stmt)
-      (goal.toCall, newHelper :: helpers)
+      val (newHelper, newCall) = Procedure(f, stmt).removeUnusedParams(goal.toCall)
+      (newCall, newHelper :: helpers)
     } else
       (stmt, helpers)
   }
