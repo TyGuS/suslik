@@ -88,7 +88,9 @@ object Translation {
   def translatePointsTo(el: PointsTo): CPointsTo = CPointsTo(translateExpr(el.loc), el.offset, translateExpr(el.value))
 
   def translateAsn(el: Assertion): CAssertion = {
-    val phi = translateExpr(el.phi.toExpr).simplify
+    val conjuncts = el.phi.conjuncts.toSeq.map(c => translateExpr(c).simplify).filterNot(_.isCard)
+    val f = (a1: CExpr, a2: CExpr) => CBinaryExpr(COpAnd, a1, a2)
+    val phi = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce(f)
     val sigma = translateSFormula(el.sigma)
     CAssertion(phi, sigma)
   }

@@ -111,7 +111,7 @@ object Expressions {
   }
 
   case class CIfThenElse(cond: CExpr, left: CExpr, right: CExpr) extends CExpr {
-    override def pp: String = s"if ${cond.pp} then ${left.pp} else ${right.pp}"
+    override def pp: String = s"(if ${cond.pp} then ${left.pp} else ${right.pp})"
   }
 
   case class CBinaryExpr(op: CBinOp, left: CExpr, right: CExpr) extends CExpr {

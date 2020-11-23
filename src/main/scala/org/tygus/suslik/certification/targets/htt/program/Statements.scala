@@ -48,7 +48,7 @@ object Statements {
       def build(s: CStatement, depth: Int = 0) : Unit = {
         val indent = getIndent(depth)
         s match {
-          case CSkip =>
+          case CSkip | CError =>
             builder.append(s"${indent}ret tt")
           case CMalloc(to, _, sz) =>
             builder.append(s"$indent${to.pp} <-- allocb null $sz")

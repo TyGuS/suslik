@@ -31,8 +31,8 @@ object ProofTranslation {
         val postEx = goal.existentials.map(_.subst(cenv.subst))
         val unfoldings = cenv.unfoldings.map { case (app, c) => app.subst(cenv.subst) -> c.subst(cenv.subst) }
         (EmpStep(post, postEx, unfoldings), cenv)
-      case Load(to, _, from, _) =>
-        (ReadStep(translateVar(to), translateVar(from)), cenv)
+      case Load(to, _, from, off) =>
+        (ReadStep(translateVar(to), translateVar(from), off), cenv)
       case Store(to, offset, e) =>
         val frame = item.node.goal.callGoal.isEmpty
         (WriteStep(translateVar(to), offset, translateExpr(e), frame), cenv)

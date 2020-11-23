@@ -52,7 +52,9 @@ object ProofSteps {
         if (nested) {
           builder.append(s"move=>${nestedDestructL(ex)}.\n")
         } else {
-          builder.append(s"ex_elim ${ex.map(_.pp).mkString(" ")}.\n")
+          ex.map(_.pp).grouped(5).foreach { s =>
+            builder.append(s"ex_elim ${s.mkString(" ")}.\n")
+          }
         }
       }
     }
@@ -142,7 +144,7 @@ object ProofSteps {
       def collector(acc: Set[CVar])(st: ProofStep): Set[CVar] = st match {
         case WriteStep(to, _, e, _) =>
           acc ++ to.vars ++ e.vars
-        case ReadStep(to, from) =>
+        case ReadStep(to, from, _) =>
           acc ++ to.vars ++ from.vars
         case AllocStep(to, _, _) =>
           acc ++ to.vars
@@ -176,7 +178,7 @@ object ProofSteps {
       (s1, s2) match {
         case (ErrorStep, _) => s2
         case (_, ErrorStep) => s1
-        case (ReadStep(to, _), _) => simplifyBinding(to)
+        case (ReadStep(to, _, _), _) => simplifyBinding(to)
 //        case (WriteStep(to), _) => simplifyBinding(to)
 //        case (AllocStep(to, _, _), _) => simplifyBinding(to)
         case _ => this
@@ -217,12 +219,16 @@ object ProofSteps {
     * Perform a read
     * @param to the dst variable
     * @param from the src variable
+    * @param offset the src offset
     */
-  case class ReadStep(to: CVar, from: CVar) extends ProofStep {
+  case class ReadStep(to: CVar, from: CVar, offset: Int) extends ProofStep {
     override def refreshGhostVars(sbst: SubstVar): ReadStep =
-      ReadStep(to.substVar(sbst), from.substVar(sbst))
+      ReadStep(to.substVar(sbst), from.substVar(sbst), offset)
 
-    override def pp: String = "ssl_read.\n"
+    override def pp: String = {
+      val ptr = if (offset == 0) from.pp else s"(${from.pp} .+ $offset)"
+      s"ssl_read $ptr.\n"
+    }
   }
 
   /**
