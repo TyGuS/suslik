@@ -56,6 +56,7 @@ object Expressions {
     override def pp: String = "=="
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpEq,
+      (LocType, LocType) -> OpEq,
       (IntSetType, IntSetType) -> OpSetEq,
       (BoolType, BoolType) -> OpBoolEq,
     )
@@ -245,6 +246,7 @@ object Expressions {
       def collector(acc: Set[R])(exp: Expr): Set[R] = exp match {
         case v@Var(_) if p(v) => acc + v.asInstanceOf[R]
         case c@IntConst(_) if p(c) => acc + c.asInstanceOf[R]
+        case c@LocConst(_) if p(c) => acc + c.asInstanceOf[R]
         case c@BoolConst(_) if p(c) => acc + c.asInstanceOf[R]
         case b@BinaryExpr(_, l, r) =>
           val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
@@ -315,6 +317,7 @@ object Expressions {
         }
       }
       case BoolConst(_) => if (BoolType.conformsTo(target)) Some(gamma) else None
+      case LocConst(_) => if (LocType.conformsTo(target)) Some(gamma) else None
       case IntConst(_) => if (IntType.conformsTo(target)) Some(gamma) else None
       case UnaryExpr(op, e) => op match {
         case OpNot => if (BoolType.conformsTo(target)) e.resolve(gamma, Some(BoolType)) else None
@@ -408,6 +411,7 @@ object Expressions {
           expr.right.resolveOverloading(gamma))
       case Var(_)
       | BoolConst(_)
+      | LocConst(_)
       | IntConst(_)  => this
       case UnaryExpr(op, e) => UnaryExpr(op, e.resolveOverloading(gamma))
       case BinaryExpr(op, l, r) => BinaryExpr(op, l.resolveOverloading(gamma), r.resolveOverloading(gamma))
@@ -448,16 +452,15 @@ object Expressions {
     def subst(sigma: Subst): Expr = this
   }
 
-  case class IntConst(value: Integer) extends Const(value) {
-    /**
-      * Let's have this instead of the dedicated Nil constructor
-      */
-    def isNull: Boolean = value == 0
-
-    def getType(gamma: Gamma): Option[SSLType] = Some(IntType)
+  case class LocConst(value: Integer) extends Const(value) {
+    def getType(gamma: Gamma): Option[SSLType] = Some(LocType)
   }
 
-  val NilPtr = IntConst(0)
+  val NilPtr = LocConst(0)
+
+  case class IntConst(value: Integer) extends Const(value) {
+    def getType(gamma: Gamma): Option[SSLType] = Some(IntType)
+  }
 
   case class BoolConst(value: Boolean) extends Const(value) {
     def getType(gamma: Gamma): Option[SSLType] = Some(BoolType)

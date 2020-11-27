@@ -43,6 +43,7 @@ trait PureLogicUtils {
     case BinaryExpr(op, left, right) => BinaryExpr(op, propagate_not(left), propagate_not(right))
     case OverloadedBinaryExpr(op, e1, e2) => OverloadedBinaryExpr(op, propagate_not(e1), propagate_not(e2))
     case _:IntConst => e
+    case _:LocConst => e
     case _:BoolConst => e
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(propagate_not(e1),propagate_not(e2), propagate_not(e3))
@@ -64,6 +65,7 @@ trait PureLogicUtils {
     case OverloadedBinaryExpr(op, e1, e2) => OverloadedBinaryExpr(op, desugar(e1), desugar(e2))
     case UnaryExpr(op, e1) => UnaryExpr(op, desugar(e1))
     case _:IntConst => e
+    case _:LocConst => e
     case _:BoolConst => e
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(desugar(e1),desugar(e2), desugar(e3))

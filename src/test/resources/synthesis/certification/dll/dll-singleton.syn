@@ -5,7 +5,7 @@ doubly-linked list: construct a list with one element
 
 { r :-> a }
 void dll_singleton (int x, loc r)
-{ elems =i {x} ; r :-> y ** dll(y, 0, elems) }
+{ elems =i {x} ; r :-> y ** dll(y, null, elems) }
 
 #####
 

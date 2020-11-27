@@ -5,7 +5,7 @@ doubly-linked list: construct a list with two elements
 
 { r :-> a }
 void dll_dupleton (int x, int y, loc r)
-{ elems =i {x, y} ; r :-> z ** dll(z, 0, elems) }
+{ elems =i {x, y} ; r :-> z ** dll(z, null, elems) }
 
 #####
 

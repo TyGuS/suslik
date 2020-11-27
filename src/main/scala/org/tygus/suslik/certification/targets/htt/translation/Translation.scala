@@ -74,6 +74,7 @@ object Translation {
   def translateExpr(el: Expr): CExpr = el match {
     case Var(name) => CVar(name)
     case BoolConst(value) => CBoolConst(value)
+    case LocConst(value) => CPtrConst(value)
     case IntConst(value) => CNatConst(value)
     case el@UnaryExpr(_, _) => translateUnaryExpr(el)
     case el@BinaryExpr(_, _, _) => translateBinaryExpr(el)

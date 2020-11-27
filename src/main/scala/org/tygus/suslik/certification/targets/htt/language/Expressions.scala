@@ -15,6 +15,7 @@ object Expressions {
       def collector(acc: Seq[R])(exp: CExpr): Seq[R] = exp match {
         case v@CVar(_) if p(v) => acc :+ v.asInstanceOf[R]
         case c@CNatConst(_) if p(c) => acc :+ c.asInstanceOf[R]
+        case c@CPtrConst(_) if p(c) => acc :+ c.asInstanceOf[R]
         case c@CBoolConst(_) if p(c) => acc :+ c.asInstanceOf[R]
         case b@CBinaryExpr(_, l, r) =>
           val acc1 = if (p(b)) acc :+ b.asInstanceOf[R] else acc
@@ -106,6 +107,10 @@ object Expressions {
     override def pp: String = value.toString
   }
 
+  case class CPtrConst(value: Int) extends CExpr {
+    override def pp: String = if (value == 0) "null" else value.toString
+  }
+
   case class CSetLiteral(elems: List[CExpr]) extends CExpr {
     override def pp: String = if (elems.isEmpty) "nil" else s"[:: ${elems.map(_.pp).mkString("; ")}]"
   }
@@ -128,7 +133,7 @@ object Expressions {
 
   case class CPointsTo(loc: CExpr, offset: Int = 0, value: CExpr) extends CExpr {
     def locPP: String = if (offset == 0) loc.pp else s"${loc.pp} .+ $offset"
-    override def pp: String = if (value == CNatConst(0)) s"$locPP :-> null" else s"$locPP :-> ${value.pp}"
+    override def pp: String = s"$locPP :-> ${value.pp}"
     override def subst(sigma: Subst): CPointsTo =
       CPointsTo(loc.subst(sigma), offset, value.subst(sigma))
   }

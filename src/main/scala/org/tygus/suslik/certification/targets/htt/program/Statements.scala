@@ -63,8 +63,7 @@ object Statements {
             builder.append(s"$indent${deallocs.mkString(s";;\n$indent")}")
           case CStore(to, off, e) =>
             val t = if (off <= 0) to.pp else s"(${to.pp} .+ $off)"
-            val v = if (e == CNatConst(0)) "null" else e.pp
-            builder.append(s"$indent$t ::= $v")
+            builder.append(s"$indent$t ::= ${e.pp}")
           case CLoad(to, tpe, from, off) =>
             val f = if (off <= 0) from.pp else s"(${from.pp} .+ $off)"
             builder.append(s"$indent${to.pp} <-- @read ${tpe.pp} $f")

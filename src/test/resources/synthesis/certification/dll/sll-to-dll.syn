@@ -6,7 +6,7 @@ should be able to convert a singly-linked list to a double-linked list
 
 { f :-> x ** sll(x, s)}
 void sll_to_dll(loc f)
-{ f :-> i ** dll(i, 0, s)}
+{ f :-> i ** dll(i, null, s)}
 
 #######
 
