@@ -88,6 +88,11 @@ object Expressions {
     def vars: Seq[CVar] = collect(_.isInstanceOf[CVar])
 
     def cardVars: Seq[CVar] = collect(_.isInstanceOf[CSApp]).flatMap {v: CSApp => v.card.vars}
+
+    def conjuncts: Seq[CExpr] = collect({
+      case CBinaryExpr(COpAnd, _, _) => true
+      case _ => false
+    })
   }
 
   case class CVar(name: String) extends CExpr {

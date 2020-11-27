@@ -73,7 +73,9 @@ object ProofSteps {
 
       // move pure part to context
       if (!phi.isTrivial) {
-        builder.append(s"move=>[$phiName].\n")
+        val numConjuncts = phi.conjuncts.length
+        val hyps = if (numConjuncts == 0) s"[$phiName]" else (0 to numConjuncts).map(i => s"[$phiName$i]").mkString("")
+        builder.append(s"move=>$hyps.\n")
       }
 
       // move spatial part to context, and then substitute where appropriate
