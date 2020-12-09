@@ -106,6 +106,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     implicit val certTargetRead: scopt.Read[CertificationTarget] =
       scopt.Read.reads {
         case "htt" => htt.HTT
+        case "vst" => vst.VST
         case _ => ???
       }
 
