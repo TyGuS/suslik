@@ -11,7 +11,7 @@ object Evaluator {
                         store: Map[Var, Expr]
                        )
 
-  type Heap = Map[Int, Int]
+  type Heap = Map[Int, Expr]
   // we let memory chunk size = 1 for now... this depends on unit concerned
   // typically addresses are stored in chunks of 8bits/1byte/multiples of 8
   val MEMORY_CHUNK_SIZE = 1
@@ -25,7 +25,6 @@ object Evaluator {
   def evaluate(s: Statement, heap: Heap, store: Subst): Heap = {
     s match {
       case Skip => heap
-      case Error => throw new Exception("statement has an error")
       case SeqComp(s1,s2) => evaluate(s2, evaluate(s1,heap,store), store)
       case Load(to, tpe, from, offset) => {
         val from_as_address = from.subst(store)
@@ -42,6 +41,13 @@ object Evaluator {
           case None => throw new Exception("not supposed to happen")
         }
       }
+      case Store(to, offset, e) => {
+        val to_as_address = to.subst(store) match {
+          case IntConst(x) => x+offset
+          case _ => ???
+        }
+        heap + (to_as_address.asInstanceOf[Int] -> e)
+      }
       case Free(v) =>
         val v_as_address = retrieve(v, store)
         heap - v_as_address
@@ -49,12 +55,13 @@ object Evaluator {
         val to_as_address = retrieve(to, store)
         var new_heap = heap
         //using definition in Expressions that IntConst are null if they have value 0
-        for(i <- 0 to sz){
-          new_heap = new_heap + (i+to_as_address -> 0)
+        for(i <- 0 until sz){
+          new_heap = new_heap + (i+to_as_address -> IntConst(0) )
         }
         new_heap
       }
-      case _ => ???
+      case Error =>
+        Map.empty
     }
   }
 
