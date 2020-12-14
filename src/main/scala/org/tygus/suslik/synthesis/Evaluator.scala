@@ -22,23 +22,29 @@ object Evaluator {
     }
 
   }
-  def evaluate(s: Statement, heap: Heap, store: Subst): Heap = {
+  def evaluate(s: Statement, heap: Heap, store: Subst): (Heap, Subst)= {
     s match {
-      case Skip => heap
-      case SeqComp(s1,s2) => evaluate(s2, evaluate(s1,heap,store), store)
+      case Skip => (heap, store)
+      case SeqComp(s1,s2) => evaluate(s2, evaluate(s1,heap,store)._1, evaluate(s1,heap,store)._2)
       case Load(to, tpe, from, offset) => {
         val from_as_address = from.subst(store)
         val value_at_from = from_as_address match {
           case IntConst(x) => heap.get(x)
           case _ => throw new Exception("not supposed to happen")
         }
-        val to_as_address = to.subst(store) match {
-          case IntConst(x) => x+offset
-          case _ => ???
-        }
-        value_at_from match {
-          case Some(x) => heap + (to_as_address.asInstanceOf[Int] -> x)
-          case None => throw new Exception("not supposed to happen")
+        to.subst(store) match {
+          case IntConst(x) =>
+            val y = x+offset
+            value_at_from match {
+              case Some(x) => (heap + (y -> x), store)
+              case None => throw new Exception("not supposed to happen")
+            }
+          case Var(a) =>
+            value_at_from match {
+              case Some(x) =>
+                (heap, store + (Var(a) -> x ))
+              case None => throw new Exception("not supposed to happen")
+            }
         }
       }
       case Store(to, offset, e) => {
@@ -46,11 +52,11 @@ object Evaluator {
           case IntConst(x) => x+offset
           case _ => ???
         }
-        heap + (to_as_address.asInstanceOf[Int] -> e)
+        (heap + (to_as_address.asInstanceOf[Int] -> e),store)
       }
       case Free(v) =>
         val v_as_address = retrieve(v, store)
-        heap - v_as_address
+        (heap - v_as_address, store)
       case Malloc(to, tpe, sz) => {
         val to_as_address = retrieve(to, store)
         var new_heap = heap
@@ -58,10 +64,10 @@ object Evaluator {
         for(i <- 0 until sz){
           new_heap = new_heap + (i+to_as_address -> IntConst(0) )
         }
-        new_heap
+        (new_heap, store)
       }
       case Error =>
-        Map.empty
+        (Map.empty, Map.empty)
     }
   }
 

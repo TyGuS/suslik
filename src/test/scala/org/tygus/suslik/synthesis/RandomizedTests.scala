@@ -6,8 +6,8 @@ import java.nio.file.Paths
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.language.Expressions.{IntConst, Subst, Var}
 import org.tygus.suslik.language.{LocType, VoidType}
-import org.tygus.suslik.language.Statements.{Hole, Load, Procedure, Statement}
-import org.tygus.suslik.logic.Environment
+import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.{Environment, PointsTo}
 import org.tygus.suslik.logic.Specifications.Assertion
 import org.tygus.suslik.synthesis.Evaluator.{Heap, evaluate}
 import org.tygus.suslik.util.SynStats
@@ -25,19 +25,20 @@ class RandomizedTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   describe("randomly generates specifications for suslik and runs the evaluator on the synthesized program") {
     }
-    it("evaluates Load correctly") {
+    it("passes random testing") {
 
       val s: Statement = Load(Var("v"), LocType, Var("x"))
-      val store: Subst = Map(Var("v") -> IntConst(567), Var("x") -> IntConst(123))
-      val pre_heap: Heap = Map(123 -> IntConst(456), 567 -> IntConst(789))
-      val post_heap: Heap = Map(123 -> IntConst(456), 567 -> IntConst(456))
+      val store: Subst = Map(Var("x") -> IntConst(123), Var("y") -> IntConst(234), Var("z") -> IntConst(345), Var("t") -> IntConst(456))
+      val pre_heap: Heap = Map(123 -> IntConst(1), 234 -> IntConst(2), 345 -> IntConst(3), 456 -> IntConst(4))
+      val post_heap: Heap = Map(123 -> IntConst(4), 234 -> IntConst(3), 345 -> IntConst(2), 456 -> IntConst(1) )
 
       val params = defaultConfig
       val env = Environment(Map(), Map(), params, new SynStats(params.timeOut))
       val synthesizer = createSynthesizer(env)
-      val pre = new Assertion(new org.tygus.suslik.logic.PFormula(TreeSet()), org.tygus.suslik.logic.SFormula(List()))
-      val post = Assertion(new org.tygus.suslik.logic.PFormula(TreeSet()), org.tygus.suslik.logic.SFormula(List()))
-      val spec = org.tygus.suslik.logic.FunSpec("test", VoidType, List(), pre, post)
+//      val pre_ls =
+      val pre = new Assertion(new org.tygus.suslik.logic.PFormula(TreeSet()), org.tygus.suslik.logic.SFormula(List(PointsTo(Var("x"),0,Var("a")), PointsTo(Var("y"),0,Var("c")), PointsTo(Var("z"),0,Var("b")), PointsTo(Var("t"),0,Var("q")))))
+      val post = Assertion(new org.tygus.suslik.logic.PFormula(TreeSet()), org.tygus.suslik.logic.SFormula(List(PointsTo(Var("x"),0,Var("q")), PointsTo(Var("z"),0,Var("c")), PointsTo(Var("t"),0,Var("a")), PointsTo(Var("y"),0,Var("b")))))
+      val spec = org.tygus.suslik.logic.FunSpec("test", VoidType, List((Var("x"),LocType), (Var("z"),LocType), (Var("y"),LocType), (Var("t"),LocType)), pre, post)
       env.stats.start()
       val sresult = synthesizer.synthesizeProc(spec, env, Hole)
       val duration = env.stats.duration
@@ -46,28 +47,27 @@ class RandomizedTests extends FunSpec with Matchers with SynthesisRunnerUtil {
         case Nil =>
           throw SynthesisException(s"Failed to synthesise:\n$sresult")
         case procs =>
-          val result = if (params.printSpecs) {
-            procs.map(p => {
-              val (pre, post) = (p.f.pre.pp.trim, p.f.post.pp.trim)
-              List(pre, post, p.pp.trim).mkString("\n")
-            }).mkString("\n\n")
-          } else {
             val funstr = procs.map(proc => proc match {
               case Procedure(f, _) => f.pp
             })
             val bodystr = procs.map(proc => proc match {
               case Procedure(_, body) => body.pp
             })
-            "Function spec:  " + funstr.mkString("\n") + "\n\n" +
+            val s = "Function spec:  " + funstr.mkString("\n") + "\n\n" +
               "Body:  " + bodystr.mkString("\n") + "\n\n" +
               procs.map(_.pp.trim).mkString("\n\n") + "\n" +
               "AST for Pre: \n" + procs.head.f.pre.toString() + "\n\n" +
               "AST for Post: \n" + procs.head.f.post.toString() + "\n\n" +
               "AST for Body: \n" + procs.head.body.toString()
-          }
+          println(s)
+          val synthesized_as_stmts = procs.map(proc => proc match{
+            case Procedure(_, body) => body
+          })
+          val synthesized = synthesized_as_stmts.foldLeft(Skip.asInstanceOf[Statement])(SeqComp)
+          synthesized
       }
       println(se)
-      assert(evaluate(s, pre_heap, store) == post_heap)
+      assert(evaluate(se, pre_heap, store)._1 == post_heap)
     }
 
 }

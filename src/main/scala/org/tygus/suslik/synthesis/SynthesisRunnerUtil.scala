@@ -147,6 +147,8 @@ trait SynthesisRunnerUtil {
     testPrintln(spec.params.toString())
     testPrintln(spec.rType.toString())
     testPrintln(spec.var_decl.toString())
+    testPrintln(predEnv.toString())
+    testPrintln(funcEnv.toString())
     val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
     val synthesizer = createSynthesizer(env)
 

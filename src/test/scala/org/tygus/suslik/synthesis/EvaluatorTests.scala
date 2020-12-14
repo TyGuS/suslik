@@ -26,14 +26,14 @@ class EvaluatorTests extends FunSpec with Matchers with SynthesisRunnerUtil {
       val store: Subst = Map(Var("v") -> IntConst(567), Var("x") -> IntConst(123))
       val pre: Heap = Map(123->IntConst(456), 567->IntConst(789))
       val post: Heap = Map(123->IntConst(456), 567->IntConst(456))
-      assert(evaluate(s,pre,store) == post )
+      assert(evaluate(s,pre,store)._1 == post )
     }
     it("evaluates Free correctly") {
       val s: Statement = Free(Var("v"))
       val store: Subst = Map(Var("v") -> IntConst(567), Var("x") -> IntConst(123))
       val pre: Heap = Map(123->IntConst(456), 567->IntConst(789))
       val post: Heap = Map(123->IntConst(456))
-      assert(evaluate(s,pre,store) == post)
+      assert(evaluate(s,pre,store)._1 == post)
     }
     it("evaluates Malloc correctly for blocks"){
       val s: Statement = Malloc(Var("a"),LocType, 3)
@@ -41,14 +41,14 @@ class EvaluatorTests extends FunSpec with Matchers with SynthesisRunnerUtil {
       val pre: Heap = Map(123->IntConst(456), 567->IntConst(789))
       val post: Heap = Map(123->IntConst(456),567->IntConst(789), 1->IntConst(0), 2->IntConst(0), 3-> IntConst(0))
       print(evaluate(s,pre,store))
-      assert(evaluate(s,pre,store)==post)
+      assert(evaluate(s,pre,store)._1==post)
     }
     it("evaluates Error correctly"){
       val s: Statement = SeqComp(Malloc(Var("a"),LocType, 3), Error)
       val store: Subst = Map(Var("v") -> IntConst(567), Var("x") -> IntConst(123), Var("a") -> IntConst(1))
       val pre: Heap = Map(123->IntConst(456), 567->IntConst(789))
       val post: Heap = Map.empty
-      assert(evaluate(s,pre,store)==post)
+      assert(evaluate(s,pre,store)._1==post)
     }
     }
 //    it("evaluates Load correctly in the 'to' parameter") {
