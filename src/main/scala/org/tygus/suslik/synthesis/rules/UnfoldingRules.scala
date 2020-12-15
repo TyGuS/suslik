@@ -209,7 +209,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = UnfoldProducer(a, selector, predSbst, freshExistentialsSubst, substArgs) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = UnfoldProducer(a, selector, Assertion(actualConstraints, actualBody), predSbst ++ freshExistentialsSubst) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, this, goal)
           }

@@ -52,7 +52,9 @@ object ProofSteps {
         if (nested) {
           builder.append(s"move=>${nestedDestructL(ex)}.\n")
         } else {
-          builder.append(s"move=>${ex.map(v => s"[${v.pp}]").mkString(" ")}.\n")
+          ex.map(_.pp).grouped(5).foreach { s =>
+            builder.append(s"ex_elim ${s.mkString(" ")}.\n")
+          }
         }
       }
     }
@@ -71,12 +73,14 @@ object ProofSteps {
 
       // move pure part to context
       if (!phi.isTrivial) {
-        builder.append(s"move=>[$phiName].\n")
+        val numConjuncts = phi.conjuncts.length
+        val hyps = if (numConjuncts == 0) s"[$phiName]" else (0 to numConjuncts).map(i => s"[$phiName$i]").mkString("")
+        builder.append(s"move=>$hyps.\n")
       }
 
       // move spatial part to context, and then substitute where appropriate
       builder.append(s"move=>[$sigmaName].\n")
-      builder.append(s"rewrite->$sigmaName in *.\n")
+      builder.append(s"subst.\n")
 
       // move predicate apps to context, if any
       if (sigma.apps.nonEmpty) {
@@ -125,7 +129,7 @@ object ProofSteps {
       }
 
       // Solve everything except the predicate applications
-      builder.append("ssl_emp_post.\n")
+      builder.append("sslauto.\n")
 
       // For each predicate application, unfold the correct constructor and recursively solve its expanded form
       for {
@@ -142,7 +146,7 @@ object ProofSteps {
       def collector(acc: Set[CVar])(st: ProofStep): Set[CVar] = st match {
         case WriteStep(to, _, e, _) =>
           acc ++ to.vars ++ e.vars
-        case ReadStep(to, from) =>
+        case ReadStep(to, from, _) =>
           acc ++ to.vars ++ from.vars
         case AllocStep(to, _, _) =>
           acc ++ to.vars
@@ -150,7 +154,7 @@ object ProofSteps {
           val acc1 = collector(acc)(s1)
           collector(acc1)(s2)
         case CallStep(goal, _) =>
-          acc ++ goal.programVars ++ goal.universalGhosts ++ goal.existentials
+          acc ++ goal.programVars
         case _ =>
           acc
       }
@@ -174,7 +178,9 @@ object ProofSteps {
       */
     def simplify: ProofStep = {
       (s1, s2) match {
-        case (ReadStep(to, _), _) => simplifyBinding(to)
+        case (ErrorStep, _) => s2
+        case (_, ErrorStep) => s1
+        case (ReadStep(to, _, _), _) => simplifyBinding(to)
 //        case (WriteStep(to), _) => simplifyBinding(to)
 //        case (AllocStep(to, _, _), _) => simplifyBinding(to)
         case _ => this
@@ -202,7 +208,7 @@ object ProofSteps {
 
     override def pp: String = {
       val ptr = if (offset == 0) to.pp else s"(${to.pp} .+ $offset)"
-      val writeStep = "ssl_write.\n"
+      val writeStep = s"ssl_write $ptr.\n"
 
       // SSL's `Write` rule does an implicit frame under normal circumstances, but not during a call synthesis
       val writePostStep = if (frame) s"ssl_write_post $ptr.\n" else ""
@@ -215,12 +221,16 @@ object ProofSteps {
     * Perform a read
     * @param to the dst variable
     * @param from the src variable
+    * @param offset the src offset
     */
-  case class ReadStep(to: CVar, from: CVar) extends ProofStep {
+  case class ReadStep(to: CVar, from: CVar, offset: Int) extends ProofStep {
     override def refreshGhostVars(sbst: SubstVar): ReadStep =
-      ReadStep(to.substVar(sbst), from.substVar(sbst))
+      ReadStep(to.substVar(sbst), from.substVar(sbst), offset)
 
-    override def pp: String = "ssl_read.\n"
+    override def pp: String = {
+      val ptr = if (offset == 0) from.pp else s"(${from.pp} .+ $offset)"
+      s"ssl_read $ptr.\n"
+    }
   }
 
   /**
@@ -240,10 +250,10 @@ object ProofSteps {
     * Free a memory block of size `sz`
     * @param size the size of the block to free
     */
-  case class FreeStep(size: Int) extends ProofStep {
+  case class FreeStep(v: CVar, size: Int) extends ProofStep {
     override def pp: String = {
       // In HTT, each location offset needs to be freed individually
-      val deallocStmts = (1 to size).map(_ => "ssl_dealloc.")
+      val deallocStmts = (0 until size).map(i => s"ssl_dealloc (${v.pp}${if (i == 0) "" else s" .+ $i"}).")
       s"${deallocStmts.mkString("\n")}\n"
     }
   }
@@ -357,4 +367,6 @@ object ProofSteps {
       builder.toString()
     }
   }
+
+  case object ErrorStep extends ProofStep
 }

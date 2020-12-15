@@ -95,13 +95,24 @@ object StatementProducers {
         case _: Branching => true
         case _ => false
       }
-      def update(curr: CStmtProducer): CStmtProducer = curr match {
-        case FoldCStmtProducer(op, item, bp) => FoldCStmtProducer(op, item, update(bp))
-        case ChainedCStmtProducer(p1, p2) => ChainedCStmtProducer(update(p1), update(p2))
-        case _: PartiallyAppliedCStmtProducer | _: Branching if isBase(curr) => curr.partApply(steps.head)
-        case _ => curr
+      def update(curr: CStmtProducer): (CStmtProducer, Boolean) = curr match {
+        case FoldCStmtProducer(op, item, bp) =>
+          val (bp1, modified) = update(bp)
+          (FoldCStmtProducer(op, item, bp1), modified)
+        case ChainedCStmtProducer(p1, p2) =>
+          val (p11, modified1) = update(p1)
+          if (modified1) {
+            (ChainedCStmtProducer(p11, p2), modified1)
+          } else {
+            val (p21, modified2) = update(p2)
+            (ChainedCStmtProducer(p11, p21), modified2)
+          }
+        case _: PartiallyAppliedCStmtProducer | _: Branching if isBase(curr) =>
+          (curr.partApply(steps.head), true)
+        case _ =>
+          (curr, false)
       }
-      op(item, update(bp))
+      op(item, update(bp)._1)
     }
   }
 }

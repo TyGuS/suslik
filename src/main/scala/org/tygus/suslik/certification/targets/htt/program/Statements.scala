@@ -48,7 +48,7 @@ object Statements {
       def build(s: CStatement, depth: Int = 0) : Unit = {
         val indent = getIndent(depth)
         s match {
-          case CSkip =>
+          case CSkip | CError =>
             builder.append(s"${indent}ret tt")
           case CMalloc(to, _, sz) =>
             builder.append(s"$indent${to.pp} <-- allocb null $sz")
@@ -60,11 +60,10 @@ object Statements {
                 s"dealloc ${v.pp}"
               }
             }
-            builder.append(s"$indent${deallocs.mkString(s";;\n${mkSpaces(depth)}")}")
+            builder.append(s"$indent${deallocs.mkString(s";;\n$indent")}")
           case CStore(to, off, e) =>
             val t = if (off <= 0) to.pp else s"(${to.pp} .+ $off)"
-            val v = if (e == CNatConst(0)) "null" else e.pp
-            builder.append(s"$indent$t ::= $v")
+            builder.append(s"$indent$t ::= ${e.pp}")
           case CLoad(to, tpe, from, off) =>
             val f = if (off <= 0) from.pp else s"(${from.pp} .+ $off)"
             builder.append(s"$indent${to.pp} <-- @read ${tpe.pp} $f")
@@ -101,6 +100,8 @@ object Statements {
   }
 
   trait ReturnsValue
+
+  case object CError extends CStatement
 
   case object CSkip extends CStatement
 

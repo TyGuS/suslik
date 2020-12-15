@@ -90,6 +90,7 @@ object ProofSpecTranslation {
     expr match {
       case const: Expressions.Const => const match {
         case Expressions.IntConst(value) => ProofCIntConst(value)
+        case Expressions.LocConst(value) => ProofCIntConst(value) // TODO: handle ptr type
         case Expressions.BoolConst(value) => ProofCBoolConst(value)
       }
       case Var(name) => ProofCVar(name, context(name))

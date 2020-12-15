@@ -5,7 +5,7 @@ import org.tygus.suslik.certification.targets.vst.translation.Translation.fail_w
 import scala.annotation.tailrec
 
 /** Implementation of a state monad where the state is a stack of elements */
-case class State[S, A](f: List[S] => (A, List[S])) {
+case class State[S, A](f: Seq[S] => (A, Seq[S])) {
 
   /** map = fmap */
   def map[B](g: A => B): State[S, B] =
@@ -23,7 +23,7 @@ case class State[S, A](f: List[S] => (A, List[S])) {
 
 
   /** run the state monad to get a value */
-  def eval(s: List[S]): A = f(s)._1
+  def eval(s: Seq[S]): A = f(s)._1
 }
 
 object State {
@@ -36,28 +36,28 @@ object State {
   }
 
   /** push multiple values onto the state, in such a way that is equivalent to iterating through the list and pushing them on individually */
-  def push_multi[S] (s :List[S]) : State[S, Unit] = {
+  def push_multi[S] (s :Seq[S]) : State[S, Unit] = {
     @tailrec
-    def rev_cat[C](ls: List[C])(acc: List[C]) : List[C] = ls match {
-      case Nil => acc
-      case ::(head ,tail) => rev_cat(tail)(head +: acc)
+    def rev_cat[C](ls: Seq[C])(acc: Seq[C]) : Seq[C] = ls match {
+      case Seq(head, tail@_*) => rev_cat(tail)(head +: acc)
+      case _ => acc
     }
     State(ss => ((), rev_cat(s)(ss)))
   }
 
   /** pop a value off the stack */
   def pop[S] : State[S, S] = State {
-    case Nil => fail_with("State monad ran out of state")
-    case ::(head, tl) => (head, tl)
+    case Seq(head, tl@_*) => (head, tl)
+    case _ => fail_with("State monad ran out of state")
   }
 
-  def mapM[B,S,A] (ls: List[B]) (f: B => State[S,A]) : State[S,List[A]] =
+  def mapM[B,S,A] (ls: Seq[B]) (f: B => State[S,A]) : State[S,Seq[A]] =
     ls match {
-      case Nil => State.ret(Nil)
-      case ::(head0, tail0) => for {
+      case Seq(head0, tail0@_*) => for {
         head <- f(head0)
         tail <- mapM(tail0)(f)
-      } yield (head :: tail)
+      } yield head +: tail
+      case _ => State.ret(Seq.empty)
     }
 
 }

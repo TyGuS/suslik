@@ -11,6 +11,7 @@ class SSLLexical extends StdLexical {
   // Add keywords
   reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate", "in")
   reserved += ("error","magic","malloc", "free", "let", "assume")
+  reserved += ("null")
 
   // Types
   reserved += ("int", "bool", "loc", "set", "void")

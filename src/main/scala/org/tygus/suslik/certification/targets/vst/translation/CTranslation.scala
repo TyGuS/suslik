@@ -71,6 +71,7 @@ object CTranslation {
     case Var(name) => CVar(name)
     case BoolConst(value) => CBoolConst(value)
     case IntConst(value) => CNatConst(value)
+    case LocConst(value) => CNatConst(value)  // TODO: handle ptr type
     case e1@UnaryExpr(_, _) => translate_unary_expr(e1)
     case BinaryExpr(op, e1, e2) => translate_binary_expr(op, e1, e2)
     case IfThenElse(c, t, e) => CIfThenElse(translate_expression(c), translate_expression(t), translate_expression(e))

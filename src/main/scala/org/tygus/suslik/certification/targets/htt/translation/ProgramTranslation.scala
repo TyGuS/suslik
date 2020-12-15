@@ -29,6 +29,8 @@ object ProgramTranslation {
         CFree(translateVar(v), block.get.sz)
       case Call(v, args, _) =>
         CCall(translateVar(v), args.map(translateExpr))
+      case Error =>
+        CError
       case _ =>
         throw TranslationException("Operation not supported")
     }

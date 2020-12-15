@@ -24,7 +24,11 @@ object Translation {
     */
   def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
     (Map[String, CInductivePredicate], CFunSpec, Proof, CProcedure) = {
-    val cpreds = env.predicates.mapValues(p => translateInductivePredicate(p.resolveOverloading(env)))
+    val cpreds = env.predicates.mapValues(p => {
+      val gamma = p.resolve(p.params.toMap, env).get
+      val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
+      translateInductivePredicate(p1, gamma)
+    })
     val goal = translateGoal(node.goal)
     val initialCEnv = CEnvironment(goal, cpreds)
     val proof = ProofTranslation.translate(node, initialCEnv)
@@ -32,8 +36,9 @@ object Translation {
     (cpreds, goal.toFunspec, proof, cproc)
   }
 
-  private def translateInductivePredicate(el: InductivePredicate): CInductivePredicate = {
+  private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {
     val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
+    val cGamma = gamma.map { case (v, t) => (CVar(v.name), translateType(t))}
 
     val cClauses = el.clauses.zipWithIndex.map { case (c, idx) =>
       val selector = translateExpr(c.selector)
@@ -42,7 +47,7 @@ object Translation {
       // Include the clause number so that we can use Coq's `constructor n` tactic
       CInductiveClause(el.name, idx + 1, selector, asn, asn.existentials(cParams.map(_._2)))
     }
-    CInductivePredicate(el.name, cParams, cClauses)
+    CInductivePredicate(el.name, cParams, cClauses, cGamma)
   }
 
   def translateParam(el: (Var, SSLType)): (HTTType, CVar) =
@@ -62,13 +67,14 @@ object Translation {
     val post = translateAsn(goal.post)
     val gamma = goal.gamma.map { case (value, lType) => (translateVar(value), translateType(lType)) }
     val programVars = goal.programVars.map(translateVar)
-    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(_.isCard)
+    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(v => gamma(v) == CCardType)
     CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
   }
 
   def translateExpr(el: Expr): CExpr = el match {
     case Var(name) => CVar(name)
     case BoolConst(value) => CBoolConst(value)
+    case LocConst(value) => CPtrConst(value)
     case IntConst(value) => CNatConst(value)
     case el@UnaryExpr(_, _) => translateUnaryExpr(el)
     case el@BinaryExpr(_, _, _) => translateBinaryExpr(el)
@@ -83,7 +89,9 @@ object Translation {
   def translatePointsTo(el: PointsTo): CPointsTo = CPointsTo(translateExpr(el.loc), el.offset, translateExpr(el.value))
 
   def translateAsn(el: Assertion): CAssertion = {
-    val phi = translateExpr(el.phi.toExpr).simplify
+    val conjuncts = el.phi.conjuncts.toSeq.map(c => translateExpr(c).simplify).filterNot(_.isCard)
+    val f = (a1: CExpr, a2: CExpr) => CBinaryExpr(COpAnd, a1, a2)
+    val phi = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce(f)
     val sigma = translateSFormula(el.sigma)
     CAssertion(phi, sigma)
   }

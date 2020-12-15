@@ -1,12 +1,16 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.targets.htt.language.Expressions.CVar
 import org.tygus.suslik.certification.targets.htt.logic.Proof._
 import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
 import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
+import org.tygus.suslik.certification.targets.htt.logic.Sentences.CInductiveClause
 import org.tygus.suslik.certification.targets.htt.translation.Translation._
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.InductiveClause
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.LogicalRules.Inconsistency
 
 object ProofTranslation {
 
@@ -28,8 +32,8 @@ object ProofTranslation {
         val postEx = goal.existentials.map(_.subst(cenv.subst))
         val unfoldings = cenv.unfoldings.map { case (app, c) => app.subst(cenv.subst) -> c.subst(cenv.subst) }
         (EmpStep(post, postEx, unfoldings), cenv)
-      case Load(to, _, from, _) =>
-        (ReadStep(translateVar(to), translateVar(from)), cenv)
+      case Load(to, _, from, off) =>
+        (ReadStep(translateVar(to), translateVar(from), off), cenv)
       case Store(to, offset, e) =>
         val frame = item.node.goal.callGoal.isEmpty
         (WriteStep(translateVar(to), offset, translateExpr(e), frame), cenv)
@@ -38,7 +42,7 @@ object ProofTranslation {
       case Free(v) =>
         val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
         assert(block.nonEmpty)
-        (FreeStep(block.get.sz), cenv)
+        (FreeStep(CVar(v.name), block.get.sz), cenv)
       case Call(_, _, _) =>
         assert(item.node.goal.callGoal.isDefined)
         val callGoal = item.node.goal.callGoal.get
@@ -49,6 +53,8 @@ object ProofTranslation {
         val cgoal = cenv.initialGoal.subst(companionToFresh).subst(freshToActual)
 
         (CallStep(cgoal, freshCallId), cenv)
+      case Error =>
+        (ErrorStep, cenv)
       case _ => throw TranslationException("Operation not supported")
     }
 
@@ -61,28 +67,26 @@ object ProofTranslation {
         case PartiallyAppliedProducer(p, _) =>
           translateProducer(p, cenv)
         case SubstProducer(subst) =>
-          if (item.node.goal.callGoal.isEmpty) {
-            val csub = subst.map { case (v, e) => translateVar(v) -> translateExpr(e).subst(cenv.ghostSubst) }
-            val cenv1 = cenv.copy(subst = cenv.subst ++ csub)
-            (IdProofProducer, cenv1)
-          } else (IdProofProducer, cenv)
+          val csub = subst.map { case (v, e) => translateVar(v) -> translateExpr(e).subst(cenv.ghostSubst) }
+          val cenv1 = cenv.copy(subst = cenv.subst ++ csub)
+          (IdProofProducer, cenv1)
         case GhostSubstProducer(ghostSubst) =>
           val newGhostSubst = ghostSubst.map { case (v, e) => translateVar(v) -> translateVar(e) }
           val newSubst = cenv.subst.map { case (v, e) => v.substVar(newGhostSubst) -> e.subst(newGhostSubst)}
           val newUnfoldings = cenv.unfoldings.map { case (app, e) => app.subst(newGhostSubst) -> e.subst(newGhostSubst) }
           val cenv1 = cenv.copy(subst = newSubst, ghostSubst = cenv.ghostSubst ++ newGhostSubst, unfoldings = newUnfoldings)
           (IdProofProducer, cenv1)
-        case UnfoldProducer(app, selector, substPred, substEx, substArgs) =>
+        case UnfoldProducer(app, selector, asn, substEx) =>
           val cselector = translateExpr(selector)
           val capp = translateSApp(app)
-          val csubPred = substPred.map { case (src, dst) => translateVar(src) -> translateVar(dst) }
-          val csubEx = substEx.map { case (src, dst) => translateVar(src) -> translateVar(dst) }
-          val csubArgs = substArgs.map { case (src, dst) => translateVar(src) -> translateExpr(dst) }
+          val casn = translateAsn(asn).subst(cenv.ghostSubst)
 
           // get clause with substitutions
           val predicate = cenv.predicates(app.pred)
           val cclause = predicate.clauses.find(_.selector == cselector).get
-          val actualClause = cclause.subst(csubPred).subst(csubEx).subst(csubArgs).subst(cenv.ghostSubst)
+          val csub = substEx.map { case (k, v) => CVar(k.name) -> translateExpr(v)}
+          val ex = cclause.existentials.map(_.subst(csub))
+          val actualClause = CInductiveClause(app.pred, cclause.idx, cselector, casn, ex)
           val cenv1 = cenv.copy(unfoldings = cenv.unfoldings ++ Map(capp -> actualClause))
           (IdProofProducer, cenv1)
         case ConstProducer(s) =>
@@ -130,6 +134,7 @@ object ProofTranslation {
       case Some(childHead) =>
         traverseProof(childHead, nextKont)
       case None =>
+        if (item.node.rule == Inconsistency) {}
         nextKont(Nil)
     }
   }

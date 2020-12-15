@@ -1,5 +1,6 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
+import org.tygus.suslik.certification.targets.htt.language.CGamma
 import org.tygus.suslik.certification.targets.htt.language.Types._
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.{ProofStep, nestedDestructL}
@@ -12,7 +13,6 @@ object Proof {
   type Unfoldings = Map[CSApp, CInductiveClause]
   type Subst = Map[CVar, CExpr]
   type SubstVar = Map[CVar, CVar]
-  type Gamma = Map[CVar, HTTType]
   type PredicateEnv = Map[String, CInductivePredicate]
 
   case class Proof(root: ProofStep, params: Seq[CVar]) {
@@ -27,7 +27,7 @@ object Proof {
 
   case class CGoal(pre: CAssertion,
                    post: CAssertion,
-                   gamma: Gamma,
+                   gamma: CGamma,
                    programVars: Seq[CVar],
                    universalGhosts: Seq[CVar],
                    fname: String) {

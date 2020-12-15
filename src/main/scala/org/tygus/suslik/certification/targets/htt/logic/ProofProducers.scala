@@ -132,15 +132,26 @@ object ProofProducers {
       }
 
       // Find the BranchProducer in the `bp`, and then partially apply `step`
-      def update(curr: ProofProducer): ProofProducer = curr match {
-        case FoldProofProducer(op, item, bp) => FoldProofProducer(op, item, update(bp))
-        case ChainedProofProducer(p1, p2) => ChainedProofProducer(update(p1), update(p2))
-        case _: PartiallyAppliedProofProducer | _: Branching if isBase(curr) => curr.partApply(step)
-        case _ => curr
+      def update(curr: ProofProducer): (ProofProducer, Boolean) = curr match {
+        case FoldProofProducer(op, item, bp) =>
+          val (bp1, modified) = update(bp)
+          (FoldProofProducer(op, item, bp1), modified)
+        case ChainedProofProducer(p1, p2) =>
+          val (p11, modified1) = update(p1)
+          if (modified1) {
+            (ChainedProofProducer(p11, p2), modified1)
+          } else {
+            val (p21, modified2) = update(p2)
+            (ChainedProofProducer(p11, p21), modified2)
+          }
+        case _: PartiallyAppliedProofProducer | _: Branching if isBase(curr) =>
+          (curr.partApply(step), true)
+        case _ =>
+          (curr, false)
       }
 
       // Update the `bp` with the new result and step into the next branch
-      op(item, update(bp))
+      op(item, update(bp)._1)
     }
   }
 }
