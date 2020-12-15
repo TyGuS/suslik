@@ -492,7 +492,13 @@ object ProofTranslation {
                   translate_proof_rules(rule)(new_context))
             }).toList
           )
-        case ProofRule.NilNotLval(vars, next) => ???
+
+        /** nilnotval(r) => assert_PROP(isptr r). {entailer!.} */
+        case ProofRule.NilNotLval(vars, next) =>
+          vars.foldRight(translate_proof_rules(next)(context))({
+            case (_@Var(name), rest) => ProofSteps.ValidPointer(
+            name, rest
+            )})
         case ProofRule.CheckPost(next) => ???
         case ProofRule.Pick(subst, next) => ???
         case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => ???

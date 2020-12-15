@@ -9,6 +9,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.synthesis._
 
 object ProofTranslation {
+
   private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment)
 
   def translate(node: CertTree.Node, cenv: CEnvironment): Proof = {
@@ -90,7 +91,7 @@ object ProofTranslation {
         case PrependProducer(s) =>
           val (step, cenv1) = translateOperation(s, cenv)
           (PrependProofProducer(step), cenv1)
-        case BranchProducer(_) =>
+        case BranchProducer(_, _) =>
           val sapp = translateSApp(item.node.footprint.pre.sigma.apps.head)
           val pred = cenv.predicates(sapp.pred)
           val subgoals = item.node.children.map(n => translateGoal(n.goal))
