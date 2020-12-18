@@ -101,6 +101,24 @@ object Statements {
                                    params: Seq[(CVar, VSTCType)],
                                    body: CStatement
                                  )  extends PrettyPrinting {
+    val c_prelude =
+      """
+        |#include <stddef.h>
+        |
+        |extern void free(void *p);
+        |extern void *malloc(size_t size);
+        |
+        |typedef union sslval {
+        |  int ssl_int;
+        |  void *ssl_ptr;
+        |} *loc;
+        |#define READ_LOC(x,y) (*(x+y)).ssl_ptr
+        |#define READ_INT(x,y) (*(x+y)).ssl_int
+        |#define WRITE_LOC(x,y,z) (*(x+y)).ssl_ptr = z
+        |#define WRITE_INT(x,y,z) (*(x+y)).ssl_int = z
+        |
+        |""".stripMargin
+
     override def pp: String = {
       val body_string = body.ppIndent(1)
       val function_def =
@@ -110,7 +128,7 @@ object Statements {
           }).mkString(", ")
         }) {\n${body_string}\n}\n"
 
-      function_def
+      c_prelude + function_def
     }
   }
 

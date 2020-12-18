@@ -3,14 +3,13 @@ package org.tygus.suslik.certification.targets.vst
 import java.nio.file.Paths
 import java.io.{File, PrintWriter}
 
-import org.tygus.suslik.certification.{Certificate, CertificationTarget}
+import org.tygus.suslik.certification.{CertTree, Certificate, CertificateOutput, CertificationTarget}
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.logic.{Environment, FunSpec, FunctionEnv, PredicateEnv, Preprocessor, Program}
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.synthesis.{SynConfig, SynthesisException, SynthesisRunner}
 import org.tygus.suslik.util.SynStats
-import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
 import org.tygus.suslik.certification.targets.vst.translation.Translation
 
@@ -18,47 +17,22 @@ object VST extends CertificationTarget {
   override val name: String = "VST"
   override val suffix: String = ".v"
 
-  /** prelude for Coq file */
-  private def coq_prelude (fun_name: String) = s"""
-Require Import VST.floyd.proofauto.
-Require Import $fun_name.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-"""
 
   override def certify(proc: Statements.Procedure, env: Environment): Certificate = {
     // retrieve the search tree
     val root =
       CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
-    val fun_name : String = proc.f.name
+
 
     val builder = new StringBuilder
     // append the coq prelude
-    builder.append(coq_prelude(fun_name))
+    val fun_name : String = proc.f.name
+    //builder.append(coq_prelude(fun_name))
 
 
-    val c_prelude =
-      """
-        |#include <stddef.h>
-        |
-        |extern void free(void *p);
-        |extern void *malloc(size_t size);
-        |
-        |typedef union sslval {
-        |  int ssl_int;
-        |  void *ssl_ptr;
-        |} *loc;
-        |#define READ_LOC(x,y) (*(x+y)).ssl_ptr
-        |#define READ_INT(x,y) (*(x+y)).ssl_int
-        |#define WRITE_LOC(x,y,z) (*(x+y)).ssl_ptr = z
-        |#define WRITE_INT(x,y,z) (*(x+y)).ssl_int = z
-        |
-        |""".stripMargin
+    Translation.translate(root, proc, env)
 
-    val x = Translation.translate(root, proc, env)
-
-    ???
   }
 
   def main(args: Array[String]) : Unit = {
@@ -92,7 +66,10 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
         val certificate = certTarget.certify(procs.head, env)
 
-        println(s"synthesized:\n${certificate.body}")
+        certificate.outputs.foreach({
+          case CertificateOutput(filename, name, body) =>
+            println(s"synthesized:\n${body}")
+        })
    }
 
   }
