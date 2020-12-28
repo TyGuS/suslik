@@ -6,7 +6,7 @@ import org.scalatest.{FunSpec, Matchers}
   * @author Ilya Sergey
   */
 
-class SynthesisWithTheories extends FunSpec with Matchers with SynthesisRunnerUtil {
+class PureReasoning extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
     super.doRun(testName, desc, in, out, params)
@@ -21,6 +21,10 @@ class SynthesisWithTheories extends FunSpec with Matchers with SynthesisRunnerUt
 
   describe("SL-based synthesizer with theory of finite sets") {
     runAllTestsFromDir("sets")
+  }
+
+  describe("Stuff that didn't work at some point") {
+    runAllTestsFromDir("regression")
   }
 
 }
