@@ -3,9 +3,9 @@ Deallocate two linked lists (needs listfree as an auxiliary, unless we can pass 
 
 ###
 
-{true; sll(x, s1) ** sll(y, s2)}
+{ sll(x, s1) ** sll(y, s2)}
   void listfree2(loc x, loc y)
-{true ; emp }
+{ emp }
 
 ###
 

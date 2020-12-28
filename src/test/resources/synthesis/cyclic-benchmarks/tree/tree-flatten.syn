@@ -1,12 +1,12 @@
-# -x true -p true --lexi true
+# -x true -p true
 
 should be able to flatten the tree into a list 
 
 ####
 
-{ z :-> x ** tree(x, s)<a> }
+{ z :-> x ** tree(x, s) }
 void flatten(loc z)
-{ z :-> y ** sll(y, s)<b> }
+{ z :-> y ** sll(y, s) }
 
 ####
 

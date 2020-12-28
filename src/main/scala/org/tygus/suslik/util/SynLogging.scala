@@ -170,6 +170,7 @@ class SynStats(timeOut: Long) {
   def numGoalsGenerated: Int = goalsGenerated
   def numGoalsExpanded: Int = goalsExpanded
   def numGoalsFailed: Int = failedNodes.size
+  def numRulesApplied: Int = ruleApplications.map( x => x._2.numSuccess).sum
   def maxWorklistSize: Int = maxWLSize
   def maxGoalDepth: Int = maxDepth
   def smtCacheSize: Int = SMTSolving.cacheSize
@@ -186,7 +187,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Num Statements", "Goals generated", "And-nodes backtracked", "Max Worklist Size").mkString(", ") + "\n"
+    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Num Statements", "Goals generated", "Rules applied", "Max Worklist Size").mkString(", ") + "\n"
 
   def init(config: SynConfig){
     if (config.logToFile) {
@@ -219,8 +220,8 @@ object SynStatUtil {
   def log(name: String, time: Long, config: SynConfig, spec: FunSpec, res: List[Procedure], stats: SynStats): Unit = {
     if (config.logToFile) {
       val statRow = (res match {
-        case Nil => List("FAIL", "FAIL", "FAIL", stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
-        case procs => List(procs.length, procs.map(_.body.size).sum, procs.map(countStmts).sum, stats.numGoalsGenerated, stats.numGoalsFailed, stats.maxWorklistSize)
+        case Nil => List("FAIL", "FAIL", "FAIL", stats.numGoalsGenerated, stats.numRulesApplied, stats.maxWorklistSize)
+        case procs => List(procs.length, procs.map(_.body.size).sum, procs.map(countStmts).sum, stats.numGoalsGenerated, stats.numRulesApplied, stats.maxWorklistSize)
       }).mkString(", ")
 
       val specSize = spec.pre.size + spec.post.size

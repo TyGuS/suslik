@@ -1,0 +1,43 @@
+# -x true -p true -c 2
+
+should be able to flatten the tree into a doubly-linked list
+
+####
+
+{ tree(x, s) }
+void flatten(loc x)
+{ dll(x, y, s) }
+
+####
+
+{tree(x, s)<_alpha_518>}
+{dll(x, y, s)<_alpha_519>}
+void flatten (loc x) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let l = *(x + 1);
+    let r = *(x + 2);
+    flatten(l);
+    flatten111(r, l, v, x);
+  }
+}
+
+{_alpha_514x < _alpha_518 && _alpha_515x < _alpha_518 && not (x == 0) ; (x + 1) :-> lx2 ** (x + 2) :-> rx2 ** x :-> vx2 ** dll(lx2, y1, s1x)<_alpha_5191>[1,0] ** tree(rx2, s2x)<_alpha_515x>[0,1] ** [x, 3]}
+{dll(x, y, {vx2} ++ s1x ++ s2x)<_alpha_519>}
+void flatten111 (loc rx2, loc lx2, int vx2, loc x) {
+  if (lx2 == 0) {
+    flatten(rx2);
+    if (rx2 == 0) {
+    } else {
+      *(rx2 + 2) = x;
+      *(x + 1) = rx2;
+    }
+  } else {
+    let v = *lx2;
+    let w = *(lx2 + 1);
+    *(lx2 + 2) = rx2;
+    flatten111(rx2, w, v, lx2);
+    *(lx2 + 2) = x;
+  }
+}

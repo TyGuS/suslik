@@ -111,7 +111,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val callGoal = goal.callGoal.get.applySubstitution
       val call = callGoal.call
-      val callTag = (callGoal.callerPre.sigma - goal.pre.sigma).callTags.max + 1
+      // In case of a non-recursive call, there might be no predicates in the callee post, and hence no call tags:
+      val callTag = (0 :: (callGoal.callerPre.sigma - goal.pre.sigma).callTags).max + 1
       val noGhostArgs = call.args.forall(_.vars.subsetOf(goal.programVars.toSet))
 
       if (post.sigma.isEmp &&                                   // companion's transformed pre-heap is empty

@@ -47,6 +47,8 @@ mainClass in assembly := Some("org.tygus.suslik.synthesis.SynthesisRunner")
 
 test in assembly := {}
 
+parallelExecution in Test := false
+
 assemblyJarName in assembly := "suslik.jar"
 
 assemblyMergeStrategy in assembly := {

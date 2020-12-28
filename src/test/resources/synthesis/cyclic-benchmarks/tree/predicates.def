@@ -1,11 +1,17 @@
 
 predicate sll(loc x, set s) {
 |  x == 0        => { s == {} ; emp }
-|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1)<bt> }
+|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
 }
 
 predicate tree(loc x, set s) {
 |  x == 0        => {s == {} ; emp}
 |  not (x == 0)  => {s == {v} ++ s1 ++ s2 ;
-                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1)<al> ** tree(r, s2)<ar>}
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1) ** tree(r, s2)}
+}
+
+predicate dll(loc x, loc z, set s) {
+|  x == 0 => { s == {} ; emp }
+|  not (x == 0) =>
+   { s == {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dll(w, x, s1) }
 }
