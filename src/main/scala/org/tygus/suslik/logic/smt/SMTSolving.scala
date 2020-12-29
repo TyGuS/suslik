@@ -25,8 +25,7 @@ object SMTSolving extends Core
   with ArrayExOperators
   with LazyTiming {
 
-  //  val defaultSolver = "CVC4"
-  val defaultSolver = "Z3"
+  val defaultSolver = "Z3" // other choices: "Z3 <= 4.7.x", "CVC4"
 
   override val watchName = "SMTSolving"
 
@@ -86,11 +85,20 @@ object SMTSolving extends Core
       "(define-sort SetInt () (Array Int Bool))",
       "(define-fun empty () SetInt ((as const SetInt) false))",
       "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
+      "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))",
+      "(define-fun intersect ((s1 SetInt) (s2 SetInt)) SetInt (intersection s1 s2))",
+      "(define-fun subset ((s1 SetInt) (s2 SetInt)) Bool (= s1 (intersect s1 s2)))",
+      "(declare-fun andNot (Bool Bool) Bool)",
+      "(assert (forall ((b1 Bool) (b2 Bool)) (= (andNot b1 b2) (and b1 (not b2)))))",
+      "(define-fun difference ((s1 SetInt) (s2 SetInt)) SetInt ((_ map andNot) s1 s2))")
+  } else if (defaultSolver == "Z3 <= 4.7.x") {
+    // In Z3 4.7.x and below, difference is built in and intersection is called intersect
+    List(
+      "(define-sort SetInt () (Array Int Bool))",
+      "(define-fun empty () SetInt ((as const SetInt) false))",
+      "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
       "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))")
-    //      "(define-fun subset ((s1 SetInt) (s2 SetInt)) Bool (= s1 (intersect s1 s2)))")
-    //      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))",
-    //      "(define-fun andNot ((b1 Bool) (b2 Bool)) Bool (and b1 (not b2)))",
-    //      "(define-fun diff ((s1 SetInt) (s2 SetInt)) SetInt (((_ map andNot) s1 s2)))")
+//      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))",
   } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean =
@@ -156,7 +164,7 @@ object SMTSolving extends Core
       if (defaultSolver == "CVC4") {
         new TypedTerm[SetTerm, Term](setTerm.typeDefs ++ eTerms.flatMap(_.typeDefs).toSet,
           QIdAndTermsTerm(setInsertSymbol, (eTerms :+ setTerm).map(_.termDef)))
-      } else if (defaultSolver == "Z3") {
+      } else if (defaultSolver == "Z3" || defaultSolver == "Z3 <= 4.7.x") {
         def makeInsertOne(setTerm: SMTSetTerm, eTerm: SMTIntTerm): SMTSetTerm =
           new TypedTerm[SetTerm, Term](setTerm.typeDefs ++ eTerm.typeDefs,
             QIdAndTermsTerm(setInsertSymbol, List(eTerm.termDef, setTerm.termDef)))
