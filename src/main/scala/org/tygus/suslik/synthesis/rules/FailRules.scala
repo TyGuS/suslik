@@ -106,10 +106,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         if SMTSolving.valid((pre && cond) ==> goal.universalPost)
         if SMTSolving.sat((pre && cond).toExpr)
         bGoal <- findBranchPoint(cond.vars, goal)
-        thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi && cond), childId = Some(0))
+        thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi && cond))
         elseGoal = bGoal.spawnChild(
           pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
-          childId = Some(1))
+          childId = Some(100))
         thenTransition = Transition(goal, thenGoal)
         elseTransition = Transition(bGoal, elseGoal)
       } yield RuleResult(List(thenGoal, elseGoal), GuardedProducer(cond, bGoal), this, List(thenTransition, elseTransition))

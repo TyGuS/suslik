@@ -1,4 +1,4 @@
-#. -b true
+#. -b true --memo false
 intersect given sll with set of two elements
 
 

@@ -50,15 +50,6 @@ object SearchTree {
         case _ => false
       }
 
-    // Replace the ancestor labeled l with newAN
-    def replaceAncestor(l: NodeId, n: AndNode): OrNode = parent match {
-      case None => this
-      case Some(p) =>
-        if (p.id == l) copy(parent = Some(n))
-        else if (p.id.length <= l.length) this
-        else copy(parent = Some(p.copy(parent = p.parent.replaceAncestor(l, n))))
-    }
-
     // This node has failed: prune siblings from worklist
     def fail(implicit stats: SynStats, config: SynConfig): Unit = {
       memo.save(goal, Failed)
@@ -78,17 +69,15 @@ object SearchTree {
     // This node has succeeded: update worklist or return solution
     def succeed(s: Solution)(implicit config: SynConfig): Option[Solution] = {
       memo.save(goal, Succeeded(s))
+      worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
       successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
         case None => Some(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
-          worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
-          val newAN = an.copy(kont = an.kont.partApply(s)) // record solution in my parent
-          worklist = worklist.map(_.replaceAncestor(an.id, newAN)) // replace my parent in the tree
-          successLeaves = successLeaves.map(_.replaceAncestor(an.id, newAN))
+          an.kont = an.kont.partApply(s) // record solution in my parent
           // Check if my parent has more open subgoals:
-          if (newAN.kont.arity == 0) { // there are no more open subgoals: an has succeeded
-            newAN.parent.succeed(newAN.kont(List()))
+          if (an.kont.arity == 0) { // there are no more open subgoals: an has succeeded
+            an.parent.succeed(an.kont(List()))
           } else { // there are other open subgoals:
             None
           }
@@ -200,7 +189,13 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  case class AndNode(id: NodeId, parent: OrNode, kont: StmtProducer, rule: SynthesisRule, transitions: Seq[Transition]) {
+  class AndNode(_id: NodeId, _parent: OrNode, _kont: StmtProducer, _rule: SynthesisRule, _transitions: Seq[Transition]) {
+    val id: NodeId = _id
+    val parent: OrNode = _parent
+    var kont: StmtProducer = _kont
+    val rule: SynthesisRule = _rule
+    val transitions: Seq[Transition] = _transitions
+
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true
