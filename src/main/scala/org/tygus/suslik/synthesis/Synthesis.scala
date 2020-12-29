@@ -82,7 +82,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
     if (worklist.isEmpty) None // No more goals to try: synthesis failed
     else {
-      val (node, addNewNodes) = selectNode // Select next node to expand
+      val (node, addNewNodes) = popNode // Select next node to expand
       val goal = node.goal
       implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
@@ -98,7 +98,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         case Some(Failed) => { // Same goal has failed before: record as failed
           log.print(List((s"Recalled FAIL", RED)))
           trace.add(node.id, Failed, Some("cache"))
-          worklist = addNewNodes(Nil)
           node.fail
           None
         }
@@ -106,8 +105,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         { // Same goal has succeeded before: return the same solution
           log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
           trace.add(node.id, Succeeded(sol), Some("cache"))
-          worklist = addNewNodes(Nil)
-          node.succeed(sol)
+          node.succeed(sol) match {
+            case Left(sibling) => {
+              worklist = addNewNodes(List(sibling))
+              None
+            }
+            case Right(sol) => Some(sol)
+          }
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
           log.print(List(("Suspend", RED)))
@@ -124,19 +128,23 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     }
   }
 
-  // Given a worklist, return the next node to work on
-  // and a strategy for combining its children with the rest of the list
-  protected def selectNode(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
-    if (config.depthFirst) // DFS? Pick the first one, insert new nodes in the front
-      (worklist.head, _ ++ worklist.tail)
-    else if (config.breadthFirst) { // BFS? Pick the first one non-suspended, insert new nodes in the back
+  // Pop the next node to expand from the worklist;
+  // return this node and a strategy for combining its children with the rest of the list
+  protected def popNode(implicit config: SynConfig): (OrNode, Worklist => Worklist) =
+    if (config.depthFirst) {// DFS? Pick the first one, insert new nodes in the front
+      val best = worklist.head
+      worklist = worklist.tail
+      (best, _ ++ worklist)
+    } else if (config.breadthFirst) { // BFS? Pick the first one non-suspended, insert new nodes in the back
       val best = worklist.minBy(n => memo.isSuspended(n))
       val idx = worklist.indexOf(best)
-      (best, worklist.take(idx) ++ worklist.drop(idx + 1) ++ _)
+      worklist = worklist.take(idx) ++ worklist.drop(idx + 1)
+      (best, worklist ++ _)
     } else { // Otherwise pick a minimum-cost node that is not suspended
       val best = worklist.minBy(n => (memo.isSuspended(n), n.cost))
       val idx = worklist.indexOf(best)
-      (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))
+      worklist = worklist.take(idx) ++ worklist.drop(idx + 1)
+      (best, worklist.take(idx) ++ _ ++ worklist.drop(idx))
     }
 
   // Expand node and return either a new worklist or the final solution
@@ -161,31 +169,24 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         }
         trace.add(e, node)
         successLeaves = node :: successLeaves
-        worklist = addNewNodes(Nil)
-        node.succeed(e.producer(Nil))
+        node.succeed(e.producer(Nil)) match {
+          case Left(sibling) => {
+            // This node had a suspended and-sibling: add to the worklist
+            worklist = addNewNodes(List(sibling))
+            None
+          }
+          case Right(sol) => Some(sol) // This node had no more and-siblings: return solution
+        }
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
           andNode = AndNode(i +: node.id, node, e)
           if isTerminatingExpansion(andNode) // termination check
-          nSubs = e.subgoals.size; () = trace.add(andNode, nSubs)
-          (g, j) <- if (nSubs == 1) List((e.subgoals.head, -1)) // this is here only for logging
-          else e.subgoals.zipWithIndex
+          () = trace.add(andNode, andNode.nChildren)
         } yield {
-          val extraCost = if (j == -1) 0 else e.subgoals.drop(j + 1).map(_.cost).sum
-          OrNode(j +: andNode.id, g, Some(andNode), node.extraCost + extraCost)
+          andNode.nextChild // take the first goal from each new and-node; the first goal always exists
         }
-
-        // Suspend nodes with older and-siblings
-        newNodes.foreach(n => {
-          val idx = n.childIndex
-          if (idx > 0) {
-            val sib = newNodes.find(s => s.parent == n.parent && s.childIndex == idx - 1).get
-            log.print(List((s"Suspending ${n.pp()} until ${sib.pp()} succeeds", RED)))
-            memo.suspendSibling(n, sib) // always process the left and-goal first; unsuspend next once it succeeds
-          }
-        })
 
         worklist = addNewNodes(newNodes.toList)
         if (newNodes.isEmpty) {

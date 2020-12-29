@@ -66,20 +66,20 @@ object SearchTree {
       }
     }
 
-    // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution)(implicit config: SynConfig): Option[Solution] = {
+    // This node has succeeded: return either its next suspended and-sibling or the solution
+    def succeed(s: Solution)(implicit config: SynConfig): Either[OrNode, Solution] = {
       memo.save(goal, Succeeded(s))
       worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
       successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
-        case None => Some(s) // this is the root: synthesis succeeded
+        case None => Right(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
           an.kont = an.kont.partApply(s) // record solution in my parent
           // Check if my parent has more open subgoals:
-          if (an.kont.arity == 0) { // there are no more open subgoals: an has succeeded
+          if (an.nextChildIndex == an.nChildren) { // there are no more open subgoals: an has succeeded
             an.parent.succeed(an.kont(List()))
-          } else { // there are other open subgoals:
-            None
+          } else { // there are other open subgoals: add next open subgoal to the worklist
+            Left(an.nextChild)
           }
         }
       }
@@ -189,18 +189,31 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  class AndNode(_id: NodeId, _parent: OrNode, _kont: StmtProducer, _rule: SynthesisRule, _transitions: Seq[Transition]) {
+  class AndNode(_id: NodeId, _parent: OrNode, _result: RuleResult) {
     val id: NodeId = _id
     val parent: OrNode = _parent
-    var kont: StmtProducer = _kont
-    val rule: SynthesisRule = _rule
-    val transitions: Seq[Transition] = _transitions
+    val rule: SynthesisRule = _result.rule
+    val childGoals: Seq[Goal] = _result.subgoals
+    val transitions: Seq[Transition] = _result.transitions
+    var kont: StmtProducer = _result.producer
+    var nextChildIndex: Int = 0
 
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true
       else if (id.length < l.length) false
       else parent.hasAncestor(l)
+
+    def nChildren: Int = childGoals.size
+
+    // Return the first previously suspended or-node and increase nextChildIndex
+    def nextChild: OrNode = {
+      val g = childGoals(nextChildIndex)
+      val j = if (nChildren == 1) -1 else nextChildIndex
+      val extraCost = childGoals.drop(nextChildIndex + 1).map(_.cost).sum // TODO: I think this should be max
+      nextChildIndex = nextChildIndex + 1
+      OrNode(j +: this.id, g, Some(this), parent.extraCost + extraCost)
+    }
 
     def pp(d: Int = 0): String = {
       val parentPP = parent.parent match {
@@ -216,7 +229,7 @@ object SearchTree {
 
   object AndNode {
     def apply(id: NodeId, parent: OrNode, result: RuleResult): AndNode =
-      new AndNode(id, parent, result.producer, result.rule, result.transitions)
+      new AndNode(id, parent, result)
   }
 
 }
