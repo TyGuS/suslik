@@ -212,7 +212,7 @@ object SynStatUtil {
       case Statements.Call(_,_,_) => 1
       case Statements.SeqComp(s1, s2) => countInner(s1) + countInner(s2)
       case Statements.If(_, tb, eb) => 1 + countInner(tb) + countInner(eb)
-      //case Statements.Guarded(cond, body, els, branchPoint) =>
+      case Statements.Guarded(_, body) => 1 + countInner(body)
     }
     countInner(proc.body)
   }

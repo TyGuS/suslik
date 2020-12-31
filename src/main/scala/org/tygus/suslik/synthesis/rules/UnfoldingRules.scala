@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.BranchRules.Branch
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -46,7 +47,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // The tags in the body should be one more than in the current application:
             _newPreSigma1 = mkSFormula(body.chunks).setSAppTags(PTag(cls, unf + 1))
             newPreSigma = _newPreSigma1 ** remainingSigma
-          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
+          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c)), hasProgressed = true))
 
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
@@ -64,7 +65,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case None => None
           case Some((selGoals, heaplet)) =>
             val (selectors, subGoals) = selGoals.unzip
-            val kont = BranchProducer(selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = BranchProducer(selectors) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, this, goal))
         }
       } yield s
@@ -81,11 +82,11 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         goal.env.functions.values.map(f => (f, None)) // components
       for {
         (_f, l) <- funLabels
-        (freshSub, f) = _f.refreshAll(goal.vars)
+        (freshSub, f) = _f.refreshAll(goal.vars.filterNot(Branch.isUnknownCond))
 
         // Optimization: do not consider f if its pre has predicates that cannot possibly match ours
         if multiSubset(f.pre.sigma.profile.apps, goal.pre.sigma.profile.apps)
-        if goal.pre.sigma.callTags.min < goal.env.config.maxCalls
+        if (goal.env.config.maxCalls :: goal.pre.sigma.callTags).min < goal.env.config.maxCalls
 
         newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap // Add f's (fresh) variables to gamma
         call = Call(Var(f.name), f.params.map(_._1), l)
@@ -94,7 +95,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
-        val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = IdProducer >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
     }
@@ -127,7 +128,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
         val postCallTransition = Transition(goal, newGoal)
-        val kont: StmtProducer = PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = PrependProducer(call) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }
@@ -210,7 +211,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = IdProducer >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, this, goal)
           }

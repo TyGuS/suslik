@@ -23,7 +23,6 @@ case class SynConfig(
                       maxCloseDepth: Int = 1,
                       maxCalls: Int = 2,
                       auxAbduction: Boolean = true,
-                      topLevelRecursion: Boolean = true,
                       branchAbduction: Boolean = false,
                       maxGuardConjuncts: Int = 2,
                       phased: Boolean = true,

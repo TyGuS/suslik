@@ -7,6 +7,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.rules.BranchRules.Branch
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -69,12 +70,12 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "WeakenPre"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
+      val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars ++ goal.vars.filter(Branch.isUnknownCond))
       if (unused.conjuncts.isEmpty) Nil
       else {
         val newPre = Assertion(goal.pre.phi - unused, goal.pre.sigma)
         val newGoal = goal.spawnChild(pre = newPre)
-        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = IdProducer >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this, goal))
       }
     }
@@ -84,7 +85,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "Simplify"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      val kont = IdProducer >> ExtractHelper(goal)
       goal.post.sigma.chunks.find {
         case h@PointsTo(_, _, IfThenElse(_, _, _)) => h.vars.forall(v => !goal.isGhost(v))
         case _ => false
@@ -131,7 +132,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, newPreSigma)
           val newPost = Assertion(post.phi, newPostSigma)
           val newGoal = goal.spawnChild(newPre, newPost)
-          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = IdProducer >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -193,7 +194,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
-        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = IdProducer >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this, goal))
       }
     }
@@ -220,7 +221,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[RuleResult] = {
       if (goal.pre.phi == pFalse) return Nil
-      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      val kont = IdProducer >> ExtractHelper(goal)
 
       val newPrePhi = extendPure(goal.pre.phi, goal.pre.sigma)
       val newPostPhi = extendPure(goal.pre.phi && goal.post.phi, goal.post.sigma)
@@ -264,7 +265,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val _p1 = rest1.subst(x, e)
           val _s1 = s1.subst(x, e)
           val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))
-          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = IdProducer >> ExtractHelper(goal)
           assert(goal.callGoal.isEmpty)
           List(RuleResult(List(newGoal), kont, this, goal))
         }

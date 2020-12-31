@@ -48,7 +48,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 //        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
-        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = IdProducer >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
       nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
@@ -91,7 +91,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val subExpr = goal.substToFormula(Map(y -> x))
           val newPost = Assertion(post.phi && subExpr, post.sigma)
           val newGoal = goal.spawnChild(post = newPost)
-          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = IdProducer >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -134,7 +134,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _s2 = s2.subst(sigma)
           val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
-          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = IdProducer >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         case _ => Nil
       }
@@ -170,7 +170,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = ExistentialProducer(sigma) >> IdProducer >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
@@ -207,7 +207,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = ExistentialProducer(sigma) >> IdProducer >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
@@ -237,7 +237,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val newPost = goal.post.subst(sigma)
       val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
       val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-      val kont = ExistentialProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      val kont = ExistentialProducer(sigma) >> IdProducer >> ExtractHelper(goal)
       List(RuleResult(List(newGoal), kont, this, goal))
     }
   }

@@ -3,6 +3,7 @@ package org.tygus.suslik.synthesis
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.synthesis.rules.BranchRules.Branch
 import org.tygus.suslik.synthesis.rules.RuleUtils
 
 /**
@@ -27,11 +28,6 @@ sealed abstract class StmtProducer extends RuleUtils {
     */
   def >>(p: StmtProducer): StmtProducer = ChainedProducer(this, p)
 
-  /**
-    * Producer that results form applying this producer to s as its idx argument
-    */
-  def partApply(s: Solution): StmtProducer = PartiallyAppliedProducer(this, s)
-
   def liftToSolutions(f: Seq[Statement] => Statement)(arg: Seq[Solution]): Solution = {
     val (stmts, helpers) = arg.unzip
     val stmt = f(stmts)
@@ -41,20 +37,12 @@ sealed abstract class StmtProducer extends RuleUtils {
 
 }
 
-
 case class ChainedProducer(p1: StmtProducer, p2: StmtProducer) extends StmtProducer {
   val arity: Int = p1.arity + p2.arity - 1
   val fn: Kont = sols => {
     val (sols1, sols2) = sols.splitAt(p1.arity)
     val sol = p1.fn(sols1)
     p2.fn(sol +: sols2)
-  }
-}
-
-case class PartiallyAppliedProducer(p: StmtProducer, s: Solution) extends StmtProducer {
-  val arity: Int = p.arity - 1
-  val fn: Kont = sols => {
-    p.apply(s +: sols)
   }
 }
 
@@ -131,18 +119,6 @@ case class ExtractHelper(goal: Goal) extends StmtProducer {
   }
 }
 
-case class HandleGuard(goal: Goal) extends StmtProducer {
-  val arity: Int = 1
-  val fn: Kont = liftToSolutions(stmts => {
-    stmts.head match {
-      case g@Guarded(cond, body, els, l) =>
-        if (goal.label == l) If(cond, body, els).simplify // Current goal is the branching point: create conditional
-        else g // Haven't reached the branching point yet: propagate guarded statement
-      case stmt => stmt
-    }
-  })
-}
-
 // Produces a conditional that branches on the selectors
 case class BranchProducer(selectors: Seq[Expr]) extends StmtProducer {
   val arity: Int = selectors.length
@@ -156,9 +132,23 @@ case class BranchProducer(selectors: Seq[Expr]) extends StmtProducer {
   })
 }
 
-case class GuardedProducer(cond: Expr, goal: Goal) extends StmtProducer {
+// Joins a guarded statement and an else-branch into a conditional,
+// if goal is the right branching point (otherwise simply propagates the guarded statement)
+case class GuardedBranchProducer(goal: Goal) extends StmtProducer {
   val arity: Int = 2
-  val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head, stmts.last, goal.label))
+  val fn: Kont = liftToSolutions(stmts => {
+    stmts.head match {
+      case Guarded(cond, body) if Branch.minimalUnknown(goal.pre.phi, cond.vars) == Branch.unknownCond(goal)
+        => If(cond, body, stmts.last).simplify // Current goal is the branching point: create conditional
+      case stmt => stmt
+    }
+  })
+}
+
+// Creates a guarded statement with condition cond
+case class GuardedProducer(cond: Expr) extends StmtProducer {
+  val arity: Int = 1
+  val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head))
 }
 
 // Captures the existential substitution map produced by the Pick rule

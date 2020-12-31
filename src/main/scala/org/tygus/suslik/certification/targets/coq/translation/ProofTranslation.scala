@@ -15,7 +15,7 @@ import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.SepLogicUtils
 import org.tygus.suslik.logic.unification.SpatialUnification
-import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
+import org.tygus.suslik.synthesis.rules.BranchRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules.EmpRule
 import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules
@@ -112,7 +112,7 @@ object ProofTranslation extends SepLogicUtils {
       case (_, ExistentialProducer(subst)) =>
         val csubst = subst.map { case (k, v) => CVar(k.name) -> translateExpr(v) }
         Some(CPickApp(csubst, cenv))
-      case (AbduceBranch, GuardedProducer(cond, _)) =>
+      case (AbduceBranch, GuardedProducer(cond)) =>
         Some(CAbduceBranchApp(translateExpr(cond), cenv))
       case _ =>
         None // rule has no effect on certification

@@ -1,11 +1,9 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.{Expr, Var}
-import org.tygus.suslik.language.IntType
+import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.logic.Specifications._
-import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.Termination.Transition
+import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -59,75 +57,6 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else filterOutValidPost(goal, exPost, uniPost)
     }
   }
-
-  object AbduceBranch extends SynthesisRule with GeneratesCode with InvertibleRule {
-    override def toString: String = "AbduceBranch"
-
-    def atomCandidates(goal: Goal): Seq[Expr] =
-      for {
-        lhs <- goal.programVars.filter(goal.post.phi.vars.contains)
-        rhs <- goal.programVars.filter(goal.post.phi.vars.contains)
-        if lhs != rhs
-        if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
-      } yield lhs |<=| rhs
-
-    def condCandidates(goal: Goal): Seq[Expr] = {
-      val atoms = atomCandidates(goal)
-      // Toggle this to enable abduction of conjunctions
-      // (without branch pruning, produces too many branches)
-//      atoms
-      for {
-        subset <- atoms.toSet.subsets.toSeq.sortBy(_.size)
-        if subset.nonEmpty && subset.size <= goal.env.config.maxGuardConjuncts
-      } yield PFormula(subset).toExpr
-    }
-
-    /**
-      * Find the earliest ancestor of goal
-      * that is still valid and has all variables from vars
-      */
-    def findBranchPoint(vars: Set[Var], goal: Goal): Option[Goal] = {
-      def valid(g: Goal) = SMTSolving.valid(g.pre.phi ==> g.universalPost)
-
-      goal.parent match {
-        case None => Some(goal).filter(valid) // goal is root: return itself if valid
-        case Some(pGoal) =>
-          if (vars.subsetOf(pGoal.programVars.toSet)) {
-            // Parent goal has all variables from vars: recurse
-            findBranchPoint(vars, pGoal)
-          } else Some(goal).filter(valid) // one of vars undefined in the goal: return itself if valid
-      }
-    }
-
-    def guardedCandidates(goal: Goal): Seq[RuleResult] =
-      for {
-        cond <- condCandidates(goal)
-        pre = goal.pre.phi
-        if SMTSolving.valid((pre && cond) ==> goal.universalPost)
-        if SMTSolving.sat((pre && cond).toExpr)
-        bGoal <- findBranchPoint(cond.vars, goal)
-        thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi && cond))
-        elseGoal = bGoal.spawnChild(
-          pre = bGoal.pre.copy(phi = bGoal.pre.phi && cond.not),
-          childId = Some(100))
-        thenTransition = Transition(goal, thenGoal)
-        elseTransition = Transition(bGoal, elseGoal)
-      } yield RuleResult(List(thenGoal, elseGoal), GuardedProducer(cond, bGoal), this, List(thenTransition, elseTransition))
-
-    def apply(goal: Goal): Seq[RuleResult] = {
-      val (uniPost, exPost) = goal.splitPost
-      if (SMTSolving.valid(goal.pre.phi ==> uniPost))
-        CheckPost.filterOutValidPost(goal, exPost, uniPost)
-      else {
-        val guarded = guardedCandidates(goal)
-        if (guarded.isEmpty)
-          // Abduction failed
-          List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal)) // pre doesn't imply post: goal is unsolvable
-        else guarded.take(1) // TODO: try several incomparable conditions, but filter out subsumed ones?
-      }
-    }
-  }
-
 
   // Short-circuits failure if spatial post doesn't match pre
   // This rule is only applicable when only points-to heaplets are left

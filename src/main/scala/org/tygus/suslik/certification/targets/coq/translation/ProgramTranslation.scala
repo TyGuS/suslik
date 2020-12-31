@@ -8,7 +8,7 @@ import org.tygus.suslik.certification.targets.coq.translation.Translation._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.SepLogicUtils
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.FailRules.AbduceBranch
+import org.tygus.suslik.synthesis.rules.BranchRules.AbduceBranch
 import org.tygus.suslik.synthesis.rules.LogicalRules._
 import org.tygus.suslik.synthesis.rules.OperationalRules._
 import org.tygus.suslik.synthesis.rules.UnfoldingRules._
@@ -76,7 +76,7 @@ object ProgramTranslation extends SepLogicUtils {
       case (Open, BranchProducer(selectors)) =>
         val cstmt = openProducer(selectors.map(translateExpr))
         Some(cstmt)
-      case (AbduceBranch, GuardedProducer(cond, _)) =>
+      case (AbduceBranch, GuardedProducer(cond)) =>
         val cstmt = guardedProducer(translateExpr(cond))
         Some(cstmt)
       case _ =>

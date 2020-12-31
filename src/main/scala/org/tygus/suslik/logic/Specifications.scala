@@ -111,7 +111,8 @@ object Specifications extends SepLogicUtils {
                   parent: Option[Goal], // parent goal in the derivation
                   env: Environment, // predicates and components
                   sketch: Statement, // sketch
-                  callGoal: Option[SuspendedCallGoal]
+                  callGoal: Option[SuspendedCallGoal],
+                  hasProgressed: Boolean
                  )
 
     extends PrettyPrinting with PureLogicUtils {
@@ -141,14 +142,11 @@ object Specifications extends SepLogicUtils {
     // Companion candidates for this goal:
     // look at ancestors before progress was last made, only keep those with different heap profiles
     def companionCandidates: List[Goal] = {
-      val allCands = ancestors.dropWhile(_.label.depths.length == this.label.depths.length).filter(_.callGoal.isEmpty).reverse
-      val cands =
-        if (env.config.auxAbduction) nubBy[Goal, (SProfile, SProfile)](allCands, c => (c.pre.sigma.profile, c.post.sigma.profile))
-        else allCands.take(1)
-      if (env.config.topLevelRecursion) cands
-      else cands.drop(1)
       // TODO: replace this with proc rule
-    }
+      val allCands = ancestors.dropWhile(!_.hasProgressed).drop(1).filter(_.callGoal.isEmpty).reverse
+      if (env.config.auxAbduction) nubBy[Goal, (SProfile, SProfile)](allCands, c => (c.pre.sigma.profile, c.post.sigma.profile))
+      else allCands.take(1)
+  }
 
     // Turn this goal into a helper function specification
     def toFunSpec: FunSpec = {
@@ -172,7 +170,8 @@ object Specifications extends SepLogicUtils {
                    childId: Option[Int] = None,
                    env: Environment = this.env,
                    sketch: Statement = this.sketch,
-                   callGoal: Option[SuspendedCallGoal] = this.callGoal): Goal = {
+                   callGoal: Option[SuspendedCallGoal] = this.callGoal,
+                   hasProgressed: Boolean = false): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -189,7 +188,7 @@ object Specifications extends SepLogicUtils {
       Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
-        callGoal)
+        callGoal, hasProgressed)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -263,10 +262,11 @@ object Specifications extends SepLogicUtils {
       * for now just the number of heaplets in pre and post
       */
     //    lazy val cost: Int = pre.cost.max(post.cost)
-    lazy val cost: Int = callGoal match {
-      case None => 3*pre.cost + post.cost  // + existentials.size //
-      case Some(cg) => 10 + 3*cg.callerPre.cost + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
-    }
+    lazy val cost: Int = if (pre.phi == pFalse) 0 // TODO: temporary fix for branch abduction
+      else callGoal match {
+        case None => 3*pre.cost + post.cost  // + existentials.size //
+        case Some(cg) => 10 + 3*cg.callerPre.cost + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
+      }
   }
 
   def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
@@ -291,7 +291,7 @@ object Specifications extends SepLogicUtils {
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), None)
+      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), None, false)
   }
 
   /**

@@ -9,7 +9,7 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
-import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, HandleGuard, IdProducer}
+import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer}
 
 import scala.sys.process._
 import scala.util.{Failure, Success}
@@ -219,7 +219,7 @@ object DelegatePureSynthesis {
         val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
         val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         if (isFinal || !DelegatePureSynthesis.hasSecondResult(goal,assignments)) {
-          val kont = ExistentialProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = ExistentialProducer(assignments) >> IdProducer >> ExtractHelper(goal)
           val alternatives = RuleResult(List(newGoal), kont, this, goal) :: Nil
           nubBy[RuleResult, Assertion](alternatives, res => res.subgoals.head.post)
         }

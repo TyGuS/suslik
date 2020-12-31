@@ -10,7 +10,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.{ChainedProducer, PartiallyAppliedProducer, StmtProducer}
+import org.tygus.suslik.synthesis.{ChainedProducer, StmtProducer}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.Open
 
 object Translation {
@@ -58,7 +58,7 @@ object Translation {
   def expandStmt(stmt: Statement) : (Option[Statement], Seq[Statement]) = stmt match {
     case SeqComp(s1, s2) => (Some(s1), Seq(s2))
     case If(_, tb, eb) => (None, Seq(tb, eb))
-    case Guarded(_, body, els, _) => (None, Seq(body, els))
+    case Guarded(_, body) => (None, Seq(body))
     case _ => (Some(stmt), Seq())
   }
 
@@ -69,7 +69,6 @@ object Translation {
     */
   @scala.annotation.tailrec
   def unwrapStmtProducer(p: StmtProducer) : StmtProducer = p match {
-    case PartiallyAppliedProducer(p, _) => unwrapStmtProducer(p)
     case ChainedProducer(p1, _) => unwrapStmtProducer(p1)
     case p => p
   }
