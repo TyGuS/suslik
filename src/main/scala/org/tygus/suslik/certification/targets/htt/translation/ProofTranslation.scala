@@ -13,6 +13,7 @@ import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.LogicalRules.Inconsistency
 
 object ProofTranslation {
+
   private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment)
 
   def translate(node: CertTree.Node, cenv: CEnvironment): Proof = {
