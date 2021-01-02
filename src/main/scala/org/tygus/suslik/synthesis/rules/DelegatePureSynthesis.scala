@@ -83,6 +83,7 @@ object DelegatePureSynthesis {
       sb ++= " "
       toSmtExpr(right, existentials, sb)
       sb ++= ")"
+    case Expressions.Unknown(_,_,_) => sb ++= Expressions.eTrue.pp
   }
 
   def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var, String] =
@@ -101,8 +102,8 @@ object DelegatePureSynthesis {
       sb ++= ")"
   }
 
-  def usesEmptyset(a: Specifications.Assertion): Boolean = a.phi.conjuncts.exists(e => !e.collect(expr =>
-    expr.isInstanceOf[Expressions.SetLiteral] && expr.asInstanceOf[Expressions.SetLiteral].elems.isEmpty).isEmpty)
+  def usesEmptyset(a: Specifications.Assertion): Boolean = a.phi.conjuncts.exists(e => e.collect(expr =>
+    expr.isInstanceOf[Expressions.SetLiteral] && expr.asInstanceOf[Expressions.SetLiteral].elems.isEmpty).nonEmpty)
 
   def toSMTTask(goal: Specifications.Goal, grammarExclusion: Option[(Expressions.Var,Expressions.Expr)] = None): String = {
     val sb = new StringBuilder
@@ -122,7 +123,7 @@ object DelegatePureSynthesis {
       sb ++= "  ((Start " ++= etypeStr ++= " ("
       for (c <- typeConstants(etypeOpt.get))
         sb ++= c ++= " "
-      for (v <- otherVars; if grammarExclusion.map(a => !(ex == a._1 && v._1 == a._2)).getOrElse(true); if v._2.conformsTo(etypeOpt))
+      for (v <- otherVars; if grammarExclusion.forall(a => !(ex == a._1 && v._1 == a._2)); if v._2.conformsTo(etypeOpt))
         sb ++= v._1.name ++= " "
       sb ++= ")))"
       sb ++= ")\n"
@@ -193,7 +194,7 @@ object DelegatePureSynthesis {
     for (a <- assignment) {
       val newSmtTask = toSMTTask(goal,Some(a))
       val newRes = invokeCVC(newSmtTask)
-      if (!newRes.isEmpty) return true
+      if (newRes.isDefined) return true
     }
     false
   }

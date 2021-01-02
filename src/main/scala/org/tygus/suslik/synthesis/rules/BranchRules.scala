@@ -1,8 +1,8 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.{Expr, Var}
-import org.tygus.suslik.language.IntType
+import org.tygus.suslik.language.Expressions.{Expr, Unknown, Var}
 import org.tygus.suslik.language.Statements.Guarded
+import org.tygus.suslik.language.{Expressions, IntType}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -30,47 +30,37 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object Branch extends SynthesisRule with GeneratesCode with InvertibleRule {
     override def toString: String = "Branch"
 
-    val unknownCondPrefix = "C-"
-    val varSeparator = "-"
+    // Unknown predicate over all program variables of goal
+    def unknownCond(goal: Goal): Unknown = Unknown("C", goal.programVars.toSet)
 
-    def isUnknownCond(v: Var) = v.name.startsWith(unknownCondPrefix)
-
-    def unknownCond(goal: Goal): Var = {
-      val suffix = goal.programVars.map(_.name).mkString(varSeparator)
-      Var(unknownCondPrefix ++ suffix)
+    // Among all unknowns in phi, find one with the smallest parameter set
+    // that still includes all mustHaveVars
+    def minimalUnknown(phi: PFormula, mustHaveVars: Set[Var]): Unknown = {
+      val allUnknowns = phi.collect[Unknown](_.isInstanceOf[Unknown])
+      allUnknowns.filter(u => mustHaveVars.subsetOf(u.params)).minBy(_.params.size)
     }
 
-    def minimalUnknown(phi: PFormula, mustHaveVars: Set[Var]): Var = {
-      val allCondVars = phi.vars.filter(isUnknownCond)
-      val m = allCondVars.map(v => (v, v.name.stripPrefix(unknownCondPrefix).split(varSeparator).toSet.map(Var))).toList.sortBy(_._2.size)
-      m.find({ case (_, vs) => mustHaveVars.subsetOf(vs)}).get._1
-    }
+    // Is goal the earliest branching point for guard cond?
+    // Yes if there is no smaller unknown in goal that has all variables of cond
+    def isBranchingPoint(goal: Goal, cond: Expr): Boolean =
+      unknownCond(goal) == minimalUnknown(goal.pre.phi, cond.vars)
 
-    def substUnknown(phi: PFormula, cond: Expr, mustHaveVars: Set[Var]): PFormula = {
-      val theVar = minimalUnknown(phi, mustHaveVars)
-      phi.subst(theVar, cond)
+    // Once the guard of the then-branch has been determined,
+    // substitute the unknown in the else-branch
+    val elseGoalUpdater: GoalUpdater = sols => g => {
+      assert(sols.size == 1) // single older sibling: then branch
+      val knownCond = sols.head._1 match {
+        case Guarded(cond, _) if isBranchingPoint(g, cond) => cond // then branch is guarded and branching point is here
+        case _ => Expressions.eTrue // otherwise, treat as unguarded
+      }
+      g.copy(pre = g.pre.copy(phi = g.pre.phi.substUnknown(unknownCond(g), knownCond)))
     }
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
       val unknown = unknownCond(goal)
       val thenGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown, pre.sigma), childId = Some(0))
-      //      val elseGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown.not, pre.sigma), childId = Some(1))
-      val elseGoal = goal.spawnChild(pre = Assertion(pFalse, pre.sigma), childId = Some(1))
-
-      val elseGoalUpdater: GoalUpdater = sols => g => {
-        assert(sols.size == 1)
-        //      val knownCond = sols.head._1 match {
-        //        case Guarded(cond, _) if minimalUnknown(g.pre.phi, cond.vars) == unknownCond(g) => cond
-        //        case _ => BoolConst(true)
-        //      }
-        //      g.copy(pre = g.pre.copy(phi = substUnknown(g.pre.phi, knownCond, g.programVars.toSet)))
-        sols.head._1 match {
-          case Guarded(cond, _) if minimalUnknown(thenGoal.pre.phi, cond.vars) == unknown =>
-            g.copy(pre = g.pre.copy(phi = goal.pre.phi && cond.not))
-          case _ => g
-        }
-      }
+      val elseGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown.not, pre.sigma), childId = Some(1))
 
       List(RuleResult(List(thenGoal, elseGoal), GuardedBranchProducer(thenGoal), this, goal).copy(updates =
         List(RuleResult.noUpdate, elseGoalUpdater)))
@@ -110,7 +100,8 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         pre = goal.pre.phi
         if SMTSolving.valid((pre && cond) ==> goal.universalPost)
         if SMTSolving.sat((pre && cond).toExpr)
-        thenGoal = goal.spawnChild(goal.pre.copy(phi = Branch.substUnknown(goal.pre.phi, cond, cond.vars)))
+        unknown = Branch.minimalUnknown(goal.pre.phi, cond.vars)
+        thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi.substUnknown(unknown, cond)))
       } yield {
         RuleResult(List(thenGoal), GuardedProducer(cond), this, thenGoal)
       }

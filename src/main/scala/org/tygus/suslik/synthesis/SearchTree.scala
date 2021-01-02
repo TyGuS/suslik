@@ -191,9 +191,9 @@ object SearchTree {
       val origGoal = childGoals(nextChildIndex)
       val goal = updates(nextChildIndex)(childSolutions)(origGoal)
       val j = if (nChildren == 1) -1 else nextChildIndex
-      val extraCost = (0 +: childGoals.drop(nextChildIndex + 1).map(_.cost)).sum // TODO: I think this should be max
+      val extraCost = (0 +: childGoals.drop(nextChildIndex + 1).map(_.cost)).max
       nextChildIndex = nextChildIndex + 1
-      OrNode(j +: this.id, goal, Some(this), parent.extraCost + extraCost)
+      OrNode(j +: this.id, goal, Some(this), parent.extraCost.max(extraCost))
     }
 
     def pp(d: Int = 0): String = {

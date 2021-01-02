@@ -22,11 +22,6 @@ trait PureLogicUtils {
     s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
   }
 
-  def agreeOnSameKeys(m1: Subst, m2: Subst): Boolean = {
-    val common = m1.keySet.intersect(m2.keySet)
-    common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
-  }
-
   /**
     *
     */
@@ -132,11 +127,6 @@ trait PureLogicUtils {
     case BinaryExpr(op, e1, e2) => BinaryExpr(op, simplify(e1), simplify(e2))
 
     case _ => e
-  }
-
-  private def isAtomicExpr(e: Expr): Boolean = e match {
-    case BinaryExpr(op, _, _) => !op.isInstanceOf[RelOp] && !op.isInstanceOf[LogicOp]
-    case _ => true
   }
 
   def pTrue: PFormula = PFormula(Set[Expr]())

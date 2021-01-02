@@ -138,9 +138,9 @@ case class GuardedBranchProducer(goal: Goal) extends StmtProducer {
   val arity: Int = 2
   val fn: Kont = liftToSolutions(stmts => {
     stmts.head match {
-      case Guarded(cond, body) if Branch.minimalUnknown(goal.pre.phi, cond.vars) == Branch.unknownCond(goal)
+      case Guarded(cond, body) if Branch.isBranchingPoint(goal, cond)
         => If(cond, body, stmts.last).simplify // Current goal is the branching point: create conditional
-      case stmt => stmt
+      case stmt => stmt // Current goal is not the branching point: second child is always vacuous, so ignore it
     }
   })
 }

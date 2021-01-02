@@ -262,8 +262,7 @@ object Specifications extends SepLogicUtils {
       * for now just the number of heaplets in pre and post
       */
     //    lazy val cost: Int = pre.cost.max(post.cost)
-    lazy val cost: Int = if (pre.phi == pFalse) 0 // TODO: temporary fix for branch abduction
-      else callGoal match {
+    lazy val cost: Int = callGoal match {
         case None => 3*pre.cost + post.cost  // + existentials.size //
         case Some(cg) => 10 + 3*cg.callerPre.cost + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
       }

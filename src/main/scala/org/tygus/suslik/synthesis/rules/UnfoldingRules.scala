@@ -1,14 +1,13 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{CardType, Ident}
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.language.{CardType, Ident}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.BranchRules.Branch
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -82,7 +81,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         goal.env.functions.values.map(f => (f, None)) // components
       for {
         (_f, l) <- funLabels
-        (freshSub, f) = _f.refreshAll(goal.vars.filterNot(Branch.isUnknownCond))
+        (freshSub, f) = _f.refreshAll(goal.vars)
 
         // Optimization: do not consider f if its pre has predicates that cannot possibly match ours
         if multiSubset(f.pre.sigma.profile.apps, goal.pre.sigma.profile.apps)

@@ -226,6 +226,7 @@ object SMTSolving extends Core
       new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(setSubsetSymbol, List(l.termDef, r.termDef)))
     }
+    case Unknown(_, _, _) => True() // Treat unknown predicates as true
     case _ => throw SMTUnsupportedExpr(e)
   }
 

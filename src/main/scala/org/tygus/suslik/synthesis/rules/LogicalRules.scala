@@ -70,7 +70,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "WeakenPre"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars ++ goal.vars.filter(Branch.isUnknownCond))
+      val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
       if (unused.conjuncts.isEmpty) Nil
       else {
         val newPre = Assertion(goal.pre.phi - unused, goal.pre.sigma)

@@ -12,6 +12,8 @@ case class PFormula(conjuncts: SortedSet[Expr]) extends PrettyPrinting with HasE
   override def pp: String = toExpr.pp
 
   def subst(sigma: Subst): PFormula = PFormula(conjuncts.map(_.subst(sigma)))
+  def substUnknown(sigma: UnknownSubst): PFormula = PFormula(conjuncts.map(_.substUnknown(sigma)))
+  def substUnknown(unknown: Unknown, expr: Expr): PFormula = substUnknown(Map(unknown -> expr))
 
   def resolveOverloading(gamma: Gamma): PFormula = PFormula(conjuncts.map(_.resolveOverloading(gamma)))
 

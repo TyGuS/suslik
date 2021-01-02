@@ -1,6 +1,6 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.Gamma
+import org.tygus.suslik.logic.{Gamma, PureLogicUtils}
 import org.tygus.suslik.synthesis.SynthesisException
 
 /**
@@ -265,6 +265,9 @@ object Expressions {
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
+        case c@Unknown(_,params,_) =>
+          val acc1 = if (p(c)) acc + c.asInstanceOf[R] else acc
+          params.foldLeft(acc1)((a,e) => collector(a)(e))
         case _ => acc
       }
 
@@ -302,6 +305,8 @@ object Expressions {
     def <==> (other: Expr): Expr = (this ==> other) && (other ==> this)
 
     def getType(gamma: Gamma): Option[SSLType]
+
+    def substUnknown(sigma: UnknownSubst): Expr = this
 
     def resolve(gamma: Gamma, target: Option[SSLType]): Option[Gamma] = this match {
       case v@Var(_) => gamma.get(v) match {
@@ -369,6 +374,7 @@ object Expressions {
             }
           }
         } yield gamma4
+      case Unknown(_,_,_) => if (BoolType.conformsTo(target)) Some(gamma) else None
     }
 
     // Expression size in AST nodes
@@ -381,17 +387,6 @@ object Expressions {
       case _ => 1
     }
 
-    // Should this atomic formula be a candidate for pure unification?
-    // For now, only allow set relations
-    def allowUnify: Boolean = this match {
-      case BinaryExpr(op, _, _) => op match {
-        case OpSetEq => true
-        case OpIn => true
-        case OpSubset => true
-        case _ => false
-      }
-      case _ => false
-    }
 
     def conjuncts: List[Expr] = this match {
         case BoolConst(true) => Nil
@@ -408,7 +403,8 @@ object Expressions {
           expr.right.resolveOverloading(gamma))
       case Var(_)
       | BoolConst(_)
-      | IntConst(_)  => this
+      | IntConst(_)
+      | Unknown(_,_,_) => this
       case UnaryExpr(op, e) => UnaryExpr(op, e.resolveOverloading(gamma))
       case BinaryExpr(op, l, r) => BinaryExpr(op, l.resolveOverloading(gamma), r.resolveOverloading(gamma))
       case SetLiteral(elems) => SetLiteral(elems.map(_.resolveOverloading(gamma)))
@@ -465,6 +461,7 @@ object Expressions {
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Subst): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+    override def substUnknown(sigma: UnknownSubst): Expr = BinaryExpr(op, left.substUnknown(sigma), right.substUnknown(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
@@ -473,6 +470,7 @@ object Expressions {
 
   case class OverloadedBinaryExpr(overloaded_op: OverloadedBinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Subst): Expr = OverloadedBinaryExpr(overloaded_op, left.subst(sigma), right.subst(sigma))
+    override def substUnknown(sigma: UnknownSubst): Expr = OverloadedBinaryExpr(overloaded_op, left.substUnknown(sigma), right.substUnknown(sigma))
     override def level: Int = overloaded_op.level
     override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
     override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
@@ -528,7 +526,7 @@ object Expressions {
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
     def subst(sigma: Subst): Expr = UnaryExpr(op, arg.subst(sigma))
-
+    override def substUnknown(sigma: UnknownSubst): Expr = UnaryExpr(op, arg.substUnknown(sigma))
     override def level = 5
     override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
     def getType(gamma: Gamma): Option[SSLType] = Some(op.outputType)
@@ -544,7 +542,28 @@ object Expressions {
     override def level: Int = 0
     override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
     override def subst(sigma: Subst): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
+    override def substUnknown(sigma: UnknownSubst): Expr = IfThenElse(cond.substUnknown(sigma), left.substUnknown(sigma), right.substUnknown(sigma))
     def getType(gamma: Gamma): Option[SSLType] = left.getType(gamma)
+  }
+
+  /**
+    * Unknown predicate (to be replaced by a term)
+    * @param name Predicate name
+    * @param params Variables that may appear in the instantiation
+    */
+  case class Unknown(name: String, params: Set[Var], pendingSubst: Subst = Map()) extends Expr with PureLogicUtils {
+    override def getType(gamma: Gamma): Option[SSLType] = Some(BoolType)
+
+    override def pp: String = s"?$name(${params.map(_.name).mkString(", ")})"
+
+    override def subst(sigma: Subst): Expr = this.copy(pendingSubst = compose(this.pendingSubst, sigma))
+
+    override def substUnknown(sigma: UnknownSubst): Expr =
+      // Find unknown but ignore pending subst
+      sigma.find({case (k, _) => k.name == name && k.params == params}) match {
+      case None => this
+      case Some((_,e)) => e.subst(pendingSubst)
+    }
   }
 
   /*
@@ -560,6 +579,7 @@ object Expressions {
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
   type ExprSubst = Map[Expr, Expr]
+  type UnknownSubst = Map[Unknown, Expr]
 
   def toSorted[A <: Expr](s: Set[A]): List[A] = s.toList.sorted(Ordering[Expr])
   def least[A <: Expr](s: Set[Var]): List[Var] = if (s.isEmpty) Nil else List(s.min(Ordering[Expr]))

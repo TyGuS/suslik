@@ -151,7 +151,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "Pick"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
+      val constants = List(IntConst(0), SetLiteral(List()), eTrue, eFalse)
 
       val exCandidates = // goal.existentials
        if (goal.post.sigma.isEmp) goal.existentials else goal.existentials.intersect(goal.post.sigma.vars)

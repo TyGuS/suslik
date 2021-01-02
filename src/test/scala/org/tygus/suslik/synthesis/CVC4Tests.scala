@@ -178,7 +178,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     assert(sb.toString == "(setminus S1 S2)")
 
     //Expressions.IfThenElse(cond, left, right)
-    val ite = Expressions.IfThenElse(Expressions.BoolConst(true),Expressions.Var("x"),IntConst(3))
+    val ite = Expressions.IfThenElse(Expressions.eTrue,Expressions.Var("x"),IntConst(3))
     sb.clear()
     DelegatePureSynthesis.toSmtExpr(ite,Map.empty,sb)
     assert(sb.toString == "(ite true x 3)")
