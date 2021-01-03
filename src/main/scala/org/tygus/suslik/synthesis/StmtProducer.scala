@@ -1,5 +1,6 @@
 package org.tygus.suslik.synthesis
 
+import org.tygus.suslik.language.Expressions
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications.Goal
@@ -112,8 +113,10 @@ case class ExtractHelper(goal: Goal) extends StmtProducer {
     val (stmt, helpers) = sols.head
     if (stmt.companions.contains(goal.label) && !goal.isTopLevel) {
       val f = goal.toFunSpec
-      val (newHelper, newCall) = Procedure(f, stmt).removeUnusedParams(goal.toCall)
-      (newCall, newHelper :: helpers)
+      // Substitute all unknowns with true
+      val finalized = (f.pre.phi.unknowns ++ f.post.phi.unknowns).foldLeft(f)({case (spec, u) => spec.substUnknown(Map(u -> Expressions.eTrue))})
+      val (newHelper, newCall) = Procedure(finalized, stmt).removeUnusedParams(goal.toCall)
+      (newCall, newHelper.simplifyParams :: helpers)
     } else
       (stmt, helpers)
   }

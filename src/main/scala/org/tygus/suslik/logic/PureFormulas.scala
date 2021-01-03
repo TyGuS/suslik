@@ -29,6 +29,8 @@ case class PFormula(conjuncts: SortedSet[Expr]) extends PrettyPrinting with HasE
     conjuncts.map(_.collect(p)).foldLeft(Set.empty[R])(_ ++ _)
   }
 
+  def unknowns: Set[Unknown] = collect[Unknown](_.isInstanceOf[Unknown])
+
   // Add h to chunks (multiset semantics)
   def &&(c: Expr): PFormula = PFormula(conjuncts ++ c.conjuncts.toSet)
 

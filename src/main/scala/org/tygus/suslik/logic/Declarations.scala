@@ -58,6 +58,15 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     (sub, this.copy(params = newParams, pre = newPre, post = newPost, var_decl = newVarDecl))
   }
 
+  def varSubst(sigma: SubstVar): FunSpec = this.copy(
+    params = this.params.map({ case (v, t) => (v.varSubst(sigma), t)}),
+    pre = this.pre.subst(sigma),
+    post = this.post.subst(sigma))
+
+  def substUnknown(sigma: UnknownSubst): FunSpec = this.copy(
+    pre = this.pre.copy(this.pre.phi.substUnknown(sigma), this.pre.sigma),
+    post = this.post.copy(this.post.phi.substUnknown(sigma), this.post.sigma)
+  )
 }
 
 /**

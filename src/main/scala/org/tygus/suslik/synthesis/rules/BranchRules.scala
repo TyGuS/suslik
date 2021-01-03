@@ -35,10 +35,8 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     // Among all unknowns in phi, find one with the smallest parameter set
     // that still includes all mustHaveVars
-    def minimalUnknown(phi: PFormula, mustHaveVars: Set[Var]): Unknown = {
-      val allUnknowns = phi.collect[Unknown](_.isInstanceOf[Unknown])
-      allUnknowns.filter(u => mustHaveVars.subsetOf(u.params)).minBy(_.params.size)
-    }
+    def minimalUnknown(phi: PFormula, mustHaveVars: Set[Var]): Unknown =
+      phi.unknowns.filter(u => mustHaveVars.subsetOf(u.params)).minBy(_.params.size)
 
     // Is goal the earliest branching point for guard cond?
     // Yes if there is no smaller unknown in goal that has all variables of cond
@@ -61,7 +59,7 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val pre = goal.pre
       val unknown = unknownCond(goal)
       // If this goal already contains an unknown with the same program vars, the rule does not apply
-      if (pre.phi.collect[Unknown](_.isInstanceOf[Unknown]).exists(_.sameVar(unknown))) return List()
+      if (pre.phi.unknowns.exists(_.sameVar(unknown))) return List()
       // Otherwise: create two branches, adding unknown and its negation to precondition
       val thenGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown, pre.sigma), childId = Some(0))
       val elseGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown.not, pre.sigma), childId = Some(1))

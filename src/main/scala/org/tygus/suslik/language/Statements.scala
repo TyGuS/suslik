@@ -213,6 +213,15 @@ object Statements {
       case other => other
     }
 
+    // Shorten a variable v to its minimal prefix unused in the current statement.
+    def simplifyVariable(v: Var): (Var, Statement) = {
+      val used = this.vars
+      val prefixes = Range(1, v.name.length).map(n => v.name.take(n))
+      prefixes.find(p => !used.contains(Var(p))) match {
+        case None => (v, this) // All shorter names are taken
+        case Some(name) => (Var(name), this.subst(v, Var(name)))
+      }
+    }
   }
 
   // skip
@@ -259,17 +268,11 @@ object Statements {
 
     // Eliminate or shorten newly bound variable newvar
     // depending on the rest of the program (s2)
-    private def simplifyBinding(newvar: Var, mkBinding: Var => Statement): Statement = {
-      val used = s2.vars
-      if (used.contains(newvar)) {
-        // Try to shorten the variable name
-        val prefixes = Range(1, newvar.name.length).map(n => newvar.name.take(n))
-        prefixes.find(p => !used.contains(Var(p))) match {
-          case None => this // All shorter names are used
-          case Some(name) => SeqComp(mkBinding(Var(name)), s2.subst(newvar, Var(name)))
-        }
-      } else s2 // Do not generate bindings for unused variables
-    }
+    private def simplifyBinding(newvar: Var, mkBinding: Var => Statement): Statement =
+      if (s2.vars.contains(newvar)) {
+        val (v, s) = s2.simplifyVariable(newvar)
+        SeqComp(mkBinding(v), s)
+      } else s2  // Do not generate bindings for unused variables
   }
 
   // if (cond) { tb } else { eb }
@@ -300,6 +303,22 @@ object Statements {
          |${body.pp}}
     """.stripMargin
 
+    // Shorten parameter names
+    def simplifyParams: Procedure = {
+      type Acc = (FunSpec, Statement)
+      def updateParam(formal: (Var, SSLType), acc: Acc): Acc = {
+        val (newParam, newBody) = acc._2.simplifyVariable(formal._1)
+        val newSpec = acc._1.varSubst(Map(formal._1 -> newParam))
+        (newSpec, newBody)
+      }
+      val (newSpec, newBody) = f.params.foldRight((f, body))(updateParam)
+      this.copy(f = newSpec, body = newBody)
+    }
+
+    // Removed unused formals from this procedure
+    // and corresponding actuals in all recursive calls;
+    // a parameter is considered unused if it is only mentioned in a recursive call
+    // at the same (or other unused) position
     def removeUnusedParams(outerCall: Call): (Procedure, Call) = {
 
       def isRecCall(s: Statement) = s.isInstanceOf[Call] && s.asInstanceOf[Call].fun.name == f.name
