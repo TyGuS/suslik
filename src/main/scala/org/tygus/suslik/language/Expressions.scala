@@ -558,9 +558,12 @@ object Expressions {
 
     override def subst(sigma: Subst): Expr = this.copy(pendingSubst = compose(this.pendingSubst, sigma))
 
+    // Compare ignoring the pending substitution
+    def sameVar(other: Unknown): Boolean = other.name == name && other.params == params
+
     override def substUnknown(sigma: UnknownSubst): Expr =
       // Find unknown but ignore pending subst
-      sigma.find({case (k, _) => k.name == name && k.params == params}) match {
+      sigma.find({case (k, _) => sameVar(k)}) match {
       case None => this
       case Some((_,e)) => e.subst(pendingSubst)
     }

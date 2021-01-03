@@ -43,7 +43,7 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     // Is goal the earliest branching point for guard cond?
     // Yes if there is no smaller unknown in goal that has all variables of cond
     def isBranchingPoint(goal: Goal, cond: Expr): Boolean =
-      unknownCond(goal) == minimalUnknown(goal.pre.phi, cond.vars)
+      unknownCond(goal).sameVar(minimalUnknown(goal.pre.phi, cond.vars))
 
     // Once the guard of the then-branch has been determined,
     // substitute the unknown in the else-branch
@@ -57,11 +57,14 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
 
     def apply(goal: Goal): Seq[RuleResult] = {
+      if (!goal.env.config.branchAbduction) return List()
       val pre = goal.pre
       val unknown = unknownCond(goal)
+      // If this goal already contains an unknown with the same program vars, the rule does not apply
+      if (pre.phi.collect[Unknown](_.isInstanceOf[Unknown]).exists(_.sameVar(unknown))) return List()
+      // Otherwise: create two branches, adding unknown and its negation to precondition
       val thenGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown, pre.sigma), childId = Some(0))
       val elseGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown.not, pre.sigma), childId = Some(1))
-
       List(RuleResult(List(thenGoal, elseGoal), GuardedBranchProducer(thenGoal), this, goal).copy(updates =
         List(RuleResult.noUpdate, elseGoalUpdater)))
     }

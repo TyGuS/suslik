@@ -7,7 +7,6 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.BranchRules.Branch
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -70,10 +69,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "WeakenPre"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
-      if (unused.conjuncts.isEmpty) Nil
+      val unusedConjuncts = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars).conjuncts.filterNot(_.isInstanceOf[Unknown])
+      if (unusedConjuncts.isEmpty) Nil
       else {
-        val newPre = Assertion(goal.pre.phi - unused, goal.pre.sigma)
+        val newPre = Assertion(goal.pre.phi - PFormula(unusedConjuncts), goal.pre.sigma)
         val newGoal = goal.spawnChild(pre = newPre)
         val kont = IdProducer >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this, goal))

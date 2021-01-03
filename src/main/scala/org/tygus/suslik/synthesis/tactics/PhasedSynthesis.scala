@@ -4,9 +4,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.BranchRules.Branch
 import org.tygus.suslik.synthesis.rules.LogicalRules.{FrameUnfolding, FrameUnfoldingFinal}
-import org.tygus.suslik.synthesis.rules.OperationalRules.ReadRule
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.Close
 import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
@@ -29,7 +27,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       anyPhaseRules ++ unfoldingPhaseRules ++
         postBlockPhaseRules ++ preBlockPhaseRules ++
         pointerPhaseRules ++ purePhaseRules
-    else anyPhaseRules ++ branchRule(node) ++ specBasedRules(node)
+    else anyPhaseRules ++ specBasedRules(node)
   }
 
   def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
@@ -68,19 +66,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     FailRules.PostInconsistent,
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
-    LogicalRules.WeakenPre,
-    OperationalRules.ReadRule
-  )
-
-  protected def branchRule(node: OrNode): List[SynthesisRule] = {
-    def useBranchRule: Boolean =
-      config.branchAbduction &&
-        (!node.ruleHistory.contains(Branch) ||
-          node.ruleHistory.headOption.contains(ReadRule) ||
-          node.ruleHistory.headOption.contains(Branch) && node.childIndex > 0)
-
-    if(useBranchRule) List(Branch) else List()
-  }
+//    LogicalRules.WeakenPre,
+    OperationalRules.ReadRule,
+    BranchRules.Branch)
 
   protected def symbolicExecutionRules: List[SynthesisRule] = List(
     SymbolicExecutionRules.Open,

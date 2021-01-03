@@ -105,7 +105,7 @@ object SearchTree {
     // Is n part of a branch of my descendants that hasn't yet fully succeeded?
     // Yes if there's a incomplete and-node on the way from n to me
     private def isFailedDescendant(n: OrNode): Boolean =
-      n.andAncestors.find(an => an.nextChildIndex < an.nChildren) match {
+      n.andAncestors.find(an => an.childSolutions.length < an.nChildren) match {
       case None => false
       case Some(an) => an.hasAncestor(this.id)
     }
