@@ -160,7 +160,7 @@ object CTranslation {
               case None => ???
             }
           }
-          (new_ctx, CLoad(translate_variable(to), elem_typ.downcast, translate_variable(from)))
+          (new_ctx, CLoad(translate_variable(to), elem_typ.downcast, translate_variable(from), offset))
         case Statements.Store(to, offset, e) =>
           val (new_ctx, elem_ty) =
             type_expr(ctx)(e) match {
