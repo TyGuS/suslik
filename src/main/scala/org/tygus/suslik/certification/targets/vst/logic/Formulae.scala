@@ -28,7 +28,7 @@ object Formulae {
         case ProofTypes.CoqPtrType => s"(data_at Tsh (tarray (Tunion _sslval noattr) 1) [inr ${elem.pp_as_c_value}] ${loc.pp})"
         case ProofTypes.CoqIntType => s"(data_at Tsh (tarray (Tunion _sslval noattr) 1) [inl ${elem.pp_as_c_value}] ${loc.pp})"
         case ProofTypes.CoqCardType(pred_type) => assert(false, "data at pointing to meta variable"); ???
-        case CoqListType(_, length) =>
+        case CoqListType(_, Some (length)) =>
           s"(data_at Tsh (tarray (Tunion _sslval noattr) ${length}) ${elem.pp_as_ssl_union_value} ${loc.pp})"
       }
     }

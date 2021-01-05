@@ -327,7 +327,60 @@ object ProofTranslation {
     //Debug.visualize_ctree(root)
     //Debug.visualize_proof_tree(root.kont)
 
-    Proof(name, predicates, spec, vst_proof)
+    Proof(name, predicates, spec, vst_proof, contains_free(simplified))
   }
+
+  def contains_free (proof: ProofRule) : Boolean = proof match {
+    case ProofRule.NilNotLval(vars, next) => contains_free(next)
+    case ProofRule.CheckPost(next) => contains_free(next)
+    case ProofRule.Pick(subst, next) => contains_free(next)
+    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_free)
+    case ProofRule.Write(stmt, next) => contains_free(next)
+    case ProofRule.WeakenPre(unused, next) => contains_free(next)
+    case ProofRule.EmpRule => false
+    case ProofRule.PureSynthesis(is_final, assignments, next) => contains_free(next)
+    case ProofRule.Open(pred, fresh_vars, cases) => cases.exists { case (_, prf) => contains_free(prf) }
+    case ProofRule.SubstL(map, next) => contains_free(next)
+    case ProofRule.SubstR(map, next) => contains_free(next)
+    case ProofRule.Read(map, operation, next) => contains_free(next)
+    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, next) => contains_free(next)
+    case ProofRule.HeapUnify(next) => contains_free(next)
+    case ProofRule.HeapUnifyPointer(map, next) => contains_free(next)
+    case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_free(next)
+    case ProofRule.Call(call, next) => contains_free(next)
+    case ProofRule.Free(stmt, size, next) => true
+    case ProofRule.Malloc(map, stmt, next) =>contains_free(next)
+    case ProofRule.Close(app, selector, asn, fresh_exist, next) =>contains_free(next)
+    case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) =>contains_free(next)
+    case ProofRule.PickCard(next) =>contains_free(next)
+    case ProofRule.PickArg(map, next) =>contains_free(next)
+  }
+
+  def contains_malloc (proof: ProofRule) : Boolean = proof match {
+    case ProofRule.NilNotLval(vars, next) => contains_malloc(next)
+    case ProofRule.CheckPost(next) => contains_malloc(next)
+    case ProofRule.Pick(subst, next) => contains_malloc(next)
+    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_malloc)
+    case ProofRule.Write(stmt, next) => contains_malloc(next)
+    case ProofRule.WeakenPre(unused, next) => contains_malloc(next)
+    case ProofRule.EmpRule => false
+    case ProofRule.PureSynthesis(is_final, assignments, next) => contains_malloc(next)
+    case ProofRule.Open(pred, fresh_vars, cases) => cases.exists { case (_, prf) => contains_malloc(prf) }
+    case ProofRule.SubstL(map, next) => contains_malloc(next)
+    case ProofRule.SubstR(map, next) => contains_malloc(next)
+    case ProofRule.Read(map, operation, next) => contains_malloc(next)
+    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, next) => contains_malloc(next)
+    case ProofRule.HeapUnify(next) => contains_malloc(next)
+    case ProofRule.HeapUnifyPointer(map, next) => contains_malloc(next)
+    case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_malloc(next)
+    case ProofRule.Call(call, next) => contains_malloc(next)
+    case ProofRule.Free(stmt, size, next) => contains_malloc(next)
+    case ProofRule.Malloc(map, stmt, next) => true
+    case ProofRule.Close(app, selector, asn, fresh_exist, next) =>contains_malloc(next)
+    case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) =>contains_malloc(next)
+    case ProofRule.PickCard(next) =>contains_malloc(next)
+    case ProofRule.PickArg(map, next) =>contains_malloc(next)
+  }
+
 
 }
