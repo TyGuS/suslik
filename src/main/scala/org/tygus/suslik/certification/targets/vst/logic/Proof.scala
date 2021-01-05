@@ -15,7 +15,7 @@ import org.tygus.suslik.synthesis.rules.{DelegatePureSynthesis, FailRules, Logic
 import org.tygus.suslik.synthesis.{AppendProducer, BranchProducer, ChainedProducer, ConstProducer, ExtractHelper, GhostSubstProducer, GuardedProducer, HandleGuard, IdProducer, PartiallyAppliedProducer, PrependFromSketchProducer, PrependProducer, SeqCompProducer, StmtProducer, SubstProducer, UnfoldProducer}
 
 
-case class Proof(name: String, predicates: List[VSTPredicate], spec: ProofTerms.FormalSpecification, steps: ProofSteps) extends PrettyPrinting {
+case class Proof(name: String, predicates: List[VSTPredicate], spec: ProofTerms.FormalSpecification, steps: ProofSteps, uses_free: Boolean = false) extends PrettyPrinting {
 
   /** prelude for Coq file */
   private def coq_prelude = s"""
@@ -27,15 +27,37 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 """
 
-  private def lemma_prelude =
+  /** C standard library specs */
+  private def stdlib_defs : String = """Definition free_spec :=
+                              |  DECLARE _free
+                              |          WITH ty: type, x: val
+                              |                              PRE  [ (tptr tvoid) ]
+                              |                              PROP()
+                              |                              PARAMS(x)
+                              |                              SEP (data_at_ Tsh ty x)
+                              |                              POST [ Tvoid ]
+                              |                              PROP()
+                              |                              LOCAL()
+                              |                              SEP (emp).
+                              |""".stripMargin
+
+  /** prelude for the lemma */
+  private def lemma_prelude : String =
     s"""Lemma body_$name : semax_body Vprog Gprog f_$name ${name}_spec.
        |Proof.
        |""".stripMargin
 
+  private def library_spec : String = s"""Definition Gprog : funspecs :=
+                                         |  ltac:(with_library prog [listfree_spec${ if (uses_free) {"; free_spec"} else {""}}]).
+                                         |""".stripMargin
+
   override def pp: String = {
     coq_prelude +
-      predicates.map(_.pp).mkString("\n") +
+    stdlib_defs + "\n" +
+      predicates.map(_.pp).mkString("\n") + "\n" +
       spec.pp + "\n" +
+      predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")  +"\n"+
+      library_spec + "\n" +
     lemma_prelude +
     "start_function.\n" +
       "ssl_open_context.\n" +

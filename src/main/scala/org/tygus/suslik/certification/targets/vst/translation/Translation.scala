@@ -39,15 +39,6 @@ object Translation {
 
     println(proof.pp)
 
-    //translate_cont(root.children, root.kont)
-
-    // translate body into VST types, and build context of variables
-    // var (body, ctx) = CTranslation.translate_body(proc.f, proc.body, root.goal.gamma)
-    // use this to build a C-encoding of the synthesized function
-    // var body_string = print_as_c_program(proc.f, body, ctx)
-    // print(body_string)
-
-
     // translate predicates
     // translate proof
     VSTCertificate(proc.f.name, procedure, proof)

@@ -337,6 +337,62 @@ object ProofTerms {
     */
   case class CardOf(args: List[Ident]) extends CardConstructor {}
 
+  /**
+    * Represents helper lemmas and operations that are required to make VST handle the predicate automatically
+    * */
+  sealed trait VSTPredicateHelper extends PrettyPrinting
+  object VSTPredicateHelper {
+    case class ValidPointer(predicate: String, args: List[String], ptr: String) extends VSTPredicateHelper {
+      def lemma_name: String = s"${predicate}_${ptr}_valid_pointerP"
+      override def pp: String =
+        s"Lemma ${lemma_name} ${args.mkString(" ")}: ${predicate} ${args.mkString(" ")} |-- valid_pointer ${ptr}. Proof. Admitted."
+    }
+    case class HintResolve(lemma_name: String, hint_db: String) extends VSTPredicateHelper {
+      override def pp: String =
+        s"Hint Resolve ${lemma_name} : ${hint_db}."
+    }
+
+    case class LocalFacts(predicate: VSTPredicate) extends VSTPredicateHelper {
+
+      def lemma_name : String = s"${predicate.name}_local_factsP"
+
+      override def pp: String = {
+
+        def constructor_to_equality_term (vl: String, cons: CardConstructor) =
+          if (cons.constructor_args.isEmpty) {
+            s"${vl} = ${predicate.constructor_name(cons)}"
+          } else {
+            s"exists ${cons.constructor_args.mkString(" ")}, ${vl} = ${predicate.constructor_name(cons)} ${cons.constructor_args.mkString(" ")}"
+          }
+
+        /** Converts a predicate clause into a clause that mutually exclusively matches the clause
+          *
+          * Note: !!ASSUMPTION!! We assume that the first pure term of the predicate mutually exclusively matches the clause
+          *  */
+        def predicate_to_determininant_term(clause: ProofTerms.VSTPredicateClause) : String =
+          clause.pure.head.pp_as_ptr_value
+
+        /***
+          * Converts a predicate clause into a corresponding fact.
+          *
+          * NOTE: !!!ASSUMPTION!!! We assume that the first clause of the vst predicate is mutually exclusive - i.e
+          *  if the first clause holds, then no other clause can hold.
+          */
+        def clause_fact (cardConstructor: CardConstructor, predicate: VSTPredicateClause) : String =
+          s"((${predicate_to_determininant_term(predicate)}) -> (${constructor_to_equality_term(predicate.cardinality_param, cardConstructor)}))"
+
+
+
+        s"""Lemma ${lemma_name} ${predicate.formal_params.mkString(" ")} :
+           |  ${predicate.name} ${predicate.formal_params.mkString(" ")}  |-- !!(${
+            (
+              predicate.clauses.toList.map({ case (cons, pred) => clause_fact(cons, pred) }) ++
+              predicate.params.flatMap({case (param, ProofTypes.CoqPtrType) => Some (s"(is_pointer_or_null ${param})") case _ => None})
+            ).mkString("/\\")}). Proof. Admitted.""".stripMargin
+      }
+
+    }
+  }
 
   /** represents a clause of the VST predicate,
     * @param pure are the pure assertions
@@ -344,6 +400,8 @@ object ProofTerms {
     * @param sub_constructor are the subconstructors
     * */
   case class VSTPredicateClause(pure: List[ProofCExpr], spatial: List[VSTHeaplet], sub_constructor: Map[String,CardConstructor]) {
+
+    val cardinality_param: String = "self_card"
 
     /** finds existential variables in the expression using args */
     def find_existentials_args (args: Set[String]): List[(Ident,VSTProofType)] = {
@@ -401,6 +459,20 @@ object ProofTerms {
                            existentials: List[(String, VSTProofType)],
                            clauses: Map[CardConstructor, VSTPredicateClause])
     extends PrettyPrinting {
+
+    /** returns any helper lemmas that need to be constructed for the helper */
+    def get_helpers : List[VSTPredicateHelper] =
+       params.flatMap({
+         case (param, ProofTypes.CoqPtrType) =>
+           val valid_lemma = VSTPredicateHelper.ValidPointer(name, this.formal_params, param)
+           val local_facts = VSTPredicateHelper.LocalFacts(this)
+           List(
+             valid_lemma, VSTPredicateHelper.HintResolve(valid_lemma.lemma_name, "valid_pointer"),
+             local_facts, VSTPredicateHelper.HintResolve(local_facts.lemma_name, "saturate_local")
+           )
+         case _ => List()
+       })
+
 
     /** returns the existential variables introduced by a constructor invokation */
     def constructor_existentials (constructor: CardConstructor) : List[(Ident,VSTProofType)] = {
@@ -491,6 +563,10 @@ object ProofTerms {
       }
       s"${inductive_name}_${count}"
     }
+
+    /** formal parameters of the predicate.
+      * This is the sequence of identifiers that will need to be passed to the predicate to instantiate it.  */
+    def formal_params : List[String] = params.map({case (a,_) => a}) ++ List("self_card")
 
     /** pretty print the constructor  */
     override def pp: String = {
