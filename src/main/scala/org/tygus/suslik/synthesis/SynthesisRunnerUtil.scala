@@ -4,12 +4,14 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.{Environment, FunSpec}
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
+import org.tygus.suslik.synthesis.Memoization.{Expanded, Failed, Succeeded}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -122,7 +124,7 @@ trait SynthesisRunnerUtil {
     synthesizeFromSpec(testName, in, out, params)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig) : Unit = {
+  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig, hints : (List[(Var, Int)], List[(Var, Int)]) = (List(), List())) {
     import log.out.testPrintln
 
     val parser = new SSLParser
@@ -157,7 +159,6 @@ trait SynthesisRunnerUtil {
     val duration = env.stats.duration
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
-
     def printHotNode(hotNode: AndNode, descs: Int): String =
       s"${hotNode.rule.toString} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
 
@@ -177,6 +178,7 @@ trait SynthesisRunnerUtil {
 //      testPrintln(s"Hot nodes:\n $hotNodesString")
       val expensiveRuleString = stats.expensiveRules(5).map {case (n, s) => printRuleApplication(n, s)}.mkString("\n")
       testPrintln(s"Expensive rules:\n$expensiveRuleString\n")
+      testPrintln(s" ${stats.applications}")
       testPrintln(StopWatch.summary.toString)
     }
 
@@ -205,14 +207,32 @@ trait SynthesisRunnerUtil {
             "AST for Body: \n" + procs.head.body.toString()
 
         }
-          
+        val cache = sresult._3 match {
+          case Some(m) =>
+            m
+          case None =>
+            throw SynthesisException(s"Failed to synthesise:\n$sresult")
+        }
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
           testPrintln(s"${spec.pp}\n", Console.BLUE)
           testPrintln(s"Successfully synthesised in $duration milliseconds:", Console.GREEN)
           printStats(sresult._2)
+
           testPrintln(result, Console.YELLOW)
+          testPrintln("Printing memoized solutions to successful nodes")
+          for ((k,v) <- cache) {
+            v match {
+              case Failed => ()
+              case Expanded => ()
+              case Succeeded(sol) =>
+              {
+                testPrintln(s"Goal Pre: ${k.pre.sigma.chunks}\nGoal Post :${k.post.sigma.chunks} \nGoal sketch :${k.sketch}\nSolution :${sol._1.toString}")
+              }
+
+            }
+          }
           testPrintln("-----------------------------------------------------")
         } else {
           println(result)

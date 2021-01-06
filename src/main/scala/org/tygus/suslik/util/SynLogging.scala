@@ -176,6 +176,7 @@ class SynStats(timeOut: Long) {
   def memoSize: (Int, Int, Int) = Memoization.memo.size
   def getExpansionChoices: List[Int] = expansionChoices
   def timeCycling: Long = cyclistTime
+  def applications = ruleApplications
 }
 
 // TODO: refactor me to make more customizable

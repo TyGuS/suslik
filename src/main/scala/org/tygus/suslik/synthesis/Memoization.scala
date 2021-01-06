@@ -102,6 +102,8 @@ object Memoization {
 
     def suspendedSize: Int = suspended.size
 
+    def returnCache = memo.cache
+
     private def trimGoal(g: Goal): MemoGoal = {
       val usedVars = g.pre.vars ++ g.post.vars ++ g.sketch.vars
       MemoGoal(

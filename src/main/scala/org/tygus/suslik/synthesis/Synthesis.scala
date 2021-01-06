@@ -16,14 +16,15 @@ import org.tygus.suslik.util.SynStats
 
 import scala.Console._
 import scala.annotation.tailrec
+import scala.collection.mutable
 
 /**
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
 class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace) extends SepLogicUtils {
-
-  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats) = {
+  import log.out.testPrintln
+  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats,  Option[mutable.Map[MemoGoal, GoalStatus]] ) = {
     implicit val config: SynConfig = env.config
     implicit val stats: SynStats = env.stats
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
@@ -37,7 +38,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     if (config.delegatePure && !DelegatePureSynthesis.isConfigured()) {
       log.print(List((s"CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n", Console.RED)))
     }
-    
+
+    if (config.enumeration) {
+      log.print((List((s"Helasdfdsaflo\n", Console.RED))))
+      testPrintln(s"Hello")
+    }
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
     SMTSolving.init()
@@ -45,44 +50,46 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     ProofTrace.current = trace
     try {
       synthesize(goal)(stats = stats) match {
-        case Some((body, helpers)) =>
-          log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
+        case (Some((body, helpers)), cache) =>
+          testPrintln(s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")})")
           val main = Procedure(funGoal, body)
-          (main :: helpers, stats)
-        case None =>
+          (main :: helpers, stats, Some(cache))
+        case (None, _) =>
           log.out.printlnErr(s"Deductive synthesis failed for the goal\n ${goal.pp}")
-          (Nil, stats)
+          (Nil, stats, None)
+
       }
     } catch {
       case SynTimeOutException(msg) =>
         log.out.printlnErr(msg)
-        (Nil, stats)
+        (Nil, stats, None)
     }
   }
 
   protected def synthesize(goal: Goal)
-                          (stats: SynStats): Option[Solution] = {
+                          (stats: SynStats): (Option[Solution],  mutable.Map[MemoGoal, GoalStatus] ) = {
+    // initialize goal as an OrNode
     init(goal)
+    // process work list which is a singleton containing OrNode(goal)
     processWorkList(stats, goal.env.config)
   }
 
   @tailrec final def processWorkList(implicit
                                      stats: SynStats,
-                                     config: SynConfig): Option[Solution] = {
+                                     config: SynConfig): (Option[Solution],  mutable.Map[MemoGoal, GoalStatus] ) = {
     // Check for timeouts
     if (!config.interactive && stats.timedOut) {
       throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
     }
-
     val sz = worklist.length
     log.print(List((s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
     log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
     log.print(List((s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW)))
     stats.updateMaxWLSize(sz)
 
-    if (worklist.isEmpty) None // No more goals to try: synthesis failed
+    if (worklist.isEmpty) (None, mutable.Map.empty) // No more goals to try: synthesis failed
     else {
-      val (node, addNewNodes) = selectNode // Select next node to expand
+      val (node, addNewNodes) = selectNode // Select next node to expand based on DFS/BFS/Min-cost
       val goal = node.goal
       implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
@@ -119,7 +126,14 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       }
       res match {
         case None => processWorkList
-        case sol => sol
+        case sol => {
+//          testPrintln(s"Success leaves: ${successLeaves.toString()} ")
+//          for (on <- successLeaves){
+//            testPrintln("SDFSADF")
+//            testPrintln(on.pp())
+//          }
+          (sol, memo.returnCache)
+        }
       }
     }
   }
@@ -139,6 +153,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       (best, worklist.take(idx) ++ _ ++ worklist.drop(idx + 1))
     }
 
+  var store: List[Option[(Statement, List[Procedure])]] = List[Option[(Statement, List[Procedure])]]()
+
   // Expand node and return either a new worklist or the final solution
   protected def expandNode(node: OrNode, addNewNodes: List[OrNode] => List[OrNode])(implicit stats: SynStats,
                                                                                     config: SynConfig): Option[Solution] = {
@@ -148,10 +164,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
+    // rules are any phased rules since our sketch is a Hole and we set phased config to true.
     val rules = tactic.nextRules(node)
     val allExpansions = applyRules(rules)(node, stats, config, ctx)
+    // no filtering is done for Phased strategy
     val expansions = tactic.filterExpansions(allExpansions)
-
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
@@ -162,7 +179,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         trace.add(e, node)
         successLeaves = node :: successLeaves
         worklist = addNewNodes(Nil)
-        node.succeed(e.producer(Nil))
+        val sol = node.succeed(e.producer(Nil))
+        sol
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
