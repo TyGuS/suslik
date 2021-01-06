@@ -1,6 +1,7 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.language.Expressions.{IntConst, Var}
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -24,11 +25,12 @@ import scala.collection.mutable
 
 class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: ProofTrace) extends SepLogicUtils {
   import log.out.testPrintln
-  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement): (List[Procedure], SynStats,  Option[mutable.Map[MemoGoal, GoalStatus]] ) = {
+  def synthesizeProc(funGoal: FunSpec, env: Environment, sketch: Statement, hints: (List[(Var, Int)], List[(Var, Int)])): (List[Procedure], SynStats,  Option[mutable.Map[MemoGoal, GoalStatus]] ) = {
     implicit val config: SynConfig = env.config
     implicit val stats: SynStats = env.stats
-    val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
 
+    var FunSpec(name, tp, formals, preG, post, var_decl) = funGoal
+    var pre = preG
     if (!CyclicProofChecker.isConfigured()) {
       log.print(List((s"Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n", Console.RED)))
     } else {
@@ -38,10 +40,36 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     if (config.delegatePure && !DelegatePureSynthesis.isConfigured()) {
       log.print(List((s"CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n", Console.RED)))
     }
-
-    if (config.enumeration) {
+    //handle pre hints
+    if (config.hints) {
+      val preHints = hints._1
+      val postHints = hints._2
       log.print((List((s"Helasdfdsaflo\n", Console.RED))))
-      testPrintln(s"Hello")
+      testPrintln("HINTS ENABLED")
+      testPrintln(pre.sigma.chunks.toString())
+      testPrintln(FunSpec.toString())
+      if (preHints.nonEmpty){
+        var ls = List[Heaplet]()
+        for (hint <- preHints){
+          val hintName = hint._1
+          val hintValue = hint._2
+          for (heaplet <- pre.sigma.chunks){
+            heaplet match {
+                // not finished obviously
+              case PointsTo(loc, offset,value) =>
+                if (hintName == loc) {
+                  val newHeaplet = PointsTo(loc, offset, IntConst(hintValue))
+                  ls = newHeaplet:: ls
+                }
+            }
+          }
+        }
+        testPrintln("new spatial stuff")
+        testPrintln(ls.toString())
+        val newPre = Assertion(pre.phi, SFormula(ls))
+        pre = newPre
+        testPrintln(pre.sigma.chunks.toString())
+      }
     }
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))

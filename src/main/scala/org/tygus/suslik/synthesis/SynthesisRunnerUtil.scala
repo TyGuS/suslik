@@ -45,6 +45,11 @@ trait SynthesisRunnerUtil {
     LanguageUtils.resetFreshNameGenerator()
   }
 
+
+  def doRunWithHints(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig) = {
+    LanguageUtils.resetFreshNameGenerator()
+  }
+
   def getDescInputOutput(testFilePath: String, initialParams: SynConfig = defaultConfig): (String, String, String, String, SynConfig) = {
     val file = new File(testFilePath)
     val format = testFilePath match {
@@ -124,9 +129,11 @@ trait SynthesisRunnerUtil {
     synthesizeFromSpec(testName, in, out, params)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig, hints : (List[(Var, Int)], List[(Var, Int)]) = (List(), List())) {
+  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig, hints : (List[(Var, Int)], List[(Var, Int)]) = (List(), List()))
+  {
     import log.out.testPrintln
-
+    val preHints = hints._1
+    val postHints = hints._2
     val parser = new SSLParser
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
@@ -155,7 +162,8 @@ trait SynthesisRunnerUtil {
     val synthesizer = createSynthesizer(env)
 
     env.stats.start()
-    val sresult = synthesizer.synthesizeProc(spec, env, body)
+    testPrintln(s"PRE HINTS: $preHints, POST HINTS: $postHints")
+    val sresult = synthesizer.synthesizeProc(spec, env, body, hints)
     val duration = env.stats.duration
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
@@ -316,6 +324,36 @@ trait SynthesisRunnerUtil {
           val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
           val fullInput = List(defs, in).mkString("\n")
           doRun(testName, desc, fullInput, out, allParams)
+        case None =>
+          System.err.println(s"No file with the name $fname found in the directory $dir.")
+      }
+    }
+  }
+  def runSingleTestFromDirWithHints(dir: String, fname: String, params: SynConfig = defaultConfig) {
+    var testDir = new File(dir)
+    if (!testDir.exists()) {
+      val path = List(rootDir, dir).mkString(File.separator)
+      println(s"Trying the path $path")
+      testDir = new File(path)
+      if (!testDir.exists()) {
+        System.err.println(s"Found no directory $dir.")
+        return
+      }
+    }
+    if (testDir.exists() && testDir.isDirectory) {
+      // Maybe create log file (depending on params)
+      SynStatUtil.init(params)
+      // Get definitions
+      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+      // Get specs
+      val tests = testDir.listFiles.filter(f => f.isFile
+        && (f.getName.endsWith(s".$testExtension") ||
+        f.getName.endsWith(s".$sketchExtension"))).toList
+      tests.find(f => f.getName == fname) match {
+        case Some(f) =>
+          val (testName, desc, in, out, allParams) = getDescInputOutput(f.getAbsolutePath, params)
+          val fullInput = List(defs, in).mkString("\n")
+          doRunWithHints(testName, desc, fullInput, out, allParams)
         case None =>
           System.err.println(s"No file with the name $fname found in the directory $dir.")
       }

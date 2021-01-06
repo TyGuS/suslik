@@ -40,7 +40,7 @@ class RandomizedTests extends FunSpec with Matchers with SynthesisRunnerUtil {
       val post = Assertion(new org.tygus.suslik.logic.PFormula(TreeSet()), org.tygus.suslik.logic.SFormula(List(PointsTo(Var("x"),0,Var("q")), PointsTo(Var("z"),0,Var("c")), PointsTo(Var("t"),0,Var("a")), PointsTo(Var("y"),0,Var("b")))))
       val spec = org.tygus.suslik.logic.FunSpec("test", VoidType, List((Var("x"),LocType), (Var("z"),LocType), (Var("y"),LocType), (Var("t"),LocType)), pre, post)
       env.stats.start()
-      val sresult = synthesizer.synthesizeProc(spec, env, Hole)
+      val sresult = synthesizer.synthesizeProc(spec, env, Hole, (List(), List()))
       val duration = env.stats.duration
 
       val se = sresult._1 match {

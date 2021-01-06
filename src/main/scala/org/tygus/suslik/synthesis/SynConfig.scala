@@ -29,8 +29,8 @@ case class SynConfig(
                       phased: Boolean = true,
                       depthFirst: Boolean = false,
                       breadthFirst: Boolean = false,
-                      // enumeration for hints
-                      enumeration: Boolean = true,
+                      //  hints
+                      hints: Boolean = true,
                       memoization: Boolean = true,
                       termination: TerminationMetric = lexicographic,
                       delegatePure: Boolean = true,
