@@ -36,8 +36,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
     Statements.Hole,
-    None,
-    false
+    None, false, false
   )
 
   test("Translate ints to SYGUS") {
@@ -119,8 +118,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params,new SynStats(params.timeOut)),
     Statements.Hole,
-    None,
-    false
+    None, false, false
   )
   test("Translate goal with set to SyGuS") {
     val smtTask = DelegatePureSynthesis.toSMTTask(goal2)
@@ -201,8 +199,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
     Statements.Hole,
-    None,
-    false
+    None, false, false
   )
   test("to SMT with exclusions") {
     val smt = DelegatePureSynthesis.toSMTTask(goal3,Some((Expressions.Var("m"),Expressions.Var("x"))))

@@ -9,3 +9,28 @@ should be able to compute a length of a multi-list
 { true; r :-> len ** multilist(x, len, s) }
 
 ###
+
+###
+
+2
+1
+2
+5
+2
+1
+4
+1
+1
+1
+1
+6
+2
+2
+2
+4
+3
+1
+1
+2
+2
+2

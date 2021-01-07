@@ -268,7 +268,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       for {
         h <- goal.pre.sigma.chunks
-        (selGoals, _) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
+        selGoals <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
         (selector, subGoal) <- selGoals
         if SMTSolving.valid(goal.pre.phi ==> selector)
       } yield RuleResult(List(subGoal), IdProducer, this, goal)

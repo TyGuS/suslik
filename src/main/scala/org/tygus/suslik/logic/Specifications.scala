@@ -112,7 +112,8 @@ object Specifications extends SepLogicUtils {
                   env: Environment, // predicates and components
                   sketch: Statement, // sketch
                   callGoal: Option[SuspendedCallGoal],
-                  hasProgressed: Boolean
+                  hasProgressed: Boolean,
+                  isCompanion: Boolean
                  )
 
     extends PrettyPrinting with PureLogicUtils {
@@ -142,10 +143,8 @@ object Specifications extends SepLogicUtils {
     // Companion candidates for this goal:
     // look at ancestors before progress was last made, only keep those with different heap profiles
     def companionCandidates: List[Goal] = {
-      // TODO: replace this with proc rule
-      val allCands = ancestors.dropWhile(!_.hasProgressed).drop(1).filter(_.callGoal.isEmpty).reverse
-      if (env.config.auxAbduction) nubBy[Goal, (SProfile, SProfile)](allCands, c => (c.pre.sigma.profile, c.post.sigma.profile))
-      else allCands.take(1)
+      val allCands = ancestors.dropWhile(!_.hasProgressed).drop(1).filter(_.isCompanion).reverse
+      if (env.config.auxAbduction) allCands else allCands.take(1)
   }
 
     // Turn this goal into a helper function specification
@@ -171,7 +170,8 @@ object Specifications extends SepLogicUtils {
                    env: Environment = this.env,
                    sketch: Statement = this.sketch,
                    callGoal: Option[SuspendedCallGoal] = this.callGoal,
-                   hasProgressed: Boolean = false): Goal = {
+                   hasProgressed: Boolean = false,
+                   isCompanion: Boolean = false): Goal = {
 
       // Resolve types
       val gammaFinal = resolvePrePost(gamma, env, pre, post)
@@ -188,7 +188,7 @@ object Specifications extends SepLogicUtils {
       Goal(preSimple, postSimple,
         gammaFinal, programVars, newUniversalGhosts,
         this.fname, this.label.bumpUp(childId), Some(this), env, sketch,
-        callGoal, hasProgressed)
+        callGoal, hasProgressed, isCompanion)
     }
 
     // Goal that is eagerly recognized by the search as unsolvable
@@ -290,7 +290,8 @@ object Specifications extends SepLogicUtils {
     val ghostUniversals = pre1.vars -- formalNames
     Goal(pre1, post1,
       gamma, formalNames, ghostUniversals,
-      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma), None, false)
+      fname, topLabel, None, env.resolveOverloading(), sketch.resolveOverloading(gamma),
+      None, hasProgressed = false, isCompanion = true)
   }
 
   /**

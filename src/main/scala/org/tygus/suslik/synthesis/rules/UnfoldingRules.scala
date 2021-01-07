@@ -24,7 +24,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
-    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
+    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[Seq[(Expr, Goal)]] = {
       val pre = goal.pre
       val env = goal.env
 
@@ -46,13 +46,16 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // The tags in the body should be one more than in the current application:
             _newPreSigma1 = mkSFormula(body.chunks).setSAppTags(PTag(cls, unf + 1))
             newPreSigma = _newPreSigma1 ** remainingSigma
-          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c)), hasProgressed = true))
+          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma),
+            childId = Some(clauses.indexOf(c)),
+            hasProgressed = true,
+            isCompanion = true))
 
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
-          if (noGhosts) Some((newGoals, h)) else None
+          if (noGhosts) Some(newGoals) else None
         case _ => None
       }
     }
@@ -62,7 +65,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         heaplet <- goal.pre.sigma.chunks
         s <- mkInductiveSubGoals(goal, heaplet) match {
           case None => None
-          case Some((selGoals, heaplet)) =>
+          case Some(selGoals) =>
             val (selectors, subGoals) = selGoals.unzip
             val kont = BranchProducer(selectors) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, this, goal))
@@ -119,13 +122,12 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         goal.existentials.isEmpty &&                            // no existentials
         callTag <= goal.env.config.maxCalls &&
         noGhostArgs &&                                          // TODO: if slow, move this check to when substitution is made
-        // canEmitCall(budHeap, goal, call.companion) &&           // termination
         SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
       {
         val calleePostSigma = callGoal.calleePost.sigma.setSAppTags(PTag(callTag))
         val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePostSigma)
         val newPost = callGoal.callerPost
-        val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
+        val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None, isCompanion = true)
         val postCallTransition = Transition(goal, newGoal)
         val kont: StmtProducer = PrependProducer(call) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
@@ -143,19 +145,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val nonProgressingFlipped = cardVars.zip(cardVars.map(_.subst(sub))).filter(_._2.isInstanceOf[Var])
         val nonProgressing = nonProgressingFlipped.map{ case (v, e) => (e.asInstanceOf[Var], v) }
         Some(Transition(goal.label, label, List(), nonProgressing))
-      }
-    }
-
-    // [Cardinality] Checking size constraints before emitting the call
-    def canEmitCall(budHeap: SFormula, goal: Goal, l: Option[GoalLabel]): Boolean = l match {
-      case None => true // non-recursive call
-      case Some(label) => {
-        val companion = goal.ancestorWithLabel(label).get
-        val companionHeap = companion.pre.sigma
-        goal.env.config.termination match {
-          case `totalSize` => totalLT(budHeap, companionHeap, goal.pre.phi)
-          case `lexicographic` => lexiLT(budHeap, companionHeap, goal.pre.phi)
-        }
       }
     }
   }

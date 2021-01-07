@@ -192,8 +192,10 @@ case class Program(predicates: Seq[InductivePredicate],
   * Environment: stores module-level declarations that might be needed during synthesis
   * (predicates, component functions, etc)
   */
-case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
-                       config: SynConfig, stats: SynStats) {
+case class Environment(predicates: PredicateEnv,
+                       functions: FunctionEnv,
+                       config: SynConfig,
+                       stats: SynStats) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

@@ -19,6 +19,7 @@ object Memoization {
                       universalGhosts: Set[Var],
                       sketch: Statement,
                       callGoal: Option[SuspendedCallGoal],
+                      isCompanion: Boolean,
                       companionCands: List[GoalLabel])
 
   /**
@@ -106,6 +107,7 @@ object Memoization {
         g.universalGhosts.intersect(usedVars),
         g.sketch,
         g.callGoal,
+        g.isCompanion,
         g.companionCandidates.map(_.label)
       )
     }
