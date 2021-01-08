@@ -28,7 +28,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 """
 
   /** C standard library specs */
-  private def stdlib_defs : String = """Definition free_spec :=
+  private def free_defs : String = """Definition free_spec :=
                               |  DECLARE _free
                               |          WITH ty: type, x: val
                               |                              PRE  [ (tptr tvoid) ]
@@ -48,12 +48,12 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
        |""".stripMargin
 
   private def library_spec : String = s"""Definition Gprog : funspecs :=
-                                         |  ltac:(with_library prog [listfree_spec${ if (uses_free) {"; free_spec"} else {""}}]).
+                                         |  ltac:(with_library prog [${name}_spec${ if (uses_free) {"; free_spec"} else {""}}]).
                                          |""".stripMargin
 
   override def pp: String = {
     coq_prelude +
-    stdlib_defs + "\n" +
+    (if (uses_free) { free_defs + "\n"  } else { "" }) +
       predicates.map(_.pp).mkString("\n") + "\n" +
       spec.pp + "\n" +
       predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")  +"\n"+

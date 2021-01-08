@@ -153,10 +153,11 @@ object CTranslation {
                 (ctx.updated(translate_variable(to), CVoidPtrType), CVoidPtrType)
               // TODO: Handle errors
               case Some(CVoidPtrType) =>
+                val value_type = translate_type(tpe)
                 val new_ctx =
-                  ctx.updated(translate_variable(to), CVoidPtrType)
+                  ctx.updated(translate_variable(to), value_type)
                                     .updated(translate_variable(from), CVoidPtrPtrType)
-                (new_ctx, CVoidPtrType)
+                (new_ctx, value_type)
               case None => ???
             }
           }

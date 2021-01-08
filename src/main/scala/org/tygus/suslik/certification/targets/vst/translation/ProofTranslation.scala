@@ -64,7 +64,12 @@ object ProofTranslation {
     val pred_map = predicates.map(v => (v.name, v)).toMap
 
     type FunSpec = (Ident, List[Ident])
-    type Context = (Map[Ident, VSTProofType], List[(Ident, List[Ident])])
+    /** accumulating context used during proof translation
+      * @param gamma typing context
+      * @param functions stack of functions being abduced during execution
+      * @param existentials stack of existential variables
+      * */
+    case class Context(gamma:Map[Ident, VSTProofType], functions: List[(Ident, List[Ident])], existentials: Option[Ident])
 
 
     def unify_expr(context: Map[Ident, Ident])(pure: ProofCExpr)(call: ProofCExpr): Map[Ident, Ident] =
@@ -119,33 +124,37 @@ object ProofTranslation {
       }
     }
 
-    def initial_context: Context =
-      ((spec.c_params.map({ case (name, ty) => (name, CoqParamType(ty)) }) ++
-        spec.formal_params).toMap, Nil)
+    val initial_context: Context =
+      Context((spec.c_params.map({ case (name, ty) => (name, CoqParamType(ty)) }) ++
+        spec.formal_params).toMap, Nil, None)
 
-    def retrieve_typing_context: Context => Map[Ident, VSTProofType] = {
-      case (gamma, _) => gamma
-    }
+    def retrieve_typing_context: Context => Map[Ident, VSTProofType] = _.gamma
 
     def add_new_variables(new_params: Map[Ident, VSTProofType])(context: Context): Context = context match {
-      case (old_params, funs) => (old_params ++ new_params, funs)
+      case Context(old_params, funs, ex) => Context(old_params ++ new_params, funs, ex)
     }
 
     def pop_function(context: Context): (FunSpec, Context) = context match {
-      case (old_params, fun :: funs) => (fun, (old_params, funs))
+      case Context(old_params, fun :: funs,ex) => (fun, Context(old_params, funs, ex))
+      case _ => fail_with("Function called without prior abduce call")
     }
 
     def push_function(fun_spec: FunSpec)(context: Context): Context = context match {
-      case (old_params, old_funs) => (old_params, fun_spec :: old_funs)
+      case Context(old_params, old_funs,ex) => Context(old_params, fun_spec :: old_funs, ex)
+    }
+
+    def push_existential (id: Ident) (context: Context) : Context = context match {
+      case Context(params, funs, _) => Context(params, funs, Some(id))
     }
 
     def record_variable_mapping(mapping: Map[Var, Expr])(context: Context): Context = {
       val variable_mapping = mapping.flatMap({ case (Var(old_name), Var(new_name)) => Some((old_name, new_name)) case _ => None })
       context match {
-        case (old_params, funs) =>
+        case Context(old_params, funs,ex) =>
           val new_params = old_params.map({ case (name, ty) => (variable_mapping.getOrElse(name, name), ty) })
           val new_funs = funs.map({ case (fun_name, args) => (fun_name, args.map(arg => variable_mapping.getOrElse(arg, arg))) })
-          (new_params, new_funs)
+          val new_ex = ex.map(v => variable_mapping.getOrElse(v,v))
+          Context(new_params, new_funs,new_ex)
       }
     }
 
@@ -182,13 +191,32 @@ object ProofTranslation {
               name, rest
             )
           })
-        case ProofRule.CheckPost(next) => ???
-        case ProofRule.Pick(subst, next) => ???
-        case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => ???
-        case ProofRule.Write(stmt, next) => ???
+        case ProofRule.CheckPost(next) =>
+          translate_proof_rules(next)(context)
+        case ProofRule.Pick(subst, next) =>
+          subst.toList match {
+            case ::((Var(_), Var(m)), tl) =>
+              translate_proof_rules(next)(push_existential(m)(context))
+          }
+        case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+          ProofSteps.ForwardIf(List(
+            translate_proof_rules(ifTrue)(context),
+            translate_proof_rules(ifFalse)(context),
+          ))
+        case ProofRule.Write(stmt, next) =>
+          ProofSteps.Forward(translate_proof_rules(next)(context))
         case ProofRule.WeakenPre(unused, next) => translate_proof_rules(next)(context)
-        case ProofRule.EmpRule => ProofSteps.Forward(ProofSteps.Qed)
-        case ProofRule.PureSynthesis(is_final, assignments, next) => ???
+        case ProofRule.EmpRule =>
+          ProofSteps.Forward(
+            context.existentials.foldRight
+            (ProofSteps.Qed : ProofSteps)
+            ((variable, next) => ProofSteps.Exists(variable, ProofSteps.Entailer(next)))
+            )
+        case ProofRule.PureSynthesis(is_final, subst, next) =>
+          subst.toList match {
+            case ::((Var (_), Var(m)), _) =>
+              translate_proof_rules(next)(push_existential(m)(context))
+          }
         case ProofRule.SubstL(map, next) =>
           map.toList.foldRight(translate_proof_rules(next)(context))({
             case ((Var(name), expr), next) =>
