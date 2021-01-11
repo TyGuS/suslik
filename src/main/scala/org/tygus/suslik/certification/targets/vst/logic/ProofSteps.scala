@@ -2,13 +2,13 @@ package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.clang.PrettyPrinting
 import ProofTerms.CardConstructor
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.ProofCExpr
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCCardinalityConstructor, ProofCExpr}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.VSTProofType
 import org.tygus.suslik.language.Ident
 
 sealed abstract class ProofSteps extends PrettyPrinting {
 
-  def to_validity_assertion(var_name: Ident, var_type: VSTProofType) : Option[ProofSteps] = {
+  def to_validity_assertion(var_name: Ident, var_type: VSTProofType): Option[ProofSteps] = {
     var_type match {
       case ProofTypes.CoqParamType(ty) => None
       case ProofTypes.CoqPtrType => None
@@ -21,6 +21,7 @@ sealed abstract class ProofSteps extends PrettyPrinting {
 }
 
 object ProofSteps {
+
   case class Entailer(next: ProofSteps) extends ProofSteps {
     override def pp: String = s"entailer!.\n${next.pp}"
   }
@@ -31,7 +32,7 @@ object ProofSteps {
                                    branches: List[((Ident, CardConstructor, List[String]), ProofCExpr, List[String], ProofSteps)]
                                  ) extends ProofSteps {
     override def pp: String = {
-      def constructor_prop (cons_name: Ident, cons: CardConstructor) : String = cons match {
+      def constructor_prop(cons_name: Ident, cons: CardConstructor): String = cons match {
         case ProofTerms.CardNull => s"${card_variable} = ${cons_name}"
         case ProofTerms.CardOf(args) => s"exists ${args.mkString(" ")}, ${card_variable} = ${cons_name} ${args.mkString(" ")}"
       }
@@ -70,7 +71,7 @@ object ProofSteps {
     }
   }
 
-  case class Forward(next:ProofSteps) extends ProofSteps {
+  case class Forward(next: ProofSteps) extends ProofSteps {
     override def pp: String = s"forward.\n${next.pp}"
   }
 
@@ -87,11 +88,41 @@ object ProofSteps {
     }
   }
 
-  case class ValidPointerOrNull(variable: Ident,next: ProofSteps) extends ProofSteps {
+  case class IntrosTuple(variables: List[(Ident, VSTProofType)], next: ProofSteps) extends ProofSteps {
+    override def pp: String = {
+      val extra_assertions: String =
+        variables.flatMap({ case (var_name, var_type) =>
+          to_validity_assertion(var_name, var_type)
+        }) match {
+          case Nil => ""
+          case ls => "\n" ++ ls.map(_.pp).mkString(".\n")
+        }
+
+      variables match {
+        case Nil => s"${next.pp}"
+        case ::((variable, _), Nil) =>
+          s"Intros ${variable}." ++ extra_assertions ++ s"\n${next.pp}"
+        case _ =>
+          def to_destruct_pattern(base: Option[String])(ls: List[(Ident, VSTProofType)]): String = {
+            (base, ls) match {
+              case (None, ::((vara, _), ::((varb, _), rest))) => to_destruct_pattern(Some(s"[${vara} ${varb}]"))(rest)
+              case (Some(base), ::((vara, _), rest)) =>
+                to_destruct_pattern(Some(s"[${base} ${vara}]"))(rest)
+              case (Some(base), Nil) => base
+            }
+          }
+
+          val destruct_pattern: String = to_destruct_pattern(None)(variables)
+          s"let ret := fresh vret in Intros ret; destruct ret as ${destruct_pattern}." ++ extra_assertions ++ s"\n${next.pp}"
+      }
+    }
+  }
+
+  case class ValidPointerOrNull(variable: Ident, next: ProofSteps) extends ProofSteps {
     override def pp: String = s"assert_PROP (is_pointer_or_null ${variable}). { entailer!. }\n${next.pp}"
   }
 
-  case class ValidPointer(variable: Ident,next: ProofSteps) extends ProofSteps {
+  case class ValidPointer(variable: Ident, next: ProofSteps) extends ProofSteps {
     override def pp: String = s"assert_PROP (isptr ${variable}). { entailer!. }\n${next.pp}"
   }
 
@@ -103,12 +134,16 @@ object ProofSteps {
     override def pp: String = s"try rename ${old_name} into ${new_name}.\n${next.pp}"
   }
 
-  case class Exists(variable: Ident, next: ProofSteps) extends ProofSteps {
-    override def pp: String = s"Exists ${variable}.\n${next.pp}"
+  case class Exists(variable: ProofCExpr, next: ProofSteps) extends ProofSteps {
+    override def pp: String = s"Exists ${variable.pp}.\n${next.pp}"
   }
 
   case class Free(variable: Ident, sz: Int, next: ProofSteps) extends ProofSteps {
     override def pp: String = s"forward_call (tarray (Tunion _sslval noattr) ${sz}, ${variable}).\n${next.pp}"
+  }
+
+  case class Malloc(size: Int, next: ProofSteps) extends ProofSteps {
+    override def pp: String = s"forward_call (tarray (Tunion _sslval noattr) ${size}).\n${next.pp}"
   }
 
   case class AssertPropSubst(variable: Ident, expr: ProofCExpr, next: ProofSteps) extends ProofSteps {
@@ -118,4 +153,11 @@ object ProofSteps {
   case object Qed extends ProofSteps {
     override def pp: String = ""
   }
+
+  case class Unfold(predicate: ProofTerms.VSTPredicate, args: Int, cardinality: ProofCCardinalityConstructor, next: ProofSteps) extends ProofSteps {
+    override def pp: String =
+      s"simpl (${predicate.name} ${List.iterate("_", args)(v => v).mkString(" ")} (${cardinality.pp})) at 1.\n${next.pp}"
+
+  }
+
 }

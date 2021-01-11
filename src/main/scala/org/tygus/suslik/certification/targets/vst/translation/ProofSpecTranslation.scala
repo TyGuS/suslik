@@ -9,7 +9,7 @@ import org.tygus.suslik.certification.targets.vst.clang.Expressions.CVar
 import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.{CDataAt, CSApp, VSTHeaplet}
 import org.tygus.suslik.certification.targets.vst.logic.{ProofTerms, ProofTypes}
-import ProofTerms.Expressions.{ProofCBinOp, ProofCBinaryExpr, ProofCBoolConst, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCOpAnd, ProofCOpBoolEq, ProofCOpDiff, ProofCOpImplication, ProofCOpIn, ProofCOpIntEq, ProofCOpIntersect, ProofCOpLeq, ProofCOpLt, ProofCOpMinus, ProofCOpMultiply, ProofCOpNot, ProofCOpOr, ProofCOpPlus, ProofCOpPtrEq, ProofCOpSetEq, ProofCOpSubset, ProofCOpUnaryMinus, ProofCOpUnion, ProofCSetLiteral, ProofCUnOp, ProofCUnaryExpr, ProofCVar}
+import ProofTerms.Expressions.{ProofCBinOp, ProofCBinaryExpr, ProofCBoolConst, ProofCCardinalityConstructor, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCOpAnd, ProofCOpBoolEq, ProofCOpDiff, ProofCOpImplication, ProofCOpIn, ProofCOpIntEq, ProofCOpIntersect, ProofCOpLeq, ProofCOpLt, ProofCOpMinus, ProofCOpMultiply, ProofCOpNot, ProofCOpOr, ProofCOpPlus, ProofCOpPtrEq, ProofCOpSetEq, ProofCOpSubset, ProofCOpUnaryMinus, ProofCOpUnion, ProofCSetLiteral, ProofCUnOp, ProofCUnaryExpr, ProofCVar}
 import ProofTerms.{CardConstructor, CardNull, CardOf, FormalCondition, FormalSpecification, IsTrueProp, IsValidInt, IsValidPointerOrNull, VSTPredicate, VSTPredicateClause}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqCardType, CoqIntType, CoqListType, CoqParamType, CoqPtrType, VSTProofType}
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
@@ -22,6 +22,19 @@ import scala.collection.immutable
 
 /** translates suslik proof terms to VST compatible proof terms  */
 object ProofSpecTranslation {
+
+  /** Translates a cardinality to a vst expression that can be passed around  */
+  def translate_cardinality(predicate: VSTPredicate, cardinality: CardConstructor): ProofCExpr = {
+    ProofCCardinalityConstructor(
+      predicate.inductive_name,
+      predicate.constructor_name(cardinality),
+      cardinality match {
+        case ProofTerms.CardNull => List()
+        case CardOf(args) => args.map(arg => ProofCVar(arg, CoqCardType(predicate.inductive_name)))
+      }
+    )
+  }
+
 
   /** translate a suslik type into a VST proof type */
   def translate_type(lType: SSLType): VSTProofType =
@@ -43,7 +56,9 @@ object ProofSpecTranslation {
     def type_expr(left_1: ProofCExpr): VSTProofType =
       left_1 match {
         case ProofCVar(name, typ) => typ
-        case ProofCIntConst(value) => CoqIntType
+
+        case ProofCIntConst(value, false) => CoqIntType
+        case ProofCIntConst(value, true) => CoqParamType(CTypes.CVoidPtrType)
         case ProofCSetLiteral(elems) => CoqListType(CoqPtrType, Some(elems.length))
         case ProofCIfThenElse(cond, left, right) => type_expr(left)
         case ProofCBinaryExpr(op, left, right) =>
@@ -89,8 +104,8 @@ object ProofSpecTranslation {
 
     expr match {
       case const: Expressions.Const => const match {
-        case Expressions.IntConst(value) => ProofCIntConst(value)
-        case Expressions.LocConst(value) => ProofCIntConst(value) // TODO: handle ptr type
+        case Expressions.IntConst(value) => ProofCIntConst(value, is_ptr=false)
+        case Expressions.LocConst(value) => ProofCIntConst(value, is_ptr=true)
         case Expressions.BoolConst(value) => ProofCBoolConst(value)
       }
       case Var(name) => ProofCVar(name, context(name))
@@ -184,7 +199,8 @@ object ProofSpecTranslation {
   def type_expr(context: Map[Ident, VSTProofType]) (cvalue: ProofTerms.Expressions.ProofCExpr) : VSTProofType =
     cvalue match {
       case ProofCVar(name, typ) => typ
-      case ProofCIntConst(value) => CoqIntType
+      case ProofCIntConst(value, false) => CoqIntType
+      case ProofCIntConst(value, true) => CoqParamType(CTypes.CVoidPtrType)
       case ProofCSetLiteral(elems) => CoqListType(type_expr(context)(elems.head), Some (elems.length))
       case ProofCIfThenElse(cond, left, right) => type_expr(context)(left)
       case ProofCBinaryExpr(op, left, right) => op match {
@@ -277,6 +293,7 @@ object ProofSpecTranslation {
     // return the blocks and the applications
     blocks.map(_.asInstanceOf[VSTHeaplet]) ++ apps.map(_.asInstanceOf[VSTHeaplet])
   }
+
   def translate_assertion (context: Map[Ident, VSTProofType]) (assertion: Assertion): FormalCondition = assertion match {
     case Assertion(phi, sigma) =>
     {

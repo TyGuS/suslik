@@ -126,7 +126,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
         val postCallTransition = Transition(goal, newGoal)
-        val kont: StmtProducer = PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = SubstProducer(callGoal.freshToActual) >> PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }

@@ -37,6 +37,13 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     this.copy(pre = pre.resolveOverloading(gamma), post = post.resolveOverloading(gamma))
   }
 
+  def existentials() : List[Var] = {
+    val params = this.params.map(_._1).toSet
+    val formal_params = pre.ghosts(params)
+    val existentials = post.ghosts(formal_params ++ params)
+    existentials.toList
+  }
+
   override def pp: String = {
     (""
       + s"${rType.pp} "

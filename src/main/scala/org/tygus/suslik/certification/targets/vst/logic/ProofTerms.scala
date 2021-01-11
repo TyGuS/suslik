@@ -4,10 +4,11 @@ import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.CVar
 import org.tygus.suslik.certification.targets.vst.clang.{CTypes, PrettyPrinting}
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.ProofCExpr
-import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqBoolType, CoqIntType, CoqListType, CoqParamType, VSTProofType}
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCExpr, ProofCVar}
+import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqBoolType, CoqCardType, CoqIntType, CoqListType, CoqParamType, VSTProofType}
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.language.Ident
+import org.tygus.suslik.logic.SApp
 
 object ProofTerms {
 
@@ -35,10 +36,31 @@ object ProofTerms {
       */
     sealed abstract class ProofCExpr extends PrettyPrinting {
 
+      /** Applies a substitution to an expression */
+      def subst (mapping: Map[String, ProofCExpr]) : ProofCExpr = this match {
+        case expr@ProofCVar(name, _) => mapping.get(name) match {
+          case Some(value) => value.subst(mapping)
+          case None => expr
+        }
+        case expr@ProofCBoolConst(_) =>expr
+        case expr@ProofCIntConst(_, _) =>expr
+        case ProofCSetLiteral(elems) =>
+          ProofCSetLiteral(elems.map(_.subst(mapping)))
+        case ProofCIfThenElse(cond, left, right) =>
+          ProofCIfThenElse(cond.subst(mapping), left.subst(mapping), right.subst(mapping))
+        case ProofCBinaryExpr(op, left, right) =>
+          ProofCBinaryExpr(op, left.subst(mapping), right.subst(mapping))
+        case ProofCUnaryExpr(op, e) =>
+          ProofCUnaryExpr(op, e.subst(mapping))
+        case ProofCCardinalityConstructor(pred_type, name, args) =>
+          ProofCCardinalityConstructor(pred_type, name, args.map(_.subst(mapping)))
+      }
+
       def type_expr: VSTProofType = this match {
         case ProofCVar(name, typ) => typ
         case ProofCBoolConst(value) => CoqBoolType
-        case ProofCIntConst(value) => CoqIntType
+        case ProofCIntConst(value, false) => CoqIntType
+        case ProofCIntConst(value, true) => CoqParamType(CTypes.CVoidPtrType)
         case ProofCSetLiteral(elems) => CoqListType(elems.head.type_expr, Some(elems.length))
         case ProofCIfThenElse(cond, left, right) => left.type_expr
         case ProofCBinaryExpr(op, left, right) => op match {
@@ -48,6 +70,7 @@ object ProofTerms {
           case _ => CoqBoolType
         }
         case ProofCUnaryExpr(op, e) => e.type_expr
+        case ProofCCardinalityConstructor(pred_type, _, _) => CoqCardType(pred_type)
       }
 
       /** prints the expression as though it were an element
@@ -61,7 +84,7 @@ object ProofTerms {
           case ProofTypes.CoqListType(elem, length) => name
           case ProofTypes.CoqCardType(_) => throw TranslationException("Error: inconsistent assumptions, attempting to print a cardinality as a c type")
         }
-        case ProofCIntConst(value) => s"(Vint (Int.repr ${value.toString}))"
+        case ProofCIntConst(value, false) => s"(Vint (Int.repr ${value.toString}))"
         case ProofCSetLiteral(elems) =>
           s"[${elems.map(_.pp_as_c_value).mkString("; ")}]"
         case value@ProofCBinaryExpr(op, _, _) =>
@@ -94,7 +117,8 @@ object ProofTerms {
           case ProofTypes.CoqListType(elem, length) => name
           case ProofTypes.CoqCardType(_) => throw TranslationException("Error: inconsistent assumptions, attempting to print a cardinality as a c type")
         }
-        case ProofCIntConst(value) => s"inl (Vint (Int.repr ${value.toString}))"
+        case ProofCIntConst(value,false) => s"inl (Vint (Int.repr ${value.toString}))"
+        case ProofCIntConst(0,true) => s"inr nullval"
         case ProofCSetLiteral(elems) =>
           s"[${elems.map(_.pp_as_ssl_union_value).mkString("; ")}]"
         case value@ProofCBinaryExpr(op, _, _) =>
@@ -107,7 +131,7 @@ object ProofTerms {
           if (is_int) {
             s"inl (Vint (Int.repr ${value.pp}))"
           } else {
-            ???
+            throw TranslationException("Error: inconsistent assumptions, attempting to print an arithmetic operation on non-integral values as a c expression.")
           }
         case value@ProofCUnaryExpr(op, _) => op match { case ProofCOpUnaryMinus => s"inl (Vint (Int.repr ${value.pp}))" }
         case v => v.pp
@@ -119,7 +143,7 @@ object ProofTerms {
       def pp_as_ptr_value : String = this match {
         case ProofCVar(name, typ) => name
         case ProofCBoolConst(value) => this.pp
-        case ProofCIntConst(value) => if (value == 0) { "nullval" } else { this.pp }
+        case ProofCIntConst(value, true) => if (value == 0) { "nullval" } else { this.pp }
         case ProofCSetLiteral(elems) => this.pp
         case ProofCIfThenElse(cond, left, right) => this.pp
         case ProofCBinaryExpr(op, left, right) => this.pp
@@ -127,6 +151,11 @@ object ProofTerms {
       }
 
     }
+
+    case class ProofCCardinalityConstructor(pred_type: String, name: String, args: List[ProofCExpr]) extends ProofCExpr {
+      override def pp: String = s"(${name} ${args.map(_.pp).mkString(" ")} : ${pred_type})"
+    }
+
 
     /** a variable in a VST proof */
     case class ProofCVar(name: String, typ: VSTProofType) extends ProofCExpr {
@@ -141,7 +170,7 @@ object ProofTerms {
           ty match {
             case CTypes.CIntType => s"(force_signed_int ${name})"
             case CTypes.CVoidPtrType => s"${name}"
-            case CTypes.CUnitType => ??? /// Unimplemented as we should never be dealing with unit types
+            case CTypes.CUnitType => throw new TranslationException("Error: inconsistent assumptions, attempting to create a variable of unit type")
           }
         case ProofTypes.CoqListType(elem, _) => name
       }
@@ -153,8 +182,8 @@ object ProofTerms {
     }
 
     /** integer constant in a VST proof */
-    case class ProofCIntConst(value: Int) extends ProofCExpr {
-      override def pp: String = value.toString
+    case class ProofCIntConst(value: Int, is_ptr: Boolean) extends ProofCExpr {
+      override def pp: String = if (is_ptr && value == 0) { "nullval" } else { value.toString }
     }
 
     /** set literal (encoded as set) in a VST proof */
@@ -403,12 +432,17 @@ object ProofTerms {
 
     val cardinality_param: String = "self_card"
 
+    /**
+      * @return the selector for the clause
+      */
+    def selector: ProofCExpr = pure.head
+
     /** finds existential variables in the expression using args */
     def find_existentials_args (args: Set[String]): List[(Ident,VSTProofType)] = {
       def expr_existential : ProofCExpr => List[(Ident, VSTProofType)] = {
         case Expressions.ProofCVar(name, typ) => if (!args.contains(name)) List((name, typ)) else Nil
         case Expressions.ProofCBoolConst(value) => Nil
-        case Expressions.ProofCIntConst(value) => Nil
+        case Expressions.ProofCIntConst(value, _) => Nil
         case Expressions.ProofCSetLiteral(elems) => elems.flatMap(expr_existential)
         case Expressions.ProofCIfThenElse(cond, left, right) => List(cond, left,right).flatMap(expr_existential)
         case Expressions.ProofCBinaryExpr(op, left, right) => List(left, right).flatMap(expr_existential)
@@ -426,7 +460,7 @@ object ProofTerms {
       def expr_existential : ProofCExpr => List[(Ident, VSTProofType)] = {
         case Expressions.ProofCVar(name, _) => existentials.get(name).map(typ => (name, typ)).toList
         case Expressions.ProofCBoolConst(value) => Nil
-        case Expressions.ProofCIntConst(value) => Nil
+        case Expressions.ProofCIntConst(value, _) => Nil
         case Expressions.ProofCSetLiteral(elems) => elems.flatMap(expr_existential)
         case Expressions.ProofCIfThenElse(cond, left, right) => List(cond, left,right).flatMap(expr_existential)
         case Expressions.ProofCBinaryExpr(op, left, right) => List(left, right).flatMap(expr_existential)
@@ -459,6 +493,22 @@ object ProofTerms {
                            existentials: List[(String, VSTProofType)],
                            clauses: Map[CardConstructor, VSTPredicateClause])
     extends PrettyPrinting {
+
+    /**
+      * Returns the constructor of the predicate with n arguments
+      * @param n number of arguments
+      */
+    def constructor_by_arg(n: Int): CardConstructor =
+      clauses.find({ case (constructor, clause) => constructor.constructor_args.length == n}).get._1
+
+
+    /**
+      * @param selector a expression corresponding to a selector of the predicate
+      * @return cardinality and clause matched by predicate
+      */
+    def apply(selector: ProofCExpr) : (CardConstructor, VSTPredicateClause) =
+      clauses.find({case (_, clause) =>  clause.selector.equals(selector) }).get
+
 
     /** returns any helper lemmas that need to be constructed for the helper */
     def get_helpers : List[VSTPredicateHelper] =

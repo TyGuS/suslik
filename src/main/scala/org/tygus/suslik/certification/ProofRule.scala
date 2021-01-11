@@ -111,8 +111,8 @@ case class AbduceCall(
 
 
   /** unification of heap (ignores block/pure distinction) */
-  case class HeapUnify(next: ProofRule) extends ProofRule {
-    override def pp: String = s"${ind}HeapUnify;\n${next.pp}"
+  case class HeapUnify(subst: Map[Var, Expr], next: ProofRule) extends ProofRule {
+    override def pp: String = s"${ind}HeapUnify(${subst.mkString(",")});\n${next.pp}"
   }
 
   /** unification of pointers */
@@ -126,8 +126,8 @@ case class AbduceCall(
   }
 
   /** call operation */
-  case class Call(call: Statements.Call, next: ProofRule) extends ProofRule {
-    override def pp: String = s"${ind}Call(${sanitize(call.pp)});\n${next.pp}"
+  case class Call(subst: Map[Var, Expr], call: Statements.Call, next: ProofRule) extends ProofRule {
+    override def pp: String = s"${ind}Call({${subst.mkString(",")}}, ${sanitize(call.pp)});\n${next.pp}"
   }
 
   /** free operation */
@@ -150,8 +150,8 @@ case class AbduceCall(
     override def pp: String = s"${ind}StarPartial(${new_pre_phi.pp}, ${new_post_phi.pp});\n${next.pp}"
   }
 
-  case class PickCard(next: ProofRule) extends ProofRule {
-    override def pp: String = s"${ind}PickCard;\n${next.pp}"
+  case class PickCard(map: Map[Var,Expr], next: ProofRule) extends ProofRule {
+    override def pp: String = s"${ind}PickCard(${map.mkString(",")});\n${next.pp}"
   }
 
 
@@ -276,63 +276,44 @@ case class AbduceCall(
         case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
             case ::(head, Nil) =>
-
               // find out which new variables were added to the context
               val new_vars =
                 head.goal.gamma.filterKeys(key => !node.goal.gamma.contains(key))
               val f_pre = head.goal.post
-
-              var SuspendedCallGoal(_, _, callePost, call, freshSub, _) = head.goal.callGoal.get
+              var SuspendedCallGoal(caller_pre, caller_post, callePost, call, freshSub, fresh_to_actual) = head.goal.callGoal.get
               ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
       }
       case UnificationRules.HeapUnifyPure => node.kont match {
-        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
-            case ::(head, Nil) => ProofRule.HeapUnify(of_certtree(head))
+            case ::(head, Nil) => ProofRule.HeapUnify(subst, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
       }
       case UnificationRules.HeapUnifyUnfolding => node.kont match {
-        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
-            case ::(head, Nil) => ProofRule.HeapUnify(of_certtree(head))
+            case ::(head, Nil) => ProofRule.HeapUnify(subst, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
       }
       case UnificationRules.HeapUnifyBlock => node.kont match {
-        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
-            case ::(head, Nil) => ProofRule.HeapUnify(of_certtree(head))
+            case ::(head, Nil) => ProofRule.HeapUnify(subst, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
       }
       case UnificationRules.HeapUnifyPointer => node.kont match {
-        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
           node.children match {
-            case ::(head, Nil) =>
-              val pre = goal.pre
-              val post = goal.post
-              val prePtss = pre.sigma.ptss
-              val postPtss = post.sigma.ptss
-
-              def lcpLen(s1: String, s2: String): Int = s1.zip(s2).takeWhile(Function.tupled(_ == _)).length
-
-              val alternatives = for {
-                PointsTo(y, oy, _) <- postPtss
-                if y.vars.exists(goal.isExistential)
-                t@PointsTo(x, ox, _) <- prePtss
-                if ox == oy
-                if !postPtss.exists(sameLhs(t))
-              } yield y -> x
-              alternatives.minBy { case (e1, e2) => -lcpLen(e1.pp, e2.pp) } match {
-                case (y: Var, x) => ProofRule.HeapUnifyPointer(Map(y -> x), of_certtree(head))
-              }
+            case ::(head, Nil) => ProofRule.HeapUnifyPointer(subst, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
@@ -410,9 +391,9 @@ case class AbduceCall(
         case _ => fail_with_bad_proof_structure()
       }
       case UnfoldingRules.CallRule => node.kont match {
-        case ChainedProducer(ChainedProducer(PrependProducer(call: Statements.Call), HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst),PrependProducer(call: Statements.Call)), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
-            case ::(head, Nil) => ProofRule.Call(call, of_certtree(head))
+            case ::(head, Nil) => ProofRule.Call(subst, call, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
@@ -461,9 +442,9 @@ case class AbduceCall(
       }
 
       case UnificationRules.PickCard => node.kont match {
-        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
           node.children match {
-            case ::(head, Nil) => ProofRule.PickCard(of_certtree(head))
+            case ::(head, Nil) => ProofRule.PickCard(map, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
       }
