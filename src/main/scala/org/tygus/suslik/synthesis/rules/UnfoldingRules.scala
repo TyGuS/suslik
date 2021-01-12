@@ -24,7 +24,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
-    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], SApp, SubstVar)] = {
+    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], SApp, SubstVar, Subst)] = {
       val pre = goal.pre
       val env = goal.env
 
@@ -52,7 +52,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
-          if (noGhosts) Some((newGoals, h, fresh_sbst)) else None
+          if (noGhosts) Some((newGoals, h, fresh_sbst, sbst)) else None
         case _ => None
       }
     }
@@ -62,9 +62,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         heaplet <- goal.pre.sigma.chunks
         s <- mkInductiveSubGoals(goal, heaplet) match {
           case None => None
-          case Some((selGoals, heaplet, fresh_subst)) =>
+          case Some((selGoals, heaplet, fresh_subst, sbst)) =>
             val (selectors, subGoals) = selGoals.unzip
-            val kont = BranchProducer(Some (heaplet, fresh_subst), selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = BranchProducer(Some (heaplet), fresh_subst, sbst, selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, this, goal))
         }
       } yield s
@@ -94,7 +94,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
-        val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = AbduceCallProducer(f) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
     }

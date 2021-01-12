@@ -151,7 +151,7 @@ object ProofTranslation {
 
     def translate_proof_rules(rule: ProofRule)(context: Context): ProofSteps = {
       rule match {
-        case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, cases) =>
+        case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, _, cases) =>
           val arg_set = args.toSet
           val pred = pred_map(predicate_name)
           ProofSteps.ForwardIfConstructor(
@@ -243,14 +243,14 @@ object ProofTranslation {
                   case ProofRule.EmpRule => false
                   case ProofRule.PureSynthesis(is_final, assignments, next) =>
                     is_variable_used_in_proof(variable)(next)
-                  case ProofRule.Open(pred, heaplet, cases) =>
+                  case ProofRule.Open(pred, heaplet, _, cases) =>
                     cases.exists({ case (expr, rule) =>
                       is_variable_used_in_exp(variable)(expr) ||
                         is_variable_used_in_proof(variable)(rule)
                     })
                   case ProofRule.SubstL(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
                   case ProofRule.SubstR(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                  case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, next) =>
+                  case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshSub, freshToActual, gamma, next) =>
                     is_variable_used_in_proof(variable)(next)
                   case ProofRule.HeapUnify(next) => is_variable_used_in_proof(variable)(next)
                   case ProofRule.HeapUnifyPointer(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
@@ -290,7 +290,7 @@ object ProofTranslation {
                 )
               }
           }
-        case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, next) =>
+        case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, _, _, _, next) =>
           var typing_context = retrieve_typing_context(context)
           f_pre.vars.foreach({ case Var(name) => if (!typing_context.contains(name)) {
             typing_context = typing_context + (name -> CoqPtrType)

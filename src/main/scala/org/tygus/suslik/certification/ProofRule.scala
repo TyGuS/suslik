@@ -1,11 +1,11 @@
 package org.tygus.suslik.certification
 
 import org.tygus.suslik.certification.targets.vst.translation.ProofTranslation.ProofRuleTranslationException
-import org.tygus.suslik.language.Expressions.{Expr, NilPtr, SubstVar, Var}
+import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Subst, SubstVar, Var}
 import org.tygus.suslik.language.Statements.{Load, Skip, Store}
 import org.tygus.suslik.language.{PrettyPrinting, SSLType, Statements}
 import org.tygus.suslik.logic.Preprocessor.{findMatchingHeaplets, sameLhs}
-import org.tygus.suslik.logic.Specifications.{Assertion, SuspendedCallGoal}
+import org.tygus.suslik.logic.Specifications.{Assertion, Goal, SuspendedCallGoal}
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.rules.LogicalRules.StarPartial.extendPure
 import org.tygus.suslik.synthesis.rules._
@@ -77,8 +77,8 @@ object ProofRule {
   }
 
   /** open constructor cases */
-  case class Open(pred: SApp, fresh_vars: SubstVar, cases: List[(Expr, ProofRule)]) extends ProofRule {
-    override def pp: String = s"${ind}Open(${pred.pp}, ${fresh_vars.mkString(", ")});\n${with_scope(_ => cases.map({case (expr,rest) => s"${ind}if ${sanitize(expr.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
+  case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, cases: List[(Expr, ProofRule)]) extends ProofRule {
+    override def pp: String = s"${ind}Open(${pred.pp});\n${with_scope(_ => cases.map({case (expr,rest) => s"${ind}if ${sanitize(expr.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
   }
 
   /** subst L */
@@ -93,7 +93,7 @@ object ProofRule {
 
 
   /** read rule */
-  case class Read(map: Map[Var,Expr], operation: Load, next:ProofRule) extends ProofRule {
+  case class Read(map: Map[Var,Var], operation: Load, next:ProofRule) extends ProofRule {
     override def pp: String = s"${ind}Read(${map.mkString(",")}, ${sanitize(operation.pp)});\n${next.pp}"
   }
 
@@ -104,6 +104,9 @@ case class AbduceCall(
                        callePost: Specifications.Assertion,
                        call: Statements.Call,
                        freshSub: SubstVar,
+                       freshToActual: Subst,
+                       f: FunSpec,
+                       gamma: Gamma,
                        next: ProofRule
                      ) extends ProofRule {
   override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});\n${next.pp}"
@@ -157,6 +160,10 @@ case class AbduceCall(
 
   case class PickArg(map: Map[Var, Expr], next: ProofRule) extends ProofRule {
     override def pp: String = s"${ind}PickArg(${map.mkString(",")});\n${next.pp}"
+  }
+
+  case class Init(goal: Goal, next: ProofRule) extends ProofRule {
+    override def pp: String = s"${ind}Init(${goal.pp});\n${next.pp}"
   }
 
   /** converts a Suslik CertTree node into the unified ProofRule structure */
@@ -244,8 +251,8 @@ case class AbduceCall(
         case _ => fail_with_bad_proof_structure()
       }
       case UnfoldingRules.Open => node.kont match {
-        case ChainedProducer(ChainedProducer(BranchProducer(Some((heaplet, fresh_vars)), selectors), HandleGuard(_)), ExtractHelper(_)) =>
-          ProofRule.Open(heaplet, fresh_vars, selectors.zip(node.children).map({ case (expr, node) => (expr, of_certtree(node)) }).toList)
+        case ChainedProducer(ChainedProducer(BranchProducer(Some(pred), fresh_vars, sbst, selectors), HandleGuard(_)), ExtractHelper(_)) =>
+          ProofRule.Open(pred, fresh_vars, sbst, selectors.zip(node.children).map({ case (expr, node) => (expr, of_certtree(node)) }).toList)
         case _ => fail_with_bad_proof_structure()
       }
       case LogicalRules.SubstLeft => node.kont match {
@@ -273,7 +280,7 @@ case class AbduceCall(
         case _ => fail_with_bad_proof_structure()
       }
       case UnfoldingRules.AbduceCall => node.kont match {
-        case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(AbduceCallProducer(f), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
             case ::(head, Nil) =>
 
@@ -282,8 +289,8 @@ case class AbduceCall(
                 head.goal.gamma.filterKeys(key => !node.goal.gamma.contains(key))
               val f_pre = head.goal.post
 
-              var SuspendedCallGoal(_, _, callePost, call, freshSub, _) = head.goal.callGoal.get
-              ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, of_certtree(head))
+              var SuspendedCallGoal(_, _, callePost, call, freshSub, freshToActual) = head.goal.callGoal.get
+              ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, head.goal.gamma, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
