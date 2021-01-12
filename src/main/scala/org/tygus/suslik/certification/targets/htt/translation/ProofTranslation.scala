@@ -1,141 +1,180 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
-import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.htt.language.Expressions.CVar
-import org.tygus.suslik.certification.targets.htt.logic.Proof._
-import org.tygus.suslik.certification.targets.htt.logic.ProofProducers._
-import org.tygus.suslik.certification.targets.htt.logic.ProofSteps._
-import org.tygus.suslik.certification.targets.htt.logic.Sentences.CInductiveClause
-import org.tygus.suslik.certification.targets.htt.translation.Translation._
-import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.InductiveClause
-import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.LogicalRules.Inconsistency
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.logic.Proof
+import org.tygus.suslik.certification.targets.htt.logic.Sentences._
+import org.tygus.suslik.certification.targets.htt.program.Statements._
 
 object ProofTranslation {
+  def translate(ir: IR.Node): Proof.Step = irToProofSteps(ir)
 
-  private case class TraversalItem(node: CertTree.Node, cenv: CEnvironment)
+  def irToProofSteps(node: IR.Node) : Proof.Step = {
+    def elimExistentials(ex: Seq[CExpr], nested: Boolean = false): Proof.Step = {
+      if (ex.nonEmpty) {
+        if (nested) Proof.MoveToCtxDestructFoldLeft(ex) else Proof.ElimExistential(ex)
+      } else Proof.Noop
+    }
 
-  def translate(node: CertTree.Node, cenv: CEnvironment): Proof = {
-    val initialGoal = translateGoal(node.goal)
-    val traversalItem = TraversalItem(node, cenv)
-    val initialKont = PrependProofProducer(GhostElimStep(initialGoal))
-    val (proofBody, _) = traverseProof(traversalItem, initialKont)
-    Proof(proofBody, initialGoal.programVars)
+    def initPre(asn: CAssertion, uniqueName: String): Proof.Step = {
+      val phi = asn.phi
+      val sigma = asn.sigma
+
+      // move pure part to context
+      val pureToCtx = if (!phi.isTrivial) {
+        val hyps = if (phi.conjuncts.isEmpty) Seq(CVar(s"phi_$uniqueName")) else (0 to phi.conjuncts.length).map(i => CVar(s"phi_$uniqueName$i"))
+        Proof.MoveToCtxDestruct(hyps)
+      } else Proof.Noop
+
+      // move spatial part to context, and then substitute where appropriate
+      val spatialToCtx = Proof.MoveToCtxDestruct(Seq(CVar(s"sigma_$uniqueName"))) >> Proof.Sbst
+
+      // move predicate apps to context, if any
+      val sappToCtx = if (sigma.apps.nonEmpty) {
+        val appNames = sigma.apps.map(app => CVar(app.hypName))
+        Proof.MoveToCtxDestructFoldRight(appNames)
+      } else Proof.Noop
+
+      pureToCtx >> spatialToCtx >> sappToCtx
+    }
+
+    def solvePost(asn: CAssertion, ex: Seq[CExpr], unfoldings: IR.Unfoldings): Proof.Step = {
+      val valueExElim = Proof.Exists(ex)
+
+      /**
+        * Existentials for the current assertion need to be provided eagerly, so look ahead to find out
+        * the maximally unfolded, "flattened" form of the heap
+        *
+        * @param app the predicate app to flatten
+        * @return the points-to's and pred apps in the unfolded heap; any pred apps that remain have already been
+        *         established as facts earlier on, so there is no need to unfold further
+        */
+      def toUnfoldedHeap(app: CSApp): (Seq[CPointsTo], Seq[CSApp]) = unfoldings.get(app) match {
+        case Some(a) =>
+          val sigma = a.asn.sigma
+          val (ptss, apps) = sigma.apps.map(toUnfoldedHeap).unzip
+          (sigma.ptss ++ ptss.flatten, apps.flatten)
+        case None =>
+          (Seq.empty, Seq(app))
+      }
+
+      // Eliminate heap existentials (one for each predicate application in the assertion)
+      val apps = asn.sigma.apps
+      val heapExElim = for (app <- apps) yield {
+        val (unfoldedPtss, unfoldedApps) = toUnfoldedHeap(app)
+        Proof.Exists(Seq(CSFormula("", unfoldedApps, unfoldedPtss)))
+      }
+
+      // For each predicate application, unfold the correct constructor and recursively solve its expanded form
+      val rest = for {
+        app <- apps
+        // If `app` isn't found in the unfoldings, its truth was already established earlier on
+        c <- unfoldings.get(app)
+      } yield Proof.UnfoldConstructor(c.idx) >>> solvePost(c.asn, c.existentials, unfoldings)
+
+      val p = valueExElim >>> heapExElim.foldLeft[Proof.Step](Proof.Noop)(_ >>> _) >>> Proof.Auto >> rest.foldLeft[Proof.Step](Proof.Noop)(_ >> _)
+      p
+    }
+
+    var currCallId = 0
+    def freshCallId: String = { currCallId += 1; s"call$currCallId" }
+
+    def visit(node: IR.Node): Proof.Step = node match {
+      case IR.Init(ctx, next) =>
+        val goal = ctx.topLevelGoal.get.subst(ctx.substVar)
+        Proof.StartProof(goal.programVars) >>
+          // Pull out any precondition ghosts and move precondition heap to the context
+          Proof.GhostElimPre >>
+          Proof.MoveToCtxDestructFoldLeft(goal.universalGhosts) >>
+          Proof.ElimExistential(goal.pre.heapVars) >>
+          initPre(goal.pre, "self") >>
+          // store heap validity assertions
+          Proof.GhostElimPost >>
+          visit(next.head)
+      case IR.EmpRule(ctx) =>
+        val topLevelGoal = ctx.topLevelGoal.get
+        val post = topLevelGoal.post.subst(ctx.subst).subst(ctx.substVar)
+        val existentials = topLevelGoal.existentials.map(_.substVar(ctx.substVar).subst(ctx.subst))
+        val unfoldings = ctx.unfoldings.map { case (app, e) => app.subst(ctx.substVar).subst(ctx.subst) -> e.subst(ctx.substVar).subst(ctx.subst) }
+        Proof.Emp >>> solvePost(post, existentials, unfoldings)
+      case IR.AbduceCall(new_vars, f_pre, calleePost, call, freshSub, freshToActual, next, ctx) =>
+        visit(next.head)
+      case IR.Call(CCall(_, args), next, ctx) =>
+        val callId = freshCallId
+        val nestedContext = ctx.nestedContext.get
+        val f = ctx.nestedContext.get.funspec.subst(ctx.substVar).subst(nestedContext.freshToActual).subst(ctx.substVar)
+        // Move the part of the heap relevant to the call abduction to the beginning
+        Proof.CallPre(f.pre.sigma) >>
+          // Provide the necessary existentials so that the precondition of the call goal is met,
+          // and then execute the call
+          Proof.Call(args, f.ghostParamVars.filterNot(_.isCard)) >>
+          solvePost(f.pre, Seq.empty, Map.empty) >>
+          Proof.MoveToCtx(Seq(CVar(s"h_$callId"))) >>
+          // The postcondition of the call abduction becomes the precondition of the companion
+          elimExistentials(f.existentials) >>
+          elimExistentials(f.post.heapVars) >>
+          initPre(f.post, callId) >>
+          // Store validity hypotheses in context
+          Proof.StoreValid >>
+          visit(next.head)
+      case IR.Free(CFree(v, sz), next, _) =>
+        (0 until sz).map(o => Proof.Dealloc(v, o)).reduceLeft[Proof.Step](_ >> _) >> visit(next.head)
+      case IR.Read(CLoad(to, _, from, offset), next, ctx) =>
+        Proof.Read(to.substVar(ctx.substVar), from.substVar(ctx.substVar), offset) >> visit(next.head)
+      case IR.Write(CStore(to, offset, e), next, ctx) =>
+        val step = Proof.Write(to.substVar(ctx.substVar), offset, e)
+        // SSL's `Write` rule does an implicit frame under normal circumstances, but not during a call synthesis
+        val step1 = if (ctx.nestedContext.isDefined) step else step >> Proof.WritePost(to, offset)
+        step1 >> visit(next.head)
+      case IR.Malloc(CMalloc(to, tpe, sz), next, ctx) =>
+        Proof.Alloc(to.substVar(ctx.substVar), tpe, sz) >> visit(next.head)
+      case IR.PureSynthesis(_, next, _) =>
+        visit(next.head)
+      case IR.Close(_, _, _, _, next, _) =>
+        visit(next.head)
+      case IR.AbduceBranch(_, next, _) =>
+        Proof.AbduceBranch >> Proof.Branch(next.map(visit))
+      case IR.Open(app, clauses, selectors, next, ctx) =>
+        val branchSteps = next.zip(clauses).map { case (n, c) =>
+          val c1 = c.subst(n.ctx.substVar)
+          Proof.OpenPost(app.subst(ctx.substVar)) >>
+            elimExistentials(c1.existentials) >>
+            elimExistentials(c1.asn.heapVars) >>
+            initPre(c1.asn, app.uniqueName) >>
+            visit(n)
+        }
+        Proof.Open >> Proof.Branch(branchSteps)
+    }
+
+    pruneUnusedReads(visit(node).simplify) >> Proof.EndProof
   }
 
-  def traverseProof(item: TraversalItem, kont: ProofProducer): KontResult = {
-    def translateOperation(s: Statement, cenv: CEnvironment): KontResult = s match {
-      case Skip =>
-        val goal = cenv.initialGoal.subst(cenv.ghostSubst)
-        val post = goal.post.subst(cenv.subst)
-        val postEx = goal.existentials.map(_.subst(cenv.subst))
-        val unfoldings = cenv.unfoldings.map { case (app, c) => app.subst(cenv.subst) -> c.subst(cenv.subst) }
-        (EmpStep(post, postEx, unfoldings), cenv)
-      case Load(to, _, from, off) =>
-        (ReadStep(translateVar(to), translateVar(from), off), cenv)
-      case Store(to, offset, e) =>
-        val frame = item.node.goal.callGoal.isEmpty
-        (WriteStep(translateVar(to), offset, translateExpr(e), frame), cenv)
-      case Malloc(to, tpe, sz) =>
-        (AllocStep(translateVar(to), translateType(tpe), sz), cenv)
-      case Free(v) =>
-        val block = item.node.footprint.pre.sigma.blocks.find(_.loc == v)
-        assert(block.nonEmpty)
-        (FreeStep(CVar(v.name), block.get.sz), cenv)
-      case Call(_, _, _) =>
-        assert(item.node.goal.callGoal.isDefined)
-        val callGoal = item.node.goal.callGoal.get
-
-        // create call step
-        val companionToFresh = callGoal.companionToFresh.map{ case (k, v) => translateVar(k) -> translateVar(v)}
-        val freshToActual = callGoal.freshToActual.map{ case (k, v) => translateVar(k) -> translateExpr(v)}
-        val cgoal = cenv.initialGoal.subst(companionToFresh).subst(freshToActual)
-
-        (CallStep(cgoal, freshCallId), cenv)
-      case Error =>
-        (ErrorStep, cenv)
-      case _ => throw TranslationException("Operation not supported")
-    }
-
-    def translateProducer(stmtProducer: StmtProducer, cenv: CEnvironment): (ProofProducer, CEnvironment) = {
-      stmtProducer match {
-        case ChainedProducer(p1, p2) =>
-          val (k1, cenv1) = translateProducer(p1, cenv)
-          val (k2, cenv2) = translateProducer(p2, cenv1)
-          (k1 >> k2, cenv2)
-        case PartiallyAppliedProducer(p, _) =>
-          translateProducer(p, cenv)
-        case SubstProducer(subst) =>
-          val csub = subst.map { case (v, e) => translateVar(v) -> translateExpr(e).subst(cenv.ghostSubst) }
-          val cenv1 = cenv.copy(subst = cenv.subst ++ csub)
-          (IdProofProducer, cenv1)
-        case GhostSubstProducer(ghostSubst) =>
-          val newGhostSubst = ghostSubst.map { case (v, e) => translateVar(v) -> translateVar(e) }
-          val newSubst = cenv.subst.map { case (v, e) => v.substVar(newGhostSubst) -> e.subst(newGhostSubst)}
-          val newUnfoldings = cenv.unfoldings.map { case (app, e) => app.subst(newGhostSubst) -> e.subst(newGhostSubst) }
-          val cenv1 = cenv.copy(subst = newSubst, ghostSubst = cenv.ghostSubst ++ newGhostSubst, unfoldings = newUnfoldings)
-          (IdProofProducer, cenv1)
-        case UnfoldProducer(app, selector, asn, substEx) =>
-          val cselector = translateExpr(selector)
-          val capp = translateSApp(app)
-          val casn = translateAsn(asn).subst(cenv.ghostSubst)
-
-          // get clause with substitutions
-          val predicate = cenv.predicates(app.pred)
-          val cclause = predicate.clauses.find(_.selector == cselector).get
-          val csub = substEx.map { case (k, v) => CVar(k.name) -> translateExpr(v)}
-          val ex = cclause.existentials.map(_.subst(csub))
-          val actualClause = CInductiveClause(app.pred, cclause.idx, cselector, casn, ex)
-          val cenv1 = cenv.copy(unfoldings = cenv.unfoldings ++ Map(capp -> actualClause))
-          (IdProofProducer, cenv1)
-        case ConstProducer(s) =>
-          val (step, cenv1) = translateOperation(s, cenv)
-          (ConstProofProducer(step, cenv1), cenv1)
-        case PrependProducer(s) =>
-          val (step, cenv1) = translateOperation(s, cenv)
-          (PrependProofProducer(step), cenv1)
-        case BranchProducer(_, _) =>
-          val sapp = translateSApp(item.node.footprint.pre.sigma.apps.head)
-          val pred = cenv.predicates(sapp.pred)
-          val subgoals = item.node.children.map(n => translateGoal(n.goal))
-          val initialSub: SubstVar = Map.empty
-          val sub = pred.clauses.zip(subgoals).foldLeft(initialSub){ case (acc, (c, g)) => acc ++ g.pre.sigma.unify(c.asn.sigma) }
-          val actualPred = pred.subst(sub)
-          val openPostSteps = actualPred.clauses.map(c => OpenPostStep(sapp, c.asn, c.existentials))
-          (BranchProofProducer(openPostSteps, cenv), cenv)
-        case GuardedProducer(_, _) =>
-          (GuardedProofProducer(cenv), cenv)
-        case _ =>
-          (IdProofProducer, cenv)
-      }
-    }
-
-    def generateNextItems(p: ProofProducer, cenv: CEnvironment): Seq[TraversalItem] = {
-      item.node.children.map(node => TraversalItem(node, cenv))
-    }
-
-    // If at a branching point, queue up the traversal of each branch as nested calls of `traverseProof` in the continuation
-    def updateProducerPost(nextItems: Seq[TraversalItem], nextKont: ProofProducer, cenv: CEnvironment): ProofProducer = nextKont match {
-      case _: Branching =>
-        nextItems.tail.foldLeft(nextKont >> kont) {
-          case (foldedP, item) => FoldProofProducer(traverseProof, item, foldedP)
+  def pruneUnusedReads(step: Proof.Step): Proof.Step = {
+    def visit(step: Proof.Step): (Proof.Step, Set[CVar]) = step match {
+      case Proof.SeqComp(s1, s2) =>
+        val (s2New, s2Used) = visit(s2)
+        val (s1New, s1Used) = visit(s1)
+        s1 match {
+          case Proof.Read(to, _, _) if !s2Used.contains(to) => (s2New, s2Used)
+          case _ => (s1New >> s2New, s1Used ++ s2Used)
         }
-      case _ =>
-        nextKont >> kont
+      case Proof.SeqCompAlt(s1, s2) =>
+        val (s2New, s2Used) = visit(s2)
+        val (s1New, s1Used) = visit(s1)
+        s1 match {
+          case Proof.Read(to, _, _) if !s2Used.contains(to) => (s2New, s2Used)
+          case _ => (s1New >>> s2New, s1Used ++ s2Used)
+        }
+      case Proof.Branch(branches) =>
+        val (branchesNew, branchesUsed) = branches.map(visit).unzip
+        (Proof.Branch(branchesNew), branchesUsed.reduce(_ ++ _))
+      case Proof.Read(to, from, offset) => (step, Set(to, from))
+      case Proof.Write(to, offset, e) => (step, Set(to) ++ e.vars.toSet)
+      case Proof.WritePost(to, offset) => (step, Set(to))
+      case Proof.Alloc(to, tpe, sz) => (step, Set(to))
+      case Proof.Dealloc(v, offset) => (step, Set(v))
+      case Proof.Call(args, _) => (step, args.flatMap(_.vars).toSet)
+      case _ => (step, Set.empty)
     }
-
-    val (p0, cenv1) = translateProducer(item.node.kont, item.cenv)
-    val p = p0.simplify
-    val nextItems = generateNextItems(p, cenv1)
-    val nextKont = updateProducerPost(nextItems, p, cenv1).simplify
-
-      nextItems.headOption match {
-      case Some(childHead) =>
-        traverseProof(childHead, nextKont)
-      case None =>
-        if (item.node.rule == Inconsistency) {}
-        nextKont(Nil)
-    }
+    visit(step)._1
   }
 }
