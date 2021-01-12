@@ -36,7 +36,7 @@ object Debug {
     case SeqCompProducer => "SeqCompProducer[${stmtProducer.arity}]"
     case ExtractHelper(goal) => s"ExtractHelper[${stmtProducer.arity}](${"<opaque>"})"
     case HandleGuard(goal) => s"HandleGuard[${stmtProducer.arity}](${"<See goal>"})"
-    case BranchProducer(_, selectors) => s"BranchProducer[${stmtProducer.arity}] {\n${selectors.map(_.pp).mkString("\n")}\n}"
+    case BranchProducer(_, _, _, selectors) => s"BranchProducer[${stmtProducer.arity}] {\n${selectors.map(_.pp).mkString("\n")}\n}"
     case GuardedProducer(cond, goal) =>
       s"GuardedProducer[${stmtProducer.arity}] {\n cond=${cond.pp}\n goal=${goal.pp}\n}"
     case SubstProducer(subst) => s"SubstProducer[${stmtProducer.arity}](${subst.toString})"
@@ -126,7 +126,7 @@ object Debug {
           case PartiallyAppliedProducer(p, s) => for {
             _ <- process_producer(Some(node_id)) (p)
           } yield ()
-          case BranchProducer(_,selectors) =>for {
+          case BranchProducer(_, _, _, selectors) =>for {
             _ <- State.mapM(selectors.toList)(_ => for {
               child <- State.pop[CertTree.Node]
               result <- process_root(Some(node_id))(child: CertTree.Node)

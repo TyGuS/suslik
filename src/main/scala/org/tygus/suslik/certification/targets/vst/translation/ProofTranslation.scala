@@ -108,7 +108,7 @@ object ProofTranslation {
       (pure, call) match {
         case (ProofCVar(name, _), ProofCVar(call_name, _)) => context + (name -> call_name)
         case (ProofCBoolConst(_), ProofCBoolConst(_)) => context
-        case (ProofCIntConst(_), ProofCIntConst(_)) => context
+        case (ProofCIntConst(_, _), ProofCIntConst(_, _)) => context
         case (ProofCSetLiteral(elems), ProofCSetLiteral(call_elems)) =>
           elems.zip(call_elems).foldLeft(context)({ case (context, (expr, call_expr)) => unify_expr(context)(expr)(call_expr) })
         case (ProofCIfThenElse(cond, left, right), ProofCIfThenElse(call_cond, call_left, call_right)) =>
@@ -301,14 +301,14 @@ object ProofTranslation {
                 case ProofRule.EmpRule => false
                 case ProofRule.PureSynthesis(is_final, assignments, next) =>
                   is_variable_used_in_proof(variable)(next)
-                case ProofRule.Open(pred, heaplet, cases) =>
+                case ProofRule.Open(pred, fresh_vars, sbst, cases) =>
                   cases.exists({ case (expr, rule) =>
                     is_variable_used_in_exp(variable)(expr) ||
                       is_variable_used_in_proof(variable)(rule)
                   })
                 case ProofRule.SubstL(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
                 case ProofRule.SubstR(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, next) =>
+                case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) =>
                   is_variable_used_in_proof(variable)(next)
                 case ProofRule.HeapUnify(_,next) => is_variable_used_in_proof(variable)(next)
                 case ProofRule.HeapUnifyPointer(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
@@ -356,7 +356,7 @@ object ProofTranslation {
       * and then for each branch introducing the variables that it uses.
       */
     def handle_open_rule(rule: ProofRule.Open, context: Context): ProofSteps = rule match {
-      case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, cases) =>
+      case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, sbst, cases) =>
         val pred = pred_map(predicate_name)
         ProofSteps.ForwardIfConstructor(
           card_variable,
@@ -516,7 +516,7 @@ object ProofTranslation {
     }
 
     def handle_abduce_call(rule: ProofRule.AbduceCall, context: Context): ProofSteps = rule match {
-      case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, next) =>
+      case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, _, _, _, next) =>
         var typing_context = retrieve_typing_context(context)
         f_pre.vars.foreach({ case Var(name) =>
           if (!typing_context.contains(name)) {
@@ -645,7 +645,7 @@ object ProofTranslation {
     def translate_proof_rules(rule: ProofRule)(context: Context): ProofSteps = {
       rule match {
         //          Branching rules
-        case rule@ProofRule.Open(SApp(_, _, _, Var(_)), _, _) => handle_open_rule(rule, context)
+        case rule@ProofRule.Open(SApp(_, _, _, Var(_)), _, _, _) => handle_open_rule(rule, context)
         case rule@ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => handle_abduce_branch_rule(rule, context)
 
         //          Read and write Operations
@@ -657,7 +657,7 @@ object ProofTranslation {
         case rule@ProofRule.Malloc(map, Malloc(Var(to_var), _, sz), next) => handle_malloc_rule(rule, context)
 
         //          Abduce call & Existentials
-        case rule@ProofRule.AbduceCall(_, _, _, Call(Var(_), _, _), _, _) => handle_abduce_call(rule, context)
+        case rule@ProofRule.AbduceCall(_, _, _, Call(Var(_), _, _), _, _, _, _, _) => handle_abduce_call(rule, context)
         case rule@ProofRule.Pick(_, _) => handle_pick_rule(rule, context)
         case rule@ProofRule.PureSynthesis(_, _, _) => handle_pure_synthesis_rule(rule, context)
         case rule@ProofRule.PickCard(_,_) => handle_pick_card_rule(rule, context)
@@ -710,11 +710,11 @@ object ProofTranslation {
     case ProofRule.WeakenPre(unused, next) => contains_free(next)
     case ProofRule.EmpRule => false
     case ProofRule.PureSynthesis(is_final, assignments, next) => contains_free(next)
-    case ProofRule.Open(pred, fresh_vars, cases) => cases.exists { case (_, prf) => contains_free(prf) }
+    case ProofRule.Open(pred, fresh_vars, sbst, cases) => cases.exists { case (_, prf) => contains_free(prf) }
     case ProofRule.SubstL(map, next) => contains_free(next)
     case ProofRule.SubstR(map, next) => contains_free(next)
     case ProofRule.Read(map, operation, next) => contains_free(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, next) => contains_free(next)
+    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) => contains_free(next)
     case ProofRule.HeapUnify(_, next) => contains_free(next)
     case ProofRule.HeapUnifyPointer(map, next) => contains_free(next)
     case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_free(next)
@@ -736,11 +736,11 @@ object ProofTranslation {
     case ProofRule.WeakenPre(unused, next) => contains_malloc(next)
     case ProofRule.EmpRule => false
     case ProofRule.PureSynthesis(is_final, assignments, next) => contains_malloc(next)
-    case ProofRule.Open(pred, fresh_vars, cases) => cases.exists { case (_, prf) => contains_malloc(prf) }
+    case ProofRule.Open(pred, fresh_vars, sbst, cases) => cases.exists { case (_, prf) => contains_malloc(prf) }
     case ProofRule.SubstL(map, next) => contains_malloc(next)
     case ProofRule.SubstR(map, next) => contains_malloc(next)
     case ProofRule.Read(map, operation, next) => contains_malloc(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, next) => contains_malloc(next)
+    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) => contains_malloc(next)
     case ProofRule.HeapUnify(_,next) => contains_malloc(next)
     case ProofRule.HeapUnifyPointer(map, next) => contains_malloc(next)
     case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_malloc(next)

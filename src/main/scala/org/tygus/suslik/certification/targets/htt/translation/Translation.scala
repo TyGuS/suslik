@@ -1,15 +1,16 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
-import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.{CertTree, ProofRule}
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.certification.targets.htt.logic.Proof._
+import org.tygus.suslik.certification.targets.htt.logic.Proof
 import org.tygus.suslik.certification.targets.htt.logic.Sentences._
+import org.tygus.suslik.certification.targets.htt.translation.IR.translateGoal
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
-import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
+import org.tygus.suslik.logic.Specifications.Assertion
 import org.tygus.suslik.logic._
 
 object Translation {
@@ -23,15 +24,16 @@ object Translation {
     * @return the inductive predicates, fun spec, proof, and program translated to HTT
     */
   def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
-    (Map[String, CInductivePredicate], CFunSpec, Proof, CProcedure) = {
+    (Map[String, CInductivePredicate], CFunSpec, Proof.Step, CProcedure) = {
     val cpreds = env.predicates.mapValues(p => {
       val gamma = p.resolve(p.params.toMap, env).get
       val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
       translateInductivePredicate(p1, gamma)
     })
     val goal = translateGoal(node.goal)
-    val initialCEnv = CEnvironment(goal, cpreds)
-    val proof = ProofTranslation.translate(node, initialCEnv)
+    val ctx = IR.emptyContext.copy(predicateEnv = cpreds)
+    val ir = IR.fromRule(ProofRule.Init(node.goal, ProofRule.of_certtree(node)), ctx).propagateContext
+    val proof = ProofTranslation.translate(ir)
     val cproc = ProgramTranslation.translate(node, proc)
     (cpreds, goal.toFunspec, proof, cproc)
   }
@@ -60,15 +62,6 @@ object Translation {
     case IntSetType => CNatSeqType
     case VoidType => CUnitType
     case CardType => CCardType
-  }
-
-  def translateGoal(goal: Goal): CGoal = {
-    val pre = translateAsn(goal.pre)
-    val post = translateAsn(goal.post)
-    val gamma = goal.gamma.map { case (value, lType) => (translateVar(value), translateType(lType)) }
-    val programVars = goal.programVars.map(translateVar)
-    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(v => gamma(v) == CCardType)
-    CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
   }
 
   def translateExpr(el: Expr): CExpr = el match {
