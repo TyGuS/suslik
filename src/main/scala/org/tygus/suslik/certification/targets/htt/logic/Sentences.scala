@@ -3,7 +3,7 @@ package org.tygus.suslik.certification.targets.htt.logic
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.{CFormals, CGamma, PrettyPrinting}
 import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.certification.targets.htt.logic.Proof.Subst
+import org.tygus.suslik.certification.targets.htt.translation.IR.CSubst
 
 object Sentences {
   case class CAssertion(phi: CExpr, sigma: CSFormula) extends PrettyPrinting {
@@ -28,7 +28,7 @@ object Sentences {
       getIndent(depth) + builder.toString().replaceAll("\n", s"\n${getIndent(depth)}")
     }
 
-    def subst(sub: Subst): CAssertion =
+    def subst(sub: CSubst): CAssertion =
       CAssertion(phi.subst(sub), sigma.subst(sub))
 
     val valueVars: Seq[CVar] =
@@ -39,14 +39,14 @@ object Sentences {
   }
 
   case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CExpr]) extends PrettyPrinting {
-    def subst(sub: Subst): CInductiveClause =
+    def subst(sub: CSubst): CInductiveClause =
       CInductiveClause(pred, idx, selector.subst(sub), asn.subst(sub), existentials.map(_.subst(sub)))
   }
 
   case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause], gamma: CGamma) extends PrettyPrinting {
     val paramVars: Seq[CVar] = params.map(_._2)
 
-    def subst(sub: Subst): CInductivePredicate =
+    def subst(sub: CSubst): CInductivePredicate =
       CInductivePredicate(
         name,
         params.map(p => (p._1, p._2.substVar(sub))),
@@ -74,6 +74,11 @@ object Sentences {
 
     val progVarsAlias = "vprogs"
     val ghostVarsAlias = "vghosts"
+
+    val existentials: Seq[CVar] = post.valueVars.diff(paramVars ++ ghostParamVars)
+
+    def subst(subst: CSubst): CFunSpec =
+      CFunSpec(name, rType, params.map(p => (p._1, p._2.substVar(subst))), ghostParams.map(p => (p._1, p._2.substVar(subst))), pre.subst(subst), post.subst(subst))
 
     private def ppFormals(formals: CFormals): (String, String) = {
       val (typs, names) = formals.unzip
