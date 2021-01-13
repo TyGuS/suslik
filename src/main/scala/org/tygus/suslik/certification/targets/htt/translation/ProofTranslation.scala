@@ -111,7 +111,7 @@ object ProofTranslation {
           Proof.MoveToCtx(Seq(CVar(s"h_$callId"))) >>
           // The postcondition of the call abduction becomes the precondition of the companion
           elimExistentials(f.existentials) >>
-          elimExistentials(f.post.heapVars) >>
+          elimExistentials(f.post.subst(ctx.subst).heapVars) >>
           initPre(f.post, callId) >>
           // Store validity hypotheses in context
           Proof.StoreValid >>
