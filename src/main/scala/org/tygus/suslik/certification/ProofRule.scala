@@ -2,7 +2,7 @@ package org.tygus.suslik.certification
 
 import org.tygus.suslik.certification.targets.vst.translation.ProofTranslation.ProofRuleTranslationException
 import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Subst, SubstVar, Var}
-import org.tygus.suslik.language.Statements.{Load, Skip, Store}
+import org.tygus.suslik.language.Statements.{Error, Load, Skip, Store}
 import org.tygus.suslik.language.{PrettyPrinting, SSLType, Statements}
 import org.tygus.suslik.logic.Preprocessor.{findMatchingHeaplets, sameLhs}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, SuspendedCallGoal}
@@ -166,6 +166,10 @@ case class AbduceCall(
     override def pp: String = s"${ind}Init(${goal.pp});\n${next.pp}"
   }
 
+  case object Inconsistency extends ProofRule {
+    override def pp: String = "Inconsistency"
+  }
+
   /** converts a Suslik CertTree node into the unified ProofRule structure */
   def of_certtree(node: CertTree.Node): ProofRule = {
     def fail_with_bad_proof_structure(): Nothing =
@@ -221,6 +225,14 @@ case class AbduceCall(
           node.children match {
             case ::(head, Nil) => ProofRule.Write(stmt, of_certtree(head))
             case ls => fail_with_bad_children(ls, 1)
+          }
+        case _ => fail_with_bad_proof_structure()
+      }
+      case LogicalRules.Inconsistency => node.kont match {
+        case ConstProducer(Error) =>
+          node.children match {
+            case Nil => ProofRule.Inconsistency
+            case ls => fail_with_bad_children(ls, 0)
           }
         case _ => fail_with_bad_proof_structure()
       }
@@ -464,6 +476,4 @@ case class AbduceCall(
       }
     }
   }
-
-
 }
