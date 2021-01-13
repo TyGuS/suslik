@@ -51,7 +51,7 @@ object Proof {
   }
   case class ElimExistential(items: Seq[CExpr]) extends Step {
     override val isNoop: Boolean = items.isEmpty
-    def pp: String = items.map(_.pp).grouped(5).map(s => s"ex_elim ${s.mkString(" ")}").mkString("\n")
+    def pp: String = items.map(_.pp).grouped(5).map(s => s"ex_elim ${s.mkString(" ")}").mkString(".\n")
   }
   case object Sbst extends Step {
     def pp: String = "subst"
@@ -122,6 +122,10 @@ object Proof {
   }
   case object Emp extends Step {
     def pp: String = "ssl_emp"
+  }
+  case object Error extends Step {
+    override val isNoop: Boolean = true
+    def pp: String = ""
   }
   case object Noop extends Step {
     override val isNoop: Boolean = true

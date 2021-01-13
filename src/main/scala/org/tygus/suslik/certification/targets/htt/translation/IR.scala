@@ -111,6 +111,7 @@ object IR {
         val next1 = n.next.head.propagateContext
         val ctx1 = next1.ctx.copy(nestedContext = n.ctx.nestedContext)
         n.copy(ctx = ctx1, next = Seq(next1))
+      case n:IR.Inconsistency => n
     }
   }
 
@@ -148,6 +149,10 @@ object IR {
 
   case class Init(ctx: Context, next: Seq[Node]) extends Node
 
+  case class Inconsistency(ctx: Context) extends Node {
+    val next: Seq[Node] = Seq.empty
+  }
+
   private def translateSbst(sbst: Subst) = sbst.map{ case (k,v) => CVar(k.name) -> translateExpr(v)}
   private def translateSbstVar(sbst: SubstVar) = sbst.map{ case (k,v) => CVar(k.name) -> CVar(v.name)}
   def translateGoal(goal: Goal): CGoal = {
@@ -162,7 +167,6 @@ object IR {
     val rType = translateType(f.rType)
     val pre = translateAsn(f.pre)
     val post = translateAsn(f.post)
-    val valueVars = (pre.valueVars ++ post.valueVars).distinct
     val params = f.params.map(translateParam)
     val ghosts = pre.valueVars.diff(params.map(_._2)).map(v => (translateType(gamma(Var(v.name))), v))
     CFunSpec(f.name, rType, params, ghosts, pre, post)
@@ -243,5 +247,6 @@ object IR {
     case ProofRule.StarPartial(_, _, next) => fromRule(next, ctx)
     case ProofRule.PickCard(_, next) => fromRule(next, ctx)
     case ProofRule.FrameUnfold(h_pre, h_post, next) => fromRule(next, ctx)
+    case ProofRule.Inconsistency => IR.Inconsistency(ctx)
   }
 }

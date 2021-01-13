@@ -136,13 +136,19 @@ object ProofTranslation {
       case IR.Open(app, clauses, selectors, next, ctx) =>
         val branchSteps = next.zip(clauses).map { case (n, c) =>
           val c1 = c.subst(n.ctx.substVar)
-          Proof.OpenPost(app.subst(ctx.substVar)) >>
+          val res = visit(n)
+          if (res == Proof.Error) {
+            Proof.OpenPost(app.subst(ctx.substVar))  // Don't emit branch prelude if inconsistent
+          } else {
+            Proof.OpenPost(app.subst(ctx.substVar)) >>
             elimExistentials(c1.existentials) >>
             elimExistentials(c1.asn.heapVars) >>
             initPre(c1.asn, app.uniqueName) >>
-            visit(n)
+            res
+          }
         }
         Proof.Open >> Proof.Branch(branchSteps)
+      case IR.Inconsistency(_) => Proof.Error
     }
 
     pruneUnusedReads(visit(node).simplify) >> Proof.EndProof

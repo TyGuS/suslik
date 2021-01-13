@@ -20,6 +20,7 @@ object ProgramTranslation {
         val ctail = cond_branches.tail
         val finalBranch = cond_branches.head._2
         ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => CIf(c, tb, eb) }
+      case IR.Inconsistency(_) => CSkip
       case _ => visit(node.next.head)
     }
     pruneUnusedReads(visit(node).simplify)
