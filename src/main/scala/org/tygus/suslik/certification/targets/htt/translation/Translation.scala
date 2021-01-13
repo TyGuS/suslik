@@ -34,7 +34,8 @@ object Translation {
     val ctx = IR.emptyContext.copy(predicateEnv = cpreds)
     val ir = IR.fromRule(ProofRule.Init(node.goal, ProofRule.of_certtree(node)), ctx).propagateContext
     val proof = ProofTranslation.translate(ir)
-    val cproc = ProgramTranslation.translate(node, proc)
+    val progBody = ProgramTranslation.translate(ir)
+    val cproc = CProcedure(proc.name, translateType(proc.tp), proc.formals.map(translateParam), progBody)
     (cpreds, goal.toFunspec, proof, cproc)
   }
 
