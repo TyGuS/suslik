@@ -7,9 +7,10 @@ import org.tygus.suslik.certification.targets.htt.language.Types._
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CAssertion, CFunSpec, CInductiveClause, CInductivePredicate}
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.translation.Translation.{translateAsn, translateExpr, translateParam, translateSApp, translateType, translateVar}
-import org.tygus.suslik.language.Expressions.{Subst, SubstVar}
+import org.tygus.suslik.language.Expressions.{Subst, SubstVar, Var}
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.language.Statements.{Call, Free, Load, Malloc, Store}
+import org.tygus.suslik.logic.{FunSpec, Gamma}
 import org.tygus.suslik.logic.Specifications.Goal
 
 object IR {
@@ -154,8 +155,17 @@ object IR {
     val post = translateAsn(goal.post)
     val gamma = goal.gamma.map { case (value, lType) => (translateVar(value), translateType(lType)) }
     val programVars = goal.programVars.map(translateVar)
-    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(v => gamma(v) == CCardType)
+    val universalGhosts = (pre.valueVars ++ post.valueVars).distinct.filter(v => goal.universalGhosts.contains(Var(v.name)))
     CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
+  }
+  def translateFunSpec(f: FunSpec, gamma: Gamma): CFunSpec = {
+    val rType = translateType(f.rType)
+    val pre = translateAsn(f.pre)
+    val post = translateAsn(f.post)
+    val valueVars = (pre.valueVars ++ post.valueVars).distinct
+    val params = f.params.map(translateParam)
+    val ghosts = pre.valueVars.diff(params.map(_._2)).map(v => (translateType(gamma(Var(v.name))), v))
+    CFunSpec(f.name, rType, params, ghosts, pre, post)
   }
 
   def fromRule(rule: ProofRule, ctx: IR.Context) : IR.Node = rule match {
@@ -216,8 +226,7 @@ object IR {
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
       fromRule(next, ctx1)
     case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma, next) =>
-      val ghosts = f.pre.vars.toSeq.diff(f.params.map(_._1)).map(v => (v, gamma(v)))
-      val cfunspec = CFunSpec(f.name, translateType(f.rType), f.params.map(translateParam), ghosts.map(translateParam), translateAsn(f.pre), translateAsn(f.post))
+      val cfunspec = translateFunSpec(f, gamma)
       val ccall = CCall(translateVar(call.fun), call.args.map(translateExpr))
       val nestedContext = NestedContext(funspec = cfunspec, call = ccall, freshToActual = translateSbst(freshToActual), companionToFresh = translateSbstVar(companionToFresh))
       val ctx1 = ctx.copy(nestedContext = Some(nestedContext))

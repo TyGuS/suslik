@@ -93,7 +93,7 @@ object ProofTranslation {
       case IR.EmpRule(ctx) =>
         val topLevelGoal = ctx.topLevelGoal.get
         val post = topLevelGoal.post.subst(ctx.subst).subst(ctx.substVar)
-        val existentials = topLevelGoal.existentials.map(_.substVar(ctx.substVar).subst(ctx.subst))
+        val existentials = topLevelGoal.existentials.map(_.substVar(ctx.substVar).subst(ctx.subst).subst(ctx.substVar))
         val unfoldings = ctx.unfoldings.map { case (app, e) => app.subst(ctx.substVar).subst(ctx.subst) -> e.subst(ctx.substVar).subst(ctx.subst) }
         Proof.Emp >>> solvePost(post, existentials, unfoldings)
       case IR.AbduceCall(new_vars, f_pre, calleePost, call, freshSub, freshToActual, next, ctx) =>
