@@ -32,13 +32,20 @@ Require Import core.
     builder.append(spec.pp)
     builder.append("\n")
     if (hints.nonEmpty) {
-      builder.append(hints.map(_.pp).mkString(".\n"))
-      builder.append(".\n")
+      builder.append("\n")
+      builder.append(hints.map(_.pp).mkString("\n"))
+      builder.append("\n\n")
     }
     builder.append(proc.pp)
     builder.append("\n")
     builder.append(proof.pp)
     builder.toString
+  }
+
+  def inferHints: HTTCertificate = {
+    val predHints = preds.values.filter(p => p.params.map(_._1).contains(CNatSeqType)).map(p => Hint.PredicateSetTransitive(p)).toSeq
+
+    this.copy(hints = predHints)
   }
 
   override def outputs: List[CertificateOutput] =  List(CertificateOutput(None, sanitize(name), pp))

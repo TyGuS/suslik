@@ -16,6 +16,6 @@ object HTT extends CertificationTarget {
 
     CertTree.clear() // [Certify]: Clear tree after certification complete
 
-    HTTCertificate(proc.name, preds, spec, proof, cproc)
+    HTTCertificate(proc.name, preds, spec, proof, cproc).inferHints
   }
 }
