@@ -87,7 +87,7 @@ object Translation {
     val f = (a1: CExpr, a2: CExpr) => CBinaryExpr(COpAnd, a1, a2)
     val phi = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce(f)
     val sigma = translateSFormula(el.sigma)
-    CAssertion(phi, sigma)
+    CAssertion(phi, sigma).removeCardConstraints
   }
 
   def translateSFormula(el: SFormula): CSFormula = {

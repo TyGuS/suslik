@@ -35,8 +35,6 @@ object Expressions {
         case a@CSApp(_, args, card) =>
           val acc1 = if (p(a)) acc :+ a.asInstanceOf[R] else acc
           args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
-          val acc2 = args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
-          collector(acc2)(card)
         case CPointsTo(loc, _, value) =>
           collector(collector(acc)(loc))(value)
         case CSFormula(_, apps, ptss) =>
@@ -89,10 +87,10 @@ object Expressions {
 
     def cardVars: Seq[CVar] = collect(_.isInstanceOf[CSApp]).flatMap {v: CSApp => v.card.vars}
 
-    def conjuncts: Seq[CExpr] = collect({
-      case CBinaryExpr(COpAnd, _, _) => true
-      case _ => false
-    })
+    def conjuncts: Seq[CExpr] = this match {
+      case CBinaryExpr(COpAnd, left, right) => left.conjuncts ++ right.conjuncts
+      case _ => Seq(this)
+    }
   }
 
   case class CVar(name: String) extends CExpr {

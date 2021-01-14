@@ -21,7 +21,7 @@ object ProofTranslation {
 
       // move pure part to context
       val pureToCtx = if (!phi.isTrivial) {
-        val hyps = if (phi.conjuncts.isEmpty) Seq(CVar(s"phi_$uniqueName")) else (0 to phi.conjuncts.length).map(i => CVar(s"phi_$uniqueName$i"))
+        val hyps = if (phi.conjuncts.isEmpty) Seq(CVar(s"phi_$uniqueName")) else phi.conjuncts.indices.map(i => CVar(s"phi_$uniqueName$i"))
         Proof.MoveToCtxDestruct(hyps)
       } else Proof.Noop
 

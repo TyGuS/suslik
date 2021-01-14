@@ -36,6 +36,17 @@ object Sentences {
 
     val heapVars: Seq[CVar] =
       sigma.heapVars
+
+    def removeCardConstraints: CAssertion = {
+      val cardVars = sigma.cardVars
+      val conjuncts = phi.conjuncts.filter {
+        case CBinaryExpr(_, v:CVar, _) if cardVars.contains(v) => false
+        case CBinaryExpr(_, _, v:CVar) if cardVars.contains(v) => false
+        case _ => true
+      }
+      val phi1 = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce[CExpr] { case (c1, c2) => CBinaryExpr(COpAnd, c1, c2) }
+      this.copy(phi = phi1)
+    }
   }
 
   case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CExpr]) extends PrettyPrinting {
