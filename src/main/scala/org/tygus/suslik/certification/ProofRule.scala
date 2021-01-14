@@ -41,9 +41,9 @@ object ProofRule {
     override def pp: String = s"${ind}NilNotLval(${vars.map(_.pp).mkString(", ")});\n${next.pp}"
   }
 
-  /** check post doesn't provide any information useful for certification, so just included as empty rule */
-  case class CheckPost(next:ProofRule) extends ProofRule {
-    override def pp: String = s"${ind}CheckPost;\n${next.pp}"
+  /** solves a pure entailment with SMT */
+  case class CheckPost(prePhi: PFormula, postPhi: PFormula, next:ProofRule) extends ProofRule {
+    override def pp: String = s"${ind}CheckPost(${prePhi.pp}; ${postPhi.pp});\n${next.pp}"
   }
 
   /** picks an arbitrary instantiation of the proof rules */
@@ -198,8 +198,8 @@ case class AbduceCall(
         case _ => fail_with_bad_proof_structure()
       }
       case FailRules.CheckPost => node.kont match {
-        case IdProducer => node.children match {
-          case ::(head, Nil) => ProofRule.CheckPost(of_certtree(head))
+        case ChainedProducer(PureEntailmentProducer(prePhi, postPhi), IdProducer) => node.children match {
+          case ::(head, Nil) => ProofRule.CheckPost(prePhi, postPhi, of_certtree(head))
           case ls => fail_with_bad_children(ls, 1)
         }
         case _ => fail_with_bad_proof_structure()

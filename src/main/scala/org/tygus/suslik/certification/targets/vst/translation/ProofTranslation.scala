@@ -283,7 +283,7 @@ object ProofTranslation {
 
               rule match {
                 case ProofRule.NilNotLval(vars, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.CheckPost(next) => is_variable_used_in_proof(variable)(next)
+                case ProofRule.CheckPost(prePhi, postPhi, next) => is_variable_used_in_proof(variable)(next)
                 case ProofRule.PickCard(_, next) => is_variable_used_in_proof(variable)(next)
                 case ProofRule.PickArg(_, next) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
@@ -678,7 +678,7 @@ object ProofTranslation {
 
         //          Ignored rules
         case ProofRule.WeakenPre(unused, next) => translate_proof_rules(next)(context)
-        case ProofRule.CheckPost(next) => translate_proof_rules(next)(context)
+        case ProofRule.CheckPost(pre_phi, post_phi, next) => translate_proof_rules(next)(context)
 
         case ProofRule.FrameUnfold(h_pre, h_post, next) => translate_proof_rules(next)(context)
 
@@ -703,7 +703,7 @@ object ProofTranslation {
 
   def contains_free(proof: ProofRule): Boolean = proof match {
     case ProofRule.NilNotLval(vars, next) => contains_free(next)
-    case ProofRule.CheckPost(next) => contains_free(next)
+    case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_free(next)
     case ProofRule.Pick(subst, next) => contains_free(next)
     case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_free)
     case ProofRule.Write(stmt, next) => contains_free(next)
@@ -729,7 +729,7 @@ object ProofTranslation {
 
   def contains_malloc(proof: ProofRule): Boolean = proof match {
     case ProofRule.NilNotLval(vars, next) => contains_malloc(next)
-    case ProofRule.CheckPost(next) => contains_malloc(next)
+    case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_malloc(next)
     case ProofRule.Pick(subst, next) => contains_malloc(next)
     case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_malloc)
     case ProofRule.Write(stmt, next) => contains_malloc(next)

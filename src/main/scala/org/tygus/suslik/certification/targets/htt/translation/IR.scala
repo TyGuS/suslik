@@ -242,7 +242,7 @@ object IR {
     // unused rules:
     case ProofRule.HeapUnify(_, next) => fromRule(next, ctx)
     case ProofRule.NilNotLval(_, next) => fromRule(next, ctx)
-    case ProofRule.CheckPost(next) => fromRule(next, ctx)
+    case ProofRule.CheckPost(prePhi, postPhi, next) => fromRule(next, ctx)
     case ProofRule.WeakenPre(_, next) => fromRule(next, ctx)
     case ProofRule.StarPartial(_, _, next) => fromRule(next, ctx)
     case ProofRule.PickCard(_, next) => fromRule(next, ctx)

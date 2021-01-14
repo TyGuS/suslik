@@ -46,7 +46,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else {
         val newPost = Assertion(exPost - PFormula(validExConjuncts), goal.post.sigma)
         val newGoal = goal.spawnChild(post = newPost)
-        List(RuleResult(List(newGoal), IdProducer, this, goal))
+        List(RuleResult(List(newGoal), PureEntailmentProducer(goal.pre.phi, uniPost) >> IdProducer, this, goal))
       }
     }
 
