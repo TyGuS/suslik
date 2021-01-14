@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.logic.Proof
+import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 
@@ -149,6 +149,8 @@ object ProofTranslation {
         }
         Proof.Open >> Proof.Branch(branchSteps)
       case IR.Inconsistency(_) => Proof.Error
+      case IR.CheckPost(prePhi, postPhi, next, _) =>
+        Proof.EmitHint(Hint.PureEntailment(prePhi, postPhi)) >> visit(next.head)
     }
 
     pruneUnusedReads(visit(node).simplify) >> Proof.EndProof

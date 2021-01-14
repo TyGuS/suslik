@@ -111,6 +111,10 @@ object IR {
         val next1 = n.next.head.propagateContext
         val ctx1 = next1.ctx.copy(nestedContext = n.ctx.nestedContext)
         n.copy(ctx = ctx1, next = Seq(next1))
+      case n:IR.CheckPost =>
+        val next1 = n.next.head.propagateContext
+        val ctx1 = next1.ctx.copy(nestedContext = n.ctx.nestedContext)
+        n.copy(ctx = ctx1, next = Seq(next1))
       case n:IR.Inconsistency => n
     }
   }
@@ -152,6 +156,8 @@ object IR {
   case class Inconsistency(ctx: Context) extends Node {
     val next: Seq[Node] = Seq.empty
   }
+
+  case class CheckPost(prePhi: Set[CExpr], postPhi: Set[CExpr], next: Seq[Node], ctx: Context) extends Node
 
   private def translateSbst(sbst: Subst) = sbst.map{ case (k,v) => CVar(k.name) -> translateExpr(v)}
   private def translateSbstVar(sbst: SubstVar) = sbst.map{ case (k,v) => CVar(k.name) -> CVar(v.name)}
@@ -239,10 +245,11 @@ object IR {
       val ctx1 = ctx.copy(subst = ctx.subst ++ translateSbst(sbst))
       fromRule(next, ctx1)
     case ProofRule.EmpRule => IR.EmpRule(ctx)
+    case ProofRule.CheckPost(prePhi, postPhi, next) =>
+      IR.CheckPost(prePhi.conjuncts.map(translateExpr), postPhi.conjuncts.map(translateExpr), Seq(fromRule(next, ctx)), ctx)
     // unused rules:
     case ProofRule.HeapUnify(_, next) => fromRule(next, ctx)
     case ProofRule.NilNotLval(_, next) => fromRule(next, ctx)
-    case ProofRule.CheckPost(prePhi, postPhi, next) => fromRule(next, ctx)
     case ProofRule.WeakenPre(_, next) => fromRule(next, ctx)
     case ProofRule.StarPartial(_, _, next) => fromRule(next, ctx)
     case ProofRule.PickCard(_, next) => fromRule(next, ctx)

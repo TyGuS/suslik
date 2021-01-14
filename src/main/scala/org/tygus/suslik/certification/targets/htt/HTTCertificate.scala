@@ -7,7 +7,7 @@ import org.tygus.suslik.certification.targets.htt.program.Statements.CProcedure
 import org.tygus.suslik.certification.targets.htt.translation.IR.PredicateEnv
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
 
-case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, proof: Proof.Step, proc: CProcedure, hints: Seq[Hint.Item] = Seq.empty) extends Certificate {
+case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, proof: Proof.Step, proc: CProcedure, hints: Seq[Hint] = Seq.empty) extends Certificate {
   val target: CertificationTarget = HTT
 
   // Replace hyphens with underscores

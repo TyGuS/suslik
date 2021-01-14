@@ -124,8 +124,8 @@ object Expressions {
 
   case class CBinaryExpr(op: CBinOp, left: CExpr, right: CExpr) extends CExpr {
     override def pp: String = op match {
-      case COpSubset => s"{subset ${left.pp} ${op.pp} ${right.pp}}"
-      case COpSetEq => s"perm_eq (${left.pp}) (${right.pp})"
+      case COpSubset => s"@sub_mem nat_eqType (mem (${left.pp})) (mem (${right.pp}))"
+      case COpSetEq => s"@perm_eq nat_eqType (${left.pp}) (${right.pp})"
       case _ => s"${left.pp} ${op.pp} ${right.pp}"
     }
   }
