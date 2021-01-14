@@ -81,7 +81,10 @@ object ProofTranslation {
     def visit(node: IR.Node): Proof.Step = node match {
       case IR.Init(ctx, next) =>
         val goal = ctx.topLevelGoal.get.subst(ctx.substVar)
+        val hints = if (ctx.predicateEnv.isEmpty) Proof.Noop else ctx.predicateEnv.values.map(p => Proof.EmitHint(Hint.PredicateSetTransitive(p))).reduce[Proof.Step](_ >> _)
         Proof.StartProof(goal.programVars) >>
+          // Include hints inferred from any of the predicate assertions
+          hints >>
           // Pull out any precondition ghosts and move precondition heap to the context
           Proof.GhostElimPre >>
           Proof.MoveToCtxDestructFoldLeft(goal.universalGhosts) >>

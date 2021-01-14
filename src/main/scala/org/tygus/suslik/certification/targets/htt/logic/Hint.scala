@@ -44,7 +44,7 @@ object Hint {
     val numHypotheses: Int = hypotheses.length
 
     def pp: String = {
-      s"${hypotheses.map(_.pp).mkString(".\n")}."
+      s"${hypotheses.map(_.pp).mkString(".\n")}"
     }
   }
 

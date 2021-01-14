@@ -42,12 +42,6 @@ Require Import core.
     builder.toString
   }
 
-  def inferHints: HTTCertificate = {
-    val predHints = preds.values.filter(p => p.params.map(_._1).contains(CNatSeqType)).map(p => Hint.PredicateSetTransitive(p)).toSeq
-
-    this.copy(hints = predHints)
-  }
-
   override def outputs: List[CertificateOutput] =  List(CertificateOutput(None, sanitize(name), pp))
 
 }
