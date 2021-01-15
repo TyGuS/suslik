@@ -29,13 +29,12 @@ Require Import core.
     val builder = new StringBuilder
     builder.append(prelude)
     preds.values.foreach(pred => builder.append(pred.pp + "\n"))
-    builder.append(spec.pp)
-    builder.append("\n")
     if (hints.nonEmpty) {
-      builder.append("\n")
       builder.append(hints.map(_.pp).mkString("\n"))
       builder.append("\n\n")
     }
+    builder.append(spec.pp)
+    builder.append("\n\n")
     builder.append(proc.pp)
     builder.append("\n")
     builder.append(proof.pp)

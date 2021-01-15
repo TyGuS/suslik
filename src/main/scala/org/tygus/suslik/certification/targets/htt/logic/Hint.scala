@@ -31,8 +31,8 @@ object Hint {
       val args: Seq[CVar] = before ++ after.tail ++ Seq(s1, s2)
 
       def pp: String = {
-        val hyp = s"Hypothesis $name: forall ${args.map(_.pp).mkString(" ")}, perm_eq ${s1.pp} ${s2.pp} -> ${pred.name} ${params1.map(_.pp).mkString(" ")} -> ${pred.name} ${params2.map(_.pp).mkString(" ")}"
-        s"$hyp.\n${ppResolve(name)}"
+        val hyp = s"Lemma $name ${args.map(_.pp).mkString(" ")} : perm_eq ${s1.pp} ${s2.pp} -> ${pred.name} ${params1.map(_.pp).mkString(" ")} -> ${pred.name} ${params2.map(_.pp).mkString(" ")}"
+        s"$hyp. Admitted.\n${ppResolve(name)}"
       }
     }
 
@@ -43,9 +43,7 @@ object Hint {
 
     val numHypotheses: Int = hypotheses.length
 
-    def pp: String = {
-      s"${hypotheses.map(_.pp).mkString(".\n")}"
-    }
+    def pp: String = hypotheses.map(_.pp).mkString(".\n") + "."
   }
 
   case class PureEntailment(prePhi: Set[CExpr], postPhi: Set[CExpr]) extends Hint {
@@ -56,8 +54,8 @@ object Hint {
         val ctxStr = ctx.map(_.pp).mkString(" -> ")
         val goalStr = goal.pp
         val hypStr = if (ctx.isEmpty) goalStr else s"$ctxStr -> $goalStr"
-        val quantifyStr = if (args.isEmpty) "" else s"forall ${args.map(_.pp).mkString(" ")}, "
-        s"Hypothesis $name : $quantifyStr$hypStr.\n${ppResolve(name)}"
+        val argsStr = if (args.isEmpty) "" else s"${args.map(_.pp).mkString(" ")} "
+        s"Lemma $name $argsStr: $hypStr. Admitted.\n${ppResolve(name)}"
       }
     }
     private type ReachableMap = Map[CExpr, Set[CExpr]]
@@ -106,8 +104,6 @@ object Hint {
 
     val numHypotheses: Int = hypotheses.length
 
-    def pp: String = {
-      hypotheses.map(_.pp).mkString(".\n")
-    }
+    def pp: String = hypotheses.map(_.pp).mkString(".\n") + "."
   }
 }

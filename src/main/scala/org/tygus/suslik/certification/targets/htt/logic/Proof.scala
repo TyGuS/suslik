@@ -127,10 +127,6 @@ object Proof {
     override val isNoop: Boolean = true
     def pp: String = ""
   }
-  case class EmitHint(hint: Hint) extends Step {
-    override val isNoop: Boolean = hint.numHypotheses == 0
-    def pp: String = hint.pp
-  }
   case object Noop extends Step {
     override val isNoop: Boolean = true
     def pp: String = ""

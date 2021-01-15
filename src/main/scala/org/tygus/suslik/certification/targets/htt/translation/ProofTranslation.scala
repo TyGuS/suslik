@@ -6,8 +6,6 @@ import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 
 object ProofTranslation {
-  def translate(ir: IR.Node): Proof.Step = irToProofSteps(ir)
-
   def irToProofSteps(node: IR.Node) : Proof.Step = {
     def elimExistentials(ex: Seq[CExpr], nested: Boolean = false): Proof.Step = {
       if (ex.nonEmpty) {
@@ -81,10 +79,7 @@ object ProofTranslation {
     def visit(node: IR.Node): Proof.Step = node match {
       case IR.Init(ctx, next) =>
         val goal = ctx.topLevelGoal.get.subst(ctx.substVar)
-        val hints = if (ctx.predicateEnv.isEmpty) Proof.Noop else ctx.predicateEnv.values.map(p => Proof.EmitHint(Hint.PredicateSetTransitive(p))).reduce[Proof.Step](_ >> _)
         Proof.StartProof(goal.programVars) >>
-          // Include hints inferred from any of the predicate assertions
-          hints >>
           // Pull out any precondition ghosts and move precondition heap to the context
           Proof.GhostElimPre >>
           Proof.MoveToCtxDestructFoldLeft(goal.universalGhosts) >>
@@ -152,11 +147,27 @@ object ProofTranslation {
         }
         Proof.Open >> Proof.Branch(branchSteps)
       case IR.Inconsistency(_) => Proof.Error
-      case IR.CheckPost(prePhi, postPhi, next, _) =>
-        Proof.EmitHint(Hint.PureEntailment(prePhi, postPhi)) >> visit(next.head)
+      case IR.CheckPost(prePhi, postPhi, next, _) => visit(next.head)
     }
 
     pruneUnusedReads(visit(node).simplify) >> Proof.EndProof
+  }
+
+  def irToHints(node: IR.Node) : Seq[Hint] = {
+    def visit(node: IR.Node, hints: Seq[Hint]) : Seq[Hint] = node match {
+      case IR.Init(ctx, next) =>
+        visit(next.head, ctx.predicateEnv.values.map(p => Hint.PredicateSetTransitive(p)).toSeq)
+      case IR.CheckPost(prePhi, postPhi, next, _) =>
+        visit(next.head, hints :+ Hint.PureEntailment(prePhi, postPhi))
+      case _:IR.Inconsistency | _:IR.EmpRule =>
+        hints
+      case _:IR.Open | _:IR.AbduceBranch =>
+        node.next.foldLeft(hints){ case (hints, next) => visit(next, hints) }
+      case _ =>
+        visit(node.next.head, hints)
+    }
+
+    visit(node, Seq.empty).filter(_.numHypotheses > 0)
   }
 
   def pruneUnusedReads(step: Proof.Step): Proof.Step = {

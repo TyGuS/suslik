@@ -12,10 +12,10 @@ object HTT extends CertificationTarget {
 
   def certify(proc: Procedure, env: Environment): HTTCertificate = {
     val root = CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
-    val (preds, spec, proof, cproc) = Translation.translate(root, proc)(env)
+    val cert = Translation.translate(root, proc)(env)
 
     CertTree.clear() // [Certify]: Clear tree after certification complete
 
-    HTTCertificate(proc.name, preds, spec, proof, cproc)
+    cert
   }
 }
