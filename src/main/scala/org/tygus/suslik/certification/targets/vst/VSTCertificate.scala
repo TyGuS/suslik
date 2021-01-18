@@ -10,6 +10,6 @@ case class VSTCertificate(name:String, CProcedureDefinition: CProcedureDefinitio
   override def outputs: List[CertificateOutput] =
     List(
       CertificateOutput(Some(name + ".c"), name, CProcedureDefinition.pp),
-      CertificateOutput(None, name, Proof.pp)
+      CertificateOutput(None, "verif_" + name, Proof.pp)
     )
 }

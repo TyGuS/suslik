@@ -160,4 +160,10 @@ object ProofSteps {
 
   }
 
+  case class ForwardEntailer(next: ProofSteps) extends ProofSteps {
+    override def pp: String =
+      s"forward; entailer!.\n${next.pp}"
+
+  }
+
 }

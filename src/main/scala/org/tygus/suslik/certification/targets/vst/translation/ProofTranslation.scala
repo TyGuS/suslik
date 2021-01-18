@@ -108,7 +108,7 @@ object ProofTranslation {
       (pure, call) match {
         case (ProofCVar(name, _), ProofCVar(call_name, _)) => context + (name -> call_name)
         case (ProofCBoolConst(_), ProofCBoolConst(_)) => context
-        case (ProofCIntConst(_), ProofCIntConst(_)) => context
+        case (ProofCIntConst(_,_), ProofCIntConst(_,_)) => context
         case (ProofCSetLiteral(elems), ProofCSetLiteral(call_elems)) =>
           elems.zip(call_elems).foldLeft(context)({ case (context, (expr, call_expr)) => unify_expr(context)(expr)(call_expr) })
         case (ProofCIfThenElse(cond, left, right), ProofCIfThenElse(call_cond, call_left, call_right)) =>
@@ -190,14 +190,21 @@ object ProofTranslation {
           Context(post, gamma, variable_map ++ new_equalities, functions, unfolded_expr :: queued_unfolds)
       }
 
-    def record_variable_assignment(name: String, expr: Expr)(context: Context): Context =
+    def record_variable_assignment(name: String, expr: Expr)(context: Context): Context = {
+      // when recording a mapping of a pointer, force any int constants to be pointers (suslik doesn't always place them in loc_consts)
+      val translated = ProofSpecTranslation.translate_expression(context.gamma)(expr)
+      val result = (context.gamma.get(name), translated) match {
+          case (Some (CoqPtrType), ProofCIntConst(value, _)) => ProofCIntConst(value,true)
+         case (_, translated) => translated
+      }
       Context(
         context.post,
         context.gamma,
-        (context.variable_map ++ Map(name -> ProofSpecTranslation.translate_expression(context.gamma)(expr))),
+        (context.variable_map ++ Map(name -> result)),
         context.functions,
         context.queued_unfolds
       )
+    }
 
     def record_variable_assignment_card(name: String, expr: ProofCExpr)(context:Context) =
       Context(
@@ -368,11 +375,15 @@ object ProofTranslation {
                 // rename existential variables if they have been assigned fresh variables
                 case (variable, ty) => fresh_vars.get(Var(variable)).map({ case Var(new_name) => (new_name, ty) }).getOrElse((variable, ty))
               })
-              val new_context = add_new_variables(new_variables.toMap)(context)
-              val (args, constructor_args) = partition_cardinality_args(new_variables)(constructor.constructor_args)
+              val constructor_args = constructor.constructor_args.map(v => fresh_vars(Var(v)).name)
+              val new_context = add_new_variables(
+                new_variables.toMap ++
+                constructor_args.map(v => (v, CoqCardType(pred.inductive_name))).toMap
+              )(context)
+              // val (args, constructor_args) = partition_cardinality_args(new_variables)()
               ((pred.constructor_name(constructor), constructor, constructor_args),
                 ProofSpecTranslation.translate_expression(retrieve_typing_context(context).toMap)(expr),
-                args,
+                new_variables.map(_._1),
                 translate_proof_rules(rule)(new_context))
           }).toList
         )
@@ -453,11 +464,20 @@ object ProofTranslation {
             )}
         )
 
-      ProofSteps.Forward(
+      ProofSteps.ForwardEntailer(
         instantiate_existentials(context.post)(
-          ProofSteps.Entailer (
-            unfold_predicates(ProofSteps.Entailer (ProofSteps.Qed))
-          )
+          context.post match { // If no existentials, only entailer will be at the end of the unfoldings
+            case Nil =>
+              context.queued_unfolds match {
+                case Nil => ProofSteps.Qed
+                case ::(_, _) => unfold_predicates(ProofSteps.Entailer (ProofSteps.Qed))
+              }
+            case ::(_, _) =>
+              context.queued_unfolds match {
+                case Nil => ProofSteps.Entailer (ProofSteps.Qed)
+                case ::(_, _) => ProofSteps.Entailer (unfold_predicates(ProofSteps.Entailer (ProofSteps.Qed)))
+              }
+          }
         )
       )
     }
@@ -564,7 +584,6 @@ object ProofTranslation {
     def handle_free_rule(rule: ProofRule.Free, context: Context): ProofSteps = rule match {
       case ProofRule.Free(Free(Var(name)), size, next) => ProofSteps.Free(name, size, translate_proof_rules(next)(context))
     }
-
 
     def handle_close_rule(rule: ProofRule.Close, context: Context): ProofSteps = rule match {
       case ProofRule.Close(app, o_selector, asn, fresh_exist, next) =>
@@ -692,13 +711,7 @@ object ProofTranslation {
 
     val vst_proof: ProofSteps = translate_proof_rules(simplified)(initial_context)
 
-    println("Converted proof:")
-    println(vst_proof.pp)
-
-    //Debug.visualize_ctree(root)
-    //Debug.visualize_proof_tree(root.kont)
-
-    Proof(name, predicates, spec, vst_proof, contains_free(simplified))
+    Proof(name, predicates, spec, vst_proof, contains_free(simplified), contains_malloc(simplified))
   }
 
   def contains_free(proof: ProofRule): Boolean = proof match {

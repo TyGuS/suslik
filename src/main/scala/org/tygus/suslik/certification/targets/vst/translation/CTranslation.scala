@@ -119,6 +119,7 @@ object CTranslation {
         case Var(name) => ctx.get(CVar(name))
         case const: Const => const match {
           case IntConst(value) => Some (CIntType)
+          case LocConst(value) => Some (CVoidPtrType)
           case BoolConst(value) => throw TranslationException(s"Found incompatible expression in body ${expr.pp}")
         }
         case BinaryExpr(op, left, right) => translate_op(op)
@@ -182,6 +183,7 @@ object CTranslation {
                       case CTypes.CVoidPtrPtrType => (ctx, CVoidPtrType)
                       case CTypes.CIntPtrType => (ctx, CIntType)
                     }
+                    case CTypes.CVoidPtrType => (ctx, CVoidPtrType)
                     case _ => ???
                   }
                   case None => ???
