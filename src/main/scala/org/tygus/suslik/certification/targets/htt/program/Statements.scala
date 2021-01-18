@@ -3,7 +3,6 @@ package org.tygus.suslik.certification.targets.htt.program
 import org.tygus.suslik.certification.targets.htt.language.PrettyPrinting
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.util.StringUtil.mkSpaces
 
 object Statements {
   sealed abstract class CStatement extends PrettyPrinting {
@@ -97,6 +96,15 @@ object Statements {
       build(this)
       builder.toString()
     }
+
+    def >>(that: CStatement): CStatement = CSeqComp(this, that)
+
+    def simplify: CStatement = this match {
+      case CIf(_, CSkip, CSkip) => CSkip
+      case CSeqComp(CGuarded(cond, b, eb), s2) => CGuarded(cond, CSeqComp(b, s2).simplify, eb)
+      case CSeqComp(s1, CGuarded(cond, b, eb)) => CGuarded(cond, CSeqComp(s1, b).simplify, eb)
+      case _ => this
+    }
   }
 
   trait ReturnsValue
@@ -115,27 +123,9 @@ object Statements {
 
   case class CCall(fun: CVar, args: Seq[CExpr]) extends CStatement
 
-  case class CIf(cond: CExpr, tb: CStatement, eb: CStatement) extends CStatement {
-    def simplify: CStatement = (tb, eb) match {
-      case (CSkip, CSkip) => CSkip
-      case _ => this
-    }
-  }
+  case class CIf(cond: CExpr, tb: CStatement, eb: CStatement) extends CStatement
 
-  case class CSeqComp(s1: CStatement, s2: CStatement) extends CStatement {
-    /**
-      * The synthesis removes some extraneous program statements that are unused in the final result, but
-      * the CertTree retains them as nodes. So, we remove them from our statements here.
-      * @return A simplified statement
-      */
-    def simplify: CStatement = (s1, s2) match {
-      case (CGuarded(cond, b, eb), _) => CGuarded(cond, CSeqComp(b, s2).simplify, eb)
-      case (CLoad(y, _, _, _), CGuarded(cond, _, _)) if cond.vars.contains(y) => this
-      case (_, CGuarded(cond, b, eb)) => CGuarded(cond, CSeqComp(s1, b).simplify, eb)
-      case (CLoad(y, _, _, _), _) => if (s2.usedVars.contains(y)) this else s2 // Do not generate read for unused variables
-      case _ => this
-    }
-  }
+  case class CSeqComp(s1: CStatement, s2: CStatement) extends CStatement
 
   case class CGuarded(cond: CExpr, body: CStatement, els: CStatement) extends CStatement
 

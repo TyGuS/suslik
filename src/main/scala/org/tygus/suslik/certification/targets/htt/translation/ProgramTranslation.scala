@@ -1,80 +1,51 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
-import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.certification.targets.htt.program.StatementProducers._
+import org.tygus.suslik.certification.targets.htt.language.Expressions.CVar
 import org.tygus.suslik.certification.targets.htt.program.Statements._
-import org.tygus.suslik.certification.targets.htt.translation.Translation._
-import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.synthesis._
 
 object ProgramTranslation {
-  def translate(node: CertTree.Node, proc: Procedure): CProcedure = {
-    val stmtBody = traverseStmt(node, IdCStmtProducer)
-    CProcedure(proc.name, translateType(proc.tp), proc.formals.map(translateParam), stmtBody)
+  def translate(ir: IR.Node): CStatement = irToProgramStatements(ir)
+
+  def irToProgramStatements(node: IR.Node): CStatement = {
+    def visit(node: IR.Node): CStatement = node match {
+      case IR.EmpRule(_) => CSkip
+      case IR.Call(stmt, next, _) => stmt >> visit(next.head)
+      case IR.Free(stmt, next, _) => stmt >> visit(next.head)
+      case IR.Malloc(stmt, next, _) => stmt >> visit(next.head)
+      case IR.Read(stmt, next, _) => stmt >> visit(next.head)
+      case IR.Write(stmt, next, _) => stmt >> visit(next.head)
+      case IR.AbduceBranch(cond, Seq(tb, eb), _) => CIf(cond, visit(tb), visit(eb))
+      case IR.Open(app, clauses, selectors, next, ctx) =>
+        val cond_branches = selectors.zip(next.map(visit)).reverse
+        val ctail = cond_branches.tail
+        val finalBranch = cond_branches.head._2
+        ctail.foldLeft(finalBranch) { case (eb, (c, tb)) => CIf(c, tb, eb) }
+      case IR.Inconsistency(_) => CSkip
+      case _ => visit(node.next.head)
+    }
+    pruneUnusedReads(visit(node).simplify)
   }
 
-  def traverseStmt(node: CertTree.Node, kont: CStmtProducer): CStatement = {
-    def translateOperation(s: Statement): CStatement = s match {
-      case Skip =>
-        CSkip
-      case Load(to, tpe, from, offset) =>
-        CLoad(translateVar(to), translateType(tpe), translateVar(from), offset)
-      case Store(to, offset, e) =>
-        CStore(translateVar(to), offset, translateExpr(e))
-      case Malloc(to, tpe, sz) =>
-        CMalloc(translateVar(to), translateType(tpe), sz)
-      case Free(v) =>
-        val block = node.footprint.pre.sigma.blocks.find(_.loc == v)
-        assert(block.nonEmpty)
-        CFree(translateVar(v), block.get.sz)
-      case Call(v, args, _) =>
-        CCall(translateVar(v), args.map(translateExpr))
-      case Error =>
-        CError
-      case _ =>
-        throw TranslationException("Operation not supported")
-    }
-
-    def translateProducer(stmtProducer: StmtProducer): CStmtProducer = stmtProducer match {
-      case ChainedProducer(p1, p2) =>
-        val k1 = translateProducer(p1)
-        val k2 = translateProducer(p2)
-        k1 >> k2
-      case PartiallyAppliedProducer(p, _) =>
-        translateProducer(p)
-      case ConstProducer(s) =>
-        val stmt = translateOperation(s)
-        ConstCStmtProducer(stmt)
-      case PrependProducer(s) =>
-        val stmt = translateOperation(s)
-        PrependCStmtProducer(stmt)
-      case BranchProducer(_, selectors) =>
-        BranchCStmtProducer(selectors.map(translateExpr))
-      case GuardedProducer(cond, _) =>
-        GuardedCStmtProducer(translateExpr(cond))
-      case _ =>
-        IdCStmtProducer
-    }
-
-    def updateProducerPost(nextItems: Seq[CertTree.Node], nextKont: CStmtProducer): CStmtProducer = nextKont match {
-      case _: Branching =>
-        nextItems.tail.foldLeft(nextKont >> kont) {
-          case (foldedP, item) => FoldCStmtProducer(traverseStmt, item, foldedP)
+  def pruneUnusedReads(stmts: CStatement): CStatement = {
+    def visit(stmt: CStatement): (CStatement, Set[CVar]) = stmt match {
+      case CSeqComp(s1, s2) =>
+        val (s2New, s2Used) = visit(s2)
+        val (s1New, s1Used) = visit(s1)
+        s1 match {
+          case CLoad(to, _, _, _) if !s2Used.contains(to) => (s2New, s2Used)
+          case _ => (s1New >> s2New, s1Used ++ s2Used)
         }
-      case _ =>
-        nextKont >> kont
+      case CIf(cond, tb, eb) =>
+        val (tbNew, tbUsed) = visit(tb)
+        val (ebNew, ebUsed) = visit(eb)
+        (CIf(cond, tbNew, ebNew), tbUsed ++ ebUsed ++ cond.vars)
+      case CLoad(to, tpe, from, offset) => (stmt, Set(to, from))
+      case CStore(to, offset, e) => (stmt, Set(to) ++ e.vars.toSet)
+      case CMalloc(to, tpe, sz) => (stmt, Set(to))
+      case CFree(v, sz) => (stmt, Set(v))
+      case CCall(fun, args) => (stmt, args.flatMap(_.vars).toSet)
+      case _ => (stmt, Set.empty)
     }
-
-    // generated nested continuations for children
-    val p = translateProducer(node.kont).simplify
-    val nextItems = node.children
-    val nextKont = updateProducerPost(nextItems, p).simplify
-
-    nextItems.headOption match {
-      case Some(childHead) =>
-        traverseStmt(childHead, nextKont)
-      case None =>
-        nextKont(Nil)
-    }
+    visit(stmts)._1
   }
 }

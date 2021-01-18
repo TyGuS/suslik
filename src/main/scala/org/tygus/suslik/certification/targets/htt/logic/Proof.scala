@@ -1,64 +1,140 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.htt.language.CGamma
-import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.logic.ProofSteps.{ProofStep, nestedDestructL}
-import org.tygus.suslik.certification.targets.htt.logic.Sentences._
+import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CSFormula, CVar}
+import org.tygus.suslik.certification.targets.htt.language.Types.HTTType
 
 object Proof {
-  private var currCallId = 0
-  def freshCallId: String = { currCallId += 1; s"call$currCallId" }
+  abstract class Step {
+    val isNoop: Boolean = false
+    def pp: String
+    def >>(that: Step): Step = SeqComp(this, that)
+    def >>>(that: Step): Step = SeqCompAlt(this, that)
+    def simplify: Step = this match {
+      case SeqComp(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqComp(s1.simplify, s2.simplify)
+      case SeqCompAlt(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqCompAlt(s1.simplify, s2.simplify)
+      case Branch(branches) => Branch(branches.map(_.simplify))
+      case _ => this
+    }
+  }
 
-  type Unfoldings = Map[CSApp, CInductiveClause]
-  type Subst = Map[CVar, CExpr]
-  type SubstVar = Map[CVar, CVar]
-  type PredicateEnv = Map[String, CInductivePredicate]
-
-  case class Proof(root: ProofStep, params: Seq[CVar]) {
+  case class Branch(branches: Seq[Step]) extends Step {
+    override val isNoop: Boolean = branches.forall(_.isNoop)
+    def pp: String = branches.map(_.pp).mkString(".\n")
+  }
+  case class SeqComp(s1: Step, s2: Step) extends Step {
+    override val isNoop: Boolean = s1.isNoop && s2.isNoop
+    def pp: String = s"${s1.pp}.\n${s2.pp}"
+  }
+  case class SeqCompAlt(s1: Step, s2: Step) extends Step {
+    override val isNoop: Boolean = s1.isNoop && s2.isNoop
+    def pp: String = s"${s1.pp};\n${s2.pp}"
+  }
+  case class MoveToCtx(items: Seq[CExpr]) extends Step {
+    override val isNoop: Boolean = items.isEmpty
+    def pp: String = s"move=>${items.map(_.pp).mkString(" ")}"
+  }
+  case class MoveToCtxDestruct(items: Seq[CExpr]) extends Step {
+    override val isNoop: Boolean = items.isEmpty
+    def pp: String = s"move=>${items.map(i => s"[${i.pp}]").mkString(" ")}"
+  }
+  case class MoveToCtxDestructFoldLeft(items: Seq[CExpr]) extends Step {
+    override val isNoop: Boolean = items.isEmpty
+    def pp: String = s"move=>${items.map(_.pp).reduceLeft[String]{ case (acc, el) => s"[$acc $el]"}}"
+  }
+  case class MoveToCtxDestructFoldRight(items: Seq[CExpr]) extends Step {
+    override val isNoop: Boolean = items.isEmpty
+    def pp: String = s"move=>${items.map(_.pp).reduceRight[String]{ case (el, acc) => s"[$el $acc]"}}"
+  }
+  case class MoveToGoal(items: Seq[CExpr]) extends Step {
+    override val isNoop: Boolean = items.isEmpty
+    def pp: String = s"move: ${items.map(_.pp).mkString(" ")}"
+  }
+  case class ElimExistential(items: Seq[CExpr]) extends Step {
+    override val isNoop: Boolean = items.isEmpty
+    def pp: String = items.map(_.pp).grouped(5).map(s => s"ex_elim ${s.mkString(" ")}").mkString(".\n")
+  }
+  case object Sbst extends Step {
+    def pp: String = "subst"
+  }
+  case class Exists(items: Seq[CExpr]) extends Step {
+    override val isNoop: Boolean = items.isEmpty
+    def pp: String = s"exists ${items.map {
+      case h:CSFormula => s"(${h.ppHeap})"
+      case i => s"(${i.pp})"
+    }.mkString(", ")}"
+  }
+  case object Auto extends Step {
+    def pp: String = "sslauto"
+  }
+  case class UnfoldConstructor(idx: Int) extends Step {
+    def pp: String = s"unfold_constructor $idx"
+  }
+  case class Write(to: CVar, offset: Int = 0, e: CExpr) extends Step {
     def pp: String = {
-      val obligationTactic = s"Obligation Tactic := intro; move=>${nestedDestructL(params)}; ssl_program_simpl."
-      val nextObligation = "Next Obligation."
-      val body = root.pp
-      val qed = "Qed.\n"
-      List(obligationTactic, nextObligation, body, qed).mkString("\n")
+      val ptr = if (offset == 0) to.pp else s"(${to.pp} .+ $offset)"
+      s"ssl_write $ptr"
     }
   }
-
-  case class CGoal(pre: CAssertion,
-                   post: CAssertion,
-                   gamma: CGamma,
-                   programVars: Seq[CVar],
-                   universalGhosts: Seq[CVar],
-                   fname: String) {
-    val existentials: Seq[CVar] = post.valueVars.diff(programVars ++ universalGhosts)
-    def subst(sub: Subst): CGoal = CGoal(
-      pre.subst(sub),
-      post.subst(sub),
-      gamma.map { case (v, t) => v.substVar(sub) -> t },
-      programVars.map(_.substVar(sub)),
-      universalGhosts.map(_.substVar(sub)),
-      fname
-    )
-
-    def toFunspec: CFunSpec = {
-      val params = programVars.map(v => (gamma(v), v))
-      val ghosts = universalGhosts.map(v => (gamma(v), v))
-      CFunSpec(fname, CUnitType, params, ghosts, pre, post)
+  case class WritePost(to: CVar, offset: Int = 0) extends Step {
+    def pp: String = {
+      val ptr = if (offset == 0) to.pp else s"(${to.pp} .+ $offset)"
+      s"ssl_write_post $ptr"
     }
   }
-
-  case class CEnvironment(initialGoal: CGoal,
-                          predicates: PredicateEnv,
-                          ghostSubst: SubstVar = Map.empty,
-                          subst: Subst = Map.empty,
-                          unfoldings: Unfoldings = Map.empty) {
-    def copy(initialGoal: CGoal = this.initialGoal,
-             predicates: PredicateEnv = this.predicates,
-             ghostSubst: SubstVar = this.ghostSubst,
-             subst: Subst = this.subst,
-             unfoldings: Unfoldings = this.unfoldings,
-            ): CEnvironment =
-      CEnvironment(initialGoal, predicates, ghostSubst, subst, unfoldings)
+  case class Read(to: CVar, from: CVar, offset: Int = 0) extends Step {
+    def pp: String = {
+      val ptr = if (offset == 0) from.pp else s"(${from.pp} .+ $offset)"
+      s"ssl_read $ptr"
+    }
+  }
+  case class Alloc(to: CVar, tpe: HTTType, sz: Int) extends Step {
+    def pp: String = s"ssl_alloc ${to.pp}"
+  }
+  case class Dealloc(v: CVar, offset: Int) extends Step {
+    def pp: String = {
+      val ptr = if (offset == 0) v.pp else s"(${v.pp} .+ $offset)"
+      s"ssl_dealloc $ptr"
+    }
+  }
+  case object Open extends Step {
+    def pp: String = "ssl_open"
+  }
+  case class OpenPost(app: CSApp) extends Step {
+    def pp: String = s"ssl_open_post ${app.hypName}"
+  }
+  case class CallPre(heap: CSFormula) extends Step {
+    def pp: String = s"ssl_call_pre (${heap.ppHeap})"
+  }
+  case class Call(args: Seq[CExpr], ghosts: Seq[CVar]) extends Step {
+    def pp: String = s"ssl_call (${ghosts.map(_.pp).mkString(", ")})"
+  }
+  case object StoreValid extends Step {
+    def pp: String = "store_valid"
+  }
+  case object GhostElimPre extends Step {
+    def pp: String = "ssl_ghostelim_pre"
+  }
+  case object GhostElimPost extends Step {
+    def pp: String = "ssl_ghostelim_post"
+  }
+  case object AbduceBranch extends Step {
+    def pp: String = "ssl_abduce_branch"
+  }
+  case object Emp extends Step {
+    def pp: String = "ssl_emp"
+  }
+  case object Error extends Step {
+    override val isNoop: Boolean = true
+    def pp: String = ""
+  }
+  case object Noop extends Step {
+    override val isNoop: Boolean = true
+    def pp: String = ""
+  }
+  case class StartProof(params: Seq[CVar]) extends Step {
+    def pp: String = s"Obligation Tactic := intro; ${MoveToCtxDestructFoldLeft(params).pp}; ssl_program_simpl.\nNext Obligation"
+  }
+  case object EndProof extends Step {
+    def pp: String = "Qed.\n"
   }
 }

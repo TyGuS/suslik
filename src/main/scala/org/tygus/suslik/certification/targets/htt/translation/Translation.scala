@@ -1,15 +1,17 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
-import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.targets.htt.HTTCertificate
+import org.tygus.suslik.certification.{CertTree, ProofRule}
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.certification.targets.htt.logic.Proof._
+import org.tygus.suslik.certification.targets.htt.logic.Proof
 import org.tygus.suslik.certification.targets.htt.logic.Sentences._
+import org.tygus.suslik.certification.targets.htt.translation.IR.translateGoal
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
-import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
+import org.tygus.suslik.logic.Specifications.Assertion
 import org.tygus.suslik.logic._
 
 object Translation {
@@ -22,18 +24,20 @@ object Translation {
     * @param env the synthesis environment
     * @return the inductive predicates, fun spec, proof, and program translated to HTT
     */
-  def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment):
-    (Map[String, CInductivePredicate], CFunSpec, Proof, CProcedure) = {
+  def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment): HTTCertificate = {
     val cpreds = env.predicates.mapValues(p => {
       val gamma = p.resolve(p.params.toMap, env).get
       val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
       translateInductivePredicate(p1, gamma)
     })
     val goal = translateGoal(node.goal)
-    val initialCEnv = CEnvironment(goal, cpreds)
-    val proof = ProofTranslation.translate(node, initialCEnv)
-    val cproc = ProgramTranslation.translate(node, proc)
-    (cpreds, goal.toFunspec, proof, cproc)
+    val ctx = IR.emptyContext.copy(predicateEnv = cpreds)
+    val ir = IR.fromRule(ProofRule.Init(node.goal, ProofRule.of_certtree(node)), ctx).propagateContext
+    val proof = ProofTranslation.irToProofSteps(ir)
+    val hints = ProofTranslation.irToHints(ir)
+    val progBody = ProgramTranslation.translate(ir)
+    val cproc = CProcedure(proc.name, translateType(proc.tp), proc.formals.map(translateParam), progBody)
+    HTTCertificate(cproc.name, cpreds, goal.toFunspec, proof, cproc, hints)
   }
 
   private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {
@@ -62,15 +66,6 @@ object Translation {
     case CardType => CCardType
   }
 
-  def translateGoal(goal: Goal): CGoal = {
-    val pre = translateAsn(goal.pre)
-    val post = translateAsn(goal.post)
-    val gamma = goal.gamma.map { case (value, lType) => (translateVar(value), translateType(lType)) }
-    val programVars = goal.programVars.map(translateVar)
-    val universalGhosts = goal.universalGhosts.map(translateVar).toSeq.filterNot(v => gamma(v) == CCardType)
-    CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
-  }
-
   def translateExpr(el: Expr): CExpr = el match {
     case Var(name) => CVar(name)
     case BoolConst(value) => CBoolConst(value)
@@ -93,7 +88,7 @@ object Translation {
     val f = (a1: CExpr, a2: CExpr) => CBinaryExpr(COpAnd, a1, a2)
     val phi = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce(f)
     val sigma = translateSFormula(el.sigma)
-    CAssertion(phi, sigma)
+    CAssertion(phi, sigma).removeCardConstraints
   }
 
   def translateSFormula(el: SFormula): CSFormula = {

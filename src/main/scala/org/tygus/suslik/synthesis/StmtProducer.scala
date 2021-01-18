@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Expressions.{Expr, Subst, SubstVar, Var}
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.{Heaplet, InductiveClause, SApp, SFormula}
+import org.tygus.suslik.logic.{FunSpec, Heaplet, InductiveClause, PFormula, SApp, SFormula}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.synthesis.rules.RuleUtils
 
@@ -145,7 +145,7 @@ case class HandleGuard(goal: Goal) extends StmtProducer {
 }
 
 // Produces a conditional that branches on the selectors
-case class BranchProducer(pred: Option[(SApp, SubstVar)], selectors: Seq[Expr]) extends StmtProducer {
+case class BranchProducer(pred: Option[SApp], freshVars: SubstVar, sbst: Subst, selectors: Seq[Expr]) extends StmtProducer {
   val arity: Int = selectors.length
   val fn: Kont = liftToSolutions(stmts => {
     if (stmts.length == 1) stmts.head else {
@@ -175,3 +175,9 @@ case class GhostSubstProducer(subst: SubstVar) extends StmtProducer with Noop
 
 // Captures an unfolded predicate application
 case class UnfoldProducer(app: SApp, selector: Expr, asn: Assertion, substEx: SubstVar) extends StmtProducer with Noop
+
+// Abduce Call
+case class AbduceCallProducer(f: FunSpec) extends StmtProducer with Noop
+
+// Captures entailments emitted by SMT
+case class PureEntailmentProducer(prePhi: PFormula, postPhi: PFormula) extends StmtProducer with Noop
