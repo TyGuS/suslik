@@ -131,7 +131,10 @@ object Expressions {
   }
 
   case class CUnaryExpr(op: CUnOp, e: CExpr) extends CExpr {
-    override def pp: String = s"${op.pp} (${e.pp})"
+    override def pp: String = op match {
+      case COpNot => s"(${e.pp}) = false"
+      case _ => s"${op.pp} (${e.pp})"
+    }
   }
 
   case class CPointsTo(loc: CExpr, offset: Int = 0, value: CExpr) extends CExpr {
@@ -147,7 +150,7 @@ object Expressions {
     override def subst(sigma: CSubst): CSApp =
       CSApp(pred, args.map(_.subst(sigma)), card.subst(sigma))
 
-    val uniqueName: String = s"${pred}_${args.flatMap(_.vars).map(_.pp).mkString("")}_${card.pp}"
+    val uniqueName: String = s"${pred}_${args.flatMap(_.vars).map(_.pp).mkString("")}_${card.vars.map(_.pp).mkString("")}"
     val heapName: String = s"h_$uniqueName"
     val hypName: String = s"H_$uniqueName"
   }

@@ -72,7 +72,7 @@ object Sentences {
       // clauses
       val clausesStr = for {
         CInductiveClause(pred, idx, selector, asn, _) <- clauses
-      } yield s"| $pred$idx of ${selector.pp} of\n${asn.ppQuantified(paramVars, 1, gamma)}"
+      } yield s"| ${pred}_$idx of ${selector.pp} of\n${asn.ppQuantified(paramVars, 1, gamma)}"
 
       builder.append(s"${clausesStr.mkString("\n")}.\n")
       builder.toString()
