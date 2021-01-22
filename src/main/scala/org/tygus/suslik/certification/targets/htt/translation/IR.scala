@@ -72,10 +72,24 @@ object IR {
     val ctx : Context
     val next : Seq[Node]
 
+    private def mapJoin[T <: CExpr](m1: Map[CVar, T], m2: Map[CVar, T]) : Map[CVar, T] = {
+      m1.toSeq.intersect(m2.toSeq).toMap
+    }
+
     def propagateContext: IR.Node = this match {
       case n:IR.EmpRule => n
-      case n:IR.Open => n.copy(next = n.next.map(_.propagateContext))
-      case n:IR.AbduceBranch =>n.copy(next = n.next.map(_.propagateContext))
+      case n:IR.Open =>
+        val children = n.next.map(_.propagateContext)
+        val childCtxs = children.map(_.ctx)
+        val childSubst = childCtxs.map(_.subst).reduceOption[CSubst](mapJoin).getOrElse(Map.empty)
+        val childSubstVar = childCtxs.map(_.substVar).reduceOption[CSubstVar](mapJoin).getOrElse(Map.empty)
+        n.copy(next = children, ctx = n.ctx.copy(subst = childSubst, substVar = childSubstVar))
+      case n:IR.AbduceBranch =>
+        val children = n.next.map(_.propagateContext)
+        val childCtxs = children.map(_.ctx)
+        val childSubst = childCtxs.map(_.subst).reduceOption[CSubst](mapJoin).getOrElse(Map.empty)
+        val childSubstVar = childCtxs.map(_.substVar).reduceOption[CSubstVar](mapJoin).getOrElse(Map.empty)
+        n.copy(next = children, ctx = n.ctx.copy(subst = childSubst, substVar = childSubstVar))
       case n:IR.Read =>
         val next1 = n.next.head.propagateContext
         n.copy(ctx = next1.ctx, next = Seq(next1))
@@ -200,7 +214,7 @@ object IR {
       val ex = cclause.existentials.map(_.subst(csbst))
       val actualClause = CInductiveClause(csapp.pred, cclause.idx, cselector, casn, ex)
       fromRule(next, ctx.copy(unfoldings = ctx.unfoldings + (csapp -> actualClause)))
-    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) =>
       IR.AbduceBranch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
     case ProofRule.PureSynthesis(is_final, sbst, next) =>
       val csbst = translateSbst(sbst)
