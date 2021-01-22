@@ -2,3 +2,8 @@ predicate lseg(loc x, set s) {
 |  x == null        => { s =i {} ; emp }
 |  not (x == null)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }
 }
+
+predicate lseg2(loc x, loc y, set s) {
+|  x == y        => { s =i {} ; emp }
+|  not (x == y)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg2(nxt, y, s1) }
+}
