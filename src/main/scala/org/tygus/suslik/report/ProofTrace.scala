@@ -10,6 +10,7 @@ import org.tygus.suslik.synthesis.SearchTree.{AndNode, OrNode, SearchNode}
 import org.tygus.suslik.synthesis.rules.Rules
 import upickle.default.{macroRW, ReadWriter => RW}
 
+import scala.annotation.tailrec
 
 sealed abstract class ProofTrace {
   import ProofTrace._
@@ -129,64 +130,87 @@ object ProofTraceJson {
 class ProofTraceCert extends ProofTrace {
   import scala.collection.mutable
 
-  // The candidate derivations encountered for each OrNode
-  private val derivations: mutable.Map[OrNode, Seq[AndNode]] = mutable.Map.empty
-  // The solved subgoals for each AndNode
-  private val fulfilledSubgoals: mutable.Map[AndNode, Seq[OrNode]] = mutable.Map.empty
-  // The number of subgoals that need to be solved for each AndNode
-  private val numSubgoals: mutable.Map[AndNode, Int] = mutable.Map.empty
-
+  val derivations: mutable.HashMap[OrNode, Seq[(Boolean, AndNode)]] = mutable.HashMap.empty
+  val subgoals: mutable.HashMap[AndNode, Seq[(Boolean, OrNode)]] = mutable.HashMap.empty
+  val failed: mutable.Set[OrNode] = mutable.Set.empty
+  val succeeded: mutable.Set[OrNode] = mutable.Set.empty
   var root: OrNode = _
 
-  override def add(node: AndNode, nChildren: Int): Unit = numSubgoals(node) = nChildren
+  override def add(node: OrNode): Unit = {
+    node.parent match {
+      case None => root = node
+      case Some(an) =>
+        subgoals.get(an) match {
+          case None => subgoals(an) = Seq((false, node))
+          case Some(ons) => subgoals(an) = ons :+ (false, node)
+        }
+    }
+  }
 
-  override def add(node: SearchNode, status: GoalStatus, from: Option[String] = None): Unit = node match {
-    case node: OrNode => if (status.isInstanceOf[Memoization.Succeeded]) addOr(node)
+  override def add(node: AndNode, nChildren: Int): Unit = {
+    derivations.get(node.parent) match {
+      case None => derivations(node.parent) = Seq((false, node))
+      case Some(ans) => derivations(node.parent) = ans :+ (false, node)
+    }
+  }
+
+  override def add(node: SearchNode, status: GoalStatus, from: Option[String] = None): Unit = (node, status) match {
+    case (node: OrNode, Memoization.Succeeded(_)) =>
+      succeeded.add(node)
+    case (node: OrNode, Memoization.Failed) =>
+      failed.add(node)
     case _ =>
   }
 
   override def add(result: Rules.RuleResult, parent: OrNode): Unit = {
-    val an = AndNode(-1 +: parent.id, parent, result)
-    addAnd(an)
-  }
-
-  private def addAnd(node: AndNode): Unit = {
-    val parentOr = node.parent
-    derivations.get(parentOr) match {
-      case Some(ans) => derivations(parentOr) = ans :+ node
-      case None => derivations(parentOr) = Seq(node)
-    }
-    addOr(parentOr)  // Continue adding ancestors
-  }
-
-  private def addOr(node: OrNode): Unit = node.parent match {
-    case Some(parentAn) =>
-      fulfilledSubgoals.get(parentAn) match {
-        case Some(ons) =>
-          if (!ons.contains(node)) {
-            // Make sure new goal respects ordering of subgoals by goal id
-            val idx = scala.math.min(node.id.head, ons.length)
-            val (fst, snd) = ons.splitAt(idx)
-            fulfilledSubgoals(parentAn) = fst ++ Seq(node) ++ snd
-          }  // Terminate (node already encountered)
-        case None =>
-          fulfilledSubgoals(parentAn) = Seq(node)
-          addAnd(parentAn)  // Continue adding ancestors
+    if (result.subgoals.isEmpty) {
+      val an = AndNode(-1 +: parent.id, parent, result)
+      derivations.get(parent) match {
+        case None => derivations(parent) = Seq((true, an))
+        case Some(ans) => derivations(parent) = ans :+ (true, an)
       }
+      succeeded.add(parent)
+    }
+  }
+
+  @tailrec
+  private def handleFail(node: OrNode, original: OrNode): Unit = node.parent match {
     case None =>
-      root = node  // Terminate (node is root)
+    case Some(an) =>
+      derivations(an.parent) = derivations(an.parent).filterNot(_._2.id == an.id)
+      if (!derivations(an.parent).exists(_._1)) {
+        // This goal has no more viable candidate derivations, so can prune further up the tree
+        handleFail(an.parent, original)
+      }
   }
 
-  // Retrieve candidate derivations for a goal
-  def childAnds(node: OrNode): Seq[AndNode] = derivations.getOrElse(node, Seq.empty)
-
-  // Retrieve subgoals for a derivation if it succeeded
-  def childOrs(node: AndNode): Option[Seq[OrNode]] = fulfilledSubgoals.get(node) match {
-    // All subgoals were solved, so this derivation was successful
-    case Some(ors) if ors.length == numSubgoals(node) => Some(ors)
-    // This is a terminal node
-    case None => Some(Seq.empty)
-    // This is a non-terminal node, but not all subgoals were solved
-    case _ => None
+  @tailrec
+  private def handleSuccess(node: OrNode): Unit = node.parent match {
+    case None =>
+    case Some(an) =>
+      val newOns = updatePeerStatus(node, subgoals(an), newStatus = true)
+      subgoals(an) = newOns
+      if (newOns.forall(_._1)) {
+        derivations(an.parent) = updatePeerStatus(an, derivations(an.parent), newStatus = true)
+        handleSuccess(an.parent)
+      }
   }
+
+  def pruneFailed(): Unit = {
+    for (s <- succeeded) {
+      handleSuccess(s)
+    }
+    for (f <- failed) {
+      handleFail(f, f)
+    }
+  }
+
+  private def updatePeerStatus[T <: SearchNode](node: T, peers: Seq[(Boolean, T)], newStatus: Boolean): Seq[(Boolean, T)] =
+    peers.map { case (status, n) => if (n.id == node.id) (newStatus, n) else (status, n )}
+
+  def childAnds(node: OrNode): Seq[AndNode] = {
+    derivations.getOrElse(node, Seq.empty).filter(_._1).map(_._2)
+  }
+  def childOrs(node: AndNode): Seq[OrNode] =
+    subgoals.getOrElse(node, Seq.empty).filter(_._1).map(_._2)
 }

@@ -71,7 +71,7 @@ object CertTree {
         // Candidate derivations exist; find and process the correct one
         val n = for {
           an <- ans
-          childOrs <- trace.childOrs(an)
+          childOrs = trace.childOrs(an)
         } yield {
           val node = Node(on.id, on.goal, an.kont, an.rule)
           val children = childOrs.map(traverse)
@@ -83,6 +83,7 @@ object CertTree {
         n.head
       }
     }
+    trace.pruneFailed()
     traverse(trace.root)
   }
 
