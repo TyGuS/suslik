@@ -129,8 +129,8 @@ object ProofTranslation {
         visit(next.head)
       case IR.Close(_, _, _, _, next, _) =>
         visit(next.head)
-      case IR.AbduceBranch(cond, next, ctx) =>
-        Proof.AbduceBranch(cond.subst(ctx.substVar)) >> Proof.Branch(next.map(visit))
+      case IR.Branch(cond, next, ctx) =>
+        Proof.Branch(cond.subst(ctx.substVar)) >> Proof.SubProof(next.map(visit))
       case IR.Open(app, clauses, selectors, next, ctx) =>
         val branchSteps = next.zip(clauses).map { case (n, c) =>
           val c1 = c.subst(n.ctx.substVar)
@@ -145,7 +145,7 @@ object ProofTranslation {
             res
           }
         }
-        Proof.Open(selectors.map(_.subst(ctx.substVar))) >> Proof.Branch(branchSteps)
+        Proof.Open(selectors.map(_.subst(ctx.substVar))) >> Proof.SubProof(branchSteps)
       case IR.Inconsistency(_) => Proof.Error
       case IR.CheckPost(prePhi, postPhi, next, _) => visit(next.head)
     }
@@ -161,7 +161,7 @@ object ProofTranslation {
         visit(next.head, hints :+ Hint.PureEntailment(prePhi, postPhi))
       case _:IR.Inconsistency | _:IR.EmpRule =>
         hints
-      case _:IR.Open | _:IR.AbduceBranch =>
+      case _:IR.Open | _:IR.Branch =>
         node.next.foldLeft(hints){ case (hints, next) => visit(next, hints) }
       case _ =>
         visit(node.next.head, hints)
@@ -186,9 +186,9 @@ object ProofTranslation {
           case Proof.Read(to, _, _) if !s2Used.contains(to) => (s2New, s2Used)
           case _ => (s1New >>> s2New, s1Used ++ s2Used)
         }
-      case Proof.Branch(branches) =>
+      case Proof.SubProof(branches) =>
         val (branchesNew, branchesUsed) = branches.map(visit).unzip
-        (Proof.Branch(branchesNew), branchesUsed.reduce(_ ++ _))
+        (Proof.SubProof(branchesNew), branchesUsed.reduce(_ ++ _))
       case Proof.Read(to, from, offset) => (step, Set(to, from))
       case Proof.Write(to, offset, e) => (step, Set(to) ++ e.vars.toSet)
       case Proof.WritePost(to, offset) => (step, Set(to))
@@ -196,7 +196,7 @@ object ProofTranslation {
       case Proof.Dealloc(v, offset) => (step, Set(v))
       case Proof.Call(args, _) => (step, args.flatMap(_.vars).toSet)
       case Proof.Open(selectors) => (step, selectors.flatMap(_.vars).toSet)
-      case Proof.AbduceBranch(cond) => (step, cond.vars.toSet)
+      case Proof.Branch(cond) => (step, cond.vars.toSet)
       case _ => (step, Set.empty)
     }
     visit(step)._1

@@ -14,7 +14,7 @@ object ProgramTranslation {
       case IR.Malloc(stmt, next, _) => stmt >> visit(next.head)
       case IR.Read(stmt, next, _) => stmt >> visit(next.head)
       case IR.Write(stmt, next, _) => stmt >> visit(next.head)
-      case IR.AbduceBranch(cond, Seq(tb, eb), _) => CIf(cond, visit(tb), visit(eb))
+      case IR.Branch(cond, Seq(tb, eb), _) => CIf(cond, visit(tb), visit(eb))
       case IR.Open(app, clauses, selectors, next, ctx) =>
         val cond_branches = selectors.zip(next.map(visit)).reverse
         val ctail = cond_branches.tail

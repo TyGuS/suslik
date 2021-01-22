@@ -84,7 +84,7 @@ object IR {
         val childSubst = childCtxs.map(_.subst).reduceOption[CSubst](mapJoin).getOrElse(Map.empty)
         val childSubstVar = childCtxs.map(_.substVar).reduceOption[CSubstVar](mapJoin).getOrElse(Map.empty)
         n.copy(next = children, ctx = n.ctx.copy(subst = childSubst, substVar = childSubstVar))
-      case n:IR.AbduceBranch =>
+      case n:IR.Branch =>
         val children = n.next.map(_.propagateContext)
         val childCtxs = children.map(_.ctx)
         val childSubst = childCtxs.map(_.subst).reduceOption[CSubst](mapJoin).getOrElse(Map.empty)
@@ -137,7 +137,7 @@ object IR {
 
   case class Close(app: CSApp, selector: CExpr, asn: CAssertion, fresh_exist: CSubstVar, next: Seq[Node], ctx: Context) extends Node
 
-  case class AbduceBranch(cond: CExpr, next: Seq[Node], ctx: Context) extends Node
+  case class Branch(cond: CExpr, next: Seq[Node], ctx: Context) extends Node
 
   case class PureSynthesis(is_final: Boolean, next: Seq[Node], ctx: Context) extends Node
 
@@ -215,7 +215,7 @@ object IR {
       val actualClause = CInductiveClause(csapp.pred, cclause.idx, cselector, casn, ex)
       fromRule(next, ctx.copy(unfoldings = ctx.unfoldings + (csapp -> actualClause)))
     case ProofRule.Branch(cond, ifTrue, ifFalse) =>
-      IR.AbduceBranch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
+      IR.Branch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
     case ProofRule.PureSynthesis(is_final, sbst, next) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))

@@ -12,12 +12,12 @@ object Proof {
     def simplify: Step = this match {
       case SeqComp(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqComp(s1.simplify, s2.simplify)
       case SeqCompAlt(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqCompAlt(s1.simplify, s2.simplify)
-      case Branch(branches) => Branch(branches.map(_.simplify))
+      case SubProof(branches) => SubProof(branches.map(_.simplify))
       case _ => this
     }
   }
 
-  case class Branch(branches: Seq[Step]) extends Step {
+  case class SubProof(branches: Seq[Step]) extends Step {
     override val isNoop: Boolean = branches.forall(_.isNoop)
     def pp: String = branches.map(_.pp).mkString(".\n")
   }
@@ -117,7 +117,7 @@ object Proof {
   case object GhostElimPost extends Step {
     def pp: String = "ssl_ghostelim_post"
   }
-  case class AbduceBranch(cond: CExpr) extends Step {
+  case class Branch(cond: CExpr) extends Step {
     def pp: String = "ssl_abduce_branch"
   }
   case object Emp extends Step {
