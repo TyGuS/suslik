@@ -214,7 +214,7 @@ object IR {
       val ex = cclause.existentials.map(_.subst(csbst))
       val actualClause = CInductiveClause(csapp.pred, cclause.idx, cselector, casn, ex)
       fromRule(next, ctx.copy(unfoldings = ctx.unfoldings + (csapp -> actualClause)))
-    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) =>
+    case ProofRule.Branch(cond, ifTrue, ifFalse) =>
       IR.AbduceBranch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
     case ProofRule.PureSynthesis(is_final, sbst, next) =>
       val csbst = translateSbst(sbst)
@@ -269,5 +269,6 @@ object IR {
     case ProofRule.PickCard(_, next) => fromRule(next, ctx)
     case ProofRule.FrameUnfold(h_pre, h_post, next) => fromRule(next, ctx)
     case ProofRule.Inconsistency => IR.Inconsistency(ctx)
+    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => fromRule(ifTrue, ctx)
   }
 }

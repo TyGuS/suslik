@@ -298,7 +298,7 @@ object ProofTranslation {
                 case ProofRule.Pick(subst, next) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
                   (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+                case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) =>
                   is_variable_used_in_exp(variable)(cond) ||
                     is_variable_used_in_proof(variable)(ifTrue) ||
                     is_variable_used_in_proof(variable)(ifFalse)
@@ -559,7 +559,7 @@ object ProofTranslation {
     }
 
     def handle_abduce_branch_rule(rule: ProofRule.AbduceBranch, context: Context): ProofSteps = rule match {
-      case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+      case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) =>
         ProofSteps.ForwardIf(List(
           translate_proof_rules(ifTrue)(context),
           translate_proof_rules(ifFalse)(context)
@@ -665,7 +665,7 @@ object ProofTranslation {
       rule match {
         //          Branching rules
         case rule@ProofRule.Open(SApp(_, _, _, Var(_)), _, _, _) => handle_open_rule(rule, context)
-        case rule@ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => handle_abduce_branch_rule(rule, context)
+        case rule@ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => handle_abduce_branch_rule(rule, context)
 
         //          Read and write Operations
         case rule@ProofRule.Write(_, _) => handle_write_rule(rule, context)
@@ -718,7 +718,7 @@ object ProofTranslation {
     case ProofRule.NilNotLval(vars, next) => contains_free(next)
     case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_free(next)
     case ProofRule.Pick(subst, next) => contains_free(next)
-    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_free)
+    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_free)
     case ProofRule.Write(stmt, next) => contains_free(next)
     case ProofRule.WeakenPre(unused, next) => contains_free(next)
     case ProofRule.EmpRule => false
@@ -744,7 +744,7 @@ object ProofTranslation {
     case ProofRule.NilNotLval(vars, next) => contains_malloc(next)
     case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_malloc(next)
     case ProofRule.Pick(subst, next) => contains_malloc(next)
-    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_malloc)
+    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_malloc)
     case ProofRule.Write(stmt, next) => contains_malloc(next)
     case ProofRule.WeakenPre(unused, next) => contains_malloc(next)
     case ProofRule.EmpRule => false
