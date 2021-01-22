@@ -96,7 +96,7 @@ object Proof {
       s"ssl_dealloc $ptr"
     }
   }
-  case object Open extends Step {
+  case class Open(selectors: Seq[CExpr]) extends Step {
     def pp: String = "ssl_open"
   }
   case class OpenPost(app: CSApp) extends Step {
@@ -117,7 +117,7 @@ object Proof {
   case object GhostElimPost extends Step {
     def pp: String = "ssl_ghostelim_post"
   }
-  case object AbduceBranch extends Step {
+  case class AbduceBranch(cond: CExpr) extends Step {
     def pp: String = "ssl_abduce_branch"
   }
   case object Emp extends Step {

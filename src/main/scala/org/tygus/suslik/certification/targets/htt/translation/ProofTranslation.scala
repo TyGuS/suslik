@@ -129,8 +129,8 @@ object ProofTranslation {
         visit(next.head)
       case IR.Close(_, _, _, _, next, _) =>
         visit(next.head)
-      case IR.AbduceBranch(_, next, _) =>
-        Proof.AbduceBranch >> Proof.Branch(next.map(visit))
+      case IR.AbduceBranch(cond, next, ctx) =>
+        Proof.AbduceBranch(cond.subst(ctx.substVar)) >> Proof.Branch(next.map(visit))
       case IR.Open(app, clauses, selectors, next, ctx) =>
         val branchSteps = next.zip(clauses).map { case (n, c) =>
           val c1 = c.subst(n.ctx.substVar)
@@ -145,7 +145,7 @@ object ProofTranslation {
             res
           }
         }
-        Proof.Open >> Proof.Branch(branchSteps)
+        Proof.Open(selectors.map(_.subst(ctx.substVar))) >> Proof.Branch(branchSteps)
       case IR.Inconsistency(_) => Proof.Error
       case IR.CheckPost(prePhi, postPhi, next, _) => visit(next.head)
     }
@@ -195,6 +195,8 @@ object ProofTranslation {
       case Proof.Alloc(to, tpe, sz) => (step, Set(to))
       case Proof.Dealloc(v, offset) => (step, Set(v))
       case Proof.Call(args, _) => (step, args.flatMap(_.vars).toSet)
+      case Proof.Open(selectors) => (step, selectors.flatMap(_.vars).toSet)
+      case Proof.AbduceBranch(cond) => (step, cond.vars.toSet)
       case _ => (step, Set.empty)
     }
     visit(step)._1
