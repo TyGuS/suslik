@@ -703,6 +703,7 @@ object ProofTranslation {
 
 
         case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => translate_proof_rules(next)(context)
+        case ProofRule.Branch(cond, ifTrue, ifFalse) => translate_proof_rules(ifTrue)(context)
       }
     }
 
@@ -738,6 +739,7 @@ object ProofTranslation {
     case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => contains_free(next)
     case ProofRule.PickCard(_, next) => contains_free(next)
     case ProofRule.PickArg(map, next) => contains_free(next)
+    case ProofRule.Branch(cond, ifTrue, ifFalse) => contains_free(ifTrue)
   }
 
   def contains_malloc(proof: ProofRule): Boolean = proof match {
@@ -764,6 +766,7 @@ object ProofTranslation {
     case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => contains_malloc(next)
     case ProofRule.PickCard(_, next) => contains_malloc(next)
     case ProofRule.PickArg(map, next) => contains_malloc(next)
+    case ProofRule.Branch(cond, ifTrue, ifFalse) => contains_malloc(ifTrue)
   }
 
 }
