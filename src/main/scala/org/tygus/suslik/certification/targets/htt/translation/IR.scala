@@ -192,19 +192,20 @@ object IR {
     CFunSpec(f.name, rType, params, ghosts, pre, post)
   }
 
-  def fromRule(rule: ProofRule, ctx: IR.Context) : IR.Node = rule match {
-    case ProofRule.Init(goal, next) =>
+  def fromRule(node: ProofRule.Node, ctx: IR.Context) : IR.Node = node.rule match {
+    case ProofRule.Init(goal) =>
       val cgoal = translateGoal(goal)
       val ctx1 = ctx.copy(topLevelGoal = Some(cgoal))
-      IR.Init(ctx1, Seq(fromRule(next, ctx1)))
-    case ProofRule.Open(sapp, fresh_vars, sbst, cases) =>
+      IR.Init(ctx1, Seq(fromRule(node.next.head, ctx1)))
+    case ProofRule.Open(sapp, fresh_vars, sbst, selectors) =>
       val csapp = translateSApp(sapp)
       val freshCVars = fresh_vars.map{ case (k,v) => CVar(k.name) -> translateExpr(v)}
       val csbst = translateSbst(sbst)
       val pred = ctx.predicateEnv(sapp.pred).subst(freshCVars).subst(csbst)
-      val (selectors, next) = cases.map{ case (s, r) => (translateExpr(s), fromRule(r, ctx)) }.unzip
-      IR.Open(csapp, pred.clauses, selectors, next, ctx)
-    case ProofRule.Close(sapp, selector, asn, sbst, next) =>
+      val next = node.next.map(n => fromRule(n, ctx))
+      val cselectors = selectors.map(translateExpr)
+      IR.Open(csapp, pred.clauses, cselectors, next, ctx)
+    case ProofRule.Close(sapp, selector, asn, sbst) =>
       val csapp = translateSApp(sapp)
       val cselector = translateExpr(selector)
       val casn = translateAsn(asn)
@@ -213,62 +214,63 @@ object IR {
       val cclause = pred.clauses.find(_.selector == cselector).get
       val ex = cclause.existentials.map(_.subst(csbst))
       val actualClause = CInductiveClause(csapp.pred, cclause.idx, cselector, casn, ex)
-      fromRule(next, ctx.copy(unfoldings = ctx.unfoldings + (csapp -> actualClause)))
-    case ProofRule.Branch(cond, ifTrue, ifFalse) =>
+      fromRule(node.next.head, ctx.copy(unfoldings = ctx.unfoldings + (csapp -> actualClause)))
+    case ProofRule.Branch(cond) =>
+      val Seq(ifTrue, ifFalse) = node.next
       IR.Branch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
-    case ProofRule.PureSynthesis(is_final, sbst, next) =>
+    case ProofRule.PureSynthesis(is_final, sbst) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
-      IR.PureSynthesis(is_final, Seq(fromRule(next, ctx1)), ctx1)
-    case ProofRule.SubstL(sbst, next) =>
+      IR.PureSynthesis(is_final, Seq(fromRule(node.next.head, ctx1)), ctx1)
+    case ProofRule.SubstL(sbst) =>
       val csbst = translateSbst(sbst)
-      fromRule(next, ctx.copy(subst = ctx.subst ++ csbst))
-    case ProofRule.SubstR(sbst, next) =>
-      val csbst = translateSbst(sbst)
-      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
-      fromRule(next, ctx1)
-    case ProofRule.Pick(sbst, next) =>
+      fromRule(node.next.head, ctx.copy(subst = ctx.subst ++ csbst))
+    case ProofRule.SubstR(sbst) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
-      fromRule(next, ctx1)
-    case ProofRule.Read(ghosts, Load(to, tpe, from, offset), next) =>
+      fromRule(node.next.head, ctx1)
+    case ProofRule.Pick(sbst) =>
+      val csbst = translateSbst(sbst)
+      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
+      fromRule(node.next.head, ctx1)
+    case ProofRule.Read(ghosts, Load(to, tpe, from, offset)) =>
       val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
-      IR.Read(CLoad(CVar(to.name), translateType(tpe), CVar(from.name), offset), Seq(fromRule(next, ctx1)), ctx1)
-    case ProofRule.Write(Store(to, offset, e), next) =>
-      IR.Write(CStore(CVar(to.name), offset, translateExpr(e)), Seq(fromRule(next, ctx)), ctx)
-    case ProofRule.Free(Statements.Free(v), size, next) =>
-      IR.Free(CFree(CVar(v.name), size), Seq(fromRule(next, ctx)), ctx)
-    case ProofRule.Malloc(ghosts, Statements.Malloc(to, tpe, sz), next) =>
+      IR.Read(CLoad(CVar(to.name), translateType(tpe), CVar(from.name), offset), Seq(fromRule(node.next.head, ctx1)), ctx1)
+    case ProofRule.Write(Store(to, offset, e)) =>
+      IR.Write(CStore(CVar(to.name), offset, translateExpr(e)), Seq(fromRule(node.next.head, ctx)), ctx)
+    case ProofRule.Free(Statements.Free(v), size) =>
+      IR.Free(CFree(CVar(v.name), size), Seq(fromRule(node.next.head, ctx)), ctx)
+    case ProofRule.Malloc(ghosts, Statements.Malloc(to, tpe, sz)) =>
       val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
-      IR.Malloc(CMalloc(CVar(to.name), translateType(tpe), sz), Seq(fromRule(next, ctx1)), ctx1)
-    case ProofRule.Call(_, Statements.Call(fun, args, _), next) =>
+      IR.Malloc(CMalloc(CVar(to.name), translateType(tpe), sz), Seq(fromRule(node.next.head, ctx1)), ctx1)
+    case ProofRule.Call(_, Statements.Call(fun, args, _)) =>
       val ctx1 = ctx.copy(nestedContext = ctx.nestedContext.map(_.applySubstitution))
       val ctx2 = ctx1.copy(nestedContext = None)
-      IR.Call(CCall(CVar(fun.name), args.map(translateExpr)), Seq(fromRule(next, ctx2)), ctx1)
-    case ProofRule.PickArg(sbst, next) =>
+      IR.Call(CCall(CVar(fun.name), args.map(translateExpr)), Seq(fromRule(node.next.head, ctx2)), ctx1)
+    case ProofRule.PickArg(sbst) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
-      fromRule(next, ctx1)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma, next) =>
+      fromRule(node.next.head, ctx1)
+    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma) =>
       val cfunspec = translateFunSpec(f, gamma)
       val ccall = CCall(translateVar(call.fun), call.args.map(translateExpr))
       val nestedContext = NestedContext(funspec = cfunspec, call = ccall, freshToActual = translateSbst(freshToActual), companionToFresh = translateSbstVar(companionToFresh))
       val ctx1 = ctx.copy(nestedContext = Some(nestedContext))
-      fromRule(next, ctx1)
-    case ProofRule.HeapUnifyPointer(sbst, next) =>
+      fromRule(node.next.head, ctx1)
+    case ProofRule.HeapUnifyPointer(sbst) =>
       val ctx1 = ctx.copy(subst = ctx.subst ++ translateSbst(sbst))
-      fromRule(next, ctx1)
+      fromRule(node.next.head, ctx1)
     case ProofRule.EmpRule => IR.EmpRule(ctx)
-    case ProofRule.CheckPost(prePhi, postPhi, next) =>
-      IR.CheckPost(prePhi.conjuncts.map(translateExpr), postPhi.conjuncts.map(translateExpr), Seq(fromRule(next, ctx)), ctx)
+    case ProofRule.CheckPost(prePhi, postPhi) =>
+      IR.CheckPost(prePhi.conjuncts.map(translateExpr), postPhi.conjuncts.map(translateExpr), Seq(fromRule(node.next.head, ctx)), ctx)
     // unused rules:
-    case ProofRule.HeapUnify(_, next) => fromRule(next, ctx)
-    case ProofRule.NilNotLval(_, next) => fromRule(next, ctx)
-    case ProofRule.WeakenPre(_, next) => fromRule(next, ctx)
-    case ProofRule.StarPartial(_, _, next) => fromRule(next, ctx)
-    case ProofRule.PickCard(_, next) => fromRule(next, ctx)
-    case ProofRule.FrameUnfold(h_pre, h_post, next) => fromRule(next, ctx)
+    case ProofRule.HeapUnify(_) => fromRule(node.next.head, ctx)
+    case ProofRule.NilNotLval(_) => fromRule(node.next.head, ctx)
+    case ProofRule.WeakenPre(_) => fromRule(node.next.head, ctx)
+    case ProofRule.StarPartial(_, _) => fromRule(node.next.head, ctx)
+    case ProofRule.PickCard(_) => fromRule(node.next.head, ctx)
+    case ProofRule.FrameUnfold(h_pre, h_post) => fromRule(node.next.head, ctx)
     case ProofRule.Inconsistency => IR.Inconsistency(ctx)
-    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => fromRule(ifTrue, ctx)
+    case ProofRule.AbduceBranch(cond, bLabel) => fromRule(node.next.head, ctx)
   }
 }

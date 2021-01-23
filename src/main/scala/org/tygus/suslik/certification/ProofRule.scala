@@ -17,8 +17,6 @@ import scala.collection.immutable.Map
 
 /** compressed form of suslik rules */
 sealed abstract class ProofRule extends PrettyPrinting {
-  val next1: Seq[ProofRule]
-  val cardinality: Int = 1
 }
 
 object ProofRule {
@@ -36,81 +34,78 @@ object ProofRule {
     result
   }
 
+  case class Node(rule: ProofRule, label: GoalLabel, next: Seq[Node]) extends PrettyPrinting {
+    override def pp: String = rule match {
+      case ProofRule.AbduceBranch(cond, bLabel) =>
+        val Seq(ifTrue, ifFalse) = next
+        s"$ind${rule.pp}\n${ind}IfTrue:\n${with_scope(_ => ifTrue.pp)}\n${ind}IfFalse:\n${with_scope(_ => ifFalse.pp)}"
+      case ProofRule.Open(pred, fresh_vars, sbst, selectors) =>
+        val cases = selectors.zip(next)
+        s"$ind${rule.pp}\n${with_scope(_ => cases.map({case (expr,rest) => s"${ind}if ${sanitize(expr.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
+      case _ =>
+        s"$ind${rule.pp}\n${next.map(_.pp).mkString("")}"
+    }
+  }
 
   /** corresponds to asserting all the variables in vars are not null */
-  case class NilNotLval(vars: List[Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}NilNotLval(${vars.map(_.pp).mkString(", ")});\n${next.pp}"
+  case class NilNotLval(vars: List[Expr]) extends ProofRule {
+    override def pp: String = s"NilNotLval(${vars.map(_.pp).mkString(", ")});"
   }
 
   /** solves a pure entailment with SMT */
-  case class CheckPost(prePhi: PFormula, postPhi: PFormula, next:ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}CheckPost(${prePhi.pp}; ${postPhi.pp});\n${next.pp}"
+  case class CheckPost(prePhi: PFormula, postPhi: PFormula) extends ProofRule {
+    override def pp: String = s"CheckPost(${prePhi.pp}; ${postPhi.pp});"
   }
 
   /** picks an arbitrary instantiation of the proof rules */
-  case class Pick(subst: Map[Var, Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Pick(${subst.mkString(", ")});\n${next.pp}"
+  case class Pick(subst: Map[Var, Expr]) extends ProofRule {
+    override def pp: String = s"Pick(${subst.mkString(", ")});"
   }
 
   /** abduces a condition for the proof */
-  case class AbduceBranch(cond: Expr, bLabel: GoalLabel, ifTrue:ProofRule, ifFalse:ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(ifTrue, ifFalse)
-    override val cardinality: Int = 2
-    override def pp: String = s"${ind}AbduceBranch(${cond});\n${ind}IfTrue:\n${with_scope(_ => ifTrue.pp)}\n${ind}IfFalse:\n${with_scope(_ => ifFalse.pp)}"
+  case class AbduceBranch(cond: Expr, bLabel: GoalLabel) extends ProofRule {
+    override def pp: String = s"AbduceBranch(${cond});"
   }
 
   /** write a value */
-  case class Write(stmt: Store, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Write(${sanitize(stmt.pp)});\n${next.pp}"
+  case class Write(stmt: Store) extends ProofRule {
+    override def pp: String = s"Write(${sanitize(stmt.pp)});"
   }
 
   /** weaken the precondition by removing unused formulae */
-  case class WeakenPre(unused: PFormula, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}WeakenPre(${unused.pp});\n${next.pp}"
+  case class WeakenPre(unused: PFormula) extends ProofRule {
+    override def pp: String = s"WeakenPre(${unused.pp});"
   }
 
   /** empty rule */
   case object EmpRule extends ProofRule {
-    val next1: Seq[ProofRule] = Seq.empty
-    override val cardinality: Int = 0
-    override def pp: String = s"${ind}EmpRule;"
+    override def pp: String = s"EmpRule;"
   }
 
   /** pure synthesis rules */
-  case class PureSynthesis(is_final: Boolean, assignments:Map[Var, Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}PureSynthesis(${is_final}, ${assignments.mkString(",")});\n${next.pp}"
+  case class PureSynthesis(is_final: Boolean, assignments:Map[Var, Expr]) extends ProofRule {
+    override def pp: String = s"PureSynthesis(${is_final}, ${assignments.mkString(",")});"
   }
 
   /** open constructor cases */
-  case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, cases: List[(Expr, ProofRule)]) extends ProofRule {
-    val next1: Seq[ProofRule] = cases.map(_._2)
-    override val cardinality: Int = cases.length
-    override def pp: String = s"${ind}Open(${pred.pp}, ${fresh_vars.mkString(", ")});\n${with_scope(_ => cases.map({case (expr,rest) => s"${ind}if ${sanitize(expr.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
+  case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, selectors: List[Expr]) extends ProofRule {
+    override def pp: String = s"Open(${pred.pp}, ${fresh_vars.mkString(", ")});"
   }
 
   /** subst L */
-  case class SubstL(map: Map[Var, Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}SubstL(${map.mkString(",")});\n${next.pp}"
+  case class SubstL(map: Map[Var, Expr]) extends ProofRule {
+    override def pp: String = s"SubstL(${map.mkString(",")});"
   }
 
   /** subst R */
-  case class SubstR(map: Map[Var, Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}SubstR(${map.mkString(",")});\n${next.pp}"
+  case class SubstR(map: Map[Var, Expr]) extends ProofRule {
+    override def pp: String = s"SubstR(${map.mkString(",")});"
   }
 
 
   /** read rule */
-  case class Read(map: Map[Var,Var], operation: Load, next:ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Read(${map.mkString(",")}, ${sanitize(operation.pp)});\n${next.pp}"
+  case class Read(map: Map[Var,Var], operation: Load) extends ProofRule {
+    override def pp: String = s"Read(${map.mkString(",")}, ${sanitize(operation.pp)});"
   }
 
 //  /** abduce a call */
@@ -122,99 +117,82 @@ case class AbduceCall(
                        freshSub: SubstVar,
                        freshToActual: Subst,
                        f: FunSpec,
-                       gamma: Gamma,
-                       next: ProofRule
+                       gamma: Gamma
                      ) extends ProofRule {
-  val next1: Seq[ProofRule] = Seq(next)
-  override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});\n${next.pp}"
+  override def pp: String = s"AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
 }
 
 
   /** unification of heap (ignores block/pure distinction) */
-  case class HeapUnify(subst: Map[Var, Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}HeapUnify(${subst.mkString(",")});\n${next.pp}"
+  case class HeapUnify(subst: Map[Var, Expr]) extends ProofRule {
+    override def pp: String = s"HeapUnify(${subst.mkString(",")});"
   }
 
   /** unification of pointers */
-  case class HeapUnifyPointer(map: Map[Var,Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}HeapUnifyPointer(${map.mkString(",")});\n${next.pp}"
+  case class HeapUnifyPointer(map: Map[Var,Expr]) extends ProofRule {
+    override def pp: String = s"HeapUnifyPointer(${map.mkString(",")});"
   }
 
   /** unfolds frame */
-  case class FrameUnfold(h_pre: Heaplet, h_post: Heaplet, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}FrameUnfold(${h_pre.pp}, ${h_post.pp});\n${next.pp}"
+  case class FrameUnfold(h_pre: Heaplet, h_post: Heaplet) extends ProofRule {
+    override def pp: String = s"FrameUnfold(${h_pre.pp}, ${h_post.pp});"
   }
 
   /** call operation */
-  case class Call(subst: Map[Var, Expr], call: Statements.Call, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Call({${subst.mkString(",")}}, ${sanitize(call.pp)});\n${next.pp}"
+  case class Call(subst: Map[Var, Expr], call: Statements.Call) extends ProofRule {
+    override def pp: String = s"Call({${subst.mkString(",")}}, ${sanitize(call.pp)});"
   }
 
   /** free operation */
-  case class Free(stmt: Statements.Free, size: Int, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Free(${sanitize(stmt.pp)});\n${next.pp}"
+  case class Free(stmt: Statements.Free, size: Int) extends ProofRule {
+    override def pp: String = s"Free(${sanitize(stmt.pp)});"
   }
 
   /** malloc rule */
-  case class Malloc(map: SubstVar, stmt: Statements.Malloc, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Malloc(${map.mkString(",")}, ${sanitize(stmt.pp)});\n${next.pp}"
+  case class Malloc(map: SubstVar, stmt: Statements.Malloc) extends ProofRule {
+    override def pp: String = s"Malloc(${map.mkString(",")}, ${sanitize(stmt.pp)});"
   }
 
   /** close rule */
-  case class Close(app: SApp, selector: Expr, asn: Assertion, fresh_exist: SubstVar, next: ProofRule) extends  ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Close(${app.pp}, ${sanitize(selector.pp)}, ${asn.pp}, {${fresh_exist.mkString(",")}});\n${next.pp}"
+  case class Close(app: SApp, selector: Expr, asn: Assertion, fresh_exist: SubstVar) extends  ProofRule {
+    override def pp: String = s"Close(${app.pp}, ${sanitize(selector.pp)}, ${asn.pp}, {${fresh_exist.mkString(",")}});"
   }
 
   /** star partial */
-  case class StarPartial(new_pre_phi: PFormula, new_post_phi: PFormula, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}StarPartial(${new_pre_phi.pp}, ${new_post_phi.pp});\n${next.pp}"
+  case class StarPartial(new_pre_phi: PFormula, new_post_phi: PFormula) extends ProofRule {
+    override def pp: String = s"StarPartial(${new_pre_phi.pp}, ${new_post_phi.pp});"
   }
 
-  case class PickCard(map: Map[Var,Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}PickCard(${map.mkString(",")});\n${next.pp}"
+  case class PickCard(map: Map[Var,Expr]) extends ProofRule {
+    override def pp: String = s"PickCard(${map.mkString(",")});"
   }
 
 
-  case class PickArg(map: Map[Var, Expr], next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}PickArg(${map.mkString(",")});\n${next.pp}"
+  case class PickArg(map: Map[Var, Expr]) extends ProofRule {
+    override def pp: String = s"PickArg(${map.mkString(",")});"
   }
 
-  case class Init(goal: Goal, next: ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(next)
-    override def pp: String = s"${ind}Init(${goal.pp});\n${next.pp}"
+  case class Init(goal: Goal) extends ProofRule {
+    override def pp: String = s"Init(${goal.pp});"
   }
 
   case object Inconsistency extends ProofRule {
-    val next1: Seq[ProofRule] = Seq.empty
-    override val cardinality: Int = 0
     override def pp: String = "Inconsistency"
   }
 
-  case class Branch(cond: Expr, ifTrue:ProofRule, ifFalse:ProofRule) extends ProofRule {
-    val next1: Seq[ProofRule] = Seq(ifTrue, ifFalse)
-    override val cardinality: Int = 2
-    override def pp: String = s"${ind}Branch($cond);\n${ind}IfTrue:\n${with_scope(_ => ifTrue.pp)}\n${ind}IfFalse:\n${with_scope(_ => ifFalse.pp)}"
+  case class Branch(cond: Expr) extends ProofRule {
+    override def pp: String = s"Branch($cond);"
   }
 
   /** converts a Suslik CertTree node into the unified ProofRule structure */
-  def of_certtree(node: CertTree.Node): ProofRule = {
+  def of_certtree(node: CertTree.Node): Node = {
     def fail_with_bad_proof_structure(): Nothing =
       throw ProofRuleTranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
     def fail_with_bad_children(ls: Seq[CertTree.Node], count: Int): Nothing =
       throw ProofRuleTranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != $count")
 
-    def visit(node: CertTree.Node): (ProofRule, Map[ProofRule, GoalLabel]) = {
-      val (r, labels: Map[ProofRule, GoalLabel]) = node.rule match {
+    def visit(node: CertTree.Node): Node = {
+      val rule = node.rule match {
         case LogicalRules.NilNotLval => node.kont match {
           case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
             // find all pointers that are not yet known to be non-null
@@ -229,18 +207,14 @@ case class AbduceCall(
             val pre_pointers = find_pointers(node.goal.pre.phi, node.goal.pre.sigma).toList
 
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.NilNotLval(pre_pointers, next), labels)
+              case ::(head, Nil) => ProofRule.NilNotLval(pre_pointers)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
         }
         case FailRules.CheckPost => node.kont match {
           case ChainedProducer(PureEntailmentProducer(prePhi, postPhi), IdProducer) => node.children match {
-            case ::(head, Nil) =>
-              val (next, labels) = visit(head)
-              (ProofRule.CheckPost(prePhi, postPhi, next), labels)
+            case ::(head, Nil) => ProofRule.CheckPost(prePhi, postPhi)
             case ls => fail_with_bad_children(ls, 1)
           }
           case _ => fail_with_bad_proof_structure()
@@ -248,20 +222,15 @@ case class AbduceCall(
         case UnificationRules.Pick => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.Pick(map, next), labels)
+              case ::(head, Nil) => ProofRule.Pick(map)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
         }
         case FailRules.AbduceBranch => node.kont match {
-          case GuardedProducer(cond, bgoal) =>
+          case GuardedProducer(cond, bGoal) =>
             node.children match {
-              case ::(if_true, ::(if_false, Nil)) =>
-                val (if_true1, labels) = visit(if_true)
-                val (if_false1, labels1) = visit(if_false)
-                (ProofRule.AbduceBranch(cond, bgoal.label, if_true1, if_false1), labels ++ labels1)
+              case ::(if_true, ::(if_false, Nil)) => ProofRule.AbduceBranch(cond, bGoal.label)
               case ls => fail_with_bad_children(ls, 2)
             }
           case _ => fail_with_bad_proof_structure()
@@ -269,9 +238,7 @@ case class AbduceCall(
         case OperationalRules.WriteRule => node.kont match {
           case ChainedProducer(ChainedProducer(PrependProducer(stmt@Store(_, _, _)), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.Write(stmt, next), labels)
+              case ::(head, Nil) => ProofRule.Write(stmt)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -279,7 +246,7 @@ case class AbduceCall(
         case LogicalRules.Inconsistency => node.kont match {
           case ConstProducer(Error) =>
             node.children match {
-              case Nil => (ProofRule.Inconsistency, Map.empty)
+              case Nil => ProofRule.Inconsistency
               case ls => fail_with_bad_children(ls, 0)
             }
           case _ => fail_with_bad_proof_structure()
@@ -288,9 +255,7 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
             val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.WeakenPre(unused, next), labels)
+              case ::(head, Nil) => ProofRule.WeakenPre(unused)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -298,7 +263,7 @@ case class AbduceCall(
         case LogicalRules.EmpRule => node.kont match {
           case ConstProducer(Skip) =>
             node.children match {
-              case Nil => (ProofRule.EmpRule, Map.empty)
+              case Nil => ProofRule.EmpRule
               case ls => fail_with_bad_children(ls, 0)
             }
           case _ => fail_with_bad_proof_structure()
@@ -307,24 +272,20 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(assignments), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
               case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.PureSynthesis(is_final = true, assignments, next), labels)
+                ProofRule.PureSynthesis(is_final = true, assignments)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
         }
         case UnfoldingRules.Open => node.kont match {
           case ChainedProducer(ChainedProducer(BranchProducer(Some(pred), fresh_vars, sbst, selectors), HandleGuard(_)), ExtractHelper(_)) =>
-            val (next, labels) = node.children.map(visit).unzip
-            (ProofRule.Open(pred, fresh_vars, sbst, selectors.zip(next).toList), labels.reduceOption[Map[ProofRule, GoalLabel]](_ ++ _).getOrElse(Map.empty))
+            ProofRule.Open(pred, fresh_vars, sbst, selectors.toList)
           case _ => fail_with_bad_proof_structure()
         }
         case LogicalRules.SubstLeft => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.SubstL(map, next), labels)
+              case ::(head, Nil) => ProofRule.SubstL(map)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -332,9 +293,7 @@ case class AbduceCall(
         case UnificationRules.SubstRight => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.SubstR(map, next), labels)
+              case ::(head, Nil) => ProofRule.SubstR(map)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -342,9 +301,7 @@ case class AbduceCall(
         case OperationalRules.ReadRule => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(GhostSubstProducer(map), PrependProducer(stmt@Load(_, _, _, _))), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.Read(map, stmt, next), labels)
+              case ::(head, Nil) => ProofRule.Read(map, stmt)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -358,8 +315,7 @@ case class AbduceCall(
                   head.goal.gamma.filterKeys(key => !node.goal.gamma.contains(key))
                 val f_pre = head.goal.post
                 var SuspendedCallGoal(caller_pre, caller_post, callePost, call, freshSub, freshToActual) = head.goal.callGoal.get
-                val (next, labels) = visit(head)
-                (ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, head.goal.gamma, next), labels)
+                ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, head.goal.gamma)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -367,9 +323,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyPure => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.HeapUnify(subst, next), labels)
+              case ::(head, Nil) => ProofRule.HeapUnify(subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -377,9 +331,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyUnfolding => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.HeapUnify(subst, next), labels)
+              case ::(head, Nil) => ProofRule.HeapUnify(subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -387,9 +339,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyBlock => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.HeapUnify(subst, next), labels)
+              case ::(head, Nil) => ProofRule.HeapUnify(subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -397,9 +347,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyPointer => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.HeapUnifyPointer(subst, next), labels)
+              case ::(head, Nil) => ProofRule.HeapUnifyPointer(subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -416,8 +364,7 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    val (next, labels) = visit(head)
-                    (ProofRule.FrameUnfold(h_pre, h_post, next), labels)
+                    ProofRule.FrameUnfold(h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
@@ -435,8 +382,7 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    val (next, labels) = visit(head)
-                    (ProofRule.FrameUnfold(h_pre, h_post, next), labels)
+                    ProofRule.FrameUnfold(h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
@@ -454,8 +400,7 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    val (next, labels) = visit(head)
-                    (ProofRule.FrameUnfold(h_pre, h_post, next), labels)
+                    ProofRule.FrameUnfold(h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
@@ -473,19 +418,16 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    val (next, labels) = visit(head)
-                    (ProofRule.FrameUnfold(h_pre, h_post, next), labels)
+                    ProofRule.FrameUnfold(h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
         }
         case UnfoldingRules.CallRule => node.kont match {
-          case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), PrependProducer(call: Statements.Call)), HandleGuard(_)), ExtractHelper(_)) =>
+          case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst),PrependProducer(call: Statements.Call)), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.Call(subst, call, next), labels)
+              case ::(head, Nil) => ProofRule.Call(subst, call)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -497,9 +439,7 @@ case class AbduceCall(
               case None => 1
             }
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.Free(stmt, size, next), labels)
+              case ::(head, Nil) => ProofRule.Free(stmt, size)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -508,8 +448,8 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(ChainedProducer(GhostSubstProducer(map), PrependProducer(stmt@Statements.Malloc(_, _, _))), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
               case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.Malloc(map, stmt, next), labels)
+                ProofRule.
+                  Malloc(map, stmt)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -518,8 +458,7 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(ChainedProducer(UnfoldProducer(app, selector, asn, fresh_exist), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
               case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.Close(app, selector, asn, fresh_exist, next), labels)
+                ProofRule.Close(app, selector, asn, fresh_exist)
               case ls => fail_with_bad_children(ls, 1)
             }
         }
@@ -530,8 +469,7 @@ case class AbduceCall(
 
             node.children match {
               case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.StarPartial(new_pre_phi, new_post_phi, next), labels)
+                ProofRule.StarPartial(new_pre_phi, new_post_phi)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -540,26 +478,25 @@ case class AbduceCall(
         case UnificationRules.PickCard => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.PickCard(map, next), labels)
+              case ::(head, Nil) => ProofRule.PickCard(map)
               case ls => fail_with_bad_children(ls, 1)
             }
         }
         case UnificationRules.PickArg => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
-              case ::(head, Nil) =>
-                val (next, labels) = visit(head)
-                (ProofRule.PickArg(map, next), labels)
+              case ::(head, Nil) => ProofRule.PickArg(map)
               case ls => fail_with_bad_children(ls, 1)
             }
         }
       }
-      (r, labels + (r -> node.goal.label))
+
+      Node(rule, node.goal.label, node.children.map(visit))
     }
-    val (root, labels) = visit(node)
-    finalize_branches(root, labels)
+
+    val rest = visit(node)
+    val tree = Node(Init(node.goal), null, Seq(rest))
+    finalize_branches(tree)
   }
 
   /**
@@ -575,60 +512,27 @@ case class AbduceCall(
     * --A-----B-C---        --E-A-----B-C---
     *
     * @param node the root node of the tree
-    * @param labels the goal label associated with each proof rule, used to look up the branch destination
     * @return a copy of the tree with finalized branches inserted
     */
-  def finalize_branches(node: ProofRule, labels: Map[ProofRule, GoalLabel]): ProofRule = {
-    def collect_branch_abductions(node: ProofRule, acc: Set[AbduceBranch] = Set.empty): Set[AbduceBranch] = node match {
-      case ab:AbduceBranch => node.next1.foldLeft(acc + ab){ case (acc, next) => collect_branch_abductions(next, acc) }
-      case _ => node.next1.foldLeft(acc){ case (acc, next) => collect_branch_abductions(next, acc) }
-    }
-    def apply_branch_abductions(node: ProofRule, known_abductions: Set[AbduceBranch]) : ProofRule = {
-      def with_next(node: ProofRule, next: Seq[ProofRule]): ProofRule = node match {
-        case r:ProofRule.NilNotLval=> r.copy(next = next.head)
-        case r:ProofRule.CheckPost => r.copy(next = next.head)
-        case r:ProofRule.Pick => r.copy(next = next.head)
-        case r:ProofRule.AbduceBranch =>
-          val Seq(ifTrue, ifFalse) = next
-          r.copy(ifTrue = ifTrue, ifFalse = ifFalse)
-        case r:ProofRule.Branch =>
-          val Seq(ifTrue, ifFalse) = next
-          r.copy(ifTrue = ifTrue, ifFalse = ifFalse)
-        case r:ProofRule.Write => r.copy(next = next.head)
-        case r:ProofRule.WeakenPre => r.copy(next = next.head)
-        case r:ProofRule.PureSynthesis => r.copy(next = next.head)
-        case r:ProofRule.Open => r.copy(cases = r.cases.zip(next).map(c => (c._1._1, c._2)))
-        case r:ProofRule.SubstL => r.copy(next = next.head)
-        case r:ProofRule.SubstR => r.copy(next = next.head)
-        case r:ProofRule.Read => r.copy(next = next.head)
-        case r:ProofRule.AbduceCall => r.copy(next = next.head)
-        case r:ProofRule.HeapUnify => r.copy(next = next.head)
-        case r:ProofRule.HeapUnifyPointer => r.copy(next = next.head)
-        case r:ProofRule.FrameUnfold => r.copy(next = next.head)
-        case r:ProofRule.Call => r.copy(next = next.head)
-        case r:ProofRule.Free => r.copy(next = next.head)
-        case r:ProofRule.Malloc => r.copy(next = next.head)
-        case r:ProofRule.Close => r.copy(next = next.head)
-        case r:ProofRule.StarPartial => r.copy(next = next.head)
-        case r:ProofRule.PickCard => r.copy(next = next.head)
-        case r:ProofRule.PickArg => r.copy(next = next.head)
-        case r:ProofRule.Init => r.copy(next = next.head)
-        case ProofRule.EmpRule => ProofRule.EmpRule
-        case ProofRule.Inconsistency => ProofRule.Inconsistency
+    def finalize_branches(node: Node): Node = {
+      def collect_branch_abductions(node: Node, abductions: Set[Node] = Set.empty): Set[Node] = {
+        val abductions1 = node.rule match {
+          case ab:AbduceBranch => abductions + node
+          case _ => abductions
+        }
+        node.next.foldLeft(abductions1) { case (a, n) => collect_branch_abductions(n, a) }
       }
-      val nodeLabel = labels(node)
-      known_abductions.find(_.bLabel == nodeLabel) match {
-        case Some(AbduceBranch(cond, bLabel, ifTrue, ifFalse)) =>
-          assert(node.cardinality == 1)
-          val ifTrue1 = with_next(node, Seq(apply_branch_abductions(node.next1.head, known_abductions)))
-          val ifFalse1 = apply_branch_abductions(ifFalse, known_abductions)
-          Branch(cond, ifTrue1, ifFalse1)
-        case None =>
-          val next = node.next1.map(next => apply_branch_abductions(next, known_abductions))
-          with_next(node, next)
+      def apply_branch_abductions(abductions: Set[Node])(node: Node): Node = {
+        abductions.find(_.rule.asInstanceOf[AbduceBranch].bLabel == node.label) match {
+          case Some(ab@Node(AbduceBranch(cond, bLabel), _, _)) =>
+            val Seq(ifTrue, ifFalse) = ab.next
+            val ifTrue1 = node.copy(next = node.next.map(apply_branch_abductions(abductions)))
+            val ifFalse1 = apply_branch_abductions(abductions)(ifFalse)
+            Node(Branch(cond), ab.label, Seq(ifTrue1, ifFalse1))
+          case None =>
+            node.copy(next = node.next.map(apply_branch_abductions(abductions)))
+        }
       }
+      apply_branch_abductions(collect_branch_abductions(node))(node)
     }
-    val abductions = collect_branch_abductions(node)
-    apply_branch_abductions(node, abductions)
-  }
 }

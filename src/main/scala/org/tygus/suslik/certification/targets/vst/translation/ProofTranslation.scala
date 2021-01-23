@@ -267,8 +267,8 @@ object ProofTranslation {
       *      - first assert that the pointer being read from is non-null (VST idiosynracy)
       *      - emit a forward tactic to move over the operation
       */
-    def handle_read_rule(rule: ProofRule.Read, context: Context): ProofSteps = rule match {
-      case ProofRule.Read(subst, option, next) =>
+    def handle_read_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.Read(subst, option) =>
         subst.toList match {
           case ::((Var(old_var), Var(new_var)), _) =>
             def is_variable_used_in_exp(variable: Ident)(expr: Expr): Boolean = expr match {
@@ -284,65 +284,54 @@ object ProofTranslation {
                 is_variable_used_in_exp(variable)(cond) || is_variable_used_in_exp(variable)(left) || is_variable_used_in_exp(variable)(right)
             }
 
-            def is_variable_used_in_proof(variable: Ident)(rule: ProofRule): Boolean = {
+            def is_variable_used_in_proof(variable: Ident)(node: ProofRule.Node): Boolean = {
               def map_varaible(map: Map[Var, Expr]): Ident =
                 map.get(Var(variable)).flatMap({ case Var(name) => Some(name) case _ => None }).getOrElse(variable)
 
-              rule match {
-                case ProofRule.NilNotLval(vars, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.CheckPost(prePhi, postPhi, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.PickCard(_, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.PickArg(_, next) =>
+              node.rule match {
+                case ProofRule.PickArg(_) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
-                  (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.Pick(subst, next) =>
+                  (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(node.next.head)
+                case ProofRule.Pick(subst) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
-                  (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) =>
+                  (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(node.next.head)
+                case ProofRule.AbduceBranch(cond, bLabel) =>
+                  val Seq(ifTrue, ifFalse) = node.next
                   is_variable_used_in_exp(variable)(cond) ||
                     is_variable_used_in_proof(variable)(ifTrue) ||
                     is_variable_used_in_proof(variable)(ifFalse)
-                case ProofRule.Write(Statements.Store(Var(tov), offset, e), next) =>
-                  (tov == variable) || is_variable_used_in_exp(variable)(e) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.WeakenPre(unused, next) => is_variable_used_in_proof(variable)(next)
+                case ProofRule.Write(Statements.Store(Var(tov), offset, e)) =>
+                  (tov == variable) || is_variable_used_in_exp(variable)(e) || is_variable_used_in_proof(variable)(node.next.head)
                 case ProofRule.EmpRule => false
-                case ProofRule.PureSynthesis(is_final, assignments, next) =>
-                  is_variable_used_in_proof(variable)(next)
-                case ProofRule.Open(pred, fresh_vars, sbst, cases) =>
-                  cases.exists({ case (expr, rule) =>
+                case ProofRule.Open(pred, fresh_vars, sbst, selectors) =>
+                  val cases = selectors.zip(node.next)
+                  cases.exists({ case (expr, next) =>
                     is_variable_used_in_exp(variable)(expr) ||
-                      is_variable_used_in_proof(variable)(rule)
+                      is_variable_used_in_proof(variable)(next)
                   })
-                case ProofRule.SubstL(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.SubstR(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) =>
-                  is_variable_used_in_proof(variable)(next)
-                case ProofRule.HeapUnify(_,next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.HeapUnifyPointer(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.FrameUnfold(h_pre, h_post, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.Close(app, selector, asn, fresh_exist, next) =>
-                  is_variable_used_in_proof(variable)(next)
-                case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) =>
-                  is_variable_used_in_proof(variable)(next)
-                case ProofRule.Read(map, Load(Var(toe), _, Var(frome), offset), next) =>
-                  (frome == variable) || ((toe != variable) && is_variable_used_in_proof(variable)(next))
-                case ProofRule.Call(_, Call(_, args, _), next) =>
+                case ProofRule.SubstL(map) => is_variable_used_in_proof(map_varaible(map))(node.next.head)
+                case ProofRule.SubstR(map) => is_variable_used_in_proof(map_varaible(map))(node.next.head)
+                case ProofRule.HeapUnifyPointer(map) => is_variable_used_in_proof(map_varaible(map))(node.next.head)
+                case ProofRule.Read(map, Load(Var(toe), _, Var(frome), offset)) =>
+                  (frome == variable) || ((toe != variable) && is_variable_used_in_proof(variable)(node.next.head))
+                case ProofRule.Call(_, Call(_, args, _)) =>
                   args.exists(is_variable_used_in_exp(variable)) ||
-                    is_variable_used_in_proof(variable)(next)
-                case ProofRule.Free(Free(Var(v)), _, next) =>
-                  (v == variable) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.Malloc(map, Malloc(Var(toe), tpe, sz), next) =>
-                  (toe != variable) && is_variable_used_in_proof(variable)(next)
+                    is_variable_used_in_proof(variable)(node.next.head)
+                case ProofRule.Free(Free(Var(v)), _) =>
+                  (v == variable) || is_variable_used_in_proof(variable)(node.next.head)
+                case ProofRule.Malloc(map, Malloc(Var(toe), tpe, sz)) =>
+                  (toe != variable) && is_variable_used_in_proof(variable)(node.next.head)
+                case _ => is_variable_used_in_proof(variable)(node.next.head)
               }
             }
 
             val new_context = record_variable_mapping(subst)(context)
             val rest = (retrieve_typing_context(context).get(old_var)) match {
               case Some(CoqPtrType) =>
-                ProofSteps.ValidPointerOrNull(new_var, translate_proof_rules(next)(new_context))
-              case _ => translate_proof_rules(next)(new_context)
+                ProofSteps.ValidPointerOrNull(new_var, translate_proof_rules(node.next.head)(new_context))
+              case _ => translate_proof_rules(node.next.head)(new_context)
             }
-            if (is_variable_used_in_proof(new_var)(next)) {
+            if (is_variable_used_in_proof(new_var)(node.next.head)) {
               ProofSteps.Rename(old_var, new_var,
                 ProofSteps.Forward(
                   rest
@@ -362,14 +351,15 @@ object ProofTranslation {
       * Does this by mapping each constructor of the opened predicate to a branch of the rule,
       * and then for each branch introducing the variables that it uses.
       */
-    def handle_open_rule(rule: ProofRule.Open, context: Context): ProofSteps = rule match {
-      case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, sbst, cases) =>
+    def handle_open_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, sbst, selectors) =>
         val pred = pred_map(predicate_name)
+        val cases = selectors.zip(node.next)
         ProofSteps.ForwardIfConstructor(
           card_variable,
           predicate_name,
           pred.clauses.zip(cases).map({
-            case ((constructor, clause), (expr, rule)) =>
+            case ((constructor, clause), (expr, next)) =>
               // each clause of the type introduces existentials
               val new_variables = pred.constructor_existentials(constructor).map({
                 // rename existential variables if they have been assigned fresh variables
@@ -384,21 +374,21 @@ object ProofTranslation {
               ((pred.constructor_name(constructor), constructor, constructor_args),
                 ProofSpecTranslation.translate_expression(retrieve_typing_context(context).toMap)(expr),
                 new_variables.map(_._1),
-                translate_proof_rules(rule)(new_context))
+                translate_proof_rules(next)(new_context))
           }).toList
         )
     }
 
-    def handle_pick_rule(rule: ProofRule.Pick, context: Context): ProofSteps = rule match {
-      case ProofRule.Pick(subst, next) =>
+    def handle_pick_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.Pick(subst) =>
         val new_context = subst.map({case (Var(name), expr) => (name,expr) }).foldRight(context)({
           case ((name,expr), context) =>   record_variable_assignment(name,expr)(context)
         })
-        translate_proof_rules(next)(new_context)
+        translate_proof_rules(node.next.head)(new_context)
     }
 
-    def handle_pick_card_rule(rule: ProofRule.PickCard, context: Context): ProofSteps = rule match {
-      case ProofRule.PickCard(subst, next) =>
+    def handle_pick_card_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.PickCard(subst) =>
 
         /** Given an expression representing a pick of a cardinality variable
           * returns the corresponding cardinality constructor
@@ -432,15 +422,15 @@ object ProofTranslation {
               add_new_variables(new_vars.toMap)(context)
             )
         })
-        translate_proof_rules(next)(new_context)
+        translate_proof_rules(node.next.head)(new_context)
     }
 
-    def handle_pick_arg_rule(rule: ProofRule.PickArg, context: Context): ProofSteps = rule match {
-      case ProofRule.PickArg(subst, next) =>
+    def handle_pick_arg_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.PickArg(subst) =>
         val new_context = subst.map({case (Var(name), expr) => (name,expr) }).foldRight(context)({
           case ((name,expr), context) =>   record_variable_assignment(name,expr)(context)
         })
-        translate_proof_rules(next)(new_context)
+        translate_proof_rules(node.next.head)(new_context)
     }
 
     def handle_emp_rule(context: Context) = {
@@ -482,33 +472,33 @@ object ProofTranslation {
       )
     }
 
-    def handle_pure_synthesis_rule(rule: ProofRule.PureSynthesis, context: Context): ProofSteps = rule match {
-      case ProofRule.PureSynthesis(is_final, subst, next) =>
+    def handle_pure_synthesis_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.PureSynthesis(is_final, subst) =>
         val new_context = subst.map({case (Var(name), expr) => (name,expr) }).foldRight(context)({
           case ((name,expr), context) =>   record_variable_assignment(name,expr)(context)
         })
-        translate_proof_rules(next)(new_context)
+        translate_proof_rules(node.next.head)(new_context)
     }
 
-    def handle_heap_unify(rule: ProofRule.HeapUnify, context: Context): ProofSteps = rule match {
-      case ProofRule.HeapUnify(_, next) =>
+    def handle_heap_unify(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.HeapUnify(_) =>
 //        val new_context = subst.map({case (Var(name), expr) => (name,expr) }).foldRight(context)({
 //          case ((name,expr), context) =>   record_variable_assignment(name,expr)(context)
 //        })
-        translate_proof_rules(next)(context)
+        translate_proof_rules(node.next.head)(context)
     }
 
-    def handle_heap_unify_pointer(rule: ProofRule.HeapUnifyPointer, context: Context): ProofSteps = rule match {
-      case ProofRule.HeapUnifyPointer(subst, next) =>
+    def handle_heap_unify_pointer(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.HeapUnifyPointer(subst) =>
         val new_context = subst.map({case (Var(name), expr) => (name,expr) }).foldRight(context)({
           case ((name,expr), context) =>   record_variable_assignment(name,expr)(context)
         })
-        translate_proof_rules(next)(new_context)
+        translate_proof_rules(node.next.head)(new_context)
     }
 
-    def handle_substl_rule(rule: ProofRule.SubstL, context: Context): ProofSteps = rule match {
-      case ProofRule.SubstL(map, next) =>
-        map.toList.foldRight(translate_proof_rules(next)(context))({
+    def handle_substl_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.SubstL(map) =>
+        map.toList.foldRight(translate_proof_rules(node.next.head)(context))({
           case ((Var(name), expr), next) =>
             AssertPropSubst(
               name,
@@ -517,11 +507,11 @@ object ProofTranslation {
         })
     }
 
-    def handle_substr_rule(rule: ProofRule.SubstR, context: Context): ProofSteps = rule match {
-      case ProofRule.SubstR(map, next) =>
+    def handle_substr_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.SubstR(map) =>
         def apply_subst(context: Context)(map: List[(Var, Expr)]): ProofSteps =
           map match {
-            case Nil => translate_proof_rules(next)(context)
+            case Nil => translate_proof_rules(node.next.head)(context)
             case ::((Var(old_name), Var(new_name)), rest) =>
               val new_context = record_variable_mapping(Map(Var(old_name) -> Var(new_name)))(context)
               ProofSteps.Rename(old_name, new_name,
@@ -535,8 +525,8 @@ object ProofTranslation {
         apply_subst(context)(map.toList)
     }
 
-    def handle_abduce_call(rule: ProofRule.AbduceCall, context: Context): ProofSteps = rule match {
-      case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, _, _, _, next) =>
+    def handle_abduce_call(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, _, _, _) =>
         var typing_context = retrieve_typing_context(context)
         f_pre.vars.foreach({ case Var(name) =>
           if (!typing_context.contains(name)) {
@@ -546,47 +536,48 @@ object ProofTranslation {
         val call_args = unify_call_params(call_precond).map({ case (name, _) => name })
         val existentials = spec.existensial_params.toList.map({case (name,ty) => (freshSub(Var(name)).name, ty)})
         var new_context = push_function((fun, call_args, existentials))(context)
-        translate_proof_rules(next)(new_context)
+        translate_proof_rules(node.next.head)(new_context)
     }
 
-    def handle_nilnotnval_rule(rule: ProofRule.NilNotLval, context: Context) = rule match {
-      case ProofRule.NilNotLval(vars, next) =>
-        vars.foldRight(translate_proof_rules(next)(context))({
+    def handle_nilnotnval_rule(node: ProofRule.Node, context: Context) = node.rule match {
+      case ProofRule.NilNotLval(vars) =>
+        vars.foldRight(translate_proof_rules(node.next.head)(context))({
           case (_@Var(name), rest) => ProofSteps.ValidPointer(
             name, rest
           )
         })
     }
 
-    def handle_abduce_branch_rule(rule: ProofRule.AbduceBranch, context: Context): ProofSteps = rule match {
-      case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) =>
+    def handle_abduce_branch_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.AbduceBranch(cond, bLabel) =>
+        val Seq(ifTrue, ifFalse) = node.next
         ProofSteps.ForwardIf(List(
           translate_proof_rules(ifTrue)(context),
           translate_proof_rules(ifFalse)(context)
         ))
     }
 
-    def handle_call_rule(rule: ProofRule.Call, context: Context): ProofSteps = rule match {
-      case ProofRule.Call(_, call, next) =>
+    def handle_call_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.Call(_, call) =>
         val ((fun, args, existentials), new_context) = pop_function(context)
         ProofSteps.ForwardCall(args,
           existentials match {
-            case Nil => translate_proof_rules(next)(new_context)
+            case Nil => translate_proof_rules(node.next.head)(new_context)
             case _ =>
-              ProofSteps.IntrosTuple(existentials, translate_proof_rules(next)(new_context))
+              ProofSteps.IntrosTuple(existentials, translate_proof_rules(node.next.head)(new_context))
           })
     }
 
-    def handle_write_rule(rule: ProofRule.Write, context: Context): ProofSteps = rule match {
-      case ProofRule.Write(stmt, next) => ProofSteps.Forward(translate_proof_rules(next)(context))
+    def handle_write_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.Write(stmt) => ProofSteps.Forward(translate_proof_rules(node.next.head)(context))
     }
 
-    def handle_free_rule(rule: ProofRule.Free, context: Context): ProofSteps = rule match {
-      case ProofRule.Free(Free(Var(name)), size, next) => ProofSteps.Free(name, size, translate_proof_rules(next)(context))
+    def handle_free_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.Free(Free(Var(name)), size) => ProofSteps.Free(name, size, translate_proof_rules(node.next.head)(context))
     }
 
-    def handle_close_rule(rule: ProofRule.Close, context: Context): ProofSteps = rule match {
-      case ProofRule.Close(app, o_selector, asn, fresh_exist, next) =>
+    def handle_close_rule(node: ProofRule.Node, context: Context): ProofSteps = node.rule match {
+      case ProofRule.Close(app, o_selector, asn, fresh_exist) =>
 
         // Use application of of constructor to infer mapping of variables
         val predicate = pred_map(app.pred)
@@ -645,11 +636,11 @@ object ProofTranslation {
         val new_context = push_unfolding(context)(unfolding, new_equalities)
         val new_context_2 = record_variable_mapping(fresh_exist)(new_context)
 
-        translate_proof_rules(next)(new_context_2)
+        translate_proof_rules(node.next.head)(new_context_2)
     }
 
-    def handle_malloc_rule(rule: ProofRule.Malloc, context: Context) = rule match {
-      case ProofRule.Malloc(map, Malloc(Var(to_var), _, sz), next) =>
+    def handle_malloc_rule(node: ProofRule.Node, context: Context) = node.rule match {
+      case ProofRule.Malloc(map, Malloc(Var(to_var), _, sz)) =>
         val new_context =
           map.foldRight(
             add_new_variables(map.map({case (Var(original), Var(name)) => (name, CoqPtrType)}))(context)
@@ -657,53 +648,54 @@ object ProofTranslation {
         ProofSteps.Malloc(sz,
           ProofSteps.Intros(
             List((to_var, CoqPtrType)),
-            translate_proof_rules(next)(new_context)
+            translate_proof_rules(node.next.head)(new_context)
           ))
     }
 
-    def translate_proof_rules(rule: ProofRule)(context: Context): ProofSteps = {
-      rule match {
+    def translate_proof_rules(node: ProofRule.Node)(context: Context): ProofSteps = {
+      node.rule match {
         //          Branching rules
-        case rule@ProofRule.Open(SApp(_, _, _, Var(_)), _, _, _) => handle_open_rule(rule, context)
-        case rule@ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => handle_abduce_branch_rule(rule, context)
+        case ProofRule.Open(SApp(_, _, _, Var(_)), _, _, _) => handle_open_rule(node, context)
+        case ProofRule.AbduceBranch(cond, bLabel) => handle_abduce_branch_rule(node, context)
 
         //          Read and write Operations
-        case rule@ProofRule.Write(_, _) => handle_write_rule(rule, context)
-        case rule@ProofRule.Read(subst, option, next) => handle_read_rule(rule, context)
+        case ProofRule.Write(_) => handle_write_rule(node, context)
+        case ProofRule.Read(subst, option) => handle_read_rule(node, context)
 
         //          Memory management rules
-        case rule@ProofRule.Free(Free(Var(_)), _, _) => handle_free_rule(rule, context)
-        case rule@ProofRule.Malloc(map, Malloc(Var(to_var), _, sz), next) => handle_malloc_rule(rule, context)
+        case ProofRule.Free(Free(Var(_)), _) => handle_free_rule(node, context)
+        case ProofRule.Malloc(map, Malloc(Var(to_var), _, sz)) => handle_malloc_rule(node, context)
 
         //          Abduce call & Existentials
-        case rule@ProofRule.AbduceCall(_, _, _, Call(Var(_), _, _), _, _, _, _, _) => handle_abduce_call(rule, context)
-        case rule@ProofRule.Pick(_, _) => handle_pick_rule(rule, context)
-        case rule@ProofRule.PureSynthesis(_, _, _) => handle_pure_synthesis_rule(rule, context)
-        case rule@ProofRule.PickCard(_,_) => handle_pick_card_rule(rule, context)
-        case rule@ProofRule.PickArg(_, _) => handle_pick_arg_rule(rule, context)
-        case rule@ProofRule.Call(_, _, _) => handle_call_rule(rule, context)
-        case rule@ProofRule.Close(_, _, _, _, _) => handle_close_rule(rule, context)
-        case rule@ProofRule.HeapUnify(_, next) => handle_heap_unify(rule, context)
-        case rule@ProofRule.HeapUnifyPointer(_, _) => handle_heap_unify_pointer(rule, context)
+        case ProofRule.AbduceCall(_, _, _, Call(Var(_), _, _), _, _, _, _) => handle_abduce_call(node, context)
+        case ProofRule.Pick(_) => handle_pick_rule(node, context)
+        case ProofRule.PureSynthesis(_, _) => handle_pure_synthesis_rule(node, context)
+        case ProofRule.PickCard(_) => handle_pick_card_rule(node, context)
+        case ProofRule.PickArg(_) => handle_pick_arg_rule(node, context)
+        case ProofRule.Call(_, _) => handle_call_rule(node, context)
+        case ProofRule.Close(_, _, _, _) => handle_close_rule(node, context)
+        case ProofRule.HeapUnify(_) => handle_heap_unify(node, context)
+        case ProofRule.HeapUnifyPointer(_) => handle_heap_unify_pointer(node, context)
 
 
         //          Completion rule
         case ProofRule.EmpRule => handle_emp_rule(context)
 
         //          Context changing rules
-        case rule@ProofRule.NilNotLval(_, _) => handle_nilnotnval_rule(rule, context)
-        case rule@ProofRule.SubstL(_, _) => handle_substl_rule(rule, context)
-        case rule@ProofRule.SubstR(_, _) => handle_substr_rule(rule, context)
+        case ProofRule.NilNotLval(_) => handle_nilnotnval_rule(node, context)
+        case ProofRule.SubstL(_) => handle_substl_rule(node, context)
+        case ProofRule.SubstR(_) => handle_substr_rule(node, context)
 
         //          Ignored rules
-        case ProofRule.WeakenPre(unused, next) => translate_proof_rules(next)(context)
-        case ProofRule.CheckPost(pre_phi, post_phi, next) => translate_proof_rules(next)(context)
+        case ProofRule.WeakenPre(unused) => translate_proof_rules(node.next.head)(context)
+        case ProofRule.CheckPost(pre_phi, post_phi) => translate_proof_rules(node.next.head)(context)
 
-        case ProofRule.FrameUnfold(h_pre, h_post, next) => translate_proof_rules(next)(context)
+        case ProofRule.FrameUnfold(h_pre, h_post) => translate_proof_rules(node.next.head)(context)
 
 
-        case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => translate_proof_rules(next)(context)
-        case ProofRule.Branch(cond, ifTrue, ifFalse) => translate_proof_rules(ifTrue)(context)
+        case ProofRule.StarPartial(new_pre_phi, new_post_phi) => translate_proof_rules(node.next.head)(context)
+        case ProofRule.Branch(cond) => translate_proof_rules(node.next.head)(context)
+        case ProofRule.Init(goal) => translate_proof_rules(node.next.head)(context)
       }
     }
 
@@ -715,58 +707,18 @@ object ProofTranslation {
     Proof(name, predicates, spec, vst_proof, contains_free(simplified), contains_malloc(simplified))
   }
 
-  def contains_free(proof: ProofRule): Boolean = proof match {
-    case ProofRule.NilNotLval(vars, next) => contains_free(next)
-    case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_free(next)
-    case ProofRule.Pick(subst, next) => contains_free(next)
-    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_free)
-    case ProofRule.Write(stmt, next) => contains_free(next)
-    case ProofRule.WeakenPre(unused, next) => contains_free(next)
-    case ProofRule.EmpRule => false
-    case ProofRule.PureSynthesis(is_final, assignments, next) => contains_free(next)
-    case ProofRule.Open(pred, fresh_vars, sbst, cases) => cases.exists { case (_, prf) => contains_free(prf) }
-    case ProofRule.SubstL(map, next) => contains_free(next)
-    case ProofRule.SubstR(map, next) => contains_free(next)
-    case ProofRule.Read(map, operation, next) => contains_free(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) => contains_free(next)
-    case ProofRule.HeapUnify(_, next) => contains_free(next)
-    case ProofRule.HeapUnifyPointer(map, next) => contains_free(next)
-    case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_free(next)
-    case ProofRule.Call(_, call, next) => contains_free(next)
-    case ProofRule.Free(stmt, size, next) => true
-    case ProofRule.Malloc(map, stmt, next) => contains_free(next)
-    case ProofRule.Close(app, selector, asn, fresh_exist, next) => contains_free(next)
-    case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => contains_free(next)
-    case ProofRule.PickCard(_, next) => contains_free(next)
-    case ProofRule.PickArg(map, next) => contains_free(next)
-    case ProofRule.Branch(cond, ifTrue, ifFalse) => contains_free(ifTrue)
+  def contains_free(proof: ProofRule.Node): Boolean = proof.rule match {
+    case _:ProofRule.Free => true
+    case ProofRule.EmpRule | ProofRule.Inconsistency => false
+    case _:ProofRule.Branch => contains_free(proof.next.head)
+    case _ => proof.next.exists(contains_free)
   }
 
-  def contains_malloc(proof: ProofRule): Boolean = proof match {
-    case ProofRule.NilNotLval(vars, next) => contains_malloc(next)
-    case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_malloc(next)
-    case ProofRule.Pick(subst, next) => contains_malloc(next)
-    case ProofRule.AbduceBranch(cond, bLabel, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_malloc)
-    case ProofRule.Write(stmt, next) => contains_malloc(next)
-    case ProofRule.WeakenPre(unused, next) => contains_malloc(next)
-    case ProofRule.EmpRule => false
-    case ProofRule.PureSynthesis(is_final, assignments, next) => contains_malloc(next)
-    case ProofRule.Open(pred, fresh_vars, sbst, cases) => cases.exists { case (_, prf) => contains_malloc(prf) }
-    case ProofRule.SubstL(map, next) => contains_malloc(next)
-    case ProofRule.SubstR(map, next) => contains_malloc(next)
-    case ProofRule.Read(map, operation, next) => contains_malloc(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) => contains_malloc(next)
-    case ProofRule.HeapUnify(_,next) => contains_malloc(next)
-    case ProofRule.HeapUnifyPointer(map, next) => contains_malloc(next)
-    case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_malloc(next)
-    case ProofRule.Call(_, call, next) => contains_malloc(next)
-    case ProofRule.Free(stmt, size, next) => contains_malloc(next)
-    case ProofRule.Malloc(map, stmt, next) => true
-    case ProofRule.Close(app, selector, asn, fresh_exist, next) => contains_malloc(next)
-    case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => contains_malloc(next)
-    case ProofRule.PickCard(_, next) => contains_malloc(next)
-    case ProofRule.PickArg(map, next) => contains_malloc(next)
-    case ProofRule.Branch(cond, ifTrue, ifFalse) => contains_malloc(ifTrue)
+  def contains_malloc(proof: ProofRule.Node): Boolean = proof.rule match {
+    case _:ProofRule.Malloc => true
+    case ProofRule.EmpRule | ProofRule.Inconsistency => false
+    case _:ProofRule.Branch => contains_malloc(proof.next.head)
+    case _ => proof.next.exists(contains_malloc)
   }
 
 }

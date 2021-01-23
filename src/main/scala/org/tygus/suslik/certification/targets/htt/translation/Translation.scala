@@ -32,7 +32,7 @@ object Translation {
     })
     val goal = translateGoal(node.goal)
     val ctx = IR.emptyContext.copy(predicateEnv = cpreds)
-    val ir = IR.fromRule(ProofRule.Init(node.goal, ProofRule.of_certtree(node)), ctx).propagateContext
+    val ir = IR.fromRule(ProofRule.of_certtree(node), ctx).propagateContext
     val proof = ProofTranslation.irToProofSteps(ir)
     val hints = ProofTranslation.irToHints(ir)
     val progBody = ProgramTranslation.translate(ir)
