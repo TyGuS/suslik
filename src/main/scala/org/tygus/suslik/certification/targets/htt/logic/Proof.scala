@@ -53,8 +53,8 @@ object Proof {
     override val isNoop: Boolean = items.isEmpty
     def pp: String = items.map(_.pp).grouped(5).map(s => s"ex_elim ${s.mkString(" ")}").mkString(".\n")
   }
-  case object Sbst extends Step {
-    def pp: String = "subst"
+  case class Sbst(vars: Seq[CVar]) extends Step {
+    def pp: String = if (vars.isEmpty) s"subst" else s"subst ${vars.map(_.pp).mkString(" ")}"
   }
   case class Exists(items: Seq[CExpr]) extends Step {
     override val isNoop: Boolean = items.isEmpty
@@ -97,7 +97,7 @@ object Proof {
     }
   }
   case class Open(selectors: Seq[CExpr]) extends Step {
-    def pp: String = "ssl_open"
+    def pp: String = s"ssl_open (${selectors.head.pp})"
   }
   case class OpenPost(app: CSApp) extends Step {
     def pp: String = s"ssl_open_post ${app.hypName}"
@@ -118,7 +118,7 @@ object Proof {
     def pp: String = "ssl_ghostelim_post"
   }
   case class Branch(cond: CExpr) extends Step {
-    def pp: String = "ssl_abduce_branch"
+    def pp: String = s"ssl_abduce_branch (${cond.pp})"
   }
   case object Emp extends Step {
     def pp: String = "ssl_emp"

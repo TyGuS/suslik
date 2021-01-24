@@ -15,7 +15,7 @@ import org.tygus.suslik.logic.Specifications.Goal
 
 object IR {
   type Unfoldings = Map[CSApp, CInductiveClause]
-  type SAppNames = Map[CSApp, String]
+  type SAppNames = Map[CSApp, CSApp]
   type CSubst = Map[CVar, CExpr]
   type CSubstVar = Map[CVar, CVar]
   type PredicateEnv = Map[String, CInductivePredicate]
@@ -72,7 +72,7 @@ object IR {
     val ctx : Context
     val next : Seq[Node]
 
-    private def mapJoin[T <: CExpr](m1: Map[CVar, T], m2: Map[CVar, T]) : Map[CVar, T] = {
+    private def mapJoin[K, V](m1: Map[K, V], m2: Map[K, V]) : Map[K, V] = {
       m1.toSeq.intersect(m2.toSeq).toMap
     }
 
@@ -83,13 +83,15 @@ object IR {
         val childCtxs = children.map(_.ctx)
         val childSubst = childCtxs.map(_.subst).reduceOption[CSubst](mapJoin).getOrElse(Map.empty)
         val childSubstVar = childCtxs.map(_.substVar).reduceOption[CSubstVar](mapJoin).getOrElse(Map.empty)
-        n.copy(next = children, ctx = n.ctx.copy(subst = childSubst, substVar = childSubstVar))
+        val childSAppNames = childCtxs.map(_.sappNames).reduceOption[SAppNames](mapJoin).getOrElse(Map.empty)
+        n.copy(next = children, ctx = n.ctx.copy(subst = childSubst, substVar = childSubstVar, sappNames = childSAppNames))
       case n:IR.Branch =>
         val children = n.next.map(_.propagateContext)
         val childCtxs = children.map(_.ctx)
         val childSubst = childCtxs.map(_.subst).reduceOption[CSubst](mapJoin).getOrElse(Map.empty)
         val childSubstVar = childCtxs.map(_.substVar).reduceOption[CSubstVar](mapJoin).getOrElse(Map.empty)
-        n.copy(next = children, ctx = n.ctx.copy(subst = childSubst, substVar = childSubstVar))
+        val childSAppNames = childCtxs.map(_.sappNames).reduceOption[SAppNames](mapJoin).getOrElse(Map.empty)
+        n.copy(next = children, ctx = n.ctx.copy(subst = childSubst, substVar = childSubstVar, sappNames = childSAppNames))
       case n:IR.Read =>
         val next1 = n.next.head.propagateContext
         n.copy(ctx = next1.ctx, next = Seq(next1))
@@ -175,6 +177,11 @@ object IR {
 
   private def translateSbst(sbst: Subst) = sbst.map{ case (k,v) => CVar(k.name) -> translateExpr(v)}
   private def translateSbstVar(sbst: SubstVar) = sbst.map{ case (k,v) => CVar(k.name) -> CVar(v.name)}
+  private def updateSAppAliases(m: SAppNames, sub: CSubst): SAppNames = {
+    val affected = m.map { case (app, alias) => app -> (app.subst(sub) -> alias) }.filter { case (app, (app1, _)) => app != app1 }
+    m ++ affected.values.toMap
+  }
+
   def translateGoal(goal: Goal): CGoal = {
     val pre = translateAsn(goal.pre)
     val post = translateAsn(goal.post)
@@ -195,7 +202,8 @@ object IR {
   def fromRule(node: ProofRule.Node, ctx: IR.Context) : IR.Node = node.rule match {
     case ProofRule.Init(goal) =>
       val cgoal = translateGoal(goal)
-      val ctx1 = ctx.copy(topLevelGoal = Some(cgoal))
+      val sappNames = (cgoal.pre.sigma.apps ++ cgoal.post.sigma.apps).map(a => a -> a).toMap
+      val ctx1 = ctx.copy(topLevelGoal = Some(cgoal), sappNames = sappNames)
       IR.Init(ctx1, Seq(fromRule(node.next.head, ctx1)))
     case ProofRule.Open(sapp, fresh_vars, sbst, selectors) =>
       val csapp = translateSApp(sapp)
@@ -214,24 +222,33 @@ object IR {
       val cclause = pred.clauses.find(_.selector == cselector).get
       val ex = cclause.existentials.map(_.subst(csbst))
       val actualClause = CInductiveClause(csapp.pred, cclause.idx, cselector, casn, ex)
-      fromRule(node.next.head, ctx.copy(unfoldings = ctx.unfoldings + (csapp -> actualClause)))
+      val unfoldings = ctx.unfoldings + (csapp -> actualClause)
+      val sappNames = ctx.sappNames ++ casn.sigma.apps.map(a => a -> a)
+      fromRule(node.next.head, ctx.copy(unfoldings = unfoldings, sappNames = sappNames))
     case ProofRule.Branch(cond) =>
       val Seq(ifTrue, ifFalse) = node.next
       IR.Branch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
     case ProofRule.PureSynthesis(is_final, sbst) =>
       val csbst = translateSbst(sbst)
-      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
+      val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
+      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
+      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       IR.PureSynthesis(is_final, Seq(fromRule(node.next.head, ctx1)), ctx1)
     case ProofRule.SubstL(sbst) =>
       val csbst = translateSbst(sbst)
-      fromRule(node.next.head, ctx.copy(subst = ctx.subst ++ csbst))
+      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
+      fromRule(node.next.head, ctx.copy(subst = ctx.subst ++ csbst, sappNames = sappNames))
     case ProofRule.SubstR(sbst) =>
       val csbst = translateSbst(sbst)
-      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
+      val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
+      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
+      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       fromRule(node.next.head, ctx1)
     case ProofRule.Pick(sbst) =>
       val csbst = translateSbst(sbst)
-      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
+      val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
+      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
+      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       fromRule(node.next.head, ctx1)
     case ProofRule.Read(ghosts, Load(to, tpe, from, offset)) =>
       val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
@@ -249,7 +266,9 @@ object IR {
       IR.Call(CCall(CVar(fun.name), args.map(translateExpr)), Seq(fromRule(node.next.head, ctx2)), ctx1)
     case ProofRule.PickArg(sbst) =>
       val csbst = translateSbst(sbst)
-      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
+      val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
+      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
+      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       fromRule(node.next.head, ctx1)
     case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma) =>
       val cfunspec = translateFunSpec(f, gamma)
@@ -258,11 +277,15 @@ object IR {
       val ctx1 = ctx.copy(nestedContext = Some(nestedContext))
       fromRule(node.next.head, ctx1)
     case ProofRule.HeapUnifyPointer(sbst) =>
-      val ctx1 = ctx.copy(subst = ctx.subst ++ translateSbst(sbst))
+      val csbst = translateSbst(sbst)
+      val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
+      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
+      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       fromRule(node.next.head, ctx1)
     case ProofRule.EmpRule => IR.EmpRule(ctx)
     case ProofRule.CheckPost(prePhi, postPhi) =>
       IR.CheckPost(prePhi.conjuncts.map(translateExpr), postPhi.conjuncts.map(translateExpr), Seq(fromRule(node.next.head, ctx)), ctx)
+    case ProofRule.Inconsistency => IR.Inconsistency(ctx)
     // unused rules:
     case ProofRule.HeapUnify(_) => fromRule(node.next.head, ctx)
     case ProofRule.NilNotLval(_) => fromRule(node.next.head, ctx)
@@ -270,7 +293,6 @@ object IR {
     case ProofRule.StarPartial(_, _) => fromRule(node.next.head, ctx)
     case ProofRule.PickCard(_) => fromRule(node.next.head, ctx)
     case ProofRule.FrameUnfold(h_pre, h_post) => fromRule(node.next.head, ctx)
-    case ProofRule.Inconsistency => IR.Inconsistency(ctx)
     case ProofRule.AbduceBranch(cond, bLabel) => fromRule(node.next.head, ctx)
   }
 }
