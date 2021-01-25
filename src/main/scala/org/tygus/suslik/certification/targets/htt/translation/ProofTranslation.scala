@@ -69,8 +69,7 @@ object ProofTranslation {
         c <- unfoldings.get(app)
       } yield Proof.UnfoldConstructor(c.idx) >>> solvePost(c.asn, c.existentials, unfoldings)
 
-      val p = valueExElim >>> heapExElim.foldLeft[Proof.Step](Proof.Noop)(_ >>> _) >>> Proof.Auto >> rest.foldLeft[Proof.Step](Proof.Noop)(_ >> _)
-      p
+      valueExElim >>> heapExElim.foldLeft[Proof.Step](Proof.Noop)(_ >>> _) >>> Proof.Auto >>> Proof.Solve(rest)
     }
 
     var currCallId = 0
@@ -132,21 +131,20 @@ object ProofTranslation {
       case IR.Branch(cond, next, ctx) =>
         Proof.Branch(cond.subst(ctx.substVar)) >> Proof.SubProof(next.map(visit))
       case IR.Open(app, clauses, selectors, next, ctx) =>
+        val app1 = ctx.sappNames.getOrElse(app, app)
         val branchSteps = next.zip(clauses).map { case (n, c) =>
           val c1 = c.subst(n.ctx.substVar)
-          val app1 = ctx.sappNames.getOrElse(app, app)
           val res = visit(n)
           if (res == Proof.Error) {
-            Proof.OpenPost(app1)  // Don't emit branch prelude if inconsistent
+            Proof.Noop  // Don't emit branch prelude if inconsistent
           } else {
-            Proof.OpenPost(app1) >>
             elimExistentials(c1.existentials) >>
             elimExistentials(c1.asn.heapVars) >>
             initPre(c1.asn, app1.uniqueName) >>
             res
           }
         }
-        Proof.Open(selectors.map(_.subst(ctx.substVar))) >> Proof.SubProof(branchSteps)
+        Proof.Open(selectors.map(_.subst(ctx.substVar))) >>> Proof.OpenPost(app1) >> Proof.SubProof(branchSteps)
       case IR.Inconsistency(_) => Proof.Error
       case IR.CheckPost(prePhi, postPhi, next, _) => visit(next.head)
     }

@@ -12,7 +12,8 @@ object Proof {
     def simplify: Step = this match {
       case SeqComp(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqComp(s1.simplify, s2.simplify)
       case SeqCompAlt(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqCompAlt(s1.simplify, s2.simplify)
-      case SubProof(branches) => SubProof(branches.map(_.simplify))
+      case SubProof(branches) => SubProof(branches.filterNot(_.isNoop).map(_.simplify))
+      case Solve(steps) => Solve(steps.filterNot(_.isNoop).map(_.simplify))
       case _ => this
     }
   }
@@ -28,6 +29,10 @@ object Proof {
   case class SeqCompAlt(s1: Step, s2: Step) extends Step {
     override val isNoop: Boolean = s1.isNoop && s2.isNoop
     def pp: String = s"${s1.pp};\n${s2.pp}"
+  }
+  case class Solve(steps: Seq[Step]) extends Step {
+    override val isNoop: Boolean = steps.forall(_.isNoop)
+    def pp: String = s"solve [\n${steps.map(_.pp).mkString(" |\n")} ]"
   }
   case class MoveToCtx(items: Seq[CExpr]) extends Step {
     override val isNoop: Boolean = items.isEmpty
