@@ -26,11 +26,11 @@ object ProofSpecTranslation {
   /** Translates a cardinality to a vst expression that can be passed around  */
   def translate_cardinality(predicate: VSTPredicate, cardinality: CardConstructor): ProofCExpr = {
     ProofCCardinalityConstructor(
-      predicate.inductive_name,
+      predicate.name,
       predicate.constructor_name(cardinality),
       cardinality match {
         case ProofTerms.CardNull => List()
-        case CardOf(args) => args.map(arg => ProofCVar(arg, CoqCardType(predicate.inductive_name)))
+        case CardOf(args) => args.map(arg => ProofCVar(arg, CoqCardType(predicate.name)))
       }
     )
   }
@@ -41,7 +41,7 @@ object ProofSpecTranslation {
     lType match {
       case IntType => CoqIntType
       case LocType => CoqPtrType
-      case CardType => CoqCardType("") // TODO: add a safe version of this (only used when initializing base context)
+      case CardType => CoqCardType(???) // TODO: add a safe version of this (only used when initializing base context)
 
       // TODO: WARNING: Suslik has a loose model of memory that allows elements of different types
       // to be allocated in the same block - i.e x :-> [loc; int] - this is technically possible
@@ -59,7 +59,7 @@ object ProofSpecTranslation {
 
         case ProofCIntConst(value, false) => CoqIntType
         case ProofCIntConst(value, true) => CoqParamType(CTypes.CVoidPtrType)
-        case ProofCSetLiteral(elems) => CoqListType(CoqPtrType, Some(elems.length))
+        case ProofCSetLiteral(elems, _) => CoqListType(CoqPtrType, Some(elems.length))
         case ProofCIfThenElse(cond, left, right) => type_expr(left)
         case ProofCBinaryExpr(op, left, right) =>
           op match {
@@ -201,7 +201,7 @@ object ProofSpecTranslation {
       case ProofCVar(name, typ) => typ
       case ProofCIntConst(value, false) => CoqIntType
       case ProofCIntConst(value, true) => CoqParamType(CTypes.CVoidPtrType)
-      case ProofCSetLiteral(elems) => CoqListType(type_expr(context)(elems.head), Some (elems.length))
+      case ProofCSetLiteral(elems, _) => CoqListType(type_expr(context)(elems.head), Some (elems.length))
       case ProofCIfThenElse(cond, left, right) => type_expr(context)(left)
       case ProofCBinaryExpr(op, left, right) => op match {
         case ProofCOpPlus => CoqIntType
@@ -476,8 +476,10 @@ object ProofSpecTranslation {
     // predicate (even if it occurs at a top level or not)
     val base_context : List[(Ident, VSTProofType)] = {
       var gamma: Gamma = Map.empty
+      var pred_name : Option[Ident] = None
       predicate match {
         case InductivePredicate(name, params, clauses) =>
+          pred_name = Some(name)
           clauses.foreach({case InductiveClause(selector, assn) =>
             selector.resolve(gamma, Some(BoolType)).foreach(v => gamma = v)
             assn.phi.conjuncts.foreach(expr =>
@@ -486,7 +488,10 @@ object ProofSpecTranslation {
             assn.sigma.resolve(gamma, env).foreach(v => gamma = v)
           })
       }
-      gamma.map({case (Var(name), ty) => (name, translate_type(ty))}).toList
+      gamma.map({case (Var(name), ty) => (name, ty match {
+        case CardType => CoqCardType(pred_name.get)
+        case _ => translate_type(ty)
+      })}).toList
     }
 
     predicate match {

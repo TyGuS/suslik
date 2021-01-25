@@ -44,8 +44,8 @@ object ProofTerms {
         }
         case expr@ProofCBoolConst(_) => expr
         case expr@ProofCIntConst(_, _) => expr
-        case ProofCSetLiteral(elems) =>
-          ProofCSetLiteral(elems.map(_.subst(mapping)))
+        case ProofCSetLiteral(elems, ty) =>
+          ProofCSetLiteral(elems.map(_.subst(mapping)), ty)
         case ProofCIfThenElse(cond, left, right) =>
           ProofCIfThenElse(cond.subst(mapping), left.subst(mapping), right.subst(mapping))
         case ProofCBinaryExpr(op, left, right) =>
@@ -61,7 +61,7 @@ object ProofTerms {
         case ProofCBoolConst(value) => CoqBoolType
         case ProofCIntConst(value, false) => CoqIntType
         case ProofCIntConst(value, true) => CoqParamType(CTypes.CVoidPtrType)
-        case ProofCSetLiteral(elems) => CoqListType(elems.head.type_expr, Some(elems.length))
+        case ProofCSetLiteral(elems, ty) => CoqListType(ty.getOrElse(elems.head.type_expr), Some(elems.length))
         case ProofCIfThenElse(cond, left, right) => left.type_expr
         case ProofCBinaryExpr(op, left, right) => op match {
           case ProofCOpPlus => CoqIntType
@@ -85,8 +85,8 @@ object ProofTerms {
           case ProofTypes.CoqCardType(_) => throw TranslationException("Error: inconsistent assumptions, attempting to print a cardinality as a c type")
         }
         case ProofCIntConst(value, false) => s"(Vint (Int.repr ${value.toString}))"
-        case ProofCSetLiteral(elems) =>
-          s"[${elems.map(_.pp_as_c_value).mkString("; ")}]"
+        case ProofCSetLiteral(elems, ty) =>
+          s"([${elems.map(_.pp_as_c_value).mkString("; ")}] : list val)"
         case value@ProofCBinaryExpr(op, _, _) =>
           val is_int = op match {
             case ProofCOpPlus => true
@@ -119,8 +119,8 @@ object ProofTerms {
         }
         case ProofCIntConst(value, false) => s"inl (Vint (Int.repr ${value.toString}))"
         case ProofCIntConst(0, true) => s"inr nullval"
-        case ProofCSetLiteral(elems) =>
-          s"[${elems.map(_.pp_as_ssl_union_value).mkString("; ")}]"
+        case ProofCSetLiteral(elems, ty) =>
+          s"([${elems.map(_.pp_as_ssl_union_value).mkString("; ")}])"
         case value@ProofCBinaryExpr(op, _, _) =>
           val is_int = op match {
             case ProofCOpPlus => true
@@ -190,7 +190,7 @@ object ProofTerms {
         } else {
           this.pp
         }
-        case ProofCSetLiteral(elems) => this.pp
+        case ProofCSetLiteral(elems, _) => this.pp
         case ProofCIfThenElse(cond, left, right) => this.pp
         case ProofCBinaryExpr(op, left, right) => this.pp
         case ProofCUnaryExpr(op, e) => this.pp
@@ -199,7 +199,7 @@ object ProofTerms {
     }
 
     case class ProofCCardinalityConstructor(pred_type: String, name: String, args: List[ProofCExpr]) extends ProofCExpr {
-      override def pp: String = s"(${name} ${args.map(_.pp).mkString(" ")} : ${pred_type})"
+      override def pp: String = s"(${name} ${args.map(_.pp).mkString(" ")} : ${pred_type}_card)"
     }
 
 
@@ -208,7 +208,7 @@ object ProofTerms {
       override def pp: String = typ match {
         case ProofTypes.CoqPtrType => name
         case ProofTypes.CoqIntType => name
-        case ProofTypes.CoqCardType(_) => name
+        case ProofTypes.CoqCardType(ty) => s"(${name} : ${ty}_card)"
         case ProofTypes.CoqParamType(ty) =>
           // if the variable has a param type then
           // its actually of type val, and we need to
@@ -237,9 +237,13 @@ object ProofTerms {
     }
 
     /** set literal (encoded as set) in a VST proof */
-    case class ProofCSetLiteral(elems: List[ProofCExpr]) extends ProofCExpr {
+    case class ProofCSetLiteral(elems: List[ProofCExpr], elem_type : Option[VSTProofType]=None) extends ProofCExpr {
       override def pp: String =
-        s"[${elems.map(_.pp_as_c_value).mkString("; ")}]"
+        s"([${elems.map(_.pp_as_c_value).mkString("; ")}]${(elems, elem_type) match {
+          case (::(_,_), _) => ""
+          case (_, Some(ty)) => s": ${ty.pp}"
+          case (_, _) => ""
+        }})"
     }
 
     /** encodes a ternary expression in a VST proof */
@@ -259,8 +263,8 @@ object ProofTerms {
         op match {
           case ProofCOpLt => s"(${left.pp_as_int_value} < ${right.pp_as_int_value})"
           case ProofCOpLeq => s"(${left.pp_as_int_value} <= ${right.pp_as_int_value})"
-          case ProofCOpOr => s"(${left.pp} \/ ${right.pp})"
-          case ProofCOpAnd => s"(${left.pp} /\ ${right.pp})"
+          case ProofCOpOr => s"(${left.pp} \\/ ${right.pp})"
+          case ProofCOpAnd => s"(${left.pp} /\\ ${right.pp})"
           case ProofCOpPlus => s"(${left.pp} + ${right.pp})"
           case ProofCOpMinus => s"(${left.pp} - ${right.pp})"
           case ProofCOpMultiply => s"(${left.pp} * ${right.pp})"
@@ -509,7 +513,7 @@ object ProofTerms {
         case Expressions.ProofCVar(name, typ) => if (!args.contains(name)) List((name, typ)) else Nil
         case Expressions.ProofCBoolConst(value) => Nil
         case Expressions.ProofCIntConst(value, _) => Nil
-        case Expressions.ProofCSetLiteral(elems) => elems.flatMap(expr_existential)
+        case Expressions.ProofCSetLiteral(elems, _) => elems.flatMap(expr_existential)
         case Expressions.ProofCIfThenElse(cond, left, right) => List(cond, left, right).flatMap(expr_existential)
         case Expressions.ProofCBinaryExpr(op, left, right) => List(left, right).flatMap(expr_existential)
         case Expressions.ProofCUnaryExpr(op, e) => expr_existential(e)
@@ -529,7 +533,7 @@ object ProofTerms {
         case Expressions.ProofCVar(name, _) => existentials.get(name).map(typ => (name, typ)).toList
         case Expressions.ProofCBoolConst(value) => Nil
         case Expressions.ProofCIntConst(value, _) => Nil
-        case Expressions.ProofCSetLiteral(elems) => elems.flatMap(expr_existential)
+        case Expressions.ProofCSetLiteral(elems, _) => elems.flatMap(expr_existential)
         case Expressions.ProofCIfThenElse(cond, left, right) => List(cond, left, right).flatMap(expr_existential)
         case Expressions.ProofCBinaryExpr(op, left, right) => List(left, right).flatMap(expr_existential)
         case Expressions.ProofCUnaryExpr(op, e) => expr_existential(e)
@@ -583,17 +587,20 @@ object ProofTerms {
 
 
     /** returns any helper lemmas that need to be constructed for the helper */
-    def get_helpers: List[VSTPredicateHelper] =
+    def get_helpers: List[VSTPredicateHelper] = {
+      val local_facts = VSTPredicateHelper.LocalFacts(this)
       params.flatMap({
         case (param, ProofTypes.CoqPtrType) =>
           val valid_lemma = VSTPredicateHelper.ValidPointer(name, this.formal_params, param)
-          val local_facts = VSTPredicateHelper.LocalFacts(this)
           List(
-            valid_lemma, VSTPredicateHelper.HintResolve(valid_lemma.lemma_name, "valid_pointer"),
-            local_facts, VSTPredicateHelper.HintResolve(local_facts.lemma_name, "saturate_local")
+            valid_lemma, VSTPredicateHelper.HintResolve(valid_lemma.lemma_name, "valid_pointer")
           )
         case _ => List()
-      })
+      }) ++ List(
+        local_facts,
+        VSTPredicateHelper.HintResolve(local_facts.lemma_name, "saturate_local")
+      )
+    }
 
 
     /** returns the existential variables introduced by a constructor invokation */
@@ -655,7 +662,7 @@ object ProofTerms {
                 case None if !clause_card_map.contains(name) => List(name)
                 case _ => List()
               }
-            case Expressions.ProofCSetLiteral(elems) => elems.flatMap(to_variables)
+            case Expressions.ProofCSetLiteral(elems, _) => elems.flatMap(to_variables)
             case Expressions.ProofCIfThenElse(cond, left, right) =>
               to_variables(cond) ++ to_variables(left) ++ to_variables(right)
             case Expressions.ProofCBinaryExpr(op, left, right) =>

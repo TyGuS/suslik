@@ -4,6 +4,7 @@ import org.tygus.suslik.certification.{CertTree, ProofRule}
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.CVar
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.{CDataAt, CSApp, VSTHeaplet}
 import org.tygus.suslik.certification.ProofRule.EmpRule
+import org.tygus.suslik.certification.targets.vst.clang.CTypes
 import org.tygus.suslik.certification.targets.vst.logic.ProofSteps.AssertPropSubst
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCBinaryExpr, ProofCBoolConst, ProofCCardinalityConstructor, ProofCExpr, ProofCIfThenElse, ProofCIntConst, ProofCSetLiteral, ProofCUnaryExpr, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{VSTPredicate, VSTPredicateClause}
@@ -33,40 +34,6 @@ object ProofTranslation {
   }
 
 
-  /**
-    * Partitions a list of variables into those which correspond to cardinality arguments and those that do not.
-    *
-    *  - first list has new variables that do not correspond to cardinality arguments
-    *  - second list has variables that correspond to cardinality arguments
-    *
-    * Explanation: cardinality arguments typically have names like _alpha_513,
-    * but when introduced into the context in a suslik proof, they are given
-    * fresh names such as _alpha_513x2.
-    */
-  def partition_cardinality_args(new_variables: List[(String, VSTProofType)])(card_args: List[String]) = {
-    var seen_variables_set: Set[String] = Set()
-    var contructor_map: Map[Ident, Ident] = Map()
-
-    // partition variables into variables that correspond to arguments to the cardinality
-    val args = new_variables.flatMap({
-      case (variable_name, ty) =>
-        if (!seen_variables_set.contains(variable_name)) {
-          seen_variables_set = seen_variables_set + variable_name
-          card_args find (name => variable_name.startsWith(name)) match {
-            // if the any cardinality argument names are a prefix of the variable name, then this
-            // variable is a fresh variable for that particular cardinality argument
-            case Some(name) =>
-              contructor_map = contructor_map + (name -> variable_name)
-              None
-            case None =>
-              Some(variable_name)
-          }
-        } else {
-          None
-        }
-    })
-    (args, card_args.map(arg => contructor_map(arg)))
-  }
 
   def translate_proof(
                        name: String,
@@ -84,9 +51,10 @@ object ProofTranslation {
       */
     case class Unfold(
                        VSTPredicate: VSTPredicate,
-                       cardinality: ProofTerms.CardConstructor,
+                       cardinality: String,
                        args: List[(String, VSTProofType)],
-                       existentials: List[(String,VSTProofType)]
+                       existentials: List[(String,VSTProofType)],
+                       new_equalities: Map[String, ProofCExpr],
                      )
 
     /** accumulating context used during proof translation
@@ -95,12 +63,13 @@ object ProofTranslation {
       * @param functions           stack of functions being abduced during execution
       * @param queued_unfolds      sequence of queued unfolds
       * */
-    case class Context(
-                        post: List[(Ident, VSTProofType)],
-                        gamma: Map[Ident, VSTProofType],
-                        variable_map: Map[Ident, ProofCExpr],
-                        functions: List[FunSpec],
-                        queued_unfolds: List[Unfold]
+    case class Context(post: List[(Ident, VSTProofType)],
+                       gamma: Map[Ident, VSTProofType],
+                       variable_map: Map[Ident, ProofCExpr],
+                       functions: List[(Ident, List[Ident], List[(Ident, VSTProofType)])],
+                       queued_unfolds: List[Unfold],
+                       coq_context: Map[Ident, VSTProofType],
+                       card_map: Map[Ident, ProofCExpr]
                       )
 
 
@@ -109,7 +78,7 @@ object ProofTranslation {
         case (ProofCVar(name, _), ProofCVar(call_name, _)) => context + (name -> call_name)
         case (ProofCBoolConst(_), ProofCBoolConst(_)) => context
         case (ProofCIntConst(_,_), ProofCIntConst(_,_)) => context
-        case (ProofCSetLiteral(elems), ProofCSetLiteral(call_elems)) =>
+        case (ProofCSetLiteral(elems, _), ProofCSetLiteral(call_elems, _)) =>
           elems.zip(call_elems).foldLeft(context)({ case (context, (expr, call_expr)) => unify_expr(context)(expr)(call_expr) })
         case (ProofCIfThenElse(cond, left, right), ProofCIfThenElse(call_cond, call_left, call_right)) =>
           var new_context = unify_expr(context)(cond)(call_cond)
@@ -157,37 +126,41 @@ object ProofTranslation {
     }
 
     val initial_context: Context =
-      Context(
-        spec.existensial_params.toList,
-        (
-          spec.c_params.map({ case (name, ty) => (name, CoqParamType(ty)) }) ++
-            spec.formal_params ++
-            spec.existensial_params
-          ).toMap,
-        Map(),
-        Nil,
-        Nil
-      )
+      Context(spec.existensial_params.toList, (
+                spec.c_params.map({
+                  case (name, CTypes.CIntType) => (name, ProofTypes.CoqIntType)
+                  case (name, CTypes.CVoidPtrType) => (name, ProofTypes.CoqPtrType)
+                  case (name, CTypes.CUnitType) => ???
+//                  case (name, CTypes.) => (name, ProofTypes.CoqPtrType)
+//                  case (name, ty) => (name, CoqParamType(ty))
+                }) ++
+                  spec.formal_params ++
+                  spec.existensial_params
+                ).toMap, Map(), Nil, Nil, Map(), Map())
 
     def retrieve_typing_context: Context => Map[Ident, VSTProofType] = _.gamma
 
     def add_new_variables(new_params: Map[Ident, VSTProofType])(context: Context): Context = context match {
-      case Context(post, old_params, ex_map, funs, ufs) => Context(post, old_params ++ new_params, ex_map, funs, ufs)
+      case Context(post, old_params, ex_map, funs, ufs, cc, cm) => Context(post, old_params ++ new_params, ex_map, funs, ufs, cc, cm)
+    }
+
+    def add_new_coq_variables(new_params: Map[Ident, VSTProofType])(context: Context): Context = context match {
+      case Context(post, old_params, ex_map, funs, ufs, cc, cm) => Context(post, old_params, ex_map, funs, ufs, cc ++ new_params, cm)
     }
 
     def pop_function(context: Context): (FunSpec, Context) = context match {
-      case Context(post, old_params, ex_map, fun :: funs, ufs) => (fun, Context(post, old_params, ex_map, funs,ufs))
+      case Context(post, old_params, ex_map, fun :: funs, ufs, cc, cm) => (fun, Context(post, old_params, ex_map, funs, ufs, cc, cm))
       case _ => fail_with("Function called without prior abduce call")
     }
 
     def push_function(fun_spec: FunSpec)(context: Context): Context = context match {
-      case Context(post, old_params, ex_map, old_funs, ufs) => Context(post, old_params, ex_map, fun_spec :: old_funs, ufs)
+      case Context(post, old_params, ex_map, old_funs, ufs, cc, cm) => Context(post, old_params, ex_map, fun_spec :: old_funs, ufs, cc, cm)
     }
 
     def push_unfolding(context: Context)(unfolded_expr: Unfold, new_equalities: Map[String, ProofCExpr]): Context =
       context match {
-        case Context(post, gamma, variable_map, functions, queued_unfolds) =>
-          Context(post, gamma, variable_map ++ new_equalities, functions, unfolded_expr :: queued_unfolds)
+        case Context(post, gamma, variable_map, functions, queued_unfolds, cc, cm) =>
+          Context(post, gamma, variable_map, functions, unfolded_expr :: queued_unfolds, cc, cm)
       }
 
     def record_variable_assignment(name: String, expr: Expr)(context: Context): Context = {
@@ -195,25 +168,16 @@ object ProofTranslation {
       val translated = ProofSpecTranslation.translate_expression(context.gamma)(expr)
       val result = (context.gamma.get(name), translated) match {
           case (Some (CoqPtrType), ProofCIntConst(value, _)) => ProofCIntConst(value,true)
+          case (Some (ty), ProofCSetLiteral(elems, None)) => ProofCSetLiteral(elems, Some(ty))
          case (_, translated) => translated
       }
-      Context(
-        context.post,
-        context.gamma,
-        (context.variable_map ++ Map(name -> result)),
-        context.functions,
-        context.queued_unfolds
-      )
+      val mapping = Map(name -> result)
+      val variable_map = context.variable_map.map({case (name, expr) => (name, expr.subst(mapping))})
+      Context(context.post, context.gamma, (variable_map ++ mapping), context.functions, context.queued_unfolds, context.coq_context, context.card_map)
     }
 
     def record_variable_assignment_card(name: String, expr: ProofCExpr)(context:Context) =
-      Context(
-        context.post,
-        context.gamma,
-        (context.variable_map ++ Map(name -> expr)),
-        context.functions,
-        context.queued_unfolds
-      )
+      Context(context.post, context.gamma, (context.variable_map ), context.functions, context.queued_unfolds,context.coq_context, context.card_map ++ Map(name -> expr))
 
 
 
@@ -241,17 +205,21 @@ object ProofTranslation {
       val new_funs = context.functions.map({ case (fun_name, args, existentials) =>
         (fun_name, args.map(arg => variable_mapping.getOrElse(arg, arg)), existentials) })
       val new_variable_map = update_map(context.variable_map)
+      val new_card_map = update_map(context.card_map)
       val new_unfolds = context.queued_unfolds.map({
-        case Unfold(predicate, cardinality, args, existentials) =>
-          val new_cardinality = cardinality match {
-            case ProofTerms.CardNull => ProofTerms.CardNull
-            case ProofTerms.CardOf(args) =>  ProofTerms.CardOf(args.map({case (name) => variable_mapping.getOrElse(name,name)}))
-          }
+        case Unfold(predicate, cardinality, args, existentials, new_equalities) =>
+          val new_cardinality = cardinality
+//          match {
+//            case ProofTerms.CardNull => ProofTerms.CardNull
+//            case ProofTerms.CardOf(args) =>  ProofTerms.CardOf(args.map({case (name) => variable_mapping.getOrElse(name,name)}))
+//          }
           val new_args = args.map({case (name,ty) => (variable_mapping.getOrElse(name,name), ty)})
           val new_existentials = existentials.map({case (name, ty) => (variable_mapping.getOrElse(name,name), ty)})
-          Unfold(predicate, new_cardinality, new_args, new_existentials)
+          val new_new_equalities = new_equalities.map({case (name,expr) => (variable_mapping.getOrElse(name,name), expr.subst(expr_map))})
+          Unfold(predicate, new_cardinality, new_args, new_existentials, new_new_equalities)
       })
-      Context(post, new_params, new_variable_map, new_funs, new_unfolds)
+      val coq_context = context.coq_context.map({ case (name,ty) => (variable_mapping.getOrElse(name,name), ty)})
+      Context(post, new_params, new_variable_map, new_funs, new_unfolds, coq_context, new_card_map)
     }
 
     /**
@@ -290,7 +258,7 @@ object ProofTranslation {
 
               rule match {
                 case ProofRule.NilNotLval(vars, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.CheckPost(prePhi, postPhi, next) => is_variable_used_in_proof(variable)(next)
+                case ProofRule.CheckPost(_, _, next) => is_variable_used_in_proof(variable)(next)
                 case ProofRule.PickCard(_, next) => is_variable_used_in_proof(variable)(next)
                 case ProofRule.PickArg(_, next) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
@@ -308,14 +276,14 @@ object ProofTranslation {
                 case ProofRule.EmpRule => false
                 case ProofRule.PureSynthesis(is_final, assignments, next) =>
                   is_variable_used_in_proof(variable)(next)
-                case ProofRule.Open(pred, fresh_vars, sbst, cases) =>
+                case ProofRule.Open(pred, _, heaplet, cases) =>
                   cases.exists({ case (expr, rule) =>
                     is_variable_used_in_exp(variable)(expr) ||
                       is_variable_used_in_proof(variable)(rule)
                   })
                 case ProofRule.SubstL(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
                 case ProofRule.SubstR(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) =>
+                case ProofRule.AbduceCall(new_vars,  f_pre, callePost, call, freshSub, _, _, _, next) =>
                   is_variable_used_in_proof(variable)(next)
                 case ProofRule.HeapUnify(_,next) => is_variable_used_in_proof(variable)(next)
                 case ProofRule.HeapUnifyPointer(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
@@ -363,7 +331,7 @@ object ProofTranslation {
       * and then for each branch introducing the variables that it uses.
       */
     def handle_open_rule(rule: ProofRule.Open, context: Context): ProofSteps = rule match {
-      case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, sbst, cases) =>
+      case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, _, cases) =>
         val pred = pred_map(predicate_name)
         ProofSteps.ForwardIfConstructor(
           card_variable,
@@ -376,10 +344,12 @@ object ProofTranslation {
                 case (variable, ty) => fresh_vars.get(Var(variable)).map({ case Var(new_name) => (new_name, ty) }).getOrElse((variable, ty))
               })
               val constructor_args = constructor.constructor_args.map(v => fresh_vars(Var(v)).name)
-              val new_context = add_new_variables(
+              val new_context_1 = add_new_variables(
                 new_variables.toMap ++
-                constructor_args.map(v => (v, CoqCardType(pred.inductive_name))).toMap
+                constructor_args.map(v => (v, CoqCardType(pred.name))).toMap
               )(context)
+              val new_context = add_new_coq_variables(new_variables.toMap ++
+                constructor_args.map(v => (v, CoqCardType(pred.name))).toMap)(new_context_1)
               // val (args, constructor_args) = partition_cardinality_args(new_variables)()
               ((pred.constructor_name(constructor), constructor, constructor_args),
                 ProofSpecTranslation.translate_expression(retrieve_typing_context(context).toMap)(expr),
@@ -422,7 +392,7 @@ object ProofTranslation {
               val pred_name = context.gamma(base_expr) match { case ProofTypes.CoqCardType(pred_type) => pred_type }
               val predicate = pred_map(pred_name)
               // NOTE: Assumes that all predicates have a 1-argument constructor
-              (ProofCCardinalityConstructor(predicate.inductive_name, predicate.constructor_name(predicate.constructor_by_arg(1)), List(translated_expr)), new_vars)
+              (ProofCCardinalityConstructor(predicate.name, predicate.constructor_name(predicate.constructor_by_arg(1)), List(translated_expr)), new_vars)
           }
 
         val new_context = subst.map({case (Var(name), expr) => (name,expr) }).foldRight(context)({
@@ -446,25 +416,35 @@ object ProofTranslation {
     def handle_emp_rule(context: Context) = {
       def instantiate_existentials(existentials: List[(Ident, VSTProofType)])(then: ProofSteps) : ProofSteps =
         existentials.foldRight(then)(
-          (variable, next) => ProofSteps.Exists(context.variable_map(variable._1), next)
+          (variable, next) => ProofSteps.Exists(context.variable_map.getOrElse(variable._1, ProofCVar(variable._1, variable._2)), next)
         )
+
+      def add_evars(unfolds: List[Unfold])(then: ProofSteps) : ProofSteps =
+        unfolds.flatMap(unfold => unfold.new_equalities.map(v => ProofCVar(v._1, v._2.type_expr))).foldRight(then)({case (proof_var, rest) =>
+          ProofSteps.IntroEvar(proof_var, rest)
+        })
+
       def unfold_predicates(then: ProofSteps) : ProofSteps =
-        context.queued_unfolds.foldRight(then)(
-          {case (unfold, next) =>
+        context.queued_unfolds.foldLeft(then)(
+          {case (next, unfold) =>
             val predicate : VSTPredicate = unfold.VSTPredicate
-            ProofSteps.Unfold (
+            unfold.new_equalities.foldRight(ProofSteps.Unfold (
               predicate,
               unfold.VSTPredicate.params.length,
-              ProofCCardinalityConstructor(
-                predicate.inductive_name,
-                predicate.constructor_name(unfold.cardinality),
-                unfold.cardinality.constructor_args.map(v => ProofCVar(v, CoqCardType(predicate.inductive_name)))),
+              ProofCVar(unfold.cardinality, CoqCardType(predicate.name)),
+//              ProofCCardinalityConstructor(
+//                predicate.inductive_name,
+//                predicate.constructor_name(unfold.cardinality),
+//                unfold.cardinality.constructor_args.map(v => ProofCVar(v, CoqCardType(predicate.inductive_name)))),
               unfold.existentials.foldRight(next)
               ({case ((variable,ty), next) => ProofSteps.Exists(context.variable_map.getOrElse(variable, ProofCVar(variable,ty)) , next)})
-            )}
+            ) : ProofSteps)({case ((evar_name, evar_value), (next : ProofSteps)) =>
+              ProofSteps.InstantiateEvar(evar_name, context.card_map.getOrElse(evar_name, evar_value), next)
+            })}
         )
 
       ProofSteps.ForwardEntailer(
+        add_evars(context.queued_unfolds)(
         instantiate_existentials(context.post)(
           context.post match { // If no existentials, only entailer will be at the end of the unfoldings
             case Nil =>
@@ -478,6 +458,7 @@ object ProofTranslation {
                 case ::(_, _) => ProofSteps.Entailer (unfold_predicates(ProofSteps.Entailer (ProofSteps.Qed)))
               }
           }
+        )
         )
       )
     }
@@ -568,11 +549,12 @@ object ProofTranslation {
 
     def handle_call_rule(rule: ProofRule.Call, context: Context): ProofSteps = rule match {
       case ProofRule.Call(_, call, next) =>
-        val ((fun, args, existentials), new_context) = pop_function(context)
+        val ((fun, args, existentials), new_context_1) = pop_function(context)
         ProofSteps.ForwardCall(args,
           existentials match {
-            case Nil => translate_proof_rules(next)(new_context)
+            case Nil => translate_proof_rules(next)(new_context_1)
             case _ =>
+              val new_context = add_new_coq_variables(existentials.toMap)(new_context_1)
               ProofSteps.IntrosTuple(existentials, translate_proof_rules(next)(new_context))
           })
     }
@@ -639,21 +621,23 @@ object ProofTranslation {
         val new_equalities = card_equality.toMap
 
         val args = cardinality.constructor_args.map(
-          name => (name, CoqCardType(predicate.inductive_name))
+          name => (fresh_exist(Var(name)).name, CoqCardType(predicate.name))
         )
-        val unfolding = Unfold(predicate, cardinality, args,  clause_existentials)
+        val unfolding = Unfold(predicate, app.card.asInstanceOf[Var].name, args,  clause_existentials, new_equalities)
         val new_context = push_unfolding(context)(unfolding, new_equalities)
-        val new_context_2 = record_variable_mapping(fresh_exist)(new_context)
+        val new_context_1 = record_variable_mapping(fresh_exist)(new_context) // record_variable_mapping(fresh_exist)(new_context)
+        val new_context_2 = add_new_variables(clause_existentials.toMap)(new_context_1) // record_variable_mapping(fresh_exist)(new_context)
 
         translate_proof_rules(next)(new_context_2)
     }
 
     def handle_malloc_rule(rule: ProofRule.Malloc, context: Context) = rule match {
       case ProofRule.Malloc(map, Malloc(Var(to_var), _, sz), next) =>
-        val new_context =
+        val new_context_1 =
           map.foldRight(
             add_new_variables(map.map({case (Var(original), Var(name)) => (name, CoqPtrType)}))(context)
           )({case ((Var(old_name), new_expr), context) => record_variable_assignment(old_name,new_expr)(context)})
+        val new_context = add_new_coq_variables(Map(to_var -> CoqPtrType))(new_context_1)
         ProofSteps.Malloc(sz,
           ProofSteps.Intros(
             List((to_var, CoqPtrType)),
@@ -697,7 +681,7 @@ object ProofTranslation {
 
         //          Ignored rules
         case ProofRule.WeakenPre(unused, next) => translate_proof_rules(next)(context)
-        case ProofRule.CheckPost(pre_phi, post_phi, next) => translate_proof_rules(next)(context)
+        case ProofRule.CheckPost(_, _, next) => translate_proof_rules(next)(context)
 
         case ProofRule.FrameUnfold(h_pre, h_post, next) => translate_proof_rules(next)(context)
 
@@ -716,18 +700,18 @@ object ProofTranslation {
 
   def contains_free(proof: ProofRule): Boolean = proof match {
     case ProofRule.NilNotLval(vars, next) => contains_free(next)
-    case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_free(next)
+    case ProofRule.CheckPost(_, _, next) => contains_free(next)
     case ProofRule.Pick(subst, next) => contains_free(next)
     case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_free)
     case ProofRule.Write(stmt, next) => contains_free(next)
     case ProofRule.WeakenPre(unused, next) => contains_free(next)
     case ProofRule.EmpRule => false
     case ProofRule.PureSynthesis(is_final, assignments, next) => contains_free(next)
-    case ProofRule.Open(pred, fresh_vars, sbst, cases) => cases.exists { case (_, prf) => contains_free(prf) }
+    case ProofRule.Open(pred, fresh_vars, _,  cases) => cases.exists { case (_, prf) => contains_free(prf) }
     case ProofRule.SubstL(map, next) => contains_free(next)
     case ProofRule.SubstR(map, next) => contains_free(next)
     case ProofRule.Read(map, operation, next) => contains_free(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) => contains_free(next)
+    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, _, _, _, next) => contains_free(next)
     case ProofRule.HeapUnify(_, next) => contains_free(next)
     case ProofRule.HeapUnifyPointer(map, next) => contains_free(next)
     case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_free(next)
@@ -742,18 +726,18 @@ object ProofTranslation {
 
   def contains_malloc(proof: ProofRule): Boolean = proof match {
     case ProofRule.NilNotLval(vars, next) => contains_malloc(next)
-    case ProofRule.CheckPost(pre_phi, post_phi, next) => contains_malloc(next)
+    case ProofRule.CheckPost(_, _, next) => contains_malloc(next)
     case ProofRule.Pick(subst, next) => contains_malloc(next)
     case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_malloc)
     case ProofRule.Write(stmt, next) => contains_malloc(next)
     case ProofRule.WeakenPre(unused, next) => contains_malloc(next)
     case ProofRule.EmpRule => false
     case ProofRule.PureSynthesis(is_final, assignments, next) => contains_malloc(next)
-    case ProofRule.Open(pred, fresh_vars, sbst, cases) => cases.exists { case (_, prf) => contains_malloc(prf) }
+    case ProofRule.Open(pred, fresh_vars, _, cases) => cases.exists { case (_, prf) => contains_malloc(prf) }
     case ProofRule.SubstL(map, next) => contains_malloc(next)
     case ProofRule.SubstR(map, next) => contains_malloc(next)
     case ProofRule.Read(map, operation, next) => contains_malloc(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma, next) => contains_malloc(next)
+    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, _, _, _, next) => contains_malloc(next)
     case ProofRule.HeapUnify(_,next) => contains_malloc(next)
     case ProofRule.HeapUnifyPointer(map, next) => contains_malloc(next)
     case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_malloc(next)

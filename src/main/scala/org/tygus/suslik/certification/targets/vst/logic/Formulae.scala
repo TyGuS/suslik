@@ -24,6 +24,7 @@ object Formulae {
     override def pp: String = {
 //      s"(data_at Tsh ${elem_typ.pp_as_ctype} ${elem.pp_as_c_value} ${loc.pp})"
       elem_typ match {
+        case ProofTypes.CoqParamType(CTypes.CVoidPtrType) => s"(data_at Tsh (tarray (Tunion _sslval noattr) 1) [${elem.pp_as_ssl_union_value}] ${loc.pp})"
         case ProofTypes.CoqParamType(_) => s"(data_at Tsh (tarray ${elem_typ.pp_as_ctype} 1) [${elem.pp_as_ssl_union_value}] ${loc.pp})"
         case ProofTypes.CoqPtrType => s"(data_at Tsh (tarray (Tunion _sslval noattr) 1) [inr ${elem.pp_as_c_value}] ${loc.pp})"
         case ProofTypes.CoqIntType => s"(data_at Tsh (tarray (Tunion _sslval noattr) 1) [inl ${elem.pp_as_c_value}] ${loc.pp})"

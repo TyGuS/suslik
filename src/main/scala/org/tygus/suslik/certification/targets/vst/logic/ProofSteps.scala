@@ -2,7 +2,7 @@ package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.clang.PrettyPrinting
 import ProofTerms.CardConstructor
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCCardinalityConstructor, ProofCExpr}
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCCardinalityConstructor, ProofCExpr, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.VSTProofType
 import org.tygus.suslik.language.Ident
 
@@ -21,6 +21,14 @@ sealed abstract class ProofSteps extends PrettyPrinting {
 }
 
 object ProofSteps {
+
+  case class IntroEvar(variable: ProofCVar, next: ProofSteps) extends ProofSteps {
+    override def pp: String = s"try evar ${variable.pp}.\n${next.pp}"
+  }
+
+  case class InstantiateEvar(name: Ident, value: ProofCExpr, next: ProofSteps) extends ProofSteps {
+    override def pp: String = s"instantiate (${name} := ${value.pp}).\n${next.pp}"
+  }
 
   case class Entailer(next: ProofSteps) extends ProofSteps {
     override def pp: String = s"entailer!.\n${next.pp}"
@@ -154,7 +162,7 @@ object ProofSteps {
     override def pp: String = ""
   }
 
-  case class Unfold(predicate: ProofTerms.VSTPredicate, args: Int, cardinality: ProofCCardinalityConstructor, next: ProofSteps) extends ProofSteps {
+  case class Unfold(predicate: ProofTerms.VSTPredicate, args: Int, cardinality: ProofCExpr, next: ProofSteps) extends ProofSteps {
     override def pp: String =
       s"simpl (${predicate.name} ${List.iterate("_", args)(v => v).mkString(" ")} (${cardinality.pp})) at 1.\n${next.pp}"
 
