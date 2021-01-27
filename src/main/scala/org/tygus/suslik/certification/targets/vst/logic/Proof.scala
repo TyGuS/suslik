@@ -2,7 +2,7 @@ package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.CVar
 import org.tygus.suslik.language.Expressions.Expr
-import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.{CertTree, ProofTree}
 import org.tygus.suslik.certification.targets.vst.{Debug, State}
 import org.tygus.suslik.certification.targets.vst.logic.Proof
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
@@ -15,7 +15,7 @@ import org.tygus.suslik.synthesis.rules.{DelegatePureSynthesis, FailRules, Logic
 import org.tygus.suslik.synthesis.{AppendProducer, BranchProducer, ChainedProducer, ConstProducer, ExtractHelper, GhostSubstProducer, GuardedProducer, HandleGuard, IdProducer, PartiallyAppliedProducer, PrependFromSketchProducer, PrependProducer, SeqCompProducer, StmtProducer, SubstProducer, UnfoldProducer}
 
 
-case class Proof(name: String, predicates: List[VSTPredicate], spec: ProofTerms.FormalSpecification, steps: ProofSteps, uses_free: Boolean = false, uses_malloc: Boolean = false) extends PrettyPrinting {
+case class Proof(name: String, predicates: List[VSTPredicate], spec: ProofTerms.FormalSpecification, steps: ProofTree[VSTProofStep], uses_free: Boolean = false, uses_malloc: Boolean = false) extends PrettyPrinting {
 
   /** prelude for Coq file */
   private def coq_prelude = s"""
