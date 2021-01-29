@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
-import org.tygus.suslik.certification.ProofRule
+import org.tygus.suslik.certification.{ProofTree, SuslikProofStep}
 import org.tygus.suslik.certification.targets.htt.language.CGamma
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.Types._
@@ -199,21 +199,21 @@ object IR {
     CFunSpec(f.name, rType, params, ghosts, pre, post)
   }
 
-  def fromRule(node: ProofRule.Node, ctx: IR.Context) : IR.Node = node.rule match {
-    case ProofRule.Init(goal) =>
+  def fromRule(node: ProofTree[SuslikProofStep], ctx: IR.Context) : IR.Node = node.rule match {
+    case SuslikProofStep.Init(_, goal) =>
       val cgoal = translateGoal(goal)
       val sappNames = (cgoal.pre.sigma.apps ++ cgoal.post.sigma.apps).map(a => a -> a).toMap
       val ctx1 = ctx.copy(topLevelGoal = Some(cgoal), sappNames = sappNames)
-      IR.Init(ctx1, Seq(fromRule(node.next.head, ctx1)))
-    case ProofRule.Open(sapp, fresh_vars, sbst, selectors) =>
+      IR.Init(ctx1, Seq(fromRule(node.children.head, ctx1)))
+    case SuslikProofStep.Open(_, sapp, fresh_vars, sbst, selectors) =>
       val csapp = translateSApp(sapp)
       val freshCVars = fresh_vars.map{ case (k,v) => CVar(k.name) -> translateExpr(v)}
       val csbst = translateSbst(sbst)
       val pred = ctx.predicateEnv(sapp.pred).subst(freshCVars).subst(csbst)
-      val next = node.next.map(n => fromRule(n, ctx))
+      val next = node.children.map(n => fromRule(n, ctx))
       val cselectors = selectors.map(translateExpr)
       IR.Open(csapp, pred.clauses, cselectors, next, ctx)
-    case ProofRule.Close(sapp, selector, asn, sbst) =>
+    case SuslikProofStep.Close(_, sapp, selector, asn, sbst) =>
       val csapp = translateSApp(sapp)
       val cselector = translateExpr(selector)
       val casn = translateAsn(asn)
@@ -224,75 +224,75 @@ object IR {
       val actualClause = CInductiveClause(csapp.pred, cclause.idx, cselector, casn, ex)
       val unfoldings = ctx.unfoldings + (csapp -> actualClause)
       val sappNames = ctx.sappNames ++ casn.sigma.apps.map(a => a -> a)
-      fromRule(node.next.head, ctx.copy(unfoldings = unfoldings, sappNames = sappNames))
-    case ProofRule.Branch(cond) =>
-      val Seq(ifTrue, ifFalse) = node.next
+      fromRule(node.children.head, ctx.copy(unfoldings = unfoldings, sappNames = sappNames))
+    case SuslikProofStep.Branch(_, cond) =>
+      val Seq(ifTrue, ifFalse) = node.children
       IR.Branch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
-    case ProofRule.PureSynthesis(is_final, sbst) =>
+    case SuslikProofStep.PureSynthesis(_, is_final, sbst) =>
       val csbst = translateSbst(sbst)
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
-      IR.PureSynthesis(is_final, Seq(fromRule(node.next.head, ctx1)), ctx1)
-    case ProofRule.SubstL(sbst) =>
+      IR.PureSynthesis(is_final, Seq(fromRule(node.children.head, ctx1)), ctx1)
+    case SuslikProofStep.SubstL(_, sbst) =>
       val csbst = translateSbst(sbst)
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
-      fromRule(node.next.head, ctx.copy(subst = ctx.subst ++ csbst, sappNames = sappNames))
-    case ProofRule.SubstR(sbst) =>
-      val csbst = translateSbst(sbst)
-      val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
-      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
-      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
-      fromRule(node.next.head, ctx1)
-    case ProofRule.Pick(sbst) =>
+      fromRule(node.children.head, ctx.copy(subst = ctx.subst ++ csbst, sappNames = sappNames))
+    case SuslikProofStep.SubstR(_, sbst) =>
       val csbst = translateSbst(sbst)
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
-      fromRule(node.next.head, ctx1)
-    case ProofRule.Read(ghosts, Load(to, tpe, from, offset)) =>
+      fromRule(node.children.head, ctx1)
+    case SuslikProofStep.Pick(_, sbst) =>
+      val csbst = translateSbst(sbst)
+      val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
+      val sappNames = updateSAppAliases(ctx.sappNames, csbst)
+      val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
+      fromRule(node.children.head, ctx1)
+    case SuslikProofStep.Read(_, ghosts, Load(to, tpe, from, offset)) =>
       val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
-      IR.Read(CLoad(CVar(to.name), translateType(tpe), CVar(from.name), offset), Seq(fromRule(node.next.head, ctx1)), ctx1)
-    case ProofRule.Write(Store(to, offset, e)) =>
-      IR.Write(CStore(CVar(to.name), offset, translateExpr(e)), Seq(fromRule(node.next.head, ctx)), ctx)
-    case ProofRule.Free(Statements.Free(v), size) =>
-      IR.Free(CFree(CVar(v.name), size), Seq(fromRule(node.next.head, ctx)), ctx)
-    case ProofRule.Malloc(ghosts, Statements.Malloc(to, tpe, sz)) =>
+      IR.Read(CLoad(CVar(to.name), translateType(tpe), CVar(from.name), offset), Seq(fromRule(node.children.head, ctx1)), ctx1)
+    case SuslikProofStep.Write(_, Store(to, offset, e)) =>
+      IR.Write(CStore(CVar(to.name), offset, translateExpr(e)), Seq(fromRule(node.children.head, ctx)), ctx)
+    case SuslikProofStep.Free(_, Statements.Free(v), size) =>
+      IR.Free(CFree(CVar(v.name), size), Seq(fromRule(node.children.head, ctx)), ctx)
+    case SuslikProofStep.Malloc(_, ghosts, Statements.Malloc(to, tpe, sz)) =>
       val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
-      IR.Malloc(CMalloc(CVar(to.name), translateType(tpe), sz), Seq(fromRule(node.next.head, ctx1)), ctx1)
-    case ProofRule.Call(_, Statements.Call(fun, args, _)) =>
+      IR.Malloc(CMalloc(CVar(to.name), translateType(tpe), sz), Seq(fromRule(node.children.head, ctx1)), ctx1)
+    case SuslikProofStep.Call(_, _, Statements.Call(fun, args, _)) =>
       val ctx1 = ctx.copy(nestedContext = ctx.nestedContext.map(_.applySubstitution))
       val ctx2 = ctx1.copy(nestedContext = None)
-      IR.Call(CCall(CVar(fun.name), args.map(translateExpr)), Seq(fromRule(node.next.head, ctx2)), ctx1)
-    case ProofRule.PickArg(sbst) =>
+      IR.Call(CCall(CVar(fun.name), args.map(translateExpr)), Seq(fromRule(node.children.head, ctx2)), ctx1)
+    case SuslikProofStep.PickArg(_, sbst) =>
       val csbst = translateSbst(sbst)
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
-      fromRule(node.next.head, ctx1)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma) =>
+      fromRule(node.children.head, ctx1)
+    case SuslikProofStep.AbduceCall(_, new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma) =>
       val cfunspec = translateFunSpec(f, gamma)
       val ccall = CCall(translateVar(call.fun), call.args.map(translateExpr))
       val nestedContext = NestedContext(funspec = cfunspec, call = ccall, freshToActual = translateSbst(freshToActual), companionToFresh = translateSbstVar(companionToFresh))
       val ctx1 = ctx.copy(nestedContext = Some(nestedContext))
-      fromRule(node.next.head, ctx1)
-    case ProofRule.HeapUnifyPointer(sbst) =>
+      fromRule(node.children.head, ctx1)
+    case SuslikProofStep.HeapUnifyPointer(_, sbst) =>
       val csbst = translateSbst(sbst)
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
-      fromRule(node.next.head, ctx1)
-    case ProofRule.EmpRule => IR.EmpRule(ctx)
-    case ProofRule.CheckPost(prePhi, postPhi) =>
-      IR.CheckPost(prePhi.conjuncts.map(translateExpr), postPhi.conjuncts.map(translateExpr), Seq(fromRule(node.next.head, ctx)), ctx)
-    case ProofRule.Inconsistency => IR.Inconsistency(ctx)
+      fromRule(node.children.head, ctx1)
+    case SuslikProofStep.EmpRule(_) => IR.EmpRule(ctx)
+    case SuslikProofStep.CheckPost(_, prePhi, postPhi) =>
+      IR.CheckPost(prePhi.conjuncts.map(translateExpr), postPhi.conjuncts.map(translateExpr), Seq(fromRule(node.children.head, ctx)), ctx)
+    case SuslikProofStep.Inconsistency(_) => IR.Inconsistency(ctx)
     // unused rules:
-    case ProofRule.HeapUnify(_) => fromRule(node.next.head, ctx)
-    case ProofRule.NilNotLval(_) => fromRule(node.next.head, ctx)
-    case ProofRule.WeakenPre(_) => fromRule(node.next.head, ctx)
-    case ProofRule.StarPartial(_, _) => fromRule(node.next.head, ctx)
-    case ProofRule.PickCard(_) => fromRule(node.next.head, ctx)
-    case ProofRule.FrameUnfold(h_pre, h_post) => fromRule(node.next.head, ctx)
-    case ProofRule.AbduceBranch(cond, bLabel) => fromRule(node.next.head, ctx)
+    case SuslikProofStep.HeapUnify(_, _) => fromRule(node.children.head, ctx)
+    case SuslikProofStep.NilNotLval(_, _) => fromRule(node.children.head, ctx)
+    case SuslikProofStep.WeakenPre(_, _) => fromRule(node.children.head, ctx)
+    case SuslikProofStep.StarPartial(_, _, _) => fromRule(node.children.head, ctx)
+    case SuslikProofStep.PickCard(_, _) => fromRule(node.children.head, ctx)
+    case SuslikProofStep.FrameUnfold(_, h_pre, h_post) => fromRule(node.children.head, ctx)
+    case SuslikProofStep.AbduceBranch(_, cond, bLabel) => fromRule(node.children.head, ctx)
   }
 }

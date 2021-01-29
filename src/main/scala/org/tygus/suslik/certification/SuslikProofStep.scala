@@ -16,10 +16,23 @@ import scala.collection.immutable.Map
 
 
 /** compressed form of suslik rules */
-sealed abstract class ProofRule extends PrettyPrinting {
+sealed abstract class SuslikProofStep extends PrettyPrinting {
+  val label: Option[GoalLabel]
 }
 
-object ProofRule {
+object SuslikProofStep {
+  implicit object ProofTreePrinter extends ProofTreePrinter[SuslikProofStep] {
+    override def pp(tree: ProofTree[SuslikProofStep]): String =
+      tree.rule match {
+        case rule:AbduceBranch =>
+          rule.pp ++ "\n" ++ rule.branch_strings(tree.children.head, tree.children(1))
+        case rule:Branch =>
+          rule.pp ++ "\n" ++ rule.branch_strings(tree.children.head, tree.children(1))
+        case rule:Open => rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
+        case rule => rule.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
+      }
+  }
+
   var indent : Int = 0
 
   def ind : String = " " * indent
@@ -34,82 +47,76 @@ object ProofRule {
     result
   }
 
-  case class Node(rule: ProofRule, label: GoalLabel, next: Seq[Node]) extends PrettyPrinting {
-    override def pp: String = rule match {
-      case ProofRule.AbduceBranch(cond, bLabel) =>
-        val Seq(ifTrue, ifFalse) = next
-        s"$ind${rule.pp}\n${ind}IfTrue:\n${with_scope(_ => ifTrue.pp)}\n${ind}IfFalse:\n${with_scope(_ => ifFalse.pp)}"
-      case ProofRule.Open(pred, fresh_vars, sbst, selectors) =>
-        val cases = selectors.zip(next)
-        s"$ind${rule.pp}\n${with_scope(_ => cases.map({case (expr,rest) => s"${ind}if ${sanitize(expr.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
-      case _ =>
-        s"$ind${rule.pp}\n${next.map(_.pp).mkString("")}"
-    }
-  }
-
   /** corresponds to asserting all the variables in vars are not null */
-  case class NilNotLval(vars: List[Expr]) extends ProofRule {
+  case class NilNotLval(label: Option[GoalLabel], vars: List[Expr]) extends SuslikProofStep {
     override def pp: String = s"NilNotLval(${vars.map(_.pp).mkString(", ")});"
   }
 
   /** solves a pure entailment with SMT */
-  case class CheckPost(prePhi: PFormula, postPhi: PFormula) extends ProofRule {
+  case class CheckPost(label: Option[GoalLabel], prePhi: PFormula, postPhi: PFormula) extends SuslikProofStep {
     override def pp: String = s"CheckPost(${prePhi.pp}; ${postPhi.pp});"
   }
 
   /** picks an arbitrary instantiation of the proof rules */
-  case class Pick(subst: Map[Var, Expr]) extends ProofRule {
+  case class Pick(label: Option[GoalLabel], subst: Map[Var, Expr]) extends SuslikProofStep {
     override def pp: String = s"Pick(${subst.mkString(", ")});"
   }
 
   /** abduces a condition for the proof */
-  case class AbduceBranch(cond: Expr, bLabel: GoalLabel) extends ProofRule {
-    override def pp: String = s"AbduceBranch(${cond});"
+  case class AbduceBranch(label: Option[GoalLabel], cond: Expr, bLabel: GoalLabel) extends SuslikProofStep {
+    def branch_strings[T <: PrettyPrinting] (ifTrue: T, ifFalse: T) =
+      s"${ind}IfTrue:\\n${with_scope(_ => ifTrue.pp)}\\n${ind}IfFalse:\\n${with_scope(_ => ifFalse.pp)}"
+
+    override def pp: String = s"AbduceBranch(${cond.pp}, ${bLabel.pp});"
   }
 
   /** write a value */
-  case class Write(stmt: Store) extends ProofRule {
+  case class Write(label: Option[GoalLabel], stmt: Store) extends SuslikProofStep {
     override def pp: String = s"Write(${sanitize(stmt.pp)});"
   }
 
   /** weaken the precondition by removing unused formulae */
-  case class WeakenPre(unused: PFormula) extends ProofRule {
+  case class WeakenPre(label: Option[GoalLabel], unused: PFormula) extends SuslikProofStep {
     override def pp: String = s"WeakenPre(${unused.pp});"
   }
 
   /** empty rule */
-  case object EmpRule extends ProofRule {
+  case class EmpRule(label: Option[GoalLabel]) extends SuslikProofStep {
     override def pp: String = s"EmpRule;"
   }
 
   /** pure synthesis rules */
-  case class PureSynthesis(is_final: Boolean, assignments:Map[Var, Expr]) extends ProofRule {
+  case class PureSynthesis(label: Option[GoalLabel], is_final: Boolean, assignments:Map[Var, Expr]) extends SuslikProofStep {
     override def pp: String = s"PureSynthesis(${is_final}, ${assignments.mkString(",")});"
   }
 
   /** open constructor cases */
-  case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, selectors: List[Expr]) extends ProofRule {
+  case class Open(label: Option[GoalLabel], pred: SApp, fresh_vars: SubstVar, sbst: Subst, selectors: List[Expr]) extends SuslikProofStep {
+    def branch_strings[T <: PrettyPrinting] (exprs: List[T]) =
+      s"${with_scope(_ => exprs.zip(selectors).map({case (expr,rest) => s"${ind}if ${sanitize(expr.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
+
     override def pp: String = s"Open(${pred.pp}, ${fresh_vars.mkString(", ")});"
   }
 
   /** subst L */
-  case class SubstL(map: Map[Var, Expr]) extends ProofRule {
+  case class SubstL(label: Option[GoalLabel], map: Map[Var, Expr]) extends SuslikProofStep {
     override def pp: String = s"SubstL(${map.mkString(",")});"
   }
 
   /** subst R */
-  case class SubstR(map: Map[Var, Expr]) extends ProofRule {
+  case class SubstR(label: Option[GoalLabel], map: Map[Var, Expr]) extends SuslikProofStep {
     override def pp: String = s"SubstR(${map.mkString(",")});"
   }
 
 
   /** read rule */
-  case class Read(map: Map[Var,Var], operation: Load) extends ProofRule {
+  case class Read(label: Option[GoalLabel], map: Map[Var,Var], operation: Load) extends SuslikProofStep {
     override def pp: String = s"Read(${map.mkString(",")}, ${sanitize(operation.pp)});"
   }
 
 //  /** abduce a call */
 case class AbduceCall(
+                       label: Option[GoalLabel],
                        new_vars: Map[Var, SSLType],
                        f_pre: Specifications.Assertion,
                        callePost: Specifications.Assertion,
@@ -118,80 +125,84 @@ case class AbduceCall(
                        freshToActual: Subst,
                        f: FunSpec,
                        gamma: Gamma
-                     ) extends ProofRule {
+                     ) extends SuslikProofStep {
   override def pp: String = s"AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
 }
 
 
   /** unification of heap (ignores block/pure distinction) */
-  case class HeapUnify(subst: Map[Var, Expr]) extends ProofRule {
+  case class HeapUnify(label: Option[GoalLabel], subst: Map[Var, Expr]) extends SuslikProofStep {
     override def pp: String = s"HeapUnify(${subst.mkString(",")});"
   }
 
   /** unification of pointers */
-  case class HeapUnifyPointer(map: Map[Var,Expr]) extends ProofRule {
+  case class HeapUnifyPointer(label: Option[GoalLabel], map: Map[Var,Expr]) extends SuslikProofStep {
     override def pp: String = s"HeapUnifyPointer(${map.mkString(",")});"
   }
 
   /** unfolds frame */
-  case class FrameUnfold(h_pre: Heaplet, h_post: Heaplet) extends ProofRule {
+  case class FrameUnfold(label: Option[GoalLabel], h_pre: Heaplet, h_post: Heaplet) extends SuslikProofStep {
     override def pp: String = s"FrameUnfold(${h_pre.pp}, ${h_post.pp});"
   }
 
   /** call operation */
-  case class Call(subst: Map[Var, Expr], call: Statements.Call) extends ProofRule {
+  case class Call(label: Option[GoalLabel], subst: Map[Var, Expr], call: Statements.Call) extends SuslikProofStep {
     override def pp: String = s"Call({${subst.mkString(",")}}, ${sanitize(call.pp)});"
   }
 
   /** free operation */
-  case class Free(stmt: Statements.Free, size: Int) extends ProofRule {
+  case class Free(label: Option[GoalLabel], stmt: Statements.Free, size: Int) extends SuslikProofStep {
     override def pp: String = s"Free(${sanitize(stmt.pp)});"
   }
 
   /** malloc rule */
-  case class Malloc(map: SubstVar, stmt: Statements.Malloc) extends ProofRule {
+  case class Malloc(label: Option[GoalLabel], map: SubstVar, stmt: Statements.Malloc) extends SuslikProofStep {
     override def pp: String = s"Malloc(${map.mkString(",")}, ${sanitize(stmt.pp)});"
   }
 
   /** close rule */
-  case class Close(app: SApp, selector: Expr, asn: Assertion, fresh_exist: SubstVar) extends  ProofRule {
+  case class Close(label: Option[GoalLabel], app: SApp, selector: Expr, asn: Assertion, fresh_exist: SubstVar) extends  SuslikProofStep {
     override def pp: String = s"Close(${app.pp}, ${sanitize(selector.pp)}, ${asn.pp}, {${fresh_exist.mkString(",")}});"
   }
 
   /** star partial */
-  case class StarPartial(new_pre_phi: PFormula, new_post_phi: PFormula) extends ProofRule {
+  case class StarPartial(label: Option[GoalLabel], new_pre_phi: PFormula, new_post_phi: PFormula) extends SuslikProofStep {
     override def pp: String = s"StarPartial(${new_pre_phi.pp}, ${new_post_phi.pp});"
   }
 
-  case class PickCard(map: Map[Var,Expr]) extends ProofRule {
+  case class PickCard(label: Option[GoalLabel], map: Map[Var,Expr]) extends SuslikProofStep {
     override def pp: String = s"PickCard(${map.mkString(",")});"
   }
 
 
-  case class PickArg(map: Map[Var, Expr]) extends ProofRule {
+  case class PickArg(label: Option[GoalLabel], map: Map[Var, Expr]) extends SuslikProofStep {
     override def pp: String = s"PickArg(${map.mkString(",")});"
   }
 
-  case class Init(goal: Goal) extends ProofRule {
+  case class Init(label: Option[GoalLabel], goal: Goal) extends SuslikProofStep {
     override def pp: String = s"Init(${goal.pp});"
   }
 
-  case object Inconsistency extends ProofRule {
+  case class Inconsistency(label: Option[GoalLabel]) extends SuslikProofStep {
     override def pp: String = "Inconsistency"
   }
 
-  case class Branch(cond: Expr) extends ProofRule {
-    override def pp: String = s"Branch($cond);"
+  case class Branch(label: Option[GoalLabel], cond: Expr) extends SuslikProofStep {
+    def branch_strings[T <: PrettyPrinting] (ifTrue: T, ifFalse: T) =
+      s"${ind}IfTrue:\\n${with_scope(_ => ifTrue.pp)}\\n${ind}IfFalse:\\n${with_scope(_ => ifFalse.pp)}"
+
+    override def pp: String = s"Branch(${cond.pp});"
   }
 
   /** converts a Suslik CertTree node into the unified ProofRule structure */
-  def of_certtree(node: CertTree.Node): Node = {
+  def of_certtree(node: CertTree.Node): ProofTree[SuslikProofStep] = {
     def fail_with_bad_proof_structure(): Nothing =
       throw ProofRuleTranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
     def fail_with_bad_children(ls: Seq[CertTree.Node], count: Int): Nothing =
       throw ProofRuleTranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != $count")
 
-    def visit(node: CertTree.Node): Node = {
+    def visit(node: CertTree.Node): ProofTree[SuslikProofStep] = {
+      val label = Some(node.goal.label)
       val rule = node.rule match {
         case LogicalRules.NilNotLval => node.kont match {
           case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(_)) =>
@@ -207,14 +218,14 @@ case class AbduceCall(
             val pre_pointers = find_pointers(node.goal.pre.phi, node.goal.pre.sigma).toList
 
             node.children match {
-              case ::(head, Nil) => ProofRule.NilNotLval(pre_pointers)
+              case ::(head, Nil) => SuslikProofStep.NilNotLval(label, pre_pointers)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
         }
         case FailRules.CheckPost => node.kont match {
           case ChainedProducer(PureEntailmentProducer(prePhi, postPhi), IdProducer) => node.children match {
-            case ::(head, Nil) => ProofRule.CheckPost(prePhi, postPhi)
+            case ::(head, Nil) => SuslikProofStep.CheckPost(label, prePhi, postPhi)
             case ls => fail_with_bad_children(ls, 1)
           }
           case _ => fail_with_bad_proof_structure()
@@ -222,7 +233,7 @@ case class AbduceCall(
         case UnificationRules.Pick => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.Pick(map)
+              case ::(head, Nil) => SuslikProofStep.Pick(label, map)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -230,7 +241,7 @@ case class AbduceCall(
         case FailRules.AbduceBranch => node.kont match {
           case GuardedProducer(cond, bGoal) =>
             node.children match {
-              case ::(if_true, ::(if_false, Nil)) => ProofRule.AbduceBranch(cond, bGoal.label)
+              case ::(if_true, ::(if_false, Nil)) => SuslikProofStep.AbduceBranch(label, cond, bGoal.label)
               case ls => fail_with_bad_children(ls, 2)
             }
           case _ => fail_with_bad_proof_structure()
@@ -238,7 +249,7 @@ case class AbduceCall(
         case OperationalRules.WriteRule => node.kont match {
           case ChainedProducer(ChainedProducer(PrependProducer(stmt@Store(_, _, _)), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.Write(stmt)
+              case ::(head, Nil) => SuslikProofStep.Write(label, stmt)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -246,7 +257,7 @@ case class AbduceCall(
         case LogicalRules.Inconsistency => node.kont match {
           case ConstProducer(Error) =>
             node.children match {
-              case Nil => ProofRule.Inconsistency
+              case Nil => SuslikProofStep.Inconsistency(label)
               case ls => fail_with_bad_children(ls, 0)
             }
           case _ => fail_with_bad_proof_structure()
@@ -255,7 +266,7 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(IdProducer, HandleGuard(_)), ExtractHelper(goal)) =>
             val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
             node.children match {
-              case ::(head, Nil) => ProofRule.WeakenPre(unused)
+              case ::(head, Nil) => SuslikProofStep.WeakenPre(label, unused)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -263,7 +274,7 @@ case class AbduceCall(
         case LogicalRules.EmpRule => node.kont match {
           case ConstProducer(Skip) =>
             node.children match {
-              case Nil => ProofRule.EmpRule
+              case Nil => SuslikProofStep.EmpRule(label)
               case ls => fail_with_bad_children(ls, 0)
             }
           case _ => fail_with_bad_proof_structure()
@@ -272,20 +283,20 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(assignments), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
               case ::(head, Nil) =>
-                ProofRule.PureSynthesis(is_final = true, assignments)
+                SuslikProofStep.PureSynthesis(label, is_final = true, assignments)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
         }
         case UnfoldingRules.Open => node.kont match {
           case ChainedProducer(ChainedProducer(BranchProducer(Some(pred), fresh_vars, sbst, selectors), HandleGuard(_)), ExtractHelper(_)) =>
-            ProofRule.Open(pred, fresh_vars, sbst, selectors.toList)
+            SuslikProofStep.Open(label, pred, fresh_vars, sbst, selectors.toList)
           case _ => fail_with_bad_proof_structure()
         }
         case LogicalRules.SubstLeft => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.SubstL(map)
+              case ::(head, Nil) => SuslikProofStep.SubstL(label, map)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -293,7 +304,7 @@ case class AbduceCall(
         case UnificationRules.SubstRight => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.SubstR(map)
+              case ::(head, Nil) => SuslikProofStep.SubstR(label, map)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -301,7 +312,7 @@ case class AbduceCall(
         case OperationalRules.ReadRule => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(GhostSubstProducer(map), PrependProducer(stmt@Load(_, _, _, _))), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.Read(map, stmt)
+              case ::(head, Nil) => SuslikProofStep.Read(label, map, stmt)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -315,7 +326,7 @@ case class AbduceCall(
                   head.goal.gamma.filterKeys(key => !node.goal.gamma.contains(key))
                 val f_pre = head.goal.post
                 var SuspendedCallGoal(caller_pre, caller_post, callePost, call, freshSub, freshToActual) = head.goal.callGoal.get
-                ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, head.goal.gamma)
+                SuslikProofStep.AbduceCall(label, new_vars, f_pre, callePost, call, freshSub, freshToActual, f, head.goal.gamma)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -323,7 +334,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyPure => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.HeapUnify(subst)
+              case ::(head, Nil) => SuslikProofStep.HeapUnify(label, subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -331,7 +342,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyUnfolding => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.HeapUnify(subst)
+              case ::(head, Nil) => SuslikProofStep.HeapUnify(label, subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -339,7 +350,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyBlock => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.HeapUnify(subst)
+              case ::(head, Nil) => SuslikProofStep.HeapUnify(label, subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -347,7 +358,7 @@ case class AbduceCall(
         case UnificationRules.HeapUnifyPointer => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.HeapUnifyPointer(subst)
+              case ::(head, Nil) => SuslikProofStep.HeapUnifyPointer(label, subst)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -364,7 +375,7 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    ProofRule.FrameUnfold(h_pre, h_post)
+                    SuslikProofStep.FrameUnfold(label, h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
@@ -382,7 +393,7 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    ProofRule.FrameUnfold(h_pre, h_post)
+                    SuslikProofStep.FrameUnfold(label, h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
@@ -400,7 +411,7 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    ProofRule.FrameUnfold(h_pre, h_post)
+                    SuslikProofStep.FrameUnfold(label, h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
@@ -418,7 +429,7 @@ case class AbduceCall(
                 findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                   case None => ???
                   case Some((h_pre, h_post)) =>
-                    ProofRule.FrameUnfold(h_pre, h_post)
+                    SuslikProofStep.FrameUnfold(label, h_pre, h_post)
                 }
               case ls => fail_with_bad_children(ls, 1)
             }
@@ -427,7 +438,7 @@ case class AbduceCall(
         case UnfoldingRules.CallRule => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(subst),PrependProducer(call: Statements.Call)), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.Call(subst, call)
+              case ::(head, Nil) => SuslikProofStep.Call(label, subst, call)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -439,7 +450,7 @@ case class AbduceCall(
               case None => 1
             }
             node.children match {
-              case ::(head, Nil) => ProofRule.Free(stmt, size)
+              case ::(head, Nil) => SuslikProofStep.Free(label, stmt, size)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -448,8 +459,8 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(ChainedProducer(GhostSubstProducer(map), PrependProducer(stmt@Statements.Malloc(_, _, _))), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
               case ::(head, Nil) =>
-                ProofRule.
-                  Malloc(map, stmt)
+                SuslikProofStep.
+                  Malloc(label, map, stmt)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -458,7 +469,7 @@ case class AbduceCall(
           case ChainedProducer(ChainedProducer(ChainedProducer(UnfoldProducer(app, selector, asn, fresh_exist), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
             node.children match {
               case ::(head, Nil) =>
-                ProofRule.Close(app, selector, asn, fresh_exist)
+                SuslikProofStep.Close(label, app, selector, asn, fresh_exist)
               case ls => fail_with_bad_children(ls, 1)
             }
         }
@@ -469,7 +480,7 @@ case class AbduceCall(
 
             node.children match {
               case ::(head, Nil) =>
-                ProofRule.StarPartial(new_pre_phi, new_post_phi)
+                SuslikProofStep.StarPartial(label, new_pre_phi, new_post_phi)
               case ls => fail_with_bad_children(ls, 1)
             }
           case _ => fail_with_bad_proof_structure()
@@ -478,25 +489,24 @@ case class AbduceCall(
         case UnificationRules.PickCard => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.PickCard(map)
+              case ::(head, Nil) => SuslikProofStep.PickCard(label, map)
               case ls => fail_with_bad_children(ls, 1)
             }
         }
         case UnificationRules.PickArg => node.kont match {
           case ChainedProducer(ChainedProducer(ChainedProducer(SubstProducer(map), IdProducer), HandleGuard(_)), ExtractHelper(goal)) =>
             node.children match {
-              case ::(head, Nil) => ProofRule.PickArg(map)
+              case ::(head, Nil) => SuslikProofStep.PickArg(label, map)
               case ls => fail_with_bad_children(ls, 1)
             }
         }
       }
 
-      Node(rule, node.goal.label, node.children.map(visit))
+      ProofTree(rule, node.children.map(visit).toList)
     }
 
     val rest = visit(node)
-    val tree = Node(Init(node.goal), null, Seq(rest))
-    finalize_branches(tree)
+    ProofTree(Init(None, node.goal), List(rest))
   }
 
   /**
@@ -514,23 +524,28 @@ case class AbduceCall(
     * @param node the root node of the tree
     * @return a copy of the tree with finalized branches inserted
     */
-    def finalize_branches(node: Node): Node = {
-      def collect_branch_abductions(node: Node, abductions: Set[Node] = Set.empty): Set[Node] = {
+    def finalize_branches(node: ProofTree[SuslikProofStep]): ProofTree[SuslikProofStep] = {
+      def collect_branch_abductions(node: ProofTree[SuslikProofStep], abductions: Set[ProofTree[SuslikProofStep]] = Set.empty): Set[ProofTree[SuslikProofStep]] = {
         val abductions1 = node.rule match {
           case ab:AbduceBranch => abductions + node
           case _ => abductions
         }
-        node.next.foldLeft(abductions1) { case (a, n) => collect_branch_abductions(n, a) }
+        node.children.foldLeft(abductions1) { case (a, n) => collect_branch_abductions(n, a) }
       }
-      def apply_branch_abductions(abductions: Set[Node])(node: Node): Node = {
-        abductions.find(_.rule.asInstanceOf[AbduceBranch].bLabel == node.label) match {
-          case Some(ab@Node(AbduceBranch(cond, bLabel), _, _)) =>
-            val Seq(ifTrue, ifFalse) = ab.next
-            val ifTrue1 = node.copy(next = node.next.map(apply_branch_abductions(abductions)))
-            val ifFalse1 = apply_branch_abductions(abductions)(ifFalse)
-            Node(Branch(cond), ab.label, Seq(ifTrue1, ifFalse1))
+      def apply_branch_abductions(abductions: Set[ProofTree[SuslikProofStep]])(node: ProofTree[SuslikProofStep]): ProofTree[SuslikProofStep] = {
+        node.rule.label match {
+          case Some(label) =>
+            abductions.find(_.rule.asInstanceOf[AbduceBranch].bLabel == label) match {
+              case Some(ab@ProofTree(AbduceBranch(_, cond, bLabel), _)) =>
+                val List(ifTrue, ifFalse) = ab.children
+                val ifTrue1 = node.copy(children = node.children.map(apply_branch_abductions(abductions)))
+                val ifFalse1 = apply_branch_abductions(abductions)(ifFalse)
+                ProofTree(Branch(None, cond), List(ifTrue1, ifFalse1))
+              case None =>
+                node.copy(children = node.children.map(apply_branch_abductions(abductions)))
+            }
           case None =>
-            node.copy(next = node.next.map(apply_branch_abductions(abductions)))
+            node.copy(children = node.children.map(apply_branch_abductions(abductions)))
         }
       }
       apply_branch_abductions(collect_branch_abductions(node))(node)

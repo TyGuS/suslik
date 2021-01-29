@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.targets.htt.HTTCertificate
-import org.tygus.suslik.certification.{CertTree, ProofRule}
+import org.tygus.suslik.certification.{CertTree, SuslikProofStep}
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.language.Types._
@@ -32,7 +32,7 @@ object Translation {
     })
     val goal = translateGoal(node.goal)
     val ctx = IR.emptyContext.copy(predicateEnv = cpreds)
-    val ir = IR.fromRule(ProofRule.of_certtree(node), ctx).propagateContext
+    val ir = IR.fromRule(SuslikProofStep.of_certtree(node), ctx).propagateContext
     val proof = ProofTranslation.irToProofSteps(ir)
     val hints = ProofTranslation.irToHints(ir)
     val progBody = ProgramTranslation.translate(ir)

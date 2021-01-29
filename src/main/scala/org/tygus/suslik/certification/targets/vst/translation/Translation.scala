@@ -27,6 +27,7 @@ object Translation {
     val procedure = CTranslation.translate_function(proc, root.goal.gamma)
     val (spec, context) = ProofSpecTranslation.translate_conditions(procedure)(root.goal)
     val pre_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.pre)
+    val post_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.post)
     println(procedure.pp)
     println(spec.pp)
     val predicates: List[VSTPredicate] = env.predicates.map({ case (_, predicate) =>
@@ -35,7 +36,7 @@ object Translation {
 
     predicates.foreach(v => println(v.pp))
 
-    val proof = ProofTranslation.translate_proof(proc.f.name, predicates, spec, root, pre_cond)
+    val proof = ProofTranslation.translate_proof(proc.f.name, predicates, spec, root, pre_cond, post_cond)
 
     println(proof.pp)
 
