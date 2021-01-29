@@ -9,7 +9,7 @@ import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.{CoqCardType,
 import org.tygus.suslik.certification.targets.vst.logic.{Proof, ProofTerms, ProofTypes, VSTProofStep}
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.ProofTreePrinter
 import org.tygus.suslik.certification.targets.vst.translation.Translation.fail_with
-import org.tygus.suslik.certification.{CertTree, ProofRule, ProofTree}
+import org.tygus.suslik.certification.{CertTree, SuslikProofStep, ProofTree}
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.Statements.{Call, Free, Load, Malloc}
 import org.tygus.suslik.language.{Expressions, Ident, Statements}
@@ -244,8 +244,8 @@ object ProofTranslation {
       *      - first assert that the pointer being read from is non-null (VST idiosynracy)
       *      - emit a forward tactic to move over the operation
       */
-    def handle_read_rule(rule: ProofRule.Read, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.Read(subst, option, next) =>
+    def handle_read_rule(rule: SuslikProofStep.Read, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Read(subst, option) =>
         subst.toList match {
           case ::((Var(old_var), Var(new_var)), _) =>
             def is_variable_used_in_exp(variable: Ident)(expr: Expr): Boolean = expr match {
@@ -261,54 +261,54 @@ object ProofTranslation {
                 is_variable_used_in_exp(variable)(cond) || is_variable_used_in_exp(variable)(left) || is_variable_used_in_exp(variable)(right)
             }
 
-            def is_variable_used_in_proof(variable: Ident)(rule: ProofRule): Boolean = {
+            def is_variable_used_in_proof(variable: Ident)(rule: ProofTree[SuslikProofStep]): Boolean = {
               def map_varaible(map: Map[Var, Expr]): Ident =
                 map.get(Var(variable)).flatMap({ case Var(name) => Some(name) case _ => None }).getOrElse(variable)
 
               rule match {
-                case ProofRule.NilNotLval(vars, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.CheckPost(_, _, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.PickCard(_, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.PickArg(_, next) =>
+                case ProofTree(SuslikProofStep.NilNotLval(vars), List(next)) => is_variable_used_in_proof(variable)(next)
+                case ProofTree(SuslikProofStep.CheckPost(_, _), List(next)) => is_variable_used_in_proof(variable)(next)
+                case ProofTree(SuslikProofStep.PickCard(_), List(next)) => is_variable_used_in_proof(variable)(next)
+                case ProofTree(SuslikProofStep.PickArg(_), List(next)) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
                   (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.Pick(subst, next) =>
+                case ProofTree(SuslikProofStep.Pick(subst), List(next)) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
                   (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+                case ProofTree(SuslikProofStep.AbduceBranch(cond), List(ifTrue, ifFalse)) =>
                   is_variable_used_in_exp(variable)(cond) ||
                     is_variable_used_in_proof(variable)(ifTrue) ||
                     is_variable_used_in_proof(variable)(ifFalse)
-                case ProofRule.Write(Statements.Store(Var(tov), offset, e), next) =>
+                case ProofTree(SuslikProofStep.Write(Statements.Store(Var(tov), offset, e)), List(next)) =>
                   (tov == variable) || is_variable_used_in_exp(variable)(e) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.WeakenPre(unused, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.EmpRule => false
-                case ProofRule.PureSynthesis(is_final, assignments, next) =>
+                case ProofTree(SuslikProofStep.WeakenPre(unused), List(next)) => is_variable_used_in_proof(variable)(next)
+                case ProofTree(SuslikProofStep.EmpRule, List()) => false
+                case ProofTree(SuslikProofStep.PureSynthesis(is_final, assignments), List(next)) =>
                   is_variable_used_in_proof(variable)(next)
-                case ProofRule.Open(pred, _, heaplet, cases) =>
-                  cases.exists({ case (expr, rule) =>
+                case ProofTree(SuslikProofStep.Open(pred, _, heaplet,cases), children) =>
+                  cases.zip(children).exists({ case (expr, rule) =>
                     is_variable_used_in_exp(variable)(expr) ||
                       is_variable_used_in_proof(variable)(rule)
                   })
-                case ProofRule.SubstL(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.SubstR(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, _, _, _, next) =>
+                case ProofTree(SuslikProofStep.SubstL(map), List(next)) => is_variable_used_in_proof(map_varaible(map))(next)
+                case ProofTree(SuslikProofStep.SubstR(map), List(next)) => is_variable_used_in_proof(map_varaible(map))(next)
+                case ProofTree(SuslikProofStep.AbduceCall(new_vars, f_pre, callePost, call, freshSub, _, _, _), List(next)) =>
                   is_variable_used_in_proof(variable)(next)
-                case ProofRule.HeapUnify(_, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.HeapUnifyPointer(map, next) => is_variable_used_in_proof(map_varaible(map))(next)
-                case ProofRule.FrameUnfold(h_pre, h_post, next) => is_variable_used_in_proof(variable)(next)
-                case ProofRule.Close(app, selector, asn, fresh_exist, next) =>
+                case ProofTree(SuslikProofStep.HeapUnify(_), List(next)) => is_variable_used_in_proof(variable)(next)
+                case ProofTree(SuslikProofStep.HeapUnifyPointer(map), List(next)) => is_variable_used_in_proof(map_varaible(map))(next)
+                case ProofTree(SuslikProofStep.FrameUnfold(h_pre, h_post), List(next)) => is_variable_used_in_proof(variable)(next)
+                case ProofTree(SuslikProofStep.Close(app, selector, asn, fresh_exist), List(next)) =>
                   is_variable_used_in_proof(variable)(next)
-                case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) =>
+                case ProofTree(SuslikProofStep.StarPartial(new_pre_phi, new_post_phi), List(next)) =>
                   is_variable_used_in_proof(variable)(next)
-                case ProofRule.Read(map, Load(Var(toe), _, Var(frome), offset), next) =>
+                case ProofTree(SuslikProofStep.Read(map, Load(Var(toe), _, Var(frome), offset)), List(next)) =>
                   (frome == variable) || ((toe != variable) && is_variable_used_in_proof(variable)(next))
-                case ProofRule.Call(_, Call(_, args, _), next) =>
+                case ProofTree(SuslikProofStep.Call(_, Call(_, args, _)), List(next)) =>
                   args.exists(is_variable_used_in_exp(variable)) ||
                     is_variable_used_in_proof(variable)(next)
-                case ProofRule.Free(Free(Var(v)), _, next) =>
+                case ProofTree(SuslikProofStep.Free(Free(Var(v)), _), List(next)) =>
                   (v == variable) || is_variable_used_in_proof(variable)(next)
-                case ProofRule.Malloc(map, Malloc(Var(toe), tpe, sz), next) =>
+                case ProofTree(SuslikProofStep.Malloc(map, Malloc(Var(toe), tpe, sz)), List(next)) =>
                   (toe != variable) && is_variable_used_in_proof(variable)(next)
               }
             }
@@ -333,10 +333,10 @@ object ProofTranslation {
       * Does this by mapping each constructor of the opened predicate to a branch of the rule,
       * and then for each branch introducing the variables that it uses.
       */
-    def handle_open_rule(rule: ProofRule.Open, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, _, cases) =>
+    def handle_open_rule(rule: SuslikProofStep.Open, children: List[ProofTree[SuslikProofStep]], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Open(SApp(predicate_name, args, _, Var(card_variable)), fresh_vars, _, cases) =>
         val pred = pred_map(predicate_name)
-        val context_branches = pred.clauses.zip(cases).map({
+        val context_branches = pred.clauses.zip(cases.zip(children)).map({
           case ((constructor, clause), (expr, rule)) =>
             // each clause of the type introduces existentials
             val new_variables = pred.constructor_existentials(constructor).map({
@@ -375,16 +375,16 @@ object ProofTranslation {
         )
     }
 
-    def handle_pick_rule(rule: ProofRule.Pick, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.Pick(subst, next) =>
+    def handle_pick_rule(rule: SuslikProofStep.Pick, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Pick(subst) =>
         val new_context = subst.map({ case (Var(name), expr) => (name, expr) }).foldRight(context)({
           case ((name, expr), context) => record_variable_assignment(name, expr)(context)
         })
         translate_proof_rules(next)(new_context)
     }
 
-    def handle_pick_card_rule(rule: ProofRule.PickCard, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.PickCard(subst, next) =>
+    def handle_pick_card_rule(rule: SuslikProofStep.PickCard, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.PickCard(subst) =>
 
         /** Given an expression representing a pick of a cardinality variable
           * returns the corresponding cardinality constructor
@@ -423,8 +423,8 @@ object ProofTranslation {
         translate_proof_rules(next)(new_context)
     }
 
-    def handle_pick_arg_rule(rule: ProofRule.PickArg, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.PickArg(subst, next) =>
+    def handle_pick_arg_rule(rule: SuslikProofStep.PickArg, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.PickArg(subst) =>
         val new_context = subst.map({ case (Var(name), expr) => (name, expr) }).foldRight(context)({
           case ((name, expr), context) => record_variable_assignment(name, expr)(context)
         })
@@ -489,32 +489,32 @@ object ProofTranslation {
       ))
     }
 
-    def handle_pure_synthesis_rule(rule: ProofRule.PureSynthesis, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.PureSynthesis(is_final, subst, next) =>
+    def handle_pure_synthesis_rule(rule: SuslikProofStep.PureSynthesis, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.PureSynthesis(is_final, subst) =>
         val new_context = subst.map({ case (Var(name), expr) => (name, expr) }).foldRight(context)({
           case ((name, expr), context) => record_variable_assignment(name, expr)(context)
         })
         translate_proof_rules(next)(new_context)
     }
 
-    def handle_heap_unify(rule: ProofRule.HeapUnify, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.HeapUnify(_, next) =>
+    def handle_heap_unify(rule: SuslikProofStep.HeapUnify, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.HeapUnify(_) =>
         //        val new_context = subst.map({case (Var(name), expr) => (name,expr) }).foldRight(context)({
         //          case ((name,expr), context) =>   record_variable_assignment(name,expr)(context)
         //        })
         translate_proof_rules(next)(context)
     }
 
-    def handle_heap_unify_pointer(rule: ProofRule.HeapUnifyPointer, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.HeapUnifyPointer(subst, next) =>
+    def handle_heap_unify_pointer(rule: SuslikProofStep.HeapUnifyPointer, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.HeapUnifyPointer(subst) =>
         val new_context = subst.map({ case (Var(name), expr) => (name, expr) }).foldRight(context)({
           case ((name, expr), context) => record_variable_assignment(name, expr)(context)
         })
         translate_proof_rules(next)(new_context)
     }
 
-    def handle_substl_rule(rule: ProofRule.SubstL, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.SubstL(map, next) =>
+    def handle_substl_rule(rule: SuslikProofStep.SubstL, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.SubstL(map) =>
         map.toList.foldRight(translate_proof_rules(next)(context))({
           case ((Var(name), expr), next) =>
             ProofTree(VSTProofStep.AssertPropSubst(
@@ -524,8 +524,8 @@ object ProofTranslation {
         })
     }
 
-    def handle_substr_rule(rule: ProofRule.SubstR, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.SubstR(map, next) =>
+    def handle_substr_rule(rule: SuslikProofStep.SubstR, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.SubstR(map) =>
         def apply_subst(context: Context)(map: List[(Var, Expr)]): ProofTree[VSTProofStep] =
           map match {
             case Nil => translate_proof_rules(next)(context)
@@ -542,8 +542,8 @@ object ProofTranslation {
         apply_subst(context)(map.toList)
     }
 
-    def handle_abduce_call(rule: ProofRule.AbduceCall, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, _, _, _, next) =>
+    def handle_abduce_call(rule: SuslikProofStep.AbduceCall, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.AbduceCall(new_vars, f_pre, callePost, Call(Var(fun), _, _), freshSub, _, _, _) =>
         var typing_context = retrieve_typing_context(context)
         f_pre.vars.foreach({ case Var(name) =>
           if (!typing_context.contains(name)) {
@@ -557,8 +557,8 @@ object ProofTranslation {
         translate_proof_rules(next)(new_context)
     }
 
-    def handle_nilnotnval_rule(rule: ProofRule.NilNotLval, context: Context) = rule match {
-      case ProofRule.NilNotLval(vars, next) =>
+    def handle_nilnotnval_rule(rule: SuslikProofStep.NilNotLval, next: ProofTree[SuslikProofStep], context: Context) = rule match {
+      case SuslikProofStep.NilNotLval(vars) =>
         vars.foldRight(translate_proof_rules(next)(context))({
           case (_@Var(name), rest) =>
             ProofTree(VSTProofStep.ValidPointer(
@@ -567,16 +567,16 @@ object ProofTranslation {
         })
     }
 
-    def handle_abduce_branch_rule(rule: ProofRule.AbduceBranch, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+    def handle_abduce_branch_rule(rule: SuslikProofStep.AbduceBranch, ifTrue: ProofTree[SuslikProofStep], ifFalse: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.AbduceBranch(cond) =>
         ProofTree(VSTProofStep.ForwardIf, List(
           translate_proof_rules(ifTrue)(context),
           translate_proof_rules(ifFalse)(context)
         ))
     }
 
-    def handle_call_rule(rule: ProofRule.Call, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.Call(_, call, next) =>
+    def handle_call_rule(rule: SuslikProofStep.Call, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Call(_, call) =>
         val ((fun, args, existentials), new_context_1) = pop_function(context)
         ProofTree(VSTProofStep.ForwardCall(args),
           existentials match {
@@ -587,16 +587,16 @@ object ProofTranslation {
           })
     }
 
-    def handle_write_rule(rule: ProofRule.Write, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.Write(stmt, next) => ProofTree(VSTProofStep.Forward, List(translate_proof_rules(next)(context)))
+    def handle_write_rule(rule: SuslikProofStep.Write, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Write(stmt) => ProofTree(VSTProofStep.Forward, List(translate_proof_rules(next)(context)))
     }
 
-    def handle_free_rule(rule: ProofRule.Free, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.Free(Free(Var(name)), size, next) => ProofTree(VSTProofStep.Free(name, size), List(translate_proof_rules(next)(context)))
+    def handle_free_rule(rule: SuslikProofStep.Free, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Free(Free(Var(name)), size) => ProofTree(VSTProofStep.Free(name, size), List(translate_proof_rules(next)(context)))
     }
 
-    def handle_close_rule(rule: ProofRule.Close, context: Context): ProofTree[VSTProofStep] = rule match {
-      case ProofRule.Close(app, o_selector, asn, fresh_exist, next) =>
+    def handle_close_rule(rule: SuslikProofStep.Close, next: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Close(app, o_selector, asn, fresh_exist) =>
 
         // Use application of of constructor to infer mapping of variables
         val predicate = pred_map(app.pred)
@@ -659,8 +659,8 @@ object ProofTranslation {
         translate_proof_rules(next)(new_context_2)
     }
 
-    def handle_malloc_rule(rule: ProofRule.Malloc, context: Context) = rule match {
-      case ProofRule.Malloc(map, Malloc(Var(to_var), _, sz), next) =>
+    def handle_malloc_rule(rule: SuslikProofStep.Malloc, next: ProofTree[SuslikProofStep], context: Context) = rule match {
+      case SuslikProofStep.Malloc(map, Malloc(Var(to_var), _, sz)) =>
         val new_context_1 =
           map.foldRight(
             add_new_variables(map.map({ case (Var(original), Var(name)) => (name, CoqPtrType) }))(context)
@@ -673,52 +673,52 @@ object ProofTranslation {
           )))
     }
 
-    def translate_proof_rules(rule: ProofRule)(context: Context): ProofTree[VSTProofStep] = {
+    def translate_proof_rules(rule: ProofTree[SuslikProofStep])(context: Context): ProofTree[VSTProofStep] = {
       rule match {
         //          Branching rules
-        case rule@ProofRule.Open(SApp(_, _, _, Var(_)), _, _, _) => handle_open_rule(rule, context)
-        case rule@ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => handle_abduce_branch_rule(rule, context)
+        case ProofTree(rule@SuslikProofStep.Open(SApp(_, _, _, Var(_)), _, _, _), children) => handle_open_rule(rule, children, context)
+        case ProofTree(rule@SuslikProofStep.AbduceBranch(cond), List(ifTrue, ifFalse) ) => handle_abduce_branch_rule(rule, ifTrue, ifFalse, context)
 
         //          Read and write Operations
-        case rule@ProofRule.Write(_, _) => handle_write_rule(rule, context)
-        case rule@ProofRule.Read(subst, option, next) => handle_read_rule(rule, context)
+        case ProofTree(rule@SuslikProofStep.Write(_), List(next)) => handle_write_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.Read(subst, option), List(next)) => handle_read_rule(rule, next, context)
 
         //          Memory management rules
-        case rule@ProofRule.Free(Free(Var(_)), _, _) => handle_free_rule(rule, context)
-        case rule@ProofRule.Malloc(map, Malloc(Var(to_var), _, sz), next) => handle_malloc_rule(rule, context)
+        case ProofTree(rule@SuslikProofStep.Free(Free(Var(_)), _), List(next)) => handle_free_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.Malloc(map, Malloc(Var(to_var), _, sz)), List(next)) => handle_malloc_rule(rule, next, context)
 
         //          Abduce call & Existentials
-        case rule@ProofRule.AbduceCall(_, _, _, Call(Var(_), _, _), _, _, _, _, _) => handle_abduce_call(rule, context)
-        case rule@ProofRule.Pick(_, _) => handle_pick_rule(rule, context)
-        case rule@ProofRule.PureSynthesis(_, _, _) => handle_pure_synthesis_rule(rule, context)
-        case rule@ProofRule.PickCard(_, _) => handle_pick_card_rule(rule, context)
-        case rule@ProofRule.PickArg(_, _) => handle_pick_arg_rule(rule, context)
-        case rule@ProofRule.Call(_, _, _) => handle_call_rule(rule, context)
-        case rule@ProofRule.Close(_, _, _, _, _) => handle_close_rule(rule, context)
-        case rule@ProofRule.HeapUnify(_, next) => handle_heap_unify(rule, context)
-        case rule@ProofRule.HeapUnifyPointer(_, _) => handle_heap_unify_pointer(rule, context)
+        case ProofTree(rule@SuslikProofStep.AbduceCall(_, _, _, Call(Var(_), _, _), _, _, _, _), List(next)) => handle_abduce_call(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.Pick(_), List(next)) => handle_pick_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.PureSynthesis(_, _), List(next)) => handle_pure_synthesis_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.PickCard(_), List(next)) => handle_pick_card_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.PickArg(_), List(next)) => handle_pick_arg_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.Call(_, _), List(next)) => handle_call_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.Close(_, _, _, _), List(next)) => handle_close_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.HeapUnify(_), List(next)) => handle_heap_unify(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.HeapUnifyPointer(_), List(next)) => handle_heap_unify_pointer(rule, next, context)
 
 
         //          Completion rule
-        case ProofRule.EmpRule => handle_emp_rule(context)
+        case ProofTree(SuslikProofStep.EmpRule, List()) => handle_emp_rule(context)
 
         //          Context changing rules
-        case rule@ProofRule.NilNotLval(_, _) => handle_nilnotnval_rule(rule, context)
-        case rule@ProofRule.SubstL(_, _) => handle_substl_rule(rule, context)
-        case rule@ProofRule.SubstR(_, _) => handle_substr_rule(rule, context)
+        case ProofTree(rule@SuslikProofStep.NilNotLval(_), List(next)) => handle_nilnotnval_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.SubstL(_), List(next)) => handle_substl_rule(rule, next, context)
+        case ProofTree(rule@SuslikProofStep.SubstR(_), List(next)) => handle_substr_rule(rule, next, context)
 
         //          Ignored rules
-        case ProofRule.WeakenPre(unused, next) => translate_proof_rules(next)(context)
-        case ProofRule.CheckPost(_, _, next) => translate_proof_rules(next)(context)
+        case ProofTree(SuslikProofStep.WeakenPre(unused), List(next)) => translate_proof_rules(next)(context)
+        case ProofTree(SuslikProofStep.CheckPost(_, _), List(next)) => translate_proof_rules(next)(context)
 
-        case ProofRule.FrameUnfold(h_pre, h_post, next) => translate_proof_rules(next)(context)
+        case ProofTree(SuslikProofStep.FrameUnfold(h_pre, h_post), List(next)) => translate_proof_rules(next)(context)
 
 
-        case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => translate_proof_rules(next)(context)
+        case ProofTree(SuslikProofStep.StarPartial(new_pre_phi, new_post_phi), List(next)) => translate_proof_rules(next)(context)
       }
     }
 
-    val simplified = ProofRule.of_certtree(root)
+    val simplified = SuslikProofStep.of_certtree(root)
     println(s"Suslik Proof:\n ${simplified.pp}")
 
     val vst_proof: ProofTree[VSTProofStep] = translate_proof_rules(simplified)(initial_context)
@@ -726,56 +726,14 @@ object ProofTranslation {
     Proof(name, predicates, spec, vst_proof, contains_free(simplified), contains_malloc(simplified))
   }
 
-  def contains_free(proof: ProofRule): Boolean = proof match {
-    case ProofRule.NilNotLval(vars, next) => contains_free(next)
-    case ProofRule.CheckPost(_, _, next) => contains_free(next)
-    case ProofRule.Pick(subst, next) => contains_free(next)
-    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_free)
-    case ProofRule.Write(stmt, next) => contains_free(next)
-    case ProofRule.WeakenPre(unused, next) => contains_free(next)
-    case ProofRule.EmpRule => false
-    case ProofRule.PureSynthesis(is_final, assignments, next) => contains_free(next)
-    case ProofRule.Open(pred, fresh_vars, _, cases) => cases.exists { case (_, prf) => contains_free(prf) }
-    case ProofRule.SubstL(map, next) => contains_free(next)
-    case ProofRule.SubstR(map, next) => contains_free(next)
-    case ProofRule.Read(map, operation, next) => contains_free(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, _, _, _, next) => contains_free(next)
-    case ProofRule.HeapUnify(_, next) => contains_free(next)
-    case ProofRule.HeapUnifyPointer(map, next) => contains_free(next)
-    case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_free(next)
-    case ProofRule.Call(_, call, next) => contains_free(next)
-    case ProofRule.Free(stmt, size, next) => true
-    case ProofRule.Malloc(map, stmt, next) => contains_free(next)
-    case ProofRule.Close(app, selector, asn, fresh_exist, next) => contains_free(next)
-    case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => contains_free(next)
-    case ProofRule.PickCard(_, next) => contains_free(next)
-    case ProofRule.PickArg(map, next) => contains_free(next)
+  def contains_free(proof: ProofTree[SuslikProofStep]): Boolean = proof.rule match {
+    case SuslikProofStep.Free(stmt, size) => true
+    case _ => proof.children.exists(contains_free)
   }
 
-  def contains_malloc(proof: ProofRule): Boolean = proof match {
-    case ProofRule.NilNotLval(vars, next) => contains_malloc(next)
-    case ProofRule.CheckPost(_, _, next) => contains_malloc(next)
-    case ProofRule.Pick(subst, next) => contains_malloc(next)
-    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) => List(ifTrue, ifFalse).exists(contains_malloc)
-    case ProofRule.Write(stmt, next) => contains_malloc(next)
-    case ProofRule.WeakenPre(unused, next) => contains_malloc(next)
-    case ProofRule.EmpRule => false
-    case ProofRule.PureSynthesis(is_final, assignments, next) => contains_malloc(next)
-    case ProofRule.Open(pred, fresh_vars, _, cases) => cases.exists { case (_, prf) => contains_malloc(prf) }
-    case ProofRule.SubstL(map, next) => contains_malloc(next)
-    case ProofRule.SubstR(map, next) => contains_malloc(next)
-    case ProofRule.Read(map, operation, next) => contains_malloc(next)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, freshSub, _, _, _, next) => contains_malloc(next)
-    case ProofRule.HeapUnify(_, next) => contains_malloc(next)
-    case ProofRule.HeapUnifyPointer(map, next) => contains_malloc(next)
-    case ProofRule.FrameUnfold(h_pre, h_post, next) => contains_malloc(next)
-    case ProofRule.Call(_, call, next) => contains_malloc(next)
-    case ProofRule.Free(stmt, size, next) => contains_malloc(next)
-    case ProofRule.Malloc(map, stmt, next) => true
-    case ProofRule.Close(app, selector, asn, fresh_exist, next) => contains_malloc(next)
-    case ProofRule.StarPartial(new_pre_phi, new_post_phi, next) => contains_malloc(next)
-    case ProofRule.PickCard(_, next) => contains_malloc(next)
-    case ProofRule.PickArg(map, next) => contains_malloc(next)
+  def contains_malloc(proof: ProofTree[SuslikProofStep]): Boolean = proof.rule match {
+    case SuslikProofStep.Malloc(map, stmt) => true
+    case _ => proof.children.exists(contains_malloc)
   }
 
 }

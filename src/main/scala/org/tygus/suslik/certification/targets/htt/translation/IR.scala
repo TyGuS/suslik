@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
-import org.tygus.suslik.certification.ProofRule
+import org.tygus.suslik.certification.{ProofTree, SuslikProofStep}
 import org.tygus.suslik.certification.targets.htt.language.CGamma
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.Types._
@@ -178,19 +178,19 @@ object IR {
     CFunSpec(f.name, rType, params, ghosts, pre, post)
   }
 
-  def fromRule(rule: ProofRule, ctx: IR.Context) : IR.Node = rule match {
-    case ProofRule.Init(goal, next) =>
+  def fromRule(rule: ProofTree[SuslikProofStep], ctx: IR.Context) : IR.Node = rule match {
+    case ProofTree(SuslikProofStep.Init(goal), List(next)) =>
       val cgoal = translateGoal(goal)
       val ctx1 = ctx.copy(topLevelGoal = Some(cgoal))
       IR.Init(ctx1, Seq(fromRule(next, ctx1)))
-    case ProofRule.Open(sapp, fresh_vars, sbst, cases) =>
+    case ProofTree(SuslikProofStep.Open(sapp, fresh_vars, sbst, cases), children) =>
       val csapp = translateSApp(sapp)
       val freshCVars = fresh_vars.map{ case (k,v) => CVar(k.name) -> translateExpr(v)}
       val csbst = translateSbst(sbst)
       val pred = ctx.predicateEnv(sapp.pred).subst(freshCVars).subst(csbst)
-      val (selectors, next) = cases.map{ case (s, r) => (translateExpr(s), fromRule(r, ctx)) }.unzip
+      val (selectors, next) = cases.zip(children).map{ case (s, r) => (translateExpr(s), fromRule(r, ctx)) }.unzip
       IR.Open(csapp, pred.clauses, selectors, next, ctx)
-    case ProofRule.Close(sapp, selector, asn, sbst, next) =>
+    case ProofTree(SuslikProofStep.Close(sapp, selector, asn, sbst), List(next)) =>
       val csapp = translateSApp(sapp)
       val cselector = translateExpr(selector)
       val casn = translateAsn(asn)
@@ -200,60 +200,60 @@ object IR {
       val ex = cclause.existentials.map(_.subst(csbst))
       val actualClause = CInductiveClause(csapp.pred, cclause.idx, cselector, casn, ex)
       fromRule(next, ctx.copy(unfoldings = ctx.unfoldings + (csapp -> actualClause)))
-    case ProofRule.AbduceBranch(cond, ifTrue, ifFalse) =>
+    case ProofTree(SuslikProofStep.AbduceBranch(cond), List(ifTrue, ifFalse)) =>
       IR.AbduceBranch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
-    case ProofRule.PureSynthesis(is_final, sbst, next) =>
+    case ProofTree(SuslikProofStep.PureSynthesis(is_final, sbst), List(next)) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
       IR.PureSynthesis(is_final, Seq(fromRule(next, ctx1)), ctx1)
-    case ProofRule.SubstL(sbst, next) =>
+    case ProofTree(SuslikProofStep.SubstL(sbst), List(next)) =>
       val csbst = translateSbst(sbst)
       fromRule(next, ctx.copy(subst = ctx.subst ++ csbst))
-    case ProofRule.SubstR(sbst, next) =>
+    case ProofTree(SuslikProofStep.SubstR(sbst), List(next)) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
       fromRule(next, ctx1)
-    case ProofRule.Pick(sbst, next) =>
+    case ProofTree(SuslikProofStep.Pick(sbst), List(next)) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
       fromRule(next, ctx1)
-    case ProofRule.Read(ghosts, Load(to, tpe, from, offset), next) =>
+    case ProofTree(SuslikProofStep.Read(ghosts, Load(to, tpe, from, offset)), List(next)) =>
       val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
       IR.Read(CLoad(CVar(to.name), translateType(tpe), CVar(from.name), offset), Seq(fromRule(next, ctx1)), ctx1)
-    case ProofRule.Write(Store(to, offset, e), next) =>
+    case ProofTree(SuslikProofStep.Write(Store(to, offset, e)), List(next)) =>
       IR.Write(CStore(CVar(to.name), offset, translateExpr(e)), Seq(fromRule(next, ctx)), ctx)
-    case ProofRule.Free(Statements.Free(v), size, next) =>
+    case ProofTree(SuslikProofStep.Free(Statements.Free(v), size), List(next)) =>
       IR.Free(CFree(CVar(v.name), size), Seq(fromRule(next, ctx)), ctx)
-    case ProofRule.Malloc(ghosts, Statements.Malloc(to, tpe, sz), next) =>
+    case ProofTree(SuslikProofStep.Malloc(ghosts, Statements.Malloc(to, tpe, sz)), List(next)) =>
       val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
       IR.Malloc(CMalloc(CVar(to.name), translateType(tpe), sz), Seq(fromRule(next, ctx1)), ctx1)
-    case ProofRule.Call(_, Statements.Call(fun, args, _), next) =>
+    case ProofTree(SuslikProofStep.Call(_, Statements.Call(fun, args, _)), List(next)) =>
       val ctx1 = ctx.copy(nestedContext = ctx.nestedContext.map(_.applySubstitution))
       val ctx2 = ctx1.copy(nestedContext = None)
       IR.Call(CCall(CVar(fun.name), args.map(translateExpr)), Seq(fromRule(next, ctx2)), ctx1)
-    case ProofRule.PickArg(sbst, next) =>
+    case ProofTree(SuslikProofStep.PickArg(sbst), List(next)) =>
       val csbst = translateSbst(sbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst)))
       fromRule(next, ctx1)
-    case ProofRule.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma, next) =>
+    case ProofTree(SuslikProofStep.AbduceCall(new_vars, f_pre, callePost, call, companionToFresh, freshToActual, f, gamma), List(next)) =>
       val cfunspec = translateFunSpec(f, gamma)
       val ccall = CCall(translateVar(call.fun), call.args.map(translateExpr))
       val nestedContext = NestedContext(funspec = cfunspec, call = ccall, freshToActual = translateSbst(freshToActual), companionToFresh = translateSbstVar(companionToFresh))
       val ctx1 = ctx.copy(nestedContext = Some(nestedContext))
       fromRule(next, ctx1)
-    case ProofRule.HeapUnifyPointer(sbst, next) =>
+    case ProofTree(SuslikProofStep.HeapUnifyPointer(sbst), List(next)) =>
       val ctx1 = ctx.copy(subst = ctx.subst ++ translateSbst(sbst))
       fromRule(next, ctx1)
-    case ProofRule.EmpRule => IR.EmpRule(ctx)
-    case ProofRule.CheckPost(prePhi, postPhi, next) =>
+    case ProofTree(SuslikProofStep.EmpRule, List()) => IR.EmpRule(ctx)
+    case ProofTree(SuslikProofStep.CheckPost(prePhi, postPhi), List(next)) =>
       IR.CheckPost(prePhi.conjuncts.map(translateExpr), postPhi.conjuncts.map(translateExpr), Seq(fromRule(next, ctx)), ctx)
     // unused rules:
-    case ProofRule.HeapUnify(_, next) => fromRule(next, ctx)
-    case ProofRule.NilNotLval(_, next) => fromRule(next, ctx)
-    case ProofRule.WeakenPre(_, next) => fromRule(next, ctx)
-    case ProofRule.StarPartial(_, _, next) => fromRule(next, ctx)
-    case ProofRule.PickCard(_, next) => fromRule(next, ctx)
-    case ProofRule.FrameUnfold(h_pre, h_post, next) => fromRule(next, ctx)
-    case ProofRule.Inconsistency => IR.Inconsistency(ctx)
+    case ProofTree(SuslikProofStep.HeapUnify(_), List(next)) => fromRule(next, ctx)
+    case ProofTree(SuslikProofStep.NilNotLval(_), List(next)) => fromRule(next, ctx)
+    case ProofTree(SuslikProofStep.WeakenPre(_), List(next)) => fromRule(next, ctx)
+    case ProofTree(SuslikProofStep.StarPartial(_, _), List(next)) => fromRule(next, ctx)
+    case ProofTree(SuslikProofStep.PickCard(_), List(next)) => fromRule(next, ctx)
+    case ProofTree(SuslikProofStep.FrameUnfold(h_pre, h_post), List(next)) => fromRule(next, ctx)
+    case ProofTree(SuslikProofStep.Inconsistency, List()) => IR.Inconsistency(ctx)
   }
 }
