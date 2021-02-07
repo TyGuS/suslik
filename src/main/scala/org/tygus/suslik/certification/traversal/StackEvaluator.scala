@@ -9,7 +9,7 @@ import scala.annotation.tailrec
 
 class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
   // A pending evaluation task; tracks which children have and have not been evaluated
-  case class Task(values: List[B], label: GoalLabel, remainingBranches: List[(Tree[A], DeferredsStack, ClientContext[B])], resultsSoFar: List[Tree[B]])
+  case class Task(values: List[B], label: Option[GoalLabel], remainingBranches: List[(ProofTree[A], DeferredsStack, ClientContext[B])], resultsSoFar: List[ProofTree[B]])
 
   // A stack of pending evaluation tasks
   type TaskStack = List[Task]
@@ -17,10 +17,10 @@ class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
   // A stack of queued deferreds
   type DeferredsStack = List[Deferreds[B]]
 
-  def run(tree: Tree[A])(implicit translator: Translator[A,B], printer: TreePrinter[B], initialClientContext: ClientContext[B]): Tree[B] = {
+  def run(tree: ProofTree[A])(implicit translator: Translator[A,B], printer: ProofTreePrinter[B], initialClientContext: ClientContext[B]): ProofTree[B] = {
     // Use a child result to fulfill the evaluation task for a parent
     @tailrec
-    def backward(taskStack: TaskStack, childResult: Tree[B]): Tree[B] =
+    def backward(taskStack: TaskStack, childResult: ProofTree[B]): ProofTree[B] =
       taskStack match {
         case Nil =>
           // no more tasks; return the result
@@ -30,7 +30,7 @@ class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
             case Nil =>
               // received results for all children so topmost task is done; remove from stack and evaluate parent task
               val results = childResult :: currTask.resultsSoFar
-              val translatedTree = foldStepsIntoTree(currTask.values, currTask.label, results.reverse)
+              val translatedTree = foldStepsIntoTree(currTask.values, results.reverse, currTask.label)
               backward(remainingStack, translatedTree)
             case (nextChild, nextDeferreds, nextTricks) :: remainingBranches =>
               // some siblings remain unvisited; update topmost task with child result and explore next sibling
@@ -41,7 +41,7 @@ class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
 
     // Do step-wise translation of current tree node and explore next child
     @tailrec
-    def forward(tree: Tree[A], deferredsStack: DeferredsStack, clientContext: ClientContext[B], taskStack: TaskStack): Tree[B] = {
+    def forward(tree: ProofTree[A], deferredsStack: DeferredsStack, clientContext: ClientContext[B], taskStack: TaskStack): ProofTree[B] = {
       val res = tree.step.translate[B](clientContext)
       if (tree.children.length != res.childrenMeta.length) {
         throw EvaluatorException(s"step ${tree.step.pp} has ${tree.children.length} children but translation returned results for ${res.childrenMeta.length} children")
@@ -91,7 +91,7 @@ class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
       (tree.children, childDeferredsStacks, childClientContexts).zipped.toList match {
         case Nil =>
           // terminal; evaluate the converted node in the context of the current stack
-          val result = foldStepsIntoTree(steps, tree.label, Nil)
+          val result = foldStepsIntoTree(steps, Nil, tree.label)
           backward(taskStack, result)
         case (nextChild, nextDeferredsStack, nextClientCtx) :: remainingBranches =>
           // non-terminal; create evaluation task for current tree and visit the first child
@@ -100,9 +100,9 @@ class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
       }
     }
     // Create a tree from a list of values
-    def foldStepsIntoTree(values: List[B], label: GoalLabel, children: List[Tree[B]]): Tree[B] =
+    def foldStepsIntoTree(values: List[B], children: List[ProofTree[B]], label: Option[GoalLabel]): ProofTree[B] =
       values.reverse match {
-        case last :: rest => rest.foldLeft(Tree(last, label, children)){ case (child, v) => Tree(v, label, List(child)) }
+        case last :: rest => rest.foldLeft(ProofTree(last, children, label)){ case (child, v) => ProofTree(v, List(child), label) }
         case Nil => throw EvaluatorException("expected at least one translated value for this task")
       }
 

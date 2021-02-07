@@ -1,19 +1,20 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
-import org.tygus.suslik.certification.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.CardConstructor
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCExpr, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.VSTProofType
+import org.tygus.suslik.certification.traversal.Step.DestStep
+import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
-sealed abstract class VSTProofStep extends PrettyPrinting {}
+sealed abstract class VSTProofStep extends DestStep {}
 
 object VSTProofStep {
   implicit object ProofTreePrinter extends ProofTreePrinter[VSTProofStep] {
-    override def pp(tree: ProofTree[VSTProofStep]): String = tree.rule match {
+    override def pp(tree: ProofTree[VSTProofStep]): String = tree.step match {
       case rule@ForwardIf => rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
-      case rule@ForwardIfConstructor(_,_,_) => tree.rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
-      case _ => tree.rule.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
+      case rule@ForwardIfConstructor(_,_,_) => tree.step.pp ++ "\n" ++ rule.branch_strings(tree.children)
+      case _ => tree.step.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
     }
   }
 

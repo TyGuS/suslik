@@ -2,11 +2,12 @@ package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.CVar
 import org.tygus.suslik.language.Expressions.Expr
-import org.tygus.suslik.certification.{CertTree, ProofTree}
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.vst.{Debug, State}
 import org.tygus.suslik.certification.targets.vst.logic.Proof
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
 import org.tygus.suslik.certification.targets.vst.translation.Translation.fail_with
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Var}
 import org.tygus.suslik.language.PrettyPrinting
 import org.tygus.suslik.language.Statements.{Skip, Store}

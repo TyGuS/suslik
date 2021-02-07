@@ -6,7 +6,7 @@ import org.tygus.suslik.certification.traversal.Step._
 import scala.collection.immutable.Queue
 
 trait Evaluator[A <: SourceStep, B <: DestStep] {
-  def run(node: Tree[A])(implicit translator: Translator[A,B], printer: TreePrinter[B], initialClientContext: ClientContext[B]): Tree[B]
+  def run(node: ProofTree[A])(implicit translator: Translator[A,B], printer: ProofTreePrinter[B], initialClientContext: ClientContext[B]): ProofTree[B]
 }
 
 object Evaluator {
