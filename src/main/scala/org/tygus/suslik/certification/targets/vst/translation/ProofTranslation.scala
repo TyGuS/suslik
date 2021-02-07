@@ -275,7 +275,7 @@ object ProofTranslation {
                 case ProofTree(SuslikProofStep.Pick(_, subst), List(next)) =>
                   val picked_variables = subst.toList.flatMap({ case (Var(froe), Var(toe)) => Some(toe) case _ => None }).toSet
                   (picked_variables.contains(variable)) || is_variable_used_in_proof(variable)(next)
-                case ProofTree(SuslikProofStep.AbduceBranch(_, cond, _), List(ifTrue, ifFalse)) =>
+                case ProofTree(SuslikProofStep.Branch(_, cond, _), List(ifTrue, ifFalse)) =>
                   is_variable_used_in_exp(variable)(cond) ||
                     is_variable_used_in_proof(variable)(ifTrue) ||
                     is_variable_used_in_proof(variable)(ifFalse)
@@ -567,8 +567,8 @@ object ProofTranslation {
         })
     }
 
-    def handle_abduce_branch_rule(rule: SuslikProofStep.AbduceBranch, ifTrue: ProofTree[SuslikProofStep], ifFalse: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
-      case SuslikProofStep.AbduceBranch(_, cond, _) =>
+    def handle_abduce_branch_rule(rule: SuslikProofStep.Branch, ifTrue: ProofTree[SuslikProofStep], ifFalse: ProofTree[SuslikProofStep], context: Context): ProofTree[VSTProofStep] = rule match {
+      case SuslikProofStep.Branch(_, cond, _) =>
         ProofTree(VSTProofStep.ForwardIf, List(
           translate_proof_rules(ifTrue)(context),
           translate_proof_rules(ifFalse)(context)
@@ -677,7 +677,7 @@ object ProofTranslation {
       rule match {
         //          Branching rules
         case ProofTree(rule@SuslikProofStep.Open(_, SApp(_, _, _, Var(_)), _, _, _), children) => handle_open_rule(rule, children, context)
-        case ProofTree(rule@SuslikProofStep.AbduceBranch(_, cond, _), List(ifTrue, ifFalse) ) => handle_abduce_branch_rule(rule, ifTrue, ifFalse, context)
+        case ProofTree(rule@SuslikProofStep.Branch(_, cond, _), List(ifTrue, ifFalse) ) => handle_abduce_branch_rule(rule, ifTrue, ifFalse, context)
 
         //          Read and write Operations
         case ProofTree(rule@SuslikProofStep.Write(_, _), List(next)) => handle_write_rule(rule, next, context)

@@ -225,7 +225,7 @@ object IR {
       val unfoldings = ctx.unfoldings + (csapp -> actualClause)
       val sappNames = ctx.sappNames ++ casn.sigma.apps.map(a => a -> a)
       fromRule(node.children.head, ctx.copy(unfoldings = unfoldings, sappNames = sappNames))
-    case SuslikProofStep.Branch(_, cond) =>
+    case SuslikProofStep.Branch(_, cond, _) =>
       val Seq(ifTrue, ifFalse) = node.children
       IR.Branch(translateExpr(cond), Seq(fromRule(ifTrue, ctx), fromRule(ifFalse, ctx)), ctx)
     case SuslikProofStep.PureSynthesis(_, is_final, sbst) =>
@@ -293,6 +293,5 @@ object IR {
     case SuslikProofStep.StarPartial(_, _, _) => fromRule(node.children.head, ctx)
     case SuslikProofStep.PickCard(_, _) => fromRule(node.children.head, ctx)
     case SuslikProofStep.FrameUnfold(_, h_pre, h_post) => fromRule(node.children.head, ctx)
-    case SuslikProofStep.AbduceBranch(_, cond, bLabel) => fromRule(node.children.head, ctx)
   }
 }
