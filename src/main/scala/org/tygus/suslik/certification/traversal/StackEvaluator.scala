@@ -7,17 +7,17 @@ import org.tygus.suslik.logic.Specifications.GoalLabel
 
 import scala.annotation.tailrec
 
-class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
+class StackEvaluator[A <: SourceStep, B <: DestStep, C <: ClientContext[B]] extends Evaluator[A,B,C] {
   // A pending evaluation task; tracks which children have and have not been evaluated
-  case class Task(values: List[B], label: Option[GoalLabel], remainingBranches: List[(ProofTree[A], DeferredsStack, ClientContext[B])], resultsSoFar: List[ProofTree[B]])
+  case class Task(values: List[B], label: Option[GoalLabel], remainingBranches: List[(ProofTree[A], DeferredsStack, C)], resultsSoFar: List[ProofTree[B]])
 
   // A stack of pending evaluation tasks
   type TaskStack = List[Task]
 
   // A stack of queued deferreds
-  type DeferredsStack = List[Deferreds[B]]
+  type DeferredsStack = List[Deferreds[B,C]]
 
-  def run(tree: ProofTree[A])(implicit translator: Translator[A,B], printer: ProofTreePrinter[B], initialClientContext: ClientContext[B]): ProofTree[B] = {
+  def run(tree: ProofTree[A])(implicit translator: Translator[A,B,C], printer: ProofTreePrinter[B], initialClientContext: C): ProofTree[B] = {
     // Use a child result to fulfill the evaluation task for a parent
     @tailrec
     def backward(taskStack: TaskStack, childResult: ProofTree[B]): ProofTree[B] =
@@ -41,8 +41,8 @@ class StackEvaluator[A <: SourceStep, B <: DestStep] extends Evaluator[A,B] {
 
     // Do step-wise translation of current tree node and explore next child
     @tailrec
-    def forward(tree: ProofTree[A], deferredsStack: DeferredsStack, clientContext: ClientContext[B], taskStack: TaskStack): ProofTree[B] = {
-      val res = tree.step.translate[B](clientContext)
+    def forward(tree: ProofTree[A], deferredsStack: DeferredsStack, clientContext: C, taskStack: TaskStack): ProofTree[B] = {
+      val res = tree.step.translate[B,C](clientContext)
       if (tree.children.length != res.childrenMeta.length) {
         throw EvaluatorException(s"step ${tree.step.pp} has ${tree.children.length} children but translation returned results for ${res.childrenMeta.length} children")
       }

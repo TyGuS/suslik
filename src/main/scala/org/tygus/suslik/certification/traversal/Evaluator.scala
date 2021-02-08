@@ -5,16 +5,16 @@ import org.tygus.suslik.certification.traversal.Step._
 
 import scala.collection.immutable.Queue
 
-trait Evaluator[A <: SourceStep, B <: DestStep] {
-  def run(node: ProofTree[A])(implicit translator: Translator[A,B], printer: ProofTreePrinter[B], initialClientContext: ClientContext[B]): ProofTree[B]
+trait Evaluator[A <: SourceStep, B <: DestStep, C <: ClientContext[B]] {
+  def run(node: ProofTree[A])(implicit translator: Translator[A,B,C], printer: ProofTreePrinter[B], initialClientContext: C): ProofTree[B]
 }
 
 object Evaluator {
   case class EvaluatorException(private val message: String) extends Exception(message)
 
-  type ClientContext[S <: DestStep]
-  type Deferred[S <: DestStep] = ClientContext[S] => (S, ClientContext[S])
-  type Deferreds[S <: DestStep] = Queue[Deferred[S]]
+  trait ClientContext[S <: DestStep]
+  type Deferred[S <: DestStep, C <: ClientContext[S]] = C => (S, C)
+  type Deferreds[S <: DestStep, C <: ClientContext[S]] = Queue[Deferred[S,C]]
 
   abstract class EnvAction
   object EnvAction {
