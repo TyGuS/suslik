@@ -547,7 +547,11 @@ case class AbduceCall(
         case next :: remaining =>
           val item = Item(step, label, remaining, Nil)
           val nextStack = step match {
+            // branch statement abduced to the current position; push on top of stack
+            case ab: Branch if label.contains(ab.bLabel) => item :: stack
+            // branch statement abduced to an ancestor; find and insert at correct position
             case ab: Branch => insertBranchPoint(item, ab.bLabel, stack, identity)
+            // non-branch statement; push on top of stack
             case _ => item :: stack
           }
           forward(next, nextStack)
@@ -558,12 +562,13 @@ case class AbduceCall(
       * Look through tree traversal continuation stack to insert correct branching point for a branch abduction step.
       *
       * Consider in the left diagram, an AbduceBranch node B with children C (true case) and D (false case), and
-      * intended branch destination A. This procedure inserts a new Branch node E with A as its true case child; the
-      * inserted node E is meant to denote a finalized branching point.
+      * intended branch destination A. This procedure modifies the traversal continuation so that B is the direct
+      * parent of A.
       *
-      *           D---            D---    D---
-      *          /       =>      /       /
-      * --A-----B-C---        --E-A-----B-C---
+      *
+      *           D---            D---
+      *          /       =>      /
+      * --A-----B-C---        --B-A-----C---
       *
       * @param item the branch abduction step
       * @param label the target goal label
@@ -588,6 +593,8 @@ case class AbduceCall(
 
     val initStep = Init(node.goal)
     val initItem = Item(initStep, None, Nil, Nil)
-    forward(node, List(initItem))
+    val res = forward(node, List(initItem))
+    Console.println(res.pp)
+    res
   }
 }
