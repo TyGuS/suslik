@@ -42,7 +42,7 @@ case class SynConfig(
                       assertSuccess: Boolean = false,
                       logToFile: Boolean = true,
                       traceToJsonFile: Option[File] = None,
-                      timeOut: Long = 120000,
+                      timeOut: Long = 300000,
                       // Certification
                       certTarget: CertificationTarget = null,
                       certDest: File = null,

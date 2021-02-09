@@ -277,11 +277,13 @@ object Expressions {
     def level: Int = 6
     def associative: Boolean = false
 
-    def printAtLevel(lvl: Int): String = {
+    def printInContext(parent: Expr): String = {
       val s = pp
-      if (lvl < this.level) s
-      else if (lvl == this.level && associative) s
-      else s"($s)"
+      if (parent.level < this.level) s
+      else this match {
+        case expr: BinaryExpr if associative && parent.isInstanceOf[BinaryExpr] && expr.op == parent.asInstanceOf[BinaryExpr].op => s
+        case _ => s"($s)"
+      }
     }
 
     // Convenience operators for building expressions
@@ -464,7 +466,7 @@ object Expressions {
     override def substUnknown(sigma: UnknownSubst): Expr = BinaryExpr(op, left.substUnknown(sigma), right.substUnknown(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
-    override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
+    override def pp: String = s"${left.printInContext(this)} ${op.pp} ${right.printInContext(this)}"
     def getType(gamma: Gamma): Option[SSLType] = Some(op.resType)
   }
 
@@ -473,7 +475,7 @@ object Expressions {
     override def substUnknown(sigma: UnknownSubst): Expr = OverloadedBinaryExpr(overloaded_op, left.substUnknown(sigma), right.substUnknown(sigma))
     override def level: Int = overloaded_op.level
     override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
-    override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
+    override def pp: String = s"${left.printInContext(this)} ${overloaded_op.pp} ${right.printInContext(this)}"
 
     def inferConcreteOp(gamma: Gamma): BinOp = {
       val lType = left.getType(gamma)
@@ -528,7 +530,7 @@ object Expressions {
     def subst(sigma: Subst): Expr = UnaryExpr(op, arg.subst(sigma))
     override def substUnknown(sigma: UnknownSubst): Expr = UnaryExpr(op, arg.substUnknown(sigma))
     override def level = 5
-    override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
+    override def pp: String = s"${op.pp} ${arg.printInContext(this)}"
     def getType(gamma: Gamma): Option[SSLType] = Some(op.outputType)
   }
 
@@ -540,7 +542,7 @@ object Expressions {
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
     override def level: Int = 0
-    override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
+    override def pp: String = s"${cond.printInContext(this)} ? ${left.printInContext(this)} : ${right.printInContext(this)}"
     override def subst(sigma: Subst): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
     override def substUnknown(sigma: UnknownSubst): Expr = IfThenElse(cond.substUnknown(sigma), left.substUnknown(sigma), right.substUnknown(sigma))
     def getType(gamma: Gamma): Option[SSLType] = left.getType(gamma)

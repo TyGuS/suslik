@@ -254,7 +254,7 @@ object Statements {
     override def simplify: Statement = {
       (s1, s2) match {
         case (Skip, _) => s2.simplify // Remove compositions with skip
-        case (_, Skip) => s1.simplify
+//        case (_, Skip) => s1.simplify
         case (SeqComp(s11, s12), _) => SeqComp(s11, SeqComp(s12, s2)).simplify // Left-nested compositions are transformed to right-nested
         case (Guarded(_, _), _) => { assert(false, "Guarded statement on LHS of seq comp"); this}
         case (If(_, _, _), _) => { assert(false, "Conditional on LHS of seq comp"); this }
