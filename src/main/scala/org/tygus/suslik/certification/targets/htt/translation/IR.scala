@@ -235,38 +235,38 @@ object IR {
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       IR.PureSynthesis(is_final, Seq(fromRule(node.children.head, ctx1)), ctx1)
-    case SuslikProofStep.SubstL(sbst) =>
-      val csbst = translateSbst(sbst)
+    case SuslikProofStep.SubstL(from, to) =>
+      val csbst = translateSbst(Map(from -> to))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       fromRule(node.children.head, ctx.copy(subst = ctx.subst ++ csbst, sappNames = sappNames))
-    case SuslikProofStep.SubstR(sbst) =>
-      val csbst = translateSbst(sbst)
+    case SuslikProofStep.SubstR(from, to) =>
+      val csbst = translateSbst(Map(from -> to))
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       fromRule(node.children.head, ctx1)
-    case SuslikProofStep.Pick(sbst) =>
-      val csbst = translateSbst(sbst)
+    case SuslikProofStep.Pick(from, to) =>
+      val csbst = translateSbst(Map(from -> to))
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
       fromRule(node.children.head, ctx1)
-    case SuslikProofStep.Read(ghosts, Load(to, tpe, from, offset)) =>
-      val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
+    case SuslikProofStep.Read(ghostFrom, ghostTo, Load(to, tpe, from, offset)) =>
+      val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(Map(ghostFrom -> ghostTo)))
       IR.Read(CLoad(CVar(to.name), translateType(tpe), CVar(from.name), offset), Seq(fromRule(node.children.head, ctx1)), ctx1)
     case SuslikProofStep.Write(Store(to, offset, e)) =>
       IR.Write(CStore(CVar(to.name), offset, translateExpr(e)), Seq(fromRule(node.children.head, ctx)), ctx)
     case SuslikProofStep.Free(Statements.Free(v), size) =>
       IR.Free(CFree(CVar(v.name), size), Seq(fromRule(node.children.head, ctx)), ctx)
-    case SuslikProofStep.Malloc(ghosts, Statements.Malloc(to, tpe, sz)) =>
-      val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(ghosts))
+    case SuslikProofStep.Malloc(ghostFrom, ghostTo, Statements.Malloc(to, tpe, sz)) =>
+      val ctx1 = ctx.copy(substVar = ctx.substVar ++ translateSbstVar(Map(ghostFrom -> ghostTo)))
       IR.Malloc(CMalloc(CVar(to.name), translateType(tpe), sz), Seq(fromRule(node.children.head, ctx1)), ctx1)
     case SuslikProofStep.Call(_, Statements.Call(fun, args, _)) =>
       val ctx1 = ctx.copy(nestedContext = ctx.nestedContext.map(_.applySubstitution))
       val ctx2 = ctx1.copy(nestedContext = None)
       IR.Call(CCall(CVar(fun.name), args.map(translateExpr)), Seq(fromRule(node.children.head, ctx2)), ctx1)
-    case SuslikProofStep.PickArg(sbst) =>
-      val csbst = translateSbst(sbst)
+    case SuslikProofStep.PickArg(from, to) =>
+      val csbst = translateSbst(Map(from -> to))
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
@@ -277,8 +277,8 @@ object IR {
       val nestedContext = NestedContext(funspec = cfunspec, call = ccall, freshToActual = translateSbst(freshToActual), companionToFresh = translateSbstVar(companionToFresh))
       val ctx1 = ctx.copy(nestedContext = Some(nestedContext))
       fromRule(node.children.head, ctx1)
-    case SuslikProofStep.HeapUnifyPointer(sbst) =>
-      val csbst = translateSbst(sbst)
+    case SuslikProofStep.HeapUnifyPointer(from, to) =>
+      val csbst = translateSbst(Map(from -> to))
       val nestedContext = ctx.nestedContext.map(_.updateSubstitution(csbst))
       val sappNames = updateSAppAliases(ctx.sappNames, csbst)
       val ctx1 = ctx.copy(subst = ctx.subst ++ csbst, nestedContext = nestedContext, sappNames = sappNames)
@@ -292,7 +292,7 @@ object IR {
     case SuslikProofStep.NilNotLval(_) => fromRule(node.children.head, ctx)
     case SuslikProofStep.WeakenPre(_) => fromRule(node.children.head, ctx)
     case SuslikProofStep.StarPartial(_, _) => fromRule(node.children.head, ctx)
-    case SuslikProofStep.PickCard(_) => fromRule(node.children.head, ctx)
+    case SuslikProofStep.PickCard(_, _) => fromRule(node.children.head, ctx)
     case SuslikProofStep.FrameUnfold(h_pre, h_post) => fromRule(node.children.head, ctx)
   }
 }

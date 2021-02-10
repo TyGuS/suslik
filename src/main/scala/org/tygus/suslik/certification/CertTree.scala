@@ -3,7 +3,8 @@ package org.tygus.suslik.certification
 import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
-import org.tygus.suslik.synthesis.{StmtProducer, SynthesisException}
+import org.tygus.suslik.synthesis.SynthesisException
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 
 import scala.collection.mutable

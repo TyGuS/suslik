@@ -3,7 +3,7 @@ package org.tygus.suslik.certification.targets.vst
 import java.io.{BufferedOutputStream, BufferedReader, ByteArrayInputStream, ByteArrayOutputStream, File, FileOutputStream, FileWriter, InputStreamReader, StringWriter}
 
 import org.tygus.suslik.certification.CertTree
-import org.tygus.suslik.synthesis.{AppendProducer, BranchProducer, ChainedProducer, ConstProducer, ExtractHelper, GhostSubstProducer, GuardedProducer, HandleGuard, IdProducer, PartiallyAppliedProducer, PrependFromSketchProducer, PrependProducer, SeqCompProducer, StmtProducer, SubstProducer, UnfoldProducer}
+import org.tygus.suslik.synthesis.StmtProducer._
 import scalaz.Scalaz.{ToTraverseOps, ToTraverseOpsUnapply}
 
 import scala.io._
@@ -39,8 +39,9 @@ object Debug {
     case BranchProducer(_, _, _, selectors) => s"BranchProducer[${stmtProducer.arity}] {\n${selectors.map(_.pp).mkString("\n")}\n}"
     case GuardedProducer(cond, goal) =>
       s"GuardedProducer[${stmtProducer.arity}] {\n cond=${cond.pp}\n goal=${goal.pp}\n}"
-    case SubstProducer(subst) => s"SubstProducer[${stmtProducer.arity}](${subst.toString})"
-    case GhostSubstProducer(subst) => s"GhostSubstProducer[${stmtProducer.arity}](${subst.toString})"
+    case SubstMapProducer(subst) => s"SubstMapProducer[${stmtProducer.arity}](${subst.toString})"
+    case SubstProducer(from, to) => s"SubstProducer[${stmtProducer.arity}](${from.pp} -> ${to.pp})"
+    case SubstVarProducer(from, to) => s"SubstVarProducer[${stmtProducer.arity}](${from.pp} -> ${to.pp})"
     case UnfoldProducer(app, selector, asn, substEx) =>
       s"UnfoldProducer[${stmtProducer.arity}] {\n app=${app.pp}\n selector=${selector.pp}\n asn=${asn.toString}\n substEx=${substEx.toString}\n}"
   }

@@ -6,7 +6,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.Termination.Transition
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**

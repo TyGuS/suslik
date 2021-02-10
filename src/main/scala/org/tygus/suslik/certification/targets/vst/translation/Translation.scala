@@ -3,18 +3,9 @@ package org.tygus.suslik.certification.targets.vst.translation
 
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.targets.vst.VSTCertificate
-import org.tygus.suslik.certification.targets.vst.translation.ProofTranslation
-import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
-import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
-import org.tygus.suslik.synthesis.IdProducer.ruleAssert
-import org.tygus.suslik.synthesis.{AppendProducer, BranchProducer, ChainedProducer, ConstProducer, ExtractHelper, GhostSubstProducer, GuardedProducer, HandleGuard, IdProducer, PartiallyAppliedProducer, PrependFromSketchProducer, PrependProducer, SeqCompProducer, StmtProducer, SubstProducer, UnfoldProducer}
-
-import scala.annotation.tailrec
-import scala.collection.immutable
 
 object Translation {
 

@@ -5,6 +5,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -48,7 +49,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 //        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
-        val kont = SubstProducer(sub.asInstanceOf[SubstVar]) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = SubstMapProducer(sub.asInstanceOf[SubstVar]) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
       nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
@@ -92,7 +93,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val subExpr = goal.substToFormula(subst)
           val newPost = Assertion(post.phi && subExpr, post.sigma)
           val newGoal = goal.spawnChild(post = newPost)
-          val kont = SubstProducer(subst.asInstanceOf[SubstVar]) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstVarProducer(y.asInstanceOf[Var], x.asInstanceOf[Var]) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -135,7 +136,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _s2 = s2.subst(sigma)
           val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
-          val kont = SubstProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstProducer(x, e) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         case _ => Nil
       }
@@ -171,7 +172,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = SubstProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = SubstProducer(ex, v) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
@@ -208,7 +209,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = SubstProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = SubstProducer(ex, sol) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
@@ -234,11 +235,12 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       if (i < 0) return Nil // no unsubstituted arguments remain
 
       val arg = companion.params(i)._1
-      val sigma = Map(callGoal.call.args(i).asInstanceOf[Var] -> arg)
+      val v = callGoal.call.args(i).asInstanceOf[Var]
+      val sigma = Map(v -> arg)
       val newPost = goal.post.subst(sigma)
       val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
       val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-      val kont = SubstProducer(sigma) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      val kont = SubstVarProducer(v, arg) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
       List(RuleResult(List(newGoal), kont, this, goal))
     }
   }
