@@ -55,19 +55,19 @@ object Sentences {
   }
 
   case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause], gamma: CGamma) extends PrettyPrinting {
-    val paramVars: Seq[CVar] = params.map(_._2)
+    val paramVars: Seq[CVar] = params.map(_._1)
 
     def subst(sub: CSubst): CInductivePredicate =
       CInductivePredicate(
         name,
-        params.map(p => (p._1, p._2.substVar(sub))),
+        params.map(p => (p._1.substVar(sub), p._2)),
         clauses.map(_.subst(sub)),
         gamma.map(g => (g._1.substVar(sub), g._2))
       )
 
     override def pp: String = {
       val builder = new StringBuilder()
-      builder.append(s"Inductive $name ${params.map{ case (t, v) => s"(${v.pp} : ${t.pp})" }.mkString(" ")} : Prop :=\n")
+      builder.append(s"Inductive $name ${params.map{ case (v, t) => s"(${v.pp} : ${t.pp})" }.mkString(" ")} : Prop :=\n")
 
       // clauses
       val clausesStr = for {
@@ -80,8 +80,8 @@ object Sentences {
   }
 
   case class CFunSpec(name: String, rType: HTTType, params: CFormals, ghostParams: CFormals, pre: CAssertion, post: CAssertion) extends PrettyPrinting {
-    val paramVars: Seq[CVar] = params.map(_._2)
-    val ghostParamVars: Seq[CVar] = ghostParams.map(_._2)
+    val paramVars: Seq[CVar] = params.map(_._1)
+    val ghostParamVars: Seq[CVar] = ghostParams.map(_._1)
 
     val progVarsAlias = "vprogs"
     val ghostVarsAlias = "vghosts"
@@ -89,10 +89,10 @@ object Sentences {
     val existentials: Seq[CVar] = post.valueVars.diff(paramVars ++ ghostParamVars)
 
     def subst(subst: CSubst): CFunSpec =
-      CFunSpec(name, rType, params.map(p => (p._1, p._2.substVar(subst))), ghostParams.map(p => (p._1, p._2.substVar(subst))), pre.subst(subst), post.subst(subst))
+      CFunSpec(name, rType, params.map(p => (p._1.substVar(subst), p._2)), ghostParams.map(p => (p._1.substVar(subst), p._2)), pre.subst(subst), post.subst(subst))
 
     private def ppFormals(formals: CFormals): (String, String) = {
-      val (typs, names) = formals.unzip
+      val (names, typs) = formals.unzip
       val typsStr = typs.map(_.pp).mkString(" * ")
       val namesStr = names.map(_.pp).mkString(", ")
       (typsStr, namesStr)
@@ -101,8 +101,8 @@ object Sentences {
     override def pp: String = {
       val builder = new StringBuilder()
 
-      val (typsStr, progVarsStr) = ppFormals(params)
-      val (ghostTypsStr, ghostVarsStr) = ppFormals(ghostParams)
+      val (progVarsStr, typsStr) = ppFormals(params)
+      val (ghostVarsStr, ghostTypsStr) = ppFormals(ghostParams)
       val destructuredAliases = {
         val destructuredParams = if (params.nonEmpty) s"${getIndent(3)}let: ($progVarsStr) := $progVarsAlias in\n" else ""
         val destructuredGhostParams = if (ghostParams.nonEmpty) s"${getIndent(3)}let: ($ghostVarsStr) := $ghostVarsAlias in\n" else ""

@@ -32,7 +32,8 @@ object Translation {
     })
     val goal = translateGoal(node.goal)
     val ctx = IR.emptyContext.copy(predicateEnv = cpreds)
-    val ir = IR.fromRule(SuslikProofStep.of_certtree(node), ctx).propagateContext
+    val suslikTree = SuslikProofStep.of_certtree(node)
+    val ir = IR.fromRule(suslikTree, ctx).propagateContext
     val proof = ProofTranslation.irToProofSteps(ir)
     val hints = ProofTranslation.irToHints(ir)
     val progBody = ProgramTranslation.translate(ir)
@@ -41,7 +42,7 @@ object Translation {
   }
 
   private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {
-    val cParams = el.params.map(translateParam) :+ (CHeapType, CVar("h"))
+    val cParams = el.params.map(translateParam) :+ (CVar("h"), CHeapType)
     val cGamma = gamma.map { case (v, t) => (CVar(v.name), translateType(t))}
 
     val cClauses = el.clauses.zipWithIndex.map { case (c, idx) =>
@@ -49,13 +50,13 @@ object Translation {
       val asn = translateAsn(c.asn)
 
       // Include the clause number so that we can use Coq's `constructor n` tactic
-      CInductiveClause(el.name, idx + 1, selector, asn, asn.existentials(cParams.map(_._2)))
+      CInductiveClause(el.name, idx + 1, selector, asn, asn.existentials(cParams.map(_._1)))
     }
     CInductivePredicate(el.name, cParams, cClauses, cGamma)
   }
 
-  def translateParam(el: (Var, SSLType)): (HTTType, CVar) =
-    (translateType(el._2), translateVar(el._1))
+  def translateParam(el: (Var, SSLType)): (CVar, HTTType) =
+    (translateVar(el._1), translateType(el._2))
 
   def translateType(el: SSLType): HTTType = el match {
     case BoolType => CBoolType

@@ -38,8 +38,8 @@ object IR {
     )
 
     def toFunspec: CFunSpec = {
-      val params = programVars.map(v => (gamma(v), v))
-      val ghosts = universalGhosts.map(v => (gamma(v), v))
+      val params = programVars.map(v => (v, gamma(v)))
+      val ghosts = universalGhosts.map(v => (v, gamma(v)))
       CFunSpec(fname, CUnitType, params, ghosts, pre, post)
     }
   }
@@ -196,7 +196,7 @@ object IR {
     val pre = translateAsn(f.pre)
     val post = translateAsn(f.post)
     val params = f.params.map(translateParam)
-    val ghosts = pre.valueVars.diff(params.map(_._2)).map(v => (translateType(gamma(Var(v.name))), v))
+    val ghosts = pre.valueVars.diff(params.map(_._2)).map(v => (v, translateType(gamma(Var(v.name)))))
     CFunSpec(f.name, rType, params, ghosts, pre, post)
   }
 

@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.htt.program
 
-import org.tygus.suslik.certification.targets.htt.language.PrettyPrinting
+import org.tygus.suslik.certification.targets.htt.language.{CFormals, PrettyPrinting}
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.Types._
 
@@ -129,14 +129,14 @@ object Statements {
 
   case class CGuarded(cond: CExpr, body: CStatement, els: CStatement) extends CStatement
 
-  case class CProcedure(name: String, tp: HTTType, formals: Seq[(HTTType, CVar)], body: CStatement) extends CStatement {
+  case class CProcedure(name: String, tp: HTTType, formals: CFormals, body: CStatement) extends CStatement {
     override def pp: String = {
       val vprogs = "vprogs"
       val builder = new StringBuilder
       builder.append(s"Program Definition $name : ${name}_type :=\n")
       builder.append(s"${getIndent(1)}Fix (fun ($name : ${name}_type) $vprogs =>\n")
 
-      builder.append(s"${getIndent(2)}let: (${formals.map(_._2.pp).mkString(", ")}) := $vprogs in\n")
+      builder.append(s"${getIndent(2)}let: (${formals.map(_._1.pp).mkString(", ")}) := $vprogs in\n")
       builder.append(s"${getIndent(2)}Do (\n")
       builder.append(body.ppIndent(3))
       builder.append(s"\n${getIndent(2)})).")

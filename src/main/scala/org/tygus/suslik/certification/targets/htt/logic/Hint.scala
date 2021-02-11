@@ -23,7 +23,7 @@ object Hint {
 
     case class Hypothesis(params: Seq[CVar], idx: Int) {
       val name = s"${pred.name}_perm_eq_trans$freshHintId"
-      val (before, after) = pred.params.map(_._2).splitAt(idx)
+      val (before, after) = pred.params.map(_._1).splitAt(idx)
       val s1: CVar = CVar("s_1")
       val s2: CVar = CVar("s_2")
       val params1: Seq[CVar] = before ++ Seq(s1) ++ after.tail
@@ -37,8 +37,8 @@ object Hint {
     }
 
     private val hypotheses: Seq[Hypothesis] = {
-      val paramVars = pred.params.map(_._2)
-      pred.params.zipWithIndex.filter(_._1._1 == CNatSeqType).map(_._2).map(i => Hypothesis(paramVars, i))
+      val paramVars = pred.params.map(_._1)
+      pred.params.zipWithIndex.filter(_._1._2 == CNatSeqType).map(_._2).map(i => Hypothesis(paramVars, i))
     }
 
     val numHypotheses: Int = hypotheses.length
