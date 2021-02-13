@@ -144,7 +144,7 @@ object ProofTranslation {
             res
           }
         }
-        Proof.Open(selectors.map(_.subst(ctx.substVar))) >>> Proof.OpenPost(app1) >> Proof.SubProof(branchSteps)
+        Proof.Open(selectors.map(_.subst(ctx.substVar)), app1) >> Proof.SubProof(branchSteps)
       case IR.Inconsistency(_) => Proof.Error
       case IR.CheckPost(prePhi, postPhi, next, _) => visit(next.head)
     }
@@ -194,7 +194,7 @@ object ProofTranslation {
       case Proof.Alloc(to, tpe, sz) => (step, Set(to))
       case Proof.Dealloc(v, offset) => (step, Set(v))
       case Proof.Call(args, _) => (step, args.flatMap(_.vars).toSet)
-      case Proof.Open(selectors) => (step, selectors.flatMap(_.vars).toSet)
+      case Proof.Open(selectors, _) => (step, selectors.flatMap(_.vars).toSet)
       case Proof.Branch(cond) => (step, cond.vars.toSet)
       case _ => (step, Set.empty)
     }

@@ -20,10 +20,11 @@ object Proof {
   }
 
   case class Then(step: Step) extends Step {
+    override val isNoop: Boolean = step.isNoop
     override def pp: String = step.pp
   }
-  case class Rename(from: CVar, to: CVar) extends Step {
-    override def pp: String = s"rename ${from.pp} into ${to.pp}"
+  case class Rename(from: String, to: String) extends Step {
+    override def pp: String = s"try rename $from into $to"
   }
   case class SubProof(branches: Seq[Step]) extends Step {
     override val isNoop: Boolean = branches.forall(_.isNoop)
@@ -108,11 +109,8 @@ object Proof {
       s"ssl_dealloc $ptr"
     }
   }
-  case class Open(selectors: Seq[CExpr]) extends Step {
-    override def pp: String = s"ssl_open (${selectors.head.pp})"
-  }
-  case class OpenPost(app: CSApp) extends Step {
-    override def pp: String = s"ssl_open_post ${app.hypName}"
+  case class Open(selectors: Seq[CExpr], app: CSApp) extends Step {
+    override def pp: String = s"ssl_open (${selectors.head.pp}) ${app.hypName}"
   }
   case class CallPre(heap: CSFormula) extends Step {
     override def pp: String = s"ssl_call_pre (${heap.ppHeap})"

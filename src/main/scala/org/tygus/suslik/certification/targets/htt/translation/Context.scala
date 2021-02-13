@@ -1,15 +1,21 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CSFormula, CVar}
-import org.tygus.suslik.certification.targets.htt.logic.Proof
+import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.CInductiveClause
-import org.tygus.suslik.certification.targets.htt.translation.IR.PredicateEnv
+import org.tygus.suslik.certification.targets.htt.translation.IR.{CGoal, PredicateEnv}
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
+
+import scala.collection.mutable.ListBuffer
 
 case class Context(predicates: PredicateEnv = Map.empty,
                    postEx: Seq[CExpr] = Seq.empty,
                    appAliases: Map[CSApp, CSApp] = Map.empty,
-                   unfoldings: Map[CSApp, CInductiveClause] = Map.empty)
+                   unfoldings: Map[CSApp, CInductiveClause] = Map.empty,
+                   callGoal: Option[CGoal] = None,
+                   nextCallId: Int = 0,
+                   hints: ListBuffer[Hint] = ListBuffer.empty,
+                   numSubgoals: Int = 0)
   extends ClientContext[Proof.Step] {
 
   /**
@@ -47,27 +53,22 @@ case class Context(predicates: PredicateEnv = Map.empty,
   /**
     * Update the current context with new substitutions
     */
-  def withSubst(m: Map[CVar, CExpr]): Context = {
+  def withSubst(m: Map[CVar, CExpr], affectedApps: Map[CSApp, CSApp]): Context = {
     val postEx1 = postEx.map(_.subst(m))
-    val appAliases1 = appAliases.foldLeft(appAliases) { case (appAliases, (app, alias)) =>
-      if (app == alias) {
-        val app1 = app.subst(m)
-        if (app != app1) {
-          appAliases + (app -> app1) + (app1 -> app1)
-        } else appAliases
-      } else appAliases
-    }
+    val appAliases1 = affectedApps.foldLeft(appAliases) { case (appAliases, (app, alias)) => appAliases + (app -> alias) + (alias -> alias) }
     val unfoldings1 = unfoldings.map { case (app, clause) => app.subst(m) -> clause.subst(m) }
     this.copy(postEx = postEx1, appAliases = appAliases1, unfoldings = unfoldings1)
   }
 
-  /**
-    * Update the current context with a new variable rename
-    */
-  def withRename(from: CVar, to: CVar): Context = {
-    val m = Map(from -> to)
-    withSubst(m)
-  }
+  def appsAffectedBySubst(m: Map[CVar, CExpr]): Map[CSApp, CSApp] =
+    appAliases.foldLeft(Map[CSApp, CSApp]()) { case (affectedApps, (app, alias)) =>
+      if (app == alias) {
+        val app1 = app.subst(m)
+        if (app != app1) {
+          affectedApps + (app -> app1)
+        } else affectedApps
+      } else affectedApps
+    }
 }
 
 object Context {

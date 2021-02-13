@@ -104,4 +104,8 @@ object HTTTranslator {
   implicit val substVarTranslator: HTTTranslator[Map[Var, Var], Map[CVar, CVar]] = _.map {
     case (k, v) => k.translate -> v.translate
   }
+
+  implicit val gammaTranslator: HTTTranslator[Map[Var, SSLType], Map[CVar, HTTType]] = _.map {
+    case (k, v) => k.translate -> v.translate
+  }
 }
