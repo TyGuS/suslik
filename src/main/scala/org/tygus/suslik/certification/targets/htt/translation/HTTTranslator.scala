@@ -2,10 +2,10 @@ package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.Types._
+import org.tygus.suslik.certification.targets.htt.logic.Proof
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.CAssertion
-import org.tygus.suslik.certification.targets.htt.translation.IR.CGoal
+import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
-import org.tygus.suslik.certification.targets.htt.translation.Translation.{translateExpr, translatePointsTo, translateSApp, translateSFormula}
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
@@ -58,6 +58,11 @@ object HTTTranslator {
 
   implicit val varTranslator: HTTTranslator[Var, CVar] = (value: Var) => CVar(value.name)
 
+  implicit val mallocTranslator: HTTTranslator[Statements.Malloc, CMalloc] = stmt => CMalloc(stmt.to.translate, stmt.tpe.translate, stmt.sz)
+  implicit val loadTranslator: HTTTranslator[Statements.Load, CLoad] = stmt => CLoad(stmt.to.translate, stmt.tpe.translate, stmt.from.translate, stmt.offset)
+  implicit val storeTranslator: HTTTranslator[Statements.Store, CStore] = stmt => CStore(stmt.to.translate, stmt.offset, stmt.e.translate)
+  implicit val callTranslator: HTTTranslator[Statements.Call, CCall] = stmt => CCall(stmt.fun.translate, stmt.args.map(_.translate))
+
   implicit val typeTranslator: HTTTranslator[SSLType, HTTType] = {
     case BoolType => CBoolType
     case IntType => CNatType
@@ -75,26 +80,26 @@ object HTTTranslator {
   implicit val pointsToTranslator: HTTTranslator[PointsTo, CPointsTo] = el => CPointsTo(el.loc.translate, el.offset, el.value.translate)
 
   implicit val asnTranslator: HTTTranslator[Assertion, CAssertion] = el => {
-    val conjuncts = el.phi.conjuncts.toSeq.map(c => translateExpr(c).simplify).filterNot(_.isCard)
+    val conjuncts = el.phi.conjuncts.toSeq.map(c => c.translate.simplify).filterNot(_.isCard)
     val f = (a1: CExpr, a2: CExpr) => CBinaryExpr(COpAnd, a1, a2)
     val phi = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce(f)
-    val sigma = translateSFormula(el.sigma)
+    val sigma = el.sigma.translate
     CAssertion(phi, sigma).removeCardConstraints
   }
 
   implicit val sFormulaTranslator: HTTTranslator[SFormula, CSFormula] = el => {
-    val ptss = el.ptss.map(translatePointsTo)
-    val apps = el.apps.map(translateSApp)
+    val ptss = el.ptss.map(_.translate)
+    val apps = el.apps.map(_.translate)
     CSFormula("h", apps, ptss)
   }
 
-  implicit val goalTranslator: HTTTranslator[Goal, CGoal] = goal => {
+  implicit val goalTranslator: HTTTranslator[Goal, Proof.Goal] = goal => {
     val pre = goal.pre.translate
     val post = goal.post.translate
     val gamma = goal.gamma.map(_.translate)
     val programVars = goal.programVars.map(_.translate)
     val universalGhosts = (pre.valueVars ++ post.valueVars).distinct.filter(v => goal.universalGhosts.contains(Var(v.name)))
-    CGoal(pre, post, gamma, programVars, universalGhosts, goal.fname)
+    Proof.Goal(pre, post, gamma, programVars, universalGhosts, goal.fname)
   }
 
   implicit val substTranslator: HTTTranslator[Map[Var, Expr], Map[CVar, CExpr]] = _.map {

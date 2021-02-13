@@ -3,7 +3,6 @@ package org.tygus.suslik.certification.targets.htt.logic
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.{CFormals, CGamma, PrettyPrinting}
 import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.certification.targets.htt.translation.IR.CSubst
 
 object Sentences {
   case class CAssertion(phi: CExpr, sigma: CSFormula) extends PrettyPrinting {
@@ -95,7 +94,7 @@ object Sentences {
       val (names, typs) = formals.unzip
       val typsStr = typs.map(_.pp).mkString(" * ")
       val namesStr = names.map(_.pp).mkString(", ")
-      (typsStr, namesStr)
+      (namesStr, typsStr)
     }
 
     override def pp: String = {

@@ -2,20 +2,20 @@ package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CSFormula, CVar}
 import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
-import org.tygus.suslik.certification.targets.htt.logic.Sentences.CInductiveClause
-import org.tygus.suslik.certification.targets.htt.translation.IR.{CGoal, PredicateEnv}
+import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CInductiveClause, CInductivePredicate}
+import org.tygus.suslik.certification.targets.htt.translation.ProofContext.PredicateEnv
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 
 import scala.collection.mutable.ListBuffer
 
-case class Context(predicates: PredicateEnv = Map.empty,
-                   postEx: Seq[CExpr] = Seq.empty,
-                   appAliases: Map[CSApp, CSApp] = Map.empty,
-                   unfoldings: Map[CSApp, CInductiveClause] = Map.empty,
-                   callGoal: Option[CGoal] = None,
-                   nextCallId: Int = 0,
-                   hints: ListBuffer[Hint] = ListBuffer.empty,
-                   numSubgoals: Int = 0)
+case class ProofContext(predicates: PredicateEnv = Map.empty,
+                        postEx: Seq[CExpr] = Seq.empty,
+                        appAliases: Map[CSApp, CSApp] = Map.empty,
+                        unfoldings: Map[CSApp, CInductiveClause] = Map.empty,
+                        callGoal: Option[Proof.Goal] = None,
+                        nextCallId: Int = 0,
+                        hints: ListBuffer[Hint],
+                        numSubgoals: Int = 0)
   extends ClientContext[Proof.Step] {
 
   /**
@@ -53,7 +53,7 @@ case class Context(predicates: PredicateEnv = Map.empty,
   /**
     * Update the current context with new substitutions
     */
-  def withSubst(m: Map[CVar, CExpr], affectedApps: Map[CSApp, CSApp]): Context = {
+  def withSubst(m: Map[CVar, CExpr], affectedApps: Map[CSApp, CSApp]): ProofContext = {
     val postEx1 = postEx.map(_.subst(m))
     val appAliases1 = affectedApps.foldLeft(appAliases) { case (appAliases, (app, alias)) => appAliases + (app -> alias) + (alias -> alias) }
     val unfoldings1 = unfoldings.map { case (app, clause) => app.subst(m) -> clause.subst(m) }
@@ -71,6 +71,6 @@ case class Context(predicates: PredicateEnv = Map.empty,
     }
 }
 
-object Context {
-  val empty: Context = Context()
+object ProofContext {
+  type PredicateEnv = Map[String, CInductivePredicate]
 }

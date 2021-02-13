@@ -1,29 +1,29 @@
 package org.tygus.suslik.certification.targets.htt
 
-import org.tygus.suslik.certification.targets.htt.language.Types.CNatSeqType
 import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.CFunSpec
-import org.tygus.suslik.certification.targets.htt.program.Statements.CProcedure
-import org.tygus.suslik.certification.targets.htt.translation.IR.PredicateEnv
+import org.tygus.suslik.certification.targets.htt.program.Program
+import org.tygus.suslik.certification.targets.htt.translation.ProofContext.PredicateEnv
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
 
-case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, proof: Proof.Step, proc: CProcedure, hints: Seq[Hint] = Seq.empty) extends Certificate {
+case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate {
   val target: CertificationTarget = HTT
 
   // Replace hyphens with underscores
   def sanitize(txt: String): String = txt.replace('-', '_')
 
   // Import Coq dependencies
-  private val prelude = s"""From mathcomp
-Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
-From fcsl
-Require Import prelude pred pcm unionmap heap.
-From HTT
-Require Import stmod stsep stlog stlogR.
-From SSL
-Require Import core.
-
-"""
+  private val prelude =
+    """From mathcomp
+      |Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
+      |From fcsl
+      |Require Import prelude pred pcm unionmap heap.
+      |From HTT
+      |Require Import stmod stsep stlog stlogR.
+      |From SSL
+      |Require Import core.
+      |
+      |""".stripMargin
 
   def pp: String = {
     val builder = new StringBuilder

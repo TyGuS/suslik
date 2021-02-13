@@ -4,18 +4,17 @@ import org.tygus.suslik.certification.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CVar}
 import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CAssertion, CInductiveClause}
-import org.tygus.suslik.certification.targets.htt.translation.IR.CGoal
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
 import org.tygus.suslik.certification.traversal.Evaluator.Deferreds
 import org.tygus.suslik.certification.traversal.Translator
 import org.tygus.suslik.certification.traversal.Translator.Result
-import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.language.Statements.{Call, Free, Load, Malloc, Store}
 
 import scala.collection.immutable.Queue
 
-object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, Context] {
-  private val noDeferreds: Deferreds[Proof.Step, Context] = Queue.empty
-  private def withNoDeferreds(ctx: Context): (Deferreds[Proof.Step, Context], Context) = (noDeferreds, ctx)
+object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofContext] {
+  private val noDeferreds: Deferreds[Proof.Step, ProofContext] = Queue.empty
+  private def withNoDeferreds(ctx: ProofContext): (Deferreds[Proof.Step, ProofContext], ProofContext) = (noDeferreds, ctx)
 
   private def initPre(asn: CAssertion, uniqueName: String): List[Proof.Step] = {
     val phi = asn.phi
@@ -49,14 +48,14 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, Context] 
     } yield Proof.Rename(from, to)
   }
 
-  def handleSubstitution(m: Map[CVar, CExpr], ctx: Context): Translator.Result[Proof.Step, Context] = {
+  def handleSubstitution(m: Map[CVar, CExpr], ctx: ProofContext): Translator.Result[Proof.Step, ProofContext] = {
     val affectedApps = ctx.appsAffectedBySubst(m)
     val ctx1 = ctx.withSubst(m, affectedApps)
     val steps = Proof.Noop :: renameAppsStep(affectedApps)
     Result(steps, List(withNoDeferreds(ctx1)))
   }
 
-  override def translate(value: SuslikProofStep, ctx: Context): Translator.Result[Proof.Step, Context] = {
+  override def translate(value: SuslikProofStep, ctx: ProofContext): Translator.Result[Proof.Step, ProofContext] = {
     value match {
       /** Initialization */
       case SuslikProofStep.Init(goal) =>
@@ -72,16 +71,16 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, Context] 
 
         // defer post-condition handling
         val sapps = cgoal.post.sigma.apps
-        val d1 = (ctx: Context) => (Proof.Exists(ctx.postEx) andThen, ctx)
+        val d1 = (ctx: ProofContext) => (Proof.Exists(ctx.postEx) andThen, ctx)
         val q0 = sapps.foldLeft(Queue(d1)) { case (q, app) =>
-          val d = (ctx: Context) => {
+          val d = (ctx: ProofContext) => {
             val app1 = ctx.currentAppAlias(app)
             val heap = ctx.unfoldedApp(app1)
             (Proof.Exists(List(heap)) andThen, ctx)
           }
           q.enqueue(d)
         }
-        val d2 = (ctx: Context) => (Proof.Auto, ctx)
+        val d2 = (ctx: ProofContext) => (Proof.Auto, ctx)
         val q = q0.enqueue(d2)
 
         // initialize context with post-condition info and predicate hints, if any
@@ -95,7 +94,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, Context] 
         val post = f.post.translate
         val programVars = f.params.map(_._1.translate)
         val universalGhosts = pre.valueVars.diff(programVars)
-        val goal = CGoal(pre, post, gamma.translate, programVars, universalGhosts, f.name)
+        val goal = Proof.Goal(pre, post, gamma.translate, programVars, universalGhosts, f.name)
         val ctx1 = ctx.copy(callGoal = Some(goal))
         Result(List(Proof.Noop), List(withNoDeferreds(ctx1)))
 
@@ -199,13 +198,13 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, Context] 
 
         // create deferreds to perform unfolding
         val deferreds = Queue(
-          (ctx: Context) => (Proof.UnfoldConstructor(clause.idx) andThen, ctx),
-          (ctx: Context) => {
+          (ctx: ProofContext) => (Proof.UnfoldConstructor(clause.idx) andThen, ctx),
+          (ctx: ProofContext) => {
             val csapp1 = ctx.currentAppAlias(csapp)
             val (valueEx, heapEx) = ctx.unfoldedAppExistentials(csapp1)
             (Proof.Exists(valueEx ++ heapEx) andThen, ctx)
           },
-          (ctx: Context) => (Proof.Auto, ctx)
+          (ctx: ProofContext) => (Proof.Auto, ctx)
         )
 
         // update context with unfolding info
@@ -217,7 +216,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, Context] 
 
       /** Terminals */
       case SuslikProofStep.Inconsistency(label) =>
-        Result(List(Proof.Error), Nil)
+        Result(List(Proof.Inconsistency), Nil)
       case SuslikProofStep.EmpRule(label) =>
         Result(List(Proof.Emp andThen), Nil)
 

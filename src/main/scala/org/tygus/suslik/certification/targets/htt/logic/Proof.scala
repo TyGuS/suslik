@@ -1,21 +1,43 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CSFormula, CVar}
-import org.tygus.suslik.certification.targets.htt.language.Types.HTTType
+import org.tygus.suslik.certification.targets.htt.language.CGamma
+import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CSFormula, CSubst, CVar}
+import org.tygus.suslik.certification.targets.htt.language.Types.{CUnitType, HTTType}
+import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CAssertion, CFunSpec}
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.certification.traversal.Step.DestStep
+import org.tygus.suslik.language.PrettyPrinting
+
+case class Proof(body: ProofTree[Proof.Step]) extends PrettyPrinting {
+  override def pp: String = s"${body.pp}Qed."
+}
 
 object Proof {
+  case class Goal(pre: CAssertion,
+                  post: CAssertion,
+                  gamma: CGamma,
+                  programVars: Seq[CVar],
+                  universalGhosts: Seq[CVar],
+                  fname: String) {
+    val existentials: Seq[CVar] = post.valueVars.diff(programVars ++ universalGhosts)
+    def subst(sub: CSubst): Goal = Goal(
+      pre.subst(sub),
+      post.subst(sub),
+      gamma.map { case (v, t) => v.substVar(sub) -> t },
+      programVars.map(_.substVar(sub)),
+      universalGhosts.map(_.substVar(sub)),
+      fname
+    )
+
+    def toFunspec: CFunSpec = {
+      val params = programVars.map(v => (v, gamma(v)))
+      val ghosts = universalGhosts.map(v => (v, gamma(v)))
+      CFunSpec(fname, CUnitType, params, ghosts, pre, post)
+    }
+  }
+
   abstract class Step extends DestStep {
     val isNoop: Boolean = false
-    def >>(that: Step): Step = SeqComp(this, that)
-    def >>>(that: Step): Step = SeqCompAlt(this, that)
-    def simplify: Step = this match {
-      case SeqComp(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqComp(s1.simplify, s2.simplify)
-      case SeqCompAlt(s1, s2) => if (s1.isNoop) s2.simplify else if (s2.isNoop) s1.simplify else SeqCompAlt(s1.simplify, s2.simplify)
-      case SubProof(branches) => SubProof(branches.filterNot(_.isNoop).map(_.simplify))
-      case Solve(steps) => Solve(steps.filterNot(_.isNoop).map(_.simplify))
-      case _ => this
-    }
     def andThen: Step = Then(this)
   }
 
@@ -133,9 +155,8 @@ object Proof {
   case object Emp extends Step {
     override def pp: String = "ssl_emp"
   }
-  case object Error extends Step {
-    override val isNoop: Boolean = true
-    override def pp: String = ""
+  case object Inconsistency extends Step {
+    override def pp: String = "ssl_inconsistency"
   }
   case object Noop extends Step {
     override val isNoop: Boolean = true

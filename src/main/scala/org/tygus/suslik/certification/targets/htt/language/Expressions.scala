@@ -1,10 +1,11 @@
 package org.tygus.suslik.certification.targets.htt.language
 
 import org.tygus.suslik.LanguageUtils.cardinalityPrefix
-import org.tygus.suslik.certification.targets.htt.translation.IR.{CSubst, CSubstVar}
 import org.tygus.suslik.logic.Specifications.selfCardVar
 
 object Expressions {
+  type CSubst = Map[CVar, CExpr]
+  type CSubstVar = Map[CVar, CVar]
 
   sealed abstract class CExpr extends PrettyPrinting {
     def isTrivial: Boolean = this == CBoolConst(true)

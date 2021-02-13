@@ -5,14 +5,14 @@ import org.tygus.suslik.certification.{CertTree, SuslikProofStep}
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.certification.targets.htt.logic.Proof
+import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof, ProofPrinter}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences._
-import org.tygus.suslik.certification.targets.htt.translation.IR.translateGoal
-import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.certification.targets.htt.program.{Program, ProgramPrinter}
+import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.language._
-import org.tygus.suslik.logic.Specifications.Assertion
-import org.tygus.suslik.logic._
+import org.tygus.suslik.logic.{Environment, Gamma, InductivePredicate}
+
+import scala.collection.mutable.ListBuffer
 
 object Translation {
   case class TranslationException(msg: String) extends Exception(msg)
@@ -30,101 +30,30 @@ object Translation {
       val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
       translateInductivePredicate(p1, gamma)
     })
-    val goal = translateGoal(node.goal)
-    val ctx = IR.emptyContext.copy(predicateEnv = cpreds)
+    val goal = node.goal.translate
     val suslikTree = SuslikProofStep.of_certtree(node)
-    val ir = IR.fromRule(suslikTree, ctx).propagateContext
-    val proof = ProofTranslation.irToProofSteps(ir)
-    val hints = ProofTranslation.irToHints(ir)
-    val progBody = ProgramTranslation.translate(ir)
-    val cproc = CProcedure(proc.name, translateType(proc.tp), proc.formals.map(translateParam), progBody)
+
+    val ctx: ProofContext = ProofContext(predicates = cpreds, hints = ListBuffer.empty[Hint])
+    val proofBody = ProofEvaluator.run(suslikTree)(ProofTranslator, ProofPrinter, ctx)
+    val proof = Proof(proofBody)
+    val hints = ctx.hints.filter(_.numHypotheses > 0)
+    val progBody = ProgramEvaluator.run(suslikTree)(ProgramTranslator, ProgramPrinter, ProgramContext())
+    val cproc = Program(proc.name, proc.tp.translate, proc.formals.map(_.translate), progBody)
+
     HTTCertificate(cproc.name, cpreds, goal.toFunspec, proof, cproc, hints)
   }
 
   private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {
-    val cParams = el.params.map(translateParam) :+ (CVar("h"), CHeapType)
-    val cGamma = gamma.map { case (v, t) => (CVar(v.name), translateType(t))}
+    val cParams = el.params.map(_.translate) :+ (CVar("h"), CHeapType)
+    val cGamma = gamma.translate
 
     val cClauses = el.clauses.zipWithIndex.map { case (c, idx) =>
-      val selector = translateExpr(c.selector)
-      val asn = translateAsn(c.asn)
+      val selector = c.selector.translate
+      val asn = c.asn.translate
 
       // Include the clause number so that we can use Coq's `constructor n` tactic
       CInductiveClause(el.name, idx + 1, selector, asn, asn.existentials(cParams.map(_._1)))
     }
     CInductivePredicate(el.name, cParams, cClauses, cGamma)
   }
-
-  def translateParam(el: (Var, SSLType)): (CVar, HTTType) =
-    (translateVar(el._1), translateType(el._2))
-
-  def translateType(el: SSLType): HTTType = el match {
-    case BoolType => CBoolType
-    case IntType => CNatType
-    case LocType => CPtrType
-    case IntSetType => CNatSeqType
-    case VoidType => CUnitType
-    case CardType => CCardType
-  }
-
-  def translateExpr(el: Expr): CExpr = el match {
-    case Var(name) => CVar(name)
-    case BoolConst(value) => CBoolConst(value)
-    case LocConst(value) => CPtrConst(value)
-    case IntConst(value) => CNatConst(value)
-    case el@UnaryExpr(_, _) => translateUnaryExpr(el)
-    case el@BinaryExpr(_, _, _) => translateBinaryExpr(el)
-    case SetLiteral(elems) => CSetLiteral(elems.map(e => translateExpr(e)))
-    case IfThenElse(c, t, e) => CIfThenElse(translateExpr(c), translateExpr(t), translateExpr(e))
-    case _ => throw TranslationException("Operation not supported")
-  }
-
-  def translateVar(el: Var): CVar = CVar(el.name)
-
-  def translateSApp(el: SApp): CSApp = CSApp(el.pred, el.args.map(translateExpr), translateExpr(el.card))
-  def translatePointsTo(el: PointsTo): CPointsTo = CPointsTo(translateExpr(el.loc), el.offset, translateExpr(el.value))
-
-  def translateAsn(el: Assertion): CAssertion = {
-    val conjuncts = el.phi.conjuncts.toSeq.map(c => translateExpr(c).simplify).filterNot(_.isCard)
-    val f = (a1: CExpr, a2: CExpr) => CBinaryExpr(COpAnd, a1, a2)
-    val phi = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce(f)
-    val sigma = translateSFormula(el.sigma)
-    CAssertion(phi, sigma).removeCardConstraints
-  }
-
-  def translateSFormula(el: SFormula): CSFormula = {
-    val ptss = el.ptss.map(translatePointsTo)
-    val apps = el.apps.map(translateSApp)
-    CSFormula("h", apps, ptss)
-  }
-
-  private def translateUnOp(op: UnOp): CUnOp = op match {
-    case OpNot => COpNot
-    case OpUnaryMinus => COpUnaryMinus
-  }
-
-  private def translateBinOp(op: BinOp): CBinOp = op match {
-    case OpImplication => COpImplication
-    case OpPlus => COpPlus
-    case OpMinus => COpMinus
-    case OpMultiply => COpMultiply
-    case OpEq => COpEq
-    case OpBoolEq => COpBoolEq
-    case OpLeq => COpLeq
-    case OpLt => COpLt
-    case OpAnd => COpAnd
-    case OpOr => COpOr
-    case OpUnion => COpUnion
-    case OpDiff => COpDiff
-    case OpIn => COpIn
-    case OpSetEq => COpSetEq
-    case OpSubset => COpSubset
-    case OpIntersect => COpIntersect
-  }
-
-  private def translateUnaryExpr(el: UnaryExpr) : CExpr =
-    CUnaryExpr(translateUnOp(el.op), translateExpr(el.arg))
-
-  private def translateBinaryExpr(el: BinaryExpr) : CExpr =
-    CBinaryExpr(translateBinOp(el.op), translateExpr(el.left), translateExpr(el.right))
 }
