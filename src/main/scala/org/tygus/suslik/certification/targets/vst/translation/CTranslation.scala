@@ -1,10 +1,12 @@
 package org.tygus.suslik.certification.targets.vst.translation
 
+import org.tygus.suslik.certification.SuslikProofStep
 import org.tygus.suslik.certification.targets.vst.clang.CTypes
 import org.tygus.suslik.certification.targets.vst.clang.CTypes._
 import org.tygus.suslik.certification.targets.vst.clang.Expressions._
 import org.tygus.suslik.certification.targets.vst.clang.Statements._
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements.{Procedure, Statement}
 import org.tygus.suslik.language._
@@ -12,6 +14,21 @@ import org.tygus.suslik.logic.Gamma
 
 /** encapsulates all functions for translating suslik terms to a C encoding */
 object CTranslation {
+
+  def translate_body_from_proof(base_proof: ProofTree[SuslikProofStep], gamma: List[(CVar, VSTCType)]): CStatement = ???
+
+
+  def translate_function_from_proof(base_proof: ProofTree[SuslikProofStep], gamma: Gamma): CProcedureDefinition = {
+    val init = base_proof.step.asInstanceOf[SuslikProofStep.Init]
+    val gamma = init.goal.programVars.map(v => (CVar(v.name), translate_type(init.goal.gamma(v))))
+    CProcedureDefinition(
+      init.goal.fname,
+      CUnitType,
+      gamma,
+      translate_body_from_proof(base_proof.children(0), gamma)
+    )
+  }
+
 
   def translate_unary_expr(e1: UnaryExpr): CExpr = {
     def translate_unary_op : UnOp => CUnOp = {

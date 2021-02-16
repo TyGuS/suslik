@@ -469,7 +469,6 @@ object ProofSpecTranslation {
           }
         case _ => None
       }
-
     }
 
     // base context contains type information for every variable used in the

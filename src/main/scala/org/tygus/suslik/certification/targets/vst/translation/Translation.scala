@@ -1,9 +1,12 @@
 package org.tygus.suslik.certification.targets.vst.translation
 
 
-import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.{CertTree, SuslikProofStep}
 import org.tygus.suslik.certification.targets.vst.VSTCertificate
+import org.tygus.suslik.certification.targets.vst.clang.Statements
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
+import org.tygus.suslik.certification.targets.vst.logic.{Proof, ProofTerms, VSTProofStep}
+import org.tygus.suslik.certification.traversal.{ProofTree, StackEvaluator}
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 
@@ -14,25 +17,32 @@ object Translation {
   def fail_with(msg: String) = throw TranslationException(msg)
 
 
-  def translate(root: CertTree.Node, proc: Procedure, env: Environment): VSTCertificate   = {
-    val procedure = CTranslation.translate_function(proc, root.goal.gamma)
-    val (spec, context) = ProofSpecTranslation.translate_conditions(procedure)(root.goal)
-    val pre_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.pre)
-    val post_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.post)
-    println(procedure.pp)
-    println(spec.pp)
-    val predicates: List[VSTPredicate] = env.predicates.map({ case (_, predicate) =>
-      ProofSpecTranslation.translate_predicate(env)(predicate)
-    }).toList
+  def translate(root: CertTree.Node, proc: Procedure, env: Environment): VSTCertificate = {
+    val base_proof = SuslikProofStep.of_certtree(root)
 
-    predicates.foreach(v => println(v.pp))
+    //    val procedure: Statements.CProcedureDefinition = CTranslation.translate_function(proc, root.goal.gamma)
+    //    val new_procedure : Statements.CProcedureDefinition = CTranslation.translate_function_from_proof(base_proof, root.goal.gamma)
 
-    val proof = ProofTranslation.translate_proof(proc.f.name, predicates, spec, root, pre_cond, post_cond)
+    //    val (spec, context) = ProofSpecTranslation.translate_conditions(procedure)(root.goal)
+    //    val pre_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.pre)
+    //    val post_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.post)
 
-    println(proof.pp)
+    //    println(procedure.pp)
+    //    println(new_procedure.pp)
+    val predicates = env.predicates.map({ case (_, predicate) => ProofSpecTranslation.translate_predicate(env)(predicate)}).toList
 
-    // translate predicates
-    // translate proof
+    println(base_proof.pp)
+    val pred_map = predicates.map(v => (v.name,v)).toMap
+    implicit val initial_context: VSTClientContext = VSTClientContext.make_context(pred_map)
+    implicit val translator: VSTTranslator = new VSTTranslator
+    val evaluator = new StackEvaluator[SuslikProofStep, VSTProofStep, VSTClientContext]
+    val steps = evaluator.run(base_proof)
+
+    val procedure = CTranslation.translate_function_from_proof(base_proof, root.goal.gamma)
+    val (spec, _) = ProofSpecTranslation.translate_conditions(procedure)(root.goal)
+
+    val proof = Proof(proc.f.name, predicates, spec, steps: ProofTree[VSTProofStep])
+
     VSTCertificate(proc.f.name, procedure, proof)
   }
 }
