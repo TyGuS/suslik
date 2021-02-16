@@ -9,7 +9,7 @@ import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.language.PrettyPrinting
 
 case class Proof(body: ProofTree[Proof.Step]) extends PrettyPrinting {
-  override def pp: String = s"${body.pp}Qed."
+  override def pp: String = s"${ProofPrinter.pp(body)}Qed."
 }
 
 object Proof {
@@ -47,22 +47,6 @@ object Proof {
   }
   case class Rename(from: String, to: String) extends Step {
     override def pp: String = s"try rename $from into $to"
-  }
-  case class SubProof(branches: Seq[Step]) extends Step {
-    override val isNoop: Boolean = branches.forall(_.isNoop)
-    override def pp: String = branches.map(_.pp).mkString(".\n")
-  }
-  case class SeqComp(s1: Step, s2: Step) extends Step {
-    override val isNoop: Boolean = s1.isNoop && s2.isNoop
-    override def pp: String = s"${s1.pp}.\n${s2.pp}"
-  }
-  case class SeqCompAlt(s1: Step, s2: Step) extends Step {
-    override val isNoop: Boolean = s1.isNoop && s2.isNoop
-    override def pp: String = s"${s1.pp};\n${s2.pp}"
-  }
-  case class Solve(steps: Seq[Step]) extends Step {
-    override val isNoop: Boolean = steps.forall(_.isNoop)
-    override def pp: String = s"solve [\n${steps.map(_.pp).mkString(" |\n")} ]"
   }
   case class MoveToCtx(items: Seq[CExpr]) extends Step {
     override val isNoop: Boolean = items.isEmpty

@@ -7,20 +7,20 @@ import org.tygus.suslik.logic.Specifications.GoalLabel
 
 import scala.annotation.tailrec
 
-class StackEvaluator[A <: SourceStep, B <: DestStep, C <: ClientContext[B]] extends Evaluator[A,B,C] {
+/**
+  * A tail-recursive, stack-based tree traversal with an eval/apply loop
+  */
+class StackEvaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] extends Evaluator[S,D,C] {
   // A pending evaluation task; tracks which children have and have not been evaluated
-  case class Task(values: List[B], label: Option[GoalLabel], remainingBranches: List[(ProofTree[A], DeferredsStack, C)], resultsSoFar: List[ProofTree[B]])
+  case class Task(values: List[D], label: Option[GoalLabel], remainingBranches: List[(ProofTree[S], DeferredsStack[D,C], C)], resultsSoFar: List[ProofTree[D]])
 
   // A stack of pending evaluation tasks
   type TaskStack = List[Task]
 
-  // A stack of queued deferreds
-  type DeferredsStack = List[Deferreds[B,C]]
-
-  def run(tree: ProofTree[A])(implicit translator: Translator[A,B,C], printer: ProofTreePrinter[B], initialClientContext: C): ProofTree[B] = {
+  def run(tree: ProofTree[S])(implicit translator: Translator[S,D,C], initialClientContext: C): ProofTree[D] = {
     // Use a child result to fulfill the evaluation task for a parent
     @tailrec
-    def backward(taskStack: TaskStack, childResult: ProofTree[B]): ProofTree[B] =
+    def backward(taskStack: TaskStack, childResult: ProofTree[D]): ProofTree[D] =
       taskStack match {
         case Nil =>
           // no more tasks; return the result
@@ -41,51 +41,17 @@ class StackEvaluator[A <: SourceStep, B <: DestStep, C <: ClientContext[B]] exte
 
     // Do step-wise translation of current tree node and explore next child
     @tailrec
-    def forward(tree: ProofTree[A], deferredsStack: DeferredsStack, clientContext: C, taskStack: TaskStack): ProofTree[B] = {
-      val res = tree.step.translate[B,C](clientContext)
-      if (tree.children.length != res.childrenMeta.length) {
-        throw EvaluatorException(s"step ${tree.step.pp} has ${tree.children.length} children but translation returned results for ${res.childrenMeta.length} children")
+    def forward(tree: ProofTree[S], deferredsStack: DeferredsStack[D,C], clientContext: C, taskStack: TaskStack): ProofTree[D] = {
+      val res = tree.step.translate[D,C](clientContext)
+      if (tree.children.length != res.childParams.length) {
+        throw EvaluatorException(s"step ${tree.step.pp} has ${tree.children.length} children but translation returned results for ${res.childParams.length} children")
       }
-      val (childDeferreds, childClientContexts0) = res.childrenMeta.unzip
-      val (steps, childDeferredsStacks, childClientContexts) = tree.step.contextAction match {
-        case EnvAction.PopLayer =>
-          if (tree.children.length > 1) {
-            throw EvaluatorException(s"step ${tree.step.pp} has ${tree.children.length} children, but pop action expects at most 1 child")
-          }
-          deferredsStack match {
-            case deferreds :: remainingDeferreds =>
-              // translation should have produced results for 0 or 1 children
-              val childDeferreds0 = childDeferreds.headOption.toList
-              val childClientContext0 = childClientContexts0.headOption.getOrElse(clientContext)
 
-              // process all deferreds in current stack layer
-              val (steps, childClientContext) = deferreds.foldLeft((res.steps.reverse, childClientContext0)) {
-                case ((steps, clientCtx), deferred) =>
-                  val (step, clientCtx1) = deferred(clientCtx)
-                  (step :: steps, clientCtx1)
-              }
-
-              // pop current stack layer and enqueue on next stack layer
-              val childDeferredsStacks = remainingDeferreds match {
-                case nextLayer :: remainingLayers => childDeferreds0.map(newDeferreds => (nextLayer ++ newDeferreds) :: remainingLayers)
-                case Nil => childDeferreds0.map(List(_))
-              }
-
-              (steps.reverse, childDeferredsStacks, List(childClientContext))
-            case Nil => throw EvaluatorException(s"step ${tree.step.pp} expects a pop, but deferreds stack is empty")
-          }
-        case EnvAction.PushLayer =>
-          // create fresh deferreds
-          val childDeferredsStacks = childDeferreds.map(_ :: deferredsStack)
-          (res.steps, childDeferredsStacks, childClientContexts0)
-        case EnvAction.CurrentLayer =>
-          deferredsStack match {
-            case deferreds :: remainingDeferreds =>
-              // enqueue on current deferreds
-              val childDeferredsStack = childDeferreds.map(deferreds ++ _ :: remainingDeferreds)
-              (res.steps, childDeferredsStack, childClientContexts0)
-            case Nil => throw EvaluatorException(s"cannot replace deferreds stack item for step ${tree.step.pp}")
-          }
+      val action = tree.step.contextAction
+      val (newSteps, childClientContexts) = action.handleDeferreds(deferredsStack, clientContext, res.childParams.map(_._2))
+      val steps = res.steps ++ newSteps
+      val childDeferredsStacks = res.childParams.map { case (newDeferred, _) =>
+        action.updateStack(deferredsStack, newDeferred)
       }
 
       (tree.children, childDeferredsStacks, childClientContexts).zipped.toList match {
@@ -100,7 +66,7 @@ class StackEvaluator[A <: SourceStep, B <: DestStep, C <: ClientContext[B]] exte
       }
     }
     // Create a tree from a list of values
-    def foldStepsIntoTree(values: List[B], children: List[ProofTree[B]], label: Option[GoalLabel]): ProofTree[B] =
+    def foldStepsIntoTree(values: List[D], children: List[ProofTree[D]], label: Option[GoalLabel]): ProofTree[D] =
       values.reverse match {
         case last :: rest => rest.foldLeft(ProofTree(last, children, label)){ case (child, v) => ProofTree(v, List(child), label) }
         case Nil => throw EvaluatorException("expected at least one translated value for this task")

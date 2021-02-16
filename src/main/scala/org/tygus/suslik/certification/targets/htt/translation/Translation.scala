@@ -34,10 +34,10 @@ object Translation {
     val suslikTree = SuslikProofStep.of_certtree(node)
 
     val ctx: ProofContext = ProofContext(predicates = cpreds, hints = ListBuffer.empty[Hint])
-    val proofBody = ProofEvaluator.run(suslikTree)(ProofTranslator, ProofPrinter, ctx)
+    val proofBody = ProofEvaluator.run(suslikTree)(ProofTranslator, ctx)
     val proof = Proof(proofBody)
     val hints = ctx.hints.filter(_.numHypotheses > 0)
-    val progBody = ProgramEvaluator.run(suslikTree)(ProgramTranslator, ProgramPrinter, ProgramContext())
+    val progBody = ProgramEvaluator.run(suslikTree)(ProgramTranslator, ProgramContext())
     val cproc = Program(proc.name, proc.tp.translate, proc.formals.map(_.translate), progBody)
 
     HTTCertificate(cproc.name, cpreds, goal.toFunspec, proof, cproc, hints)

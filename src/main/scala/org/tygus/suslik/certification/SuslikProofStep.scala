@@ -29,7 +29,7 @@ object SuslikProofStep {
       tree.step match {
         case rule:Branch => rule.pp ++ "\n" ++ rule.branch_strings(tree.children.head, tree.children(1))
         case rule:Open => rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
-        case rule => rule.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
+        case rule => rule.pp ++ "\n" ++ tree.children.map(pp).mkString("\n")
       }
   }
 
@@ -64,8 +64,8 @@ object SuslikProofStep {
 
   /** branches on a condition */
   case class Branch(cond: Expr, bLabel: GoalLabel) extends SuslikProofStep {
-    def branch_strings[T <: PrettyPrinting] (ifTrue: T, ifFalse: T) =
-      s"${ind}IfTrue:\n${with_scope(_ => ifTrue.pp)}\n${ind}IfFalse:\n${with_scope(_ => ifFalse.pp)}"
+    def branch_strings(ifTrue: ProofTree[SuslikProofStep], ifFalse: ProofTree[SuslikProofStep]) =
+      s"${ind}IfTrue:\n${with_scope(_ => ProofTreePrinter.pp(ifTrue))}\n${ind}IfFalse:\n${with_scope(_ => ProofTreePrinter.pp(ifFalse))}"
 
     override def pp: String = s"${ind}AbduceBranch(${cond.pp}, ${bLabel.pp});"
   }
@@ -93,8 +93,8 @@ object SuslikProofStep {
 
   /** open constructor cases */
   case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, selectors: List[Expr]) extends SuslikProofStep {
-    def branch_strings[T <: PrettyPrinting] (exprs: List[T]) =
-      s"${with_scope(_ => selectors.zip(exprs).map({case (sel,rest) => s"${ind}if ${sanitize(sel.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
+    def branch_strings(exprs: List[ProofTree[SuslikProofStep]]) =
+      s"${with_scope(_ => selectors.zip(exprs).map({case (sel,rest) => s"${ind}if ${sanitize(sel.pp)}:\n${with_scope(_ => ProofTreePrinter.pp(rest))}"}).mkString("\n"))}"
 
     override def pp: String = s"${ind}Open(${pred.pp}, ${fresh_vars.mkString(", ")});"
   }
@@ -594,7 +594,7 @@ case class AbduceCall(
     val initStep = Init(node.goal)
     val initItem = Item(initStep, None, Nil, Nil)
     val res = forward(node, List(initItem))
-    Console.println(res.pp)
+    Console.println(ProofTreePrinter.pp(res))
     res
   }
 }

@@ -696,7 +696,7 @@ object ProofTranslation {
     }
 
     val simplified = SuslikProofStep.of_certtree(root)
-    println(s"Suslik Proof:\n ${simplified.pp}")
+    println(s"Suslik Proof:\n ${SuslikProofStep.ProofTreePrinter.pp(simplified)}")
 
     val vst_proof: ProofTree[VSTProofStep] = translate_proof_rules(simplified)(initial_context)
 
