@@ -14,7 +14,7 @@ object VSTProofStep {
     override def pp(tree: ProofTree[VSTProofStep]): String = tree.step match {
       case rule@ForwardIf => rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
       case rule@ForwardIfConstructor(_,_,_) => tree.step.pp ++ "\n" ++ rule.branch_strings(tree.children)
-      case _ => tree.step.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
+      case _ => tree.step.pp ++ "\n" ++ tree.children.map(pp).mkString("\n")
     }
   }
 
@@ -30,7 +30,7 @@ object VSTProofStep {
                                    branches: List[((Ident, CardConstructor, List[String]), Expressions.ProofCExpr, List[String])]
                                  ) extends VSTProofStep {
 
-    def branch_strings[T <: PrettyPrinting] (children : List[T]): String = {
+    def branch_strings(children : List[ProofTree[VSTProofStep]]): String = {
       val branches = this.branches.zip(children).map({ case ((clause, selector, args), value) => (clause, selector, args, value)})
       def constructor_prop(cons_name: Ident, cons: CardConstructor): String = cons match {
         case ProofTerms.CardNull => s"${card_variable} = ${cons_name}"
@@ -49,7 +49,7 @@ object VSTProofStep {
                   case Nil => ""
                   case args => s"Intros ${args.mkString(" ")}.\n"
                 }) ++
-                ls.pp ++
+                ProofTreePrinter.pp(ls) ++
                 "\n}"
             }
           ).mkString("\n")
@@ -62,11 +62,11 @@ object VSTProofStep {
   }
 
   case object ForwardIf extends VSTProofStep {
-    def branch_strings[T <: PrettyPrinting] (children: List[T]) = {
+    def branch_strings (children: List[ProofTree[VSTProofStep]]) = {
       val branches = children
       branches match {
         case Nil => ""
-        case _ => "\n" ++ branches.map(ls => " - {\n" ++ ls.pp ++ "\n}").mkString("\n")
+        case _ => "\n" ++ branches.map(ls => " - {\n" ++ ProofTreePrinter.pp(ls) ++ "\n}").mkString("\n")
       }
     }
     override def pp: String = {

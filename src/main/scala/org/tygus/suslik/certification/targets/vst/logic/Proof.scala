@@ -1,5 +1,7 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
+import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.ProofTreePrinter
 import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms._
 import org.tygus.suslik.language.PrettyPrinting
@@ -67,8 +69,8 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
       lemma_prelude +
       "start_function.\n" +
       "ssl_open_context.\n" +
-      steps.pp + "\n" +
-      "Qed."
+      ProofTreePrinter.pp(steps) + "\n" +
+    "Qed."
   }
 }
 

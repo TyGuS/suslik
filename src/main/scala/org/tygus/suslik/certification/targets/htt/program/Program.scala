@@ -12,6 +12,6 @@ case class Program(name: String, tp: HTTType, formals: CFormals, body: ProofTree
        |  Fix (fun ($name : ${name}_type) vprogs =>
        |    let: (${formals.map(_._1.pp).mkString(", ")}) := vprogs in
        |    Do (
-       |      ${body.pp.replace("\n", "\n      ")}
+       |      ${ProgramPrinter.pp(body).replace("\n", "\n      ")}
        |    )).""".stripMargin
 }

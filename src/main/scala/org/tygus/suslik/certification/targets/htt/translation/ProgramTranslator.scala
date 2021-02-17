@@ -3,25 +3,20 @@ package org.tygus.suslik.certification.targets.htt.translation
 import org.tygus.suslik.certification.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.program.Statements.{CFree, CGuarded, CIf, CSkip, CStatement, Noop}
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
-import org.tygus.suslik.certification.traversal.Evaluator.Deferreds
 import org.tygus.suslik.certification.traversal.Translator
 import org.tygus.suslik.certification.traversal.Translator.Result
 
-import scala.collection.immutable.Queue
-
 object ProgramTranslator extends Translator[SuslikProofStep, CStatement, ProgramContext] {
-  private val noDeferreds: Deferreds[CStatement, ProgramContext] = Queue.empty
-
   override def translate(value: SuslikProofStep, ctx: ProgramContext): Translator.Result[CStatement, ProgramContext] = {
-    val meta = (noDeferreds, ctx)
+    val withNoDeferred = (None, ctx)
     value match {
       case SuslikProofStep.Open(_, _, _, selectors) =>
         val stmt = CIf(selectors.map(_.translate))
-        val metas = selectors.map(_ => meta)
-        Result(List(stmt), metas)
+        val childParams = selectors.map(_ => withNoDeferred)
+        Result(List(stmt), childParams)
       case SuslikProofStep.Branch(cond, _) =>
         val stmt = CGuarded(cond.translate)
-        Result(List(stmt), List(meta, meta))
+        Result(List(stmt), List(withNoDeferred, withNoDeferred))
       case _:SuslikProofStep.EmpRule | _:SuslikProofStep.Inconsistency =>
         Result(List(CSkip), Nil)
       case _ =>
@@ -35,7 +30,7 @@ object ProgramTranslator extends Translator[SuslikProofStep, CStatement, Program
           case SuslikProofStep.Call(_, stmt) => List(stmt.translate)
           case _ => List(Noop)
         }
-        Result(stmts, List(meta))
+        Result(stmts, List(withNoDeferred))
     }
   }
 }

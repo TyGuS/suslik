@@ -2,6 +2,8 @@ package org.tygus.suslik.certification
 
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.certification.traversal.Evaluator.EnvAction
+import org.tygus.suslik.certification.targets.vst.translation.ProofTranslation.ProofRuleTranslationException
+import org.tygus.suslik.certification.traversal.Evaluator.DeferredsAction
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.certification.traversal.Step.SourceStep
 import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Subst, SubstVar, Var}
@@ -27,7 +29,7 @@ object SuslikProofStep {
       tree.step match {
         case rule:Branch => rule.pp ++ "\n" ++ rule.branch_strings(tree.children.head, tree.children(1))
         case rule:Open => rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
-        case rule => rule.pp ++ "\n" ++ tree.children.map(_.pp(this)).mkString("\n")
+        case rule => rule.pp ++ "\n" ++ tree.children.map(pp).mkString("\n")
       }
   }
 
@@ -62,8 +64,8 @@ object SuslikProofStep {
 
   /** branches on a condition */
   case class Branch(cond: Expr, bLabel: GoalLabel) extends SuslikProofStep {
-    def branch_strings[T <: PrettyPrinting] (ifTrue: T, ifFalse: T) =
-      s"${ind}IfTrue:\n${with_scope(_ => ifTrue.pp)}\n${ind}IfFalse:\n${with_scope(_ => ifFalse.pp)}"
+    def branch_strings(ifTrue: ProofTree[SuslikProofStep], ifFalse: ProofTree[SuslikProofStep]) =
+      s"${ind}IfTrue:\n${with_scope(_ => ProofTreePrinter.pp(ifTrue))}\n${ind}IfFalse:\n${with_scope(_ => ProofTreePrinter.pp(ifFalse))}"
 
     override def pp: String = s"${ind}AbduceBranch(${cond.pp}, ${bLabel.pp});"
   }
@@ -80,7 +82,7 @@ object SuslikProofStep {
 
   /** empty rule */
   case class EmpRule(label: Option[GoalLabel]) extends SuslikProofStep {
-    override def contextAction: EnvAction = EnvAction.PopLayer
+    override def deferredsAction: DeferredsAction = DeferredsAction.PopLayer
     override def pp: String = s"${ind}EmpRule;"
   }
 
@@ -91,8 +93,8 @@ object SuslikProofStep {
 
   /** open constructor cases */
   case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, selectors: List[Expr]) extends SuslikProofStep {
-    def branch_strings[T <: PrettyPrinting] (exprs: List[T]) =
-      s"${with_scope(_ => selectors.zip(exprs).map({case (sel,rest) => s"${ind}if ${sanitize(sel.pp)}:\n${with_scope(_ => rest.pp)}"}).mkString("\n"))}"
+    def branch_strings(exprs: List[ProofTree[SuslikProofStep]]) =
+      s"${with_scope(_ => selectors.zip(exprs).map({case (sel,rest) => s"${ind}if ${sanitize(sel.pp)}:\n${with_scope(_ => ProofTreePrinter.pp(rest))}"}).mkString("\n"))}"
 
     override def pp: String = s"${ind}Open(${pred.pp}, ${fresh_vars.mkString(", ")});"
   }
@@ -113,20 +115,20 @@ object SuslikProofStep {
     override def pp: String = s"${ind}Read(${ghostFrom.pp} -> ${ghostTo.pp}, ${sanitize(operation.pp)});"
   }
 
-  //  /** abduce a call */
-  case class AbduceCall(
-                         new_vars: Map[Var, SSLType],
-                         f_pre: Specifications.Assertion,
-                         callePost: Specifications.Assertion,
-                         call: Statements.Call,
-                         freshSub: SubstVar,
-                         freshToActual: Subst,
-                         f: FunSpec,
-                         gamma: Gamma
-                       ) extends SuslikProofStep {
-    override def contextAction: EnvAction = EnvAction.PushLayer
-    override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
-  }
+//  /** abduce a call */
+case class AbduceCall(
+                       new_vars: Map[Var, SSLType],
+                       f_pre: Specifications.Assertion,
+                       callePost: Specifications.Assertion,
+                       call: Statements.Call,
+                       freshSub: SubstVar,
+                       freshToActual: Subst,
+                       f: FunSpec,
+                       gamma: Gamma
+                     ) extends SuslikProofStep {
+  override def deferredsAction: DeferredsAction = DeferredsAction.PushLayer
+  override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
+}
 
 
   /** unification of heap (ignores block/pure distinction) */
@@ -146,7 +148,7 @@ object SuslikProofStep {
 
   /** call operation */
   case class Call(subst: Map[Var, Expr], call: Statements.Call) extends SuslikProofStep {
-    override def contextAction: EnvAction = EnvAction.PopLayer
+    override def deferredsAction: DeferredsAction = DeferredsAction.PopLayer
     override def pp: String = s"${ind}Call({${subst.mkString(",")}}, ${sanitize(call.pp)});"
   }
 
@@ -180,7 +182,7 @@ object SuslikProofStep {
   }
 
   case class Init(goal: Goal) extends SuslikProofStep {
-    override def contextAction: EnvAction = EnvAction.PushLayer
+    override def deferredsAction: DeferredsAction = DeferredsAction.PushLayer
     override def pp: String = s"${ind}Init(${goal.pp});"
   }
 
@@ -195,9 +197,9 @@ object SuslikProofStep {
     */
   def translate(node: CertTree.Node): SuslikProofStep = {
     def fail_with_bad_proof_structure(): Nothing =
-      throw TranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
+      throw ProofRuleTranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
     def fail_with_bad_children(ls: Seq[CertTree.Node], count: Int): Nothing =
-      throw TranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != $count")
+      throw ProofRuleTranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != $count")
 
     val label = Some(node.goal.label)
     node.rule match {
@@ -586,13 +588,13 @@ object SuslikProofStep {
             // didn't find target goal label; check parent
             case _ => insertBranchPoint(item, label, rest, ret => k(next :: ret))
           }
-        case Nil => throw TranslationException(s"branch point ${label.pp} not found for branch abduction step ${item.step.pp}")
+        case Nil => throw ProofRuleTranslationException(s"branch point ${label.pp} not found for branch abduction step ${item.step.pp}")
       }
 
     val initStep = Init(node.goal)
     val initItem = Item(initStep, None, Nil, Nil)
     val res = forward(node, List(initItem))
-    Console.println(res.pp)
+    Console.println(ProofTreePrinter.pp(res))
     res
   }
 }
