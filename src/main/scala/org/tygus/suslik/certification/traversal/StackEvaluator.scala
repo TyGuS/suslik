@@ -65,12 +65,6 @@ class StackEvaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] exte
           forward(nextChild, nextDeferredsStack, nextClientCtx, task :: taskStack)
       }
     }
-    // Create a tree from a list of values
-    def foldStepsIntoTree(values: List[D], children: List[ProofTree[D]], label: Option[GoalLabel]): ProofTree[D] =
-      values.reverse match {
-        case last :: rest => rest.foldLeft(ProofTree(last, children, label)){ case (child, v) => ProofTree(v, List(child), label) }
-        case Nil => throw EvaluatorException("expected at least one translated value for this task")
-      }
 
     forward(tree, Nil, initialClientContext, Nil)
   }

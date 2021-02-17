@@ -24,11 +24,9 @@ class BasicEvaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] exte
 
       val next = (tree.children, childDeferredsStacks, childClientContexts).zipped.toList
       val childResults = next.map { case (child, deferredsStack, ctx) => visit(child, deferredsStack, ctx) }
-      steps.reverse match {
-        case last :: rest => rest.foldLeft(ProofTree(last, childResults, tree.label)) { case (child, v) => ProofTree(v, List(child), tree.label) }
-        case Nil => throw EvaluatorException("expected at least one translated value for this task")
-      }
+      foldStepsIntoTree(steps, childResults, tree.label)
     }
+
     visit(tree, Nil, initialClientContext)
   }
 }

@@ -49,7 +49,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
   def handleSubstitution(m: Map[CVar, CExpr], ctx: ProofContext): Translator.Result[Proof.Step, ProofContext] = {
     val affectedApps = ctx.appsAffectedBySubst(m)
     val ctx1 = ctx.withSubst(m, affectedApps)
-    val steps = Proof.Noop :: renameAppsStep(affectedApps)
+    val steps = renameAppsStep(affectedApps)
     Result(steps, List(withNoDeferred(ctx1)))
   }
 
@@ -103,7 +103,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
         val universalGhosts = pre.valueVars.diff(programVars)
         val goal = Proof.Goal(pre, post, gamma.translate, programVars, universalGhosts, f.name)
         val ctx1 = ctx.copy(callGoal = Some(goal))
-        Result(List(Proof.Noop), List(withNoDeferred(ctx1)))
+        Result(List(), List(withNoDeferred(ctx1)))
 
       /** Control flow */
       case SuslikProofStep.Branch(cond, _) =>
@@ -220,7 +220,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
         val unfoldings = ctx.unfoldings + (csapp -> clause)
         val ctx1 = ctx.copy(appAliases = appAliases, unfoldings = unfoldings)
 
-        Result(List(Proof.Noop), List((Some(deferred), ctx1)))
+        Result(List(), List((Some(deferred), ctx1)))
 
       /** Terminals */
       case SuslikProofStep.Inconsistency(label) =>
@@ -231,10 +231,10 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
       /** Pure entailments */
       case SuslikProofStep.CheckPost(prePhi, postPhi) =>
         ctx.hints += Hint.PureEntailment(prePhi.conjuncts.map(_.translate), postPhi.conjuncts.map(_.translate))
-        Result(List(Proof.Noop), List(withNoDeferred(ctx)))
+        Result(List(), List(withNoDeferred(ctx)))
 
       /** Ignored */
-      case _ => Result(List(Proof.Noop), List(withNoDeferred(ctx)))
+      case _ => Result(List(), List(withNoDeferred(ctx)))
     }
   }
 }

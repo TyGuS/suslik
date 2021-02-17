@@ -142,10 +142,6 @@ object Proof {
   case object Inconsistency extends Step {
     override def pp: String = "ssl_inconsistency"
   }
-  case object Noop extends Step {
-    override val isNoop: Boolean = true
-    override def pp: String = ""
-  }
   case class StartProof(params: Seq[CVar]) extends Step {
     override def pp: String = s"Obligation Tactic := intro; ${MoveToCtxDestructFoldLeft(params).pp}; ssl_program_simpl.\nNext Obligation"
   }

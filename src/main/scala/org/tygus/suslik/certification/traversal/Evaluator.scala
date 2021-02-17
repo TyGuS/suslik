@@ -1,12 +1,24 @@
 package org.tygus.suslik.certification.traversal
 
-import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
+import org.tygus.suslik.certification.traversal.Evaluator.{ClientContext, EvaluatorException}
 import org.tygus.suslik.certification.traversal.Step._
+import org.tygus.suslik.logic.Specifications.GoalLabel
 
 import scala.collection.immutable.Queue
 
 trait Evaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] {
   def run(node: ProofTree[S])(implicit translator: Translator[S,D,C], initialClientContext: C): ProofTree[D]
+
+  // Create a straight-line tree from a list of values
+  def foldStepsIntoTree(values: List[D], children: List[ProofTree[D]], label: Option[GoalLabel]): ProofTree[D] =
+    values.reverse match {
+      case last :: rest => rest.foldLeft(ProofTree(last, children, label)){ case (child, v) => ProofTree(v, List(child), label) }
+      case Nil =>
+        children match {
+          case child :: Nil => child  // special case: allow translator to emit no immediate steps if there is exactly one child
+          case _ => throw EvaluatorException(s"translator produced no immediate steps: expected 1 child but got ${values.length} instead")
+        }
+    }
 }
 
 object Evaluator {
