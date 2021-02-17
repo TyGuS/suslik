@@ -19,7 +19,7 @@ object Evaluator {
   // A stack of queued deferreds
   type DeferredsStack[D <: DestStep, C <: ClientContext[D]] = List[Deferreds[D,C]]
 
-  abstract class EnvAction {
+  abstract class DeferredsAction {
     /**
       * Either release deferreds in topmost stack layer and update child contexts, or (by default) don't do anything
       */
@@ -30,8 +30,8 @@ object Evaluator {
       */
     def updateStack[D <: DestStep, C <: ClientContext[D]](deferredsStack: DeferredsStack[D,C], newDeferred: Option[Deferred[D, C]]): DeferredsStack[D,C]
   }
-  object EnvAction {
-    case object PushLayer extends EnvAction {
+  object DeferredsAction {
+    case object PushLayer extends DeferredsAction {
       override def updateStack[D <: DestStep, C <: ClientContext[D]](deferredsStack: DeferredsStack[D, C], newDeferred: Option[Deferred[D, C]]): DeferredsStack[D, C] = {
         newDeferred match {
           case None => Queue.empty :: deferredsStack
@@ -40,7 +40,7 @@ object Evaluator {
       }
     }
 
-    case object PopLayer extends EnvAction {
+    case object PopLayer extends DeferredsAction {
       override def handleDeferreds[D <: DestStep, C <: ClientContext[D]](deferredsStack: DeferredsStack[D,C], currentContext: C, childContexts: List[C]): (List[D], List[C]) = {
         def release(deferreds: Deferreds[D,C], ctx: C): (List[D], C) = {
           deferreds.foldLeft((List.empty[D], ctx)) { case ((steps, ctx), deferred) =>
@@ -79,7 +79,7 @@ object Evaluator {
       }
     }
 
-    case object CurrentLayer extends EnvAction {
+    case object CurrentLayer extends DeferredsAction {
       override def updateStack[D <: DestStep, C <: ClientContext[D]](deferredsStack: DeferredsStack[D, C], newDeferred: Option[Deferred[D, C]]): DeferredsStack[D, C] = {
         deferredsStack match {
           case ds :: rest =>

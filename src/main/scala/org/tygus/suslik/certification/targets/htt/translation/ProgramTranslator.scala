@@ -3,7 +3,6 @@ package org.tygus.suslik.certification.targets.htt.translation
 import org.tygus.suslik.certification.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.program.Statements.{CFree, CGuarded, CIf, CSkip, CStatement, Noop}
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
-import org.tygus.suslik.certification.traversal.Evaluator.Deferred
 import org.tygus.suslik.certification.traversal.Translator
 import org.tygus.suslik.certification.traversal.Translator.Result
 

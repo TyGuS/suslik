@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification
 
 import org.tygus.suslik.certification.targets.vst.translation.ProofTranslation.ProofRuleTranslationException
-import org.tygus.suslik.certification.traversal.Evaluator.EnvAction
+import org.tygus.suslik.certification.traversal.Evaluator.DeferredsAction
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.certification.traversal.Step.SourceStep
 import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Subst, SubstVar, Var}
@@ -82,7 +82,7 @@ object SuslikProofStep {
 
   /** empty rule */
   case class EmpRule(label: Option[GoalLabel]) extends SuslikProofStep {
-    override def contextAction: EnvAction = EnvAction.PopLayer
+    override def deferredsAction: DeferredsAction = DeferredsAction.PopLayer
     override def pp: String = s"${ind}EmpRule;"
   }
 
@@ -126,7 +126,7 @@ case class AbduceCall(
                        f: FunSpec,
                        gamma: Gamma
                      ) extends SuslikProofStep {
-  override def contextAction: EnvAction = EnvAction.PushLayer
+  override def deferredsAction: DeferredsAction = DeferredsAction.PushLayer
   override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
 }
 
@@ -148,7 +148,7 @@ case class AbduceCall(
 
   /** call operation */
   case class Call(subst: Map[Var, Expr], call: Statements.Call) extends SuslikProofStep {
-    override def contextAction: EnvAction = EnvAction.PopLayer
+    override def deferredsAction: DeferredsAction = DeferredsAction.PopLayer
     override def pp: String = s"${ind}Call({${subst.mkString(",")}}, ${sanitize(call.pp)});"
   }
 
@@ -182,7 +182,7 @@ case class AbduceCall(
   }
 
   case class Init(goal: Goal) extends SuslikProofStep {
-    override def contextAction: EnvAction = EnvAction.PushLayer
+    override def deferredsAction: DeferredsAction = DeferredsAction.PushLayer
     override def pp: String = s"${ind}Init(${goal.pp});"
   }
 

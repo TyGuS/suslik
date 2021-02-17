@@ -15,7 +15,7 @@ class BasicEvaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] exte
         throw EvaluatorException(s"step ${tree.step.pp} has ${tree.children.length} children but translation returned results for ${res.childParams.length} children")
       }
 
-      val action = tree.step.contextAction
+      val action = tree.step.deferredsAction
       val (newSteps, childClientContexts) = action.handleDeferreds(deferredsStack, clientContext, res.childParams.map(_._2))
       val steps = res.steps ++ newSteps
       val childDeferredsStacks = res.childParams.map { case (newDeferred, _) =>
