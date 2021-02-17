@@ -11,10 +11,11 @@ import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.certification.SuslikProofStep
+import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.VSTClientContext
 
 import scala.collection.immutable.Queue
 
-object VSTTranslator {
+object VSTProofTranslator {
 
   case class VSTClientContext(
                                pred_map: Map[String, VSTPredicate],
@@ -38,9 +39,8 @@ object VSTTranslator {
     def make_context(pred_map: Map[String, VSTPredicate]): VSTClientContext =
       VSTClientContext(pred_map, Map(), Map())
   }
-
-
-  class VSTTranslator extends Translator[SuslikProofStep, VSTProofStep, VSTClientContext] {
+}
+class VSTProofTranslator extends Translator[SuslikProofStep, VSTProofStep, VSTProofTranslator.VSTClientContext] {
     type Deferred = Evaluator.Deferred[VSTProofStep, VSTClientContext]
     private val no_deferreds: Queue[Deferred] = Queue()
 
@@ -91,5 +91,3 @@ object VSTTranslator {
       }
     }
   }
-
-}

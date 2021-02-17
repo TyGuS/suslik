@@ -224,10 +224,7 @@ object ProofSpecTranslation {
   }
 
   /** translates a Suslik function specification into a proof */
-  def translate_conditions(proc: CProcedureDefinition)(goal: Goal): (FormalSpecification, Map[Ident, VSTType]) = {
-
-    val name: Ident = proc.name
-    val c_params: Seq[(Ident, VSTCType)] = proc.params
+  def translate_conditions(name: String, c_params: List[(Ident, VSTCType)])(goal: Goal): (FormalSpecification, Map[Ident, VSTType]) = {
 
     // collect all cardinality_params and their associated types
     val cardinality_params: Map[String, CoqCardType] = (goal.pre.sigma.chunks ++ goal.post.sigma.chunks).flatMap({

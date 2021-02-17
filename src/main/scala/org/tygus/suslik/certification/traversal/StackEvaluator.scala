@@ -17,7 +17,7 @@ class StackEvaluator[A <: SourceStep, B <: DestStep, C <: ClientContext[B]] exte
   // A stack of queued deferreds
   type DeferredsStack = List[Deferreds[B,C]]
 
-  def run(tree: ProofTree[A])(implicit translator: Translator[A,B,C], printer: ProofTreePrinter[B], initialClientContext: C): ProofTree[B] = {
+  def run(tree: ProofTree[A])(implicit translator: Translator[A,B,C], initialClientContext: C): ProofTree[B] = {
     // Use a child result to fulfill the evaluation task for a parent
     @tailrec
     def backward(taskStack: TaskStack, childResult: ProofTree[B]): ProofTree[B] =

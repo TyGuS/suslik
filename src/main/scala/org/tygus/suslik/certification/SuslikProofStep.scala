@@ -19,7 +19,7 @@ import scala.collection.immutable.Map
 
 
 /** compressed form of suslik rules */
-trait SuslikProofStep extends SourceStep {}
+sealed trait SuslikProofStep extends SourceStep {}
 
 object SuslikProofStep {
   implicit object ProofTreePrinter extends ProofTreePrinter[SuslikProofStep] {
@@ -27,7 +27,7 @@ object SuslikProofStep {
       tree.step match {
         case rule:Branch => rule.pp ++ "\n" ++ rule.branch_strings(tree.children.head, tree.children(1))
         case rule:Open => rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
-        case rule => rule.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
+        case rule => rule.pp ++ "\n" ++ tree.children.map(_.pp(this)).mkString("\n")
       }
   }
 
