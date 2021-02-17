@@ -42,11 +42,11 @@ object VSTProofTranslator {
 }
 class VSTProofTranslator extends Translator[SuslikProofStep, VSTProofStep, VSTProofTranslator.VSTClientContext] {
     type Deferred = Evaluator.Deferred[VSTProofStep, VSTClientContext]
-    private val no_deferreds: Queue[Deferred] = Queue()
+    private val no_deferreds: Option[Deferred] = None
 
     private def with_no_deferreds(ctx: VSTClientContext) = (no_deferreds, ctx)
 
-    def with_no_op(context: VSTClientContext): Result[VSTProofStep, VSTClientContext] = Result(List(), List((Queue(), context)))
+    def with_no_op(context: VSTClientContext): Result[VSTProofStep, VSTClientContext] = Result(List(), List((None, context)))
 
     override def translate(value: SuslikProofStep, clientContext: VSTClientContext): Translator.Result[VSTProofStep, VSTClientContext] = {
       value match {

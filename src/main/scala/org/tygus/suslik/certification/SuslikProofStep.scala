@@ -1,24 +1,22 @@
 package org.tygus.suslik.certification
 
-import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
-import org.tygus.suslik.certification.traversal.Evaluator.EnvAction
-import org.tygus.suslik.certification.targets.vst.translation.ProofTranslation.ProofRuleTranslationException
 import org.tygus.suslik.certification.traversal.Evaluator.DeferredsAction
-import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.certification.traversal.Step.SourceStep
-import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Subst, SubstVar, Var}
+import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
+import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements.{Error, Load, Skip, Store}
-import org.tygus.suslik.language.{PrettyPrinting, SSLType, Statements}
+import org.tygus.suslik.language.{SSLType, Statements}
 import org.tygus.suslik.logic.Preprocessor.findMatchingHeaplets
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, GoalLabel, SuspendedCallGoal}
 import org.tygus.suslik.logic._
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.LogicalRules.StarPartial.extendPure
 import org.tygus.suslik.synthesis.rules._
-import org.tygus.suslik.synthesis.StmtProducer._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Map
 
+case class ProofRuleTranslationException(msg: String) extends Exception
 
 /** compressed form of suslik rules */
 sealed trait SuslikProofStep extends SourceStep {}

@@ -16,11 +16,11 @@ object Statements {
     override def pp(tree: ProofTree[StatementStep]): String = tree.step match {
       case CIf(cond) =>
         s"if (${cond.pp} {\n" +
-          s"${tree.children(0).pp}" +
+          s"${pp(tree.children(0))}" +
           s"} else {\n" +
-          s"${tree.children(1).pp}" +
+          s"${pp(tree.children(1))}" +
           s"\n}"
-      case _ => tree.step.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
+      case _ => tree.step.pp ++ "\n" ++ tree.children.map(pp).mkString("\n")
     }
   }
   /** pretty printing a VST C Statement returns a C embedding */
@@ -98,7 +98,7 @@ object Statements {
         |""".stripMargin
 
     override def pp: String = {
-      val body_string = body.pp
+      val body_string = ProofTreePrinter.pp(body)
       val function_def =
         s"void ${name}(${
           params.map({case (variable_name, variable_ty) =>

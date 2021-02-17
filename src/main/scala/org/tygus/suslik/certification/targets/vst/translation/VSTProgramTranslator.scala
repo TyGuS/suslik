@@ -16,7 +16,7 @@ import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator
 
 import scala.collection.immutable.Queue
 
-object VSTProgramTranslator { case class VSTProgramContext(typing_context: Map[String, VSTCType]) extends ClientContext[VSTProofStep] { } }
+object VSTProgramTranslator { case class VSTProgramContext(typing_context: Map[String, VSTCType]) extends ClientContext[StatementStep] { } }
 
 class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VSTProgramTranslator.VSTProgramContext] {
   type Deferred = Evaluator.Deferred[StatementStep, VSTProgramTranslator.VSTProgramContext]
@@ -25,7 +25,7 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
   def with_no_op (implicit context: VSTClientContext) = (List(), List((Queue(), context)))
 
   override def translate(value: SuslikProofStep, clientContext: VSTProgramTranslator.VSTProgramContext): Result[StatementStep, VSTProgramTranslator.VSTProgramContext] = {
-    implicit ctx : VSTProgramTranslator.VSTProgramContext => clientContext
+    implicit val ctx : VSTProgramTranslator.VSTProgramContext = clientContext
     value match {
       case SuslikProofStep.NilNotLval(vars) => ???
       case SuslikProofStep.CheckPost(prePhi, postPhi) => ???
