@@ -107,6 +107,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       scopt.Read.reads {
         case "htt" => htt.HTT
         case "vst" => vst.VST
+        case "iris" => iris.Iris
         case _ => ???
       }
 
