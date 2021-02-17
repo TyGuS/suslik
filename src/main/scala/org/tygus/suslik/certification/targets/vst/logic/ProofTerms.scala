@@ -26,14 +26,14 @@ object ProofTerms {
     **/
   case class IsTrueProp(expr: Expressions.ProofCExpr) extends PureFormula {
     override def pp: String = {
-      s"${expr.pp_as_c_value}"
+      s"${expr.pp}"
     }
   }
 
   /** prop predicate encoding that a given boolean expression is true */
   case class IsTrue(expr: Expressions.ProofCExpr) extends PureFormula {
     override def pp: String = {
-      s"(is_true ${expr.pp})"
+      s"(is_true ${expr.pp_as_c_value})"
     }
   }
 

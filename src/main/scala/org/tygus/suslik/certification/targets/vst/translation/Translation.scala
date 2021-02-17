@@ -1,6 +1,7 @@
 package org.tygus.suslik.certification.targets.vst.translation
 
 
+import org.tygus.suslik.certification.targets.vst.Types.{CoqIntValType, CoqPtrValType}
 import org.tygus.suslik.certification.targets.vst.VSTCertificate
 import org.tygus.suslik.certification.targets.vst.logic.{Proof, VSTProofStep}
 import org.tygus.suslik.certification.targets.vst.translation.VSTProgramTranslator.VSTProgramContext
@@ -8,6 +9,8 @@ import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{Evaluator, ProofTree, StackEvaluator, Translator}
 import org.tygus.suslik.certification.{CertTree, SuslikProofStep}
+import org.tygus.suslik.language.Expressions.Var
+import org.tygus.suslik.language.{IntType, LocType}
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 
@@ -36,7 +39,11 @@ object Translation {
     //    println(new_procedure.pp)
     val predicates = env.predicates.map({ case (_, predicate) => ProofSpecTranslation.translate_predicate(env)(predicate)}).toList
     predicates.foreach(v => println(v.pp))
-    val (spec, _) = ProofSpecTranslation.translate_conditions(proc.name, List())(root.goal)
+    val params = proc.formals.map({case (Var(name), ty) => ty match {
+      case LocType => (name, CoqPtrValType)
+      case IntType => (name, CoqIntValType)
+    }})
+    val (spec, _) = ProofSpecTranslation.translate_conditions(proc.name, params)(root.goal)
     println(spec.pp)
     val program_steps = translate_proof(base_proof)(new VSTProgramTranslator, VSTProgramContext(Map()))
     val procedure = ???
