@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification
 
-import org.tygus.suslik.certification.targets.vst.translation.ProofTranslation.ProofRuleTranslationException
+import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.certification.traversal.Evaluator.EnvAction
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.certification.traversal.Step.SourceStep
@@ -18,10 +18,8 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Map
 
 
-
 /** compressed form of suslik rules */
-sealed abstract class SuslikProofStep extends SourceStep {
-}
+trait SuslikProofStep extends SourceStep {}
 
 object SuslikProofStep {
   implicit object ProofTreePrinter extends ProofTreePrinter[SuslikProofStep] {
@@ -115,20 +113,20 @@ object SuslikProofStep {
     override def pp: String = s"${ind}Read(${ghostFrom.pp} -> ${ghostTo.pp}, ${sanitize(operation.pp)});"
   }
 
-//  /** abduce a call */
-case class AbduceCall(
-                       new_vars: Map[Var, SSLType],
-                       f_pre: Specifications.Assertion,
-                       callePost: Specifications.Assertion,
-                       call: Statements.Call,
-                       freshSub: SubstVar,
-                       freshToActual: Subst,
-                       f: FunSpec,
-                       gamma: Gamma
-                     ) extends SuslikProofStep {
-  override def contextAction: EnvAction = EnvAction.PushLayer
-  override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
-}
+  //  /** abduce a call */
+  case class AbduceCall(
+                         new_vars: Map[Var, SSLType],
+                         f_pre: Specifications.Assertion,
+                         callePost: Specifications.Assertion,
+                         call: Statements.Call,
+                         freshSub: SubstVar,
+                         freshToActual: Subst,
+                         f: FunSpec,
+                         gamma: Gamma
+                       ) extends SuslikProofStep {
+    override def contextAction: EnvAction = EnvAction.PushLayer
+    override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
+  }
 
 
   /** unification of heap (ignores block/pure distinction) */
@@ -197,9 +195,9 @@ case class AbduceCall(
     */
   def translate(node: CertTree.Node): SuslikProofStep = {
     def fail_with_bad_proof_structure(): Nothing =
-      throw ProofRuleTranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
+      throw TranslationException(s"continuation for ${node.rule} is not what was expected: ${node.kont.toString}")
     def fail_with_bad_children(ls: Seq[CertTree.Node], count: Int): Nothing =
-      throw ProofRuleTranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != $count")
+      throw TranslationException(s"unexpected number of children for proof rule ${node.rule} - ${ls.length} != $count")
 
     val label = Some(node.goal.label)
     node.rule match {
@@ -588,7 +586,7 @@ case class AbduceCall(
             // didn't find target goal label; check parent
             case _ => insertBranchPoint(item, label, rest, ret => k(next :: ret))
           }
-        case Nil => throw ProofRuleTranslationException(s"branch point ${label.pp} not found for branch abduction step ${item.step.pp}")
+        case Nil => throw TranslationException(s"branch point ${label.pp} not found for branch abduction step ${item.step.pp}")
       }
 
     val initStep = Init(node.goal)

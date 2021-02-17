@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
 import org.tygus.suslik.certification.traversal.ProofTree
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms._
 import org.tygus.suslik.language.PrettyPrinting
 
 
@@ -19,17 +19,17 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
   /** C standard library specs */
   private def free_defs : String = """Definition free_spec :=
-                              |  DECLARE _free
-                              |          WITH ty: type, x: val
-                              |                              PRE  [ (tptr tvoid) ]
-                              |                              PROP()
-                              |                              PARAMS(x)
-                              |                              SEP (data_at_ Tsh ty x)
-                              |                              POST [ Tvoid ]
-                              |                              PROP()
-                              |                              LOCAL()
-                              |                              SEP (emp).
-                              |""".stripMargin
+                                     |  DECLARE _free
+                                     |          WITH ty: type, x: val
+                                     |                              PRE  [ (tptr tvoid) ]
+                                     |                              PROP()
+                                     |                              PARAMS(x)
+                                     |                              SEP (data_at_ Tsh ty x)
+                                     |                              POST [ Tvoid ]
+                                     |                              PROP()
+                                     |                              LOCAL()
+                                     |                              SEP (emp).
+                                     |""".stripMargin
 
   private def malloc_defs : String = """Definition malloc_spec :=
                                        |  DECLARE _malloc
@@ -58,17 +58,17 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
   override def pp: String = {
     coq_prelude +
-    (if (uses_free) { free_defs + "\n"  } else { "" }) +
-     (if (uses_malloc) { malloc_defs + "\n"  } else { "" }) +
+      (if (uses_free) { free_defs + "\n"  } else { "" }) +
+      (if (uses_malloc) { malloc_defs + "\n"  } else { "" }) +
       predicates.map(_.pp).mkString("\n") + "\n" +
       spec.pp + "\n" +
       predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")  +"\n"+
       library_spec + "\n" +
-    lemma_prelude +
-    "start_function.\n" +
+      lemma_prelude +
+      "start_function.\n" +
       "ssl_open_context.\n" +
       steps.pp + "\n" +
-    "Qed."
+      "Qed."
   }
 }
 

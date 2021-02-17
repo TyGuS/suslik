@@ -1,105 +1,83 @@
 package org.tygus.suslik.certification.targets.vst.clang
 
-import org.tygus.suslik.certification.targets.vst.clang.CTypes.VSTCType
+import org.tygus.suslik.certification.targets.vst.Types.VSTCType
 import org.tygus.suslik.certification.targets.vst.clang.Expressions.{CExpr, CVar}
+import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
+import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{ForwardIf, ForwardIfConstructor}
 import org.tygus.suslik.certification.targets.vst.translation.Translation.{TranslationException, fail_with}
+import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
+import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.logic.Specifications.GoalLabel
 
 /** Encoding of C statements */
 object Statements {
 
-  /** pretty printing a VST C Statement returns a C embedding */
-  sealed abstract class CStatement extends PrettyPrinting { }
-
-  // skip
-  case object CSkip extends CStatement {
-    override def pp: String = {
-      "return;"
+  implicit object ProofTreePrinter extends ProofTreePrinter[StatementStep] {
+    override def pp(tree: ProofTree[StatementStep]): String = tree.step match {
+      case CIf(cond) =>
+        s"if (${cond.pp} {\n" +
+          s"${tree.children(0).pp}" +
+          s"} else {\n" +
+          s"${tree.children(1).pp}" +
+          s"\n}"
+      case _ => tree.step.pp ++ "\n" ++ tree.children.map(_.pp).mkString("\n")
     }
   }
+  /** pretty printing a VST C Statement returns a C embedding */
+  sealed abstract class StatementStep extends DestStep { }
 
-  // ??
-  case object CHole extends CStatement {
-    override def pp: String = { ??? }
-  }
-
-  // assert false
-  case object CError extends CStatement {
-    override def pp: String = ???
+  // skip
+  case object CSkip extends StatementStep {
+    override def pp: String = { "return;" }
   }
 
   // let to = malloc(n)
-  case class CMalloc(to: CVar, tpe: VSTCType, sz: Int = 1) extends CStatement {
+  case class CMalloc(to: String, sz: Int = 1) extends StatementStep {
     override def pp: String =
-      s"${tpe.pp} ${to.pp} = (${tpe.pp})malloc(${sz.toString} * sizeof(${tpe.pp}));"
+      s"loc ${to} = (loc) malloc(${sz.toString} * sizeof(loc));"
   }
 
   // free(v)
-  case class CFree(v: CVar) extends CStatement {
-    override def pp: String = s"free(${v.pp});"
+  case class CFree(v: String) extends StatementStep {
+    override def pp: String = s"free(${v});"
   }
 
-  /** encoding of a load operation
-    *  let to = *from.offset
-    *  */
-  case class CLoad(to: CVar, elem_ty: VSTCType, from: CVar,
-                   offset: Int = 0) extends CStatement {
-    override def pp: String =
-      elem_ty match {
-        case CTypes.CIntType => s"${elem_ty.pp} ${to.pp} = READ_INT(${from.pp}, ${offset});"
-        case CTypes.CVoidPtrType => s"${elem_ty.pp} ${to.pp} = READ_LOC(${from.pp}, ${offset});"
-        case CTypes.CUnitType => fail_with("inconsistent program - loading into a void variable")
-      }
+  case class CLoadInt(to: String, from: String, offset: Int = 0) extends StatementStep {
+    override def pp: String = s"int ${to} = READ_INT(${from}, ${offset});"
   }
 
-  /** Encoding of a store operation
-    * *to.offset = e */
-  case class CStore(to: CVar, elem_ty: VSTCType, offset: Int, e: CExpr) extends CStatement {
-    override def pp: String = {
-      elem_ty match {
-        case CTypes.CIntType => s"WRITE_INT(${to.pp}, ${offset}, ${e.pp});"
-        case CTypes.CVoidPtrType => s"WRITE_LOC(${to.pp}, ${offset}, ${e.pp});"
-        case CTypes.CUnitType => fail_with("inconsistent program - writing into a void variable")
-      }
-    }
+  case class CLoadLoc(to: String, from: String, offset: Int = 0) extends StatementStep {
+    override def pp: String = s"loc ${to} = READ_LOC(${from}, ${offset});"
+  }
+
+  case class CWriteInt(to: CVar, value: CExpr, offset: Int = 0) extends StatementStep {
+    override def pp : String =
+      s"WRITE_INT(${to}, ${offset}, ${value.pp});"
+  }
+
+  case class CWriteLoc(to: CVar, value: CExpr, offset: Int = 0) extends StatementStep {
+    override def pp : String =
+      s"WRITE_LOC(${to}, ${offset}, ${value.pp});"
   }
 
   /** encoding of a function call f(args) */
-  case class CCall(fun: CVar, args: Seq[CExpr], companion: Option[GoalLabel]) extends CStatement {
-    override def pp: String = s"${fun.pp}(${args.map(_.pp).mkString(", ")});"
-  }
-
-  /** Encoding of sequential composition
-    *
-    * s1; s2 */
-  case class CSeqComp(s1: CStatement, s2: CStatement) extends CStatement {
-    override def ppIndent(depth:  Int): String =
-          s"${s1.ppIndent(depth)}\n${s2.ppIndent(depth)}"
+  case class CCall(fun: String, args: Seq[CExpr]) extends StatementStep {
+    override def pp: String = s"${fun}(${args.map(_.pp).mkString(", ")});"
   }
 
   /** Encoding of statement
     * if (cond) { tb } else { eb }
     *  */
-  case class CIf(cond: CExpr, tb: CStatement, eb: CStatement) extends CStatement {
-    override def ppIndent(depth: Int): String =
-      s"${getIndent(depth)}if(${cond.pp}) {\n${tb.ppIndent(depth+1)}\n${getIndent(depth)}} else {\n${eb.ppIndent(depth+1)}\n${getIndent(depth)}}"
-  }
-
-  /**
-    * Encoding of a statement:
-    * assume cond { body } else { els }
-    * */
-  case class CGuarded(cond: CExpr, body: CStatement, els: CStatement, branchPoint: GoalLabel) extends CStatement {
-    override def ppIndent(depth: Int): String =
-      s"${getIndent(depth)}if(${cond.pp}) {\n${body.ppIndent(depth+1)}\n${getIndent(depth)}} else {\n${els.ppIndent(depth+1)}\n${getIndent(depth)}}\n"
+  case class CIf(cond: CExpr) extends StatementStep {
+    override def pp : String =
+      s"if(${cond.pp})"
   }
 
   /** Definition of a CProcedure */
   case class CProcedureDefinition(
                                    name: String,
-                                   rt: VSTCType,
-                                   params: Seq[(CVar, VSTCType)],
-                                   body: CStatement
+                                   params: Seq[(String, VSTCType)],
+                                   body: ProofTree[StatementStep]
                                  )  extends PrettyPrinting {
     val c_prelude =
       """
@@ -120,11 +98,11 @@ object Statements {
         |""".stripMargin
 
     override def pp: String = {
-      val body_string = body.ppIndent(1)
+      val body_string = body.pp
       val function_def =
-        s"${rt.pp} ${name}(${
+        s"void ${name}(${
           params.map({case (variable_name, variable_ty) =>
-            s"${variable_ty.pp} ${variable_name.pp}"
+            s"${variable_ty.pp_as_ctype} ${variable_name}"
           }).mkString(", ")
         }) {\n${body_string}\n}\n"
 

@@ -1,11 +1,11 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
+import org.tygus.suslik.certification.targets.vst.Types.VSTType
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.CardConstructor
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.Expressions.{ProofCExpr, ProofCVar}
-import org.tygus.suslik.certification.targets.vst.logic.ProofTypes.VSTProofType
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
+
 
 sealed abstract class VSTProofStep extends DestStep {}
 
@@ -18,13 +18,7 @@ object VSTProofStep {
     }
   }
 
-  case class IntroEvar(variable: ProofCVar) extends VSTProofStep {
-    override def pp: String = s"try evar ${variable.pp}."
-  }
 
-  case class InstantiateEvar(name: Ident, value: ProofCExpr) extends VSTProofStep {
-    override def pp: String = s"instantiate (${name} := ${value.pp})."
-  }
 
   case object Entailer extends VSTProofStep {
     override def pp: String = s"entailer!."
@@ -33,7 +27,7 @@ object VSTProofStep {
   case class ForwardIfConstructor(
                                    card_variable: String,
                                    predicate_name: String,
-                                   branches: List[((Ident, CardConstructor, List[String]), ProofCExpr, List[String])]
+                                   branches: List[((Ident, CardConstructor, List[String]), Expressions.ProofCExpr, List[String])]
                                  ) extends VSTProofStep {
 
     def branch_strings[T <: PrettyPrinting] (children : List[T]): String = {
@@ -84,19 +78,19 @@ object VSTProofStep {
     override def pp: String = s"forward."
   }
 
-  case class Intros(variables: List[(Ident, VSTProofType)]) extends VSTProofStep {
+  case class Intros(variables: List[(Ident, VSTType)]) extends VSTProofStep {
     override def pp: String = {
       s"Intros ${variables.map(_._1).mkString(" ")}."
     }
   }
 
-  case class IntrosTuple(variables: List[(Ident, VSTProofType)]) extends VSTProofStep {
+  case class IntrosTuple(variables: List[(Ident, VSTType)]) extends VSTProofStep {
     variables match {
       case Nil => ""
       case ::((variable, _), Nil) =>
         s"Intros ${variable}."
       case _ =>
-        def to_destruct_pattern(base: Option[String])(ls: List[(Ident, VSTProofType)]): String = {
+        def to_destruct_pattern(base: Option[String])(ls: List[(Ident, VSTType)]): String = {
           (base, ls) match {
             case (None, ::((vara, _), ::((varb, _), rest))) => to_destruct_pattern(Some(s"[${vara} ${varb}]"))(rest)
             case (Some(base), ::((vara, _), rest)) =>
@@ -125,7 +119,7 @@ object VSTProofStep {
     override def pp: String = s"try rename ${old_name} into ${new_name}."
   }
 
-  case class Exists(variable: ProofCExpr) extends VSTProofStep {
+  case class Exists(variable: Expressions.ProofCExpr) extends VSTProofStep {
     override def pp: String = s"Exists ${variable.pp}."
   }
 
@@ -137,15 +131,15 @@ object VSTProofStep {
     override def pp: String = s"forward_call (tarray (Tunion _sslval noattr) ${size})."
   }
 
-  case class AssertPropSubst(variable: Ident, expr: ProofCExpr) extends VSTProofStep {
-    override def pp: String = s"let ssl_var := fresh in assert_PROP(${variable} = ${expr.pp_as_ptr_value}) as ssl_var; try rewrite ssl_var. { entailer!. }"
+  case class AssertPropSubst(variable: Ident, expr: Expressions.ProofCExpr) extends VSTProofStep {
+    override def pp: String = s"let ssl_var := fresh in assert_PROP(${variable} = ${expr.pp}) as ssl_var; try rewrite ssl_var. { entailer!. }"
   }
 
   case object Qed extends VSTProofStep {
     override def pp: String = ""
   }
 
-  case class Unfold(predicate: ProofTerms.VSTPredicate, args: Int, cardinality: ProofCExpr) extends VSTProofStep {
+  case class Unfold(predicate: ProofTerms.VSTPredicate, args: Int, cardinality: Expressions.ProofCExpr) extends VSTProofStep {
     override def pp: String =
       s"simpl (${predicate.name} ${List.iterate("_", args)(v => v).mkString(" ")} (${cardinality.pp})) at 1."
 
