@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
-import org.tygus.suslik.certification.SuslikProofStep
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CVar}
 import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CAssertion, CInductiveClause}

@@ -84,6 +84,7 @@ object CertTree {
         n.head
       }
     }
+    clear()
     trace.pruneFailed()
     traverse(trace.root)
   }

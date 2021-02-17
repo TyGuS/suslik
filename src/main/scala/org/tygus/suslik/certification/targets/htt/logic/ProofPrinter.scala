@@ -1,13 +1,13 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
-import org.tygus.suslik.certification.targets.htt.Printer
-import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
+import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter, TreeVisitor}
 
-import scala.annotation.tailrec
-
-object ProofPrinter extends Printer[Proof.Step] {
+object ProofPrinter extends ProofTreePrinter[Proof.Step] with TreeVisitor {
   type Item = ProofTree[Proof.Step]
-  def initialize(tree: ProofTree[Proof.Step]): Item = tree
+  type Result = String
+
+  override def pp(tree: ProofTree[Proof.Step]): String = visit(tree)
+
   def process(item: Item): (List[String] => String, List[Item]) = {
     val k = (children: List[String]) => {
       val res = item.step match {

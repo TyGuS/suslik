@@ -7,8 +7,8 @@ import org.tygus.suslik.certification.traversal.Step.{DestStep, SourceStep}
 /**
   * A basic tree traversal implementation
   */
-class BasicEvaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] extends Evaluator[S,D,C] {
-  override def run(tree: ProofTree[S])(implicit translator: Translator[S, D, C], initialClientContext: C): ProofTree[D] = {
+abstract class BasicEvaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] extends Evaluator[S,D,C] {
+  override def run(tree: ProofTree[S], initialClientContext: C): ProofTree[D] = {
     def visit(tree: ProofTree[S], deferredsStack: DeferredsStack[D,C], clientContext: C): ProofTree[D] = {
       val res = tree.step.translate[D, C](clientContext)
       if (tree.children.length != res.childParams.length) {

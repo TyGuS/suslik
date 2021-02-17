@@ -1,13 +1,13 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.targets.htt.HTTCertificate
-import org.tygus.suslik.certification.{CertTree, SuslikProofStep}
+import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.language.Types._
-import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof, ProofPrinter}
+import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences._
-import org.tygus.suslik.certification.targets.htt.program.{Program, ProgramPrinter}
+import org.tygus.suslik.certification.targets.htt.program.Program
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.{Environment, Gamma, InductivePredicate}
@@ -34,10 +34,10 @@ object Translation {
     val suslikTree = SuslikProofStep.of_certtree(node)
 
     val ctx: ProofContext = ProofContext(predicates = cpreds, hints = ListBuffer.empty[Hint])
-    val proofBody = ProofEvaluator.run(suslikTree)(ProofTranslator, ctx)
+    val proofBody = ProofEvaluator.run(suslikTree, ctx)
     val proof = Proof(proofBody)
     val hints = ctx.hints.filter(_.numHypotheses > 0)
-    val progBody = ProgramEvaluator.run(suslikTree)(ProgramTranslator, ProgramContext())
+    val progBody = ProgramEvaluator.run(suslikTree, ProgramContext())
     val cproc = Program(proc.name, proc.tp.translate, proc.formals.map(_.translate), progBody)
 
     HTTCertificate(cproc.name, cpreds, goal.toFunspec, proof, cproc, hints)

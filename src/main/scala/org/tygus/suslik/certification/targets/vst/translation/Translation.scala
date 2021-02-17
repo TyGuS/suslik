@@ -8,7 +8,8 @@ import org.tygus.suslik.certification.targets.vst.translation.VSTProgramTranslat
 import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.VSTClientContext
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{Evaluator, ProofTree, StackEvaluator, Translator}
-import org.tygus.suslik.certification.{CertTree, SuslikProofStep}
+import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.{IntType, LocType}
 import org.tygus.suslik.language.Statements.Procedure
@@ -20,9 +21,11 @@ object Translation {
 
   def fail_with(msg: String) = throw TranslationException(msg)
 
-  def translate_proof[S <: DestStep,C <: Evaluator.ClientContext[S]](proof: ProofTree[SuslikProofStep])(translator: Translator[SuslikProofStep, S, C], initial_context:C): ProofTree[S] = {
-    val evaluator = new StackEvaluator[SuslikProofStep, S, C]
-    evaluator.run(proof)(translator, initial_context)
+  def translate_proof[S <: DestStep,C <: Evaluator.ClientContext[S]](proof: ProofTree[SuslikProofStep])(implicit t: Translator[SuslikProofStep, S, C], initial_context:C): ProofTree[S] = {
+    val evaluator = new StackEvaluator[SuslikProofStep, S, C] {
+      val translator = t
+    }
+    evaluator.run(proof, initial_context)
   }
 
   def translate(root: CertTree.Node, proc: Procedure, env: Environment): VSTCertificate = {

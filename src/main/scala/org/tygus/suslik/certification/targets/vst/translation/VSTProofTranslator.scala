@@ -1,5 +1,6 @@
 package org.tygus.suslik.certification.targets.vst.translation
 
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.vst.Types.VSTType
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
@@ -10,7 +11,6 @@ import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.SSLType
-import org.tygus.suslik.certification.SuslikProofStep
 import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.VSTClientContext
 
 import scala.collection.immutable.Queue

@@ -1,7 +1,8 @@
 package org.tygus.suslik.certification.targets.iris
 
+import org.tygus.suslik.certification.source.{SuslikPrinter, SuslikProofStep}
 import org.tygus.suslik.certification.targets.iris.translation.Translation
-import org.tygus.suslik.certification.{CertTree, CertificationTarget, SuslikProofStep}
+import org.tygus.suslik.certification.{CertTree, CertificationTarget}
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.certification.targets.iris.translation.Translation.TranslationException
@@ -15,9 +16,8 @@ object Iris extends CertificationTarget {
     val cert = Translation.translate(root, proc)(env)
 
     val simplified = SuslikProofStep.of_certtree(root)
-    println(s"Suslik Proof:\n ${SuslikProofStep.ProofTreePrinter.pp(simplified)}")
+    println(s"Suslik Proof:\n ${SuslikPrinter.pp(simplified)}")
 
-    CertTree.clear() // [Certify]: Clear tree after certification complete
     cert
   }
 

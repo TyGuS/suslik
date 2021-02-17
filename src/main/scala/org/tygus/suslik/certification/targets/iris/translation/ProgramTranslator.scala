@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.iris.translation
 
-import org.tygus.suslik.certification.SuslikProofStep
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinaryExpr, HExpr, HFree, HGuarded, HIf, HLitLoc, HLitUnit, HNoOp, HOpOffset}
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
 import org.tygus.suslik.certification.traversal.Evaluator.Deferreds

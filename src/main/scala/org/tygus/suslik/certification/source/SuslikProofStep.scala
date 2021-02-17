@@ -1,8 +1,9 @@
-package org.tygus.suslik.certification
+package org.tygus.suslik.certification.source
 
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.traversal.Evaluator.DeferredsAction
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.certification.traversal.Step.SourceStep
-import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements.{Error, Load, Skip, Store}
 import org.tygus.suslik.language.{SSLType, Statements}
@@ -22,95 +23,68 @@ case class ProofRuleTranslationException(msg: String) extends Exception
 sealed trait SuslikProofStep extends SourceStep {}
 
 object SuslikProofStep {
-  implicit object ProofTreePrinter extends ProofTreePrinter[SuslikProofStep] {
-    override def pp(tree: ProofTree[SuslikProofStep]): String =
-      tree.step match {
-        case rule:Branch => rule.pp ++ "\n" ++ rule.branch_strings(tree.children.head, tree.children(1))
-        case rule:Open => rule.pp ++ "\n" ++ rule.branch_strings(tree.children)
-        case rule => rule.pp ++ "\n" ++ tree.children.map(pp).mkString("\n")
-      }
-  }
-
-  var indent : Int = 0
-
-  def ind : String = " " * indent
-
   def sanitize (str: String) = str.replace(";\n","")
-
-  def with_scope[A] (f: Unit => A) : A = {
-    val old_indent_value = indent
-    indent = indent + 4
-    val result = f(())
-    indent = old_indent_value
-    result
-  }
 
   /** corresponds to asserting all the variables in vars are not null */
   case class NilNotLval(vars: List[Expr]) extends SuslikProofStep {
-    override def pp: String = s"${ind}NilNotLval(${vars.map(_.pp).mkString(", ")});"
+    override def pp: String = s"NilNotLval(${vars.map(_.pp).mkString(", ")});"
   }
 
   /** solves a pure entailment with SMT */
   case class CheckPost(prePhi: PFormula, postPhi: PFormula) extends SuslikProofStep {
-    override def pp: String = s"${ind}CheckPost(${prePhi.pp}; ${postPhi.pp});"
+    override def pp: String = s"CheckPost(${prePhi.pp}; ${postPhi.pp});"
   }
 
   /** picks an arbitrary instantiation of the proof rules */
   case class Pick(from: Var, to: Expr) extends SuslikProofStep {
-    override def pp: String = s"${ind}Pick(${from.pp} -> ${to.pp});"
+    override def pp: String = s"Pick(${from.pp} -> ${to.pp});"
   }
 
   /** branches on a condition */
   case class Branch(cond: Expr, bLabel: GoalLabel) extends SuslikProofStep {
-    def branch_strings(ifTrue: ProofTree[SuslikProofStep], ifFalse: ProofTree[SuslikProofStep]) =
-      s"${ind}IfTrue:\n${with_scope(_ => ProofTreePrinter.pp(ifTrue))}\n${ind}IfFalse:\n${with_scope(_ => ProofTreePrinter.pp(ifFalse))}"
-
-    override def pp: String = s"${ind}AbduceBranch(${cond.pp}, ${bLabel.pp});"
+    override def pp: String = s"AbduceBranch(${cond.pp}, ${bLabel.pp});"
   }
 
   /** write a value */
   case class Write(stmt: Store) extends SuslikProofStep {
-    override def pp: String = s"${ind}Write(${sanitize(stmt.pp)});"
+    override def pp: String = s"Write(${sanitize(stmt.pp)});"
   }
 
   /** weaken the precondition by removing unused formulae */
   case class WeakenPre(unused: PFormula) extends SuslikProofStep {
-    override def pp: String = s"${ind}WeakenPre(${unused.pp});"
+    override def pp: String = s"WeakenPre(${unused.pp});"
   }
 
   /** empty rule */
   case class EmpRule(label: Option[GoalLabel]) extends SuslikProofStep {
     override def deferredsAction: DeferredsAction = DeferredsAction.PopLayer
-    override def pp: String = s"${ind}EmpRule;"
+    override def pp: String = s"EmpRule;"
   }
 
   /** pure synthesis rules */
   case class PureSynthesis(is_final: Boolean, assignments:Map[Var, Expr]) extends SuslikProofStep {
-    override def pp: String = s"${ind}PureSynthesis(${is_final}, ${assignments.mkString(",")});"
+    override def pp: String = s"PureSynthesis(${is_final}, ${assignments.mkString(",")});"
   }
 
   /** open constructor cases */
   case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, selectors: List[Expr]) extends SuslikProofStep {
-    def branch_strings(exprs: List[ProofTree[SuslikProofStep]]) =
-      s"${with_scope(_ => selectors.zip(exprs).map({case (sel,rest) => s"${ind}if ${sanitize(sel.pp)}:\n${with_scope(_ => ProofTreePrinter.pp(rest))}"}).mkString("\n"))}"
-
-    override def pp: String = s"${ind}Open(${pred.pp}, ${fresh_vars.mkString(", ")});"
+    override def pp: String = s"Open(${pred.pp}, ${fresh_vars.mkString(", ")});"
   }
 
   /** subst L */
   case class SubstL(from: Var, to: Expr) extends SuslikProofStep {
-    override def pp: String = s"${ind}SubstL(${from.pp} -> ${to.pp});"
+    override def pp: String = s"SubstL(${from.pp} -> ${to.pp});"
   }
 
   /** subst R */
   case class SubstR(from: Var, to: Expr) extends SuslikProofStep {
-    override def pp: String = s"${ind}SubstR(${from.pp} -> ${to.pp});"
+    override def pp: String = s"SubstR(${from.pp} -> ${to.pp});"
   }
 
 
   /** read rule */
   case class Read(ghostFrom: Var, ghostTo: Var, operation: Load) extends SuslikProofStep {
-    override def pp: String = s"${ind}Read(${ghostFrom.pp} -> ${ghostTo.pp}, ${sanitize(operation.pp)});"
+    override def pp: String = s"Read(${ghostFrom.pp} -> ${ghostTo.pp}, ${sanitize(operation.pp)});"
   }
 
 //  /** abduce a call */
@@ -125,63 +99,63 @@ case class AbduceCall(
                        gamma: Gamma
                      ) extends SuslikProofStep {
   override def deferredsAction: DeferredsAction = DeferredsAction.PushLayer
-  override def pp: String = s"${ind}AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
+  override def pp: String = s"AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
 }
 
 
   /** unification of heap (ignores block/pure distinction) */
   case class HeapUnify(subst: Map[Var, Expr]) extends SuslikProofStep {
-    override def pp: String = s"${ind}HeapUnify(${subst.mkString(",")});"
+    override def pp: String = s"HeapUnify(${subst.mkString(",")});"
   }
 
   /** unification of pointers */
   case class HeapUnifyPointer(from: Var, to: Var) extends SuslikProofStep {
-    override def pp: String = s"${ind}HeapUnifyPointer(${from.pp} -> ${to.pp});"
+    override def pp: String = s"HeapUnifyPointer(${from.pp} -> ${to.pp});"
   }
 
   /** unfolds frame */
   case class FrameUnfold(h_pre: Heaplet, h_post: Heaplet) extends SuslikProofStep {
-    override def pp: String = s"${ind}FrameUnfold(${h_pre.pp}, ${h_post.pp});"
+    override def pp: String = s"FrameUnfold(${h_pre.pp}, ${h_post.pp});"
   }
 
   /** call operation */
   case class Call(subst: Map[Var, Expr], call: Statements.Call) extends SuslikProofStep {
     override def deferredsAction: DeferredsAction = DeferredsAction.PopLayer
-    override def pp: String = s"${ind}Call({${subst.mkString(",")}}, ${sanitize(call.pp)});"
+    override def pp: String = s"Call({${subst.mkString(",")}}, ${sanitize(call.pp)});"
   }
 
   /** free operation */
   case class Free(stmt: Statements.Free, size: Int) extends SuslikProofStep {
-    override def pp: String = s"${ind}Free(${sanitize(stmt.pp)});"
+    override def pp: String = s"Free(${sanitize(stmt.pp)});"
   }
 
   /** malloc rule */
   case class Malloc(ghostFrom: Var, ghostTo: Var, stmt: Statements.Malloc) extends SuslikProofStep {
-    override def pp: String = s"${ind}Malloc(${ghostFrom.pp} -> ${ghostTo.pp}, ${sanitize(stmt.pp)});"
+    override def pp: String = s"Malloc(${ghostFrom.pp} -> ${ghostTo.pp}, ${sanitize(stmt.pp)});"
   }
 
   /** close rule */
   case class Close(app: SApp, selector: Expr, asn: Assertion, fresh_exist: SubstVar) extends  SuslikProofStep {
-    override def pp: String = s"${ind}Close(${app.pp}, ${sanitize(selector.pp)}, ${asn.pp}, {${fresh_exist.mkString(",")}});"
+    override def pp: String = s"Close(${app.pp}, ${sanitize(selector.pp)}, ${asn.pp}, {${fresh_exist.mkString(",")}});"
   }
 
   /** star partial */
   case class StarPartial(new_pre_phi: PFormula, new_post_phi: PFormula) extends SuslikProofStep {
-    override def pp: String = s"${ind}StarPartial(${new_pre_phi.pp}, ${new_post_phi.pp});"
+    override def pp: String = s"StarPartial(${new_pre_phi.pp}, ${new_post_phi.pp});"
   }
 
   case class PickCard(from: Var, to: Expr) extends SuslikProofStep {
-    override def pp: String = s"${ind}PickCard(${from.pp} -> ${to.pp});"
+    override def pp: String = s"PickCard(${from.pp} -> ${to.pp});"
   }
 
 
   case class PickArg(from: Var, to: Var) extends SuslikProofStep {
-    override def pp: String = s"${ind}PickArg(${from.pp} -> ${to.pp});"
+    override def pp: String = s"PickArg(${from.pp} -> ${to.pp});"
   }
 
   case class Init(goal: Goal) extends SuslikProofStep {
     override def deferredsAction: DeferredsAction = DeferredsAction.PushLayer
-    override def pp: String = s"${ind}Init(${goal.pp});"
+    override def pp: String = s"Init(${goal.pp});"
   }
 
   case class Inconsistency(label: Option[GoalLabel]) extends SuslikProofStep {
@@ -592,7 +566,7 @@ case class AbduceCall(
     val initStep = Init(node.goal)
     val initItem = Item(initStep, None, Nil, Nil)
     val res = forward(node, List(initItem))
-    Console.println(ProofTreePrinter.pp(res))
+    Console.println(SuslikPrinter.pp(res))
     res
   }
 }

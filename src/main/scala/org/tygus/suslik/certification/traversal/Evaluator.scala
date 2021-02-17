@@ -7,7 +7,9 @@ import org.tygus.suslik.logic.Specifications.GoalLabel
 import scala.collection.immutable.Queue
 
 trait Evaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] {
-  def run(node: ProofTree[S])(implicit translator: Translator[S,D,C], initialClientContext: C): ProofTree[D]
+  implicit val translator: Translator[S,D,C]
+
+  def run(node: ProofTree[S], initialClientContext: C): ProofTree[D]
 
   // Create a straight-line tree from a list of values
   def foldStepsIntoTree(values: List[D], children: List[ProofTree[D]], label: Option[GoalLabel]): ProofTree[D] =
