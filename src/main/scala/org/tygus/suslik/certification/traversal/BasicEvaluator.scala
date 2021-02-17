@@ -23,7 +23,7 @@ abstract class BasicEvaluator[S <: SourceStep, D <: DestStep, C <: ClientContext
       }
 
       val next = (tree.children, childDeferredsStacks, childClientContexts).zipped.toList
-      val childResults = next.map { case (child, deferredsStack, ctx) => visit(child, deferredsStack, ctx) }
+      val childResults = next.map(Function.tupled(visit))
       foldStepsIntoTree(steps, childResults, tree.label)
     }
 

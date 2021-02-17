@@ -6,7 +6,7 @@ import org.tygus.suslik.certification.targets.htt.program.Program
 import org.tygus.suslik.certification.targets.htt.translation.ProofContext.PredicateEnv
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
 
-case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate {
+case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, auxSpecs: Seq[CFunSpec], proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate {
   val target: CertificationTarget = HTT
 
   // Replace hyphens with underscores
@@ -33,8 +33,15 @@ case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, pro
       builder.append(hints.map(_.pp).mkString("\n"))
       builder.append("\n\n")
     }
+
+    for (spec <- auxSpecs) {
+      builder.append(spec.pp)
+      builder.append(s"\n\nVariable ${spec.name} : ${spec.name}_type.\n\n")
+    }
+
     builder.append(spec.pp)
     builder.append("\n\n")
+
     builder.append(proc.pp)
     builder.append("\n")
     builder.append(proof.pp)

@@ -10,7 +10,7 @@ import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 import org.tygus.suslik.certification.targets.htt.program.Program
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.{Environment, Gamma, InductivePredicate}
+import org.tygus.suslik.logic.{Environment, FunSpec, Gamma, InductivePredicate, Specifications}
 
 import scala.collection.mutable.ListBuffer
 
@@ -30,7 +30,14 @@ object Translation {
       val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
       translateInductivePredicate(p1, gamma)
     })
-    val goal = node.goal.translate
+
+    val auxSpecs = env.functions.values.toSeq.map { spec0 =>
+      val FunSpec(name, _, params, pre, post, var_decl) = spec0.resolveOverloading(env)
+      val goal = Specifications.topLevelGoal(pre, post, params, name, env, Hole, var_decl)
+      goal.translate.toFunspec
+    }
+
+    val spec = node.goal.translate.toFunspec
     val suslikTree = SuslikProofStep.of_certtree(node)
 
     val ctx: ProofContext = ProofContext(predicates = cpreds, hints = ListBuffer.empty[Hint])
@@ -40,7 +47,7 @@ object Translation {
     val progBody = ProgramEvaluator.run(suslikTree, ProgramContext())
     val cproc = Program(proc.name, proc.tp.translate, proc.formals.map(_.translate), progBody)
 
-    HTTCertificate(cproc.name, cpreds, goal.toFunspec, proof, cproc, hints)
+    HTTCertificate(cproc.name, cpreds, spec, auxSpecs, proof, cproc, hints)
   }
 
   private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {
