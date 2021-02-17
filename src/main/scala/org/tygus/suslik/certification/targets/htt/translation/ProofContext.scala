@@ -1,6 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.translation
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions.{CExpr, CSApp, CSFormula, CVar}
+import org.tygus.suslik.certification.targets.htt.language.Types.HTTType
 import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CInductiveClause, CInductivePredicate}
 import org.tygus.suslik.certification.targets.htt.translation.ProofContext.PredicateEnv
@@ -9,12 +10,12 @@ import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import scala.collection.mutable.ListBuffer
 
 case class ProofContext(predicates: PredicateEnv = Map.empty,
-                        postEx: Seq[CExpr] = Seq.empty,
+                        postEx: Map[CVar, (HTTType, CExpr)] = Map.empty,
                         appAliases: Map[CSApp, CSApp] = Map.empty,
                         unfoldings: Map[CSApp, CInductiveClause] = Map.empty,
                         callGoal: Option[Proof.Goal] = None,
                         nextCallId: Int = 0,
-                        hints: ListBuffer[Hint],
+                        hints: ListBuffer[Hint] = new ListBuffer[Hint],
                         numSubgoals: Int = 0)
   extends ClientContext[Proof.Step] {
 
@@ -54,7 +55,7 @@ case class ProofContext(predicates: PredicateEnv = Map.empty,
     * Update the current context with new substitutions
     */
   def withSubst(m: Map[CVar, CExpr], affectedApps: Map[CSApp, CSApp]): ProofContext = {
-    val postEx1 = postEx.map(_.subst(m))
+    val postEx1 = postEx.mapValues(v => (v._1, v._2.subst(m)))
     val appAliases1 = affectedApps.foldLeft(appAliases) { case (appAliases, (app, alias)) => appAliases + (app -> alias) + (alias -> alias) }
     val unfoldings1 = unfoldings.map { case (app, clause) => app.subst(m) -> clause.subst(m) }
     this.copy(postEx = postEx1, appAliases = appAliases1, unfoldings = unfoldings1)

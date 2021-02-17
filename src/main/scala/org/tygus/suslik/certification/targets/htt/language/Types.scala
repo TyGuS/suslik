@@ -1,7 +1,17 @@
 package org.tygus.suslik.certification.targets.htt.language
 
+import org.tygus.suslik.certification.targets.htt.language.Expressions._
+
 object Types {
-  sealed abstract class HTTType extends PrettyPrinting
+  sealed abstract class HTTType extends PrettyPrinting {
+    lazy val defaultExpr: CExpr = this match {
+      case CBoolType => CBoolConst(true)
+      case CNatType => CNatConst(0)
+      case CPtrType => CPtrConst(0)
+      case CNatSeqType => CSetLiteral(Nil)
+      case _ => CBoolConst(true)
+    }
+  }
 
   case object CBoolType extends HTTType {
     override def pp: String = "bool"
