@@ -12,7 +12,7 @@ object Statements {
   implicit object ProofTreePrinter extends ProofTreePrinter[StatementStep] {
     override def pp(tree: ProofTree[StatementStep]): String = tree.step match {
       case CIf(cond) =>
-        s"if (${cond.pp_as_clang_expr} {\n" +
+        s"if (${cond.pp_as_clang_expr}) {\n" +
           s"${pp(tree.children(0))}" +
           s"} else {\n" +
           s"${pp(tree.children(1))}" +

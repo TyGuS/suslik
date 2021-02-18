@@ -12,7 +12,7 @@ import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
 import org.tygus.suslik.language.Expressions.{Expr, Subst, SubstVar, Var}
 import org.tygus.suslik.language.{IntType, LocType, SSLType}
-import org.tygus.suslik.certification.targets.vst.clang.Statements.{CCall, CElif, CFree, CLoadInt, CLoadLoc, CMalloc, CSkip, CWriteInt, CWriteLoc, StatementStep}
+import org.tygus.suslik.certification.targets.vst.clang.Statements.{CCall, CElif, CFree, CIf, CLoadInt, CLoadLoc, CMalloc, CSkip, CWriteInt, CWriteLoc, StatementStep}
 import org.tygus.suslik.certification.targets.vst.translation.VSTProgramTranslator.VSTProgramContext
 import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.VSTClientContext
 import org.tygus.suslik.language.Statements.{Call, Free, Load, Malloc, Store}
@@ -116,7 +116,10 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
           (no_deferreds, ctx)
         })
         Result(List(ops), children)
-      case SuslikProofStep.Branch(cond, bLabel) => ???
+      case SuslikProofStep.Branch(cond, bLabel) =>
+        val ops = CIf(ProofSpecTranslation.translate_expression(ctx.typing_context)(cond).asInstanceOf[CLangExpr])
+        val children = List((no_deferreds, ctx), (no_deferreds, ctx))
+        Result(List(ops), children)
       case SuslikProofStep.Write(Store(Var(to), offset, base_expr)) =>
         val expr = ProofSpecTranslation.translate_expression(ctx.typing_context)(base_expr).asInstanceOf[CLangExpr]
         val op = expr.type_cexpr match {
