@@ -21,21 +21,31 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     *
     * fileName                       a synthesis file name (the file under the specified folder, called filename.syn)
     *
-    * -r, --trace <value>            print the entire derivation trace; default: true
+    * -r, --trace <value>            print the entire derivation trace; default: false
     * -t, --timeout <value>          timeout for the derivation; default (in milliseconds): 300000 (5 min)
-    * -a, --assert <value>           check that the synthesized result against the expected one; default: true
+    * -a, --assert <value>           check that the synthesized result against the expected one; default: false
     * -c, --maxCloseDepth <value>    maximum unfolding depth in the post-condition; default: 1
     * -o, --maxOpenDepth <value>     maximum unfolding depth in the pre-condition; default: 1
+    * -f, --maxCallDepth <value>     maximum call depth; default: 1
     * -x, --auxAbduction <value>     abduce auxiliary functions; default: false
+    * --topLevelRecursion <value>    allow top-level recursion; default: true
     * -b, --branchAbduction <value>  abduce conditional branches; default: false
+    * --maxGuardConjuncts <value>    maximum number of conjuncts in an abduced guard; default: 2
     * --phased <value>               split rules into unfolding and flat phases; default: true
-    * -d, --depth <value>            depth first search; default: false
+    * -d, --dfs <value>              depth first search; default: false
+    * --bfs <value>                  breadth first search (ignore weights); default: false
+    * --delegate <value>             delegate pure synthesis to CVC4; default: true
     * -i, --interactive <value>      interactive mode; default: false
-    * -s, --printStats <value>       print synthesis stats; default: true
+    * -s, --printStats <value>       print synthesis stats; default: false
+    * -p, --printSpecs <value>       print specifications for synthesized functions; default: false
     * -e, --printEnv <value>         print synthesis context; default: false
-    * -f, --printFail <value>        print failed rule applications; default: false
-    * -l, --log <value>              log results to a csv file; default: true
-    * --memoization <value>          enable memoization; default: true
+    * --printFail <value>            print failed rule applications; default: false
+    * -l, --log <value>              log results to a csv file; default: false
+    * -j, --traceToJsonFile <value>  dump entire proof search trace to a json file; default: none
+    * --memo <value>                 enable memoization; default: true
+    * --lexi <value>                 use lexicographic termination metric (as opposed to total size); default: false
+    * --printTree <value>            print tree of successful derivations to path; default: false
+    * --treeDest <value>             write tree of successful derivations to path; default: none
     * --certTarget <value>           set certification target; default: none
     * --certDest <value>             write certificate to path; default: none
     *
@@ -96,6 +106,8 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     implicit val certTargetRead: scopt.Read[CertificationTarget] =
       scopt.Read.reads {
         case "htt" => htt.HTT
+        case "vst" => vst.VST
+        case "iris" => iris.Iris
         case _ => ???
       }
 

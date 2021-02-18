@@ -41,6 +41,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def formal: Parser[(Var, SSLType)] = typeParser ~ ident ^^ { case a ~ b => (Var(b), a) }
 
+  def locLiteral: Parser[Const] =
+    "null" ^^ (_ => NilPtr)
+
   def intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))
 
@@ -85,7 +88,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def atom: Parser[Expr] = (
     unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
       | "(" ~> expr <~ ")"
-      | intLiteral | boolLiteral | setLiteral
+      | intLiteral | boolLiteral | setLiteral | locLiteral
       | varParser
     )
 

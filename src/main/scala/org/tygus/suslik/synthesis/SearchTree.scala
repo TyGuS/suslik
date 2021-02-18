@@ -5,6 +5,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.util.SynStats
 
 /**
@@ -17,6 +18,8 @@ object SearchTree {
   type NodeId = Vector[Int]
 
   type Worklist = List[OrNode]
+
+  trait SearchNode { val id: NodeId }
 
   // List of nodes to process
   var worklist: Worklist = List()
@@ -36,7 +39,7 @@ object SearchTree {
     * represents a synthesis goal to solve.
     * For this node to succeed, one of its children has to succeed.
     */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) extends SearchNode {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -200,7 +203,7 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  case class AndNode(id: NodeId, parent: OrNode, kont: StmtProducer, rule: SynthesisRule, transitions: Seq[Transition]) {
+  case class AndNode(id: NodeId, parent: OrNode, kont: StmtProducer, rule: SynthesisRule, transitions: Seq[Transition]) extends SearchNode {
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true

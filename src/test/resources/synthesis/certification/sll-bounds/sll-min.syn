@@ -1,0 +1,22 @@
+singly-linked list: min
+
+#####
+
+{true ; r :-> a ** sll(x, n, lo, hi) }
+void sll_min (loc x, loc r)
+{true ; r :-> lo ** sll(x, n, lo, hi) }
+
+#####
+
+void sll_min (loc x, loc r) {
+  if (x == 0) {
+    *r = 7;
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    sll_min(n, x);
+    let l = *x;
+    *r = v <= l ? v : l;
+    *x = v;
+  }
+}

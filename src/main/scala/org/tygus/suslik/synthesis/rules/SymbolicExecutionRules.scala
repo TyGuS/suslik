@@ -5,6 +5,7 @@ import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -249,7 +250,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         val pre = goal.pre
         val thenGoal = goal.spawnChild(Assertion(pre.phi && cond, pre.sigma), sketch = tb)
         val elseGoal = goal.spawnChild(Assertion(pre.phi && cond.not, pre.sigma), sketch = eb)
-        List(RuleResult(List(thenGoal, elseGoal), BranchProducer(List(cond, cond.not)), this, goal))
+        List(RuleResult(List(thenGoal, elseGoal), BranchProducer(None, Map.empty, Map.empty, List(cond, cond.not)), this, goal))
       }
       case (If(_, _, _), _) => {
         throw SynthesisException("Found conditional in the middle of the program. Conditionals only allowed at the end.")
@@ -268,7 +269,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       for {
         h <- goal.pre.sigma.chunks
-        (selGoals, _) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
+        (selGoals, _, _, _) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
         (selector, subGoal) <- selGoals
         if SMTSolving.valid(goal.pre.phi ==> selector)
       } yield RuleResult(List(subGoal), IdProducer, this, goal)

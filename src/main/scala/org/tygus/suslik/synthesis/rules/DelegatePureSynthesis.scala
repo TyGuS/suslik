@@ -4,12 +4,12 @@ package org.tygus.suslik.synthesis.rules
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Parser
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
-import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Subst}
+import org.tygus.suslik.language.Expressions.{IntConst, LocConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
-import org.tygus.suslik.logic.{PFormula, Specifications}
+import org.tygus.suslik.logic.{Gamma, PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
-import org.tygus.suslik.synthesis.{SubstProducer, ExtractHelper, HandleGuard, IdProducer}
+import org.tygus.suslik.synthesis.StmtProducer.{ExtractHelper, HandleGuard, IdProducer, SubstMapProducer}
 
 import scala.sys.process._
 import scala.util.{Failure, Success}
@@ -172,7 +172,7 @@ object DelegatePureSynthesis {
 
   val parser = SMTLIB2Parser[GetModelResponses]
 
-  def parseAssignments(cvc4Res: String): Subst = {
+  def parseAssignments(cvc4Res: String, gamma: Gamma = Map.empty): Subst = {
     //〈FunDefCmd〉::=  (define-fun〈Symbol〉((〈Symbol〉 〈SortExpr〉)∗)〈SortExpr〉 〈Term〉
     parser.apply(StringSource("(model " + cvc4Res + ")")) match {
       case Failure(exception) => Map.empty
@@ -182,7 +182,11 @@ object DelegatePureSynthesis {
           val expr = response.funDef.term match {
             case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) => if (simpleSymbol == empsetName) Expressions.SetLiteral(List())
                                                                         else Expressions.Var(simpleSymbol)
-            case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
+            case ConstantTerm(NumLit(numeralLiteral)) =>
+              gamma.get(Expressions.Var(existential)) match {
+                case Some(LocType) => LocConst(numeralLiteral.toInt)
+                case _ => IntConst(numeralLiteral.toInt)
+              }
           }
           Expressions.Var(existential) -> expr
         }.toMap
@@ -214,12 +218,12 @@ object DelegatePureSynthesis {
       }
       else {
         //parse me
-        val assignments: Subst = parseAssignments(cvc4Res.get)
+        val assignments: Subst = parseAssignments(cvc4Res.get, goal.gamma)
         val newPost = goal.post.subst(assignments)
         val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
         val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         if (isFinal || !DelegatePureSynthesis.hasSecondResult(goal,assignments)) {
-          val kont = SubstProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstMapProducer(assignments) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           val alternatives = RuleResult(List(newGoal), kont, this, goal) :: Nil
           nubBy[RuleResult, Assertion](alternatives, res => res.subgoals.head.post)
         }

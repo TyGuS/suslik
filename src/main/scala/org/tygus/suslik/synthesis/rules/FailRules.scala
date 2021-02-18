@@ -6,7 +6,7 @@ import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.Termination.Transition
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -46,7 +46,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       else {
         val newPost = Assertion(exPost - PFormula(validExConjuncts), goal.post.sigma)
         val newGoal = goal.spawnChild(post = newPost)
-        List(RuleResult(List(newGoal), IdProducer, this, goal))
+        List(RuleResult(List(newGoal), PureEntailmentProducer(goal.pre.phi, uniPost) >> IdProducer, this, goal))
       }
     }
 

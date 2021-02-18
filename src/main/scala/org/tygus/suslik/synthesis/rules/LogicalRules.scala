@@ -6,7 +6,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -264,7 +264,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val _p1 = rest1.subst(x, e)
           val _s1 = s1.subst(x, e)
           val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))
-          val kont = SubstProducer(Map(x -> e)) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstProducer(x, e) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
           assert(goal.callGoal.isEmpty)
           List(RuleResult(List(newGoal), kont, this, goal))
         }

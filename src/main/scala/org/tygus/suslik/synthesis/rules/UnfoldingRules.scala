@@ -8,6 +8,7 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -24,15 +25,15 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Open"
 
-    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], Heaplet)] = {
+    def mkInductiveSubGoals(goal: Goal, h: Heaplet): Option[(Seq[(Expr, Goal)], SApp, SubstVar, Subst)] = {
       val pre = goal.pre
       val env = goal.env
 
       h match {
-        case SApp(pred, args, PTag(cls, unf), card) if unf < env.config.maxOpenDepth =>
+        case h@SApp(pred, args, PTag(cls, unf), card) if unf < env.config.maxOpenDepth =>
           ruleAssert(env.predicates.contains(pred), s"Open rule encountered undefined predicate: $pred")
           val freshSuffix = args.take(1).map(_.pp).mkString("_")
-          val (InductivePredicate(_, params, clauses), _) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
+          val (InductivePredicate(_, params, clauses), fresh_sbst) = env.predicates(pred).refreshExistentials(goal.vars, freshSuffix)
           // [Cardinality] adjust cardinality of sub-clauses
           val sbst = params.map(_._1).zip(args).toMap + (selfCardVar -> card)
           val remainingSigma = pre.sigma - h
@@ -52,7 +53,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           // We can make the conditional without additional reading
           // TODO: Generalise this in the future
           val noGhosts = newGoals.forall { case (sel, _) => sel.vars.subsetOf(goal.programVars.toSet) }
-          if (noGhosts) Some((newGoals, h)) else None
+          if (noGhosts) Some((newGoals, h, fresh_sbst, sbst)) else None
         case _ => None
       }
     }
@@ -62,9 +63,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         heaplet <- goal.pre.sigma.chunks
         s <- mkInductiveSubGoals(goal, heaplet) match {
           case None => None
-          case Some((selGoals, heaplet)) =>
+          case Some((selGoals, heaplet, fresh_subst, sbst)) =>
             val (selectors, subGoals) = selGoals.unzip
-            val kont = BranchProducer(selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = BranchProducer(Some (heaplet), fresh_subst, sbst, selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, this, goal))
         }
       } yield s
@@ -94,7 +95,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
-        val kont: StmtProducer = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = AbduceCallProducer(f) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
     }
@@ -126,7 +127,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val newPost = callGoal.callerPost
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
         val postCallTransition = Transition(goal, newGoal)
-        val kont: StmtProducer = PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = SubstMapProducer(callGoal.freshToActual) >> PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }
@@ -209,7 +210,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = UnfoldProducer(a, selector, predSbst, freshExistentialsSubst, substArgs) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = UnfoldProducer(a, selector, Assertion(actualConstraints, actualBody), predSbst ++ freshExistentialsSubst) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, this, goal)
           }

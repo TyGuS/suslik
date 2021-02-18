@@ -1,7 +1,5 @@
 package org.tygus.suslik.synthesis
 
-import java.io.PrintWriter
-import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -47,7 +45,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
-          printTree
           log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
@@ -99,7 +96,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
           log.print(List((s"Recalled FAIL", RED)))
-          trace.add(node.id, Failed, Some("cache"))
+          trace.add(node, Failed, Some("cache"))
           worklist = addNewNodes(Nil)
           node.fail
           None
@@ -107,9 +104,8 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         case Some(Succeeded(sol)) =>
         { // Same goal has succeeded before: return the same solution
           log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
-          trace.add(node.id, Succeeded(sol), Some("cache"))
+          trace.add(node, Succeeded(sol), Some("cache"))
           worklist = addNewNodes(Nil)
-          CertTree.addSuccessFromCache(node)
           node.succeed(sol)
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
@@ -158,10 +154,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
-        if (config.certTarget != null || config.printTree) {
-          // [Certify]: Add a terminal node and its ancestors to the certification tree
-          CertTree.addSuccessfulPath(node, e)
-        }
         trace.add(e, node)
         successLeaves = node :: successLeaves
         worklist = addNewNodes(Nil)
@@ -194,7 +186,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
-          trace.add(node.id, Failed)
+          trace.add(node, Failed)
           node.fail
         } else {
           stats.addGeneratedGoals(newNodes.size)
@@ -250,18 +242,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         }
       }
       print(s"$RESET")
-    }
-  }
-
-  protected def printTree(implicit config: SynConfig): Unit = {
-    if (config.printTree) {
-      val tree = CertTree.pp()
-      println()
-      if (config.treeDest == null) println(tree) else {
-        new PrintWriter(config.treeDest) { write(tree); close() }
-        val msg = s"Successful derivations saved to ${config.treeDest.getCanonicalPath}"
-        println(s"$MAGENTA$msg")
-      }
     }
   }
 }

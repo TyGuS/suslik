@@ -3,7 +3,7 @@ minimum of two integers
 
 ###
 
-{ true ; r :-> 0 }
+{ true ; r :-> null }
 
 void min2(loc r, int x, int y)
 

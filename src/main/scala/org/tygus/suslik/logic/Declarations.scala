@@ -22,14 +22,26 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
   *
   * @param name  function name
   * @param rType function return type
+  * @param params function parameters names and types
+  * @param pre precondition
+  * @param post post-condition
+  * @param var_decl local variable of function?
   */
 case class FunSpec(name: Ident, rType: SSLType, params: Formals,
-                   pre: Assertion, post: Assertion, var_decl: Formals = Nil) extends TopLevelDeclaration {
+                   pre: Assertion, post: Assertion,
+                   var_decl: Formals = Nil) extends TopLevelDeclaration {
 
   def resolveOverloading(env: Environment): FunSpec = {
     val gamma0 = params.toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     this.copy(pre = pre.resolveOverloading(gamma), post = post.resolveOverloading(gamma))
+  }
+
+  def existentials() : List[Var] = {
+    val params = this.params.map(_._1).toSet
+    val formal_params = pre.ghosts(params)
+    val existentials = post.ghosts(formal_params ++ params)
+    existentials.toList
   }
 
   override def pp: String = {
@@ -198,5 +210,6 @@ case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
     this.copy(predicates = predicates.map{case (k,v) => (k, v.resolveOverloading(this))},
       functions=functions.map{case (k,v) => (k, v.resolveOverloading(this))})
   }
+
 }
 

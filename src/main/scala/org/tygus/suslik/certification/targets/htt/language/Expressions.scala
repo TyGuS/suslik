@@ -1,10 +1,11 @@
 package org.tygus.suslik.certification.targets.htt.language
 
 import org.tygus.suslik.LanguageUtils.cardinalityPrefix
-import org.tygus.suslik.certification.targets.htt.logic.Proof.{Subst, SubstVar}
 import org.tygus.suslik.logic.Specifications.selfCardVar
 
 object Expressions {
+  type CSubst = Map[CVar, CExpr]
+  type CSubstVar = Map[CVar, CVar]
 
   sealed abstract class CExpr extends PrettyPrinting {
     def isTrivial: Boolean = this == CBoolConst(true)
@@ -15,6 +16,7 @@ object Expressions {
       def collector(acc: Seq[R])(exp: CExpr): Seq[R] = exp match {
         case v@CVar(_) if p(v) => acc :+ v.asInstanceOf[R]
         case c@CNatConst(_) if p(c) => acc :+ c.asInstanceOf[R]
+        case c@CPtrConst(_) if p(c) => acc :+ c.asInstanceOf[R]
         case c@CBoolConst(_) if p(c) => acc :+ c.asInstanceOf[R]
         case b@CBinaryExpr(_, l, r) =>
           val acc1 = if (p(b)) acc :+ b.asInstanceOf[R] else acc
@@ -33,8 +35,7 @@ object Expressions {
           collector(acc3)(r)
         case a@CSApp(_, args, card) =>
           val acc1 = if (p(a)) acc :+ a.asInstanceOf[R] else acc
-          val acc2 = args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
-          collector(acc2)(card)
+          args.foldLeft(acc1)((acc, arg) => collector(acc)(arg))
         case CPointsTo(loc, _, value) =>
           collector(collector(acc)(loc))(value)
         case CSFormula(_, apps, ptss) =>
@@ -46,7 +47,7 @@ object Expressions {
       collector(Seq.empty)(this)
     }
 
-    def subst(sigma: Subst): CExpr = this match {
+    def subst(sigma: CSubst): CExpr = this match {
       case v: CVar =>
         sigma.get(v) match {
           case None => v
@@ -84,12 +85,19 @@ object Expressions {
     }
 
     def vars: Seq[CVar] = collect(_.isInstanceOf[CVar])
+
+    def cardVars: Seq[CVar] = collect(_.isInstanceOf[CSApp]).flatMap {v: CSApp => v.card.vars}
+
+    def conjuncts: Seq[CExpr] = this match {
+      case CBinaryExpr(COpAnd, left, right) => left.conjuncts ++ right.conjuncts
+      case _ => Seq(this)
+    }
   }
 
   case class CVar(name: String) extends CExpr {
     override def pp: String = if (name.startsWith(cardinalityPrefix)) name.drop(cardinalityPrefix.length) else name
     override val isCard: Boolean = name.startsWith(cardinalityPrefix) || name == selfCardVar.name
-    def substVar(sub: Subst): CVar = sub.get(this) match {
+    def substVar(sub: CSubst): CVar = sub.get(this) match {
       case Some(v@CVar(_)) => v
       case _ => this
     }
@@ -103,46 +111,54 @@ object Expressions {
     override def pp: String = value.toString
   }
 
+  case class CPtrConst(value: Int) extends CExpr {
+    override def pp: String = if (value == 0) "null" else value.toString
+  }
+
   case class CSetLiteral(elems: List[CExpr]) extends CExpr {
     override def pp: String = if (elems.isEmpty) "nil" else s"[:: ${elems.map(_.pp).mkString("; ")}]"
   }
 
   case class CIfThenElse(cond: CExpr, left: CExpr, right: CExpr) extends CExpr {
-    override def pp: String = s"if ${cond.pp} then ${left.pp} else ${right.pp}"
+    override def pp: String = s"(if ${cond.pp} then ${left.pp} else ${right.pp})"
   }
 
   case class CBinaryExpr(op: CBinOp, left: CExpr, right: CExpr) extends CExpr {
     override def pp: String = op match {
-      case COpSubset => s"{subset ${left.pp} ${op.pp} ${right.pp}}"
+      case COpSubset => s"@sub_mem nat_eqType (mem (${left.pp})) (mem (${right.pp}))"
+      case COpSetEq => s"@perm_eq nat_eqType (${left.pp}) (${right.pp})"
       case _ => s"${left.pp} ${op.pp} ${right.pp}"
     }
   }
 
   case class CUnaryExpr(op: CUnOp, e: CExpr) extends CExpr {
-    override def pp: String = s"${op.pp} (${e.pp})"
+    override def pp: String = op match {
+      case COpNot => s"(${e.pp}) = false"
+      case _ => s"${op.pp} (${e.pp})"
+    }
   }
 
   case class CPointsTo(loc: CExpr, offset: Int = 0, value: CExpr) extends CExpr {
     def locPP: String = if (offset == 0) loc.pp else s"${loc.pp} .+ $offset"
-    override def pp: String = if (value == CNatConst(0)) s"$locPP :-> null" else s"$locPP :-> ${value.pp}"
-    override def subst(sigma: Subst): CPointsTo =
+    override def pp: String = s"$locPP :-> ${value.pp}"
+    override def subst(sigma: CSubst): CPointsTo =
       CPointsTo(loc.subst(sigma), offset, value.subst(sigma))
   }
 
   case class CSApp(pred: String, var args: Seq[CExpr], card: CExpr) extends CExpr {
     override def pp: String = s"$pred ${args.map(arg => arg.pp).mkString(" ")}"
 
-    override def subst(sigma: Subst): CSApp =
+    override def subst(sigma: CSubst): CSApp =
       CSApp(pred, args.map(_.subst(sigma)), card.subst(sigma))
 
-    val uniqueName: String = s"$pred${card.pp}"
+    val uniqueName: String = s"${pred}_${args.flatMap(_.vars).map(_.pp).mkString("")}_${card.vars.map(_.pp).mkString("")}"
     val heapName: String = s"h_$uniqueName"
     val hypName: String = s"H_$uniqueName"
   }
 
   case class CSFormula(heapName: String, apps: Seq[CSApp], ptss: Seq[CPointsTo]) extends CExpr {
-    def unify(source: CSFormula): SubstVar = {
-      val initialMap: SubstVar = Map.empty
+    def unify(source: CSFormula): CSubstVar = {
+      val initialMap: CSubstVar = Map.empty
       val m1 = source.ptss.zip(ptss).foldLeft(initialMap) {
         case (acc, (p1, p2)) => acc ++ p1.vars.zip(p2.vars).filterNot(v => v._1 == v._2).toMap
       }
@@ -163,7 +179,7 @@ object Expressions {
       s"$heapName = $ppHeap /\\ $appsStr"
     }
 
-    override def subst(sigma: Subst): CSFormula = {
+    override def subst(sigma: CSubst): CSFormula = {
       val apps1 = apps.map(_.subst(sigma))
       val ptss1 = ptss.map(_.subst(sigma))
       CSFormula(heapName, apps1, ptss1)
@@ -232,9 +248,7 @@ object Expressions {
 
   object COpIn extends CBinOp
 
-  object COpSetEq extends CBinOp {
-    override def pp: String = "="
-  }
+  object COpSetEq extends CBinOp
 
   object COpSubset extends CBinOp {
     override def pp: String = "<="

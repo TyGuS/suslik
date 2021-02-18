@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.StmtProducer
+import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.Termination.Transition
 
 object Rules {
