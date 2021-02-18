@@ -28,7 +28,7 @@ object ProgramTranslator extends Translator[SuslikProofStep, CStatement, Program
             val v = stmt.v.translate
             (0 until sz).map(i => CFree(v, i)).toList
           case SuslikProofStep.Call(_, stmt) => List(stmt.translate)
-          case _ => List(Noop)
+          case _ => List()
         }
         Result(stmts, List(withNoDeferred))
     }

@@ -10,6 +10,7 @@ import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{Evaluator, ProofTree, StackEvaluator, Translator}
 import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.certification.source.SuslikProofStep
+import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.{IntType, LocType}
 import org.tygus.suslik.language.Statements.Procedure
@@ -47,11 +48,15 @@ object Translation {
       case IntType => (name, CoqIntValType)
     }})
     val (spec, _) = ProofSpecTranslation.translate_conditions(proc.name, params)(root.goal)
+    val program_body = translate_proof(base_proof)(new VSTProgramTranslator, VSTProgramTranslator.empty_context)
+
+    val procedure = CProcedureDefinition(
+      proc.name,
+      params,
+      program_body
+    )
+    println(procedure.pp)
     println(spec.pp)
-    val program_steps = translate_proof(base_proof)(new VSTProgramTranslator, VSTProgramContext(Map()))
-    val procedure = ???
-
-
 
     val pred_map = predicates.map(v => (v.name,v)).toMap
     val steps = translate_proof(base_proof)(new VSTProofTranslator, VSTClientContext.make_context(pred_map))
