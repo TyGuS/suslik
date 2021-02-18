@@ -1,15 +1,66 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types
-import org.tygus.suslik.certification.targets.vst.Types.{CoqCardType, CoqIntSetType, CoqIntValType, CoqPtrValType, CoqZType, VSTType}
-import org.tygus.suslik.certification.targets.vst.clang.PrettyPrinting
+import org.tygus.suslik.certification.targets.vst.Types.{CoqCardType, CoqIntSetType, CoqIntValType, CoqPtrValType, CoqZType, VSTCType, VSTType}
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
+import org.tygus.suslik.language.PrettyPrinting
 
 
 /** Redefinition of expressions for use in VST proofs
   * */
 object Expressions {
 
+  sealed trait CLangOp {}
+  sealed trait CLangExpr {
+    def type_cexpr : VSTCType = this match {
+      case ProofCVar(name, typ) => typ.asInstanceOf[VSTCType]
+      case ProofCBoolConst(value) => throw TranslationException("Attempted to type a boolean expression")
+      case ProofCNullval => CoqPtrValType
+      case ProofCIntConst(value) => CoqIntValType
+      case ProofCIfThenElse(cond, left : CLangExpr, right : CLangExpr) => left.type_cexpr
+      case ProofCBinaryExpr(op : CLangOp, left : CLangExpr, right : CLangExpr) =>
+        op match {
+          case ProofCOpPlus => CoqIntValType
+          case ProofCOpMinus => CoqIntValType
+          case ProofCOpMultiply => CoqIntValType
+          case ProofCOpZEq | ProofCOpIntValEq | ProofCOpPtrValEq | ProofCOpBoolEq
+               | ProofCOpLeq | ProofCOpLt | ProofCOpAnd | ProofCOpOr =>
+            throw TranslationException("Attempted to type a boolean expression")
+        }
+      case ProofCUnaryExpr(op : CLangOp, e : CLangExpr) =>
+        op match {
+          case ProofCOpNot =>  throw TranslationException("Attempted to type a boolean expression")
+          case ProofCOpUnaryMinus => CoqIntValType
+        }
+    }
+    def pp_as_clang_expr: String = this match {
+      case ProofCVar(name, typ) => name
+      case ProofCBoolConst(value) => value.toString
+      case ProofCNullval => "NULL"
+      case ProofCIntConst(value) =>value.toString
+      case ProofCIfThenElse(cond : CLangExpr, left : CLangExpr, right : CLangExpr) =>
+        s"(${cond.pp_as_clang_expr} ? ${left.pp_as_clang_expr} : ${right.pp_as_clang_expr})"
+      case ProofCBinaryExpr(op : CLangOp, left : CLangExpr, right : CLangExpr) =>
+        op match {
+          case ProofCOpPlus =>  s"(${left.pp_as_clang_expr} + ${right.pp_as_clang_expr})"
+          case ProofCOpMinus => s"(${left.pp_as_clang_expr} - ${right.pp_as_clang_expr})"
+          case ProofCOpMultiply => s"(${left.pp_as_clang_expr} * ${right.pp_as_clang_expr})"
+          case ProofCOpZEq => s"(${left.pp_as_clang_expr} == ${right.pp_as_clang_expr})"
+          case ProofCOpIntValEq => s"(${left.pp_as_clang_expr} == ${right.pp_as_clang_expr})"
+          case ProofCOpPtrValEq => s"(${left.pp_as_clang_expr} == ${right.pp_as_clang_expr})"
+          case ProofCOpBoolEq => s"(${left.pp_as_clang_expr} == ${right.pp_as_clang_expr})"
+          case ProofCOpLeq => s"(${left.pp_as_clang_expr} <= ${right.pp_as_clang_expr})"
+          case ProofCOpLt => s"(${left.pp_as_clang_expr} < ${right.pp_as_clang_expr})"
+          case ProofCOpAnd => s"(${left.pp_as_clang_expr} && ${right.pp_as_clang_expr})"
+          case ProofCOpOr => s"(${left.pp_as_clang_expr} || ${right.pp_as_clang_expr})"
+        }
+      case ProofCUnaryExpr(op : CLangOp, e : CLangExpr) =>
+        op match {
+          case ProofCOpNot => s"!(${e.pp_as_clang_expr})"
+          case ProofCOpUnaryMinus => s"-(${e.pp_as_clang_expr})"
+        }
+    }
+  }
   /** encoding of expressions in VST proof script
     * By default any boolean value will print to prop
     * use pp_as_bool_value to print as a boolean
@@ -123,7 +174,7 @@ object Expressions {
 
 
   /** a variable in a VST proof */
-  case class ProofCVar(name: String, typ: VSTType) extends ProofCExpr {
+  case class ProofCVar(name: String, typ: VSTType) extends ProofCExpr with CLangExpr {
     override def pp: String = typ match {
       case CoqPtrValType => s"(${name} : val)"
       case CoqIntValType => s"(${name} : val)"
@@ -134,17 +185,17 @@ object Expressions {
   }
 
   /** boolean constant in a VST proof */
-  case class ProofCBoolConst(value: Boolean) extends ProofCExpr {
+  case class ProofCBoolConst(value: Boolean) extends ProofCExpr with CLangExpr {
     override def pp: String = value.toString
   }
 
   /** integer constant in a VST proof */
-  case object ProofCNullval extends ProofCExpr {
+  case object ProofCNullval extends ProofCExpr with CLangExpr {
     override def pp: String = "nullval"
   }
 
   /** integer constant in a VST proof */
-  case class ProofCIntConst(value: Int) extends ProofCExpr {
+  case class ProofCIntConst(value: Int) extends ProofCExpr with CLangExpr {
     override def pp: String =
       value.toString
   }
@@ -156,11 +207,11 @@ object Expressions {
   }
 
   /** encodes a ternary expression in a VST proof */
-  case class ProofCIfThenElse(cond: ProofCExpr, left: ProofCExpr, right: ProofCExpr) extends ProofCExpr {
+  case class ProofCIfThenElse(cond: ProofCExpr, left: ProofCExpr, right: ProofCExpr) extends ProofCExpr with CLangExpr {
     override def pp: String = s"(if ${cond.pp_as_bool_value} then ${left.pp} else ${right.pp})"
   }
 
-  case class ProofCBinaryExpr(op: ProofCBinOp, left: ProofCExpr, right: ProofCExpr) extends ProofCExpr {
+  case class ProofCBinaryExpr(op: ProofCBinOp, left: ProofCExpr, right: ProofCExpr) extends ProofCExpr with CLangExpr {
     override def pp: String =
       op match {
         case ProofCOpLt => s"(${left.pp_as_Z_value} < ${right.pp_as_Z_value})"
@@ -179,7 +230,7 @@ object Expressions {
       }
   }
 
-  case class ProofCUnaryExpr(op: ProofCUnOp, e: ProofCExpr) extends ProofCExpr {
+  case class ProofCUnaryExpr(op: ProofCUnOp, e: ProofCExpr) extends ProofCExpr with CLangExpr {
     override def pp: String =
       op match {
         case ProofCOpNot => s"(~ ${e.pp})"
@@ -189,37 +240,37 @@ object Expressions {
 
   sealed abstract class ProofCUnOp
 
-  object ProofCOpNot extends ProofCUnOp
+  object ProofCOpNot extends ProofCUnOp with CLangOp
 
-  object ProofCOpUnaryMinus extends ProofCUnOp
+  object ProofCOpUnaryMinus extends ProofCUnOp with CLangOp
 
   sealed abstract class ProofCBinOp
 
   object ProofCOpImplication extends ProofCBinOp
 
-  object ProofCOpPlus extends ProofCBinOp
+  object ProofCOpPlus extends ProofCBinOp with CLangOp
 
-  object ProofCOpMinus extends ProofCBinOp
+  object ProofCOpMinus extends ProofCBinOp with CLangOp
 
-  object ProofCOpMultiply extends ProofCBinOp
+  object ProofCOpMultiply extends ProofCBinOp with CLangOp
 
-  object ProofCOpZEq extends ProofCBinOp
+  object ProofCOpZEq extends ProofCBinOp with CLangOp
 
-  object ProofCOpIntValEq extends ProofCBinOp
+  object ProofCOpIntValEq extends ProofCBinOp with CLangOp
 
-  object ProofCOpPtrValEq extends ProofCBinOp
+  object ProofCOpPtrValEq extends ProofCBinOp with CLangOp
 
-  object ProofCOpBoolEq extends ProofCBinOp
+  object ProofCOpBoolEq extends ProofCBinOp with CLangOp
 
   object ProofCOpSetEq extends ProofCBinOp
 
-  object ProofCOpLeq extends ProofCBinOp
+  object ProofCOpLeq extends ProofCBinOp with CLangOp
 
-  object ProofCOpLt extends ProofCBinOp
+  object ProofCOpLt extends ProofCBinOp with CLangOp
 
-  object ProofCOpAnd extends ProofCBinOp
+  object ProofCOpAnd extends ProofCBinOp with CLangOp
 
-  object ProofCOpOr extends ProofCBinOp
+  object ProofCOpOr extends ProofCBinOp with CLangOp
 
   object ProofCOpIn extends ProofCBinOp
 
