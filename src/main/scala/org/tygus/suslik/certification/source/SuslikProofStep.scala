@@ -67,8 +67,8 @@ object SuslikProofStep {
   }
 
   /** open constructor cases */
-  case class Open(pred: SApp, fresh_vars: SubstVar, sbst: Subst, selectors: List[Expr]) extends SuslikProofStep {
-    override def pp: String = s"Open(${pred.pp}, ${fresh_vars.mkString(", ")});"
+  case class Open(pred: SApp, fresh_exists: SubstVar, fresh_params: Subst, selectors: List[Expr]) extends SuslikProofStep {
+    override def pp: String = s"Open(${pred.pp}, existentials: ${fresh_exists.mkString(", ")}, params: ${fresh_params.mkString(", ")});"
   }
 
   /** subst L */
