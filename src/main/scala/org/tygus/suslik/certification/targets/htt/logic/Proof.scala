@@ -68,7 +68,7 @@ object Proof {
     override val isNoop: Boolean = items.isEmpty
     override def pp: String = s"move: ${items.map(_.pp).mkString(" ")}"
   }
-  case class ElimExistential(items: Seq[CExpr]) extends Step {
+  case class ElimExistential(items: Seq[CVar]) extends Step {
     override val isNoop: Boolean = items.isEmpty
     override def pp: String = items.map(_.pp).grouped(5).map(s => s"ex_elim ${s.mkString(" ")}").mkString(".\n")
   }
@@ -121,7 +121,7 @@ object Proof {
   case class CallPre(heap: CSFormula) extends Step {
     override def pp: String = s"ssl_call_pre (${heap.ppHeap})"
   }
-  case class Call(args: Seq[CExpr], ghosts: Seq[CVar]) extends Step {
+  case class Call(ghosts: Seq[CExpr]) extends Step {
     override def pp: String = s"ssl_call (${ghosts.map(_.pp).mkString(", ")})"
   }
   case object StoreValid extends Step {

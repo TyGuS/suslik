@@ -48,21 +48,10 @@ object Sentences {
     }
   }
 
-  case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CExpr]) extends PrettyPrinting {
-    def subst(sub: CSubst): CInductiveClause =
-      CInductiveClause(pred, idx, selector.subst(sub), asn.subst(sub), existentials.map(_.subst(sub)))
-  }
+  case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CVar]) extends PrettyPrinting
 
   case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause], gamma: CGamma) extends PrettyPrinting {
     val paramVars: Seq[CVar] = params.map(_._1)
-
-    def subst(sub: CSubst): CInductivePredicate =
-      CInductivePredicate(
-        name,
-        params.map(p => (p._1.substVar(sub), p._2)),
-        clauses.map(_.subst(sub)),
-        gamma.map(g => (g._1.substVar(sub), g._2))
-      )
 
     override def pp: String = {
       val builder = new StringBuilder()
