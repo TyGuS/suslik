@@ -1,14 +1,10 @@
 package org.tygus.suslik.certification.targets.vst.clang
 
 import org.tygus.suslik.certification.targets.vst.Types.VSTCType
-import org.tygus.suslik.certification.targets.vst.clang.Expressions.{CExpr, CVar}
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.CLangExpr
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{ForwardIf, ForwardIfConstructor}
-import org.tygus.suslik.certification.targets.vst.translation.Translation.{TranslationException, fail_with}
-import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.certification.traversal.Step.DestStep
-import org.tygus.suslik.logic.Specifications.GoalLabel
+import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
+import org.tygus.suslik.language.PrettyPrinting
 
 /** Encoding of C statements */
 object Statements {

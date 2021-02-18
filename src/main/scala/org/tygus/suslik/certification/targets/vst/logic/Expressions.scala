@@ -2,8 +2,8 @@ package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types.{CoqCardType, CoqIntSetType, CoqIntValType, CoqPtrValType, CoqZType, VSTCType, VSTType}
-import org.tygus.suslik.certification.targets.vst.clang.PrettyPrinting
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
+import org.tygus.suslik.language.PrettyPrinting
 
 
 /** Redefinition of expressions for use in VST proofs

@@ -1,10 +1,9 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types._
-import org.tygus.suslik.certification.targets.vst.clang.PrettyPrinting
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
-import org.tygus.suslik.language.Ident
+import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
 object ProofTerms {
 

@@ -31,16 +31,6 @@ object Translation {
 
   def translate(root: CertTree.Node, proc: Procedure, env: Environment): VSTCertificate = {
     val base_proof = SuslikProofStep.of_certtree(root)
-
-    //    val procedure: Statements.CProcedureDefinition = CTranslation.translate_function(proc, root.goal.gamma)
-    //    val new_procedure : Statements.CProcedureDefinition = CTranslation.translate_function_from_proof(base_proof, root.goal.gamma)
-
-    //    val (spec, context) = ProofSpecTranslation.translate_conditions(procedure)(root.goal)
-    //    val pre_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.pre)
-    //    val post_cond = ProofSpecTranslation.translate_assertion(context)(root.goal.post)
-
-    //    println(procedure.pp)
-    //    println(new_procedure.pp)
     val predicates = env.predicates.map({ case (_, predicate) => ProofSpecTranslation.translate_predicate(env)(predicate)}).toList
     predicates.foreach(v => println(v.pp))
     val params = proc.formals.map({case (Var(name), ty) => ty match {
@@ -49,14 +39,7 @@ object Translation {
     }})
     val (spec, _) = ProofSpecTranslation.translate_conditions(proc.name, params)(root.goal)
     val program_body = translate_proof(base_proof)(new VSTProgramTranslator, VSTProgramTranslator.empty_context)
-
-    val procedure = CProcedureDefinition(
-      proc.name,
-      params,
-      program_body
-    )
-    println(procedure.pp)
-    println(spec.pp)
+    val procedure = CProcedureDefinition(proc.name, params, program_body)
 
     val pred_map = predicates.map(v => (v.name,v)).toMap
     val steps = translate_proof(base_proof)(new VSTProofTranslator, VSTClientContext.make_context(pred_map))
