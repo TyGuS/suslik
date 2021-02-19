@@ -43,7 +43,6 @@ object ProofSpecTranslation {
     )
   }
 
-
   /** translate a suslik type into a VST proof type */
   def translate_predicate_param_type(lType: SSLType): VSTType =
     lType match {

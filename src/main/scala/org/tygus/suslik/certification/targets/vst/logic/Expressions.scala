@@ -67,6 +67,27 @@ object Expressions {
     */
   sealed abstract class ProofCExpr extends PrettyPrinting {
 
+    /** Applies a renaming to an expression */
+    def rename(mapping: Map[String, String]): ProofCExpr = this match {
+      case expr@ProofCVar(name, ty) => mapping.get(name) match {
+        case Some(name) => ProofCVar(name, ty)
+        case None => expr
+      }
+      case expr@ProofCBoolConst(_) => expr
+      case expr@ProofCIntConst(_) => expr
+      case ProofCIntSetLiteral(elems) =>
+        ProofCIntSetLiteral(elems.map(_.rename(mapping)))
+      case ProofCIfThenElse(cond, left, right) =>
+        ProofCIfThenElse(cond.rename(mapping), left.rename(mapping), right.rename(mapping))
+      case ProofCBinaryExpr(op, left, right) =>
+        ProofCBinaryExpr(op, left.rename(mapping), right.rename(mapping))
+      case ProofCUnaryExpr(op, e) =>
+        ProofCUnaryExpr(op, e.rename(mapping))
+      case ProofCCardinalityConstructor(pred_type, name, args) =>
+        ProofCCardinalityConstructor(pred_type, name, args.map(_.rename(mapping)))
+    }
+
+
     /** Applies a substitution to an expression */
     def subst(mapping: Map[String, ProofCExpr]): ProofCExpr = this match {
       case expr@ProofCVar(name, _) => mapping.get(name) match {

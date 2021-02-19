@@ -2,16 +2,17 @@ package org.tygus.suslik.certification.targets.vst.translation
 
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.vst.Types.VSTType
-import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCExpr, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{FormalSpecification, VSTPredicate}
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{Exists, Forward, ForwardIf, ValidPointer}
+import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{Entailer, Exists, Forward, ForwardEntailer, ForwardIf, Rename, ValidPointer}
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.{Ident, SSLType}
 import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.VSTClientContext
+import org.tygus.suslik.language.Statements.Load
 
 import scala.collection.immutable.Queue
 
@@ -24,21 +25,46 @@ object VSTProofTranslator {
                                variable_map: Map[String, ProofCExpr]
                              ) extends ClientContext[VSTProofStep] {
 
+    def with_renaming(vl: (String, String)) : VSTClientContext = {
+      val (from, to) = vl
+      val renaming = Map(from -> to)
+      def true_name(vl : String) = renaming.getOrElse(vl,vl)
+      val new_coq_context = coq_context.map({case (name, ty) => (true_name(name), ty)})
+      val new_existential_context = existential_context.map({case (name, ty) => (true_name(name), ty)})
+      val new_variable_map = variable_map.map {
+        case (name, expr) => (true_name(name), expr.rename(renaming))
+      }
+      VSTClientContext(pred_map, new_coq_context, new_existential_context, variable_map)
+    }
+
     def with_existential_variables_of(variables: List[(String, SSLType)]): VSTClientContext = {
       val new_vars: Map[String, VSTType] = variables.map({ case (name, ty) => (name, ProofSpecTranslation.translate_predicate_param_type(ty)) }).toMap
       VSTClientContext(pred_map, coq_context, existential_context ++ new_vars, variable_map)
     }
 
-    def resolve_existential(ident: Ident) : ProofCExpr = ???
+    def resolve_existential(ident: Ident) : ProofCExpr = variable_map(ident)
 
-    def with_variables_of(variables: List[(String, SSLType)]): VSTClientContext = {
+    def with_program_variables_of(variables: List[(String, SSLType)]): VSTClientContext = {
+      // Note: translate_predicate_param_type maps val (containing ints) -> Z, and val (containing ptrs) -> val.
+      // This is valid because the ssl_open_context tactic called at the start of a proof in VST will unwrap any
+      // variable x in the context where ssl_is_valid_int(x) is known into a term of type Z (preserving the name - i.e (x : Z)).
+      // As such, both ghost and program variables will correctly have type Z in the coq context (as the precondition for
+      // specifications asserts that their values are valid ints).
       val new_vars: Map[String, VSTType] = variables.map({ case (name, ty) => (name, ProofSpecTranslation.translate_predicate_param_type(ty)) }).toMap
       VSTClientContext(pred_map, coq_context ++ new_vars, existential_context, variable_map)
     }
 
+    def with_ghost_variables_of(variables: List[(String, SSLType)]): VSTClientContext = {
+      val new_vars: Map[String, VSTType] = variables.map({ case (name, ty) => (name, ProofSpecTranslation.translate_predicate_param_type(ty)) }).toMap
+      VSTClientContext(pred_map, coq_context ++ new_vars, existential_context, variable_map)
+    }
+
+
     def with_mapping_between(from: String, to: Expr): VSTClientContext = {
       val to_expr = ProofSpecTranslation.translate_expression(coq_context)(to)
-      VSTClientContext(pred_map, coq_context, existential_context, variable_map ++ Map(from -> to_expr))
+      val subst = Map(from -> to_expr)
+      val new_variable_map = variable_map.map({case (name, vl) => (name, vl.subst(subst))}) ++ subst
+      VSTClientContext(pred_map, coq_context, existential_context, new_variable_map)
     }
 
   }
@@ -62,13 +88,15 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         /** Initialization */
         case SuslikProofStep.Init(goal) =>
           val program_vars = goal.programVars.map(v => (v.name, goal.gamma(v)))
-          var ctx = clientContext with_variables_of program_vars
+          val ghost_vars = goal.universalGhosts.map(v => (v.name, goal.gamma(v))).toList
+          var ctx = clientContext with_program_variables_of program_vars
+          ctx = ctx with_ghost_variables_of ghost_vars
           val existential_params = goal.existentials.map(v => (v.name, goal.gamma(v))).toList
           ctx = ctx with_existential_variables_of existential_params
           val existentials = spec.existensial_params
           val deferreds : Deferred = (ctx: VSTClientContext) => {
             val steps : List[VSTProofStep] = existentials.map(v => Exists(ctx resolve_existential v._1)).toList
-            (steps, ctx)
+            (steps ++ List(Entailer), ctx)
           }
           Result(List(), List((Some(deferreds), ctx)))
 
@@ -82,12 +110,18 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         case SuslikProofStep.Call(subst, call) => ???
 
         /** Proof Termination rules */
-        case SuslikProofStep.EmpRule(label) => ???
+        case SuslikProofStep.EmpRule(label) =>
+
+          Result(List(ForwardEntailer), List())
         case SuslikProofStep.Inconsistency(label) => ???
 
         case SuslikProofStep.Write(stmt) =>
           Result(List(Forward), List(with_no_deferreds(clientContext)))
-        case SuslikProofStep.Read(from, to, operation) => ???
+        case SuslikProofStep.Read(Var(ghost_from), Var(ghost_to), Load(to, _, from, offset)) =>
+          var ctx = clientContext with_renaming(ghost_from -> ghost_to)
+          val rename_step = Rename(ghost_from, ghost_to)
+          val read_step = Forward
+          Result(List(rename_step, read_step), List(with_no_deferreds(ctx)))
         case SuslikProofStep.Free(stmt, size) => ???
         case SuslikProofStep.Malloc(ghostFrom, ghostTo, stmt) => ???
 
