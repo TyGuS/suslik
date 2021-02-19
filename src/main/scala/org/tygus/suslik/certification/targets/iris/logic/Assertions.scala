@@ -1,21 +1,20 @@
 package org.tygus.suslik.certification.targets.iris.logic
 
-import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinOp, HExpr, HLit, HOpEq, HOpLe, HOpLt, HProgVar}
+import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinOp, HLit, HOpEq, HOpLe, HOpLt}
 import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HLocType, HType}
-import org.tygus.suslik.certification.targets.iris.translation.IrisTranslator
-import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
 import org.tygus.suslik.language.PrettyPrinting
-import org.tygus.suslik.language.Statements.Procedure
 
 object Assertions {
 
   /** Unlike HTT, which encodes programs in a shallow embedding, Iris has a deep embedding of programs.
     *  As such, program expressions are NOT Iris assertions (phi != HExpr). We define a lifting of
     *  program-level expressions to spec-level. */
-  abstract class ISpecExpr extends PrettyPrinting
-  abstract class IQuantifiedVar extends ISpecExpr
+  abstract class IPureAssertion extends PrettyPrinting {
+    def ppAsPhi: String = pp
+  }
+  abstract class IQuantifiedVar extends IPureAssertion
 
-  case class ISpecLit(lit: HLit) extends ISpecExpr {
+  case class ISpecLit(lit: HLit) extends IPureAssertion {
     override def pp: String = lit.pp
   }
 
@@ -27,23 +26,22 @@ object Assertions {
     override def pp: String = s"${name}"
   }
 
-  case class ISpecBinaryExpr(op: HBinOp, left: ISpecExpr, right: ISpecExpr) extends ISpecExpr {
+  case class ISpecBinaryExpr(op: HBinOp, left: IPureAssertion, right: IPureAssertion) extends IPureAssertion {
     override def pp: String = s"${left.pp} ${op.pp} ${right.pp}"
 
-    def ppAsPhi: String = op match {
+    override def ppAsPhi: String = op match {
       case HOpLe | HOpLt | HOpEq => s"bool_decide (${left.pp} ${op.pp} ${right.pp})%Z"
       case _ => ???
     }
   }
 
-  abstract class IPureAssertion extends PrettyPrinting
   abstract class ISpatialAssertion extends PrettyPrinting
 
   case class IAnd(conjuncts: Seq[IPureAssertion]) extends IPureAssertion {
-    override def pp: String = s"${conjuncts.map(_.pp).mkString(" ∧ ")}"
+    override def pp: String = s"${conjuncts.map(_.ppAsPhi).mkString(" ∧ ")}"
   }
 
-  case class IPointsTo(loc: ISpecExpr, value: ISpecExpr) extends ISpatialAssertion {
+  case class IPointsTo(loc: IPureAssertion, value: IPureAssertion) extends ISpatialAssertion {
     override def pp: String = s"${loc.pp} ↦ ${value.pp}"
   }
 
@@ -53,7 +51,7 @@ object Assertions {
 
   case class IAssertion(phi: IPureAssertion, sigma: ISpatialAssertion) extends PrettyPrinting {
     override def pp: String = {
-      val pure = if (phi.pp.isEmpty) "" else s"⌜${phi.pp}⌝ ∗ "
+      val pure = if (phi.ppAsPhi.isEmpty) "" else s"⌜${phi.ppAsPhi}⌝ ∗ "
       val whole = s"${pure}${sigma.pp}"
       if (whole.isEmpty) "True" else whole
     }

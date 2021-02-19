@@ -1,14 +1,14 @@
 package org.tygus.suslik.certification.targets.iris.translation
 
-import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HAllocN, HBinOp, HBinaryExpr, HCall, HExpr, HIfThenElse, HLet, HLitBool, HLitInt, HLitLoc, HLitUnit, HLoad, HOpEq, HOpLe, HOpLt, HOpMinus, HOpMultiply, HOpNot, HOpOffset, HOpPlus, HOpUnaryMinus, HProgVar, HStore, HUnOp, HUnaryExpr}
+import org.tygus.suslik.certification.targets.iris.heaplang.Expressions._
 import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HIntType, HLocType, HType}
-import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IAnd, IAssertion, IFunSpec, IHeap, IPointsTo, IPureAssertion, ISpatialAssertion, ISpecBinaryExpr, ISpecExpr, ISpecLit, ISpecQuantifiedValue, ISpecVar}
+import org.tygus.suslik.certification.targets.iris.logic.Assertions._
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
-import org.tygus.suslik.language.Expressions.{BinOp, BinaryExpr, BoolConst, Expr, IfThenElse, IntConst, LocConst, OpBoolEq, OpEq, OpLeq, OpLt, OpMinus, OpMultiply, OpNot, OpPlus, OpUnaryMinus, UnOp, UnaryExpr, Var}
-import org.tygus.suslik.language.{IntType, LocType, SSLType}
+import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements.{Call, Load, Malloc, Store}
-import org.tygus.suslik.logic.{Heaplet, PFormula, PointsTo, SFormula}
+import org.tygus.suslik.language.{IntType, LocType, SSLType}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
+import org.tygus.suslik.logic._
 
 trait IrisTranslator[From, To] {
   def translate(value: From, ctx: Option[TranslationContext] = None): To
@@ -81,21 +81,40 @@ object IrisTranslator {
 
   implicit val callTranslator: IrisTranslator[Call, HCall] = (stmt, _) => HCall(stmt.fun.translate, stmt.args.map(_.translate))
 
-  implicit val phiTranslator: IrisTranslator[PFormula, IPureAssertion] = (f, _) => IAnd(Seq())
+  implicit val phiTranslator: IrisTranslator[PFormula, IPureAssertion] = (f, ctx) => {
+    assert(ctx.isDefined)
+    IAnd(f.conjuncts.map(_.translate.translate(toSpecExpr, ctx)).toSeq)
+  }
 
-  implicit val toSpecExpr: IrisTranslator[HExpr, ISpecExpr] = (expr, ctx) => {
+  // TODO: remove duplication between toSpecExpr and toSpecVal
+  implicit val toSpecExpr: IrisTranslator[HExpr, IPureAssertion] = (expr, ctx) => {
     assert(ctx.isDefined)
     expr match {
-      // Get the quantified value if it is quantified, or just translate if ghost
+      // Get the quantified value if it is quantified
       case v: HProgVar => ctx.get.pts.getOrElse(v, v.translate(progVarToSpecVar))
+      case l: HLit => ISpecLit(l)
+      case HBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.translate(toSpecExpr, ctx), right.translate(toSpecExpr, ctx))
       case _ => ???
     }
   }
 
+  implicit val toSpecVal: IrisTranslator[HExpr, IPureAssertion] = (expr, ctx) => {
+    assert(ctx.isDefined)
+    expr match {
+      // Get the quantified value if it is quantified
+      // If it's a ghost, it has a non-value type (e.g. Z), so we have to make it into a value
+      case v: HProgVar => ctx.get.pts.getOrElse(v, ISpecLit(new HLit(v.name)))
+      case l: HLit => ISpecLit(l)
+      case HBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.translate(toSpecVal, ctx), right.translate(toSpecVal, ctx))
+      case _ => ???
+    }
+  }
+
+
   implicit val pointsToTranslator: IrisTranslator[PointsTo, IPointsTo] = (f, ctx) => {
     val base = f.loc.translate.translate(toSpecExpr, ctx)
     val loc = if (f.offset > 0) ISpecBinaryExpr(HOpOffset, base, ISpecLit(HLitLoc(f.offset))) else base
-    val value = f.value.translate.translate(toSpecExpr, ctx)
+    val value = f.value.translate.translate(toSpecVal, ctx)
     IPointsTo(loc, value)
   }
 
@@ -103,6 +122,7 @@ object IrisTranslator {
     assert(ctx.isDefined)
     h match {
       case pt:PointsTo => pt.translate(pointsToTranslator, ctx)
+      case pa:SApp => IHeap(Seq())
       case _ => ???
     }
   }
@@ -128,4 +148,5 @@ object IrisTranslator {
     val post = g.post.translate(assertionTranslator, ctx)
     IFunSpec(g.fname, params.map(x => (x._1.translate(progVarToSpecVar), x._2)), specUniversal, specExistential, pre, post)
   }
+
 }

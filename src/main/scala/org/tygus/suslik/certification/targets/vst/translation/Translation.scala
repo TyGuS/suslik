@@ -37,6 +37,7 @@ object Translation {
       case IntType => (name, CoqIntValType)
     }})
     val (spec, _) = ProofSpecTranslation.translate_conditions(proc.name, params)(root.goal)
+    println(spec.pp)
     val program_body = translate_proof(base_proof)(new VSTProgramTranslator, VSTProgramTranslator.empty_context)
     val procedure = CProcedureDefinition(proc.name, params, program_body)
     println(procedure.pp)

@@ -3,6 +3,7 @@ package org.tygus.suslik.certification.targets.vst.logic
 import org.tygus.suslik.certification.targets.vst.Types._
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
+import org.tygus.suslik.certification.translation.{CardConstructor, CardNull, CardOf}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
 object ProofTerms {
@@ -95,29 +96,6 @@ object ProofTerms {
          |""".stripMargin
     }
   }
-
-  /**
-    * Abstract constructors mapping cardinality constraints to
-    * termination measures in Coq
-    */
-  trait CardConstructor extends PrettyPrinting {
-    def constructor_args: List[Ident] =
-      this match {
-        case CardNull => Nil
-        case CardOf(args) => args
-      }
-  }
-
-  /**
-    * Null constructor of 0 cardinality
-    */
-  case object CardNull extends CardConstructor {}
-
-  /** Cardinality constructor of multiple components
-    *
-    * @param args the variables produced by unwrwapping this element
-    */
-  case class CardOf(args: List[Ident]) extends CardConstructor {}
 
   /**
     * Represents helper lemmas and operations that are required to make VST handle the predicate automatically
