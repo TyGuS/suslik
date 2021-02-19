@@ -3,18 +3,15 @@ package org.tygus.suslik.certification.targets.iris.translation
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinaryExpr, HExpr, HFree, HGuarded, HIf, HLitLoc, HLitUnit, HNoOp, HOpOffset}
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
-import org.tygus.suslik.certification.traversal.Evaluator.Deferreds
 import org.tygus.suslik.certification.traversal.Translator
 import org.tygus.suslik.certification.traversal.Translator.Result
-
-import scala.collection.immutable.Queue
 
 /**
   * Extract a HeapLang program directly from the SSL proof.
   */
-object ProgramTranslator extends Translator[SuslikProofStep, HExpr, ProgramContext]  {
+object ProgramTranslator extends Translator[SuslikProofStep, HExpr, TranslationContext]  {
 
-  override def translate(step: SuslikProofStep, ctx: ProgramContext): Translator.Result[HExpr, ProgramContext] = {
+  override def translate(step: SuslikProofStep, ctx: TranslationContext): Translator.Result[HExpr, TranslationContext] = {
     val withNoDeferred = (None, ctx)
     step match {
       case SuslikProofStep.Open(_, _, _, selectors) =>

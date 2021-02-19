@@ -16,7 +16,7 @@ import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 
 
 /** translates suslik proof terms to VST compatible proof terms  */
-object ProofSpecTranslation {
+object  ProofSpecTranslation {
 
   def to_ssl_context(gamma: Map[String, VSTType]) : Gamma = {
     def to_ssl_type(ty: VSTType) : SSLType = ty match {

@@ -4,6 +4,6 @@ import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.HExpr
 import org.tygus.suslik.certification.traversal.StackEvaluator
 
-object ProgramEvaluator extends StackEvaluator[SuslikProofStep, HExpr, ProgramContext] {
+object ProgramEvaluator extends StackEvaluator[SuslikProofStep, HExpr, TranslationContext] {
   val translator = ProgramTranslator
 }
