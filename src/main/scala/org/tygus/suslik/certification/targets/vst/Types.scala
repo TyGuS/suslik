@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.vst
 
-import org.tygus.suslik.certification.targets.vst.clang.PrettyPrinting
+import org.tygus.suslik.language.PrettyPrinting
 
 /** Encapsulates all types used in proofs - i.e if these types are pretty printed, then they will be valid Coq terms */
 object Types {

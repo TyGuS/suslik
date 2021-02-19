@@ -24,3 +24,7 @@ predicate sll(loc x, int len, int lo, int hi) {
 |  not (x == 0)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
                       [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, len1, lo1, hi1) }
 }
+
+predicate account(loc x, int id, int bal) {
+|  true  =>  { [x, 2] ** x :-> id ** (x + 1) :-> bal }
+}

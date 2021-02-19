@@ -1,13 +1,10 @@
 package org.tygus.suslik.certification.targets.vst.clang
 
 import org.tygus.suslik.certification.targets.vst.Types.VSTCType
-import org.tygus.suslik.certification.targets.vst.clang.Expressions.{CExpr, CVar}
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{ForwardIf, ForwardIfConstructor}
-import org.tygus.suslik.certification.targets.vst.translation.Translation.{TranslationException, fail_with}
-import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.CLangExpr
 import org.tygus.suslik.certification.traversal.Step.DestStep
-import org.tygus.suslik.logic.Specifications.GoalLabel
+import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
+import org.tygus.suslik.language.PrettyPrinting
 
 /** Encoding of C statements */
 object Statements {
@@ -15,11 +12,22 @@ object Statements {
   implicit object ProofTreePrinter extends ProofTreePrinter[StatementStep] {
     override def pp(tree: ProofTree[StatementStep]): String = tree.step match {
       case CIf(cond) =>
-        s"if (${cond.pp} {\n" +
+        s"if (${cond.pp_as_clang_expr}) {\n" +
           s"${pp(tree.children(0))}" +
           s"} else {\n" +
           s"${pp(tree.children(1))}" +
-          s"\n}"
+          s"}"
+      case CElif(conds) =>
+        val branches = conds.zip(tree.children)
+        val (first_cond, first_body) = branches.head
+        val rest = branches.tail
+        val rest_cases = rest.reverse match {
+          case ::((_, last_child), remaining) =>
+            remaining.foldLeft(s"\nelse {\n${pp(last_child)}}")({case (str, (cond, body)) =>
+              s"\nelse if (${cond.pp_as_clang_expr}) {\n${pp(body)}}${str}"
+            })
+        }
+        s"if (${first_cond.pp_as_clang_expr}) {\n${pp(first_body)}}${rest_cases}"
       case _ => tree.step.pp ++ "\n" ++ tree.children.map(pp).mkString("\n")
     }
   }
@@ -50,28 +58,49 @@ object Statements {
     override def pp: String = s"loc ${to} = READ_LOC(${from}, ${offset});"
   }
 
-  case class CWriteInt(to: CVar, value: CExpr, offset: Int = 0) extends StatementStep {
+  case class CWriteInt(to: String, value: CLangExpr, offset: Int = 0) extends StatementStep {
     override def pp : String =
-      s"WRITE_INT(${to}, ${offset}, ${value.pp});"
+      s"WRITE_INT(${to}, ${offset}, ${value.pp_as_clang_expr});"
   }
 
-  case class CWriteLoc(to: CVar, value: CExpr, offset: Int = 0) extends StatementStep {
+  case class CWriteLoc(to: String, value: CLangExpr, offset: Int = 0) extends StatementStep {
     override def pp : String =
-      s"WRITE_LOC(${to}, ${offset}, ${value.pp});"
+      s"WRITE_LOC(${to}, ${offset}, ${value.pp_as_clang_expr});"
   }
 
   /** encoding of a function call f(args) */
-  case class CCall(fun: String, args: Seq[CExpr]) extends StatementStep {
-    override def pp: String = s"${fun}(${args.map(_.pp).mkString(", ")});"
+  case class CCall(fun: String, args: Seq[CLangExpr]) extends StatementStep {
+    override def pp: String = s"${fun}(${args.map(_.pp_as_clang_expr).mkString(", ")});"
   }
 
   /** Encoding of statement
     * if (cond) { tb } else { eb }
     *  */
-  case class CIf(cond: CExpr) extends StatementStep {
+  case class CIf(cond: CLangExpr) extends StatementStep {
     override def pp : String =
-      s"if(${cond.pp})"
+      s"if(${cond.pp_as_clang_expr})"
   }
+
+  /** Encoding of statement
+    * if (cond1) { tb } else if(cond2) { eb } else (cond3)
+    *  */
+  case class CElif(cond: List[CLangExpr]) extends StatementStep {
+    override def pp : String =
+      cond match {
+        case Nil => ???
+        case ::(head, tl) =>
+          s"if (${head.pp_as_clang_expr}) { ??? } ${
+            tl.reverse match {
+              case Nil => ???
+              case ::(last, remaining) =>
+                remaining.foldLeft("else { ??? }")((str, elt) =>
+                s"else if (${elt.pp_as_clang_expr}) { ??? } ${str}"
+                )
+            }
+          }"
+      }
+  }
+
 
   /** Definition of a CProcedure */
   case class CProcedureDefinition(

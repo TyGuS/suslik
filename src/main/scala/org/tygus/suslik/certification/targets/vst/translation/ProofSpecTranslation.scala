@@ -43,7 +43,6 @@ object  ProofSpecTranslation {
     )
   }
 
-
   /** translate a suslik type into a VST proof type */
   def translate_predicate_param_type(lType: SSLType): VSTType =
     lType match {
@@ -195,8 +194,7 @@ object  ProofSpecTranslation {
               val c_value = translate_expression(context)(value)
               CDataAt(translate_expression(context)(loc), List(c_value))
             case PointsTo(_, _, _) =>
-              assert(false, "found points to information without a block that references a non-zero element (i.e (x + 1) :-> 2)")
-              ???
+              throw TranslationException("found points to information without a block that references a non-zero element (i.e (x + 1) :-> 2)")
           }
       }
     }).toList
