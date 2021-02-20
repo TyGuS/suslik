@@ -4,7 +4,15 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{BoolType, Ident, SSLType}
 import org.tygus.suslik.logic.{Environment, Heaplet, InductiveClause, InductivePredicate}
 
-abstract class PredicateTranslation[Pure, Spatial, Type] {
+abstract class PredicateTranslation[Pure, Spatial, Type,
+  Clause <: GenericPredicateClause[Pure, Spatial],
+  Pred <: GenericPredicate[Pure, Spatial, Type]] {
+
+  def constructClause(pure: List[Pure], spatial: List[Spatial], subConstructor: Map[String, CardConstructor]) : Clause
+
+  def constructPred(name: Ident, params: List[(Ident, Type)],
+                    existentials: List[(Ident, Type)],
+                    clauses: Map[CardConstructor, Clause]) : Pred
 
   def translatePredicateParamType(predName: String, t: SSLType): Type
 
@@ -12,7 +20,7 @@ abstract class PredicateTranslation[Pure, Spatial, Type] {
 
   def translateHeaplets(context: Map[Ident, Type])(heaplets: List[Heaplet]): List[Spatial]
 
-  def translatePredicate(env: Environment)(predicate: InductivePredicate): GenericPredicate[Pure, Spatial, Type] = {
+  def translatePredicate(env: Environment)(predicate: InductivePredicate): Pred = {
     // Determines whether a given variable is a cardinality constraint
     def isCard(s: String): Boolean = s.startsWith("_") || s.contentEquals("self_card")
 
@@ -70,7 +78,7 @@ abstract class PredicateTranslation[Pure, Spatial, Type] {
         // separate clauses by cardinality constructors
         // NOTE: here we assume that cardinality constructors are unique - i.e each clause maps to a
         // unique cardinality constraint
-        val clauses: Map[CardConstructor, GenericPredicateClause[Pure, Spatial]] = raw_clauses.map({
+        val clauses: Map[CardConstructor, Clause] = raw_clauses.map({
           case InductiveClause(selector, asn) =>
             // first, split the pure conditions in the predicate between those that
             // encode cardinality constraints and those that don't
@@ -83,21 +91,21 @@ abstract class PredicateTranslation[Pure, Spatial, Type] {
 
             // translate the pure conditions
             val select = translateExpression(context)(selector)
-            val conds = r_conds.flatten.map(v => translateExpression(context)(v)).toList
+            val conds = r_conds.flatten.map(v => translateExpression(context)(v))
 
             // translate the spatial constraints
-            val spat_conds = translateHeaplets(context)(asn.sigma.chunks.toList)
+            val spat_conds = translateHeaplets(context)(asn.sigma.chunks)
 
             // Convert the cardinality constraints into an associated constructor
             val card_conds = r_card_conds.flatten
             card_conds match {
               case card_conds@(::(_, _)) =>
                 val card_cons: Map[String, CardConstructor] = buildCardCons(card_conds)
-                (card_cons("self_card"), GenericPredicateClause[Pure, Spatial](select :: conds, spat_conds, card_cons))
-              case Nil => (CardNull, GenericPredicateClause[Pure, Spatial](select :: conds, spat_conds, Map.empty))
+                (card_cons("self_card"), constructClause(select :: conds, spat_conds, card_cons))
+              case Nil => (CardNull, constructClause(select :: conds, spat_conds, Map.empty))
             }
         }).toMap
-        GenericPredicate[Pure, Spatial, Type](name, params, baseContext, clauses)
+        constructPred(name, params, baseContext, clauses)
     }
   }
 

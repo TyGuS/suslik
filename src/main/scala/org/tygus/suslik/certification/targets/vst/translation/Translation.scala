@@ -32,6 +32,7 @@ object Translation {
   def translate(root: CertTree.Node, proc: Procedure, env: Environment): VSTCertificate = {
     val base_proof = SuslikProofStep.of_certtree(root)
     val predicates = env.predicates.map({ case (_, predicate) => ProofSpecTranslation.translate_predicate(env)(predicate)}).toList
+    predicates.foreach(p => println(p.pp))
     val params = proc.formals.map({case (Var(name), ty) => ty match {
       case LocType => (name, CoqPtrValType)
       case IntType => (name, CoqIntValType)

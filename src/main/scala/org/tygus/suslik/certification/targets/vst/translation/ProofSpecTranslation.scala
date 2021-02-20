@@ -9,7 +9,7 @@ import org.tygus.suslik.certification.targets.vst.logic.Formulae.{CDataAt, CSApp
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{FormalCondition, FormalSpecification, IsTrueProp, IsValidInt, IsValidPointerOrNull, VSTPredicate, VSTPredicateClause}
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
-import org.tygus.suslik.certification.translation.{CardConstructor, CardNull, CardOf, PredicateTranslation}
+import org.tygus.suslik.certification.translation.{CardConstructor, CardNull, CardOf, GenericPredicateClause, PredicateTranslation}
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.{BoolType, CardType, Expressions, Ident, IntSetType, IntType, LocType, SSLType}
 import org.tygus.suslik.logic.{Block, Environment, FunSpec, Gamma, Heaplet, InductiveClause, InductivePredicate, PointsTo, PredicateEnv, SApp}
@@ -37,7 +37,7 @@ object  ProofSpecTranslation {
   def translate_cardinality(predicate: VSTPredicate, cardinality: CardConstructor): ProofCExpr = {
     ProofCCardinalityConstructor(
       predicate.name,
-      predicate.constructor_name(cardinality),
+      predicate.constructorName(cardinality),
       cardinality match {
         case CardNull => List()
         case CardOf(args) => args.map(arg => ProofCVar(arg, CoqCardType(predicate.name)))
@@ -328,7 +328,7 @@ object  ProofSpecTranslation {
     *
     * */
   def translate_predicate(env: Environment)(predicate: InductivePredicate): VSTPredicate = {
-    class VSTPredicateTranslation extends PredicateTranslation[ProofCExpr, VSTHeaplet, VSTType] {
+    class VSTPredicateTranslation extends PredicateTranslation[ProofCExpr, VSTHeaplet, VSTType, VSTPredicateClause, VSTPredicate] {
       override def translatePredicateParamType(predName: String, ty: SSLType): VSTType = ty match {
         case CardType => CoqCardType(predName)
         case _ => translate_predicate_param_type(ty)
@@ -339,11 +339,16 @@ object  ProofSpecTranslation {
 
       override def translateHeaplets(context: Map[Ident, VSTType])(heaplets: List[Heaplet]): List[VSTHeaplet] =
         translate_heaplets(context)(heaplets)
-    }
 
-    val pred = new VSTPredicateTranslation().translatePredicate(env)(predicate)
-    val clauses = pred.clauses.map(c => (c._1, VSTPredicateClause(c._2.phi, c._2.sigma, c._2.subConstructor)))
-    VSTPredicate(pred.name, pred.params, pred.existentials, clauses)
+      override def constructClause(pure: List[ProofCExpr], spatial: List[VSTHeaplet], subConstructor: Map[String, CardConstructor]): VSTPredicateClause = {
+        VSTPredicateClause(pure, spatial, subConstructor)
+      }
+
+      override def constructPred(name: Ident, params: List[(Ident, VSTType)], existentials: List[(Ident, VSTType)], clauses: Map[CardConstructor, VSTPredicateClause]): VSTPredicate = {
+        VSTPredicate(name, params, existentials, clauses)
+      }
+    }
+    new VSTPredicateTranslation().translatePredicate(env)(predicate)
   }
 }
 
