@@ -40,6 +40,7 @@ object Translation {
     val program_body = translate_proof(base_proof)(new VSTProgramTranslator, VSTProgramTranslator.empty_context)
     val procedure = CProcedureDefinition(proc.name, params, program_body)
     println(procedure.pp)
+    println(spec.pp)
 
     val pred_map = predicates.map(v => (v.name,v)).toMap
     val steps = translate_proof(base_proof)(VSTProofTranslator(spec), VSTClientContext.make_context(pred_map))

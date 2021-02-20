@@ -1,13 +1,27 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types.{CoqIntValType, CoqPtrValType, VSTType}
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.language.PrettyPrinting
 
 object Formulae {
 
   /** abstract type categorizing all spatial formulae  */
-  trait VSTHeaplet extends PrettyPrinting
+  sealed trait VSTHeaplet extends PrettyPrinting {
+    def rename(renaming: Map[String, String]): VSTHeaplet =
+      this match {
+        case CDataAt(loc, elems) => CDataAt(loc.rename(renaming), elems.map(_.rename(renaming)))
+        case CSApp(pred, args, card) => CSApp(pred, args.map(_.rename(renaming)), card.rename(renaming))
+      }
+
+    def subst(mapping: Map[String, ProofCExpr]): VSTHeaplet =
+      this match {
+        case CDataAt(loc, elems) => CDataAt(loc.subst(mapping), elems.map(_.subst(mapping)))
+        case CSApp(pred, args, card) => CSApp(pred, args.map(_.subst(mapping)), card.subst(mapping))
+      }
+
+  }
 
 
   /** Spatial formulae

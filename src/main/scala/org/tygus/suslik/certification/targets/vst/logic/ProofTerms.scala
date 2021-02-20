@@ -185,9 +185,20 @@ object ProofTerms {
     *
     * @param pure            are the pure assertions
     * @param spatial         are the spatial assertions
-    * @param sub_constructor are the subconstructors
+    * @param sub_constructor is a mapping that represents the pattern that matches this clause
+    *                        (it is encoded as a mapping to capture recursive matches - i.e (lseg_card_1 (lseg_card_1 vl as vl1))
+    *                        Printing of this pattern is done by starting from the constructor mapped from `self_card`, and then
+    *                        recursively generating subpatterns if they are within the mapping as well.
     **/
   case class VSTPredicateClause(pure: List[Expressions.ProofCExpr], spatial: List[VSTHeaplet], sub_constructor: Map[String, CardConstructor]) {
+    def rename(renaming: Map[String, String]) =
+      VSTPredicateClause(
+        pure.map(_.rename(renaming)),
+        spatial.map(_.rename(renaming)),
+        sub_constructor.map({ case (name, constr) => (renaming.getOrElse(name,name), constr) })
+      )
+
+
 
     val cardinality_param: String = "self_card"
 

@@ -49,7 +49,7 @@ object ProofSpecTranslation {
       case IntType => CoqZType
       case LocType => CoqPtrValType
       case IntSetType => CoqIntSetType
-      case _ => throw TranslationException("Attempted to translate ssl type of invalid form into VST Type")
+      case _ => throw TranslationException(s"Attempted to translate ssl type ${lType.pp} of invalid form into VST Type")
     }
 
 

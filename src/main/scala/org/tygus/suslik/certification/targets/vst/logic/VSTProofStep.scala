@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types.VSTType
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.CardConstructor
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{CardConstructor, VSTPredicate}
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
@@ -24,32 +24,44 @@ object VSTProofStep {
     override def pp: String = s"entailer!."
   }
 
+  /**
+    * Step capturing open rules on a predicate.
+    * @param card_variable primary variable tracking the cardinality of the predicate (i.e _alpha in lseg x s _alpha)
+    * @param predicate predicate being case analysed
+    * @param branches
+    */
   case class ForwardIfConstructor(
                                    card_variable: String,
-                                   predicate_name: String,
-                                   branches: List[((Ident, CardConstructor, List[String]), Expressions.ProofCExpr, List[String])]
+                                   predicate: VSTPredicate,
+                                   branches: List[((CardConstructor, List[String]), Expressions.ProofCExpr, List[String])]
                                  ) extends VSTProofStep {
 
     def branch_strings(children : List[ProofTree[VSTProofStep]]): String = {
-      val branches = this.branches.zip(children).map({ case ((clause, selector, args), value) => (clause, selector, args, value)})
-      def constructor_prop(cons_name: Ident, cons: CardConstructor): String = cons match {
-        case ProofTerms.CardNull => s"${card_variable} = ${cons_name}"
-        case ProofTerms.CardOf(args) => s"exists ${args.mkString(" ")}, ${card_variable} = ${cons_name} ${args.mkString(" ")}"
+      val branches = this.branches.zip(children).map({ case ((clause, selector, args), child) => (clause, selector, args, child)})
+      def constructor_prop(cons: CardConstructor): String = {
+        val cons_name = predicate.constructor_name(cons)
+        cons match {
+          case ProofTerms.CardNull =>
+            s"${card_variable} = ${cons_name}"
+          case ProofTerms.CardOf(args) =>
+            s"exists ${args.mkString(" ")}, ${card_variable} = ${cons_name} ${args.mkString(" ")}"
+        }
       }
+      val predicate_name = predicate.name
       branches match {
         case Nil => ""
         case _ =>
           "\n" ++ branches.map(
-            { case ((cons_name, cons, cons_args), expr, args, ls) =>
+            { case ((cons, cons_args), expr, args, branch) =>
               " - {\n" ++
-                s"assert_PROP (${constructor_prop(cons_name, cons)}) as ssl_card_assert. { entailer!; ssl_dispatch_card. }\n" ++
+                s"assert_PROP (${constructor_prop(cons)}) as ssl_card_assert. { entailer!; ssl_dispatch_card. }\n" ++
                 s"ssl_card ${predicate_name} ssl_card_assert ${cons_args.mkString(" ")}.\n" ++
                 s"assert_PROP (${expr.pp}). { entailer!. }\n" ++
                 (args match {
                   case Nil => ""
                   case args => s"Intros ${args.mkString(" ")}.\n"
                 }) ++
-                ProofTreePrinter.pp(ls) ++
+                ProofTreePrinter.pp(branch) ++
                 "\n}"
             }
           ).mkString("\n")
@@ -132,7 +144,7 @@ object VSTProofStep {
   }
 
   case class AssertPropSubst(variable: Ident, expr: Expressions.ProofCExpr) extends VSTProofStep {
-    override def pp: String = s"let ssl_var := fresh in assert_PROP(${variable} = ${expr.pp}) as ssl_var; try rewrite ssl_var. { entailer!. }"
+    override def pp: String = s"let ssl_var := fresh in assert_PROP(${variable} = ${expr.pp}) as ssl_var; try rewrite ssl_var in *. { entailer!. }"
   }
 
   case object Qed extends VSTProofStep {

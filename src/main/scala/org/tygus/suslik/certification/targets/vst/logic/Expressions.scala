@@ -75,6 +75,7 @@ object Expressions {
       }
       case expr@ProofCBoolConst(_) => expr
       case expr@ProofCIntConst(_) => expr
+      case expr@ProofCNullval => expr
       case ProofCIntSetLiteral(elems) =>
         ProofCIntSetLiteral(elems.map(_.rename(mapping)))
       case ProofCIfThenElse(cond, left, right) =>
