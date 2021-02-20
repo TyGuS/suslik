@@ -8,5 +8,5 @@ trait Translator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] {
 }
 
 object Translator {
-  case class Result[D <: DestStep, C <: ClientContext[D]](steps: List[D], childParams: List[(Option[Deferred[D,C]], C)])
+  case class Result[D <: DestStep, C <: ClientContext[D]](steps: List[D], childParams: List[(List[D], Option[Deferred[D,C]], C)])
 }

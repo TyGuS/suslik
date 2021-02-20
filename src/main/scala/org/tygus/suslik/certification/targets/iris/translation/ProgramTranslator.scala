@@ -12,7 +12,7 @@ import org.tygus.suslik.certification.traversal.Translator.Result
 object ProgramTranslator extends Translator[SuslikProofStep, HExpr, TranslationContext]  {
 
   override def translate(step: SuslikProofStep, ctx: TranslationContext): Translator.Result[HExpr, TranslationContext] = {
-    val withNoDeferred = (None, ctx)
+    val withNoDeferred = (Nil, None, ctx)
     step match {
       case SuslikProofStep.Open(_, _, _, selectors) =>
         val stmt = HIf(selectors.map(_.translate))

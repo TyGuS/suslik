@@ -79,9 +79,9 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
     type Result = Translator.Result[VSTProofStep, VSTClientContext]
     private val no_deferreds: Option[Deferred] = None
 
-    private def with_no_deferreds(ctx: VSTClientContext) : (Option[Deferred], VSTClientContext) = (no_deferreds, ctx)
+    private def with_no_deferreds(ctx: VSTClientContext) : (List[VSTProofStep], Option[Deferred], VSTClientContext) = (Nil, no_deferreds, ctx)
 
-    def with_no_op(context: VSTClientContext): Result = Result(List(), List((None, context)))
+    def with_no_op(context: VSTClientContext): Result = Result(List(), List((Nil, None, context)))
 
     override def translate(value: SuslikProofStep, clientContext: VSTClientContext): Result = {
       value match {
@@ -98,7 +98,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
             val steps : List[VSTProofStep] = existentials.map(v => Exists(ctx resolve_existential v._1)).toList
             (steps ++ List(Entailer), ctx)
           }
-          Result(List(), List((Some(deferreds), ctx)))
+          Result(List(), List((Nil, Some(deferreds), ctx)))
 
         /** Branching rules */
         case SuslikProofStep.Branch(cond, bLabel) =>

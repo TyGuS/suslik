@@ -13,7 +13,7 @@ import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements.{Call, Free, Load, Malloc, Store}
 
 object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofContext] {
-  private def withNoDeferred(ctx: ProofContext): (Option[Deferred[Proof.Step, ProofContext]], ProofContext) = (None, ctx)
+  private def withNoDeferred(ctx: ProofContext): (List[Proof.Step], Option[Deferred[Proof.Step, ProofContext]], ProofContext) = (Nil, None, ctx)
 
   private def initPre(asn: CAssertion, uniqueName: String): List[Proof.Step] = {
     val phi = asn.phi
@@ -96,7 +96,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
         val postEx = cgoal.existentials.map(v => v -> (goal.getType(Var(v.name)).translate, v)).toMap
         val ctx1 = ctx.copy(postEx = postEx, appAliases = appAliases)
 
-        Result(steps, List((Some(deferred), ctx1)))
+        Result(steps, List((Nil, Some(deferred), ctx1)))
       case SuslikProofStep.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma) =>
         val pre = f.pre.translate
         val post = f.post.translate
@@ -108,7 +108,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
 
       /** Control flow */
       case SuslikProofStep.Branch(cond, _) =>
-        val childContexts = List(ctx.copy(numSubgoals = ctx.numSubgoals + 1), ctx)
+        val childContexts = List(ctx, ctx)
         Result(List(Proof.Branch(cond.translate)), childContexts.map(withNoDeferred))
       case SuslikProofStep.Open(sapp, freshExistentials, freshParamArgs, selectors) =>
         val exSub = freshExistentials.translate
@@ -121,22 +121,20 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
         }
         val csapp = sapp.translate
         val cselectors = selectors.map(_.translate)
-        val branchSteps = clauses.flatMap { case (_, existentials, asn) =>
+        val branchSteps = clauses.map { case (_, existentials, asn) =>
           List(
             Proof.ElimExistential(existentials),
             Proof.ElimExistential(asn.heapVars)
-          ) ++ initPre(asn, csapp.uniqueName) ++ List(Proof.Shelve)
+          ) ++ initPre(asn, csapp.uniqueName)
         }
-        val parentGoalShelves = (1 to ctx.numSubgoals).map(_ => Proof.Shelve).toList
-        val steps = List(Proof.Open(cselectors, csapp)) ++ branchSteps ++ parentGoalShelves ++ List(Proof.Unshelve)
+        val steps = List(Proof.Open(cselectors, csapp))
 
         val numClauses = pred.clauses.length
         val childCtxs = clauses.map { case (idx, _, asn) =>
           val newApps = asn.sigma.apps.map(a => a -> a).toMap
-          val numSubgoals = numClauses - idx + ctx.numSubgoals
-          ctx.copy(appAliases = ctx.appAliases ++ newApps, numSubgoals = numSubgoals)
+          ctx.copy(appAliases = ctx.appAliases ++ newApps)
         }
-        Result(steps, childCtxs.map(withNoDeferred))
+        Result(steps, branchSteps.zip(childCtxs).map { case (s, c) => (s, None, c) })
 
       /** Program statements */
       case SuslikProofStep.Read(ghostFrom, ghostTo, Load(to, _, from, offset)) =>
@@ -232,7 +230,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
         val unfoldings = ctx.unfoldings + (csapp -> constructor)
         val ctx1 = ctx.copy(appAliases = appAliases, unfoldings = unfoldings)
 
-        Result(List(), List((Some(deferred), ctx1)))
+        Result(List(), List((Nil, Some(deferred), ctx1)))
 
       /** Terminals */
       case SuslikProofStep.Inconsistency(label) =>
