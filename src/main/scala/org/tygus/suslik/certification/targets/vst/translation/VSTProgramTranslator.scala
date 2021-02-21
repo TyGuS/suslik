@@ -39,14 +39,14 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
   private val no_deferreds: Option[Deferred] = None
   private val no_ops : List[StatementStep] = List()
 
-  def single_child_result_of(a: List[StatementStep], b : (Option[Deferred], VSTProgramContext)) = Result(a, List(b))
+  def single_child_result_of(a: List[StatementStep], b : (List[StatementStep], Option[Deferred], VSTProgramContext)) = Result(a, List(b))
 
   def no_child_result_of(a: List[StatementStep]) : Result[StatementStep, VSTProgramContext] = Result(a, List())
 
 
 
   def with_no_op(implicit context: VSTProgramTranslator.VSTProgramContext): Result[StatementStep, VSTProgramTranslator.VSTProgramContext] =
-    Result(List(), List((None, context)))
+    Result(List(), List((Nil, None, context)))
 
 
   def to_heap(typing_context: Map[String, VSTCType], chunks: List[Heaplet]) = {
@@ -109,16 +109,16 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
               case _ => None
             }})
         val new_context = VSTProgramContext(new_typing_context)
-        single_child_result_of(no_ops, (no_deferreds, new_context))
+        single_child_result_of(no_ops, (Nil, no_deferreds, new_context))
       case SuslikProofStep.Open(pred, fresh_vars, sbst, selectors) =>
         val ops = CElif(selectors.map(v => ProofSpecTranslation.translate_expression(ctx.typing_context)(v).asInstanceOf[CLangExpr]))
         val children = selectors.map(_ => {
-          (no_deferreds, ctx)
+          (Nil, no_deferreds, ctx)
         })
         Result(List(ops), children)
       case SuslikProofStep.Branch(cond, bLabel) =>
         val ops = CIf(ProofSpecTranslation.translate_expression(ctx.typing_context)(cond).asInstanceOf[CLangExpr])
-        val children = List((no_deferreds, ctx), (no_deferreds, ctx))
+        val children = List((Nil, no_deferreds, ctx), (Nil, no_deferreds, ctx))
         Result(List(ops), children)
       case SuslikProofStep.Write(Store(Var(to), offset, base_expr)) =>
         val expr = ProofSpecTranslation.translate_expression(ctx.typing_context)(base_expr).asInstanceOf[CLangExpr]
@@ -126,24 +126,24 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
           case Types.CoqPtrValType => CWriteLoc(to, expr, offset)
           case Types.CoqIntValType => CWriteInt(to, expr, offset)
         }
-        single_child_result_of(List(op), (no_deferreds, ctx))
+        single_child_result_of(List(op), (Nil, no_deferreds, ctx))
       case SuslikProofStep.Read(from_var, to_var, Load(Var(to),tpe, Var(from), offset)) =>
         val (op, variable_type) = tpe match {
           case IntType => (CLoadInt(to, from, offset), CoqIntValType)
           case LocType => (CLoadLoc(to, from, offset), CoqPtrValType)
         }
         val new_context = ctx with_new_variable(to, variable_type)
-        single_child_result_of(List(op), (no_deferreds, new_context))
+        single_child_result_of(List(op), (Nil, no_deferreds, new_context))
       case SuslikProofStep.Call(subst, Call(Var(fname), args, _)) =>
         val exprs = args.map(ProofSpecTranslation.translate_expression(ctx.typing_context)(_).asInstanceOf[CLangExpr])
         val op = CCall(fname, exprs)
-        single_child_result_of(List(op), (no_deferreds, ctx))
+        single_child_result_of(List(op), (Nil, no_deferreds, ctx))
       case SuslikProofStep.Free(Free(Var(name)), size) =>
         val op = CFree(name)
-        single_child_result_of(List(op), (no_deferreds, ctx))
+        single_child_result_of(List(op), (Nil, no_deferreds, ctx))
       case SuslikProofStep.Malloc(Var(_), Var(_), Malloc(Var(to), tpe, sz)) =>
         val new_context = ctx with_new_variable (to, translate_type(tpe))
-        single_child_result_of(List(CMalloc(to, sz)), (no_deferreds, new_context))
+        single_child_result_of(List(CMalloc(to, sz)), (Nil, no_deferreds, new_context))
       case SuslikProofStep.Inconsistency(label) => no_child_result_of(List(CSkip))
       case SuslikProofStep.EmpRule(label) => no_child_result_of(List(CSkip))
     }

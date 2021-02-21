@@ -15,8 +15,7 @@ case class ProofContext(predicates: PredicateEnv = Map.empty,
                         unfoldings: Map[CSApp, AppliedConstructor] = Map.empty,
                         callGoal: Option[Proof.Goal] = None,
                         nextCallId: Int = 0,
-                        hints: ListBuffer[Hint] = new ListBuffer[Hint],
-                        numSubgoals: Int = 0)
+                        hints: ListBuffer[Hint] = new ListBuffer[Hint])
   extends ClientContext[Proof.Step] {
 
   /**

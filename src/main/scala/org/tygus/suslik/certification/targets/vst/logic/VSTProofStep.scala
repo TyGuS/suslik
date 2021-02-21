@@ -3,6 +3,7 @@ package org.tygus.suslik.certification.targets.vst.logic
 import org.tygus.suslik.certification.targets.vst.Types.VSTType
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{CardConstructor, PureFormula, VSTPredicate}
+import org.tygus.suslik.certification.translation.{CardConstructor, CardNull, CardOf}
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
@@ -38,15 +39,10 @@ object VSTProofStep {
                                  ) extends VSTProofStep {
 
     def branch_strings(children : List[ProofTree[VSTProofStep]]): String = {
-      val branches = this.branches.zip(children).map({ case ((clause, selector, args), child) => (clause, selector, args, child)})
-      def constructor_prop(cons: CardConstructor): String = {
-        val cons_name = predicate.constructor_name(cons)
-        cons match {
-          case ProofTerms.CardNull =>
-            s"${card_variable} = ${cons_name}"
-          case ProofTerms.CardOf(args) =>
-            s"exists ${args.mkString(" ")}, ${card_variable} = ${cons_name} ${args.mkString(" ")}"
-        }
+      val branches = this.branches.zip(children).map({ case ((clause, selector, args), value) => (clause, selector, args, value)})
+      def constructor_prop(cons_name: Ident, cons: CardConstructor): String = cons match {
+        case CardNull => s"${card_variable} = ${cons_name}"
+        case CardOf(args) => s"exists ${args.mkString(" ")}, ${card_variable} = ${cons_name} ${args.mkString(" ")}"
       }
       val predicate_name = predicate.name
       branches match {

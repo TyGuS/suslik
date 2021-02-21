@@ -152,9 +152,9 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
 
   private val no_deferreds: Option[Deferred] = None
 
-  private def with_no_deferreds(ctx: VSTClientContext): (Option[Deferred], VSTClientContext) = (no_deferreds, ctx)
+    private def with_no_deferreds(ctx: VSTClientContext) : (List[VSTProofStep], Option[Deferred], VSTClientContext) = (Nil, no_deferreds, ctx)
 
-  def with_no_op(context: VSTClientContext): Result = Result(List(), List((None, context)))
+    def with_no_op(context: VSTClientContext): Result = Result(List(), List((Nil, None, context)))
 
   def unwrap_val_type(ty: VSTType): VSTType = ty match {
     case Types.CoqPtrValType => Types.CoqPtrValType
@@ -182,7 +182,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
             List()
           }), ctx)
         }
-        Result(List(), List((Some(deferreds), ctx)))
+        Result(List(), List((Nil, Some(deferreds), ctx)))
 
       /** Branching rules */
       case SuslikProofStep.Branch(cond, bLabel) =>
