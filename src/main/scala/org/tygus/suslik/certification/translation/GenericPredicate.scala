@@ -8,6 +8,12 @@ import org.tygus.suslik.language.{Ident, PrettyPrinting}
   * termination measures in Coq
   */
 trait CardConstructor extends PrettyPrinting {
+  def rename(renaming: Map[String, String]) = this match {
+    case CardNull => CardNull
+    case CardOf(args) => CardOf(args.map(v => renaming.getOrElse(v,v)))
+    case _ => this
+  }
+
   def constructor_args: List[Ident] =
     this match {
       case CardNull => Nil

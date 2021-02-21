@@ -205,7 +205,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         val deferred = (ctx: VSTClientContext) => {
           (List(), ctx without_existentials_of function_params.map(_._1))
         }
-        Result(List(), List((Some(deferred), ctx)))
+        Result(List(), List((List(), Some(deferred), ctx)))
       case SuslikProofStep.Call(subst, call) =>
         // retreive call from ctx
         var (call, ctx) = clientContext.unqueue_call
@@ -227,7 +227,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         }
         // update context to have existential variables produced by call
         ctx = ctx with_program_variables_of call.existential_params
-        Result(steps, List((None, ctx)))
+        Result(steps, List((List(), None, ctx)))
 
       /** Proof Termination rules */
       case SuslikProofStep.EmpRule(label) =>
@@ -288,7 +288,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
             (List(step), ctx)
           })
         }
-        Result(List(), List((deferred, ctx)))
+        Result(List(), List((List(), deferred, ctx)))
 
       /** Predicate folding/unfolding */
       case SuslikProofStep.Close(app, selector, asn, fresh_exist) => ???
@@ -305,7 +305,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         val c_selectors = selectors.map(ProofSpecTranslation.translate_expression(clientContext.typing_context)(_))
         val clauses = predicate.clauses.toList.zip(c_selectors).map {
           case ((constructor, body), expr) =>
-            val existentials = predicate.constructor_existentials(constructor).map({
+            val existentials = predicate.findExistentials(constructor)(body).map({
               case (name, ty) => ((existentials_sub(name), ty))
             })
             val constructor_arg_existentials =
@@ -329,7 +329,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
           case (_, constructor_intro_gamma, intro_gamma, _, _) =>
             var ctx = clientContext
             ctx = ctx with_ghost_variables_of constructor_intro_gamma ++ intro_gamma
-            (no_deferreds, ctx)
+            (List(), no_deferreds, ctx)
         }
         Result(List(step), child_rules)
 

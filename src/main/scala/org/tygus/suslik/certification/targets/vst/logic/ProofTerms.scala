@@ -131,7 +131,14 @@ object ProofTerms {
   case class VSTPredicateClause(override val pure: List[Expressions.ProofCExpr],
                                 override val spatial: List[VSTHeaplet],
                                 sub_constructor: Map[String, CardConstructor])
-  extends GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet](pure, spatial, sub_constructor)
+  extends GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet](pure, spatial, sub_constructor) {
+    def rename(renaming: Map[String, String]) =
+      VSTPredicateClause(
+        pure.map(_.rename(renaming)),
+        spatial.map(_.rename(renaming)),
+        sub_constructor.map({case (name, constructor) => (renaming.getOrElse(name,name), constructor.rename(renaming))})
+      )
+  }
   /**
     * represents a VST inductive predicate defined in a format that satisfies Coq's termination checker
     *
