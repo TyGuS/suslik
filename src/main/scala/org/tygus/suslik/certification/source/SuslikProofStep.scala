@@ -99,7 +99,19 @@ case class AbduceCall(
                        gamma: Gamma
                      ) extends SuslikProofStep {
   override def deferredsAction: DeferredsAction = DeferredsAction.PushLayer
-  override def pp: String = s"AbduceCall({${new_vars.mkString(",")}}, ${sanitize(f_pre.pp)}, ${sanitize(callePost.pp)}, ${sanitize(call.pp)}, {${freshSub.mkString(",")}});"
+  override def pp: String = {
+    val new_vars_str = new_vars.map({case(Var(name), ty) => s"${name} -> ${ty.pp}"}).mkString(",")
+    val fresh_sub_str = freshSub.map({case (Var(name), Var(to)) => s"${name} -> ${to}"}).mkString(",")
+    val fresh_to_actual_sub = freshToActual.map({case (Var(name), expr) => s"${name} -> ${expr.pp}"}).mkString(",")
+    s"AbduceCall(" +
+      s"new_vars: {${new_vars_str}}, " +
+      s"freshSub: {${fresh_sub_str}}," +
+      s"freshToActual: {${fresh_to_actual_sub}}, " +
+      s"pre: ${sanitize(f_pre.pp)}, " +
+      s"post: ${sanitize(callePost.pp)}, " +
+      s"call: ${sanitize(call.pp)}" +
+      s");"
+  }
 }
 
 

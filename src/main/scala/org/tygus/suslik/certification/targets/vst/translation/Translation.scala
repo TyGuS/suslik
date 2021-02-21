@@ -43,9 +43,15 @@ object Translation {
     println(spec.pp)
 
     val pred_map = predicates.map(v => (v.name,v)).toMap
-    val steps = translate_proof(base_proof)(VSTProofTranslator(spec), VSTClientContext.make_context(pred_map))
+    val spec_map = Map(proc.name -> spec)
+    val proof_translator = VSTProofTranslator(spec)
+    val steps = translate_proof(base_proof)(proof_translator, VSTClientContext.make_context(pred_map, spec_map))
 
-    val proof = Proof(proc.f.name, predicates, spec, steps: ProofTree[VSTProofStep])
+    val proof = Proof(
+      proc.f.name, predicates, spec, steps: ProofTree[VSTProofStep],
+      uses_free = proof_translator.contains_free,
+      uses_malloc = proof_translator.contains_malloc
+    )
 
     VSTCertificate(proc.f.name, procedure, proof)
   }

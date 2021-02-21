@@ -264,13 +264,13 @@ object ProofSpecTranslation {
         goal.pre.phi.conjuncts.map(v => translate_expression(context)(v))
           .map(IsTrueProp).toList ++ (c_params).flatMap({ case (ident, cType) =>
           cType match {
-            case CoqIntValType => Some(IsValidInt(ident))
-            case CoqPtrValType => Some(IsValidPointerOrNull(ident))
+            case CoqIntValType => Some(IsValidInt(ProofCVar(ident, cType)))
+            case CoqPtrValType => Some(IsValidPointerOrNull(ProofCVar(ident, cType)))
             case _ => None
           }
         }) ++ formal_params.flatMap({ case (ident, ty) => ty match {
-          case CoqPtrValType => Some(IsValidPointerOrNull(ident))
-          case CoqIntValType => Some(IsValidInt(ident))
+          case CoqPtrValType => Some(IsValidPointerOrNull(ProofCVar(ident, ty)))
+          case CoqIntValType => Some(IsValidInt(ProofCVar(ident, ty)))
           case _ => None
         }
         })

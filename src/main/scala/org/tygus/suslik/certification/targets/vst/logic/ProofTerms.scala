@@ -1,24 +1,45 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types._
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
 object ProofTerms {
 
-  trait PureFormula extends PrettyPrinting
+  sealed trait PureFormula extends PrettyPrinting {
+    def subst(subst: Map[String, ProofCExpr]) = this match {
+      case IsValidPointerOrNull(expr) =>
+        IsValidPointerOrNull(expr.subst(subst))
+      case IsValidInt(expr) =>
+        IsValidInt(expr.subst(subst))
+      case IsTrueProp(expr) =>
+        IsTrueProp(expr.subst(subst))
+      case IsTrue(expr) =>
+        IsTrue(expr.subst(subst))
+    }
+    def rename (renaming: Map[String, String]) = {
+      this match {
+        case IsValidPointerOrNull(expr) =>
+          IsValidPointerOrNull(expr.rename(renaming))
+        case IsValidInt(expr) => IsValidInt(expr.rename(renaming))
+        case IsTrueProp(expr) => IsTrueProp(expr.rename(renaming))
+        case IsTrue(expr) => IsTrueProp(expr.rename(renaming))
+      }
+    }
+  }
 
   /** predicate encoding that C-parameter (of type val) is a valid pointer */
-  case class IsValidPointerOrNull(name: String) extends PureFormula {
+  case class IsValidPointerOrNull(expr: ProofCExpr) extends PureFormula {
     override def pp: String =
-      s"is_pointer_or_null(${name})"
+      s"is_pointer_or_null(${expr.pp})"
   }
 
   /** predicate encoding that C-parameter (of type val) is a valid int */
-  case class IsValidInt(name: String) extends PureFormula {
+  case class IsValidInt(expr: ProofCExpr) extends PureFormula {
     override def pp: String =
-      s"ssl_is_valid_int(${name})"
+      s"ssl_is_valid_int(${expr.pp})"
   }
 
   /** prop predicate encoding that a given propositional expression is true
@@ -54,9 +75,9 @@ object ProofTerms {
     */
   case class FormalSpecification(
                                   name: Ident,
-                                  c_params: Seq[(Ident, VSTCType)],
-                                  formal_params: Seq[(Ident, VSTType)],
-                                  existensial_params: Seq[(Ident, VSTType)],
+                                  c_params: List[(Ident, VSTCType)],
+                                  formal_params: List[(Ident, VSTType)],
+                                  existensial_params: List[(Ident, VSTType)],
                                   precondition: FormalCondition,
                                   postcondition: FormalCondition,
                                 ) extends PrettyPrinting {

@@ -1,7 +1,8 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types.VSTType
-import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{CardConstructor, VSTPredicate}
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{CardConstructor, PureFormula, VSTPredicate}
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
@@ -123,8 +124,8 @@ object VSTProofStep {
     override def pp: String = s"assert_PROP (isptr ${variable}). { entailer!. }"
   }
 
-  case class ForwardCall(args: List[Ident]) extends VSTProofStep {
-    override def pp: String = s"forward_call (${args.mkString(", ")})."
+  case class ForwardCall(args: List[ProofCExpr]) extends VSTProofStep {
+    override def pp: String = s"forward_call (${args.map(_.pp).mkString(", ")})."
   }
 
   case class Rename(old_name: Ident, new_name: Ident) extends VSTProofStep {
@@ -145,6 +146,10 @@ object VSTProofStep {
 
   case class AssertPropSubst(variable: Ident, expr: Expressions.ProofCExpr) extends VSTProofStep {
     override def pp: String = s"let ssl_var := fresh in assert_PROP(${variable} = ${expr.pp}) as ssl_var; try rewrite ssl_var in *. { entailer!. }"
+  }
+
+  case class AssertProp(expr: PureFormula) extends VSTProofStep {
+    override def pp: String = s"assert_PROP(${expr.pp}). { entailer!. }"
   }
 
   case object Qed extends VSTProofStep {
