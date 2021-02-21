@@ -1,8 +1,10 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
+import org.tygus.suslik.certification.targets.htt.logic.Proof.UnfoldConstructor
 import org.tygus.suslik.certification.targets.vst.Types._
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicateHelper.HelpUnfold
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.certification.translation.{CardConstructor, CardNull, CardOf, GenericPredicate, GenericPredicateClause}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
@@ -20,7 +22,8 @@ object ProofTerms {
       case IsTrue(expr) =>
         IsTrue(expr.subst(subst))
     }
-    def rename (renaming: Map[String, String]) = {
+
+    def rename(renaming: Map[String, String]) = {
       this match {
         case IsValidPointerOrNull(expr) =>
           IsValidPointerOrNull(expr.rename(renaming))
@@ -33,7 +36,7 @@ object ProofTerms {
 
   /**
     * Represents helper lemmas and operations that are required to make VST handle the predicate automatically
-    * */
+    **/
   trait VSTPredicateHelper extends PrettyPrinting
 
   /** predicate encoding that C-parameter (of type val) is a valid pointer */
@@ -49,7 +52,7 @@ object ProofTerms {
   }
 
   /** prop predicate encoding that a given propositional expression is true
-    * */
+    **/
   case class IsTrueProp(expr: Expressions.ProofCExpr) extends PureFormula {
     override def pp: String = {
       s"${expr.pp}"
@@ -127,18 +130,19 @@ object ProofTerms {
     * @param pure            are the pure assertions
     * @param spatial         are the spatial assertions
     * @param sub_constructor are the subconstructors
-    * */
+    **/
   case class VSTPredicateClause(override val pure: List[Expressions.ProofCExpr],
                                 override val spatial: List[VSTHeaplet],
                                 sub_constructor: Map[String, CardConstructor])
-  extends GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet](pure, spatial, sub_constructor) {
+    extends GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet](pure, spatial, sub_constructor) {
     def rename(renaming: Map[String, String]) =
       VSTPredicateClause(
         pure.map(_.rename(renaming)),
         spatial.map(_.rename(renaming)),
-        sub_constructor.map({case (name, constructor) => (renaming.getOrElse(name,name), constructor.rename(renaming))})
+        sub_constructor.map({ case (name, constructor) => (renaming.getOrElse(name, name), constructor.rename(renaming)) })
       )
   }
+
   /**
     * represents a VST inductive predicate defined in a format that satisfies Coq's termination checker
     *
@@ -150,7 +154,7 @@ object ProofTerms {
     * @param name    is the name of the predicate
     * @param params  is the list of arguments to the predicate
     * @param clauses is the mapping from cardinality constructors to clauses
-    * */
+    **/
   case class VSTPredicate(override val name: Ident,
                           override val params: List[(String, VSTType)],
                           override val existentials: List[(String, VSTType)],
@@ -160,6 +164,7 @@ object ProofTerms {
     /** returns any helper lemmas that need to be constructed for the helper */
     def get_helpers: List[VSTPredicateHelper] = {
       val local_facts = VSTPredicateHelper.LocalFacts(this)
+      val unfolding_lemmas = clauses.map({case (constructor, clause) => HelpUnfold(this, constructor, clause)})
       params.flatMap({
         case (param, CoqPtrValType) =>
           val valid_lemma = VSTPredicateHelper.ValidPointer(name, this.formalParams, param)
@@ -170,7 +175,25 @@ object ProofTerms {
       }) ++ List(
         local_facts,
         VSTPredicateHelper.HintResolve(local_facts.lemma_name, "saturate_local")
-      )
+      ) ++ unfolding_lemmas
+    }
+
+    def pp_constructor_clause(constructor: CardConstructor, pclause: VSTPredicateClause) : String = {
+      val VSTPredicateClause(pure, spatial, _) = pclause
+      s"${
+        val clause_existentials: List[(String, VSTType)] = findExistentials(constructor)(pclause)
+        val str = clause_existentials.map({ case (name, ty) => s"      EX ${name} : ${ty.pp}," }).mkString("\n")
+        clause_existentials match {
+          case Nil => ""
+          case ::(_, _) => "\n" + str + "\n"
+        }
+      } ${
+        (pure.map(v => s"!!${v.pp}") ++
+          List((spatial match {
+            case Nil => List("emp")
+            case v => v.map(_.pp)
+          }).mkString(" * "))).mkString(" && ")
+      }"
     }
 
     /** pretty print the constructor */
@@ -182,19 +205,7 @@ object ProofTerms {
             s"|    | ${constructorName(constructor)} ${
               expandArgs(sub_constructor)(constructor.constructor_args)
             } => ${
-              val clause_existentials: List[(String, VSTType)] = findExistentials(constructor)(pclause)
-              val str = clause_existentials.map({ case (name, ty) => s"|      EX ${name} : ${ty.pp}," }).mkString("\n")
-              clause_existentials match {
-                case Nil => ""
-                case ::(_, _) => "\n" + str + "\n"
-              }
-            } ${
-              (pure.map(v => s"!!${v.pp}")
-                ++
-                List((spatial match {
-                  case Nil => List("emp")
-                  case v => v.map(_.pp)
-                }).mkString(" * "))).mkString(" && ")
+              pp_constructor_clause(constructor, pclause)
             }"
           }).mkString("\n")
         }
@@ -210,7 +221,7 @@ object ProofTerms {
       * @param cons    a constructor matching some clause of the predicate
       * @param pclause the corresponding clause of the predicate
       * @return the list of pairs of (variable, variable_type) of all the existential variables in this clause
-      * */
+      **/
     def findExistentials(cons: CardConstructor)(pclause: GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet]): List[(String, VSTType)] = {
       val param_map = params.toMap
       val exist_map: Map[String, VSTType] = existentials.toMap
@@ -247,6 +258,8 @@ object ProofTerms {
             .map((v: String) => (v, exist_map(v))).toList
       }
     }
+
+    def unfold_lemma_name (cardConstructor: CardConstructor) = s"unfold_${constructorName(cardConstructor)}"
   }
 
   object VSTPredicateHelper {
@@ -277,7 +290,7 @@ object ProofTerms {
         /** Converts a predicate clause into a clause that mutually exclusively matches the clause
           *
           * Note: !!ASSUMPTION!! We assume that the first pure term of the predicate mutually exclusively matches the clause
-          * */
+          **/
         def predicate_to_determininant_term(clause: VSTPredicateClause): String =
           clause.pure.head.pp
 
@@ -304,6 +317,16 @@ object ProofTerms {
 
     }
 
+    case class HelpUnfold(predicate: VSTPredicate, cardConstructor: CardConstructor, pclause: VSTPredicateClause) extends VSTPredicateHelper {
+      override def pp: String = {
+        s"Lemma ${predicate.unfold_lemma_name(cardConstructor)} " +
+          s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
+          s"${cardConstructor.constructor_args.map(v => s"(${v} : ${predicate.inductiveName})").mkString(" ")} : " +
+          s"${predicate.name} ${predicate.params.map(_._1).mkString(" ")} (${predicate.constructorName(cardConstructor)} ${
+            predicate.expandArgs(pclause.sub_constructor)(cardConstructor.constructor_args)
+          }) = ${predicate.pp_constructor_clause(cardConstructor, pclause)}. Proof. auto. Qed."
+      }
+    }
   }
 
 

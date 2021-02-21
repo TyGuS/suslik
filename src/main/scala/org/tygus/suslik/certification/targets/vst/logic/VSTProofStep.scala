@@ -155,10 +155,9 @@ object VSTProofStep {
     override def pp: String = ""
   }
 
-  case class Unfold(predicate: ProofTerms.VSTPredicate, args: Int, cardinality: Expressions.ProofCExpr) extends VSTProofStep {
+  case class UnfoldRewrite(rewrite_name: String) extends VSTProofStep {
     override def pp: String =
-      s"simpl (${predicate.name} ${List.iterate("_", args)(v => v).mkString(" ")} (${cardinality.pp})) at 1."
-
+      s"rewrite ${rewrite_name} at 1."
   }
 
   case object ForwardEntailer extends VSTProofStep {
