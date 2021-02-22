@@ -358,7 +358,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         val existentials = predicate.findExistentials(constructor)(predicate_clause).map({
           case (name,ty) => (fresh_exist_renaming(name), ty)
         })
-        val constructor_args = constructor.constructor_args.map(v => ProofCVar(fresh_exist_renaming(v), CoqCardType(predicate.name)))
+        val constructor_args = constructor.constructorArgs.map(v => ProofCVar(fresh_exist_renaming(v), CoqCardType(predicate.name)))
         ctx = ctx with_existential_variables_of existentials
         ctx = ctx with_ghost_existentials_of (constructor_args.map(v => (v.name, v.typ)))
         ctx = ctx with_mapping_between(cardinality_var, ProofCCardinalityConstructor(
@@ -398,7 +398,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
               case (name, ty) => ((existentials_sub(name), ty))
             })
             val constructor_arg_existentials =
-              constructor.constructor_args.map(existentials_sub(_)).map(v => (v, CoqCardType(predicate_name)))
+              constructor.constructorArgs.map(existentials_sub(_)).map(v => (v, CoqCardType(predicate_name)))
             val renamed_body = body.rename(existentials_sub).rename(params_sub)
             (constructor, constructor_arg_existentials, existentials, renamed_body, expr)
         }
