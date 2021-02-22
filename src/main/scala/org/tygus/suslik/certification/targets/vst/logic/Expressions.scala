@@ -90,11 +90,13 @@ object Expressions {
 
 
     /** Applies a substitution to an expression */
-    def subst(mapping: Map[String, ProofCExpr]): ProofCExpr = this match {
+    def subst(mapping: Map[String, ProofCExpr], recurse: Boolean=true): ProofCExpr = this match {
       case expr@ProofCVar(name, _) => mapping.get(name) match {
-        case Some(value) => value.subst(mapping)
+        case Some(value) if recurse => value.subst(mapping)
+        case Some(value) => value
         case None => expr
       }
+      case expr@ProofCNullval => expr
       case expr@ProofCBoolConst(_) => expr
       case expr@ProofCIntConst(_) => expr
       case ProofCIntSetLiteral(elems) =>

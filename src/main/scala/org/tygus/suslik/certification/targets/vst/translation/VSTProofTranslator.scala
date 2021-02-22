@@ -12,7 +12,7 @@ import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
 import org.tygus.suslik.language.Expressions.{Expr, SubstVar, Var}
 import org.tygus.suslik.language.{Expressions, Ident, SSLType, Statements}
-import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.{PendingCall, VSTClientContext}
+import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.{PendingCall, VSTClientContext, normalize_renaming}
 import org.tygus.suslik.language.Statements.Load
 
 object VSTProofTranslator {
@@ -133,7 +133,7 @@ object VSTProofTranslator {
 
     def with_mapping_between(from: String, to: Expr): VSTClientContext = {
       val target_type = typing_context.get(from)
-      val to_expr = ProofSpecTranslation.translate_expression(coq_context)(to, target = target_type)
+      val to_expr = ProofSpecTranslation.translate_expression(typing_context)(to, target = target_type)
       with_mapping_between(from, to_expr)
     }
 
@@ -152,6 +152,16 @@ object VSTProofTranslator {
   object VSTClientContext {
     def make_context(pred_map: Map[String, VSTPredicate], spec_map: Map[String, FormalSpecification]): VSTClientContext =
       VSTClientContext(pred_map, spec_map, Map(), Map(), Map(), Map(), Map(), None)
+  }
+
+  def normalize_renaming(renaming: Map[String, String]) = {
+    var old_mapping = renaming
+    var mapping = old_mapping.map(v => (v._1, renaming.getOrElse(v._2, v._2)))
+    while(mapping != old_mapping) {
+      old_mapping = mapping
+      mapping = mapping.map(v => (v._1, renaming.getOrElse(v._2, v._2)))
+    }
+    mapping
   }
 
 }
@@ -205,10 +215,13 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
 
       /** Call handling */
       case SuslikProofStep.AbduceCall(new_vars, f_pre, callePost, call, freshSub, freshToActual, f, gamma) =>
-        // Abduce call emits no immediate steps, but pus
+        // Abduce call does two things
+        //  - Adds a set of ghost existential variables (the parameters of the function) to the context
+        //  - sets a pending function call on the context
+        // (After the abduce call has ended, we can eliminate the ghost existential variables, and use deferreds to do so)
         var ctx = clientContext
         val fun_spec = ctx.spec_map(f.name)
-        val renaming = freshSub.map { case (Var(name_from), Var(name_to)) => (name_from, name_to) }
+        val renaming = normalize_renaming(freshSub.map { case (Var(name_from), Var(name_to)) => (name_from, name_to) })
         val function_params = fun_spec.params.map((pair) => (renaming(pair._1), pair._2))
         val function_result_existentials = fun_spec.existensial_params.map { case (name, ty) => (renaming(name), ty) }
         val function_preconds = fun_spec.precondition.pure_constraints.map(_.rename(renaming))
@@ -269,6 +282,8 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         var ctx = clientContext
         ctx = ctx with_variables_of List(new_var)
         ctx = ctx with_mapping_between (ghostFrom, ProofCVar(ghostTo, CoqPtrValType))
+        ctx = ctx with_renaming ghostFrom -> ghostTo
+
         val steps = List(
           Malloc(sz),
           Intros(List(new_var))
@@ -333,9 +348,11 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
       /** Predicate folding/unfolding */
       case SuslikProofStep.Close(app, selector, asn, fresh_exist) =>
         var ctx = clientContext
-        val fresh_exist_renaming = fresh_exist.map({case (Var(from), Var(to)) => (from,to)})
+        val fresh_exist_renaming = normalize_renaming(fresh_exist.map({case (Var(from), Var(to)) => (from,to)}))
         val predicate_name = app.pred
         val cardinality_var = app.card.asInstanceOf[Var].name
+        val close_args = app.args.map(ProofSpecTranslation.translate_expression(ctx.typing_context)(_))
+
         val predicate = clientContext.pred_map(predicate_name)
         val (constructor, predicate_clause) = predicate.clause_by_selector(selector)
         val existentials = predicate.findExistentials(constructor)(predicate_clause).map({
@@ -351,12 +368,15 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
           ))
         val deferred_steps = (base_ctx: VSTClientContext) => {
           var ctx = base_ctx
-          ctx = ctx without_existentials_of existentials.map(_._1)
-          ctx = ctx without_ghost_existentials_of constructor_args.map(_.name)
           val unfold_step = UnfoldRewrite(
-            predicate.unfold_lemma_name(constructor)
+            predicate.unfold_lemma_name(constructor),
+            constructor_args.map(v => Some(ctx.resolve_existential(v.name))) // ++
+            // close_args.map(v => Some(v.rename(ctx.renamings).subst(ctx.variable_map, recurse=false)))
           )
           val existential_steps = existentials.map(v => Exists(ctx.resolve_existential(v._1)))
+
+          ctx = ctx without_existentials_of existentials.map(_._1)
+          ctx = ctx without_ghost_existentials_of constructor_args.map(_.name)
           (List(unfold_step) ++ existential_steps ++ List(Entailer), ctx)
         }
         Result(List(), List((List(), Some(deferred_steps), ctx)))

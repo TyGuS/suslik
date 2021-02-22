@@ -155,9 +155,13 @@ object VSTProofStep {
     override def pp: String = ""
   }
 
-  case class UnfoldRewrite(rewrite_name: String) extends VSTProofStep {
+  case class UnfoldRewrite(rewrite_name: String, constructor_args: List[Option[ProofCExpr]]) extends VSTProofStep {
+    def pp_o_expr (expr: Option[ProofCExpr]) : String = expr match {
+      case None => "_"
+      case Some(expr) => expr.pp
+    }
     override def pp: String =
-      s"rewrite ${rewrite_name} at 1."
+      s"ssl_rewrite_last (${rewrite_name} ${constructor_args.map(pp_o_expr).mkString(" ")})."
   }
 
   case object ForwardEntailer extends VSTProofStep {

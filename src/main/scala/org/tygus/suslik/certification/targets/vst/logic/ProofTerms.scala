@@ -327,9 +327,9 @@ object ProofTerms {
     case class HelpUnfold(predicate: VSTPredicate, cardConstructor: CardConstructor, pclause: VSTPredicateClause) extends VSTPredicateHelper {
       override def pp: String = {
         s"Lemma ${predicate.unfold_lemma_name(cardConstructor)} " +
+          s"${cardConstructor.constructor_args.map(v => s"(${v} : ${predicate.inductiveName})").mkString(" ")} " +
           s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
-          s"${cardConstructor.constructor_args.map(v => s"(${v} : ${predicate.inductiveName})").mkString(" ")} : " +
-          s"${predicate.name} ${predicate.params.map(_._1).mkString(" ")} (${predicate.constructorName(cardConstructor)} ${
+          s": ${predicate.name} ${predicate.params.map(_._1).mkString(" ")} (${predicate.constructorName(cardConstructor)} ${
             predicate.expandArgs(pclause.sub_constructor)(cardConstructor.constructor_args)
           }) = ${predicate.pp_constructor_clause(cardConstructor, pclause)}. Proof. auto. Qed."
       }
