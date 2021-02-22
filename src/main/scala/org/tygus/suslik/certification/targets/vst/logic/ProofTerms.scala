@@ -5,8 +5,10 @@ import org.tygus.suslik.certification.targets.vst.Types._
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicateHelper.HelpUnfold
+import org.tygus.suslik.certification.targets.vst.translation.ProofSpecTranslation
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.certification.translation.{CardConstructor, CardNull, CardOf, GenericPredicate, GenericPredicateClause}
+import org.tygus.suslik.language.Expressions.Expr
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
 object ProofTerms {
@@ -135,6 +137,7 @@ object ProofTerms {
                                 override val spatial: List[VSTHeaplet],
                                 sub_constructor: Map[String, CardConstructor])
     extends GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet](pure, spatial, sub_constructor) {
+
     def rename(renaming: Map[String, String]) =
       VSTPredicateClause(
         pure.map(_.rename(renaming)),
@@ -161,6 +164,10 @@ object ProofTerms {
                           override val clauses: Map[CardConstructor, VSTPredicateClause])
     extends GenericPredicate[Expressions.ProofCExpr, VSTHeaplet, VSTType](name, params, existentials, clauses) {
 
+    def clause_by_selector(expr: Expr) = {
+      val translated_expr = ProofSpecTranslation.translate_expression(params.toMap)(expr)
+      clauses.find({case (constructor, clause) => clause.selector == translated_expr}).get
+    }
     /** returns any helper lemmas that need to be constructed for the helper */
     def get_helpers: List[VSTPredicateHelper] = {
       val local_facts = VSTPredicateHelper.LocalFacts(this)
@@ -199,7 +206,7 @@ object ProofTerms {
     /** pretty print the constructor */
     def ppPredicate: String = {
       val predicate_definition =
-        s"""Fixpoint ${name} ${params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} (self_card: ${inductiveName}) : mpred := match self_card with
+        s"""Fixpoint ${name} ${params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} (self_card: ${inductiveName}) {struct self_card} : mpred := match self_card with
            ${
           clauses.map({ case (constructor, pclause@VSTPredicateClause(pure, spatial, sub_constructor)) =>
             s"|    | ${constructorName(constructor)} ${

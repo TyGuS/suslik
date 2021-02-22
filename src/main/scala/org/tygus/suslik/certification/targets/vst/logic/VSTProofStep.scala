@@ -97,7 +97,7 @@ object VSTProofStep {
   }
 
   case class IntrosTuple(variables: List[(Ident, VSTType)]) extends VSTProofStep {
-    variables match {
+    override def pp =  variables match {
       case Nil => ""
       case ::((variable, _), Nil) =>
         s"Intros ${variable}."
