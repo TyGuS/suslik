@@ -5,7 +5,15 @@ import org.tygus.suslik.certification.targets.htt.language.{CFormals, CGamma, Pr
 import org.tygus.suslik.certification.targets.htt.language.Types._
 
 object Sentences {
-  case class CAssertion(phi: CExpr, sigma: CSFormula) extends PrettyPrinting {
+  case class CPFormula(conjuncts: Seq[CExpr]) extends PrettyPrinting {
+    override def pp: String = if (conjuncts.isEmpty) "true" else conjuncts.tail.foldLeft(conjuncts.head.pp) { case (s, e) => s"$s /\\ ${e.pp}" }
+    def isTrivial: Boolean = conjuncts.isEmpty
+    def subst(sigma: CSubst): CPFormula = CPFormula(conjuncts.map(_.subst(sigma)))
+    def vars: Seq[CVar] = conjuncts.flatMap(_.vars).distinct
+    def cardVars: Seq[CVar] = conjuncts.flatMap(_.cardVars).distinct
+  }
+
+  case class CAssertion(phi: CPFormula, sigma: CSFormula) extends PrettyPrinting {
     override def pp: String = if (phi.isTrivial) sigma.pp else s"${phi.pp} /\\ ${sigma.pp}"
 
     def existentials(quantifiedVars: Seq[CVar]): Seq[CVar] = valueVars.diff(quantifiedVars)
@@ -43,7 +51,7 @@ object Sentences {
         case CBinaryExpr(_, _, v:CVar) if cardVars.contains(v) => false
         case _ => true
       }
-      val phi1 = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce[CExpr] { case (c1, c2) => CBinaryExpr(COpAnd, c1, c2) }
+      val phi1 = CPFormula(conjuncts)
       this.copy(phi = phi1)
     }
   }

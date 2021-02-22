@@ -8,7 +8,6 @@ object Expressions {
   type CSubstVar = Map[CVar, CVar]
 
   sealed abstract class CExpr extends PrettyPrinting {
-    def isTrivial: Boolean = this == CBoolConst(true)
     def isCard: Boolean = this.vars.exists(_.isCard)
 
     def collect[R <: CExpr](p: CExpr => Boolean): Seq[R] = {
@@ -87,11 +86,6 @@ object Expressions {
     def vars: Seq[CVar] = collect(_.isInstanceOf[CVar])
 
     def cardVars: Seq[CVar] = collect(_.isInstanceOf[CSApp]).flatMap {v: CSApp => v.card.vars}
-
-    def conjuncts: Seq[CExpr] = this match {
-      case CBinaryExpr(COpAnd, left, right) => left.conjuncts ++ right.conjuncts
-      case _ => Seq(this)
-    }
   }
 
   case class CVar(name: String) extends CExpr {
@@ -127,15 +121,12 @@ object Expressions {
     override def pp: String = op match {
       case COpSubset => s"@sub_mem nat_eqType (mem (${left.pp})) (mem (${right.pp}))"
       case COpSetEq => s"@perm_eq nat_eqType (${left.pp}) (${right.pp})"
-      case _ => s"${left.pp} ${op.pp} ${right.pp}"
+      case _ => s"(${left.pp}) ${op.pp} (${right.pp})"
     }
   }
 
   case class CUnaryExpr(op: CUnOp, e: CExpr) extends CExpr {
-    override def pp: String = op match {
-      case COpNot => s"(${e.pp}) = false"
-      case _ => s"${op.pp} (${e.pp})"
-    }
+    override def pp: String = s"${op.pp} (${e.pp})"
   }
 
   case class CPointsTo(loc: CExpr, offset: Int = 0, value: CExpr) extends CExpr {
@@ -231,11 +222,11 @@ object Expressions {
   }
 
   object COpAnd extends CBinOp {
-    override def pp: String = "/\\"
+    override def pp: String = "&&"
   }
 
   object COpOr extends CBinOp {
-    override def pp: String = "\\/"
+    override def pp: String = "||"
   }
 
   object COpUnion extends CBinOp {
