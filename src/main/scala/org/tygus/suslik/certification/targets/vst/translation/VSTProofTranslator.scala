@@ -309,7 +309,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
               case (name, ty) => ((existentials_sub(name), ty))
             })
             val constructor_arg_existentials =
-              constructor.constructor_args.map(existentials_sub(_)).map(v => (v, CoqCardType(predicate_name)))
+              constructor.constructorArgs.map(existentials_sub(_)).map(v => (v, CoqCardType(predicate_name)))
             val renamed_body = body.rename(existentials_sub).rename(params_sub)
             (constructor, constructor_arg_existentials, existentials, renamed_body, expr)
         }

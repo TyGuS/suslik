@@ -23,10 +23,20 @@ object Expressions {
 
   case class HLitInt(value: Int) extends HLit(value.toString)
 
+  case class HLitOffset(off: Int) extends HLit(off.toString) {
+    override def pp: String = s"$off"
+  }
+
   case class HLitBool(value: Boolean) extends HLit(value.toString)
 
-  case class HLitLoc(value: Int) extends HLit(value.toString)
+  case class HLitLoc(loc: Int) extends HLit(loc.toString) {
+    override def pp: String = if(loc == 0) "nullptr" else super.pp
+  }
 
+  case class HSetLiteral(elems: List[HExpr]) extends HExpr {
+    override def pp: String =
+      s"[${elems.map(_.pp).mkString("; ")}]"
+  }
   /** Variables */
   case class HProgVar(name: String) extends HExpr {
     override def pp: String = s""""${name}""""
@@ -47,6 +57,10 @@ object Expressions {
 
   object HOpPlus extends HBinOp {
     override def pp: String = "+"
+  }
+
+  object HOpUnion extends HBinOp {
+    override def pp: String = "++"
   }
 
   object HOpMinus extends HBinOp {

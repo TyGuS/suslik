@@ -19,15 +19,18 @@ object Translation {
     val params = proc.formals.map(_.translate)
 
     // We have this "dummy" value to generate progToSpec for the actual context, ctx
-    val pre_ctx = Some(TranslationContext(node.goal.gamma, List().toMap))
+    val pre_ctx = Some(TranslationContext(env, node.goal.gamma, List().toMap))
     val progToSpec = params.map(p => (p, p.translate(progVarToSpecQuantifiedValue, pre_ctx)))
 
-    val ctx = TranslationContext(node.goal.gamma, progToSpec.toMap)
+    val ctx = TranslationContext(env, node.goal.gamma, progToSpec.toMap)
+    val predicates = env.predicates.map({ case (_, pred) => pred.translate(predicateTranslator, Some(ctx))}).toList
+    predicates.foreach(p => println(p.pp))
+
     val progTree = ProgramEvaluator.run(suslikTree, ctx)
 
     val funDef = HFunDef(proc.name, params, progTree)
     val funSpec = node.goal.translate(goalToFunSpecTranslator, Some(ctx))
 
-    IrisCertificate(proc.name, funDef, funSpec)
+    IrisCertificate(proc.name, predicates, funDef, funSpec)
   }
 }

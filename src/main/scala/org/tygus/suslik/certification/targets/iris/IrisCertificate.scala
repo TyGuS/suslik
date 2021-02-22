@@ -1,10 +1,10 @@
 package org.tygus.suslik.certification.targets.iris
 
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.HFunDef
-import org.tygus.suslik.certification.targets.iris.logic.Assertions.IFunSpec
+import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, IPredicate}
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
 
-case class IrisCertificate(name: String, funDef: HFunDef, funSpec: IFunSpec) extends Certificate {
+case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec) extends Certificate {
   val target: CertificationTarget = Iris
 
   private val prelude =
@@ -17,23 +17,27 @@ case class IrisCertificate(name: String, funDef: HFunDef, funSpec: IFunSpec) ext
        |Implicit Types Δ : envs PROP.
        |Set Default Proof Using "Type".
        |
+       |Definition null_loc : loc := {|loc_car := 0 |}.
+       |Definition nullptr : val := LitV (LitLoc null_loc).
+       |
        |Definition loc_at x lx := x = LitV (LitLoc lx).
        |Definition int_at x vx := x = LitV (LitInt vx).
        |
        |(* This is a less clever version of tac_and_destruct, which
        |   does NOT break ↦ assertions into fractional assertions. *)
-       |Lemma tac_sep_destruct Δ i j1 j2 P P1 P2 Q :
-       |  envs_lookup i Δ = Some (false, P) →
-       |  (P -∗ P1 ∗ P2) →
-       |  match envs_simple_replace i false (Esnoc (Esnoc Enil j1 P1) j2 P2) Δ with
+       |Lemma tac_sep_destruct Δ i p j1 j2 P P1 P2 Q :
+       |  envs_lookup i Δ = Some (p, P) →
+       |  (if p then IntoAnd true P P1 P2 else (P -∗ P1 ∗ P2)) →
+       |  match envs_simple_replace i p (Esnoc (Esnoc Enil j1 P1) j2 P2) Δ with
        |  | None => False
        |  | Some Δ' => envs_entails Δ' Q
        |  end →
        |  envs_entails Δ Q.
        |Proof.
        |  destruct (envs_simple_replace _ _ _ _) as [Δ'|] eqn:Hrep; last done.
-       |  rewrite envs_entails_eq. intros H0 H1 H2. rewrite envs_simple_replace_sound //=.
-       |  by rewrite /= right_id -(comm _ P1) H2 -H1 bi.wand_elim_r.
+       |  rewrite envs_entails_eq. intros H H0 H1. rewrite envs_simple_replace_sound //=. destruct p.
+       |  by rewrite (into_and _ P) /= right_id -(comm _ P1) bi.wand_elim_r.
+       |  by rewrite /= right_id -(comm _ P1) H1 -H0 bi.wand_elim_r.
        |Qed.
        |
        |Local Tactic Notation "iAndDestruct" constr(H) "as" constr(H1) constr(H2) :=
@@ -87,6 +91,7 @@ case class IrisCertificate(name: String, funDef: HFunDef, funSpec: IFunSpec) ext
   def pp : String = {
     val b = new StringBuilder
     b.append(prelude)
+    b.append(preds.map(_.pp).mkString("\n"))
     b.append(funDef.pp)
     b.append("\n")
     b.append(funSpec.pp)

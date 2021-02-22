@@ -14,7 +14,7 @@ trait CardConstructor extends PrettyPrinting {
     case _ => this
   }
 
-  def constructor_args: List[Ident] =
+  def constructorArgs: List[Ident] =
     this match {
       case CardNull => Nil
       case CardOf(args) => args
@@ -70,7 +70,7 @@ abstract class GenericPredicate[Pure, Spatial, Type](val name: Ident,
     * @param n number of arguments
     */
   def constructorByArg(n: Int): CardConstructor =
-    clauses.find({ case (constructor, clause) => constructor.constructor_args.length == n }).get._1
+    clauses.find({ case (constructor, clause) => constructor.constructorArgs.length == n }).get._1
 
   /** returns all instances of constructors and the bindings they expose */
   def constructors: List[CardConstructor] =
@@ -93,7 +93,7 @@ abstract class GenericPredicate[Pure, Spatial, Type](val name: Ident,
     idents.map(arg =>
       sub_constructor.get(arg) match {
         case Some(constructor) =>
-          s"(${constructorName(constructor)} ${expandArgs(sub_constructor)(constructor.constructor_args)} as ${arg})"
+          s"(${constructorName(constructor)} ${expandArgs(sub_constructor)(constructor.constructorArgs)} as ${arg})"
         case None => arg
       }
     ).mkString(" ")

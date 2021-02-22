@@ -203,7 +203,7 @@ object ProofTerms {
            ${
           clauses.map({ case (constructor, pclause@VSTPredicateClause(pure, spatial, sub_constructor)) =>
             s"|    | ${constructorName(constructor)} ${
-              expandArgs(sub_constructor)(constructor.constructor_args)
+              expandArgs(sub_constructor)(constructor.constructorArgs)
             } => ${
               pp_constructor_clause(constructor, pclause)
             }"
@@ -225,10 +225,10 @@ object ProofTerms {
     def findExistentials(cons: CardConstructor)(pclause: GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet]): List[(String, VSTType)] = {
       val param_map = params.toMap
       val exist_map: Map[String, VSTType] = existentials.toMap
-      val card_map = cons.constructor_args
+      val card_map = cons.constructorArgs
       pclause match {
         case VSTPredicateClause(pure, spatial, sub_clauses) =>
-          val clause_card_map = (card_map ++ sub_clauses.flatMap({ case (_, cons) => cons.constructor_args })).toSet
+          val clause_card_map = (card_map ++ sub_clauses.flatMap({ case (_, cons) => cons.constructorArgs })).toSet
 
           def to_variables(exp: Expressions.ProofCExpr): List[String] = exp match {
             case Expressions.ProofCVar(name, typ) =>
@@ -281,10 +281,10 @@ object ProofTerms {
       override def pp: String = {
 
         def constructor_to_equality_term(vl: String, cons: CardConstructor) =
-          if (cons.constructor_args.isEmpty) {
+          if (cons.constructorArgs.isEmpty) {
             s"${vl} = ${predicate.constructorName(cons)}"
           } else {
-            s"exists ${cons.constructor_args.mkString(" ")}, ${vl} = ${predicate.constructorName(cons)} ${cons.constructor_args.mkString(" ")}"
+            s"exists ${cons.constructorArgs.mkString(" ")}, ${vl} = ${predicate.constructorName(cons)} ${cons.constructorArgs.mkString(" ")}"
           }
 
         /** Converts a predicate clause into a clause that mutually exclusively matches the clause
@@ -321,9 +321,9 @@ object ProofTerms {
       override def pp: String = {
         s"Lemma ${predicate.unfold_lemma_name(cardConstructor)} " +
           s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
-          s"${cardConstructor.constructor_args.map(v => s"(${v} : ${predicate.inductiveName})").mkString(" ")} : " +
+          s"${cardConstructor.constructorArgs.map(v => s"(${v} : ${predicate.inductiveName})").mkString(" ")} : " +
           s"${predicate.name} ${predicate.params.map(_._1).mkString(" ")} (${predicate.constructorName(cardConstructor)} ${
-            predicate.expandArgs(pclause.sub_constructor)(cardConstructor.constructor_args)
+            predicate.expandArgs(pclause.sub_constructor)(cardConstructor.constructorArgs)
           }) = ${predicate.pp_constructor_clause(cardConstructor, pclause)}. Proof. auto. Qed."
       }
     }
