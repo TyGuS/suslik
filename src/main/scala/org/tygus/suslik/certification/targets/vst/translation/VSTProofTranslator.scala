@@ -433,6 +433,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
       case SuslikProofStep.CheckPost(_, _)
            | SuslikProofStep.WeakenPre(_)
            | SuslikProofStep.HeapUnify(_)
+           | SuslikProofStep.HeapUnifyUnfold(_, _, _)
            | SuslikProofStep.HeapUnifyPointer(_, _)
            | SuslikProofStep.StarPartial(_, _)
            | SuslikProofStep.FrameUnfold(_, _) =>

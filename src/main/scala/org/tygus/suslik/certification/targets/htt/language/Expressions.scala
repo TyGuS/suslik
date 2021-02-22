@@ -65,6 +65,20 @@ object Expressions {
         this
     }
 
+    def substExpr(sigma: Map[CExpr, CExpr]): CExpr = sigma.get(this) match {
+      case Some(e) => e
+      case None => this match {
+        case v: CVar => v
+        case CBinaryExpr(op, left, right) => CBinaryExpr(op, left.substExpr(sigma), right.substExpr(sigma))
+        case CUnaryExpr(op, arg) => CUnaryExpr(op, arg.substExpr(sigma))
+        case CSetLiteral(elems) => CSetLiteral(elems.map(_.substExpr(sigma)))
+        case CIfThenElse(cond, left, right) => CIfThenElse(cond, left.substExpr(sigma), right.substExpr(sigma))
+        case CSApp(pred, args, card) => CSApp(pred, args.map(_.substExpr(sigma)), card.substExpr(sigma))
+        case CPointsTo(loc, offset, value) => CPointsTo(loc.substExpr(sigma), offset, value.substExpr(sigma))
+        case _ => this
+      }
+    }
+
     def simplify: CExpr = this match {
       case CBinaryExpr(op, left, right) =>
         if (op == COpAnd) {

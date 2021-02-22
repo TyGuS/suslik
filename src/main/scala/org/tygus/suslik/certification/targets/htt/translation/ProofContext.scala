@@ -94,6 +94,20 @@ case class ProofContext(// Map of predicates referenced by the spec
     this.copy(postEx = postEx1, appAliases = appAliases1, unfoldings = unfoldings1)
   }
 
+  def withUnify(preApp: CSApp, postApp: CSApp, m: Map[CExpr, CExpr]): ProofContext = {
+    val m1 = m.toSeq.map(p => (p._2, p._1)).toMap
+    val postEx1 = postEx.map { case (k, v) => k -> (v._1, v._2.substExpr(m1)) }
+    val appAliases1 = appAliases + (postApp -> preApp)
+    val unfoldings1 = unfoldings.map { case (app, c) =>
+      val app1 = if (app == postApp) preApp else app
+      val asn1 = c.asn.copy(sigma = c.asn.sigma.copy(apps = c.asn.sigma.apps.map(a => if (a == postApp) preApp else a)))
+      val existentials1 = c.existentials.map(_.substExpr(m1))
+      val c1 = c.copy(existentials = existentials1, asn = asn1)
+      app1 -> c1
+    }
+    this.copy(postEx = postEx1, appAliases = appAliases1, unfoldings = unfoldings1)
+  }
+
   def appsAffectedBySubst(m: Map[CVar, CExpr]): Map[CSApp, CSApp] =
     appAliases.foldLeft(Map[CSApp, CSApp]()) { case (affectedApps, (app, alias)) =>
       if (app == alias) {

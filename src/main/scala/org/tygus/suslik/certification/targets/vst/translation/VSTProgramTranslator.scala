@@ -95,6 +95,7 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
            | SuslikProofStep.PickArg(_, _)
            | SuslikProofStep.AbduceCall(_, _, _, _, _, _, _, _)
            | SuslikProofStep.HeapUnify(_)
+           | SuslikProofStep.HeapUnifyUnfold(_, _, _)
            | SuslikProofStep.HeapUnifyPointer(_, _)
            | SuslikProofStep.FrameUnfold(_, _)
            | SuslikProofStep.WeakenPre(_)

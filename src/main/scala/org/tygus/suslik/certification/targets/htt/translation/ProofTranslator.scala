@@ -227,6 +227,12 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
       case SuslikProofStep.SubstR(from, to) =>
         val m = Map(from.translate -> to.translate)
         handleSubstitution(m, ctx)
+      case SuslikProofStep.HeapUnifyUnfold(preApp, postApp, m) =>
+        val cpreApp = preApp.translate
+        val cpostApp = postApp.translate
+        val ctx1 = ctx.withUnify(cpreApp, cpostApp, m.translate)
+        val steps = renameAppsStep(Map(cpostApp -> cpreApp))
+        Result(steps, List((Nil, None, ctx1)))
       case SuslikProofStep.FrameUnfold(_, h_post) =>
         h_post match {
           case app:SApp =>

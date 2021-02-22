@@ -116,13 +116,17 @@ case class AbduceCall(
 
 
   /** unification of heap (ignores block/pure distinction) */
-  case class HeapUnify(subst: Map[Var, Expr]) extends SuslikProofStep {
+  case class HeapUnify(subst: Map[Expr, Expr]) extends SuslikProofStep {
     override def pp: String = s"HeapUnify(${subst.mkString(",")});"
   }
 
   /** unification of pointers */
   case class HeapUnifyPointer(from: Var, to: Var) extends SuslikProofStep {
     override def pp: String = s"HeapUnifyPointer(${from.pp} -> ${to.pp});"
+  }
+
+  case class HeapUnifyUnfold(preApp: SApp, postApp: SApp, subst: Map[Expr, Expr]) extends SuslikProofStep {
+    override def pp: String = s"HeapUnifyUnfold(${preApp.pp}, ${postApp.pp}, ${subst.mkString(",")})"
   }
 
   /** unfolds frame */
@@ -315,7 +319,7 @@ case class AbduceCall(
         case _ => fail_with_bad_proof_structure()
       }
       case UnificationRules.HeapUnifyPure => node.kont match {
-        case ChainedProducer(ChainedProducer(ChainedProducer(SubstMapProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(UnificationProducer(_, _, subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
             case ::(head, Nil) => SuslikProofStep.HeapUnify(subst)
             case ls => fail_with_bad_children(ls, 1)
@@ -323,15 +327,15 @@ case class AbduceCall(
         case _ => fail_with_bad_proof_structure()
       }
       case UnificationRules.HeapUnifyUnfolding => node.kont match {
-        case ChainedProducer(ChainedProducer(ChainedProducer(SubstMapProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(UnificationProducer(preApp:SApp, postApp: SApp, subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
-            case ::(head, Nil) => SuslikProofStep.HeapUnify(subst)
+            case ::(head, Nil) => SuslikProofStep.HeapUnifyUnfold(preApp, postApp, subst)
             case ls => fail_with_bad_children(ls, 1)
           }
         case _ => fail_with_bad_proof_structure()
       }
       case UnificationRules.HeapUnifyBlock => node.kont match {
-        case ChainedProducer(ChainedProducer(ChainedProducer(SubstMapProducer(subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
+        case ChainedProducer(ChainedProducer(ChainedProducer(UnificationProducer(_, _, subst), IdProducer), HandleGuard(_)), ExtractHelper(_)) =>
           node.children match {
             case ::(head, Nil) => SuslikProofStep.HeapUnify(subst)
             case ls => fail_with_bad_children(ls, 1)
