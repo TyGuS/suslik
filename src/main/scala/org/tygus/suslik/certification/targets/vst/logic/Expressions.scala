@@ -208,7 +208,7 @@ object Expressions {
 
   /** boolean constant in a VST proof */
   case class ProofCBoolConst(value: Boolean) extends ProofCExpr with CLangExpr {
-    override def pp: String = value.toString
+    override def pp: String = s"(is_true ${value.toString})"
   }
 
   /** integer constant in a VST proof */
