@@ -52,7 +52,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 //        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
-        val kont = SubstMapProducer(sub.asInstanceOf[SubstVar]) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = UnificationProducer(t, s, sub) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
       nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)

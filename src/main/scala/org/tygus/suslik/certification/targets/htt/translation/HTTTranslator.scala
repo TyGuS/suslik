@@ -3,7 +3,7 @@ package org.tygus.suslik.certification.targets.htt.translation
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.Types._
 import org.tygus.suslik.certification.targets.htt.logic.Proof
-import org.tygus.suslik.certification.targets.htt.logic.Sentences.CAssertion
+import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CAssertion, CPFormula}
 import org.tygus.suslik.certification.targets.htt.program.Statements._
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
 import org.tygus.suslik.language.Expressions._
@@ -80,11 +80,11 @@ object HTTTranslator {
   implicit val pointsToTranslator: HTTTranslator[PointsTo, CPointsTo] = el => CPointsTo(el.loc.translate, el.offset, el.value.translate)
 
   implicit val asnTranslator: HTTTranslator[Assertion, CAssertion] = el => {
-    val conjuncts = el.phi.conjuncts.toSeq.map(c => c.translate.simplify).filterNot(_.isCard)
-    val f = (a1: CExpr, a2: CExpr) => CBinaryExpr(COpAnd, a1, a2)
-    val phi = if (conjuncts.isEmpty) CBoolConst(true) else conjuncts.reduce(f)
-    val sigma = el.sigma.translate
-    CAssertion(phi, sigma).removeCardConstraints
+    CAssertion(el.phi.translate, el.sigma.translate).removeCardConstraints
+  }
+
+  implicit val pFormulaTranslator: HTTTranslator[PFormula, CPFormula] = el => {
+    CPFormula(el.conjuncts.toSeq.map(c => c.translate.simplify).filterNot(_.isCard))
   }
 
   implicit val sFormulaTranslator: HTTTranslator[SFormula, CSFormula] = el => {
@@ -107,6 +107,10 @@ object HTTTranslator {
   }
 
   implicit val substVarTranslator: HTTTranslator[Map[Var, Var], Map[CVar, CVar]] = _.map {
+    case (k, v) => k.translate -> v.translate
+  }
+
+  implicit val substExprTranslator: HTTTranslator[Map[Expr, Expr], Map[CExpr, CExpr]] = _.map {
     case (k, v) => k.translate -> v.translate
   }
 

@@ -136,6 +136,9 @@ object Proof {
   case class Branch(cond: CExpr) extends Step {
     override def pp: String = s"ssl_abduce_branch (${cond.pp})"
   }
+  case object FrameUnfold extends Step {
+    override def pp: String = "ssl_frame_unfold"
+  }
   case object Emp extends Step {
     override def pp: String = "ssl_emp"
   }
