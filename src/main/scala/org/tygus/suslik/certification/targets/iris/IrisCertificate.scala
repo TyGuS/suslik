@@ -16,10 +16,9 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |Set Default Proof Using "Type".
        |
        |Definition null_loc : loc := {|loc_car := 0 |}.
-       |Definition nullptr : val := LitV (LitLoc null_loc).
        |
        |Definition loc_at x lx := x = LitV (LitLoc lx).
-       |Definition int_at x vx := x = LitV (LitInt vx).
+       |Definition Z_at x vx := x = LitV (LitInt vx).
        |
        |Remove Hints fractional.into_sep_fractional fractional.into_sep_fractional_half : typeclass_instances.
        |
@@ -60,7 +59,7 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |Local Ltac iRewriteHyp :=
        |  repeat match goal with
        |  | [H: loc_at _ _ |- _ ] => rewrite H
-       |  | [H: int_at _ _ |- _ ] => rewrite H
+       |  | [H: Z_at _ _ |- _ ] => rewrite H
        |  | [H: bool_decide _  = _ |- _ ] => rewrite H
        |  end.
        |
@@ -69,10 +68,12 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |  | [|- ?q] => idtac q
        |  end.
        |
-       |Local Ltac iSimplContext :=
+       |Local Ltac iSimplNoSplit :=
        |  (repeat wp_pures); iRewriteHyp; iSimpl in "# ∗"; iSimpl.
        |
-       |Ltac ssl_begin := iIntros; (wp_rec; repeat wp_let); repeat (iSimplContext; iSplitAllHyps).
+       |Local Ltac iSimplContext := iSimplNoSplit; try repeat iSplitAllHyps; iSimplNoSplit.
+       |
+       |Ltac ssl_begin := iIntros; (wp_rec; repeat wp_let); iSimplContext.
        |Ltac ssl_load := wp_load; wp_let; iSimplContext.
        |Ltac ssl_store := wp_store; iSimplContext.
        |Ltac ssl_finish := by iFindApply; iFrame "% # ∗".

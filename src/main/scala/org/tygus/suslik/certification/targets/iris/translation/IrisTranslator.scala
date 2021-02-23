@@ -47,7 +47,8 @@ object IrisTranslator {
     def visit(expr: Expr): HExpr = expr match {
       case Var(name) => HProgVar(name)
       case IntConst(v) => HLitInt(v)
-      case LocConst(v) => HLitLoc(v)
+      case LocConst(v) =>
+        HLitLoc(v)
       case BoolConst(v) => HLitBool(v)
       case SetLiteral(elems) => HSetLiteral(elems.map(_.translate(exprTranslator)))
       case UnaryExpr(op, arg) => HUnaryExpr(op.translate, visit(arg))
@@ -134,7 +135,12 @@ object IrisTranslator {
   implicit val pointsToTranslator: IrisTranslator[PointsTo, IPointsTo] = (f, ctx) => {
     val base = f.loc.translate.translate(toSpecExpr, ctx)
     val loc = if (f.offset > 0) ISpecBinaryExpr(HOpOffset, base, ISpecLit(HLitOffset(f.offset))) else base
-    val value = f.value.translate.translate(toSpecVal, ctx)
+    // Sometimes we get PointsTo(Var(x), 0, LocConst(0)) when we should get an IntConst
+    val valToTranslate = f.value match {
+      case LocConst(v) if v == 0 => IntConst(0)
+      case _ => f.value
+    }
+    val value = valToTranslate.translate.translate(toSpecVal, ctx)
     IPointsTo(loc, value)
   }
 
@@ -187,6 +193,7 @@ object IrisTranslator {
 
   implicit val predicateTranslator: IrisTranslator[InductivePredicate, IPredicate] = (predicate, ctx) => {
     assert(ctx.isDefined)
+
     class IPredicateTranslation extends PredicateTranslation[IPureAssertion, ISpatialAssertion, HType, IPredicateClause, IPredicate] {
       override def translatePredicateParamType(predName: String, ty: SSLType): HType = ty match {
         case CardType => HCardType(predName)
@@ -194,7 +201,7 @@ object IrisTranslator {
       }
 
       // TODO: should this be specExpr or specVal?
-      override def translateExpression(context: Map[Ident, HType])(expr: Expr): IPureAssertion = expr.translate.translate(toSpecExpr, ctx)
+      override def translateExpression(context: Map[Ident, HType])(expr: Expr): IPureAssertion = expr.translate.translate(toSpecVal, ctx)
 
       override def translateHeaplets(context: Map[Ident, HType])(heaplets: List[Heaplet]): List[ISpatialAssertion] =
         heaplets.map(_.translate(heapleatTranslator, ctx))

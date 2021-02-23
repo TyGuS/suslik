@@ -26,6 +26,8 @@ object Assertions {
 
   case class ISpecVar(name: String) extends IQuantifiedVar {
     override def pp: String = s"${name}"
+
+    override def ppAsPhi: String = super.ppAsPhi
   }
 
   case class ISpecQuantifiedValue(name: String) extends IQuantifiedVar {
@@ -39,14 +41,17 @@ object Assertions {
 
   case class ISpecUnaryExpr(op: HUnOp, expr: IPureAssertion) extends IPureAssertion {
     override def pp: String = s"${op.pp} ${expr.pp}"
+
+    override def ppAsPhi: String = s"${op.pp} ${expr.ppAsPhi}"
   }
 
   case class ISpecBinaryExpr(op: HBinOp, left: IPureAssertion, right: IPureAssertion) extends IPureAssertion {
     override def pp: String = s"(${left.pp} ${op.pp} ${right.pp})"
 
     override def ppAsPhi: String = op match {
-      case HOpLe | HOpLt => s"bool_decide (${left.pp} ${op.pp} ${right.pp})%Z"
-      case HOpEq => s"bool_decide (${left.pp} ${op.pp} ${right.pp})"
+      case HOpLe | HOpLt  => s"bool_decide (${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})%Z"
+      case HOpUnion => s"(${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})"
+      case HOpEq => s"bool_decide (${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})"
       case _ => ???
     }
   }

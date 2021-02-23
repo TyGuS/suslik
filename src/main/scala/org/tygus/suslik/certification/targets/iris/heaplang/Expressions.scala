@@ -30,7 +30,7 @@ object Expressions {
   case class HLitBool(value: Boolean) extends HLit(value.toString)
 
   case class HLitLoc(loc: Int) extends HLit(loc.toString) {
-    override def pp: String = if(loc == 0) "nullptr" else super.pp
+    override def pp: String = if(loc == 0) "#null_loc" else super.pp
   }
 
   case class HSetLiteral(elems: List[HExpr]) extends HExpr {
