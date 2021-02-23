@@ -88,7 +88,7 @@ case class ProofContext(// Map of predicates referenced by the spec
     * Update the current context with new substitutions
     */
   def withSubst(m: Map[CVar, CExpr], affectedApps: Map[CSApp, CSApp]): ProofContext = {
-    val postEx1 = postEx.mapValues(v => (v._1, v._2.subst(m)))
+    val postEx1 = postEx.map { case (k, v) => k -> (v._1, v._2.subst(m)) }
     val appAliases1 = affectedApps.foldLeft(appAliases) { case (appAliases, (app, alias)) => appAliases + (app -> alias) + (alias -> alias) }
     val unfoldings1 = unfoldings.map { case (app, constructor) => app.subst(m) -> constructor.subst(m) }
     this.copy(postEx = postEx1, appAliases = appAliases1, unfoldings = unfoldings1)
