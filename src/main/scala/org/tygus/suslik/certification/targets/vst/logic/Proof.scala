@@ -7,7 +7,12 @@ import org.tygus.suslik.certification.targets.vst.logic.ProofTerms._
 import org.tygus.suslik.language.PrettyPrinting
 
 
-case class Proof(name: String, predicates: List[VSTPredicate], spec: ProofTerms.FormalSpecification, steps: ProofTree[VSTProofStep], uses_free: Boolean = false, uses_malloc: Boolean = false) extends PrettyPrinting {
+case class Proof(
+                  name: String, predicates: List[VSTPredicate],
+                  spec: ProofTerms.FormalSpecification, steps: ProofTree[VSTProofStep],
+                  helper_specs: Map[String, ProofTerms.FormalSpecification],
+                  uses_free: Boolean = false, uses_malloc: Boolean = false
+                ) extends PrettyPrinting {
 
   /** prelude for Coq file */
   private def coq_prelude = s"""
@@ -53,8 +58,12 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
        |""".stripMargin
 
   private def library_spec : String = s"""Definition Gprog : funspecs :=
-                                         |  ltac:(with_library prog [${name}_spec${ if (uses_free) {"; free_spec"} else {""}}${
+                                         |  ltac:(with_library prog [${name}_spec${
+    if (uses_free) {"; free_spec"} else {""}
+  }${
     if (uses_malloc) {"; malloc_spec"} else {""}
+  }${
+    if(helper_specs.nonEmpty) {";" ++ helper_specs.map(v => v._2.spec_name).mkString("; ")} else {""}
   }]).
                                          |""".stripMargin
 
@@ -63,6 +72,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
       (if (uses_free) { free_defs + "\n"  } else { "" }) +
       (if (uses_malloc) { malloc_defs + "\n"  } else { "" }) +
       predicates.map(_.pp).mkString("\n") + "\n" +
+      helper_specs.values.map(_.pp).mkString("\n") + "\n" +
       spec.pp + "\n" +
       predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")  +"\n"+
       library_spec + "\n" +

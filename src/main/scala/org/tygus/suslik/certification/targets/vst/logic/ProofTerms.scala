@@ -94,12 +94,16 @@ object ProofTerms {
 
     def params: List[(Ident, VSTType)] = (c_params ++ formal_params).toList
 
+    def pp_as_c_decl: String = s"extern void ${name}(${c_params.map({case (name, ctype) => s"${ctype.pp_as_ctype} ${name}"}).mkString(", ")});"
+
+    def spec_name = s"${name}_spec"
+
     override def pp: String = {
       val formal_args = formal_params.map({ case (var_name, var_type) => s"${var_name}: ${var_type.pp}" })
       val c_args = c_params.map({ case (var_name, _) => s"${var_name}: val" })
       val FormalCondition(pre_pure_constraints, pre_spatial_constraints) = precondition
       val FormalCondition(post_pure_constraints, post_spatial_constraints) = postcondition
-      s"""Definition ${name}_spec :=
+      s"""Definition ${spec_name} :=
          |  DECLARE _${name}
          |   WITH ${(c_args ++ formal_args).mkString(", ")}
          |   PRE [ ${c_params.map({ case (_, var_type) => s"${as_vst_type(var_type)}" }).mkString(", ")} ]

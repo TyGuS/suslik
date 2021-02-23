@@ -19,11 +19,14 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   val exceptionQualifier: String = "rule-unification"
 
+
   abstract class HeapUnify extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
     // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
     def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
+
+
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
@@ -82,6 +85,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         PointsTo(y, oy, _) <- postPtss
         if y.vars.exists(goal.isExistential)
         t@PointsTo(x, ox, _) <- prePtss
+        if post.sigma.block_size(y) == pre.sigma.block_size(x)
         if ox == oy
         if !postPtss.exists(sameLhs(t))
       } yield (y -> x)

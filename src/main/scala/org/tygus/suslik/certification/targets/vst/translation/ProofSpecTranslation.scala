@@ -225,35 +225,39 @@ object  ProofSpecTranslation {
   }
 
   /** translates a Suslik function specification into a proof */
-  def translate_conditions(name: String, c_params: List[(Ident, VSTCType)])(goal: Goal): (FormalSpecification, Map[Ident, VSTType]) = {
-
+  def translate_conditions(env: Environment)(f: FunSpec): FormalSpecification = {
+    val name = f.name
+    val c_params = f.params.map({case (Var(name), ty) => ty match {
+      case IntType => (name, CoqIntValType)
+      case LocType => (name, CoqPtrValType)
+    }})
     // collect all cardinality_params and their associated types
-    val cardinality_params: Map[String, CoqCardType] = (goal.pre.sigma.chunks ++ goal.post.sigma.chunks).flatMap({
+    val cardinality_params: Map[String, CoqCardType] = (f.pre.sigma.chunks ++ f.post.sigma.chunks).flatMap({
       case PointsTo(loc, offset, value) => None
       case Block(loc, sz) => None
       case SApp(pred, args, tag, Var(name)) => Some(name, CoqCardType(pred))
       case _ => throw TranslationException("ERR: Expecting all predicate applications to be abstract variables")
     }).toMap
-
+    val gamma = f.gamma(env)
     val formal_params: List[(Ident, VSTType)] = {
       val c_param_set = c_params.map(_._1).toSet
-      goal.universals
+      f.universals
         .map({ case variable@Var(name) =>
           if (cardinality_params.contains(name)) {
             (name, cardinality_params(name))
           } else {
-            (name, translate_predicate_param_type(goal.gamma(variable)))
+            (name, translate_predicate_param_type(gamma(variable)))
           }
         })
         .filterNot({ case (name, _) => c_param_set.contains(name) }).toList
     }
 
     val existential_params: List[(Ident, VSTType)] =
-      goal.existentials.map({ case variable@Var(name) =>
+      f.existentials().map({ case variable@Var(name) =>
         if (cardinality_params.contains(name)) {
           (name, cardinality_params(name))
         } else {
-          (name, translate_predicate_param_type(goal.gamma(variable)))
+          (name, translate_predicate_param_type(gamma(variable)))
         }
       }).toList
 
@@ -264,7 +268,7 @@ object  ProofSpecTranslation {
 
     val precondition: FormalCondition = {
       val pure_conditions =
-        goal.pre.phi.conjuncts.map(v => translate_expression(context)(v))
+        f.pre.phi.conjuncts.map(v => translate_expression(context)(v))
           .map(IsTrueProp).toList ++ (c_params).flatMap({ case (ident, cType) =>
           cType match {
             case CoqIntValType => Some(IsValidInt(ProofCVar(ident, cType)))
@@ -278,23 +282,23 @@ object  ProofSpecTranslation {
         }
         })
       val spatial_conditions: List[VSTHeaplet] =
-        translate_heaplets(context)(goal.pre.sigma.chunks)
+        translate_heaplets(context)(f.pre.sigma.chunks)
 
       FormalCondition(pure_conditions, spatial_conditions)
     }
     val postcondition: FormalCondition = {
       val pure_conditions =
-        goal.post.phi.conjuncts.map(v => translate_expression(context)(v))
+        f.post.phi.conjuncts.map(v => translate_expression(context)(v))
           .map(IsTrueProp).toList
       val spatial_conditions =
-        translate_heaplets(context)(goal.post.sigma.chunks)
+        translate_heaplets(context)(f.post.sigma.chunks)
       // goal.post.sigma.chunks.map(translate_heaplet(context)).toList
       FormalCondition(pure_conditions, spatial_conditions)
     }
 
     (FormalSpecification(
       name, c_params, formal_params, existential_params, precondition, postcondition
-    ), context)
+    ))
   }
 
   /** translates suslik's inductive predicate into a format that is

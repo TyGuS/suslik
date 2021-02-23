@@ -2,6 +2,7 @@ package org.tygus.suslik.certification.targets.vst.clang
 
 import org.tygus.suslik.certification.targets.vst.Types.VSTCType
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.CLangExpr
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.FormalSpecification
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.language.PrettyPrinting
@@ -106,11 +107,11 @@ object Statements {
   case class CProcedureDefinition(
                                    name: String,
                                    params: Seq[(String, VSTCType)],
-                                   body: ProofTree[StatementStep]
+                                   body: ProofTree[StatementStep],
+                                   helper_specs: List[FormalSpecification]
                                  )  extends PrettyPrinting {
     val c_prelude =
-      """
-        |#include <stddef.h>
+      s"""#include <stddef.h>
         |
         |extern void free(void *p);
         |extern void *malloc(size_t size);
@@ -123,6 +124,8 @@ object Statements {
         |#define READ_INT(x,y) (*(x+y)).ssl_int
         |#define WRITE_LOC(x,y,z) (*(x+y)).ssl_ptr = z
         |#define WRITE_INT(x,y,z) (*(x+y)).ssl_int = z
+        |
+        ${helper_specs.map(spec => s"|${spec.pp_as_c_decl}").mkString("\n")}
         |
         |""".stripMargin
 
