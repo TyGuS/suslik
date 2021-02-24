@@ -113,7 +113,7 @@ object VSTProofTranslator {
 
     def resolve_existential(ident: Ident): ProofCExpr = {
       val true_name = renamings.getOrElse(ident, ident)
-      variable_map(true_name)
+      variable_map(true_name).subst(variable_map)
     }
 
     def with_variables_of(variables: List[(String, VSTType)]): VSTClientContext = {

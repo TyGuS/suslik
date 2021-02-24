@@ -88,11 +88,24 @@ object Expressions {
         ProofCCardinalityConstructor(pred_type, name, args.map(_.rename(mapping)))
     }
 
+    def variables : List[ProofCVar] = this match {
+      case ProofCCardinalityConstructor(pred_type, name, args) =>  args.flatMap(_.variables)
+      case expr@ProofCVar(name, typ) => List(expr)
+      case ProofCBoolConst(value) => List()
+      case ProofCNullval => List()
+      case ProofCIntConst(value) => List()
+      case ProofCIntSetLiteral(elems) => elems.flatMap(_.variables)
+      case ProofCIfThenElse(cond, left, right) => cond.variables ++ left.variables ++ right.variables
+      case ProofCBinaryExpr(op, left, right) => left.variables ++ right.variables
+      case ProofCUnaryExpr(op, e) => e.variables
+    }
 
     /** Applies a substitution to an expression */
-    def subst(mapping: Map[String, ProofCExpr], recurse: Boolean=true): ProofCExpr = this match {
+    def subst(mapping: Map[String, ProofCExpr]): ProofCExpr = this match {
       case expr@ProofCVar(name, _) => mapping.get(name) match {
-        case Some(value) if recurse => value.subst(mapping)
+        case Some(ProofCVar(o_name, _)) if name == o_name => expr
+        // avoid infinite recursion by refusing to subst on expressions that contain the name they were just subst'd with
+        case Some(value) if !value.variables.map(_.name).contains(name) => value.subst(mapping)
         case Some(value) => value
         case None => expr
       }
@@ -227,7 +240,7 @@ object Expressions {
   /** set literal (encoded as set) in a VST proof */
   case class ProofCIntSetLiteral(elems: List[ProofCExpr]) extends ProofCExpr {
     override def pp: String =
-      s"([${elems.map(_.pp).mkString("; ")}] : list Z)"
+      s"([${elems.map(_.pp_as_Z_value).mkString("; ")}] : list Z)"
   }
 
   /** encodes a ternary expression in a VST proof */
