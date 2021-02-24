@@ -22,8 +22,8 @@ object VSTProofStep {
 
 
 
-  case object Entailer extends VSTProofStep {
-    override def pp: String = s"entailer!."
+  case object TentativeEntailer extends VSTProofStep {
+    override def pp: String = s"try entailer!."
   }
 
   /**

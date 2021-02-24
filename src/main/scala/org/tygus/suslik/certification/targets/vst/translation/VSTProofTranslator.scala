@@ -6,7 +6,7 @@ import org.tygus.suslik.certification.targets.vst.Types.{CoqCardType, CoqPtrValT
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCCardinalityConstructor, ProofCExpr, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{FormalSpecification, PureFormula, VSTPredicate}
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{AssertProp, AssertPropSubst, Entailer, Exists, Forward, ForwardCall, ForwardEntailer, ForwardIf, ForwardIfConstructor, Free, Intros, IntrosTuple, Malloc, Rename, UnfoldRewrite, ValidPointer}
+import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{AssertProp, AssertPropSubst, TentativeEntailer, Exists, Forward, ForwardCall, ForwardEntailer, ForwardIf, ForwardIfConstructor, Free, Intros, IntrosTuple, Malloc, Rename, UnfoldRewrite, ValidPointer}
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
@@ -201,7 +201,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
           val steps: List[VSTProofStep] = existentials.map(v => Exists(ctx resolve_existential v._1))
           val new_ctx = ctx.without_existentials_of (existentials.map(_._1))
           (steps ++ (if (steps.nonEmpty) {
-            List(Entailer)
+            List(TentativeEntailer)
           } else {
             List()
           }), new_ctx)
@@ -246,6 +246,10 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
             // run call rule
             ForwardCall(call_args),
           ) ++
+          // tentative entailer for complex calls
+            (if (call.function_name != spec.name) {
+              List(TentativeEntailer)
+            } else {List()}) ++
             // intro existentials
             (if (call.existential_params.nonEmpty) {
               List(IntrosTuple(call.existential_params))
@@ -377,7 +381,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
 
           ctx = ctx without_existentials_of existentials.map(_._1)
           ctx = ctx without_ghost_existentials_of constructor_args.map(_.name)
-          (List(unfold_step) ++ existential_steps ++ List(Entailer), ctx)
+          (List(unfold_step) ++ existential_steps ++ List(TentativeEntailer), ctx)
         }
         Result(List(), List((List(), Some(deferred_steps), ctx)))
 
