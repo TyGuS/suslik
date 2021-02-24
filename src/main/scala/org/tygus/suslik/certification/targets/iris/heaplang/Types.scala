@@ -4,7 +4,19 @@ import org.tygus.suslik.language.PrettyPrinting
 
 object Types {
 
-  sealed abstract class HType extends PrettyPrinting
+  sealed abstract class HType extends PrettyPrinting {
+    def isValType: Boolean = this match {
+      case HValType() => true
+      case _ => false
+    }
+  }
+  case class HBoolType() extends HType {
+    override def pp: String = "bool"
+  }
+
+  case class HValType() extends HType {
+    override def pp: String = "val"
+  }
 
   case class HIntType() extends HType {
     override def pp: String = "Z"

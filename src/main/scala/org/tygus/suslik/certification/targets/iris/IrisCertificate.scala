@@ -33,17 +33,27 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |       | _ => idtac
        |     end].
        |
+       |Local Ltac movePure :=
+       |  iStartProof;
+       |  let rec go Hs := match Hs with [] => idtac | ?H :: ?Hs => (try iDestruct H as "%"); go Hs end in
+       |  match goal with
+       |  | |- envs_entails ?Δ _ =>
+       |    let Hs := eval cbv in (env_dom (env_spatial Δ)) in go Hs
+       |  end.
+       |
        |Local Ltac iSplitAllHyps :=
        |  iStartProof;
        |  let rec go Hs success :=
        |      match Hs with
        |        [] => match success with | true => idtac | false => fail end
-       |      | ?H :: ?Hs =>
-       |        let Hn := iFresh in
-       |        (iAndDestruct H as H Hn; go Hs true) || go Hs success end in
-       |  match goal with
+       |      | ?H :: ?Hs => let Hn := iFresh in (iAndDestruct H as H Hn; go Hs true)  || go Hs success
+       |      end in
+       |  repeat match goal with
        |  | |- envs_entails ?Δ _ =>
-       |     let Hs := eval cbv in (env_dom (env_spatial Δ)) in go Hs false
+       |    let Hs := eval cbv in (env_dom (env_spatial Δ)) in go Hs false
+       |  end;
+       |  repeat match goal with
+       |  | [H: _ /\\ _ |- _ ] => destruct H
        |  end.
        |
        |Local Ltac iFindApply :=
@@ -63,15 +73,10 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |  | [H: bool_decide _  = _ |- _ ] => rewrite H
        |  end.
        |
-       |Local Ltac printGoal :=
-       |  match goal with
-       |  | [|- ?q] => idtac q
-       |  end.
-       |
        |Local Ltac iSimplNoSplit :=
-       |  (repeat wp_pures); iRewriteHyp; iSimpl in "# ∗"; iSimpl.
+       |  (repeat wp_pures); movePure; iRewriteHyp; iSimpl in "# ∗"; iSimpl.
        |
-       |Local Ltac iSimplContext := iSimplNoSplit; try repeat iSplitAllHyps; iSimplNoSplit.
+       |Local Ltac iSimplContext := iSimplNoSplit; try iSplitAllHyps; iSimplNoSplit.
        |
        |Ltac ssl_begin := iIntros; (wp_rec; repeat wp_let); iSimplContext.
        |Ltac ssl_load := wp_load; wp_let; iSimplContext.

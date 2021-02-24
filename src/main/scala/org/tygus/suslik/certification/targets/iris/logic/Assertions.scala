@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.iris.logic
 
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions._
-import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HLocType, HType}
+import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HBoolType, HIntSetType, HIntType, HLocType, HType, HValType}
 import org.tygus.suslik.certification.translation.{CardConstructor, GenericPredicate, GenericPredicateClause}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
@@ -12,6 +12,7 @@ object Assertions {
     * program-level expressions to spec-level. */
   abstract class IPureAssertion extends PrettyPrinting {
     def ppAsPhi: String = pp
+    def typ: HType
   }
 
   abstract class IQuantifiedVar extends IPureAssertion
@@ -22,35 +23,60 @@ object Assertions {
 
   case class ISpecLit(lit: HLit) extends IPureAssertion {
     override def pp: String = lit.pp
+
+    override def typ: HType = HValType()
   }
 
-  case class ISpecVar(name: String) extends IQuantifiedVar {
+  case class ISpecMakeVal(v: ISpecVar) extends IPureAssertion {
+    override def pp: String = s"#${v.pp}"
+    override def typ: HType = HValType()
+  }
+
+  case class ISpecVar(name: String, typ: HType) extends IQuantifiedVar {
     override def pp: String = s"${name}"
 
     override def ppAsPhi: String = super.ppAsPhi
   }
 
-  case class ISpecQuantifiedValue(name: String) extends IQuantifiedVar {
+  case class ISpecQuantifiedValue(name: String, typ: HType) extends IQuantifiedVar {
     override def pp: String = s"${name}"
   }
 
   case class ISetLiteral(elems: List[IPureAssertion]) extends IPureAssertion {
     override def pp: String =
-      s"([${elems.map(_.pp).mkString("; ")}] : list Z)"
+      s"[${elems.map(_.pp).mkString("; ")}]"
+
+    override def typ: HType = HIntSetType()
   }
 
   case class ISpecUnaryExpr(op: HUnOp, expr: IPureAssertion) extends IPureAssertion {
     override def pp: String = s"${op.pp} ${expr.pp}"
 
     override def ppAsPhi: String = s"${op.pp} ${expr.ppAsPhi}"
+
+    override def typ: HType = op match {
+      case HOpUnaryMinus => HIntType()
+      case HOpNot => HBoolType()
+      case _ => ???
+    }
   }
 
   case class ISpecBinaryExpr(op: HBinOp, left: IPureAssertion, right: IPureAssertion) extends IPureAssertion {
     override def pp: String = s"(${left.pp} ${op.pp} ${right.pp})"
 
+    override def typ: HType = op match {
+      case HOpEq | HOpLe | HOpLt => HBoolType()
+      case HOpUnion => HIntSetType()
+      case HOpPlus | HOpMinus | HOpMultiply => HIntType()
+      case HOpOffset => HLocType()
+      case _ => ???
+    }
+
     override def ppAsPhi: String = op match {
       case HOpLe | HOpLt  => s"bool_decide (${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})%Z"
       case HOpUnion => s"(${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})"
+      case HOpEq if left.typ == HIntSetType() || right.typ == HIntSetType() =>
+        s"${left.ppAsPhi} ${op.pp} ${right.ppAsPhi}"
       case HOpEq => s"bool_decide (${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})"
       case _ => ???
     }
@@ -58,6 +84,8 @@ object Assertions {
 
   case class IAnd(conjuncts: Seq[IPureAssertion]) extends IPureAssertion {
     override def pp: String = s"${conjuncts.map(_.ppAsPhi).mkString(" ∧ ")}"
+
+    override def typ: HType = HBoolType()
   }
 
   case class IPointsTo(loc: IPureAssertion, value: IPureAssertion) extends ISpatialAssertion {
@@ -98,8 +126,8 @@ object Assertions {
       // TODO: make this use the general translation mechanism
       def getArgLitVal(v: ISpecVar, t: HType): ISpecQuantifiedValue =
         (v, t) match {
-          case (ISpecVar(name), HLocType()) => ISpecQuantifiedValue(s"l${name}")
-          case (ISpecVar(name), _) => ISpecQuantifiedValue(s"v${name}")
+          case (ISpecVar(name, t), HLocType()) => ISpecQuantifiedValue(s"l${name}", t)
+          case (ISpecVar(name, t), _) => ISpecQuantifiedValue(s"v${name}", t)
         }
 
       val var_at = (v: ISpecVar, t: HType) => s"${t.pp}_at ${v.pp} ${getArgLitVal(v, t).pp}"
@@ -175,7 +203,7 @@ object Assertions {
           val clauseCardMap = (cardMap ++ subClauses.flatMap({ case (_, cons) => cons.constructorArgs })).toSet
 
           def pureExistentials(exp: IPureAssertion): Set[Ident] = exp match {
-            case ISpecVar(name) => {
+            case ISpecVar(name, _) => {
               paramMap.get(name) match {
                 // A variable that is neither (1) a parameter of the predicate nor (2) a cardinality IS an existential
                 case None if !clauseCardMap.contains(name) => Set(name)
@@ -185,6 +213,7 @@ object Assertions {
             case ISpecBinaryExpr(_, left, right) => pureExistentials(left) ++ pureExistentials(right)
             case ISpecUnaryExpr(_, expr) => pureExistentials(expr)
             case ISetLiteral(elems) => elems.flatMap(pureExistentials).toSet
+            case ISpecMakeVal(v) => pureExistentials(v)
             case ISpecLit(_) => Set()
             case _ => ???
           }

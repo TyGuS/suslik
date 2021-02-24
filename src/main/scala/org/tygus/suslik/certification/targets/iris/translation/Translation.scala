@@ -19,10 +19,10 @@ object Translation {
     val params = proc.formals.map(_.translate)
 
     // We have this "dummy" value to generate progToSpec for the actual context, ctx
-    val pre_ctx = Some(TranslationContext(env, node.goal.gamma, List().toMap))
+    val pre_ctx = Some(TranslationContext(env, node.goal.gamma, Map.empty, node.goal.gamma.translate))
     val progToSpec = params.map(p => (p, p.translate(progVarToSpecQuantifiedValue, pre_ctx)))
 
-    val ctx = TranslationContext(env, node.goal.gamma, progToSpec.toMap)
+    val ctx = TranslationContext(env, node.goal.gamma, progToSpec.toMap, node.goal.gamma.translate)
     val predicates = env.predicates.map({ case (_, pred) => pred.translate(predicateTranslator, Some(ctx))}).toList
     predicates.foreach(p => println(p.pp))
 

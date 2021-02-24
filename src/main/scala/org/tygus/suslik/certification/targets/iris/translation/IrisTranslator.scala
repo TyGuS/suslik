@@ -1,24 +1,24 @@
 package org.tygus.suslik.certification.targets.iris.translation
 
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions._
-import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HCardType, HIntSetType, HIntType, HLocType, HType, HUnknownType}
+import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HCardType, HIntSetType, HIntType, HLocType, HType, HUnknownType, HValType}
 import org.tygus.suslik.certification.targets.iris.logic.Assertions._
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
 import org.tygus.suslik.certification.translation.{CardConstructor, PredicateTranslation}
-import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.language.Expressions.{OpEq, _}
 import org.tygus.suslik.language.Statements.{Call, Load, Malloc, Store}
-import org.tygus.suslik.language.{CardType, Ident, IntSetType, IntType, LocType, SSLType}
+import org.tygus.suslik.language.{CardType, Expressions, Ident, IntSetType, IntType, LocType, SSLType}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic._
 
 trait IrisTranslator[From, To] {
-  def translate(value: From, ctx: Option[TranslationContext] = None): To
+  def translate(value: From, ctx: Option[TranslationContext] = None, target: Option[HType] = None): To
 }
 
 object IrisTranslator {
   case class TranslatorException(msg: String) extends Exception(msg)
 
-  implicit val binOpTranslator: IrisTranslator[BinOp, HBinOp] = (value, _) => value match {
+  implicit val binOpTranslator: IrisTranslator[BinOp, HBinOp] = (value, _, _) => value match {
     case OpPlus => HOpPlus
     case OpMinus => HOpMinus
     case OpMultiply => HOpMultiply
@@ -28,7 +28,7 @@ object IrisTranslator {
     case _ => ???
   }
 
-  implicit val overloadedBinOpTranslator: IrisTranslator[OverloadedBinOp, HBinOp] = (value, _) => value match {
+  implicit val overloadedBinOpTranslator: IrisTranslator[OverloadedBinOp, HBinOp] = (value, _, _) => value match {
     case OpOverloadedEq => HOpEq
     case OpOverloadedLeq => HOpLe
     case OpOverloadedPlus => HOpUnion
@@ -36,19 +36,18 @@ object IrisTranslator {
     case _ => ???
   }
 
-  implicit val paramTranslator: IrisTranslator[(Var, SSLType), HProgVar] = (el, _) => el._1.translate(progVarTranslator)
+  implicit val paramTranslator: IrisTranslator[(Var, SSLType), HProgVar] = (el, _, _) => el._1.translate(progVarTranslator)
 
-  implicit val unopTranslator: IrisTranslator[UnOp, HUnOp] = (value, _) => value match {
+  implicit val unopTranslator: IrisTranslator[UnOp, HUnOp] = (value, _, _) => value match {
     case OpNot => HOpNot
     case OpUnaryMinus => HOpUnaryMinus
   }
 
-  implicit val exprTranslator: IrisTranslator[Expr, HExpr] = (expr, ctx) => {
+  implicit val exprTranslator: IrisTranslator[Expr, HExpr] = (expr, ctx, _) => {
     def visit(expr: Expr): HExpr = expr match {
       case Var(name) => HProgVar(name)
       case IntConst(v) => HLitInt(v)
-      case LocConst(v) =>
-        HLitLoc(v)
+      case LocConst(v) => HLitLoc(v)
       case BoolConst(v) => HLitBool(v)
       case SetLiteral(elems) => HSetLiteral(elems.map(_.translate(exprTranslator)))
       case UnaryExpr(op, arg) => HUnaryExpr(op.translate, visit(arg))
@@ -63,17 +62,18 @@ object IrisTranslator {
     visit(expr)
   }
 
-  implicit val progVarTranslator: IrisTranslator[Var, HProgVar] = (pv, _) => HProgVar(pv.name)
-  implicit val progVarToSpecVar: IrisTranslator[HProgVar, ISpecVar] = (hv, _) => ISpecVar(hv.name)
-  implicit val progVarToSpecQuantifiedValue: IrisTranslator[HProgVar, ISpecQuantifiedValue] = (pv, ctx) => {
+  implicit val progVarTranslator: IrisTranslator[Var, HProgVar] = (pv, _, _) => HProgVar(pv.name)
+  implicit val progVarToSpecVar: IrisTranslator[HProgVar, ISpecVar] = (hv, ctx, _) => ISpecVar(hv.name,
+    ctx.get.hctx(hv.name))
+  implicit val progVarToSpecQuantifiedValue: IrisTranslator[HProgVar, ISpecQuantifiedValue] = (pv, ctx, _) => {
     assert(ctx.isDefined)
     (pv, ctx.get.gamma(Var(pv.name)).translate) match {
-      case (HProgVar(name), HLocType()) => ISpecQuantifiedValue(s"l${name}")
-      case (HProgVar(name), _) => ISpecQuantifiedValue(s"v${name}")
+      case (HProgVar(name), HLocType()) => ISpecQuantifiedValue(s"l${name}", HLocType())
+      case (HProgVar(name), t) => ISpecQuantifiedValue(s"v${name}", t)
     }
   }
 
-  implicit val typeTranslator: IrisTranslator[SSLType, HType] = (value, _) => value match {
+  implicit val typeTranslator: IrisTranslator[SSLType, HType] = (value, _, _) => value match {
     case IntType => HIntType()
     case LocType => HLocType()
     case IntSetType => HIntSetType()
@@ -81,58 +81,83 @@ object IrisTranslator {
     case _ => ???
   }
 
+  implicit val gammaTranslator: IrisTranslator[Gamma, Map[Ident, HType]] = (g, _ , _) => {
+    g.map({ case (v, t) => (v.name, t.translate) })
+  }
+
   implicit val mallocTranslator: IrisTranslator[Malloc, HStore] =
-    (stmt, _) => HStore(stmt.to.translate, HAllocN(HLitInt(stmt.sz), HLitUnit()))
+    (stmt, _, _) => HStore(stmt.to.translate, HAllocN(HLitInt(stmt.sz), HLitUnit()))
   implicit val loadTranslator: IrisTranslator[Load, HLet] =
-    (stmt, _) => {
+    (stmt, _, _) => {
       val baseVar = stmt.from.translate
       val fromAddr = if (stmt.offset == 0) baseVar else HBinaryExpr(HOpOffset, baseVar, HLitLoc(stmt.offset))
       HLet(stmt.to.translate, HLoad(fromAddr), HLitUnit())
     }
   implicit val storeTranslator: IrisTranslator[Store, HStore] =
-    (stmt, _) => {
+    (stmt, _, _) => {
       val baseVar = stmt.to.translate
       val toAddr = if (stmt.offset == 0) baseVar else HBinaryExpr(HOpOffset, baseVar, HLitLoc(stmt.offset))
       HStore(toAddr, stmt.e.translate)
     }
 
-  implicit val callTranslator: IrisTranslator[Call, HCall] = (stmt, _) => HCall(stmt.fun.translate, stmt.args.map(_.translate))
+  implicit val callTranslator: IrisTranslator[Call, HCall] = (stmt, _, _) => HCall(stmt.fun.translate, stmt.args.map(_.translate))
 
-  implicit val phiTranslator: IrisTranslator[PFormula, IPureAssertion] = (f, ctx) => {
+  implicit val phiTranslator: IrisTranslator[PFormula, IPureAssertion] = (f, ctx, _) => {
     assert(ctx.isDefined)
     IAnd(f.conjuncts.map(_.translate.translate(toSpecExpr, ctx)).toSeq)
   }
 
-  // TODO: remove duplication between toSpecExpr and toSpecVal
-  implicit val toSpecExpr: IrisTranslator[HExpr, IPureAssertion] = (expr, ctx) => {
+  /***
+    * FIXME: This is going to be a major source of bugs.
+    * This method performs a crappy version of type inference to figure out when something needs to be printed
+    * as a HeapLang value and when it needs to be printed as a raw Coq term
+    */
+  implicit val toSpecExpr: IrisTranslator[HExpr, IPureAssertion] = (expr, ctx, target) => {
     assert(ctx.isDefined)
+    val c = ctx.get
+
+    def shouldPrintAsVal(expr: HExpr):Boolean = expr match {
+      // heaplang does not support set values
+      case HProgVar(n) => !c.hctx.get(n).contains(HIntSetType())
+      case HUnaryExpr(_, e) => shouldPrintAsVal(e)
+      case HBinaryExpr(HOpUnion, _, _) => false
+      case HBinaryExpr(_, left, right) => shouldPrintAsVal(left) && shouldPrintAsVal(right)
+      case _ => true
+    }
+
+    val prodVal = target.isDefined && target.get.isValType
+    val subTarget = if (prodVal && shouldPrintAsVal(expr)) target else None
+
     expr match {
-      // Get the quantified value if it is quantified
-      case v: HProgVar => ctx.get.pts.getOrElse(v, v.translate(progVarToSpecVar))
+      case v: HProgVar =>
+        val specVar = v.translate(progVarToSpecVar, ctx)
+        // Get the quantified value version of the var, if it exists, otherwise
+        // make the var into value by prepending # to it
+        ctx.get.pts.getOrElse(v, if (prodVal) ISpecMakeVal(specVar) else specVar)
       case l: HLit => ISpecLit(l)
-      case HBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.translate(toSpecExpr, ctx), right.translate(toSpecExpr, ctx))
-      case HUnaryExpr(op, expr) => ISpecUnaryExpr(op, expr.translate(toSpecExpr, ctx))
-      case HSetLiteral(elems) => ISetLiteral(elems.map(_.translate(toSpecExpr, ctx)))
+      case HBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.translate(toSpecExpr, ctx, subTarget), right.translate(toSpecExpr, ctx, subTarget))
+      case HUnaryExpr(op, expr) => ISpecUnaryExpr(op, expr.translate(toSpecExpr, ctx, subTarget))
+      case HSetLiteral(elems) => ISetLiteral(elems.map(_.translate(toSpecExpr, ctx, subTarget)))
       case _ => ???
     }
   }
 
-  implicit val toSpecVal: IrisTranslator[HExpr, IPureAssertion] = (expr, ctx) => {
-    assert(ctx.isDefined)
-    expr match {
-      // Get the quantified value if it is quantified
-      // If it's a ghost, it has a non-value type (e.g. Z), so we have to make it into a value
-      case v: HProgVar => ctx.get.pts.getOrElse(v, ISpecLit(new HLit(v.name)))
-      case l: HLit => ISpecLit(l)
-      case HBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.translate(toSpecVal, ctx), right.translate(toSpecVal, ctx))
-      case HUnaryExpr(op, expr) => ISpecUnaryExpr(op, expr.translate(toSpecVal, ctx))
-      case HSetLiteral(elems) => ISetLiteral(elems.map(_.translate(toSpecVal, ctx)))
-      case _ => ???
-    }
-  }
+//  implicit val toSpecVal: IrisTranslator[HExpr, IPureAssertion] = (expr, ctx) => {
+//    assert(ctx.isDefined)
+//    expr match {
+//      // Get the quantified value if it is quantified
+//      // If it's a ghost, it has a non-value type (e.g. Z), so we have to make it into a value
+//      case v: HProgVar => ctx.get.pts.getOrElse(v, ISpecLit(new HLit(v.name)))
+//      case l: HLit => ISpecLit(l)
+//      case HBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.translate(toSpecVal, ctx), right.translate(toSpecVal, ctx))
+//      case HUnaryExpr(op, expr) => ISpecUnaryExpr(op, expr.translate(toSpecVal, ctx))
+//      case HSetLiteral(elems) => ISetLiteral(elems.map(_.translate(toSpecVal, ctx)))
+//      case _ => ???
+//    }
+//  }
 
 
-  implicit val pointsToTranslator: IrisTranslator[PointsTo, IPointsTo] = (f, ctx) => {
+  implicit val pointsToTranslator: IrisTranslator[PointsTo, IPointsTo] = (f, ctx, _) => {
     val base = f.loc.translate.translate(toSpecExpr, ctx)
     val loc = if (f.offset > 0) ISpecBinaryExpr(HOpOffset, base, ISpecLit(HLitOffset(f.offset))) else base
     // Sometimes we get PointsTo(Var(x), 0, LocConst(0)) when we should get an IntConst
@@ -140,35 +165,35 @@ object IrisTranslator {
       case LocConst(v) if v == 0 => IntConst(0)
       case _ => f.value
     }
-    val value = valToTranslate.translate.translate(toSpecVal, ctx)
+    val value = valToTranslate.translate.translate(toSpecExpr, ctx, Some(HValType()))
     IPointsTo(loc, value)
   }
 
-  implicit val predAppTranslator: IrisTranslator[SApp, IPredApp] = (pa, ctx) => {
+  implicit val predAppTranslator: IrisTranslator[SApp, IPredApp] = (pa, ctx, _) => {
     assert(ctx.isDefined)
     IPredApp(pa.pred, pa.args.map(_.translate.translate(toSpecExpr, ctx)), pa.card.translate.translate(toSpecExpr, ctx))
   }
 
-  implicit val heapleatTranslator: IrisTranslator[Heaplet, ISpatialAssertion] = (h, ctx) => {
+  implicit val heapleatTranslator: IrisTranslator[Heaplet, ISpatialAssertion] = (h, ctx, _) => {
     assert(ctx.isDefined)
     h match {
       case pt:PointsTo => pt.translate(pointsToTranslator, ctx)
-      case bl:Block => IBlock()
+      case _:Block => IBlock()
       case pa:SApp => pa.translate(predAppTranslator, ctx)
       case _ => ???
     }
   }
 
-  implicit val sigmaTranslator: IrisTranslator[SFormula, ISpatialAssertion] = (f, ctx) => {
+  implicit val sigmaTranslator: IrisTranslator[SFormula, ISpatialAssertion] = (f, ctx, _) => {
     IHeap(f.chunks.map(_.translate(heapleatTranslator, ctx)))
   }
 
-  implicit val assertionTranslator: IrisTranslator[Assertion, IAssertion] = (f, ctx) => {
+  implicit val assertionTranslator: IrisTranslator[Assertion, IAssertion] = (f, ctx, _) => {
     assert(ctx.isDefined)
     IAssertion(f.phi.translate(phiTranslator, ctx), f.sigma.translate(sigmaTranslator, ctx))
   }
 
-  implicit val goalToFunSpecTranslator: IrisTranslator[Goal, IFunSpec] = (g, ctx) => {
+  implicit val goalToFunSpecTranslator: IrisTranslator[Goal, IFunSpec] = (g, ctx, _) => {
     assert(ctx.isDefined)
     val params = g.programVars.map(v => (v.translate, g.gamma(v).translate))
 
@@ -181,17 +206,17 @@ object IrisTranslator {
       v => (v.translate.translate(progVarToSpecQuantifiedValue, Some(ctx.get)), g.gamma(v).translate)
     )
     // We quantify over all universals, ignoring the type of function arguments
-    val quantifiedLocs = g.universals.map(v => (v.translate.translate(progVarToSpecVar),
-      if(g.programVars.contains(v)) HUnknownType() else g.gamma(v).translate))
+    val quantifiedLocs = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx),
+      if(g.programVars.contains(v)) HValType() else g.gamma(v).translate))
     val specUniversal = quantifiedLocs.toSeq ++ quantifiedValues
-    val specExistential = g.existentials.map(v => (v.translate.translate(progVarToSpecVar), g.gamma(v).translate)).toSeq
+    val specExistential = g.existentials.map(v => (v.translate.translate(progVarToSpecVar, ctx), g.gamma(v).translate)).toSeq
 
     val pre = g.pre.translate(assertionTranslator, ctx)
     val post = g.post.translate(assertionTranslator, ctx)
-    IFunSpec(g.fname, params.map(x => (x._1.translate(progVarToSpecVar), x._2)), specUniversal, specExistential, pre, post)
+    IFunSpec(g.fname, params.map(x => (x._1.translate(progVarToSpecVar, ctx), x._2)), specUniversal, specExistential, pre, post)
   }
 
-  implicit val predicateTranslator: IrisTranslator[InductivePredicate, IPredicate] = (predicate, ctx) => {
+  implicit val predicateTranslator: IrisTranslator[InductivePredicate, IPredicate] = (predicate, ctx, _) => {
     assert(ctx.isDefined)
 
     class IPredicateTranslation extends PredicateTranslation[IPureAssertion, ISpatialAssertion, HType, IPredicateClause, IPredicate] {
@@ -200,11 +225,15 @@ object IrisTranslator {
         case _ => ty.translate
       }
 
-      // TODO: should this be specExpr or specVal?
-      override def translateExpression(context: Map[Ident, HType])(expr: Expr): IPureAssertion = expr.translate.translate(toSpecVal, ctx)
+      override def translateExpression(context: Map[Ident, HType])(expr: Expr): IPureAssertion = {
+        val predCtx = Some(TranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
+        expr.translate.translate(toSpecExpr, predCtx, Some(HValType()))
+      }
 
-      override def translateHeaplets(context: Map[Ident, HType])(heaplets: List[Heaplet]): List[ISpatialAssertion] =
-        heaplets.map(_.translate(heapleatTranslator, ctx))
+      override def translateHeaplets(context: Map[Ident, HType])(heaplets: List[Heaplet]): List[ISpatialAssertion] = {
+        val predCtx = Some(TranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
+        heaplets.map(_.translate(heapleatTranslator, predCtx))
+      }
 
       override def constructClause(pure: List[IPureAssertion], spatial: List[ISpatialAssertion], subConstructor: Map[String, CardConstructor]): IPredicateClause = {
         IPredicateClause(pure, spatial, subConstructor)
