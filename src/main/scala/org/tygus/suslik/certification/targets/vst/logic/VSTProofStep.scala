@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.vst.Types.VSTType
-import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCExpr, ProofCIfThenElse}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{PureFormula, VSTPredicate}
 import org.tygus.suslik.certification.translation.{CardConstructor, CardNull, CardOf}
 import org.tygus.suslik.certification.traversal.Step.DestStep
@@ -88,6 +88,10 @@ object VSTProofStep {
 
   case object Forward extends VSTProofStep {
     override def pp: String = s"forward."
+  }
+
+  case class ForwardTernary(ternary_expr: ProofCIfThenElse) extends VSTProofStep {
+    override def pp: String = s"ssl_forward_write_ternary (${ternary_expr.pp_as_c_value});\ntry (forward; entailer!; ssl_reflect_boolean)."
   }
 
   case class Intros(variables: List[(Ident, VSTType)]) extends VSTProofStep {

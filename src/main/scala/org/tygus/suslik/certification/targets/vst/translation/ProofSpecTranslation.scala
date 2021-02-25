@@ -105,6 +105,14 @@ object  ProofSpecTranslation {
           case Expressions.OpUnaryMinus => ProofCOpUnaryMinus
         }
         ProofCUnaryExpr(top, translate_expression(context)(arg))
+      case Expressions.BinaryExpr(Expressions.OpAnd, left, right) =>
+        val left_expr = translate_expression(context)(left)
+        val right_expr = translate_expression(context)(right)
+        ProofCBinaryExpr(ProofCOpAnd, left_expr, right_expr)
+      case Expressions.BinaryExpr(Expressions.OpOr, left, right) =>
+        val left_expr = translate_expression(context)(left)
+        val right_expr = translate_expression(context)(right)
+        ProofCBinaryExpr(ProofCOpOr, left_expr, right_expr)
       case Expressions.BinaryExpr(op, left, right) =>
         val left_expr = translate_expression(context)(left)
         val type_of_expr = type_expr(left_expr)
@@ -145,7 +153,7 @@ object  ProofSpecTranslation {
     *
     *         This function performs the translation between suslik's encoding and VST's encoding
     */
-  def translate_heaplets(context: Map[Ident, VSTType])(heaplets: List[Heaplet]): List[VSTHeaplet] = {
+  def translate_heaplets(context: Map[Ident, VSTType])(predicate_param_map: Map[Ident, List[VSTType]])(heaplets: List[Heaplet]): List[VSTHeaplet] = {
     val initial_map: Map[Ident, (List[PointsTo], Option[Block])] = Map.empty
 
     // we first build up a mapping from pointer variables
@@ -170,7 +178,7 @@ object  ProofSpecTranslation {
             }
             (updated_map, acc: List[CSApp])
           case SApp(pred, args, tag, card) =>
-            (map, (List(CSApp(pred, args.map(v => translate_expression((context))(v)), translate_expression(context)(card))) ++ acc)
+            (map, (List(CSApp(pred, args.zip(predicate_param_map(pred)).map({ case (exp, ty) => (translate_expression((context))(exp), ty) }), translate_expression(context)(card))) ++ acc)
             )
         }
     })
@@ -206,18 +214,6 @@ object  ProofSpecTranslation {
     blocks.map(_.asInstanceOf[VSTHeaplet]) ++ apps.map(_.asInstanceOf[VSTHeaplet])
   }
 
-  def translate_assertion(context: Map[Ident, VSTType])(assertion: Assertion): FormalCondition = assertion match {
-    case Assertion(phi, sigma) => {
-      val pure_conditions =
-        phi.conjuncts.map(v => translate_expression(context)(v))
-          .map(IsTrueProp).toList
-
-      val spatial_conditions: List[VSTHeaplet] =
-        translate_heaplets(context)(sigma.chunks)
-
-      FormalCondition(pure_conditions, spatial_conditions)
-    }
-  }
 
   def proof_type_of_c_type(cType: VSTType): VSTCType = cType match {
     case cType: Types.VSTCType => cType
@@ -225,7 +221,7 @@ object  ProofSpecTranslation {
   }
 
   /** translates a Suslik function specification into a proof */
-  def translate_conditions(env: Environment)(f: FunSpec): FormalSpecification = {
+  def translate_conditions(env: Environment)(pred_type_map: Map[Ident, List[VSTType]])(f: FunSpec): FormalSpecification = {
     val name = f.name
     val c_params = f.params.map({case (Var(name), ty) => ty match {
       case IntType => (name, CoqIntValType)
@@ -282,7 +278,7 @@ object  ProofSpecTranslation {
         }
         })
       val spatial_conditions: List[VSTHeaplet] =
-        translate_heaplets(context)(f.pre.sigma.chunks)
+        translate_heaplets(context)(pred_type_map)(f.pre.sigma.chunks)
 
       FormalCondition(pure_conditions, spatial_conditions)
     }
@@ -291,7 +287,7 @@ object  ProofSpecTranslation {
         f.post.phi.conjuncts.map(v => translate_expression(context)(v))
           .map(IsTrueProp).toList
       val spatial_conditions =
-        translate_heaplets(context)(f.post.sigma.chunks)
+        translate_heaplets(context)(pred_type_map)(f.post.sigma.chunks)
       // goal.post.sigma.chunks.map(translate_heaplet(context)).toList
       FormalCondition(pure_conditions, spatial_conditions)
     }
@@ -341,8 +337,10 @@ object  ProofSpecTranslation {
       override def translateExpression(context: Map[Ident, VSTType])(expr: Expressions.Expr): ProofCExpr =
         translate_expression(context)(expr)
 
-      override def translateHeaplets(context: Map[Ident, VSTType])(heaplets: List[Heaplet]): List[VSTHeaplet] =
-        translate_heaplets(context)(heaplets)
+      override def translateHeaplets(context: Map[Ident, VSTType])(heaplets: List[Heaplet]): List[VSTHeaplet] = {
+        val predicate_param_map: Map[Ident, List[VSTType]] = Map(predicate.name -> predicate.params.map(v => translatePredicateParamType(predicate.name, v._2)))
+        translate_heaplets(context)(predicate_param_map)(heaplets)
+      }
 
       override def constructClause(pure: List[ProofCExpr], spatial: List[VSTHeaplet], subConstructor: Map[String, CardConstructor]): VSTPredicateClause = {
         VSTPredicateClause(pure, spatial, subConstructor)

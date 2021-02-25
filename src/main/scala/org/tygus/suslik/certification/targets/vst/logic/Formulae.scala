@@ -1,7 +1,9 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
+import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types.{CoqIntValType, CoqPtrValType, VSTType}
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
 import org.tygus.suslik.certification.targets.vst.translation.Translation.TranslationException
 import org.tygus.suslik.language.PrettyPrinting
 
@@ -12,13 +14,13 @@ object Formulae {
     def rename(renaming: Map[String, String]): VSTHeaplet =
       this match {
         case CDataAt(loc, elems) => CDataAt(loc.rename(renaming), elems.map(_.rename(renaming)))
-        case CSApp(pred, args, card) => CSApp(pred, args.map(_.rename(renaming)), card.rename(renaming))
+        case CSApp(pred, args, card) => CSApp(pred, args.map(v => (v._1.rename(renaming), v._2)), card.rename(renaming))
       }
 
     def subst(mapping: Map[String, ProofCExpr]): VSTHeaplet =
       this match {
         case CDataAt(loc, elems) => CDataAt(loc.subst(mapping), elems.map(_.subst(mapping)))
-        case CSApp(pred, args, card) => CSApp(pred, args.map(_.subst(mapping)), card.subst(mapping))
+        case CSApp(pred, args, card) => CSApp(pred, args.map(v => (v._1.subst(mapping), v._2)), card.subst(mapping))
       }
 
   }
@@ -41,9 +43,18 @@ object Formulae {
     * @param args arguments
     * @param card cardinality of call
     * */
-  case class CSApp(pred: String, var args: Seq[Expressions.ProofCExpr], card: Expressions.ProofCExpr) extends VSTHeaplet {
+  case class CSApp(pred: String, args: Seq[(Expressions.ProofCExpr, VSTType)], card: Expressions.ProofCExpr) extends VSTHeaplet {
+
+    def pp_pred_arg(v: (ProofCExpr, VSTType)): String = v._2 match {
+      case Types.CoqPtrValType => v._1.pp_as_c_value
+      case Types.CoqIntValType => v._1.pp_as_c_value
+      case Types.CoqZType => v._1.pp_as_Z_value
+      case _ =>v._1.pp
+   }
+
     override def pp: String =
-      s"(${pred} ${(args ++ List(card)).map(_.pp).mkString(" ")})"
+      s"(${pred} ${((args).map(v => pp_pred_arg(v)) ++ List(card.pp)).mkString(" ")})"
+
   }
 
 
