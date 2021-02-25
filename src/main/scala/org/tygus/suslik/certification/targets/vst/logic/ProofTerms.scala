@@ -3,7 +3,7 @@ package org.tygus.suslik.certification.targets.vst.logic
 import org.tygus.suslik.certification.targets.htt.logic.Proof.Close
 import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types._
-import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCExpr, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicateHelper.HelpUnfold
 import org.tygus.suslik.certification.targets.vst.translation.ProofSpecTranslation
@@ -169,6 +169,12 @@ object ProofTerms {
                           override val clauses: Map[CardConstructor, VSTPredicateClause])
     extends GenericPredicate[Expressions.ProofCExpr, VSTHeaplet, VSTType](name, params, existentials, clauses) {
 
+    /**
+      * Returns a list of the local facts for this predicate
+      * @return
+      */
+    def pure_constraints : List[PureFormula] = VSTPredicateHelper.LocalFacts(this).pure_constraints
+
     def clause_by_selector(expr: Expr) = {
       val translated_expr = ProofSpecTranslation.translate_expression(params.toMap)(expr)
       clauses.find({case (constructor, clause) => clause.selector == translated_expr}).get
@@ -324,10 +330,18 @@ object ProofTerms {
            |  ${predicate.name} ${predicate.formalParams.mkString(" ")}|-- !!(${
           (
             predicate.clauses.toList.map({ case (cons, pred) => clause_fact(cons, pred) }) ++
-              predicate.params.flatMap({ case (param, CoqPtrValType) => Some(s"(is_pointer_or_null ${param})") case _ => None })
+              pure_constraints.map(_.pp)
+//              predicate.params.flatMap({ case (param, CoqPtrValType) => Some(s"(is_pointer_or_null ${param})") case _ => None })
             ).mkString("/\\")
         }). Proof. Admitted.""".stripMargin
       }
+
+      def pure_constraints : List[PureFormula] = predicate.params.flatMap({
+        case (name, ty) => ty match {
+          case Types.CoqPtrValType => Some(IsValidPointerOrNull(ProofCVar(name, ty)))
+          case _ => None
+        }
+      })
 
       def lemma_name: String = s"${predicate.name}_local_factsP"
 

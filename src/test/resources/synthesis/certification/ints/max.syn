@@ -1,0 +1,12 @@
+#. -b true
+maximum of two integers
+
+###
+
+{ r :-> 0 }
+
+void max (loc r, int x, int y)
+
+{ x <= m  /\  y <= m; r :-> m }
+
+###
