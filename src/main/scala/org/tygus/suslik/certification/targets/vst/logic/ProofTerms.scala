@@ -1,6 +1,7 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
 import org.tygus.suslik.certification.targets.htt.logic.Proof.UnfoldConstructor
+import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types._
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
 import org.tygus.suslik.certification.targets.vst.logic.Formulae.VSTHeaplet
@@ -190,20 +191,24 @@ object ProofTerms {
     }
 
     def pp_constructor_clause(constructor: CardConstructor, pclause: VSTPredicateClause) : String = {
+      val clause_existentials: List[(String, VSTType)] = findExistentials(constructor)(pclause)
       val VSTPredicateClause(pure, spatial, _) = pclause
       s"${
-        val clause_existentials: List[(String, VSTType)] = findExistentials(constructor)(pclause)
         val str = clause_existentials.map({ case (name, ty) => s"      EX ${name} : ${ty.pp}," }).mkString("\n")
         clause_existentials match {
           case Nil => ""
           case ::(_, _) => "\n" + str + "\n"
         }
       } ${
+        ((clause_existentials.flatMap(v => v._2 match {
+          case Types.CoqZType => Some(s"!!(Int.min_signed <= ${v._1} <= Int.max_signed)")
+          case _ => None
+        })) ++
         (pure.map(v => s"!!${v.pp}") ++
           List((spatial match {
             case Nil => List("emp")
             case v => v.map(_.pp)
-          }).mkString(" * "))).mkString(" && ")
+          }).mkString(" * ")))).mkString(" && ")
       }"
     }
 
@@ -261,7 +266,7 @@ object ProofTerms {
             case Formulae.CDataAt(loc, elems) =>
               to_variables(loc) ++ elems.flatMap(elem => to_variables(elem))
             case Formulae.CSApp(pred, args, card) =>
-              args.flatMap(to_variables).toList
+              args.flatMap(v => to_variables(v._1)).toList
           }
 
           (pure.flatMap(to_variables) ++ spatial.flatMap(to_variables_heap): List[String])

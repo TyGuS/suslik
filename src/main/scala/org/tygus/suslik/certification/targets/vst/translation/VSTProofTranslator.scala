@@ -3,10 +3,10 @@ package org.tygus.suslik.certification.targets.vst.translation
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types.{CoqCardType, CoqPtrValType, VSTType}
-import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCCardinalityConstructor, ProofCExpr, ProofCVar}
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCCardinalityConstructor, ProofCExpr, ProofCIfThenElse, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{FormalSpecification, PureFormula, VSTPredicate}
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{AssertProp, AssertPropSubst, TentativeEntailer, Exists, Forward, ForwardCall, ForwardEntailer, ForwardIf, ForwardIfConstructor, Free, Intros, IntrosTuple, Malloc, Rename, UnfoldRewrite, ValidPointer}
+import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{AssertProp, AssertPropSubst, Exists, Forward, ForwardCall, ForwardEntailer, ForwardIf, ForwardIfConstructor, ForwardTernary, Free, Intros, IntrosTuple, Malloc, Rename, TentativeEntailer, UnfoldRewrite, ValidPointer}
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
@@ -267,8 +267,17 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
 
       case SuslikProofStep.Inconsistency(label) => ???
 
-      case SuslikProofStep.Write(stmt) =>
-        Result(List(Forward), List(with_no_deferreds(clientContext)))
+      case SuslikProofStep.Write(stmt@Statements.Store(to, offset, e)) =>
+        e match {
+          // ternary expressions need to be special cased
+          case e@Expressions.IfThenElse(cond, left, right) => // ternary
+            val ternary_expr = ProofSpecTranslation.translate_expression(clientContext.typing_context)(e).asInstanceOf[ProofCIfThenElse]
+            Result(List(ForwardTernary(ternary_expr), Forward), List(with_no_deferreds(clientContext)))
+          case _ =>
+          // otherwise, it is a normal write
+            Result(List(Forward), List(with_no_deferreds(clientContext)))
+        }
+
       case SuslikProofStep.Read(Var(ghost_from), Var(ghost_to), Load(to, _, from, offset)) =>
         val ctx = clientContext with_renaming ghost_from -> ghost_to
         val rename_step = Rename(ghost_from, ghost_to)
@@ -391,7 +400,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         //                 - existential variables in the predicate - i.e lseg x s a = lseg_card_1 a' => exists ..., _
         //                 - cardinality variables within the
         val existentials_sub = fresh_exists.map { case (var1, var2) => (var1.name, var2.name) }
-        val params_sub = fresh_params.map { case (var1: Var, var2: Var) => (var1.name, var2.name) }
+        //val params_sub = fresh_params.map { case (var1: Var, var2: Var) => (var1.name, var2.name) }
         val card_variable = pred.card.asInstanceOf[Var].name
         val predicate_name = pred.pred
         val predicate = clientContext.find_predicate_with_name(predicate_name)
@@ -403,12 +412,11 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
             })
             val constructor_arg_existentials =
               constructor.constructorArgs.map(existentials_sub(_)).map(v => (v, CoqCardType(predicate_name)))
-            val renamed_body = body.rename(existentials_sub).rename(params_sub)
-            (constructor, constructor_arg_existentials, existentials, renamed_body, expr)
+            (constructor, constructor_arg_existentials, existentials, expr)
         }
 
         val branches = clauses.map {
-          case (constructor, cons_intro_variables, intro_variables, body, selector) =>
+          case (constructor, cons_intro_variables, intro_variables, selector) =>
             val intro_names = intro_variables.map(_._1)
             val cons_intro_names = cons_intro_variables.map(_._1)
             ((constructor, cons_intro_names), selector, intro_names)
@@ -419,7 +427,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
           branches
         )
         val child_rules = clauses.map {
-          case (_, constructor_intro_gamma, intro_gamma, _, _) =>
+          case (_, constructor_intro_gamma, intro_gamma, _) =>
             var ctx = clientContext
             ctx = ctx with_variables_of constructor_intro_gamma ++ intro_gamma
             (List(), no_deferreds, ctx)

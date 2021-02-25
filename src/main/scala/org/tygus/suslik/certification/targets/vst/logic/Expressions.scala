@@ -209,7 +209,6 @@ object Expressions {
     override def pp: String = s"(${name} ${args.map(_.pp).mkString(" ")} : ${pred_type}_card)"
   }
 
-
   /** a variable in a VST proof */
   case class ProofCVar(name: String, typ: VSTType) extends ProofCExpr with CLangExpr {
     override def pp: String = typ match {
