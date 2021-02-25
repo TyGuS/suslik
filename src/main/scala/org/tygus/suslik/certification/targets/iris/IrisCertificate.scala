@@ -1,10 +1,14 @@
 package org.tygus.suslik.certification.targets.iris
 
+import org.tygus.suslik.certification.targets.htt.logic.ProofPrinter
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.HFunDef
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, IPredicate}
+import org.tygus.suslik.certification.targets.iris.logic.IProofStep
+import org.tygus.suslik.certification.targets.iris.logic.IProofStep.ProofTreePrinter
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
 
-case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec) extends Certificate {
+case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proof: ProofTree[IProofStep]) extends Certificate {
   val target: CertificationTarget = Iris
 
   private val prelude =
@@ -68,9 +72,10 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |
        |Local Ltac iRewriteHyp :=
        |  repeat match goal with
-       |  | [H: loc_at _ _ |- _ ] => rewrite H
+       |  | [H: loc_at ?x ?rx |- _ ] => rewrite H; clear x H; rename rx into x
        |  | [H: Z_at _ _ |- _ ] => rewrite H
        |  | [H: bool_decide _  = _ |- _ ] => rewrite H
+       |  | [H : _ = _ |- _ ]=> rewrite H
        |  end.
        |
        |Local Ltac iSimplNoSplit :=
@@ -79,9 +84,12 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |Local Ltac iSimplContext := iSimplNoSplit; try iSplitAllHyps; iSimplNoSplit.
        |
        |Ltac ssl_begin := iIntros; (wp_rec; repeat wp_let); iSimplContext.
+       |Ltac ssl_let := wp_let.
        |Ltac ssl_load := wp_load; wp_let; iSimplContext.
        |Ltac ssl_store := wp_store; iSimplContext.
+       |Ltac ssl_if H := case_bool_decide as H; wp_if; iSimplContext.
        |Ltac ssl_finish := by iFindApply; iFrame "% # ∗".
+       |
        |
        |""".stripMargin
 
@@ -94,7 +102,9 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
     b.append(funDef.pp)
     b.append("\n")
     b.append(funSpec.pp)
-    b.append("Proof.\nAdmitted.\n")
+    b.append("Proof.\n")
+    b.append(ProofTreePrinter.pp(proof))
+    b.append("Qed.\n")
     b.toString()
   }
 

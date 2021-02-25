@@ -77,7 +77,7 @@ object Assertions {
 
     override def ppAsBool: String = op match {
       case HOpLe => s"(Z.leb ${left.ppAsPhi} ${right.ppAsPhi})"
-      case HOpLe => s"(Z.ltb ${left.ppAsPhi} ${right.ppAsPhi})"
+      case HOpLt => s"(Z.ltb ${left.ppAsPhi} ${right.ppAsPhi})"
       case _ => ppAsPhi
     }
 
@@ -129,7 +129,7 @@ object Assertions {
     }
   }
 
-  case class IFunSpec(fname: String,
+  case class IFunSpec(fname: Ident,
                       funArgs: Seq[(ISpecVar, HType)],
                       specUniversal: Seq[(IQuantifiedVar, HType)],
                       specExistential: Seq[(IQuantifiedVar, HType)],

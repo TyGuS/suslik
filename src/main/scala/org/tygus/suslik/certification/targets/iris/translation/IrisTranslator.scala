@@ -12,7 +12,7 @@ import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic._
 
 trait IrisTranslator[From, To] {
-  def translate(value: From, ctx: Option[TranslationContext] = None, target: Option[HType] = None): To
+  def translate(value: From, ctx: Option[ProgramTranslationContext] = None, target: Option[HType] = None): To
 }
 
 object IrisTranslator {
@@ -218,12 +218,12 @@ object IrisTranslator {
       }
 
       override def translateExpression(context: Map[Ident, HType])(expr: Expr): IPureAssertion = {
-        val predCtx = Some(TranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
+        val predCtx = Some(ProgramTranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
         expr.translate(exprTranslator, predCtx).translate(toSpecExpr, predCtx)
       }
 
       override def translateHeaplets(context: Map[Ident, HType])(heaplets: List[Heaplet]): List[ISpatialAssertion] = {
-        val predCtx = Some(TranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
+        val predCtx = Some(ProgramTranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
         heaplets.map(_.translate(heapleatTranslator, predCtx))
       }
 

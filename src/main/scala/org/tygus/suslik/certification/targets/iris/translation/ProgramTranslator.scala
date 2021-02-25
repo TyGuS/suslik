@@ -1,17 +1,24 @@
 package org.tygus.suslik.certification.targets.iris.translation
 
 import org.tygus.suslik.certification.source.SuslikProofStep
-import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinaryExpr, HExpr, HFree, HGuarded, HIf, HLitLoc, HLitUnit, HNoOp, HOpOffset}
+import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinaryExpr, HExpr, HFree, HGuarded, HIf, HLitLoc, HLitUnit, HNoOp, HOpOffset, HProgVar}
+import org.tygus.suslik.certification.targets.iris.heaplang.Types.HType
+import org.tygus.suslik.certification.targets.iris.logic.Assertions.IQuantifiedVar
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
+import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import org.tygus.suslik.certification.traversal.Translator
 import org.tygus.suslik.certification.traversal.Translator.Result
+import org.tygus.suslik.language.Ident
+import org.tygus.suslik.logic.{Environment, Gamma}
+
+case class ProgramTranslationContext(env: Environment, gamma: Gamma, pts: Map[HProgVar, IQuantifiedVar], hctx: Map[Ident, HType]) extends ClientContext[HExpr]
 
 /**
   * Extract a HeapLang program directly from the SSL proof.
   */
-object ProgramTranslator extends Translator[SuslikProofStep, HExpr, TranslationContext]  {
+object ProgramTranslator extends Translator[SuslikProofStep, HExpr, ProgramTranslationContext]  {
 
-  override def translate(step: SuslikProofStep, ctx: TranslationContext): Translator.Result[HExpr, TranslationContext] = {
+  override def translate(step: SuslikProofStep, ctx: ProgramTranslationContext): Translator.Result[HExpr, ProgramTranslationContext] = {
     val withNoDeferred = (Nil, None, ctx)
     step match {
       case SuslikProofStep.Open(_, _, _, selectors) =>
