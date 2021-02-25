@@ -23,7 +23,7 @@ object VSTProofStep {
 
 
   case object TentativeEntailer extends VSTProofStep {
-    override def pp: String = s"try entailer!."
+    override def pp: String = s"ssl_entailer."
   }
 
   /**
