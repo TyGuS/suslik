@@ -51,8 +51,8 @@ object Hint {
     case class Hypothesis(args: Set[CVar], ctx: Set[CExpr], goal: CExpr) {
       val name = s"pure$freshHintId"
       def pp: String = {
-        val ctxStr = ctx.map(_.pp).mkString(" -> ")
-        val goalStr = goal.pp
+        val ctxStr = ctx.map(_.ppProp).mkString(" -> ")
+        val goalStr = goal.ppProp
         val hypStr = if (ctx.isEmpty) goalStr else s"$ctxStr -> $goalStr"
         val argsStr = if (args.isEmpty) "" else s"${args.map(_.pp).mkString(" ")} "
         s"Lemma $name $argsStr: $hypStr. Admitted.\n${ppResolve(name)}"

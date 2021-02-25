@@ -266,7 +266,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
           val ctx1 = ctx.solveApp(csapp1, newApps)
 
           val steps = List(
-            Proof.UnfoldConstructor(constructor.idx) andThen,
+            Proof.Close(constructor.idx) andThen,
             Proof.Exists(valueEx ++ heapEx) andThen,
             Proof.Auto
           )

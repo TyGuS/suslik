@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.vst.logic
 
-import org.tygus.suslik.certification.targets.htt.logic.Proof.UnfoldConstructor
+import org.tygus.suslik.certification.targets.htt.logic.Proof.Close
 import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types._
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.ProofCExpr
