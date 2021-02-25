@@ -100,6 +100,8 @@ object Expressions {
     def vars: Seq[CVar] = collect(_.isInstanceOf[CVar])
 
     def cardVars: Seq[CVar] = collect(_.isInstanceOf[CSApp]).flatMap {v: CSApp => v.card.vars}
+
+    def ppProp: String = pp
   }
 
   case class CVar(name: String) extends CExpr {
@@ -136,6 +138,11 @@ object Expressions {
       case COpSubset => s"@sub_mem nat_eqType (mem (${left.pp})) (mem (${right.pp}))"
       case COpSetEq => s"@perm_eq nat_eqType (${left.pp}) (${right.pp})"
       case _ => s"(${left.pp}) ${op.pp} (${right.pp})"
+    }
+
+    override def ppProp: String = op match {
+      case COpEq => s"(${left.pp}) ${op.ppProp} (${right.pp})"
+      case _ => pp
     }
   }
 
@@ -201,7 +208,9 @@ object Expressions {
 
   object COpUnaryMinus extends CUnOp
 
-  sealed abstract class CBinOp extends PrettyPrinting
+  sealed abstract class CBinOp extends PrettyPrinting {
+    def ppProp: String = pp
+  }
 
   object COpImplication extends CBinOp {
     override def pp: String = "->"
@@ -220,6 +229,7 @@ object Expressions {
   }
 
   object COpEq extends CBinOp {
+    override def ppProp: String = "="
     override def pp: String = "=="
   }
 

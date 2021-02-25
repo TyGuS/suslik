@@ -5,7 +5,7 @@ import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types.{CoqCardType, CoqPtrValType, VSTType}
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCCardinalityConstructor, ProofCExpr, ProofCIfThenElse, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{FormalSpecification, PureFormula, VSTPredicate}
-import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
+import org.tygus.suslik.certification.targets.vst.logic.{Formulae, VSTProofStep}
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{AssertProp, AssertPropSubst, Exists, Forward, ForwardCall, ForwardEntailer, ForwardIf, ForwardIfConstructor, ForwardTernary, Free, Intros, IntrosTuple, Malloc, Rename, TentativeEntailer, UnfoldRewrite, ValidPointer}
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import org.tygus.suslik.certification.traversal.Translator.Result
@@ -24,12 +24,14 @@ object VSTProofTranslator {
     * @param args               arguments to function call
     * @param existential_params existential paramters in result of function call (will be introduced after calling function)
     * @param pre_conditions     pre-conditions to function
+    * @param post_constraints   list of constraints enforced by function after execution
     */
   case class PendingCall(
                           function_name: String,
                           args: List[(String, VSTType)],
                           existential_params: List[(String, VSTType)],
-                          pre_conditions: List[PureFormula]
+                          pre_conditions: List[PureFormula],
+                          post_constraints: List[PureFormula]
                         )
 
   /**
@@ -85,11 +87,13 @@ object VSTProofTranslator {
       }
       val new_call = call match {
         case None => None
-        case Some(PendingCall(f_name, args, existential_params, pre_conditions)) =>
+        case Some(PendingCall(f_name, args, existential_params, pre_conditions, post_constraints)) =>
           Some(PendingCall(
             f_name, args.map(v => (true_name(v._1), v._2)),
             existential_params.map(v => (true_name(v._1), v._2)),
-            pre_conditions.map(_.rename(renaming))))
+            pre_conditions.map(_.rename(renaming)),
+            post_constraints.map(_.rename(renaming))
+          ))
       }
       val new_renamings = renamings.map({case (from, to) => (from, true_name(to))}) ++ Map(from -> to)
       VSTClientContext(pred_map, spec_map, new_coq_context, new_existential_context, new_ghost_context, new_variable_map, new_renamings, new_call)
@@ -141,8 +145,8 @@ object VSTProofTranslator {
       val subst = Map(from -> to_expr)
       val new_variable_map = variable_map.map({ case (name, vl) => (name, vl.subst(subst)) }) ++ subst
       val new_call = call.map({
-        case PendingCall(f_name, args, eparams, preconds) =>
-          PendingCall(f_name, args, eparams, preconds.map(v => v.subst(subst)))
+        case PendingCall(f_name, args, eparams, preconds, postconds) =>
+          PendingCall(f_name, args, eparams, preconds.map(v => v subst subst), postconds.map(v => v subst subst))
       })
       VSTClientContext(pred_map, spec_map, coq_context, existential_context, ghost_existential_context, new_variable_map, renamings, new_call)
     }
@@ -222,10 +226,18 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         var ctx = clientContext
         val fun_spec = ctx.spec_map(f.name)
         val renaming = normalize_renaming(freshSub.map { case (Var(name_from), Var(name_to)) => (name_from, name_to) })
+
+        val post_constraints = fun_spec.postcondition.spatial_constraints.flatMap({
+          case Formulae.CSApp(pred, args, card) =>
+              val predicate = ctx.pred_map(pred)
+              val param_map = predicate.params.zip(args).map({case ((name, _), (expr, _)) => (name, expr.rename(renaming))}).toMap
+               predicate.pure_constraints.map(v => v.subst(param_map))
+          case _ => List()
+        })
         val function_params = fun_spec.params.map((pair) => (renaming(pair._1), pair._2))
         val function_result_existentials = fun_spec.existensial_params.map { case (name, ty) => (renaming(name), ty) }
         val function_preconds = fun_spec.precondition.pure_constraints.map(_.rename(renaming))
-        val suspended_call = PendingCall(f.name, function_params, function_result_existentials, function_preconds)
+        val suspended_call = PendingCall(f.name, function_params, function_result_existentials, function_preconds, post_constraints)
         ctx = ctx with_ghost_existentials_of function_params
         ctx = ctx with_queued_call suspended_call
         // Use deferred to remove (translation-only) existentials produced by abduce-call
@@ -255,7 +267,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
               List(IntrosTuple(call.existential_params))
             } else {
               List()
-            })
+            }) ++ (call.post_constraints.map(v => AssertProp(v)))
         }
         // update context to have existential variables produced by call
         ctx = ctx with_variables_of call.existential_params

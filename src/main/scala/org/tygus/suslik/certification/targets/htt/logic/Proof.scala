@@ -85,8 +85,8 @@ object Proof {
   case object Auto extends Step {
     override def pp: String = "sslauto"
   }
-  case class UnfoldConstructor(idx: Int) extends Step {
-    override def pp: String = s"unfold_constructor $idx"
+  case class Close(idx: Int) extends Step {
+    override def pp: String = s"ssl_close $idx"
   }
   case class Write(to: CVar, offset: Int = 0, e: CExpr) extends Step {
     override def pp: String = {
@@ -134,7 +134,7 @@ object Proof {
     override def pp: String = "ssl_ghostelim_post"
   }
   case class Branch(cond: CExpr) extends Step {
-    override def pp: String = s"ssl_abduce_branch (${cond.pp})"
+    override def pp: String = s"ssl_branch (${cond.pp})"
   }
   case object FrameUnfold extends Step {
     override def pp: String = "ssl_frame_unfold"
