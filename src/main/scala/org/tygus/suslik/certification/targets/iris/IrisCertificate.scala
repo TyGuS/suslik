@@ -89,6 +89,8 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
     val b = new StringBuilder
     b.append(prelude)
     b.append(preds.map(_.pp).mkString("\n"))
+    b.append("\n")
+    b.append(preds.flatMap(_.getHelpers).map(_.pp).mkString("\n"))
     b.append(funDef.pp)
     b.append("\n")
     b.append(funSpec.pp)

@@ -12,6 +12,7 @@ object Assertions {
     * program-level expressions to spec-level. */
   abstract class IPureAssertion extends PrettyPrinting {
     def ppAsPhi: String = pp
+    def ppAsBool: String = ppAsPhi
     def typ: HType
   }
 
@@ -23,6 +24,9 @@ object Assertions {
 
   case class ISpecLit(lit: HLit) extends IPureAssertion {
     override def pp: String = lit.pp
+
+    // Don't print the # at the beginning
+    override def ppAsPhi: String = pp.substring(1)
 
     override def typ: HType = HValType()
   }
@@ -50,7 +54,7 @@ object Assertions {
   }
 
   case class ISpecUnaryExpr(op: HUnOp, expr: IPureAssertion) extends IPureAssertion {
-    override def pp: String = s"${op.pp} ${expr.pp}"
+    override def pp: String = s"(${op.pp} ${expr.pp})"
 
     override def ppAsPhi: String = s"${op.pp} ${expr.ppAsPhi}"
 
@@ -61,23 +65,34 @@ object Assertions {
     }
   }
 
+  case class ISpecIfThenElse(cond: IPureAssertion, trueBranch: IPureAssertion, falseBranch: IPureAssertion) extends IPureAssertion {
+    override def pp: String = s"if ${cond.pp} then ${trueBranch.pp} else ${falseBranch.pp}"
+    override def ppAsPhi: String = s"if ${cond.ppAsBool} then ${trueBranch.ppAsPhi} else ${falseBranch.ppAsPhi}"
+
+    override def typ: HType = trueBranch.typ
+  }
+
   case class ISpecBinaryExpr(op: HBinOp, left: IPureAssertion, right: IPureAssertion) extends IPureAssertion {
     override def pp: String = s"(${left.pp} ${op.pp} ${right.pp})"
+
+    override def ppAsBool: String = op match {
+      case HOpLe => s"(Z.leb ${left.ppAsPhi} ${right.ppAsPhi})"
+      case HOpLe => s"(Z.ltb ${left.ppAsPhi} ${right.ppAsPhi})"
+      case _ => ppAsPhi
+    }
+
+    override def ppAsPhi: String = op match {
+      case HOpLe | HOpLt | HOpPlus | HOpMinus | HOpMultiply
+        if left.typ == HIntType() || right.typ == HIntType()
+      => s"(${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})%Z"
+      case _ => s"(${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})"
+    }
 
     override def typ: HType = op match {
       case HOpEq | HOpLe | HOpLt => HBoolType()
       case HOpUnion => HIntSetType()
       case HOpPlus | HOpMinus | HOpMultiply => HIntType()
       case HOpOffset => HLocType()
-      case _ => ???
-    }
-
-    override def ppAsPhi: String = op match {
-      case HOpLe | HOpLt  => s"bool_decide (${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})%Z"
-      case HOpUnion => s"(${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})"
-      case HOpEq if left.typ == HIntSetType() || right.typ == HIntSetType() =>
-        s"${left.ppAsPhi} ${op.pp} ${right.ppAsPhi}"
-      case HOpEq => s"bool_decide (${left.ppAsPhi} ${op.pp} ${right.ppAsPhi})"
       case _ => ???
     }
   }
@@ -158,17 +173,63 @@ object Assertions {
                         override val clauses: Map[CardConstructor, IPredicateClause])
     extends GenericPredicate[IPureAssertion, ISpatialAssertion, HType](name, params, existentials, clauses) {
 
-    def ppPredicate: String = {
-      def ppConstructorClause(constr: CardConstructor, pclause: IPredicateClause): String = {
-        val IPredicateClause(pure, spatial, _) = pclause
-        val clause = IAssertion(IAnd(pure), IHeap(spatial))
-        val ex = findExistentials(constr)(pclause)
-        val exStr = if (ex.nonEmpty)  s"∃ ${ex.map({ case (name, ty) => s"($name : ${ty.pp})"}).mkString(" ")}, " else ""
-        s"${exStr}${clause.pp}"
+    abstract class IPredicateHelper extends PrettyPrinting
+
+    case class HelpUnfold(predicate: IPredicate, cardConstructor: CardConstructor, pclause: IPredicateClause) extends IPredicateHelper {
+      override def pp: String = {
+        s"Lemma ${lemmaName} " +
+          s"${cardConstructor.constructorArgs.map(v => s"(${v} : ${predicate.inductiveName})").mkString(" ")} " +
+          s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
+          s":\n${predicate.name} ${predicate.params.map(_._1).mkString(" ")} (${predicate.constructorName(cardConstructor)} ${
+            predicate.expandArgs(pclause.subConstructor)(cardConstructor.constructorArgs)
+          }) = (${predicate.ppConstructorClause(cardConstructor, pclause)})%I.\nProof. auto. Qed.\n"
       }
 
+      def lemmaName: String = s"${constructorName(cardConstructor)}_open"
+    }
+
+    /*** See the health warnings attached to LocalFacts. The same apply. */
+    case class HelpCard(predicate: IPredicate, cardConstructor: CardConstructor, pclause: IPredicateClause) extends IPredicateHelper {
+      override def pp: String = {
+        def ppPred: String = s"${predicate.name} ${predicate.params.map(_._1).mkString(" ")}"
+
+        def ppEqualityTerm(cons: CardConstructor): String =
+          if (cons.constructorArgs.isEmpty) {
+            s"${ppPred} ${cardinalityParam} = ${ppPred} ${predicate.constructorName(cons)}"
+          } else {
+            s"∃ ${cons.constructorArgs.mkString(" ")}, ${ppPred} ${cardinalityParam} = ${ppPred} (${predicate.constructorName(cons)} ${cons.constructorArgs.mkString(" ")})"
+          }
+
+        s"Lemma ${lemmaName} " +
+          s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
+          s"${cardinalityParam}:\n" +
+          s"${pclause.selector.ppAsPhi} -> ${ppEqualityTerm(cardConstructor)}.\n" +
+          s"Proof. Admitted.\n"
+      }
+
+      def lemmaName: String = s"${constructorName(cardConstructor)}_learn"
+
+    }
+
+    val cardinalityParam: String = "self_card"
+
+    def getHelpers: List[IPredicateHelper] = {
+      val cardLemmas = clauses.map({ case (constructor, clause) => HelpCard(this, constructor, clause )})
+      val unfoldingLemmas = clauses.map({ case (constructor, clause) => HelpUnfold(this, constructor, clause )})
+      cardLemmas.toList ++ unfoldingLemmas.toList
+    }
+
+    def ppConstructorClause(constr: CardConstructor, pclause: IPredicateClause): String = {
+      val IPredicateClause(pure, spatial, _) = pclause
+      val clause = IAssertion(IAnd(pure), IHeap(spatial))
+      val ex = findExistentials(constr)(pclause)
+      val exStr = if (ex.nonEmpty)  s"∃ ${ex.map({ case (name, ty) => s"($name : ${ty.pp})"}).mkString(" ")}, " else ""
+      s"${exStr}${clause.pp}"
+    }
+
+    def ppPredicate: String = {
       val predicate_definition =
-        s"""Fixpoint ${name} ${params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} (self_card: ${inductiveName}) : iProp Σ := match self_card with
+        s"""Fixpoint ${name} ${params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} (${cardinalityParam}: ${inductiveName}) { struct self_card } : iProp Σ := match self_card with
            ${
           clauses.map({ case (constructor, pclause@IPredicateClause(_, _, subConstructor)) =>
             s"|    | ${constructorName(constructor)} ${
@@ -212,6 +273,7 @@ object Assertions {
             }
             case ISpecBinaryExpr(_, left, right) => pureExistentials(left) ++ pureExistentials(right)
             case ISpecUnaryExpr(_, expr) => pureExistentials(expr)
+            case ISpecIfThenElse(cond, left, right) => pureExistentials(cond) ++ pureExistentials(left) ++ pureExistentials(right)
             case ISetLiteral(elems) => elems.flatMap(pureExistentials).toSet
             case ISpecMakeVal(v) => pureExistentials(v)
             case ISpecLit(_) => Set()
@@ -224,7 +286,8 @@ object Assertions {
             case IBlock() => Set()
             case _ => ???
           }
-          (pure.flatMap(pureExistentials) ++ spatial.flatMap(spatialExistentials)).map(v => (v, existMap(v)))
+          (pure.flatMap(pureExistentials) ++ spatial.flatMap(spatialExistentials)).distinct.map(v => (v, existMap(v)))
+
       }
     }
   }

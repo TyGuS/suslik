@@ -75,6 +75,10 @@ object Expressions {
     override def pp: String = "="
   }
 
+  object HOpSetEq extends HBinOp {
+    override def pp: String = "="
+  }
+
   object HOpLt extends HBinOp {
     override def pp: String = "<"
   }
