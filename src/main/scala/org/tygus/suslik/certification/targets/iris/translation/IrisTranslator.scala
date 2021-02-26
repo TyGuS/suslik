@@ -66,8 +66,8 @@ object IrisTranslator {
   implicit val progVarToSpecQuantifiedValue: IrisTranslator[HProgVar, ISpecQuantifiedValue] = (pv, ctx, _) => {
     assert(ctx.isDefined)
     (pv, ctx.get.gamma(Var(pv.name)).translate) match {
-      case (HProgVar(name), HLocType()) => ISpecQuantifiedValue(s"l${name}", HLocType())
-      case (HProgVar(name), t) => ISpecQuantifiedValue(s"v${name}", t)
+      case (HProgVar(name), HLocType()) => ISpecQuantifiedValue(s"l${name}", name, HLocType())
+      case (HProgVar(name), t) => ISpecQuantifiedValue(s"v${name}", name, t)
     }
   }
 
@@ -194,18 +194,17 @@ object IrisTranslator {
     val params = g.programVars.map(v => (v.translate, g.gamma(v).translate))
 
     // We "unwrap" every value to a l ↦ v form. quantifiedVal = v and takes the type of the value.
-    val quantifiedValues = g.programVars.map(
+    val artificialUniversal = g.programVars.map(
       v => (v.translate.translate(progVarToSpecQuantifiedValue, Some(ctx.get)), g.gamma(v).translate)
     )
     // We quantify over all universals, ignoring the type of function arguments
-    val quantifiedLocs = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx),
+    val specUniversal = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx),
       if(g.programVars.contains(v)) HValType() else g.gamma(v).translate))
-    val specUniversal = quantifiedLocs.toSeq ++ quantifiedValues
     val specExistential = g.existentials.map(v => (v.translate.translate(progVarToSpecVar, ctx), g.gamma(v).translate)).toSeq
 
     val pre = g.pre.translate(assertionTranslator, ctx)
     val post = g.post.translate(assertionTranslator, ctx)
-    IFunSpec(g.fname, params.map(x => (x._1.translate(progVarToSpecVar, ctx), x._2)), specUniversal, specExistential, pre, post)
+    IFunSpec(g.fname, params.map(x => (x._1.translate(progVarToSpecVar, ctx), x._2)), specUniversal.toSeq, artificialUniversal, specExistential, pre, post)
   }
 
   implicit val predicateTranslator: IrisTranslator[InductivePredicate, IPredicate] = (predicate, ctx, _) => {

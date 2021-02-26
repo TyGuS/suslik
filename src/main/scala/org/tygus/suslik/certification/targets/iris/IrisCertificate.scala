@@ -15,6 +15,8 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
     s"""From iris.program_logic Require Export weakestpre.
        |From iris.proofmode Require Export tactics coq_tactics ltac_tactics reduction.
        |From iris.heap_lang Require Import lang notation proofmode.
+       |From iris_string_ident Require Import ltac2_string_ident.
+       |
        |From Hammer Require Import Hammer.
        |Context `{!heapG Σ}.
        |Set Default Proof Using "Type".
@@ -73,7 +75,7 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |Local Ltac iRewriteHyp :=
        |  repeat match goal with
        |  | [H: loc_at ?x ?rx |- _ ] => rewrite H; clear x H; rename rx into x
-       |  | [H: Z_at _ _ |- _ ] => rewrite H
+       |  | [H: Z_at ?x ?rx |- _ ] => rewrite H; clear x H; rename rx into x
        |  | [H: bool_decide _  = _ |- _ ] => rewrite H
        |  | [H : _ = _ |- _ ]=> rewrite H
        |  end.
@@ -83,13 +85,12 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |
        |Local Ltac iSimplContext := iSimplNoSplit; try iSplitAllHyps; iSimplNoSplit.
        |
-       |Ltac ssl_begin := iIntros; (wp_rec; repeat wp_let); iSimplContext.
+       |Ltac ssl_begin := (wp_rec; repeat wp_let); iSimplContext.
        |Ltac ssl_let := wp_let.
        |Ltac ssl_load := wp_load; wp_let; iSimplContext.
        |Ltac ssl_store := wp_store; iSimplContext.
        |Ltac ssl_if H := case_bool_decide as H; wp_if; iSimplContext.
-       |Ltac ssl_finish := by iFindApply; iFrame "% # ∗".
-       |
+       |Ltac ssl_finish := iRewriteHyp; iFrame "% # ∗"; try iPureIntro; try lia; done.
        |
        |""".stripMargin
 

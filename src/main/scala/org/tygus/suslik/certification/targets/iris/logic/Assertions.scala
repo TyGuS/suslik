@@ -1,5 +1,6 @@
 package org.tygus.suslik.certification.targets.iris.logic
 
+import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions._
 import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HBoolType, HIntSetType, HIntType, HLocType, HType, HValType}
 import org.tygus.suslik.certification.translation.{CardConstructor, GenericPredicate, GenericPredicateClause}
@@ -14,11 +15,25 @@ object Assertions {
     def ppAsPhi: String = pp
     def ppAsBool: String = ppAsPhi
     def typ: HType
+
+    def conjuncts: Seq[IPureAssertion] = throw TranslationException("Called conjuncts on IPureAssertion not of type IAnd.")
+
+    // TODO: implement this
+    def subst(s: Map[Ident, IPureAssertion]): IPureAssertion = this match {
+      case expr => expr
+    }
   }
 
-  abstract class IQuantifiedVar extends IPureAssertion
+  abstract class IQuantifiedVar extends IPureAssertion {
+    def name: Ident
 
-  abstract class ISpatialAssertion extends PrettyPrinting
+    def originalName: Ident = throw TranslationException("Called originalName on IQuantifiedVar not of type ISpecQuantifiedValue.")
+  }
+
+  abstract class ISpatialAssertion extends PrettyPrinting {
+
+    def heaplets: Seq[ISpatialAssertion] = throw TranslationException("Called heaplets on ISpatialAssertion not of type IHeap.")
+  }
 
   abstract class ISpecification extends PrettyPrinting
 
@@ -42,7 +57,7 @@ object Assertions {
     override def ppAsPhi: String = super.ppAsPhi
   }
 
-  case class ISpecQuantifiedValue(name: String, typ: HType) extends IQuantifiedVar {
+  case class ISpecQuantifiedValue(name: String, override val originalName: Ident, typ: HType) extends IQuantifiedVar {
     override def pp: String = s"${name}"
   }
 
@@ -97,10 +112,11 @@ object Assertions {
     }
   }
 
-  case class IAnd(conjuncts: Seq[IPureAssertion]) extends IPureAssertion {
+  case class IAnd(override val conjuncts: Seq[IPureAssertion]) extends IPureAssertion {
     override def pp: String = s"${conjuncts.map(_.ppAsPhi).mkString(" ∧ ")}"
 
     override def typ: HType = HBoolType()
+
   }
 
   case class IPointsTo(loc: IPureAssertion, value: IPureAssertion) extends ISpatialAssertion {
@@ -116,7 +132,7 @@ object Assertions {
     override def pp: String = s"⌜True⌝"
   }
 
-  case class IHeap(heaplets: Seq[ISpatialAssertion]) extends ISpatialAssertion {
+  case class IHeap(override val heaplets: Seq[ISpatialAssertion]) extends ISpatialAssertion {
     override def pp: String = s"${heaplets.map(_.pp).mkString(" ∗ ")}"
   }
 
@@ -132,6 +148,7 @@ object Assertions {
   case class IFunSpec(fname: Ident,
                       funArgs: Seq[(ISpecVar, HType)],
                       specUniversal: Seq[(IQuantifiedVar, HType)],
+                      artificialUniversal: Seq[(IQuantifiedVar, HType)],
                       specExistential: Seq[(IQuantifiedVar, HType)],
                       pre: IAssertion,
                       post: IAssertion
@@ -141,8 +158,8 @@ object Assertions {
       // TODO: make this use the general translation mechanism
       def getArgLitVal(v: ISpecVar, t: HType): ISpecQuantifiedValue =
         (v, t) match {
-          case (ISpecVar(name, t), HLocType()) => ISpecQuantifiedValue(s"l${name}", t)
-          case (ISpecVar(name, t), _) => ISpecQuantifiedValue(s"v${name}", t)
+          case (ISpecVar(name, t), HLocType()) => ISpecQuantifiedValue(s"l${name}", name, t)
+          case (ISpecVar(name, t), _) => ISpecQuantifiedValue(s"v${name}", name, t)
         }
 
       val var_at = (v: ISpecVar, t: HType) => s"${t.pp}_at ${v.pp} ${getArgLitVal(v, t).pp}"
@@ -151,9 +168,10 @@ object Assertions {
           s"∃ ${specExistential.map({ case (v, ty) => s"(${v.pp} : ${ty.pp})"}).mkString(" ")}, "
         else ""
 
+      val universal = specUniversal ++ artificialUniversal
       s"""
          |Lemma ${fname}_spec :
-         |∀ ${specUniversal.map({ case (v, ty) => s"(${v.pp} : ${ty.pp})"}).mkString(" ")},
+         |∀ ${universal.map({ case (v, ty) => s"(${v.pp} : ${ty.pp})"}).mkString(" ")},
          |${funArgs.map(v => var_at(v._1, v._2)).mkString(" →\n")} →
          |{{{ ${pre.pp} }}}
          |  ${fname} ${funArgs.map(v => v._1.pp).mkString(" ")}

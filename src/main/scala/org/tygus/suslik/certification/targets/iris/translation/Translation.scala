@@ -42,7 +42,12 @@ object Translation {
     val funDef = HFunDef(proc.name, params, progTree)
     val funSpec = node.goal.translate(goalToFunSpecTranslator, Some(ctx))
 
-    val proofCtx = IProofContext()
+
+    val predMap = predicates.map(p => (p.name, p)).toMap
+    // TODO: add support for helper functions
+    val specMap = List((funSpec.fname, funSpec)).toMap
+
+    val proofCtx = IProofContext(0, ctx, predMap, specMap, Map.empty, Map.empty)
     val proofTree = ProofEvaluator(funSpec).run(suslikTree, proofCtx)
 
     IrisCertificate(proc.name, predicates, funDef, funSpec, proofTree)
