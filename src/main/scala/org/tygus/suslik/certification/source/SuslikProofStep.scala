@@ -582,7 +582,7 @@ case class AbduceCall(
     val initStep = Init(node.goal)
     val initItem = Item(initStep, None, Nil, Nil)
     val res = forward(node, List(initItem))
-    Console.println(SuslikPrinter.pp(res))
+//    Console.println(SuslikPrinter.pp(res))
     res
   }
 }

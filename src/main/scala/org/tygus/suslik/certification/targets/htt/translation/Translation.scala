@@ -47,7 +47,7 @@ object Translation {
     val progBody = ProgramEvaluator.run(suslikTree, ProgramContext())
     val cproc = Program(proc.name, proc.tp.translate, proc.formals.map(_.translate), progBody)
 
-    HTTCertificate(cproc.name, cpreds, spec, auxSpecs, proof, cproc, hints)
+    HTTCertificate(cproc.name, cpreds.values.toList, spec, auxSpecs, proof, cproc, hints)
   }
 
   private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {

@@ -1,15 +1,8 @@
 package org.tygus.suslik.certification.targets.vst
 
-import java.nio.file.Paths
-import java.io.{File, PrintWriter}
-
-import org.tygus.suslik.certification.{CertTree, Certificate, CertificateOutput, CertificationTarget}
+import org.tygus.suslik.certification.{CertTree, Certificate, CertificationTarget, Predicate}
 import org.tygus.suslik.language.Statements
-import org.tygus.suslik.language.Statements.Statement
-import org.tygus.suslik.logic.{Environment, FunSpec, FunctionEnv, PredicateEnv, Preprocessor, Program}
-import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.synthesis.{SynConfig, SynthesisException, SynthesisRunner}
-import org.tygus.suslik.util.SynStats
+import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
 import org.tygus.suslik.certification.targets.vst.translation.Translation
 
@@ -23,8 +16,8 @@ object VST extends CertificationTarget {
       CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
 
     Translation.translate(root, proc, env)
-
   }
 
+  def mkDefs(predicates: List[Predicate]): String = ???
 }
 

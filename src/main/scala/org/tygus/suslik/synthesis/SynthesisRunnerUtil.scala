@@ -237,15 +237,13 @@ trait SynthesisRunnerUtil {
           if (params.certDest == null) {
             testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
             certificate.outputs.foreach({case CertificateOutput(filename, name, body) =>
-              val outname = filename.getOrElse(certificate.getFileName(name))
-              testPrintln(s"File ${outname}:\n", Console.MAGENTA)
+              testPrintln(s"File $filename:\n", Console.MAGENTA)
               testPrintln(s"$body")
             })
           } else {
             certificate.outputs.foreach({
               case CertificateOutput(ofname, name, body) =>
-                val filename = ofname.getOrElse(certificate.getFileName(name))
-                val path = Paths.get(params.certDest.getCanonicalPath, filename).toFile
+                val path = Paths.get(params.certDest.getCanonicalPath, ofname).toFile
                 new PrintWriter(path) { write(body); close() }
                 testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
             })

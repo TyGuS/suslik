@@ -1,5 +1,6 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
+import org.tygus.suslik.certification.Predicate
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
 import org.tygus.suslik.certification.targets.htt.language.{CFormals, CGamma, PrettyPrinting}
 import org.tygus.suslik.certification.targets.htt.language.Types._
@@ -58,7 +59,7 @@ object Sentences {
 
   case class CInductiveClause(pred: String, idx: Int, selector: CExpr, asn: CAssertion, existentials: Seq[CVar]) extends PrettyPrinting
 
-  case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause], gamma: CGamma) extends PrettyPrinting {
+  case class CInductivePredicate(name: String, params: CFormals, clauses: Seq[CInductiveClause], gamma: CGamma) extends Predicate with PrettyPrinting {
     val paramVars: Seq[CVar] = params.map(_._1)
 
     override def pp: String = {

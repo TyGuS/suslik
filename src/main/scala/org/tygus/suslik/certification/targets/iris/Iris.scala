@@ -2,7 +2,7 @@ package org.tygus.suslik.certification.targets.iris
 
 import org.tygus.suslik.certification.source.{SuslikPrinter, SuslikProofStep}
 import org.tygus.suslik.certification.targets.iris.translation.Translation
-import org.tygus.suslik.certification.{CertTree, CertificationTarget}
+import org.tygus.suslik.certification.{CertTree, CertificationTarget, Predicate}
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.certification.targets.iris.translation.Translation.TranslationException
@@ -21,4 +21,5 @@ object Iris extends CertificationTarget {
     cert
   }
 
+  override def mkDefs(predicates: List[Predicate]): String = ???
 }

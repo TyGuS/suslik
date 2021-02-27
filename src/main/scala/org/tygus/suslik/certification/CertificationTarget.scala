@@ -14,4 +14,5 @@ trait CertificationTarget {
   val name: String
   val suffix: String
   def certify(proc: Procedure, env: Environment): Certificate
+  def mkDefs(predicates: List[Predicate]): String
 }
