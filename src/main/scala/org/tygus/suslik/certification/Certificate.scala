@@ -39,7 +39,6 @@ case class ClangOutput(filename: String, name: String, body: String) extends Cer
     def to_cmd (cmd: Seq[String]) = Process(cmd, dir)
     val build_cmd = to_cmd(Seq("clightgen", "-normalize", filename))
     val verify_cmd = to_cmd(Seq("coqc", "-w", "none", s"${name}.v"))
-    println(to_cmd(Seq("which", "clightgen")).!!)
     build_cmd.#&&(verify_cmd).!
   }
 }
