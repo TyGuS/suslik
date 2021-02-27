@@ -4,7 +4,7 @@ import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.synthesis.CertificationBenchmarks
 
 object HTTCertificationBenchmarks extends CertificationBenchmarks {
-  val target: CertificationTarget = HTT
+  val target: CertificationTarget = HTT()
 
   def main(args: Array[String]): Unit = {
     initLog()

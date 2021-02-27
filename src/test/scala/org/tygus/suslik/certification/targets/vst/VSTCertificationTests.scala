@@ -18,7 +18,7 @@ class VSTCertificationTests extends FunSpec with Matchers with SynthesisRunnerUt
       synthesizeFromSpec(
         testName, in, out,
         params.copy(
-          assertSuccess = false, certTarget = VST,
+          assertSuccess = false, certTarget = VST(),
           certDest = certRoot
         ))
       val fname = testName.split('/').last

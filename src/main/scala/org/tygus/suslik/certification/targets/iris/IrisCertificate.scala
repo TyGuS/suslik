@@ -5,11 +5,9 @@ import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, I
 import org.tygus.suslik.certification.targets.iris.logic.IProofStep
 import org.tygus.suslik.certification.targets.iris.logic.IProofStep.ProofTreePrinter
 import org.tygus.suslik.certification.traversal.ProofTree
-import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, CoqOutput}
+import org.tygus.suslik.certification.{Certificate, CertificateOutput, CoqOutput}
 
-case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proof: ProofTree[IProofStep]) extends Certificate {
-  val target: CertificationTarget = Iris
-
+case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proof: ProofTree[IProofStep]) extends Certificate[Iris, IPredicate] {
   private val prelude =
     s"""From iris.program_logic Require Export weakestpre.
        |From iris.proofmode Require Export tactics coq_tactics ltac_tactics reduction.

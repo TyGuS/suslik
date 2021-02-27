@@ -3,6 +3,7 @@ package org.tygus.suslik.synthesis
 import java.io.File
 
 import org.tygus.suslik.certification.CertificationTarget
+import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.language.PrettyPrinting
 
 import scala.concurrent.duration.Deadline
@@ -50,7 +51,7 @@ case class SynConfig(
                       printTree: Boolean = false,
                       treeDest: File = null,
                       // Certification
-                      certTarget: CertificationTarget = null,
+                      certTarget: CertificationTarget = NoCert,
                       certDest: File = null,
                       // Internal (not directly settable through CLI)
                       inputFormat: InputFormat = dotSyn,

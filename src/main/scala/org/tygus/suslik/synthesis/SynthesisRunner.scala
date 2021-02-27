@@ -3,6 +3,7 @@ package org.tygus.suslik.synthesis
 import java.io.File
 
 import org.tygus.suslik.certification.CertificationTarget
+import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.targets._
 import org.tygus.suslik.report.Log
 import org.tygus.suslik.util.SynLogLevels
@@ -105,10 +106,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     implicit val certTargetRead: scopt.Read[CertificationTarget] =
       scopt.Read.reads {
-        case "htt" => htt.HTT
-        case "vst" => vst.VST
-        case "iris" => iris.Iris
-        case _ => ???
+        case "htt" => htt.HTT()
+        case "vst" => vst.VST()
+        case "iris" => iris.Iris()
+        case _ => NoCert
       }
 
     private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =

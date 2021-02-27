@@ -31,8 +31,7 @@ case class CoqOutput(filename: String, name: String, body: String) extends Certi
   * A generic interface for certificates, to be implemented by all
   * certification backends
   */
-trait Certificate {
-  val predicates: List[Predicate]
-  val target: CertificationTarget
+trait Certificate[T <: CertificationTarget, P <: Predicate] {
+  val predicates: List[P]
   def outputs: List[CertificateOutput]
 }

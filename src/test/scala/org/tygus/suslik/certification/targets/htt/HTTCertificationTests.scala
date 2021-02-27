@@ -19,7 +19,7 @@ class HTTCertificationTests extends FunSpec with Matchers with SynthesisRunnerUt
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit =
     it(s"certifies that it $desc") {
-      synthesizeFromSpec(testName, in, out, params.copy(assertSuccess = false, certTarget = HTT, certDest = certRoot))
+      synthesizeFromSpec(testName, in, out, params.copy(assertSuccess = false, certTarget = HTT(), certDest = certRoot))
       val fname = testName.split('/').last
 
       // Find the path to the certificated that was written out to the temp directory
