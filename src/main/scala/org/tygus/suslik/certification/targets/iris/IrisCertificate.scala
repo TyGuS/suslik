@@ -8,7 +8,7 @@ import org.tygus.suslik.certification.targets.iris.logic.IProofStep.ProofTreePri
 import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
 
-case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proof: ProofTree[IProofStep]) extends Certificate {
+case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proofStr: String) extends Certificate {
   val target: CertificationTarget = Iris
 
   private val prelude =
@@ -90,6 +90,7 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |Ltac ssl_let := wp_let.
        |Ltac ssl_load := wp_load; wp_let; iSimplContext.
        |Ltac ssl_store := wp_store; iSimplContext.
+       |Ltac ssl_free := wp_free; wp_pures; iSimplContext.
        |Ltac ssl_if H := case_bool_decide as H; wp_if; iSimplContext.
        |Ltac ssl_finish := iRewriteHyp; iFrame "% # ∗"; dispatchPure.
        |
@@ -105,7 +106,7 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
     b.append("\n")
     b.append(funSpec.pp)
     b.append("Proof.\n")
-    b.append(ProofTreePrinter.pp(proof))
+    b.append(proofStr)
     b.append("Qed.\n")
     b.toString()
   }

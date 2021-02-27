@@ -6,6 +6,7 @@ import org.tygus.suslik.certification.targets.iris.IrisCertificate
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HExpr, HFunDef}
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.IFunSpec
 import org.tygus.suslik.certification.targets.iris.logic.IProofStep
+import org.tygus.suslik.certification.targets.iris.logic.IProofStep.ProofTreePrinter
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
@@ -48,8 +49,10 @@ object Translation {
     val specMap = List((funSpec.fname, funSpec)).toMap
 
     val proofCtx = IProofContext(0, ctx, predMap, specMap, Map.empty, Map.empty)
-    val proofTree = ProofEvaluator(funSpec).run(suslikTree, proofCtx)
+    val proofStr =
+      try { ProofTreePrinter.pp(ProofEvaluator(funSpec).run(suslikTree, proofCtx)) }
+      catch { case e => s"(* Error in proof generation:$e\n${e.getStackTrace.mkString("\n")} *)\n" }
 
-    IrisCertificate(proc.name, predicates, funDef, funSpec, proofTree)
+    IrisCertificate(proc.name, predicates, funDef, funSpec, proofStr)
   }
 }

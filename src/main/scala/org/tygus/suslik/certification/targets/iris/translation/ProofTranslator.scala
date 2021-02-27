@@ -62,6 +62,10 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
 
   private val noDeferreds: Option[Deferred] = None
 
+  private val irisPhi: String = "ϕ"
+  private val irisPost: String = "Post"
+  private val irisSelf: String = spec.fname
+
   override def translate(value: SuslikProofStep, clientCtx: IProofContext): Result = value match {
     case SuslikProofStep.Init(_) =>
       var ctx = clientCtx
@@ -88,11 +92,13 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       ctx = ctx withVariablesTypes programVars.toMap
       ctx = ctx withVariablesTypes existentials.toMap
 
-      val steps = List(intro, IBegin)
       val deferred: Deferred = (ctx: IProofContext) => {
         val instantiate = existentials.map({ case (v, _) => IExists(ctx resolveExistential v) })
         (List(IFindApply) ++ instantiate ++ List(IFinish), ctx)
       }
+
+      val lobInduction = ILob(IIdent(irisSelf), spec.specUniversal.map({ case (v, _) => ICoqName(v.name) }) ++ List(ICoqName(irisPhi)))
+      val steps = List(intro, IRewriteHyp, lobInduction, IBegin)
       Result(steps, List((Nil, Some(deferred), ctx)))
 
     case SuslikProofStep.Open(predApp, freshExists, freshParams, selectors) =>
@@ -138,10 +144,9 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
     case s:SuslikProofStep.SubstL => Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))
     case s:SuslikProofStep.SubstR => Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))
 
-    case SuslikProofStep.Free(_, _) =>
-      // TODO: actually implement
-      val step = IFree
-      Result(List(step), List(withNoDeferreds(clientCtx)))
+    case SuslikProofStep.Free(_, sz) =>
+      val steps = (0 until sz).map(_ => IFree).toList
+      Result(steps, List(withNoDeferreds(clientCtx)))
 
 
     case SuslikProofStep.Branch(_, _) =>

@@ -65,6 +65,15 @@ case class IDestruct(hypName: IIdent, coq: Seq[ICoqName], iris: IIntroPattern) e
   }
 }
 
+case class ILob(hypName: IIdent, coq: Seq[ICoqName]) extends IProofStep {
+  override def pp: String = {
+    //    iLöb as "IH" forall (x s _alpha_514 ϕ).
+    val coqStr = s"(${coq.map(_.pp).mkString(" ")})"
+    s"""iLöb as "${hypName.pp}" forall $coqStr."""
+  }
+
+}
+
 case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExistentials: Seq[(Ident, HType)]) extends IProofStep {
   override def pp: String = {
     val learn = pred.learnLemmaName(constructor)
