@@ -88,9 +88,6 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       var ctx = clientCtx
       val coqHyps =
         spec.specUniversal.map({ case (v, _) => ICoqName(v.name) }) ++
-          spec.artificialUniversal.map({ case (v, _) => ICoqName(v.name) }) ++
-          // We only use the loc_at / Z_at lemmas for rewriting, so we don't give them names
-          spec.artificialUniversal.map({ case (v, _) => ICoqName("?") }) ++
           // Iris specific thing
           List(ICoqName("ϕ"))
 
@@ -99,11 +96,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       val irisHyps = IPatList(List(IPatDestruct(pureIntro ++ spatialIntro), IIdent("Post")))
       val intro = IIntros(coqHyps, irisHyps)
 
-      // We modify the context to account for the loc_at / Z_at rewriting.
-      // All the artificialUniversals that show up in the spec will be renamed by IBegin,
-      // e.g. (l : val) with (lr : loc) (lr is artificial) will result in (l : loc).
-      val typeOf = spec.artificialUniversal.map({ case (v, t) => (v.originalName, t) }).toMap
-      val universals = spec.specUniversal.map({ case (v, _) => (v.name, typeOf.getOrElse(v.name, HUnknownType())) })
+      val universals = spec.specUniversal.map({ case (v, t) => (v.name, t) })
       val existentials = spec.specExistential.map({ case (v, t) => (v.name, t) })
       ctx = ctx withVariablesTypes universals.toMap
       ctx = ctx withVariablesTypes existentials.toMap

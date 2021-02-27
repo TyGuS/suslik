@@ -156,33 +156,23 @@ object Assertions {
   case class IFunSpec(fname: Ident,
                       funArgs: Seq[(ISpecVar, HType)],
                       specUniversal: Seq[(IQuantifiedVar, HType)],
-                      artificialUniversal: Seq[(IQuantifiedVar, HType)],
                       specExistential: Seq[(IQuantifiedVar, HType)],
                       pre: IAssertion,
                       post: IAssertion
                      ) extends ISpecification {
 
     override def pp: String = {
-      // TODO: make this use the general translation mechanism
-      def getArgLitVal(v: ISpecVar, t: HType): ISpecQuantifiedValue =
-        (v, t) match {
-          case (ISpecVar(name, t), HLocType()) => ISpecQuantifiedValue(s"l${name}", name, t)
-          case (ISpecVar(name, t), _) => ISpecQuantifiedValue(s"v${name}", name, t)
-        }
-
-      val var_at = (v: ISpecVar, t: HType) => s"${t.pp}_at ${v.pp} ${getArgLitVal(v, t).pp}"
       val postExist =
         if (specExistential.nonEmpty)
           s"∃ ${specExistential.map({ case (v, ty) => s"(${v.pp} : ${ty.pp})"}).mkString(" ")}, "
         else ""
 
-      val universal = specUniversal ++ artificialUniversal
+      val universal = specUniversal
       s"""
          |Lemma ${fname}_spec :
          |∀ ${universal.map({ case (v, ty) => s"(${v.pp} : ${ty.pp})"}).mkString(" ")},
-         |${funArgs.map(v => var_at(v._1, v._2)).mkString(" →\n")} →
          |{{{ ${pre.pp} }}}
-         |  ${fname} ${funArgs.map(v => v._1.pp).mkString(" ")}
+         |  ${fname} ${funArgs.map(v => s"#${v._1.pp}").mkString(" ")}
          |{{{ RET #(); ${postExist}${post.pp} }}}.
          |""".stripMargin
     }

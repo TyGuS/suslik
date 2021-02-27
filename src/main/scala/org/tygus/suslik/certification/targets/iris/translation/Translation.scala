@@ -32,7 +32,7 @@ object Translation {
 
     // We have this "dummy" value to generate progToSpec for the actual context, ctx
     val pre_ctx = Some(ProgramTranslationContext(env, node.goal.gamma, Map.empty, node.goal.gamma.translate))
-    val progToSpec = params.map(p => (p, p.translate(progVarToSpecQuantifiedValue, pre_ctx)))
+    val progToSpec = params.map(p => (p, p.translate(progVarToSpecVar, pre_ctx)))
 
     val ctx = ProgramTranslationContext(env, node.goal.gamma, progToSpec.toMap, node.goal.gamma.translate)
     val predicates = env.predicates.map({ case (_, pred) => pred.translate(predicateTranslator, Some(ctx))}).toList
@@ -53,7 +53,7 @@ object Translation {
       try {
         ProofTreePrinter.pp(ProofEvaluator(funSpec).run(suslikTree, proofCtx))
       }
-      catch { case e => throw e
+      catch { case e =>
         s"(* Error in proof generation:$e\n${e.getStackTrace.mkString("\n")} *)\n" }
 
     IrisCertificate(proc.name, predicates, funDef, funSpec, proofStr)

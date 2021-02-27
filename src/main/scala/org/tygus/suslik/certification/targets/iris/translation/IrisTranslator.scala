@@ -61,15 +61,7 @@ object IrisTranslator {
   }
 
   implicit val progVarTranslator: IrisTranslator[Var, HProgVar] = (pv, _, _) => HProgVar(pv.name)
-  implicit val progVarToSpecVar: IrisTranslator[HProgVar, ISpecVar] = (hv, ctx, _) => ISpecVar(hv.name,
-    ctx.get.hctx(hv.name))
-  implicit val progVarToSpecQuantifiedValue: IrisTranslator[HProgVar, ISpecQuantifiedValue] = (pv, ctx, _) => {
-    assert(ctx.isDefined)
-    (pv, ctx.get.gamma(Var(pv.name)).translate) match {
-      case (HProgVar(name), HLocType()) => ISpecQuantifiedValue(s"l${name}", name, HLocType())
-      case (HProgVar(name), t) => ISpecQuantifiedValue(s"v${name}", name, t)
-    }
-  }
+  implicit val progVarToSpecVar: IrisTranslator[HProgVar, ISpecVar] = (hv, ctx, _) => ISpecVar(hv.name, ctx.get.hctx(hv.name))
 
   implicit val typeTranslator: IrisTranslator[SSLType, HType] = (value, _, _) => value match {
     case IntType => HIntType()
@@ -141,9 +133,7 @@ object IrisTranslator {
     expr match {
       case v: HProgVar =>
         val specVar = v.translate(progVarToSpecVar, ctx)
-        // Get the quantified value version of the var, if it exists, otherwise
-        // make the var into value by prepending # to it
-        ctx.get.pts.getOrElse(v, if (prodVal) ISpecMakeVal(specVar) else specVar)
+        if (prodVal) ISpecMakeVal(specVar) else specVar
       case l: HLit => ISpecLit(l)
       case HBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.translate(toSpecExpr, ctx, subTarget), right.translate(toSpecExpr, ctx, subTarget))
       case HUnaryExpr(op, expr) => ISpecUnaryExpr(op, expr.translate(toSpecExpr, ctx, subTarget))
@@ -193,18 +183,13 @@ object IrisTranslator {
     assert(ctx.isDefined)
     val params = g.programVars.map(v => (v.translate, g.gamma(v).translate))
 
-    // We "unwrap" every value to a l ↦ v form. quantifiedVal = v and takes the type of the value.
-    val artificialUniversal = g.programVars.map(
-      v => (v.translate.translate(progVarToSpecQuantifiedValue, Some(ctx.get)), g.gamma(v).translate)
-    )
     // We quantify over all universals, ignoring the type of function arguments
-    val specUniversal = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx),
-      if(g.programVars.contains(v)) HValType() else g.gamma(v).translate))
+    val specUniversal = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx), g.gamma(v).translate))
     val specExistential = g.existentials.map(v => (v.translate.translate(progVarToSpecVar, ctx), g.gamma(v).translate)).toSeq
 
     val pre = g.pre.translate(assertionTranslator, ctx)
     val post = g.post.translate(assertionTranslator, ctx)
-    IFunSpec(g.fname, params.map(x => (x._1.translate(progVarToSpecVar, ctx), x._2)), specUniversal.toSeq, artificialUniversal, specExistential, pre, post)
+    IFunSpec(g.fname, params.map(x => (x._1.translate(progVarToSpecVar, ctx), x._2)), specUniversal.toSeq, specExistential, pre, post)
   }
 
   implicit val predicateTranslator: IrisTranslator[InductivePredicate, IPredicate] = (predicate, ctx, _) => {

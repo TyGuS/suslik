@@ -128,16 +128,16 @@ object Expressions {
     override def pp: String = s"! (${e.pp})"
   }
   case class HStore(lhs: HExpr, rhs: HExpr) extends HExpr {
-    override def pp: String = s"${lhs.pp} <- ${rhs.pp}"
+    override def pp: String = s"(${lhs.pp}) <- (${rhs.pp})"
   }
   case class HFree(e: HExpr) extends HExpr {
     override def pp: String = s"Free (${e.pp})"
   }
   case class HAlloc(e: HExpr) extends HExpr {
-    override def pp: String = s"Alloc ${e.pp}"
+    override def pp: String = s"Alloc (${e.pp})"
   }
   case class HAllocN(n: HExpr, e: HExpr) extends HExpr {
-    override def pp: String = s"AllocN ${n.pp} ${e.pp}"
+    override def pp: String = s"AllocN (${n.pp}) (${e.pp})"
   }
   case class HCall(name: HExpr, params: Seq[HExpr]) extends HExpr {
     override def pp: String = s"${name.pp} ${params.map(p => p.pp).mkString(" ")}"
