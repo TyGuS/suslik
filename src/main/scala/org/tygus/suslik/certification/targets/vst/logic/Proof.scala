@@ -49,12 +49,10 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
   def common_predicates(base_filename: String, predicates: List[VSTPredicate]) : CoqOutput = {
     val body : String =
-      s"""${Proof.coq_prelude(List(base_filename))}
-        |
-        |${predicates.map(_.pp).mkString("\n") + "\n"}
-        |
-        |${predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")}
-        |""".stripMargin
+      s"${Proof.coq_prelude(List(base_filename))}\n\n"+
+        s"${predicates.map(_.pp).mkString("\n") + "\n"}\n\n" +
+        s"${predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")}"
+
 
     CoqOutput(s"${helper_name(base_filename)}.v", helper_name(base_filename),  body)
   }
@@ -102,26 +100,19 @@ case class Proof(
   def pp_with_common_defs(base_filename: String, common_predicates: List[VSTPredicate]): String = {
     val defined_predicate_names = common_predicates.map(_.name).toSet
     val remaining_predicates = predicates.filterNot(v => defined_predicate_names.contains(v.name))
-    s"""${Proof.coq_prelude(List(Proof.helper_name(base_filename), name))}
-       |
-       |${if (uses_free) { Proof.free_defs + "\n"  } else { "" }}
-       |
-       |${if (uses_malloc) { Proof.malloc_defs + "\n"  } else { "" }}
-       |
-       |${remaining_predicates.map(_.pp).mkString("\n") + "\n"}
-       |
-       |${helper_specs.values.map(_.pp).mkString("\n") + "\n"}
-       |
-       |${spec.pp + "\n"}
-       |
-       |${remaining_predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")  +"\n"}
-       |
-       |${library_spec + "\n"}
-       |${lemma_prelude}
-       |start_function.
-       |ssl_open_context.
-       |${ProofTreePrinter.pp(steps) + "\n"}
-       |Qed.""".stripMargin
+    s"${Proof.coq_prelude(List(Proof.helper_name(base_filename), name))}\n\n" +
+       s"${if (uses_free) { Proof.free_defs + "\n"  } else { "" }}\n\n" +
+       s"${if (uses_malloc) { Proof.malloc_defs + "\n"  } else { "" }}\n\n" +
+       s"${remaining_predicates.map(_.pp).mkString("\n") + "\n"}\n\n" +
+       s"${helper_specs.values.map(_.pp).mkString("\n") + "\n"}\n\n" +
+       s"${spec.pp + "\n"}\n\n" +
+       s"${remaining_predicates.flatMap(_.get_helpers).map(_.pp).mkString("\n")  +"\n"}\n\n" +
+       s"${library_spec + "\n"}\n" +
+       s"${lemma_prelude}\n" +
+       "start_function.\n" +
+       "ssl_open_context.\n" +
+       s"${ProofTreePrinter.pp(steps) + "\n"}\n" +
+       "Qed."
   }
 
 

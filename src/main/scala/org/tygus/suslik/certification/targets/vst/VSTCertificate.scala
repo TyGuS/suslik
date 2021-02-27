@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.vst
 
-import org.tygus.suslik.certification.{Certificate, CertificateOutput, ClangOutput, CoqOutput}
+import org.tygus.suslik.certification.{Certificate, CertificateOutput, ClangOutput, ClangOutputWithCompilationUnit, CoqOutput}
 import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
 import org.tygus.suslik.certification.targets.vst.logic.Proof
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
@@ -18,7 +18,7 @@ case class VSTCertificate(name:String, CProcedureDefinition: CProcedureDefinitio
   override def outputs_with_common_predicates(base_filename: String, common_predicates: List[VSTPredicate]): List[CertificateOutput] =
  {
   List(
-  ClangOutput(name + ".c", name, CProcedureDefinition.pp_with_common_defs(base_filename, common_predicates)),
+  ClangOutputWithCompilationUnit(name + ".c", name, CProcedureDefinition.pp_with_common_defs(base_filename, common_predicates), List(s"$base_filename.c")),
   CoqOutput("verif_" + name + ".v", "verif_" + name, Proof.pp_with_common_defs(base_filename, common_predicates))
   )
 }

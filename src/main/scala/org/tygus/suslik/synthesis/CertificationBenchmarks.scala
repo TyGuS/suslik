@@ -73,7 +73,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
 
       val parser = new SSLParser
       println(s"\nSynthesizing ${tests.length} test cases...")
-      val synResults = for (f <- tests) yield {
+      val raw_syn_results = for (f <- tests)  yield {
         val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
         println(s"$testName:")
         val fullInput = List(defs, in).mkString("\n")
@@ -83,13 +83,18 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
         println(s"done! (${fmtTime(synDuration)} s)")
 
         print(s"  generating certificate...")
-        val (cert, proofGenDuration) = timed(target.certify(res.head, env))
-        println("done!")
-        (testName, cert, synDuration, proofGenDuration)
+        try {
+          val (cert, proofGenDuration) = timed(target.certify(res.head, env))
+          println("done!")
+          Some ((testName, cert, synDuration, proofGenDuration))
+        } catch {
+          case _ => None
+        }
       }
 
       println(s"Successfully synthesized ${tests.length} tests.")
 
+      val synResults = raw_syn_results.flatten
       val predicates = synResults.flatMap(_._2.predicates).groupBy(_.name).map(_._2.head).toList
       val defFiles = target.generate_common_definitions_of(defFilename, predicates)
       defFiles.foreach {
