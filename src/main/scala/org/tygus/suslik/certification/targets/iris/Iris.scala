@@ -3,7 +3,7 @@ package org.tygus.suslik.certification.targets.iris
 import org.tygus.suslik.certification.source.{SuslikPrinter, SuslikProofStep}
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.IPredicate
 import org.tygus.suslik.certification.targets.iris.translation.Translation
-import org.tygus.suslik.certification.{CertTree, CertificationTarget}
+import org.tygus.suslik.certification.{CertTree, CertificateOutput, CertificationTarget}
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.certification.targets.iris.translation.Translation.TranslationException
@@ -24,5 +24,5 @@ case class Iris() extends CertificationTarget {
     cert
   }
 
-  override def mkDefs(predicates: List[IPredicate]): String = ???
+  override def generate_common_definitions_of(base_filename: String, predicates: List[IPredicate]): List[CertificateOutput] = ???
 }

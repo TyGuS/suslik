@@ -18,8 +18,8 @@ case class HTT() extends CertificationTarget {
     Translation.translate(root, proc)(env)
   }
 
-  def mkDefs(predicates: List[CInductivePredicate]): String = {
-    s"${HTT.prelude}\n${predicates.map(_.pp).mkString("\n\n")}"
+  def generate_common_definitions_of(defFileName: String, predicates: List[CInductivePredicate]): List[CertificateOutput] = {
+    List(CoqOutput(defFileName ++ ".v", defFileName, s"${HTT.prelude}\n${predicates.map(_.pp).mkString("\n\n")}"))
   }
 }
 

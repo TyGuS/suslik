@@ -6,6 +6,7 @@ import org.tygus.suslik.certification.targets.vst.VST
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 
+
 /**
   * A generic interface for certification targets.
   * The user can specify a target by setting the command-line flag `certTarget` to the target's `name` property.
@@ -19,7 +20,14 @@ trait CertificationTarget {
   val name: String
   val suffix: String
   def certify(proc: Procedure, env: Environment): Certificate[T,P]
-  def mkDefs(predicates: List[P]): String
+
+  /**
+    * Generate a list of outputs for the following predicates.
+    * @param base_filename - base name of common file
+    * @param predicates - list of predicates with common definitions
+    * @return - a list of synthesized files for predicate definitions
+    */
+  def generate_common_definitions_of(base_filename: String, predicates: List[P]): List[CertificateOutput]
 }
 
 object CertificationTarget {
@@ -38,6 +46,6 @@ object CertificationTarget {
 
     override def certify(proc: Procedure, env: Environment): Certificate[T,P] = ???
 
-    override def mkDefs(predicates: List[P]): String = ???
+    override def generate_common_definitions_of(base_filename: String, predicates: List[P]): List[CertificateOutput] = ???
   }
 }
