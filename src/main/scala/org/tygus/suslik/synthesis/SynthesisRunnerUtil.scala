@@ -4,6 +4,7 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.{CertTree, CertificateOutput}
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
@@ -110,7 +111,7 @@ trait SynthesisRunnerUtil {
         new ReplaySynthesis(env.config)
       else
         new PhasedSynthesis(env.config)
-    val trace : ProofTrace = if (env.config.certTarget != null) new ProofTraceCert() else {
+    val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
       env.config.traceToJsonFile match {
         case None => ProofTraceNone
         case Some(file) => new ProofTraceJson(file)
@@ -230,24 +231,21 @@ trait SynthesisRunnerUtil {
           testPrintln(sresult._2.getExpansionChoices.mkString("\n"))
           testPrintln("-----------------------------------------------------")
         }
-        if (params.certTarget != null) {
+        if (params.certTarget != NoCert) {
           val certTarget = params.certTarget
           val targetName = certTarget.name
           val certificate = certTarget.certify(procs.head, env)
           if (params.certDest == null) {
             testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
-            certificate.outputs.foreach({case CertificateOutput(filename, name, body) =>
-              val outname = filename.getOrElse(certificate.getFileName(name))
-              testPrintln(s"File ${outname}:\n", Console.MAGENTA)
-              testPrintln(s"$body")
+            certificate.outputs.foreach(o => {
+              testPrintln(s"File ${o.filename}:\n", Console.MAGENTA)
+              testPrintln(s"${o.body}")
             })
           } else {
-            certificate.outputs.foreach({
-              case CertificateOutput(ofname, name, body) =>
-                val filename = ofname.getOrElse(certificate.getFileName(name))
-                val path = Paths.get(params.certDest.getCanonicalPath, filename).toFile
-                new PrintWriter(path) { write(body); close() }
-                testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
+            certificate.outputs.foreach(o => {
+              val path = Paths.get(params.certDest.getCanonicalPath, o.filename).toFile
+              new PrintWriter(path) { write(o.body); close() }
+              testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
             })
           }
         }

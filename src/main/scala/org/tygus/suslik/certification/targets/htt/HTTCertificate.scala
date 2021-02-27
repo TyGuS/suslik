@@ -1,34 +1,19 @@
 package org.tygus.suslik.certification.targets.htt
 
 import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
-import org.tygus.suslik.certification.targets.htt.logic.Sentences.CFunSpec
+import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CFunSpec, CInductivePredicate}
 import org.tygus.suslik.certification.targets.htt.program.Program
-import org.tygus.suslik.certification.targets.htt.translation.ProofContext.PredicateEnv
-import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
+import org.tygus.suslik.certification.{Certificate, CertificateOutput, CoqOutput}
 
-case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, auxSpecs: Seq[CFunSpec], proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate {
-  val target: CertificationTarget = HTT
-
+case class HTTCertificate(name: String, predicates: List[CInductivePredicate], spec: CFunSpec, auxSpecs: Seq[CFunSpec], proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate[HTT, CInductivePredicate] {
   // Replace hyphens with underscores
   def sanitize(txt: String): String = txt.replace('-', '_')
 
-  // Import Coq dependencies
-  private val prelude =
-    """From mathcomp
-      |Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
-      |From fcsl
-      |Require Import prelude pred pcm unionmap heap.
-      |From HTT
-      |Require Import stmod stsep stlog stlogR.
-      |From SSL
-      |Require Import core.
-      |
-      |""".stripMargin
-
   def pp: String = {
     val builder = new StringBuilder
-    builder.append(prelude)
-    preds.values.foreach(pred => builder.append(pred.pp + "\n"))
+    builder.append(HTT.prelude)
+    builder.append("Load common.\n\n")
+
     if (hints.nonEmpty) {
       builder.append(hints.map(_.pp).mkString("\n"))
       builder.append("\n\n")
@@ -48,6 +33,6 @@ case class HTTCertificate(name: String, preds: PredicateEnv, spec: CFunSpec, aux
     builder.toString
   }
 
-  override def outputs: List[CertificateOutput] =  List(CertificateOutput(None, sanitize(name), pp))
+  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"${sanitize(name)}.v", sanitize(name), pp))
 
 }

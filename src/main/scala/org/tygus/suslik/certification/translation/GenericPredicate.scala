@@ -1,5 +1,6 @@
 package org.tygus.suslik.certification.translation
 
+import org.tygus.suslik.certification.Predicate
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
 
@@ -45,7 +46,7 @@ abstract class GenericPredicate[Pure, Spatial, Type](val name: Ident,
                                                      val params: List[(Ident, Type)],
                                                      val existentials: List[(Ident, Type)],
                                                      val clauses: Map[CardConstructor, GenericPredicateClause[Pure, Spatial]])
-  extends PrettyPrinting {
+  extends Predicate with PrettyPrinting {
 
   // When extending GenericPredicate, you should implement these methods
   def ppPredicate: String

@@ -1,15 +1,37 @@
 package org.tygus.suslik.certification
 
-case class CertificateOutput(filename: Option[String], name: String, body: String)
+import java.io.File
+
+import scala.sys.process.Process
+
+abstract class CertificateOutput {
+  val filename: String
+  val name: String
+  val body: String
+  val isProof: Boolean = false
+  def compile(dir: File): Int
+}
+
+case class ClangOutput(filename: String, name: String, body: String) extends CertificateOutput {
+  def compile(dir: File): Int = {
+    val cmd = Seq("clightgen", filename, "&&", "coqc", s"$name.v") // TODO: correct?
+    Process(cmd, dir).!
+  }
+}
+
+case class CoqOutput(filename: String, name: String, body: String) extends CertificateOutput {
+  override val isProof: Boolean = true
+  def compile(dir: File): Int = {
+    val cmd = Seq("coqc", "-w", "none", filename)
+    Process(cmd, dir).!
+  }
+}
+
 /**
   * A generic interface for certificates, to be implemented by all
   * certification backends
   */
-trait Certificate {
-  /** returns the exported filename for a string */
-  def getFileName(name: String) : String = name + target.suffix
-
-  val target: CertificationTarget
+trait Certificate[T <: CertificationTarget, P <: Predicate] {
+  val predicates: List[P]
   def outputs: List[CertificateOutput]
-//  def fileName: String = name + target.suffix
 }

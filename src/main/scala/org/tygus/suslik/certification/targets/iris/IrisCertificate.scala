@@ -1,14 +1,10 @@
 package org.tygus.suslik.certification.targets.iris
 
-import org.tygus.suslik.certification.targets.htt.logic.ProofPrinter
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.HFunDef
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, IPredicate}
-import org.tygus.suslik.certification.targets.iris.logic.IProofStep
-import org.tygus.suslik.certification.targets.iris.logic.IProofStep.ProofTreePrinter
-import org.tygus.suslik.certification.traversal.ProofTree
-import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
+import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, CoqOutput}
 
-case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proofStr: String) extends Certificate {
+case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proofStr: String) extends Certificate[Iris, IPredicate] {
   val target: CertificationTarget = Iris
 
   private val prelude =
@@ -99,9 +95,9 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
   def pp : String = {
     val b = new StringBuilder
     b.append(prelude)
-    b.append(preds.map(_.pp).mkString("\n"))
+    b.append(predicates.map(_.pp).mkString("\n"))
     b.append("\n")
-    b.append(preds.flatMap(_.getHelpers).map(_.pp).mkString("\n"))
+    b.append(predicates.flatMap(_.getHelpers).map(_.pp).mkString("\n"))
     b.append(funDef.pp)
     b.append("\n")
     b.append(funSpec.pp)
@@ -111,5 +107,5 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
     b.toString()
   }
 
-  override def outputs: List[CertificateOutput] =  List(CertificateOutput(None, name, pp))
+  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"$name.v", name, pp))
 }
