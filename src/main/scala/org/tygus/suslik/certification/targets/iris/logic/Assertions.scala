@@ -125,7 +125,7 @@ object Assertions {
 
   case class IPredApp(pred: String, args: Seq[IPureAssertion], card: IPureAssertion) extends ISpatialAssertion {
     override def pp: String =
-      s"(${pred} ${(args ++ List(card)).map(_.pp).mkString(" ")})"
+      s"(${pred} ${(args.map(_.ppAsPhi) ++ List(card.pp)).mkString(" ")})"
   }
 
   case class IBlock() extends ISpatialAssertion {
