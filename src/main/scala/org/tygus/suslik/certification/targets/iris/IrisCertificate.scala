@@ -84,13 +84,14 @@ case class IrisCertificate(name: String, preds: List[IPredicate], funDef: HFunDe
        |  (repeat wp_pures); movePure; iRewriteHyp; iSimpl in "# ∗"; iSimpl.
        |
        |Local Ltac iSimplContext := iSimplNoSplit; try iSplitAllHyps; iSimplNoSplit.
+       |Ltac dispatchPure := iRewriteHyp; try lia; try sauto; done.
        |
        |Ltac ssl_begin := (wp_rec; repeat wp_let); iSimplContext.
        |Ltac ssl_let := wp_let.
        |Ltac ssl_load := wp_load; wp_let; iSimplContext.
        |Ltac ssl_store := wp_store; iSimplContext.
        |Ltac ssl_if H := case_bool_decide as H; wp_if; iSimplContext.
-       |Ltac ssl_finish := iRewriteHyp; iFrame "% # ∗"; try iPureIntro; try lia; done.
+       |Ltac ssl_finish := iRewriteHyp; iFrame "% # ∗"; dispatchPure.
        |
        |""".stripMargin
 

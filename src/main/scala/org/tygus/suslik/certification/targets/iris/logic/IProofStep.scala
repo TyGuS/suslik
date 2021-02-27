@@ -1,6 +1,8 @@
 package org.tygus.suslik.certification.targets.iris.logic
 
-import org.tygus.suslik.certification.targets.iris.logic.Assertions.IPureAssertion
+import org.tygus.suslik.certification.targets.iris.heaplang.Types.HType
+import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IPredicate, IPureAssertion}
+import org.tygus.suslik.certification.translation.CardConstructor
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
@@ -37,8 +39,9 @@ case class IIntuitionistic(pattern: IIntroPattern) extends IIntroPattern {
 
 case class IPatDestruct(patterns: Seq[IIntroPattern]) extends IIntroPattern {
   override def pp: String = {
-    val pats = s"${patterns.map(_.pp).mkString(" & ")}"
-    if (patterns.length > 1) s"($pats)" else pats
+    val nonEmptyPats = patterns.filterNot(_.pp.isEmpty)
+    val patsStr = s"${nonEmptyPats.map(_.pp).mkString(" & ")}"
+    if (nonEmptyPats.length > 1) s"($patsStr)" else patsStr
   }
 }
 
@@ -54,8 +57,37 @@ case class IIntros(coq: Seq[ICoqName], iris: IIntroPattern) extends IProofStep {
   }
 }
 
+case class IDestruct(hypName: IIdent, coq: Seq[ICoqName], iris: IIntroPattern) extends IProofStep {
+  override def pp: String = {
+    val coqStr = if (coq.nonEmpty) s"(${coq.map(_.pp).mkString(" ")})" else ""
+    val irisStr = if (iris.pp.nonEmpty) s""""${iris.pp}"""" else ""
+    s"""iDestruct "${hypName.pp}" as $coqStr $irisStr."""
+  }
+}
+
+case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExistentials: Seq[(Ident, HType)]) extends IProofStep {
+  override def pp: String = {
+    val learn = pred.learnLemmaName(constructor)
+    val open = pred.openLemmaName(constructor)
+    val tactic = if (constrExistentials.isEmpty) {
+      s"""
+      |erewrite $learn; try by dispatchPure.
+      |rewrite $open.""".stripMargin
+    } else {
+      s"""
+      |edestruct $learn as [${constrExistentials.map(v => v._1).mkString(" ")} ->]; try by dispatchPure.
+      |rewrite $open.""".stripMargin
+    }
+    tactic
+  }
+}
+
 case class IExists(e: IPureAssertion) extends IProofStep {
   override def pp: String = s"iExists ${e.pp}."
+}
+
+case class IRenameSelect(pat: String, into: IIntroPattern) extends IProofStep {
+  override def pp: String = s"""iRename select ($pat)%I into "${into.pp}"."""
 }
 
 case object IFindApply extends IProofStep {
@@ -85,6 +117,15 @@ case object IBegin extends IProofStep {
 case class IIf(hyp: ICoqName) extends IProofStep {
   override def pp: String = s"ssl_if ${hyp.pp}."
 }
+
+case class IDebug(msg: String) extends IProofStep {
+  override def pp: String = s"(* $msg *)"
+}
+
+case object IFree extends IProofStep {
+  override def pp: String = "ssl_free."
+}
+
 
 case object IFinish extends IProofStep {
   override def pp: String = "ssl_finish."

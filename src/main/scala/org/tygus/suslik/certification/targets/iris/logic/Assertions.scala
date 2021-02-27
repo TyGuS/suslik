@@ -195,7 +195,7 @@ object Assertions {
 
     case class HelpUnfold(predicate: IPredicate, cardConstructor: CardConstructor, pclause: IPredicateClause) extends IPredicateHelper {
       override def pp: String = {
-        s"Lemma ${lemmaName} " +
+        s"Lemma ${predicate.openLemmaName(cardConstructor)} " +
           s"${cardConstructor.constructorArgs.map(v => s"(${v} : ${predicate.inductiveName})").mkString(" ")} " +
           s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
           s":\n${predicate.name} ${predicate.params.map(_._1).mkString(" ")} (${predicate.constructorName(cardConstructor)} ${
@@ -203,8 +203,10 @@ object Assertions {
           }) = (${predicate.ppConstructorClause(cardConstructor, pclause)})%I.\nProof. auto. Qed.\n"
       }
 
-      def lemmaName: String = s"${constructorName(cardConstructor)}_open"
     }
+
+    def openLemmaName(cardConstructor: CardConstructor): String = s"${constructorName(cardConstructor)}_open"
+    def learnLemmaName(cardConstructor: CardConstructor): String = s"${constructorName(cardConstructor)}_learn"
 
     /*** See the health warnings attached to LocalFacts. The same apply. */
     case class HelpCard(predicate: IPredicate, cardConstructor: CardConstructor, pclause: IPredicateClause) extends IPredicateHelper {
@@ -218,15 +220,12 @@ object Assertions {
             s"∃ ${cons.constructorArgs.mkString(" ")}, ${ppPred} ${cardinalityParam} = ${ppPred} (${predicate.constructorName(cons)} ${cons.constructorArgs.mkString(" ")})"
           }
 
-        s"Lemma ${lemmaName} " +
+        s"Lemma ${predicate.learnLemmaName(cardConstructor)} " +
           s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
           s"${cardinalityParam}:\n" +
           s"${pclause.selector.ppAsPhi} -> ${ppEqualityTerm(cardConstructor)}.\n" +
           s"Proof. Admitted.\n"
       }
-
-      def lemmaName: String = s"${constructorName(cardConstructor)}_learn"
-
     }
 
     val cardinalityParam: String = "self_card"

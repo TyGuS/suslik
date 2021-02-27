@@ -131,7 +131,7 @@ object Expressions {
     override def pp: String = s"${lhs.pp} <- ${rhs.pp}"
   }
   case class HFree(e: HExpr) extends HExpr {
-    override def pp: String = s"Free ${e.pp}"
+    override def pp: String = s"Free (${e.pp})"
   }
   case class HAlloc(e: HExpr) extends HExpr {
     override def pp: String = s"Alloc ${e.pp}"
