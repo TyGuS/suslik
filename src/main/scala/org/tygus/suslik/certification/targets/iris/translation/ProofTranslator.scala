@@ -148,9 +148,26 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       }
       Result(steps, childRules.toList)
 
-//    // TODO: actually implement
-//    case SuslikProofStep.Close(app, selector, _, freshExist) =>
-//      Result(List(IDebug(value.pp)), List(withNoDeferreds(clientCtx)))
+    // TODO: actually implement
+    case SuslikProofStep.Close(app, selector, _, freshExist) =>
+      var ctx = clientCtx
+      val ren = normalize_renaming(freshExist.map { case (Var(from), Var(to)) => (from, to) })
+      val pred = clientCtx.predMap(app.pred)
+      val cardVar = app.card.asInstanceOf[Var].name
+      val tctx = clientCtx.baseTranslationContext.copy(hctx = pred.params.toMap)
+      val translSelector = selector.translate.translate(IrisTranslator.toSpecExpr, Some(tctx))
+      val (constructor, clause) = pred.clauses.find { case (_, cl) => cl.selector == translSelector }.get
+      val existentials = pred.findExistentials(constructor)(clause).map( { case (name, ty) => (ren(name), ty) })
+
+
+
+      println(translSelector)
+
+
+//      val (constructor, predClause) =
+
+
+      Result(List(IDebug(value.pp)), List(withNoDeferreds(clientCtx)))
 
     case SuslikProofStep.AbduceCall(_, _, _, _, freshSub, _, f, _) =>
       var ctx = clientCtx
@@ -179,11 +196,12 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
         IDestruct(IIdent(irisRet), retExistentials, irisHyps),
         IEmp
       )
-
       Result(steps, List(withNoDeferreds(ctx)))
 
     // TODO: actually implement
-    case s:SuslikProofStep.SubstL => Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))
+    case SuslikProofStep.SubstL(Var(from), to) =>
+      val ctx = clientCtx withMappingBetween (from, to)
+      Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
     case s:SuslikProofStep.SubstR => Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))
 
     case SuslikProofStep.Free(_, sz) =>
