@@ -5,7 +5,7 @@ import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, I
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, CoqOutput}
 
 case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proofStr: String) extends Certificate[Iris, IPredicate] {
-  val target: CertificationTarget = Iris
+  val target: CertificationTarget = Iris()
 
   private val prelude =
     s"""From iris.program_logic Require Export weakestpre.
