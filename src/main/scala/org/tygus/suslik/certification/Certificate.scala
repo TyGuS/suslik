@@ -14,7 +14,7 @@ abstract class CertificateOutput {
 
 case class ClangOutput(filename: String, name: String, body: String) extends CertificateOutput {
   def compile(dir: File): Int = {
-    val cmd = Seq("clightgen", filename, "&&", "coqc", s"$name.v") // TODO: correct?
+    val cmd = Seq("clightgen", "-normalize", filename, "&&", "coqc", s"$name.v") // TODO: correct?
     Process(cmd, dir).!
   }
 }
