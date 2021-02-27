@@ -22,7 +22,7 @@ case class ClangOutput(filename: String, name: String, body: String) extends Cer
 case class CoqOutput(filename: String, name: String, body: String) extends CertificateOutput {
   override val isProof: Boolean = true
   def compile(dir: File): Int = {
-    val cmd = Seq("coqc", "-w", filename)
+    val cmd = Seq("coqc", "-w", "none", filename)
     Process(cmd, dir).!
   }
 }

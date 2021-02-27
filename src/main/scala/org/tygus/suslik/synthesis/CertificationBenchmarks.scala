@@ -3,7 +3,7 @@ package org.tygus.suslik.synthesis
 import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.{Files, Paths}
 
-import org.tygus.suslik.certification.{CertTree, CertificationTarget}
+import org.tygus.suslik.certification.{CertTree, CertificationTarget, CoqOutput}
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor.preprocessProgram
@@ -91,11 +91,11 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
 
       print(s"\nWriting definitions to file $defFilename...")
       val predicates = synResults.flatMap(_._2.predicates).groupBy(_.name).map(_._2.head).toList
-      val definitions = target.mkDefs(predicates)
-      serialize(tempDir, defFilename, definitions)
+      val defFile = CoqOutput(defFilename, "common", target.mkDefs(predicates))
+      serialize(tempDir, defFilename, defFile.body)
       println("done!")
       print(s"Compiling $defFilename...")
-      compileProof(tempDir, defFilename)
+      defFile.compile(tempDir)
       println("done!")
 
       println(s"\nGenerating statistics...")
@@ -110,7 +110,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
             val (specSize, proofSize) = checkProofSize(tempDir, o.filename)
             println(s"done! (spec: $specSize, proof: $proofSize)")
             print(s"  Compiling proof...")
-            val (res, proofDuration) = timed (compileProof(tempDir, o.filename))
+            val (res, proofDuration) = timed (o.compile(tempDir))
             if (res == 0) {
               println(s"done! (${fmtTime(proofDuration)} s)")
               logStat(testName, o.filename, synDuration, proofDuration, specSize, proofSize)
@@ -140,11 +140,6 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
     val proofSizes = Process(cmd, dir).!!
     val Array(specSize, proofSize, _, _) = proofSizes.split('\n')(1).trim.split("\\s+")
     (specSize.toInt, proofSize.toInt)
-  }
-
-  private def compileProof(dir: File, filename: String): Int = {
-    val cmd = Seq("coqc", "-w", "none", filename)
-    Process(cmd, dir).!
   }
 
   def initLog(): Unit = {
