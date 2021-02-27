@@ -22,6 +22,14 @@ object Assertions {
     def subst(s: Map[Ident, IPureAssertion]): IPureAssertion = this match {
       case expr => expr
     }
+
+    def rename(s: Map[Ident, Ident]): IPureAssertion = this match {
+      case expr@ISpecVar(old, t) => s.get(old) match {
+        case Some(newName) => ISpecVar(newName, t)
+        case None => expr
+      }
+      case expr => expr
+    }
   }
 
   abstract class IQuantifiedVar extends IPureAssertion {

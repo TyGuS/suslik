@@ -48,10 +48,13 @@ object Translation {
     // TODO: add support for helper functions
     val specMap = List((funSpec.fname, funSpec)).toMap
 
-    val proofCtx = IProofContext(0, ctx, predMap, specMap, Map.empty, Map.empty)
+    val proofCtx = IProofContext(0, ctx, predMap, specMap, Map.empty, Map.empty, Map.empty)
     val proofStr =
-      try { ProofTreePrinter.pp(ProofEvaluator(funSpec).run(suslikTree, proofCtx)) }
-      catch { case e => s"(* Error in proof generation:$e\n${e.getStackTrace.mkString("\n")} *)\n" }
+      try {
+        ProofTreePrinter.pp(ProofEvaluator(funSpec).run(suslikTree, proofCtx))
+      }
+      catch { case e => throw e
+        s"(* Error in proof generation:$e\n${e.getStackTrace.mkString("\n")} *)\n" }
 
     IrisCertificate(proc.name, predicates, funDef, funSpec, proofStr)
   }

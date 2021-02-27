@@ -99,6 +99,10 @@ case class IRenameSelect(pat: String, into: IIntroPattern) extends IProofStep {
   override def pp: String = s"""iRename select ($pat)%I into "${into.pp}"."""
 }
 
+case class IRename(oldName: ICoqName, newName: ICoqName) extends IProofStep {
+  override def pp: String = s"try rename ${oldName.pp} into ${newName.pp}."
+}
+
 case object IFindApply extends IProofStep {
   override def pp: String = "iFindApply."
 }

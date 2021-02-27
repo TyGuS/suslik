@@ -13,13 +13,18 @@ import org.tygus.suslik.language.Statements.Load
 import org.tygus.suslik.language.{Ident, Statements}
 
 
+case class PendingCall(
+                      functionName: Ident,
+                      )
+
 case class IProofContext(
                           var counter: Integer = 0,
                           baseTranslationContext: ProgramTranslationContext,
                           predMap: Map[Ident, IPredicate],
                           specMap: Map[Ident, IFunSpec],
                           coqTypingCtx: Map[Ident, HType],
-                          varMap: Map[Ident, IPureAssertion]
+                          varMap: Map[Ident, IPureAssertion],
+                          renamings: Map[Ident, Ident]
                         ) extends ClientContext[IProofStep] {
 
   def freshHypName(): String = {
@@ -49,10 +54,21 @@ case class IProofContext(
     this.copy(varMap = newVarMap)
   }
 
+  def withRenaming(ren: (Ident, Ident)): IProofContext = {
+    val (from, to) = ren
+    val s = Map(from -> to)
+    def trueName(v: Ident): Ident = s.getOrElse(v, v)
+
+    val newCoqTypingCtx = coqTypingCtx.map({ case (v, ty) => (trueName(v), ty) })
+    val newVarMap = varMap.map { case (v, expr) => (trueName(v), expr.rename(s)) }
+    val newRenamings = renamings.map{ case (from, to) => (from, trueName(to)) } ++ s
+
+    this.copy(coqTypingCtx = newCoqTypingCtx, varMap = newVarMap, renamings = newRenamings)
+  }
+
   def resolveExistential(ident: Ident): IPureAssertion = {
-    // TODO: renamings
-    val name = ident
-    varMap(name).subst(varMap)
+    val trueName = renamings.getOrElse(ident, ident)
+    varMap(trueName).subst(varMap)
   }
 }
 
@@ -66,7 +82,8 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
   private val irisPost: String = "Post"
   private val irisSelf: String = spec.fname
 
-  override def translate(value: SuslikProofStep, clientCtx: IProofContext): Result = value match {
+  override def translate(value: SuslikProofStep, clientCtx: IProofContext): Result =
+    value match {
     case SuslikProofStep.Init(_) =>
       var ctx = clientCtx
       val coqHyps =
@@ -79,7 +96,6 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
 
       val pureIntro = spec.pre.phi.conjuncts.map(_ => IPure(ctx.freshHypName()))
       val spatialIntro = spec.pre.sigma.heaplets.map(_ => IIdent(ctx.freshHypName()))
-      // TODO: add spatial assertions to context && rewrite them accordingly
       val irisHyps = IPatList(List(IPatDestruct(pureIntro ++ spatialIntro), IIdent("Post")))
       val intro = IIntros(coqHyps, irisHyps)
 
@@ -87,9 +103,9 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       // All the artificialUniversals that show up in the spec will be renamed by IBegin,
       // e.g. (l : val) with (lr : loc) (lr is artificial) will result in (l : loc).
       val typeOf = spec.artificialUniversal.map({ case (v, t) => (v.originalName, t) }).toMap
-      val programVars = spec.specUniversal.map({ case (v, _) => (v.name, typeOf.getOrElse(v.name, HUnknownType())) })
+      val universals = spec.specUniversal.map({ case (v, _) => (v.name, typeOf.getOrElse(v.name, HUnknownType())) })
       val existentials = spec.specExistential.map({ case (v, t) => (v.name, t) })
-      ctx = ctx withVariablesTypes programVars.toMap
+      ctx = ctx withVariablesTypes universals.toMap
       ctx = ctx withVariablesTypes existentials.toMap
 
       val deferred: Deferred = (ctx: IProofContext) => {
@@ -132,9 +148,16 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       }
       Result(steps, childRules.toList)
 
-    case s:SuslikProofStep.AbduceCall =>
-      // TODO: actually implement
-      Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))
+//    // TODO: actually implement
+//    case SuslikProofStep.Close(app, selector, _, freshExist) =>
+//      Result(List(IDebug(value.pp)), List(withNoDeferreds(clientCtx)))
+
+    // TODO: actually implement
+    case SuslikProofStep.AbduceCall(_, precondition, _, _, freshSub, _, f, _) =>
+      val ctx = clientCtx
+      val funSpec = ctx.specMap(f.name)
+
+      Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
 
     case s:SuslikProofStep.Call =>
       // TODO: actually implement
@@ -147,7 +170,6 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
     case SuslikProofStep.Free(_, sz) =>
       val steps = (0 until sz).map(_ => IFree).toList
       Result(steps, List(withNoDeferreds(clientCtx)))
-
 
     case SuslikProofStep.Branch(_, _) =>
       val cont = withNoDeferreds(clientCtx)
@@ -164,9 +186,10 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       withNoOp(newCtx)
 
     /** Statements */
-    case SuslikProofStep.Read(Var(ghost_from), Var(ghost_to), Load(to, _, from, offset)) =>
-      // TODO: rename ghosts
-      Result(List(ILoad), List(withNoDeferreds(clientCtx)))
+    case SuslikProofStep.Read(Var(ghostFrom), Var(ghostTo), Load(to, _, from, offset)) =>
+      val ctx = clientCtx withRenaming ghostFrom -> ghostTo
+      val rename = IRename(ICoqName(ghostFrom), ICoqName(ghostTo))
+      Result(List(rename, ILoad), List(withNoDeferreds(ctx)))
 
     case SuslikProofStep.Write(stmt@Statements.Store(to, offset, e)) =>
       Result(List(IStore), List(withNoDeferreds(clientCtx)))
