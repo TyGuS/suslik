@@ -61,7 +61,8 @@ case class IDestruct(hypName: IIdent, coq: Seq[ICoqName], iris: IIntroPattern) e
   override def pp: String = {
     val coqStr = if (coq.nonEmpty) s"(${coq.map(_.pp).mkString(" ")})" else ""
     val irisStr = if (iris.pp.nonEmpty) s""""${iris.pp}"""" else ""
-    s"""iDestruct "${hypName.pp}" as $coqStr $irisStr."""
+    if (coqStr.isEmpty && irisStr.isEmpty) ""
+    else s"""iDestruct "${hypName.pp}" as $coqStr $irisStr."""
   }
 }
 
@@ -91,6 +92,10 @@ case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExist
   }
 }
 
+case class IWpApply(applyName: String, exs: Seq[IPureAssertion]) extends IProofStep {
+  override def pp: String =
+    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "[$$]")."""
+}
 case class IExists(e: IPureAssertion) extends IProofStep {
   override def pp: String = s"iExists ${e.pp}."
 }

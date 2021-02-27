@@ -2,9 +2,10 @@ package org.tygus.suslik.certification.targets.iris.translation
 
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HCardType, HType, HUnknownType}
-import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, IPredicate, IPureAssertion}
+import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, IPredicate, IPureAssertion, ISpecVar}
 import org.tygus.suslik.certification.targets.iris.logic._
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
+import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.normalize_renaming
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
@@ -24,7 +25,8 @@ case class IProofContext(
                           specMap: Map[Ident, IFunSpec],
                           coqTypingCtx: Map[Ident, HType],
                           varMap: Map[Ident, IPureAssertion],
-                          renamings: Map[Ident, Ident]
+                          renamings: Map[Ident, Ident],
+                          pendingCall: Option[IFunSpec]
                         ) extends ClientContext[IProofStep] {
 
   def freshHypName(): String = {
@@ -54,6 +56,10 @@ case class IProofContext(
     this.copy(varMap = newVarMap)
   }
 
+  def withQueuedCall(fs: IFunSpec): IProofContext = this.copy(pendingCall = Some(fs))
+
+  def unqueueCall(): (IFunSpec, IProofContext) = (pendingCall.get, this.copy(pendingCall = None))
+
   def withRenaming(ren: (Ident, Ident)): IProofContext = {
     val (from, to) = ren
     val s = Map(from -> to)
@@ -80,6 +86,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
 
   private val irisPhi: String = "ϕ"
   private val irisPost: String = "Post"
+  private val irisRet = "Ret"
   private val irisSelf: String = spec.fname
 
   override def translate(value: SuslikProofStep, clientCtx: IProofContext): Result =
@@ -93,7 +100,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
 
       val pureIntro = spec.pre.phi.conjuncts.map(_ => IPure(ctx.freshHypName()))
       val spatialIntro = spec.pre.sigma.heaplets.map(_ => IIdent(ctx.freshHypName()))
-      val irisHyps = IPatList(List(IPatDestruct(pureIntro ++ spatialIntro), IIdent("Post")))
+      val irisHyps = IPatList(List(IPatDestruct(pureIntro ++ spatialIntro), IIdent(irisPost)))
       val intro = IIntros(coqHyps, irisHyps)
 
       val universals = spec.specUniversal.map({ case (v, t) => (v.name, t) })
@@ -145,16 +152,35 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
 //    case SuslikProofStep.Close(app, selector, _, freshExist) =>
 //      Result(List(IDebug(value.pp)), List(withNoDeferreds(clientCtx)))
 
-    // TODO: actually implement
-    case SuslikProofStep.AbduceCall(_, precondition, _, _, freshSub, _, f, _) =>
-      val ctx = clientCtx
+    case SuslikProofStep.AbduceCall(_, _, _, _, freshSub, _, f, _) =>
+      var ctx = clientCtx
       val funSpec = ctx.specMap(f.name)
-
+      val s = normalize_renaming(freshSub.map { case (Var(name_from), Var(name_to)) => (name_from, name_to) })
+      val newSpec = funSpec.rename(s)
+      ctx = ctx withQueuedCall(newSpec)
       Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
 
-    case s:SuslikProofStep.Call =>
-      // TODO: actually implement
-      Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))
+    case SuslikProofStep.Call(subst, Statements.Call(Var(funName), _, _)) =>
+      val (spec, ctx) = clientCtx.unqueueCall()
+      val applyName = if (funName == irisSelf) s""""$irisSelf"""" else s"${funName}_spec"
+      val instantiate = spec.specUniversal.map { case (ISpecVar(name, _), _) => subst.getOrElse(Var(name), Var(name)) }
+        .map(e => e.translate.translate(IrisTranslator.toSpecExpr, ctx.translationCtx))
+
+      val retExistentials = spec.specExistential.map { case (v, _) => ICoqName(v.name) }
+      val pureIntro = spec.post.phi.conjuncts.map(_ => IPure(ctx.freshHypName()))
+      val spatialIntro = spec.post.sigma.heaplets.map(_ => IIdent(ctx.freshHypName()))
+      val irisHyps = IPatDestruct(List(IPatDestruct(pureIntro), IPatDestruct(spatialIntro)))
+
+      // TODO: need to identify heaps for wp_apply by name?
+      val steps = List(
+        IDebug(value.pp),
+        IWpApply(applyName, instantiate),
+        IIntros(Seq(), IIdent(irisRet)),
+        IDestruct(IIdent(irisRet), retExistentials, irisHyps),
+        IEmp
+      )
+
+      Result(steps, List(withNoDeferreds(ctx)))
 
     // TODO: actually implement
     case s:SuslikProofStep.SubstL => Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))

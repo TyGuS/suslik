@@ -6,6 +6,8 @@ import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HBoolType, HI
 import org.tygus.suslik.certification.translation.{CardConstructor, GenericPredicate, GenericPredicateClause}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
+import scala.annotation.tailrec
+
 object Assertions {
 
   /** Unlike HTT, which encodes programs in a shallow embedding, Iris has a deep embedding of programs.
@@ -18,9 +20,29 @@ object Assertions {
 
     def conjuncts: Seq[IPureAssertion] = throw TranslationException("Called conjuncts on IPureAssertion not of type IAnd.")
 
-    // TODO: implement this
+    def variables: Set[ISpecVar] = this match {
+      case expr@ISpecVar(_, _) => Set(expr)
+      case ISetLiteral(elems) => elems.flatMap(_.variables).toSet
+      case ISpecIfThenElse(cond, left, right) => cond.variables ++ left.variables ++ right.variables
+      case ISpecBinaryExpr(_, left, right) => left.variables ++ right.variables
+      case ISpecUnaryExpr(_, e) => e.variables
+      case _ => Set()
+    }
+
     def subst(s: Map[Ident, IPureAssertion]): IPureAssertion = this match {
-      case expr => expr
+      case expr@ISpecVar(oldName, t) => s.get(oldName) match {
+        case Some(ISpecVar(name, _)) if name == oldName => expr
+        // avoid infinite recursion by refusing to subst on expressions that contain the name they were just subst'd with
+        case Some(value) if !value.variables.map(_.name).contains(oldName) => value.subst(s)
+        case Some(value) => value
+        case None => expr
+      }
+      case ISetLiteral(elems) => ISetLiteral(elems.map(_.subst(s)))
+      case ISpecIfThenElse(cond, left, right) => ISpecIfThenElse(cond.subst(s), left.subst(s), right.subst(s))
+      case ISpecBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.subst(s), right.subst(s))
+      case ISpecUnaryExpr(op, e) => ISpecUnaryExpr(op, e.subst(s))
+
+      case _ => ???
     }
 
     def rename(s: Map[Ident, Ident]): IPureAssertion = this match {
@@ -28,19 +50,18 @@ object Assertions {
         case Some(newName) => ISpecVar(newName, t)
         case None => expr
       }
-      case expr => expr
+      case ISetLiteral(elems) => ISetLiteral(elems.map(_.rename(s)))
+      case ISpecIfThenElse(cond, left, right) => ISpecIfThenElse(cond.rename(s), left.rename(s), right.rename(s))
+      case ISpecBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.rename(s), right.rename(s))
+      case ISpecUnaryExpr(op, e) => ISpecUnaryExpr(op, e.rename(s))
+      case IAnd(elems) => IAnd(elems.map(_.rename(s)))
+
+      case _ => ???
     }
   }
 
   abstract class IQuantifiedVar extends IPureAssertion {
     def name: Ident
-
-    def originalName: Ident = throw TranslationException("Called originalName on IQuantifiedVar not of type ISpecQuantifiedValue.")
-  }
-
-  abstract class ISpatialAssertion extends PrettyPrinting {
-
-    def heaplets: Seq[ISpatialAssertion] = throw TranslationException("Called heaplets on ISpatialAssertion not of type IHeap.")
   }
 
   abstract class ISpecification extends PrettyPrinting
@@ -63,10 +84,6 @@ object Assertions {
     override def pp: String = s"${name}"
 
     override def ppAsPhi: String = super.ppAsPhi
-  }
-
-  case class ISpecQuantifiedValue(name: String, override val originalName: Ident, typ: HType) extends IQuantifiedVar {
-    override def pp: String = s"${name}"
   }
 
   case class ISetLiteral(elems: List[IPureAssertion]) extends IPureAssertion {
@@ -127,6 +144,25 @@ object Assertions {
 
   }
 
+  abstract class ISpatialAssertion extends PrettyPrinting {
+    def heaplets: Seq[ISpatialAssertion] = throw TranslationException("Called heaplets on ISpatialAssertion not of type IHeap.")
+
+    def rename(s: Map[Ident, Ident]): ISpatialAssertion = this match {
+      case IPointsTo(loc, value) => IPointsTo(loc.rename(s), value.rename(s))
+      case IPredApp(pred, args, card) => IPredApp(pred, args.map(_.rename(s)), card.rename(s))
+      case IHeap(heaplets) => IHeap(heaplets.map(_.rename(s)))
+      case IBlock() => IBlock()
+    }
+
+    def subst(s: Map[Ident, IPureAssertion]): ISpatialAssertion = this match {
+      case IPointsTo(loc, value) => IPointsTo(loc.subst(s), value.subst(s))
+      case IPredApp(pred, args, card) => IPredApp(pred, args.map(_.subst(s)), card.subst(s))
+      case IHeap(heaplets) => IHeap(heaplets.map(_.subst(s)))
+      case IBlock() => IBlock()
+    }
+  }
+
+
   case class IPointsTo(loc: IPureAssertion, value: IPureAssertion) extends ISpatialAssertion {
     override def pp: String = s"${loc.pp} ↦ ${value.pp}"
   }
@@ -151,6 +187,9 @@ object Assertions {
       val whole = s"${pure}${if(pure.nonEmpty && spatial.nonEmpty) " ∗ " else ""}${sigma.pp}"
       if (whole.isEmpty) "True" else whole
     }
+
+    def subst(s: Map[Ident, IPureAssertion]): IAssertion = IAssertion(phi.subst(s), sigma.subst(s))
+    def rename(s: Map[Ident, Ident]): IAssertion = IAssertion(phi.rename(s), sigma.rename(s))
   }
 
   case class IFunSpec(fname: Ident,
@@ -175,6 +214,23 @@ object Assertions {
          |  ${fname} ${funArgs.map(v => s"#${v._1.pp}").mkString(" ")}
          |{{{ RET #(); ${postExist}${post.pp} }}}.
          |""".stripMargin
+    }
+
+//    // TODO: are the casts legit?
+//    def subst(s: Map[Ident, IPureAssertion]): IFunSpec = {
+//      val args = funArgs.map({ case (v, t) => ((ISpecVar) (v.subst(s)), t) })
+//      val uni = specUniversal.map({ case (v, t) => ((ISpecVar) (v.subst(s)), t) })
+//      val exi = specExistential.map({ case (v, t) => ((ISpecVar) (v.subst(s)), t) })
+//      IFunSpec(fname, args, uni, exi, pre.subst(s), post.subst(s))
+//    }
+
+    def rename(s: Map[Ident, Ident]): IFunSpec = {
+      val args = funArgs.map { case (v, t) => (v.rename(s).asInstanceOf[ISpecVar], t) }
+      val uni = specUniversal.map { case (v, t) => (v.rename(s).asInstanceOf[ISpecVar], t) }
+      val exi = specExistential.map { case (v, t) => (v.rename(s).asInstanceOf[ISpecVar], t) }
+      val pr = pre.rename(s)
+      val po = post.rename(s)
+      IFunSpec(fname, args, uni, exi, pr, po)
     }
   }
 

@@ -48,7 +48,7 @@ object Translation {
     // TODO: add support for helper functions
     val specMap = List((funSpec.fname, funSpec)).toMap
 
-    val proofCtx = IProofContext(0, ctx, predMap, specMap, Map.empty, Map.empty, Map.empty)
+    val proofCtx = IProofContext(0, ctx, predMap, specMap, Map.empty, Map.empty, Map.empty, None)
     val proofStr =
       try {
         ProofTreePrinter.pp(ProofEvaluator(funSpec).run(suslikTree, proofCtx))
