@@ -19,7 +19,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
   val tempDir: File = Files.createTempDirectory("suslik-").toFile
   val defFilename: String = "common.v"
   val statsFile: File = new File("cert-stats.csv")
-  val statsHeader: String = List("Benchmark Name", "Output Name", "Synthesis Time (regular)", "Synthesis Time (with certification)", "Proof Time", "Spec Size", "Proof Size").mkString(", ") + "\n"
+  val statsHeader: String = List("Benchmark Name", "Output Name", "Synthesis Time (sec)", "Proof Time (sec)", "Spec Size", "Proof Size").mkString(", ") + "\n"
 
   def synthesizeOne(text: String, parser: SSLParser, params: SynConfig): (List[Statements.Procedure], Environment, Long) = {
     val res = params.inputFormat match {
@@ -64,9 +64,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
     val testDir = new File(path)
     if (testDir.exists() && testDir.isDirectory) {
       print(s"Retrieving definitions and specs from ${testDir.getName}...")
-      // Get definitions
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
-      // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile
         && (f.getName.endsWith(s".$testExtension") ||
         f.getName.endsWith(s".$sketchExtension"))).toList
@@ -78,24 +76,19 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
         val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
         println(s"$testName:")
         val fullInput = List(defs, in).mkString("\n")
-        // Synthesize normally
-        print(s"  synthesizing normally...")
-        val (_, _, durationNoCert) = synthesizeOne(fullInput, parser, params)
-        println(s"done! ($durationNoCert ms)")
-        // Synthesize with cert
+
         print(s"  synthesizing in certification mode...")
-        val (res, env, durationWithCert) = synthesizeOne(fullInput, parser, params.copy(assertSuccess = false, certTarget = target, certDest = tempDir))
-        println(s"done! ($durationWithCert ms)")
-        // Generate certificate
+        val (res, env, synDuration) = synthesizeOne(fullInput, parser, params.copy(assertSuccess = false, certTarget = target, certDest = tempDir))
+        println(s"done! (${fmtTime(synDuration)} s)")
+
         print(s"  generating certificate...")
         val cert = target.certify(res.head, env)
         println("done!")
-        (testName, cert, durationNoCert, durationWithCert)
+        (testName, cert, synDuration)
       }
 
       println(s"Successfully synthesized ${tests.length} tests.")
 
-      // Serialize definitions
       print(s"\nWriting definitions to file $defFilename...")
       val predicates = synResults.flatMap(_._2.predicates).groupBy(_.name).map(_._2.head).toList
       val definitions = target.mkDefs(predicates)
@@ -106,7 +99,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
       println("done!")
 
       println(s"\nGenerating statistics...")
-      for ((testName, cert, durationNoCert, durationWithCert) <- synResults) {
+      for ((testName, cert, synDuration) <- synResults) {
         println(s"$testName:")
         for (o <- cert.outputs) yield {
           print(s"  Writing certificate output to file ${o.filename}...")
@@ -117,13 +110,17 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
             val (specSize, proofSize) = checkProofSize(tempDir, o.filename)
             println(s"done! (spec: $specSize, proof: $proofSize)")
             print(s"  Compiling proof...")
-            val (res, duration) = timed (compileProof(tempDir, o.filename))
+            val (res, proofDuration) = timed (compileProof(tempDir, o.filename))
             if (res == 0) {
-              println(s"done! ($duration ms)")
-              logStat(testName, o.filename, durationNoCert, durationWithCert, duration, specSize, proofSize)
+              println(s"done! (${fmtTime(proofDuration)} s)")
+              logStat(testName, o.filename, synDuration, proofDuration, specSize, proofSize)
             } else {
               throw SynthesisException(s"Failed to verify ${o.filename}!")
             }
+          } else {
+            print(s"  Compiling output...")
+            o.compile(tempDir)
+            println("done!")
           }
         }
       }
@@ -156,8 +153,10 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
     SynStatUtil.using(new FileWriter(statsFile, true))(_.write(statsHeader))
   }
 
-  private def logStat(name: String, filename: String, synDurationNoCert: Long, synDurationWithCert: Long, proofDuration: Long, specSize: Int, proofSize: Int): Unit = {
-    val data = s"$name, $filename, $synDurationNoCert, $synDurationWithCert, $proofDuration, $specSize, $proofSize\n"
+  private def logStat(name: String, filename: String, synDuration: Long, proofDuration: Long, specSize: Int, proofSize: Int): Unit = {
+    val data = s"$name, $filename, ${fmtTime(synDuration)}, ${fmtTime(proofDuration)}, $specSize, $proofSize\n"
     SynStatUtil.using(new FileWriter(statsFile, true))(_.write(data))
   }
+
+  private def fmtTime(ms: Long): String = "%.1f".format(ms.toDouble / 1000)
 }

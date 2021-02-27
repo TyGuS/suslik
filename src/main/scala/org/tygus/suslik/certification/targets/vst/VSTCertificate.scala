@@ -1,6 +1,6 @@
 package org.tygus.suslik.certification.targets.vst
 
-import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, Predicate}
+import org.tygus.suslik.certification.{ClangOutput, Certificate, CertificateOutput, CertificationTarget, CoqOutput, Predicate}
 import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDefinition
 import org.tygus.suslik.certification.targets.vst.logic.Proof
 
@@ -10,7 +10,7 @@ case class VSTCertificate(name:String, CProcedureDefinition: CProcedureDefinitio
 
   override def outputs: List[CertificateOutput] =
     List(
-      CertificateOutput(name + ".c", name, CProcedureDefinition.pp, false),
-      CertificateOutput("verif_" + name + ".v", "verif_" + name, Proof.pp)
+      ClangOutput(name + ".c", name, CProcedureDefinition.pp),
+      CoqOutput("verif_" + name + ".v", "verif_" + name, Proof.pp)
     )
 }

@@ -5,7 +5,7 @@ import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, I
 import org.tygus.suslik.certification.targets.iris.logic.IProofStep
 import org.tygus.suslik.certification.targets.iris.logic.IProofStep.ProofTreePrinter
 import org.tygus.suslik.certification.traversal.ProofTree
-import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
+import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, CoqOutput}
 
 case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proof: ProofTree[IProofStep]) extends Certificate {
   val target: CertificationTarget = Iris
@@ -108,5 +108,5 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
     b.toString()
   }
 
-  override def outputs: List[CertificateOutput] =  List(CertificateOutput(s"$name.v", name, pp))
+  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"$name.v", name, pp))
 }

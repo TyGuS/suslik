@@ -3,7 +3,7 @@ package org.tygus.suslik.certification.targets.htt
 import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CFunSpec, CInductivePredicate}
 import org.tygus.suslik.certification.targets.htt.program.Program
-import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget}
+import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, CoqOutput}
 
 case class HTTCertificate(name: String, predicates: List[CInductivePredicate], spec: CFunSpec, auxSpecs: Seq[CFunSpec], proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate {
   val target: CertificationTarget = HTT
@@ -35,6 +35,6 @@ case class HTTCertificate(name: String, predicates: List[CInductivePredicate], s
     builder.toString
   }
 
-  override def outputs: List[CertificateOutput] =  List(CertificateOutput(s"${sanitize(name)}.v", sanitize(name), pp))
+  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"${sanitize(name)}.v", sanitize(name), pp))
 
 }
