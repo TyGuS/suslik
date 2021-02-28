@@ -16,9 +16,9 @@ import scala.sys.process._
 
 abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
   val target: CertificationTarget
-  val defFilename: String = "common.v"
   val statsFile: File = new File("cert-stats.csv")
   val statsHeader: String = List("Benchmark Name", "Output Name", "Synthesis Time (sec)", "Proof Generation Time (sec)", "Proof Checking Time (sec)", "Spec Size", "Proof Size").mkString(", ") + "\n"
+  val defFilename: String = "common"
 
   def synthesizeOne(text: String, parser: SSLParser, params: SynConfig): (List[Statements.Procedure], Environment, Long) = {
     val res = params.inputFormat match {
@@ -73,7 +73,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
 
       val parser = new SSLParser
       println(s"\nSynthesizing ${tests.length} test cases...")
-      val synResults = for (f <- tests) yield {
+      val raw_syn_results = for (f <- tests)  yield {
         val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
         println(s"$testName:")
         val fullInput = List(defs, in).mkString("\n")
@@ -83,26 +83,34 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
         println(s"done! (${fmtTime(synDuration)} s)")
 
         print(s"  generating certificate...")
-        val (cert, proofGenDuration) = timed(target.certify(res.head, env))
-        println("done!")
-        (testName, cert, synDuration, proofGenDuration)
+        try {
+          val (cert, proofGenDuration) = timed(target.certify(res.head, env))
+          println("done!")
+          Some ((testName, cert, synDuration, proofGenDuration))
+        } catch {
+          case _ => None
+        }
       }
 
       println(s"Successfully synthesized ${tests.length} tests.")
 
-      print(s"\nWriting definitions to file $defFilename...")
+      val synResults = raw_syn_results.flatten
       val predicates = synResults.flatMap(_._2.predicates).groupBy(_.name).map(_._2.head).toList
-      val defFile = CoqOutput(defFilename, "common", target.mkDefs(predicates))
-      serialize(tempDir, defFilename, defFile.body)
+      val defFiles = target.generate_common_definitions_of(defFilename, predicates)
+      defFiles.foreach {
+        case output =>
+          print(s"\nWriting common definitions to file ${tempDir}/${output.filename}...")
+          serialize(tempDir, output.filename, output.body)
+      }
       println("done!")
       print(s"Compiling definitions...")
-      defFile.compile(tempDir)
+      defFiles.foreach(output => output.compile(tempDir))
       println("done!")
 
       println(s"\nGenerating statistics...")
       for ((testName, cert, synDuration, proofGenDuration) <- synResults) {
         println(s"$testName:")
-        for (o <- cert.outputs) yield {
+        for (o <- cert.outputs_with_common_predicates(defFilename, predicates)) yield {
           print(s"  Writing certificate output to file ${o.filename}...")
           serialize(tempDir, o.filename, o.body)
           println("done!")
@@ -116,7 +124,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
               println(s"done! (${fmtTime(proofCheckDuration)} s)")
               logStat(testName, o.filename, synDuration, proofGenDuration, proofCheckDuration, specSize, proofSize)
             } else {
-              throw SynthesisException(s"Failed to verify ${o.filename}!")
+              print(s"Failed to verify ${o.filename}!")
             }
           } else {
             print(s"  Compiling output...")

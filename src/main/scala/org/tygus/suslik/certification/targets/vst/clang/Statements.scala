@@ -1,7 +1,9 @@
 package org.tygus.suslik.certification.targets.vst.clang
 
+import org.tygus.suslik.certification.{ClangHeaderOutput, ClangOutput}
 import org.tygus.suslik.certification.targets.vst.Types.VSTCType
 import org.tygus.suslik.certification.targets.vst.logic.Expressions.CLangExpr
+import org.tygus.suslik.certification.targets.vst.logic.ProofTerms
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.FormalSpecification
 import org.tygus.suslik.certification.traversal.Step.DestStep
 import org.tygus.suslik.certification.traversal.{ProofTree, ProofTreePrinter}
@@ -102,6 +104,59 @@ object Statements {
       }
   }
 
+  object CProcedureDefinition {
+    val common_defs = """typedef union sslval {
+                        |  int ssl_int;
+                        |  void *ssl_ptr;
+                        |} *loc;
+                        |#define READ_LOC(x,y) (*(x+y)).ssl_ptr
+                        |#define READ_INT(x,y) (*(x+y)).ssl_int
+                        |#define WRITE_LOC(x,y,z) (*(x+y)).ssl_ptr = z
+                        |#define WRITE_INT(x,y,z) (*(x+y)).ssl_int = z""".stripMargin
+
+
+    def common_c_file (base_name: String): ClangOutput =
+      ClangOutput(
+        filename=s"${base_name}.c",
+        name=base_name,
+        s"""#include <stddef.h>
+           |#include "${base_name}.h"
+           |
+           |loc vst_keep_my_damn_definitions = NULL;""".stripMargin
+      )
+
+    def common_c_header (base_name: String): ClangHeaderOutput =
+      ClangHeaderOutput(
+        filename=s"${base_name}.h",
+        name=base_name,
+        s"""#ifndef COMMON_H
+           |#define COMMON_H
+           |
+           |${common_defs}
+           |
+           |#endif""".stripMargin
+      )
+
+    def c_prelude(common_defs_header_file: Option[String], helper_specs: List[FormalSpecification]) =
+      s"""#include <stddef.h>
+         |${
+        common_defs_header_file match {
+          case Some(header_file_name) => "#include \"" ++ header_file_name ++ ".h\""
+          case None => ""
+        }}
+         |
+         |extern void free(void *p);
+         |extern void *malloc(size_t size);
+         |
+         |${common_defs_header_file match {
+        case Some(value) => "" // have common defs, no need to include
+        case None => common_defs
+      }}
+         |
+        ${helper_specs.map(spec => s"|${spec.pp_as_c_decl}").mkString("\n")}
+         |
+         |""".stripMargin
+  }
 
   /** Definition of a CProcedure */
   case class CProcedureDefinition(
@@ -110,24 +165,18 @@ object Statements {
                                    body: ProofTree[StatementStep],
                                    helper_specs: List[FormalSpecification]
                                  )  extends PrettyPrinting {
-    val c_prelude =
-      s"""#include <stddef.h>
-        |
-        |extern void free(void *p);
-        |extern void *malloc(size_t size);
-        |
-        |typedef union sslval {
-        |  int ssl_int;
-        |  void *ssl_ptr;
-        |} *loc;
-        |#define READ_LOC(x,y) (*(x+y)).ssl_ptr
-        |#define READ_INT(x,y) (*(x+y)).ssl_int
-        |#define WRITE_LOC(x,y,z) (*(x+y)).ssl_ptr = z
-        |#define WRITE_INT(x,y,z) (*(x+y)).ssl_int = z
-        |
-        ${helper_specs.map(spec => s"|${spec.pp_as_c_decl}").mkString("\n")}
-        |
-        |""".stripMargin
+
+    def pp_with_common_defs(base_filename: String, common_predicates: List[ProofTerms.VSTPredicate]): String = {
+      val body_string = ProofTreePrinter.pp(body)
+      val function_def =
+        s"void ${name}(${
+          params.map({case (variable_name, variable_ty) =>
+            s"${variable_ty.pp_as_ctype} ${variable_name}"
+          }).mkString(", ")
+        }) {\n${body_string}\n}\n"
+      CProcedureDefinition.c_prelude(Some(base_filename), helper_specs) + function_def
+    }
+
 
     override def pp: String = {
       val body_string = ProofTreePrinter.pp(body)
@@ -138,8 +187,9 @@ object Statements {
           }).mkString(", ")
         }) {\n${body_string}\n}\n"
 
-      c_prelude + function_def
+      CProcedureDefinition.c_prelude(None, helper_specs) + function_def
     }
+
   }
 
 }
