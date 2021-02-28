@@ -123,7 +123,10 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
         (List(IFindApply) ++ instantiate ++ List(IFinish), ctx)
       }
 
-      val lobInduction = ILob(IIdent(irisSelf), spec.specUniversal.map({ case (v, _) => ICoqName(v.name) }) ++ List(ICoqName(irisPhi)))
+      val lobInduction = ILob(IIdent(irisSelf),
+        spec.specUniversal.map({ case (v, _) => ICoqName(v.name) })
+          ++ pureIntro.map(v => ICoqName(v.name))
+          ++ List(ICoqName(irisPhi)))
       val steps = List(intro, IRewriteHyp, lobInduction, IBegin)
       Result(steps, List((Nil, Some(deferred), ctx)))
 
@@ -132,6 +135,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       val app = predApp.translate(IrisTranslator.predAppTranslator, ctx.translationCtx)
       val appHyp = ctx.freshHypName()
       val appHypIdent = IIdent(appHyp)
+      val pureHyp = IPure(appHyp + "_eqn")
       val steps = List (
         // Give the heaplet containing the predicate application a fresh name, appHyp
         IRenameSelect(app.pp, appHypIdent),
@@ -150,7 +154,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
           val irisHyps = IPatDestruct(List(IPatDestruct(pureIntro), IPatDestruct(spatialIntro)))
           // Open and destruct the predicate appropriately in each clause
           val immed = List(
-            IOpenCard(pred, constructor, constructorExistentials),
+            IOpenCard(pred, constructor, constructorExistentials, appHypIdent, pureHyp),
             IDestruct(appHypIdent, coqIntro, irisHyps)
           )
           val newCtx = ctx withVariablesTypes (existentials ++ constructorExistentials).toMap
@@ -208,14 +212,17 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       val pureIntro = spec.post.phi.conjuncts.map(_ => IPure(ctx.freshHypName()))
       val spatialIntro = spec.post.sigma.heaplets.map(_ => IIdent(ctx.freshHypName()))
       val irisHyps = IPatDestruct(List(IPatDestruct(pureIntro), IPatDestruct(spatialIntro)))
-      val toInstantiate = spec.pre.phi.conjuncts.length + spec.pre.sigma.heaplets.length
+      val pureInst = spec.pre.phi.conjuncts.length
+      val spatialInst = spec.pre.sigma.heaplets.length
+
+      val ret = ctx.freshHypName()
 
       // TODO: need to identify heaps for wp_apply by name?
       val steps = List(
         IDebug(value.pp),
-        IWpApply(applyName, instantiate, toInstantiate),
-        IIntros(Seq(), IIdent(irisRet)),
-        IDestruct(IIdent(irisRet), retExistentials, irisHyps),
+        IWpApply(applyName, instantiate, pureInst, spatialInst),
+        IIntros(Seq(), IIdent(ret)),
+        IDestruct(IIdent(ret), retExistentials, irisHyps),
         IEmp
       )
       ctx = ctx withVariablesTypes spec.specExistential.map{ case (v, t) => (v.name, t) }.toMap

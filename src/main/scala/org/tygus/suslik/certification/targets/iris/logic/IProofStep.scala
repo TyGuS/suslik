@@ -82,18 +82,44 @@ case class IUnfold(pred: IPredicate, constructor: CardConstructor) extends IProo
   }
 }
 
-case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExistentials: Seq[(Ident, HType)]) extends IProofStep {
+case class IOpenCard(pred: IPredicate,
+                     constructor: CardConstructor,
+                     constrExistentials: Seq[(Ident, HType)],
+                     appHypIdent: IIdent,
+                     purePart: IPure,
+                    ) extends IProofStep {
+
+  def toDestructPattern(ls: List[String]): String = {
+    ls match {
+      case Nil => ""
+      case ::(x, Nil) => s"[$x]"
+      case ::(x, ::(y, Nil)) => s"[$x $y]"
+      case ::(x, xs) => s"[$x ${toDestructPattern(xs)}]"
+    }
+
+//    (base, ls) match {
+//      case (None, :: (vara, :: (varb, rest))) => toDestructPattern(Some(s"[${varb} ${vara}]"))(rest)
+//      case (Some(base), ::((vara), rest)) =>
+//        toDestructPattern(Some(s"[${vara} ${base}]"))(rest)
+//      case (Some(base), Nil) => base
+//    }
+  }
   override def pp: String = {
     val learn = pred.learnLemmaName(constructor)
     val open = pred.openLemmaName(constructor)
     val tactic = if (constrExistentials.isEmpty) {
       s"""
-      |erewrite $learn; try by safeDispatchPure.
+      |iDestruct ($learn with "${appHypIdent.pp}") as "[${appHypIdent.pp} ${purePart.pp}]".
+      |rewrite ${purePart.name}; last by safeDispatchPure.
       |tac_except_post ltac:(rewrite $open).""".stripMargin
     } else {
       // TODO: existentials introduction
       s"""
-      |edestruct $learn as [${constrExistentials.map(v => v._1).mkString(" ")} ->]; try by safeDispatchPure.
+      |iDestruct ($learn with "${appHypIdent.pp}") as "[${appHypIdent.pp} ${purePart.pp}]".
+      |
+      |edestruct ${purePart.name} as ${
+        toDestructPattern(((constrExistentials.map(v => v._1)).toList ++ List("->")))
+      }; first by safeDispatchPure.
       |tac_except_post ltac:(rewrite $open).""".stripMargin
     }
     tactic

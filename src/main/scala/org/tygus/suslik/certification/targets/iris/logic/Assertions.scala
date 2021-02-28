@@ -283,15 +283,15 @@ object Assertions {
 
         def ppEqualityTerm(cons: CardConstructor): String =
           if (cons.constructorArgs.isEmpty) {
-            s"${ppPred} ${cardinalityParam} = ${ppPred} ${predicate.constructorName(cons)}"
+            s"${cardinalityParam} = ${predicate.constructorName(cons)}"
           } else {
-            s"∃ ${cons.constructorArgs.mkString(" ")}, ${ppPred} ${cardinalityParam} = ${ppPred} (${predicate.constructorName(cons)} ${cons.constructorArgs.mkString(" ")})"
+            s"∃ ${cons.constructorArgs.mkString(" ")}, ${cardinalityParam} = (${predicate.constructorName(cons)} ${cons.constructorArgs.mkString(" ")})"
           }
 
         s"Lemma ${predicate.learnLemmaName(cardConstructor)} " +
           s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
           s"${cardinalityParam}:\n" +
-          s"${pclause.selector.ppAsPhi} -> ${ppEqualityTerm(cardConstructor)}.\n" +
+          s"${ppPred} ${cardinalityParam}  ⊢ ${ppPred} ${cardinalityParam} ∗ ⌜${pclause.selector.ppAsPhi} -> ${ppEqualityTerm(cardConstructor)}⌝.\n" +
           s"Proof. Admitted.\n"
       }
     }
