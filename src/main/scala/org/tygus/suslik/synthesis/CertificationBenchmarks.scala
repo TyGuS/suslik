@@ -124,7 +124,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
               println(s"done! (${fmtTime(proofCheckDuration)} s)")
               logStat(testName, o.filename, synDuration, proofGenDuration, proofCheckDuration, specSize, proofSize)
             } else {
-              throw SynthesisException(s"Failed to verify ${o.filename}!")
+              print(s"Failed to verify ${o.filename}!")
             }
           } else {
             print(s"  Compiling output...")
