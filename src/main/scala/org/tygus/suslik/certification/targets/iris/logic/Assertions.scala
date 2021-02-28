@@ -2,7 +2,7 @@ package org.tygus.suslik.certification.targets.iris.logic
 
 import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
 import org.tygus.suslik.certification.targets.iris.heaplang.Expressions._
-import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HBoolType, HIntSetType, HIntType, HLocType, HType, HValType}
+import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HBoolType, HCardType, HIntSetType, HIntType, HLocType, HType, HValType}
 import org.tygus.suslik.certification.translation.{CardConstructor, GenericPredicate, GenericPredicateClause}
 import org.tygus.suslik.language.{Ident, PrettyPrinting}
 
@@ -26,6 +26,7 @@ object Assertions {
       case ISpecIfThenElse(cond, left, right) => cond.variables ++ left.variables ++ right.variables
       case ISpecBinaryExpr(_, left, right) => left.variables ++ right.variables
       case ISpecUnaryExpr(_, e) => e.variables
+      case ICardConstructor(predType, c, args) => args.flatMap(_.variables).toSet
       case _ => Set()
     }
 
@@ -37,10 +38,13 @@ object Assertions {
         case Some(value) => value
         case None => expr
       }
+      case ISpecLit(_) => this
       case ISetLiteral(elems) => ISetLiteral(elems.map(_.subst(s)))
       case ISpecIfThenElse(cond, left, right) => ISpecIfThenElse(cond.subst(s), left.subst(s), right.subst(s))
       case ISpecBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.subst(s), right.subst(s))
       case ISpecUnaryExpr(op, e) => ISpecUnaryExpr(op, e.subst(s))
+      case ICardConstructor(predType, c, args) =>ICardConstructor(predType, c, args.map(_.subst(s)))
+      case ISpecMakeVal(e) => ISpecMakeVal(e.subst(s).asInstanceOf[ISpecVar])
 
       case _ => ???
     }
@@ -50,11 +54,14 @@ object Assertions {
         case Some(newName) => ISpecVar(newName, t)
         case None => expr
       }
+      case ISpecLit(_) => this
       case ISetLiteral(elems) => ISetLiteral(elems.map(_.rename(s)))
       case ISpecIfThenElse(cond, left, right) => ISpecIfThenElse(cond.rename(s), left.rename(s), right.rename(s))
       case ISpecBinaryExpr(op, left, right) => ISpecBinaryExpr(op, left.rename(s), right.rename(s))
       case ISpecUnaryExpr(op, e) => ISpecUnaryExpr(op, e.rename(s))
       case IAnd(elems) => IAnd(elems.map(_.rename(s)))
+      case ICardConstructor(predType, c, args) =>ICardConstructor(predType, c, args.map(_.rename(s)))
+      case ISpecMakeVal(e) => ISpecMakeVal(e.rename(s).asInstanceOf[ISpecVar])
 
       case _ => ???
     }
@@ -84,6 +91,13 @@ object Assertions {
     override def pp: String = s"${name}"
 
     override def ppAsPhi: String = super.ppAsPhi
+  }
+
+  case class ICardConstructor(predType: Ident, name: Ident, args: List[IPureAssertion]) extends IPureAssertion {
+    override def typ: HType = HCardType(predType)
+
+    override def pp: String = s"(${name} ${args.map(_.pp).mkString(" ")} : ${predType}_card)"
+    override def ppAsPhi: String = s"(${name} ${args.map(_.ppAsPhi).mkString(" ")} : ${predType}_card)"
   }
 
   case class ISetLiteral(elems: List[IPureAssertion]) extends IPureAssertion {

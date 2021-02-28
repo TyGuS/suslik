@@ -77,10 +77,16 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
        |  end.
        |
        |Local Ltac iSimplNoSplit :=
-       |  (repeat wp_pures); movePure; iRewriteHyp; iSimpl in "# ∗"; iSimpl.
+       |  (repeat wp_pures); movePure; iRewriteHyp. (* iSimpl in "# ∗"; iSimpl. *)
        |
        |Local Ltac iSimplContext := iSimplNoSplit; try iSplitAllHyps; iSimplNoSplit.
        |Ltac dispatchPure := iRewriteHyp; try lia; try sauto; done.
+       |
+       |Ltac safeDispatchPure :=
+       |lazymatch goal with
+       || [ |- (envs_entails _) _ ]  => idtac
+       || _ => by dispatchPure
+       |end.
        |
        |Ltac ssl_begin := (wp_rec; repeat wp_let); iSimplContext.
        |Ltac ssl_let := wp_let.
@@ -89,6 +95,38 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
        |Ltac ssl_free := wp_free; wp_pures; iSimplContext.
        |Ltac ssl_if H := case_bool_decide as H; wp_if; iSimplContext.
        |Ltac ssl_finish := iRewriteHyp; iFrame "% # ∗"; dispatchPure.
+       |
+       |Ltac ssl_rewrite_term H term :=
+       |let Htn := fresh in let Heqn := fresh in
+       |remember term as Htn eqn:Heqn;
+       |rewrite H in Heqn; rewrite Heqn; clear Htn Heqn.
+       |
+       |Ltac ssl_apply_to_heap tac :=
+       |match goal with
+       || [ |- _ (_ ?H) ] => tac H
+       |end.
+       |
+       |Ltac apply_last_heap H tac :=
+       |  match H with
+       |  | (?A ∗ ?B)%I => apply_last_heap B tac
+       |  | (?A ∗ ?B)%I => tac B
+       |  | (?A ∗ ?B)%I => apply_last_heap A tac
+       |  | (?A ∗ ?B)%I => tac A
+       |  | _ => fail "apply_last_heap failed on: "H
+       |  end.
+       |
+       |Ltac pull_out_exist_internal H :=
+       | lazymatch H with
+       | | ((bi_exist _) ∗ _)%I => rewrite bi.sep_exist_r
+       | | (_ ∗ (bi_exist ?Q))%I => rewrite bi.sep_exist_l
+       | | (?A ∗ ?B)%I => pull_out_exist_internal A || pull_out_exist_internal B
+       | | _ => fail
+       | end.
+       |
+       |Ltac pull_out_exist := ssl_apply_to_heap ltac:(fun H => pull_out_exist_internal H).
+       |
+       |Ltac sll_rewrite_last_heap lemma := ssl_apply_to_heap ltac:(fun H =>
+       |                          apply_last_heap H ltac:(fun H1 => ssl_rewrite_term lemma H1)).
        |
        |""".stripMargin
 

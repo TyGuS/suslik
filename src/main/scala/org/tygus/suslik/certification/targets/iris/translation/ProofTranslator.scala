@@ -1,8 +1,8 @@
 package org.tygus.suslik.certification.targets.iris.translation
 
 import org.tygus.suslik.certification.source.SuslikProofStep
-import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HCardType, HType, HUnknownType}
-import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, IPredicate, IPureAssertion, ISpecVar}
+import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HCardType, HLocType, HType, HUnknownType}
+import org.tygus.suslik.certification.targets.iris.logic.Assertions.{ICardConstructor, IFunSpec, IPredicate, IPureAssertion, ISpecVar}
 import org.tygus.suslik.certification.targets.iris.logic._
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
 import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.normalize_renaming
@@ -11,7 +11,7 @@ import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.Statements.Load
-import org.tygus.suslik.language.{Ident, Statements}
+import org.tygus.suslik.language.{Expressions, Ident, Statements}
 
 
 case class PendingCall(
@@ -42,6 +42,11 @@ case class IProofContext(
     this.copy(coqTypingCtx = coqTypingCtx ++ variables)
   }
 
+  def removeFromCoqContext(variables: List[Ident]): IProofContext = {
+    val newCtx = coqTypingCtx.filterNot(v => variables.contains(v._1))
+    this.copy(coqTypingCtx = newCtx)
+  }
+
   def withMappingBetween(from: Ident, to: Expr): IProofContext = {
     val targetType = typingContext.get(from)
     val toExpr = to.translate.translate(IrisTranslator.toSpecExpr, translationCtx, targetType)
@@ -69,7 +74,12 @@ case class IProofContext(
     val newVarMap = varMap.map { case (v, expr) => (trueName(v), expr.rename(s)) }
     val newRenamings = renamings.map{ case (from, to) => (from, trueName(to)) } ++ s
 
-    this.copy(coqTypingCtx = newCoqTypingCtx, varMap = newVarMap, renamings = newRenamings)
+    val newCall = pendingCall match {
+      case None => None
+      case Some(call) => Some(call.rename(s))
+    }
+
+    this.copy(coqTypingCtx = newCoqTypingCtx, varMap = newVarMap, renamings = newRenamings, pendingCall = newCall)
   }
 
   def resolveExistential(ident: Ident): IPureAssertion = {
@@ -158,16 +168,24 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       val translSelector = selector.translate.translate(IrisTranslator.toSpecExpr, Some(tctx))
       val (constructor, clause) = pred.clauses.find { case (_, cl) => cl.selector == translSelector }.get
       val existentials = pred.findExistentials(constructor)(clause).map( { case (name, ty) => (ren(name), ty) })
-
-
-
-      println(translSelector)
-
-
-//      val (constructor, predClause) =
-
-
-      Result(List(IDebug(value.pp)), List(withNoDeferreds(clientCtx)))
+      val constructorArgs = constructor.constructorArgs.map(v => (ren(v), HCardType(pred.name)))
+      ctx = ctx withVariablesTypes existentials.toMap
+      ctx = ctx withVariablesTypes constructorArgs.toMap
+      ctx = ctx withMappingBetween(cardVar,
+        ICardConstructor(
+          pred.name,
+          pred.constructorName(constructor),
+          constructorArgs.map { case (v, t) => ISpecVar(v, t) }
+        ))
+      val deferred : Deferred = (baseCtx: IProofContext) => {
+        var ctx = baseCtx
+        val unfold = IDebug("Defer OF " + value.pp)
+        val existentialSteps = existentials.map(v => IExists(ctx.resolveExistential(v._1)))
+        ctx = ctx removeFromCoqContext existentials.map(_._1)
+        ctx = ctx removeFromCoqContext constructorArgs.map(_._1)
+        (List (unfold) ++ existentialSteps, ctx)
+      }
+      Result(List(IDebug(value.pp)), List((List(), Some(deferred), ctx)))
 
     case SuslikProofStep.AbduceCall(_, _, _, _, freshSub, _, f, _) =>
       var ctx = clientCtx
@@ -178,7 +196,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
 
     case SuslikProofStep.Call(subst, Statements.Call(Var(funName), _, _)) =>
-      val (spec, ctx) = clientCtx.unqueueCall()
+      var (spec, ctx) = clientCtx.unqueueCall()
       val applyName = if (funName == irisSelf) s""""$irisSelf"""" else s"${funName}_spec"
       val instantiate = spec.specUniversal.map { case (ISpecVar(name, _), _) => subst.getOrElse(Var(name), Var(name)) }
         .map(e => e.translate.translate(IrisTranslator.toSpecExpr, ctx.translationCtx))
@@ -187,22 +205,40 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       val pureIntro = spec.post.phi.conjuncts.map(_ => IPure(ctx.freshHypName()))
       val spatialIntro = spec.post.sigma.heaplets.map(_ => IIdent(ctx.freshHypName()))
       val irisHyps = IPatDestruct(List(IPatDestruct(pureIntro), IPatDestruct(spatialIntro)))
+      val toInstantiate = spec.pre.phi.conjuncts.length + spec.pre.sigma.heaplets.length
 
       // TODO: need to identify heaps for wp_apply by name?
       val steps = List(
         IDebug(value.pp),
-        IWpApply(applyName, instantiate),
+        IWpApply(applyName, instantiate, toInstantiate),
         IIntros(Seq(), IIdent(irisRet)),
         IDestruct(IIdent(irisRet), retExistentials, irisHyps),
         IEmp
       )
+      ctx = ctx withVariablesTypes spec.specExistential.map{ case (v, t) => (v.name, t) }.toMap
+
       Result(steps, List(withNoDeferreds(ctx)))
 
     // TODO: actually implement
     case SuslikProofStep.SubstL(Var(from), to) =>
       val ctx = clientCtx withMappingBetween (from, to)
       Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
-    case s:SuslikProofStep.SubstR => Result(List(IDebug(s.pp)), List(withNoDeferreds(clientCtx)))
+
+    case SuslikProofStep.SubstR(Var(from), to) =>
+      val ctx = clientCtx withMappingBetween (from, to)
+      Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
+
+
+    case SuslikProofStep.Malloc(Var(ghostFrom), Var(ghostTo), Statements.Malloc(_, _, sz)) =>
+      val newVar = (ghostTo, HLocType())
+      var ctx = clientCtx
+      ctx = ctx withVariablesTypes List(newVar).toMap
+      ctx = ctx withMappingBetween(ghostFrom, ISpecVar(ghostTo, HLocType()))
+      ctx = ctx withRenaming ghostFrom -> ghostTo
+      val steps =  List (
+        IMalloc(ICoqName(ghostTo), sz)
+        )
+      Result(steps, List(withNoDeferreds(ctx)))
 
     case SuslikProofStep.Free(_, sz) =>
       val steps = (0 until sz).map(_ => IFree).toList
@@ -234,6 +270,24 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
     case SuslikProofStep.EmpRule(_) => Result(List(IEmp), List())
     case SuslikProofStep.NilNotLval(vars) => withNoOp(clientCtx) // TODO: add assumption
 
+    case SuslikProofStep.PickCard(Var(from), to) =>
+      var cardType = clientCtx.typingContext(from).asInstanceOf[HCardType]
+      val predType = cardType.predType
+      val pred = clientCtx.predMap(predType)
+      val emptyConstr = pred.clauses.head._1
+      val secondConstr = pred.clauses.toList(1)._1
+      val cardExpr = to match {
+        case Var(name) => ISpecVar(name, HCardType(predType))
+        case Expressions.IntConst(v) if v == 0 =>
+          ICardConstructor(predType, pred.constructorName(emptyConstr), List())
+        case Expressions.BinaryExpr(Expressions.OpPlus, Var(name), Expressions.IntConst(v)) if v == 1 =>
+          ICardConstructor(
+            predType, pred.constructorName(secondConstr), List(
+              ISpecVar(name, HCardType(predType))
+            ))
+      }
+      var ctx = clientCtx withMappingBetween (from, cardExpr)
+      withNoOp(ctx)
 
     /** Ignored rules */
     case SuslikProofStep.CheckPost(_, _)
@@ -244,8 +298,6 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
          | SuslikProofStep.StarPartial(_, _)
          | SuslikProofStep.FrameUnfold(_, _) =>
       withNoOp(clientCtx)
-
-    case _ => ???
   }
 
   private def withNoDeferreds(ctx: IProofContext): (List[IProofStep], Option[Deferred], IProofContext) = (Nil, noDeferreds, ctx)

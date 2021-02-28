@@ -81,23 +81,27 @@ case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExist
     val open = pred.openLemmaName(constructor)
     val tactic = if (constrExistentials.isEmpty) {
       s"""
-      |erewrite $learn; try by dispatchPure.
+      |erewrite $learn; try by safeDispatchPure.
       |rewrite $open.""".stripMargin
     } else {
+      // TODO: existentials introduction
       s"""
-      |edestruct $learn as [${constrExistentials.map(v => v._1).mkString(" ")} ->]; try by dispatchPure.
+      |edestruct $learn as [${constrExistentials.map(v => v._1).mkString(" ")} ->]; try by safeDispatchPure.
       |rewrite $open.""".stripMargin
     }
     tactic
   }
 }
 
-case class IWpApply(applyName: String, exs: Seq[IPureAssertion]) extends IProofStep {
-  override def pp: String =
-    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "[$$]")."""
+case class IWpApply(applyName: String, exs: Seq[IPureAssertion], toInstantiate: Integer) extends IProofStep {
+  override def pp: String = {
+    val inst = (0 until toInstantiate).map(_ => "[$]").mkString(" ")
+    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "$inst")."""
+  }
 }
+
 case class IExists(e: IPureAssertion) extends IProofStep {
-  override def pp: String = s"iExists ${e.pp}."
+  override def pp: String = s"iExists ${e.ppAsPhi}."
 }
 
 case class IRenameSelect(pat: String, into: IIntroPattern) extends IProofStep {
@@ -138,6 +142,15 @@ case class IIf(hyp: ICoqName) extends IProofStep {
 
 case class IDebug(msg: String) extends IProofStep {
   override def pp: String = s"(* $msg *)"
+}
+
+case class IMalloc(name: ICoqName, sz: Integer) extends IProofStep {
+  override def pp: String =
+    s"""|wp_alloc ${name.pp} as "?"; try by safeDispatchPure.
+       |wp_pures.
+       |do $sz try rewrite array_cons. iSplitAllHyps. try rewrite array_nil.
+       |try rewrite !loc_add_assoc !Z.add_1_r.
+       |""".stripMargin
 }
 
 case object IFree extends IProofStep {
