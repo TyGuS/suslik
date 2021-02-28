@@ -19,8 +19,9 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
        |
        |Definition null_loc : loc := {|loc_car := 0 |}.
        |
-       |Definition loc_at x lx := x = LitV (LitLoc lx).
-       |Definition Z_at x vx := x = LitV (LitInt vx).
+       |Axiom NilNotLval:
+       |  forall x v,
+       |  x ↦ v -∗ x ↦ v ∗ ⌜x ≠ null_loc⌝.
        |
        |Remove Hints fractional.into_sep_fractional fractional.into_sep_fractional_half : typeclass_instances.
        |
@@ -70,8 +71,6 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
        |
        |Local Ltac iRewriteHyp :=
        |  repeat match goal with
-       |  | [H: loc_at ?x ?rx |- _ ] => rewrite H; clear x H; rename rx into x
-       |  | [H: Z_at ?x ?rx |- _ ] => rewrite H; clear x H; rename rx into x
        |  | [H: bool_decide _  = _ |- _ ] => rewrite H
        |  | [H : _ = _ |- _ ]=> rewrite H
        |  end.
@@ -94,11 +93,11 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
        |Ltac ssl_store := wp_store; iSimplContext.
        |Ltac ssl_free := wp_free; wp_pures; iSimplContext.
        |Ltac ssl_if H := case_bool_decide as H; wp_if; iSimplContext.
-       |Ltac ssl_finish := iRewriteHyp; iFrame "% # ∗"; dispatchPure.
+       |Ltac ssl_finish := iRewriteHyp; iFrame "# ∗"; try (try iPureIntro; try safeDispatchPure).
        |
        |Ltac ssl_rewrite_term H term :=
        |let Htn := fresh in let Heqn := fresh in
-       |remember term as Htn eqn:Heqn;
+       |remember term as Htn eqn:Heqn in * at 1;
        |rewrite H in Heqn; rewrite Heqn; clear Htn Heqn.
        |
        |Ltac ssl_apply_to_heap tac :=
@@ -106,12 +105,12 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
        || [ |- _ (_ ?H) ] => tac H
        |end.
        |
-       |Ltac apply_last_heap H tac :=
+       |Ltac apply_first_heap H tac :=
        |  match H with
-       |  | (?A ∗ ?B)%I => apply_last_heap B tac
-       |  | (?A ∗ ?B)%I => tac B
-       |  | (?A ∗ ?B)%I => apply_last_heap A tac
+       |  | (?A ∗ ?B)%I => apply_first_heap A tac
        |  | (?A ∗ ?B)%I => tac A
+       |  | (?A ∗ ?B)%I => apply_first_heap B tac
+       |  | (?A ∗ ?B)%I => tac B
        |  | _ => fail "apply_last_heap failed on: "H
        |  end.
        |
@@ -123,10 +122,21 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
        | | _ => fail
        | end.
        |
-       |Ltac pull_out_exist := ssl_apply_to_heap ltac:(fun H => pull_out_exist_internal H).
+       |Ltac pull_out_exist := repeat ssl_apply_to_heap ltac:(fun H => pull_out_exist_internal H).
        |
-       |Ltac sll_rewrite_last_heap lemma := ssl_apply_to_heap ltac:(fun H =>
-       |                          apply_last_heap H ltac:(fun H1 => ssl_rewrite_term lemma H1)).
+       |Ltac sll_rewrite_first_heap lemma :=
+       |  ssl_apply_to_heap ltac:(fun H => apply_first_heap H
+       |        ltac:(fun H1 => ssl_rewrite_term lemma H1) || ssl_rewrite_term lemma H).
+       |
+       |Ltac tac_except_post tac :=
+       |  lazymatch goal with
+       |  | |- envs_entails ?Δ _ =>
+       |    let Hs := pm_eval (env_lookup (INamed "Post") (env_spatial Δ)) in
+       |    let f := fresh in let feqn := fresh in
+       |    lazymatch Hs with
+       |    | Some((_ ?H) _) => remember H as f eqn:feqn; tac; (rewrite feqn; clear f feqn)
+       |    end
+       |  end.
        |
        |""".stripMargin
 

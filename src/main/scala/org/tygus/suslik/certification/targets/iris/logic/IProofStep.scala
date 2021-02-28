@@ -75,6 +75,13 @@ case class ILob(hypName: IIdent, coq: Seq[ICoqName]) extends IProofStep {
 
 }
 
+case class IUnfold(pred: IPredicate, constructor: CardConstructor) extends IProofStep {
+  override def pp: String = {
+    val open = pred.openLemmaName(constructor)
+    s"sll_rewrite_first_heap $open."
+  }
+}
+
 case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExistentials: Seq[(Ident, HType)]) extends IProofStep {
   override def pp: String = {
     val learn = pred.learnLemmaName(constructor)
@@ -82,21 +89,39 @@ case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExist
     val tactic = if (constrExistentials.isEmpty) {
       s"""
       |erewrite $learn; try by safeDispatchPure.
-      |rewrite $open.""".stripMargin
+      |tac_except_post ltac:(rewrite $open).""".stripMargin
     } else {
       // TODO: existentials introduction
       s"""
       |edestruct $learn as [${constrExistentials.map(v => v._1).mkString(" ")} ->]; try by safeDispatchPure.
-      |rewrite $open.""".stripMargin
+      |tac_except_post ltac:(rewrite $open).""".stripMargin
     }
     tactic
   }
 }
 
-case class IWpApply(applyName: String, exs: Seq[IPureAssertion], toInstantiate: Integer) extends IProofStep {
+case object IPullOutExist extends IProofStep {
+  override def pp: String = s"pull_out_exist."
+}
+
+case class INilNotVal(varName: Ident, hypName: String) extends IProofStep {
+  override def pp: String =
+    s"""
+       |iRename select (${varName} ↦ _)%I into "$hypName".
+       |iDestruct (NilNotLval with "$hypName") as "[$hypName %]".
+       |""".stripMargin
+}
+
+case class IWpApply(applyName: String, exs: Seq[IPureAssertion], pureToInstantiate:Integer, spatialToInstantiate: Integer) extends IProofStep {
   override def pp: String = {
-    val inst = (0 until toInstantiate).map(_ => "[$]").mkString(" ")
-    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "$inst")."""
+    val inst = {
+      (0 until pureToInstantiate).map(_ => "[]") ++
+      (0 until spatialToInstantiate).map(_ => "[$]")
+    }.mkString(" ")
+    val after = (0 until pureToInstantiate).map(_ => "ssl_finish.").mkString("\n")
+    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "$inst").
+       |$after
+       |""".stripMargin
   }
 }
 

@@ -325,6 +325,8 @@ object Assertions {
           }).mkString("\n")
         }
            |end.
+           |
+           |Opaque $name.
            |""".stripMargin
       s"${predicate_definition}"
     }

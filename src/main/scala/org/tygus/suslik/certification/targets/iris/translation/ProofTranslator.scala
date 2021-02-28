@@ -179,11 +179,14 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
         ))
       val deferred : Deferred = (baseCtx: IProofContext) => {
         var ctx = baseCtx
-        val unfold = IDebug("Defer OF " + value.pp)
-        val existentialSteps = existentials.map(v => IExists(ctx.resolveExistential(v._1)))
+        val unfold = IUnfold(pred, constructor)
+        val existentialSteps = existentials.flatMap(v =>
+          List(
+            IPullOutExist,
+            IExists(ctx.resolveExistential(v._1))))
         ctx = ctx removeFromCoqContext existentials.map(_._1)
         ctx = ctx removeFromCoqContext constructorArgs.map(_._1)
-        (List (unfold) ++ existentialSteps, ctx)
+        (List (unfold) ++ existentialSteps ++ List(IFinish), ctx)
       }
       Result(List(IDebug(value.pp)), List((List(), Some(deferred), ctx)))
 
@@ -268,7 +271,9 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       Result(List(IStore), List(withNoDeferreds(clientCtx)))
 
     case SuslikProofStep.EmpRule(_) => Result(List(IEmp), List())
-    case SuslikProofStep.NilNotLval(vars) => withNoOp(clientCtx) // TODO: add assumption
+    case SuslikProofStep.NilNotLval(vars) =>
+      val steps = vars.map { case Var(name) => INilNotVal(name, clientCtx.freshHypName() )}
+      Result(steps, List(withNoDeferreds(clientCtx)))
 
     case SuslikProofStep.PickCard(Var(from), to) =>
       var cardType = clientCtx.typingContext(from).asInstanceOf[HCardType]
