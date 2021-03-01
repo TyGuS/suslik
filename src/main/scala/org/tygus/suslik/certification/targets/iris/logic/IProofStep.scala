@@ -75,29 +75,84 @@ case class ILob(hypName: IIdent, coq: Seq[ICoqName]) extends IProofStep {
 
 }
 
-case class IOpenCard(pred: IPredicate, constructor: CardConstructor, constrExistentials: Seq[(Ident, HType)]) extends IProofStep {
+case class IUnfold(pred: IPredicate, constructor: CardConstructor) extends IProofStep {
+  override def pp: String = {
+    val open = pred.openLemmaName(constructor)
+    s"sll_rewrite_first_heap $open."
+  }
+}
+
+case class IOpenCard(pred: IPredicate,
+                     constructor: CardConstructor,
+                     constrExistentials: Seq[(Ident, HType)],
+                     appHypIdent: IIdent,
+                     purePart: IPure,
+                    ) extends IProofStep {
+
+  def toDestructPattern(ls: List[String]): String = {
+    ls match {
+      case Nil => ""
+      case ::(x, Nil) => s"[$x]"
+      case ::(x, ::(y, Nil)) => s"[$x $y]"
+      case ::(x, xs) => s"[$x ${toDestructPattern(xs)}]"
+    }
+
+//    (base, ls) match {
+//      case (None, :: (vara, :: (varb, rest))) => toDestructPattern(Some(s"[${varb} ${vara}]"))(rest)
+//      case (Some(base), ::((vara), rest)) =>
+//        toDestructPattern(Some(s"[${vara} ${base}]"))(rest)
+//      case (Some(base), Nil) => base
+//    }
+  }
   override def pp: String = {
     val learn = pred.learnLemmaName(constructor)
     val open = pred.openLemmaName(constructor)
     val tactic = if (constrExistentials.isEmpty) {
       s"""
-      |erewrite $learn; try by dispatchPure.
-      |rewrite $open.""".stripMargin
+      |iDestruct ($learn with "${appHypIdent.pp}") as "[${appHypIdent.pp} ${purePart.pp}]".
+      |rewrite ${purePart.name}; last by safeDispatchPure.
+      |tac_except_post ltac:(rewrite $open).""".stripMargin
     } else {
+      // TODO: existentials introduction
       s"""
-      |edestruct $learn as [${constrExistentials.map(v => v._1).mkString(" ")} ->]; try by dispatchPure.
-      |rewrite $open.""".stripMargin
+      |iDestruct ($learn with "${appHypIdent.pp}") as "[${appHypIdent.pp} ${purePart.pp}]".
+      |
+      |edestruct ${purePart.name} as ${
+        toDestructPattern(((constrExistentials.map(v => v._1)).toList ++ List("->")))
+      }; first by safeDispatchPure.
+      |tac_except_post ltac:(rewrite $open).""".stripMargin
     }
     tactic
   }
 }
 
-case class IWpApply(applyName: String, exs: Seq[IPureAssertion]) extends IProofStep {
-  override def pp: String =
-    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "[$$]")."""
+case object IPullOutExist extends IProofStep {
+  override def pp: String = s"pull_out_exist."
 }
+
+case class INilNotVal(varName: Ident, hypName: String) extends IProofStep {
+  override def pp: String =
+    s"""
+       |iRename select (${varName} ↦ _)%I into "$hypName".
+       |iDestruct (NilNotLval with "$hypName") as "[$hypName %]".
+       |""".stripMargin
+}
+
+case class IWpApply(applyName: String, exs: Seq[IPureAssertion], pureToInstantiate:Integer, spatialToInstantiate: Integer) extends IProofStep {
+  override def pp: String = {
+    val inst = {
+      (0 until pureToInstantiate).map(_ => "[]") ++
+      (0 until spatialToInstantiate).map(_ => "[$]")
+    }.mkString(" ")
+    val after = (0 until pureToInstantiate).map(_ => "ssl_finish.").mkString("\n")
+    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "$inst").
+       |$after
+       |""".stripMargin
+  }
+}
+
 case class IExists(e: IPureAssertion) extends IProofStep {
-  override def pp: String = s"iExists ${e.pp}."
+  override def pp: String = s"iExists ${e.ppAsPhi}."
 }
 
 case class IRenameSelect(pat: String, into: IIntroPattern) extends IProofStep {
@@ -138,6 +193,15 @@ case class IIf(hyp: ICoqName) extends IProofStep {
 
 case class IDebug(msg: String) extends IProofStep {
   override def pp: String = s"(* $msg *)"
+}
+
+case class IMalloc(name: ICoqName, sz: Integer) extends IProofStep {
+  override def pp: String =
+    s"""|wp_alloc ${name.pp} as "?"; try by safeDispatchPure.
+       |wp_pures.
+       |do $sz try rewrite array_cons. iSplitAllHyps. try rewrite array_nil.
+       |try rewrite !loc_add_assoc !Z.add_1_r.
+       |""".stripMargin
 }
 
 case object IFree extends IProofStep {

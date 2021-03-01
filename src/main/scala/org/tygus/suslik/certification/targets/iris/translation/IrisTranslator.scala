@@ -4,6 +4,7 @@ import org.tygus.suslik.certification.targets.iris.heaplang.Expressions._
 import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HCardType, HIntSetType, HIntType, HLocType, HType, HUnknownType, HValType}
 import org.tygus.suslik.certification.targets.iris.logic.Assertions._
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
+import org.tygus.suslik.certification.targets.iris.translation.Translation.TranslationException
 import org.tygus.suslik.certification.translation.{CardConstructor, PredicateTranslation}
 import org.tygus.suslik.language.Expressions.{OpEq, _}
 import org.tygus.suslik.language.Statements.{Call, Load, Malloc, Store}
@@ -183,9 +184,18 @@ object IrisTranslator {
     assert(ctx.isDefined)
     val params = g.programVars.map(v => (v.translate, g.gamma(v).translate))
 
+    val cardinalityParams: Map[String, HCardType] = (g.pre.sigma.chunks ++ g.post.sigma.chunks).flatMap({
+      case PointsTo(loc, offset, value) => None
+      case Block(loc, sz) => None
+      case SApp(pred, args, tag, Var(name)) => Some(name, HCardType(pred))
+      case _ => throw TranslationException("ERR: Expecting all predicate applications to be abstract variables")
+    }).toMap
+
+    val newGamma = g.gamma.translate ++ cardinalityParams
+
     // We quantify over all universals, ignoring the type of function arguments
-    val specUniversal = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx), g.gamma(v).translate))
-    val specExistential = g.existentials.map(v => (v.translate.translate(progVarToSpecVar, ctx), g.gamma(v).translate)).toSeq
+    val specUniversal = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx), newGamma(v.name)))
+    val specExistential = g.existentials.map(v => (v.translate.translate(progVarToSpecVar, ctx), newGamma(v.name))).toSeq
 
     val pre = g.pre.translate(assertionTranslator, ctx)
     val post = g.post.translate(assertionTranslator, ctx)
