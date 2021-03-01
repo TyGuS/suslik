@@ -192,7 +192,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
         ctx = ctx removeFromCoqContext constructorArgs.map(_._1)
         (List (unfold) ++ existentialSteps ++ List(IFinish), ctx)
       }
-      Result(List(IDebug(value.pp)), List((List(), Some(deferred), ctx)))
+      Result(List(), List((List(), Some(deferred), ctx)))
 
     case SuslikProofStep.AbduceCall(_, _, _, _, freshSub, _, f, _) =>
       var ctx = clientCtx
@@ -200,7 +200,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       val s = normalize_renaming(freshSub.map { case (Var(name_from), Var(name_to)) => (name_from, name_to) })
       val newSpec = funSpec.rename(s)
       ctx = ctx withQueuedCall(newSpec)
-      Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
+      Result(List(), List(withNoDeferreds(ctx)))
 
     case SuslikProofStep.Call(subst, Statements.Call(Var(funName), _, _)) =>
       var (spec, ctx) = clientCtx.unqueueCall()
@@ -224,7 +224,6 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       else IWpApply(applyName, instantiate, 0, 1, applyLemma = true)
       // TODO: need to identify heaps for wp_apply by name?
       val steps = List(
-        IDebug(value.pp),
         apply,
         IIntros(Seq(), IIdent(ret)),
         IDestruct(IIdent(ret), retExistentials, irisHyps),
@@ -237,11 +236,11 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
     // TODO: actually implement
     case SuslikProofStep.SubstL(Var(from), to) =>
       val ctx = clientCtx withMappingBetween (from, to)
-      Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
+      Result(List(), List(withNoDeferreds(ctx)))
 
     case SuslikProofStep.SubstR(Var(from), to) =>
       val ctx = clientCtx withMappingBetween (from, to)
-      Result(List(IDebug(value.pp)), List(withNoDeferreds(ctx)))
+      Result(List(), List(withNoDeferreds(ctx)))
 
 
     case SuslikProofStep.Malloc(Var(ghostFrom), Var(ghostTo), Statements.Malloc(_, _, sz)) =>

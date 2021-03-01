@@ -78,7 +78,7 @@ case class ILob(hypName: IIdent, coq: Seq[ICoqName]) extends IProofStep {
 case class IUnfold(pred: IPredicate, constructor: CardConstructor) extends IProofStep {
   override def pp: String = {
     val open = pred.openLemmaName(constructor)
-    s"sll_rewrite_first_heap $open."
+    s"ssl_rewrite_first_heap $open."
   }
 }
 
@@ -195,8 +195,7 @@ case class IIf(hyp: ICoqName) extends IProofStep {
 }
 
 case class IDebug(msg: String) extends IProofStep {
-  override def pp: String = ""
-  //  override def pp: String = s"(* $msg *)"
+    override def pp: String = s"(* $msg *)"
 }
 
 case class IMalloc(name: ICoqName, sz: Integer) extends IProofStep {
