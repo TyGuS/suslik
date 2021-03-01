@@ -9,11 +9,11 @@ object IrisCertificationBenchmarks extends CertificationBenchmarks {
   def main(args: Array[String]): Unit = {
     initLog()
     runAllTestsFromDir("certification/ints")
-    runAllTestsFromDir("certification/sll-bounds")
     runAllTestsFromDir("certification/sll")
     runAllTestsFromDir("certification/dll")
-    runAllTestsFromDir("certification/srtl")
     runAllTestsFromDir("certification/tree")
+    runAllTestsFromDir("certification/sll-bounds")
+    runAllTestsFromDir("certification/srtl")
     runAllTestsFromDir("certification/bst")
   }
 }
