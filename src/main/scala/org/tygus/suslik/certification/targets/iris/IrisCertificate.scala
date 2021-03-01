@@ -4,7 +4,7 @@ import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.HFunDef
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, IPredicate}
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, CoqOutput}
 
-case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, funSpec: IFunSpec, proofStr: String) extends Certificate[Iris, IPredicate] {
+case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, helperSpecs: List[IFunSpec], funSpec: IFunSpec, proofStr: String) extends Certificate[Iris, IPredicate] {
   val target: CertificationTarget = Iris()
 
   private val prelude =
@@ -146,6 +146,7 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
     b.append(predicates.map(_.pp).mkString("\n"))
     b.append("\n")
     b.append(predicates.flatMap(_.getHelpers).map(_.pp).mkString("\n"))
+    b.append(helperSpecs.map(_.pp).mkString("\n"))
     b.append(funDef.pp)
     b.append("\n")
     b.append(funSpec.pp)

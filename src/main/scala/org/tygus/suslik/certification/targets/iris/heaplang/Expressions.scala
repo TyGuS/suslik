@@ -139,8 +139,10 @@ object Expressions {
   case class HAllocN(n: HExpr, e: HExpr) extends HExpr {
     override def pp: String = s"AllocN (${n.pp}) (${e.pp})"
   }
-  case class HCall(name: HExpr, params: Seq[HExpr]) extends HExpr {
-    override def pp: String = s"${name.pp} ${params.map(p => p.pp).mkString(" ")}"
+  case class HCall(name: HExpr, params: Seq[HExpr], selfCall: Boolean = true) extends HExpr {
+    override def pp: String =
+      // if it's a selfCall, we need to print the function name in quotes, otherwise no quotes
+      s"${if(selfCall) name.pp else name.asInstanceOf[HProgVar].name} ${params.map(p => p.pp).mkString(" ")}"
   }
 
   case class HFunDef(name: String, params: Seq[HProgVar], body: ProofTree[HExpr]) extends PrettyPrinting {

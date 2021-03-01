@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.iris.translation
 
 import org.tygus.suslik.certification.source.SuslikProofStep
-import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinaryExpr, HExpr, HFree, HGuarded, HIf, HLitLoc, HLitUnit, HNoOp, HOpOffset, HProgVar}
+import org.tygus.suslik.certification.targets.iris.heaplang.Expressions.{HBinaryExpr, HCall, HExpr, HFree, HGuarded, HIf, HLitLoc, HLitUnit, HNoOp, HOpOffset, HProgVar}
 import org.tygus.suslik.certification.targets.iris.heaplang.Types.HType
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.IQuantifiedVar
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
@@ -9,9 +9,10 @@ import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
 import org.tygus.suslik.certification.traversal.Translator
 import org.tygus.suslik.certification.traversal.Translator.Result
 import org.tygus.suslik.language.Ident
+import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.{Environment, Gamma}
 
-case class ProgramTranslationContext(env: Environment, gamma: Gamma, pts: Map[HProgVar, IQuantifiedVar], hctx: Map[Ident, HType]) extends ClientContext[HExpr]
+case class ProgramTranslationContext(env: Environment, proc: Procedure, gamma: Gamma, pts: Map[HProgVar, IQuantifiedVar], hctx: Map[Ident, HType]) extends ClientContext[HExpr]
 
 /**
   * Extract a HeapLang program directly from the SSL proof.
@@ -39,7 +40,10 @@ object ProgramTranslator extends Translator[SuslikProofStep, HExpr, ProgramTrans
             val v = stmt.v.translate
             val addr = (sz: Int) => if (sz == 0) v else HBinaryExpr(HOpOffset, v, HLitLoc(sz))
             (0 until sz).map(i => HFree(addr(i))).toList
-          case SuslikProofStep.Call(_, stmt) => List(stmt.translate)
+          case SuslikProofStep.Call(_, stmt) =>
+            val isSelfCall = stmt.fun.name == ctx.proc.name
+            val translated = stmt.translate.copy(selfCall = isSelfCall)
+            List(translated)
           case _ => List(HNoOp)
         }
         Result(stmts, List(withNoDeferred))

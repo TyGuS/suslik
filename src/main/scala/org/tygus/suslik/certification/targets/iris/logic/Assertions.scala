@@ -211,7 +211,8 @@ object Assertions {
                       specUniversal: Seq[(IQuantifiedVar, HType)],
                       specExistential: Seq[(IQuantifiedVar, HType)],
                       pre: IAssertion,
-                      post: IAssertion
+                      post: IAssertion,
+                      helper: Boolean=false
                      ) extends ISpecification {
 
     override def pp: String = {
@@ -221,8 +222,10 @@ object Assertions {
         else ""
 
       val universal = specUniversal
+      val prepend = if (helper) s"Axiom ${fname}: val.\n" else ""
+      prepend ++
       s"""
-         |Lemma ${fname}_spec :
+         |${if (helper) "Axiom" else "Lemma"} ${fname}_spec :
          |∀ ${universal.map({ case (v, ty) => s"(${v.pp} : ${ty.pp})"}).mkString(" ")},
          |{{{ ${pre.pp} }}}
          |  ${fname} ${funArgs.map(v => s"#${v._1.pp}").mkString(" ")}

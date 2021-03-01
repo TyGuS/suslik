@@ -52,7 +52,6 @@ object IrisTranslator {
       case BinaryExpr(op, left, right) => HBinaryExpr(op.translate, visit(left), visit(right))
       case IfThenElse(cond, t, f) => HIfThenElse(visit(cond), visit(t), visit(f))
 //      case OverloadedBinaryExpr(op, left, right) => HBinaryExpr(op.translate, visit(left), visit(right))
-      case _ => ???
     }
 
     // FIXME: we should probably guarantee that the context gets passed also during program translation
@@ -62,7 +61,8 @@ object IrisTranslator {
   }
 
   implicit val progVarTranslator: IrisTranslator[Var, HProgVar] = (pv, _, _) => HProgVar(pv.name)
-  implicit val progVarToSpecVar: IrisTranslator[HProgVar, ISpecVar] = (hv, ctx, _) => ISpecVar(hv.name, ctx.get.hctx(hv.name))
+  implicit val progVarToSpecVar: IrisTranslator[HProgVar, ISpecVar] = (hv, ctx, _) =>
+    ISpecVar(hv.name, ctx.get.hctx(hv.name))
 
   implicit val typeTranslator: IrisTranslator[SSLType, HType] = (value, _, _) => value match {
     case IntType => HIntType()
@@ -107,7 +107,7 @@ object IrisTranslator {
 
   implicit val phiTranslator: IrisTranslator[PFormula, IPureAssertion] = (f, ctx, _) => {
     assert(ctx.isDefined)
-    IAnd(f.conjuncts.map(_.translate.translate(toSpecExpr, ctx)).toSeq)
+    IAnd(f.conjuncts.map(_.translate(exprTranslator, ctx).translate(toSpecExpr, ctx)).toSeq)
   }
 
   /***
@@ -180,6 +180,29 @@ object IrisTranslator {
     IAssertion(f.phi.translate(phiTranslator, ctx), f.sigma.translate(sigmaTranslator, ctx))
   }
 
+  implicit val funSpecToFunSpecTranslator: IrisTranslator[FunSpec, IFunSpec] = (g, ctx, _) => {
+    assert(ctx.isDefined)
+    val params = g.params.map { case (v, t) => (v.translate, t.translate) }
+
+    val cardinalityParams: Map[String, HCardType] = (g.pre.sigma.chunks ++ g.post.sigma.chunks).flatMap({
+      case PointsTo(loc, offset, value) => None
+      case Block(loc, sz) => None
+      case SApp(pred, args, tag, Var(name)) => Some(name, HCardType(pred))
+      case _ => throw TranslationException("ERR: Expecting all predicate applications to be abstract variables")
+    }).toMap
+
+    val newGamma = g.gamma(ctx.get.env).translate ++ cardinalityParams
+
+    // We quantify over all universals, ignoring the type of function arguments
+    val specUniversal = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx), newGamma(v.name)))
+    val specExistential = g.existentials().map(v => (v.translate.translate(progVarToSpecVar, ctx), newGamma(v.name))).toSeq
+
+    val pre = g.pre.translate(assertionTranslator, ctx)
+    val post = g.post.translate(assertionTranslator, ctx)
+    IFunSpec(g.name, params.map(x => (x._1.translate(progVarToSpecVar, ctx), x._2)),
+      specUniversal.toSeq, specExistential, pre, post, helper = true)
+  }
+
   implicit val goalToFunSpecTranslator: IrisTranslator[Goal, IFunSpec] = (g, ctx, _) => {
     assert(ctx.isDefined)
     val params = g.programVars.map(v => (v.translate, g.gamma(v).translate))
@@ -212,12 +235,12 @@ object IrisTranslator {
       }
 
       override def translateExpression(context: Map[Ident, HType])(expr: Expr): IPureAssertion = {
-        val predCtx = Some(ProgramTranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
+        val predCtx = Some(ProgramTranslationContext(ctx.get.env, ctx.get.proc, predicate.params.toMap, Map.empty, context))
         expr.translate(exprTranslator, predCtx).translate(toSpecExpr, predCtx)
       }
 
       override def translateHeaplets(context: Map[Ident, HType])(heaplets: List[Heaplet]): List[ISpatialAssertion] = {
-        val predCtx = Some(ProgramTranslationContext(ctx.get.env, predicate.params.toMap, Map.empty, context))
+        val predCtx = Some(ProgramTranslationContext(ctx.get.env, ctx.get.proc, predicate.params.toMap, Map.empty, context))
         heaplets.map(_.translate(heapleatTranslator, predCtx))
       }
 

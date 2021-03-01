@@ -204,7 +204,8 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
 
     case SuslikProofStep.Call(subst, Statements.Call(Var(funName), _, _)) =>
       var (spec, ctx) = clientCtx.unqueueCall()
-      val applyName = if (funName == irisSelf) s""""$irisSelf"""" else s"${funName}_spec"
+      val isSelfCall = (funName == irisSelf)
+      val applyName = if (isSelfCall) s""""$irisSelf"""" else s"${funName}_spec"
       val instantiate = spec.specUniversal.map { case (ISpecVar(name, _), _) => subst.getOrElse(Var(name), Var(name)) }
         .map(e => e.translate.translate(IrisTranslator.toSpecExpr, ctx.translationCtx))
 
@@ -216,11 +217,15 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       val spatialInst = spec.pre.sigma.heaplets.length
 
       val ret = ctx.freshHypName()
-
+      // If we're self-calling, we destructed our precondition before doing iLob
+      // On the other hand, if we're using a spec, the precondition is a single spatial assertion
+      val apply = if (isSelfCall)
+        IWpApply(applyName, instantiate, pureInst, spatialInst)
+      else IWpApply(applyName, instantiate, 0, 1, applyLemma = true)
       // TODO: need to identify heaps for wp_apply by name?
       val steps = List(
         IDebug(value.pp),
-        IWpApply(applyName, instantiate, pureInst, spatialInst),
+        apply,
         IIntros(Seq(), IIdent(ret)),
         IDestruct(IIdent(ret), retExistentials, irisHyps),
         IEmp
@@ -281,6 +286,10 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
     case SuslikProofStep.NilNotLval(vars) =>
       val steps = vars.map { case Var(name) => INilNotVal(name, clientCtx.freshHypName() )}
       Result(steps, List(withNoDeferreds(clientCtx)))
+
+//    case SuslikProofStep.PickArg(Var(from), to) =>
+//      val newCtx = clientCtx withMappingBetween (from,to)
+//      withNoOp(newCtx)
 
     case SuslikProofStep.PickCard(Var(from), to) =>
       var cardType = clientCtx.typingContext(from).asInstanceOf[HCardType]

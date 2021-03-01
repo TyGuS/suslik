@@ -32,10 +32,10 @@ object Translation {
     println(SuslikPrinter.pp(suslikTree))
 
     // We have this "dummy" value to generate progToSpec for the actual context, ctx
-    val pre_ctx = Some(ProgramTranslationContext(env, node.goal.gamma, Map.empty, node.goal.gamma.translate))
-    val progToSpec = params.map(p => (p, p.translate(progVarToSpecVar, pre_ctx)))
+    val pre_ctx = ProgramTranslationContext(env, proc, node.goal.gamma, Map.empty, node.goal.gamma.translate)
+    val progToSpec = params.map(p => (p, p.translate(progVarToSpecVar, Some(pre_ctx))))
 
-    val ctx = ProgramTranslationContext(env, node.goal.gamma, progToSpec.toMap, node.goal.gamma.translate)
+    val ctx = pre_ctx.copy(pts = progToSpec.toMap)
     val predicates = env.predicates.map({ case (_, pred) => pred.translate(predicateTranslator, Some(ctx))}).toList
     predicates.foreach(p => println(p.pp))
 
@@ -44,11 +44,14 @@ object Translation {
     val funDef = HFunDef(proc.name, params, progTree)
     val funSpec = node.goal.translate(goalToFunSpecTranslator, Some(ctx))
 
-
     val predMap = predicates.map(p => (p.name, p)).toMap
-    // TODO: add support for helper functions
-    val specMap = List((funSpec.fname, funSpec)).toMap
-
+    val helperSpecs = env.functions.map { case (fname, spec) =>
+      val hPreCtx = ProgramTranslationContext(env, proc, spec.gamma(env), Map.empty, spec.gamma(env).translate)
+      val hProgToSpec = spec.params.map(_.translate).map(p => (p, p.translate(progVarToSpecVar, Some(hPreCtx))))
+      val hCtx = hPreCtx.copy(pts = hProgToSpec.toMap)
+      (fname, spec.translate(funSpecToFunSpecTranslator, Some(hCtx)))
+    }
+    val specMap = Map(funSpec.fname -> funSpec) ++ helperSpecs
     val proofCtx = IProofContext(0, ctx, predMap, specMap, Map.empty, Map.empty, Map.empty, None)
     val proofStr =
 //      try {
@@ -58,6 +61,6 @@ object Translation {
 //        throw e
 //        s"(* Error in proof generation:$e\n${e.getStackTrace.mkString("\n")} *)\n" }
 
-    IrisCertificate(proc.name, predicates, funDef, funSpec, proofStr)
+    IrisCertificate(proc.name, predicates, funDef, helperSpecs.values.toList, funSpec, proofStr)
   }
 }

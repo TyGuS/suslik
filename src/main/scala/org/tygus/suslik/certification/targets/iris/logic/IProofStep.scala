@@ -138,14 +138,17 @@ case class INilNotVal(varName: Ident, hypName: String) extends IProofStep {
        |""".stripMargin
 }
 
-case class IWpApply(applyName: String, exs: Seq[IPureAssertion], pureToInstantiate:Integer, spatialToInstantiate: Integer) extends IProofStep {
+case class IWpApply(applyName: String, exs: Seq[IPureAssertion],
+                    pureToInstantiate:Integer,
+                    spatialToInstantiate: Integer,
+                    applyLemma: Boolean=false) extends IProofStep {
   override def pp: String = {
     val inst = {
       (0 until pureToInstantiate).map(_ => "[]") ++
       (0 until spatialToInstantiate).map(_ => "[$]")
     }.mkString(" ")
     val after = (0 until pureToInstantiate).map(_ => "ssl_finish.").mkString("\n")
-    s"""wp_apply ($applyName $$! ${exs.map(e => s"(${e.pp})").mkString(" ")} with "$inst").
+    s"""wp_apply ($applyName ${if (applyLemma) "" else "$!"} ${exs.map(e => s"(${e.pp})").mkString(" ")} with "$inst").
        |$after
        |""".stripMargin
   }
@@ -192,7 +195,8 @@ case class IIf(hyp: ICoqName) extends IProofStep {
 }
 
 case class IDebug(msg: String) extends IProofStep {
-  override def pp: String = s"(* $msg *)"
+  override def pp: String = ""
+  //  override def pp: String = s"(* $msg *)"
 }
 
 case class IMalloc(name: ICoqName, sz: Integer) extends IProofStep {
