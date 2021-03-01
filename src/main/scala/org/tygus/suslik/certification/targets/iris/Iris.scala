@@ -26,9 +26,12 @@ case class Iris() extends CertificationTarget {
 
   override def generate_common_definitions_of(defFileName: String, predicates: List[IPredicate]): List[CertificateOutput] = {
     def commonPredicates(predicates: List[IPredicate]): String = {
-      s"${IrisCertificate.prelude(printAxioms = false)}\n" +
-        s"${predicates.map(_.pp).mkString("\n")}\n" +
-         s"${predicates.flatMap(_.getHelpers).map(_.pp).mkString("\n")}\n"
+      s"${IrisCertificate.prelude(printAxioms = false, printContext = false)}\n" +
+        s"Section common.\n" +
+        "Context `{!heapG Σ}.\n" +
+      s"${predicates.map(_.pp).mkString("\n")}\n" +
+         s"${predicates.flatMap(_.getHelpers).map(_.pp).mkString("\n")}\n" +
+      "End common."
     }
     List(CoqOutput(defFileName ++ ".v", defFileName, commonPredicates(predicates)))
   }
