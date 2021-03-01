@@ -329,7 +329,7 @@ object Assertions {
         }
            |end.
            |
-           |Opaque $name.
+           |Global Opaque $name.
            |""".stripMargin
       s"${predicate_definition}"
     }

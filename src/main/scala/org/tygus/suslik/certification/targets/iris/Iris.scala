@@ -26,7 +26,10 @@ case class Iris() extends CertificationTarget {
 
   override def generate_common_definitions_of(defFileName: String, predicates: List[IPredicate]): List[CertificateOutput] = {
     def commonPredicates(predicates: List[IPredicate]): String = {
-      s"${IrisCertificate.prelude(printAxioms = false, printContext = false)}\n" +
+      s"""From SSL_Iris Require Import core.
+         |From iris.proofmode Require Export tactics coq_tactics ltac_tactics reduction.
+         |From iris.heap_lang Require Import lang notation proofmode.
+         |""".stripMargin +
         s"Section common.\n" +
         "Context `{!heapG Σ}.\n" +
       s"${predicates.map(_.pp).mkString("\n")}\n" +
