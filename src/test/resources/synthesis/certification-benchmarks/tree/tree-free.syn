@@ -1,0 +1,20 @@
+should be able to free a tree
+
+####
+
+{true ; tree(x, s) }
+  void tree_free(loc x)
+{true ; emp }
+
+####
+
+void tree_free (loc x) {
+  if (x == 0) {
+  } else {
+    let l2 = *(x + 1);
+    let r2 = *(x + 2);
+    tree_free(l2);
+    tree_free(r2);
+    free(x);
+  }
+}

@@ -1,0 +1,17 @@
+Swapping example
+###
+
+{ x :-> a ** y :-> b }
+
+void swap(loc x, loc y)
+
+{ x :-> b ** y :-> a }
+
+###
+
+void swap (loc x, loc y) {
+  let a2 = *x;
+  let b2 = *y;
+  *x = b2;
+  *y = a2;
+}
