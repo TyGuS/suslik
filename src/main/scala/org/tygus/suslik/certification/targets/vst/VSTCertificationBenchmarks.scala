@@ -5,7 +5,7 @@ import org.tygus.suslik.synthesis.CertificationBenchmarks
 
 object VSTCertificationBenchmarks extends CertificationBenchmarks {
 
-  val target: CertificationTarget = VST()
+  val targets: List[CertificationTarget] = List(VST())
 
   def main(args: Array[String]): Unit = {
     initLog()

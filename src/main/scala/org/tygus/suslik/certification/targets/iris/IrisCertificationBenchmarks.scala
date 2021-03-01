@@ -4,7 +4,7 @@ import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.synthesis.CertificationBenchmarks
 
 object IrisCertificationBenchmarks extends CertificationBenchmarks {
-  val target: CertificationTarget = Iris()
+  val targets: List[CertificationTarget] = List(Iris())
 
   def main(args: Array[String]): Unit = {
     initLog()
