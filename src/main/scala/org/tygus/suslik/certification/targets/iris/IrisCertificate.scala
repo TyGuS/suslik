@@ -64,4 +64,8 @@ case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: H
   }
 
   override def outputs: List[CertificateOutput] =  List(CoqOutput(s"$name.v", name, pp))
+
+  override def outputs_with_common_predicates(base_filename: String, common_predicates: List[IPredicate]): List[CertificateOutput] =
+    List(CoqOutput(s"$name.v", name, ppWithCommonDefs(base_filename, common_predicates)))
+
 }
