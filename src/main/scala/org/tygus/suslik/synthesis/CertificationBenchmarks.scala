@@ -2,7 +2,6 @@ package org.tygus.suslik.synthesis
 
 import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.{Files, Paths}
-
 import org.tygus.suslik.certification.{CertTree, CertificationTarget, CoqOutput}
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment

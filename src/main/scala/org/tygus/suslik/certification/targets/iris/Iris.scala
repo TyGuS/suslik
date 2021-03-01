@@ -3,10 +3,10 @@ package org.tygus.suslik.certification.targets.iris
 import org.tygus.suslik.certification.source.{SuslikPrinter, SuslikProofStep}
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.IPredicate
 import org.tygus.suslik.certification.targets.iris.translation.Translation
-import org.tygus.suslik.certification.{CertTree, CertificateOutput, CertificationTarget}
+import org.tygus.suslik.certification.targets.iris.translation.Translation.TranslationException
+import org.tygus.suslik.certification.{CertTree, CertificateOutput, CertificationTarget, CoqOutput}
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
-import org.tygus.suslik.certification.targets.iris.translation.Translation.TranslationException
 
 case class Iris() extends CertificationTarget {
   type T = Iris
@@ -14,7 +14,7 @@ case class Iris() extends CertificationTarget {
   val name: String = "HTT"
   val suffix: String = ".v"
 
-  def certify(proc: Procedure, env: Environment) : IrisCertificate = {
+  def certify(proc: Procedure, env: Environment): IrisCertificate = {
     val root = CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
     val cert = Translation.translate(root, proc)(env)
 
@@ -24,5 +24,13 @@ case class Iris() extends CertificationTarget {
     cert
   }
 
-  override def generate_common_definitions_of(base_filename: String, predicates: List[IPredicate]): List[CertificateOutput] = ???
+  override def generate_common_definitions_of(defFileName: String, predicates: List[IPredicate]): List[CertificateOutput] = {
+    def commonPredicates(predicates: List[IPredicate]): String = {
+      s"""${IrisCertificate.prelude(printAxioms = false)}
+         |${predicates.map(_.pp).mkString("\n")}
+         |${predicates.flatMap(_.getHelpers).map(_.pp).mkString("\n")}
+         |""".stripMargin
+    }
+    List(CoqOutput(defFileName ++ ".v", defFileName, commonPredicates(predicates)))
+  }
 }

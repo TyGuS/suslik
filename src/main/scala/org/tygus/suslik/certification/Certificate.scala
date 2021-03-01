@@ -1,8 +1,6 @@
 package org.tygus.suslik.certification
 
 import java.io.File
-
-import scala.Seq
 import scala.sys.process.Process
 
 abstract class CertificateOutput {
