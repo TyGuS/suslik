@@ -88,7 +88,9 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
           println("done!")
           Some ((testName, cert, synDuration, proofGenDuration))
         } catch {
-          case _ => None
+          case e =>
+            println(s"- ERR\n   failed to generate certificate for ${testName} (${e.getLocalizedMessage})")
+            None
         }
       }
 
@@ -124,7 +126,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
               println(s"done! (${fmtTime(proofCheckDuration)} s)")
               logStat(testName, o.filename, synDuration, proofGenDuration, proofCheckDuration, specSize, proofSize)
             } else {
-              print(s"Failed to verify ${o.filename}!")
+              println(s"ERR\n   Failed to verify ${o.filename}!")
             }
           } else {
             print(s"  Compiling output...")

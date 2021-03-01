@@ -165,7 +165,7 @@ object VSTProofStep {
       case Some(expr) => expr.pp
     }
     override def pp: String =
-      s"ssl_rewrite_last (${rewrite_name} ${constructor_args.map(pp_o_expr).mkString(" ")})."
+      s"rewrite (${rewrite_name} ${constructor_args.map(pp_o_expr).mkString(" ")}) at 1."
   }
 
   case object ForwardEntailer extends VSTProofStep {
