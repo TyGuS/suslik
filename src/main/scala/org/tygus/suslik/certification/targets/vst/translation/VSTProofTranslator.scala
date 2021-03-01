@@ -277,7 +277,8 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
       case SuslikProofStep.EmpRule(label) =>
         Result(List(ForwardEntailer), List())
 
-      case SuslikProofStep.Inconsistency(label) => ???
+      case SuslikProofStep.Inconsistency(label) =>
+        Result(List(ForwardEntailer), List())
 
       case SuslikProofStep.Write(stmt@Statements.Store(to, offset, e)) =>
         e match {
@@ -325,7 +326,9 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
           assignments.foldLeft(clientContext)({ case (ctx, (from, to_expr)) => ctx with_mapping_between(from.name, to_expr) })
         with_no_op(new_context)
 
-      case SuslikProofStep.PickArg(from, to) => ???
+      case SuslikProofStep.PickArg(Var(from), to) =>
+        val new_ctx = clientContext with_mapping_between (from,to)
+        with_no_op(new_ctx)
 
       case SuslikProofStep.PickCard(Var(from), to) =>
         // Pick card is a hack - not sure what the best way to do this is.
