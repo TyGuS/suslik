@@ -17,7 +17,7 @@ import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 
 
 /** translates suslik proof terms to VST compatible proof terms  */
-object  ProofSpecTranslation {
+object ProofSpecTranslation {
 
   def to_ssl_context(gamma: Map[String, VSTType]): Gamma = {
     def to_ssl_type(ty: VSTType): SSLType = ty match {
@@ -56,7 +56,7 @@ object  ProofSpecTranslation {
 
 
   /** translate a suslik expression into a VST proof expression (note: this is not the same as a VST C expression, so can support terms like list comparisons etc.)
-    * */
+    **/
   def translate_expression(context: Map[Ident, VSTType])(expr: Expressions.Expr, target: Option[VSTType] = None): ProofCExpr = {
     def type_expr(left_1: ProofCExpr): VSTType = left_1.type_expr
 
@@ -160,7 +160,7 @@ object  ProofSpecTranslation {
     // to the declarations that relate to them
     // predicate applications are separated out unchanged
     // as these translate directly to vst
-    val (map: Map[Ident, (List[PointsTo], Option[Block])], apps): (Map[Ident, (List[PointsTo], Option[Block])], List[CSApp]) =
+    val (map, rev_apps): (Map[Ident, (List[PointsTo], Option[Block])], List[CSApp]) =
     heaplets.foldLeft((initial_map, List(): List[CSApp]))({
       case ((map, acc), ty: Heaplet) =>
         ty match {
@@ -183,6 +183,7 @@ object  ProofSpecTranslation {
         }
     })
 
+    val apps = rev_apps.reverse
     // having built the mapping, we then translate each (k,v) pair in this
     // mapping into a VST Data at declaration
     val blocks: List[CDataAt] = map.map({ case (var_nam, (points_to, o_block)) =>
@@ -223,10 +224,11 @@ object  ProofSpecTranslation {
   /** translates a Suslik function specification into a proof */
   def translate_conditions(env: Environment)(pred_type_map: Map[Ident, List[VSTType]])(f: FunSpec): FormalSpecification = {
     val name = f.name
-    val c_params = f.params.map({case (Var(name), ty) => ty match {
+    val c_params = f.params.map({ case (Var(name), ty) => ty match {
       case IntType => (name, CoqIntValType)
       case LocType => (name, CoqPtrValType)
-    }})
+    }
+    })
     // collect all cardinality_params and their associated types
     val cardinality_params: Map[String, CoqCardType] = (f.pre.sigma.chunks ++ f.post.sigma.chunks).flatMap({
       case PointsTo(loc, offset, value) => None
@@ -285,7 +287,11 @@ object  ProofSpecTranslation {
     val postcondition: FormalCondition = {
       val pure_conditions =
         f.post.phi.conjuncts.map(v => translate_expression(context)(v))
-          .map(IsTrueProp).toList
+          .map(IsTrueProp).toList ++
+        existential_params.flatMap({
+          case (name, CoqPtrValType) => Some(IsValidPointerOrNull(ProofCVar(name, CoqPtrValType)))
+          case _ => None
+        })
       val spatial_conditions =
         translate_heaplets(context)(pred_type_map)(f.post.sigma.chunks)
       // goal.post.sigma.chunks.map(translate_heaplet(context)).toList
@@ -326,7 +332,7 @@ object  ProofSpecTranslation {
     * and matching on this - taking the first clause if the input is `lseg_card0` and the
     * second clause if the input is `lseg_card1 a` (and recursing on `a`
     *
-    * */
+    **/
   def translate_predicate(env: Environment)(predicate: InductivePredicate): VSTPredicate = {
     class VSTPredicateTranslation extends PredicateTranslation[ProofCExpr, VSTHeaplet, VSTType, VSTPredicateClause, VSTPredicate] {
       override def translatePredicateParamType(predName: String, ty: SSLType): VSTType = ty match {

@@ -143,6 +143,24 @@ object ProofTerms {
                                 sub_constructor: Map[String, CardConstructor])
     extends GenericPredicateClause[Expressions.ProofCExpr, VSTHeaplet](pure, spatial, sub_constructor) {
 
+    def guaranteed_valid_pointers (existentials: List[(String, _)]) : Set[String] = {
+      def valid_ptr_expression (expr: ProofCExpr) : Set[String] = expr match {
+        case Expressions.ProofCBinaryExpr(Expressions.ProofCOpAnd, left, right) => valid_ptr_expression(left).union(valid_ptr_expression(right))
+        case Expressions.ProofCBinaryExpr(Expressions.ProofCOpOr, left, right) => valid_ptr_expression(left).intersect(valid_ptr_expression(right))
+        case Expressions.ProofCBinaryExpr(Expressions.ProofCOpPtrValEq, Expressions.ProofCVar(left, _), Expressions.ProofCNullval) => Set(left)
+        case Expressions.ProofCBinaryExpr(Expressions.ProofCOpPtrValEq, Expressions.ProofCNullval, Expressions.ProofCVar(right, _)) => Set(right)
+        case _ => Set()
+      }
+      val exists_names = existentials.map(v => v._1).toSet
+      val pure_valid_ptrs = pure.flatMap(valid_ptr_expression).toSet
+      val spatial_valid_ptrs = spatial.flatMap({
+        case Formulae.CDataAt(ProofCVar(name, _), elems) => Some(name)
+         case _ => None
+      }).toSet
+      pure_valid_ptrs.union(spatial_valid_ptrs).diff(exists_names)
+    }
+
+
     def rename(renaming: Map[String, String]) =
       VSTPredicateClause(
         pure.map(_.rename(renaming)),
@@ -169,6 +187,26 @@ object ProofTerms {
                           override val clauses: Map[CardConstructor, VSTPredicateClause])
     extends GenericPredicate[Expressions.ProofCExpr, VSTHeaplet, VSTType](name, params, existentials, clauses) {
 
+
+    def valid_pointer_params : Set[String] =
+      clauses.map({
+        case (constructor, clause) =>
+          val existentials = findExistentials(constructor)(clause)
+          clause.guaranteed_valid_pointers(existentials)
+      }) match {
+        case ::(h : Set[String], t) => t.foldLeft(h)({ case ((acc: Set[String], st: Set[String])) => acc.intersect(st) })
+      }
+
+    def is_guaranteed_valid_pointer(name: String) : Boolean = valid_pointer_params.contains(name)
+
+    def valid_params : List[(String, VSTType)] = params.flatMap {
+      case (name, ty) => ty match {
+        case Types.CoqPtrValType =>
+           if(is_guaranteed_valid_pointer(name)) { Some ((name,ty)) } else { None }
+        case _ => Some((name, ty))
+      }
+    }
+
     /**
       * Returns a list of the local facts for this predicate
       * @return
@@ -183,7 +221,7 @@ object ProofTerms {
     def get_helpers: List[VSTPredicateHelper] = {
       val local_facts = VSTPredicateHelper.LocalFacts(this)
       val unfolding_lemmas = clauses.map({case (constructor, clause) => HelpUnfold(this, constructor, clause)})
-      params.flatMap({
+      valid_params.flatMap({
         case (param, CoqPtrValType) =>
           val valid_lemma = VSTPredicateHelper.ValidPointer(name, this.formalParams, param)
           List(
@@ -207,6 +245,7 @@ object ProofTerms {
         }
       } ${
         ((clause_existentials.flatMap(v => v._2 match {
+          case Types.CoqPtrValType => Some(s"!!(is_pointer_or_null ${v._1})")
           case Types.CoqZType => Some(s"!!(Int.min_signed <= ${v._1} <= Int.max_signed)")
           case _ => None
         })) ++
@@ -288,7 +327,7 @@ object ProofTerms {
 
     case class ValidPointer(predicate: String, args: List[String], ptr: String) extends VSTPredicateHelper {
       override def pp: String =
-        s"Lemma ${lemma_name} ${args.mkString(" ")}: ${predicate} ${args.mkString(" ")} |-- valid_pointer ${ptr}. Proof. Admitted."
+        s"Lemma ${lemma_name} ${args.mkString(" ")}: ${predicate} ${args.mkString(" ")} |-- valid_pointer ${ptr}. Proof. destruct self_card; simpl; entailer;  entailer!; eauto. Qed."
 
       def lemma_name: String = s"${predicate}_${ptr}_valid_pointerP"
     }
@@ -331,12 +370,11 @@ object ProofTerms {
           (
             predicate.clauses.toList.map({ case (cons, pred) => clause_fact(cons, pred) }) ++
               pure_constraints.map(_.pp)
-//              predicate.params.flatMap({ case (param, CoqPtrValType) => Some(s"(is_pointer_or_null ${param})") case _ => None })
             ).mkString("/\\")
-        }). Proof. Admitted.""".stripMargin
+        }).\n Proof.  destruct self_card;  simpl; entailer; saturate_local; apply prop_right; eauto. Qed.""".stripMargin
       }
 
-      def pure_constraints : List[PureFormula] = predicate.params.flatMap({
+      def pure_constraints : List[PureFormula] = predicate.valid_params.flatMap({
         case (name, ty) => ty match {
           case Types.CoqPtrValType => Some(IsValidPointerOrNull(ProofCVar(name, ty)))
           case _ => None

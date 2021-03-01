@@ -9,10 +9,16 @@ case class HTTCertificate(name: String, predicates: List[CInductivePredicate], s
   // Replace hyphens with underscores
   def sanitize(txt: String): String = txt.replace('-', '_')
 
-  def pp: String = {
+  def pp: String =
+    s"""${HTT.prelude}
+       |${predicates.map(_.pp).mkString("\n\n")}
+       |$ppMain
+       |""".stripMargin
+
+  def ppExternalDefs: String = s"${HTT.prelude}\nRequire Import common.\n\n$ppMain"
+
+  private def ppMain: String = {
     val builder = new StringBuilder
-    builder.append(HTT.prelude)
-    builder.append("Load common.\n\n")
 
     if (hints.nonEmpty) {
       builder.append(hints.map(_.pp).mkString("\n"))
@@ -33,6 +39,6 @@ case class HTTCertificate(name: String, predicates: List[CInductivePredicate], s
     builder.toString
   }
 
-  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"${sanitize(name)}.v", sanitize(name), pp))
+  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"${sanitize(name)}.v", sanitize(name), ppExternalDefs))
 
 }

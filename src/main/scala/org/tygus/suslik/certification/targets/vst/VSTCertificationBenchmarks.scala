@@ -9,13 +9,12 @@ object VSTCertificationBenchmarks extends CertificationBenchmarks {
 
   def main(args: Array[String]): Unit = {
     initLog()
-    runAllTestsFromDir("certification/sll-bounds")
-    runAllTestsFromDir("certification/bst")
-    runAllTestsFromDir("certification/sll")
-    runAllTestsFromDir("certification/tree")
-    runAllTestsFromDir("certification/srtl")
     runAllTestsFromDir("certification/dll")
+    runAllTestsFromDir("certification/tree")
+    runAllTestsFromDir("certification/sll")
+    runAllTestsFromDir("certification/sll-bounds")
     runAllTestsFromDir("certification/ints")
-
+    runAllTestsFromDir("certification/bst")
+    runAllTestsFromDir("certification/srtl")
   }
 }
