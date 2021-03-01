@@ -1,7 +1,7 @@
 package org.tygus.suslik.certification.targets.htt.logic
 
 import org.tygus.suslik.certification.targets.htt.language.Expressions._
-import org.tygus.suslik.certification.targets.htt.language.Types.CNatSeqType
+import org.tygus.suslik.certification.targets.htt.language.Types.{CNatSeqType, HTTType}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.CInductivePredicate
 
 import scala.annotation.tailrec
@@ -32,7 +32,7 @@ object Hint {
 
       def pp: String = {
         val hyp = s"Lemma $name ${args.map(_.pp).mkString(" ")} : perm_eq ${s1.pp} ${s2.pp} -> ${pred.name} ${params1.map(_.pp).mkString(" ")} -> ${pred.name} ${params2.map(_.pp).mkString(" ")}"
-        s"$hyp. Admitted.\n${ppResolve(name)}"
+        s"$hyp. intros; hammer. Qed.\n${ppResolve(name)}"
       }
     }
 
@@ -46,7 +46,7 @@ object Hint {
     def pp: String = hypotheses.map(_.pp).mkString(".\n") + "."
   }
 
-  case class PureEntailment(prePhi: Set[CExpr], postPhi: Set[CExpr]) extends Hint {
+  case class PureEntailment(prePhi: Set[CExpr], postPhi: Set[CExpr], gamma: Map[CVar, HTTType]) extends Hint {
     val dbName: String = "ssl_pure"
     case class Hypothesis(args: Set[CVar], ctx: Set[CExpr], goal: CExpr) {
       val name = s"pure$freshHintId"
@@ -54,8 +54,14 @@ object Hint {
         val ctxStr = ctx.map(_.ppProp).mkString(" -> ")
         val goalStr = goal.ppProp
         val hypStr = if (ctx.isEmpty) goalStr else s"$ctxStr -> $goalStr"
-        val argsStr = if (args.isEmpty) "" else s"${args.map(_.pp).mkString(" ")} "
-        s"Lemma $name $argsStr: $hypStr. Admitted.\n${ppResolve(name)}"
+        val argsStr = if (args.isEmpty) "" else {
+          val s = args.map(a => gamma.get(a) match {
+            case Some(tp) => s"(${a.pp} : ${tp.pp})"
+            case None => a.pp
+          })
+          s"${s.mkString(" ")} "
+        }
+        s"Lemma $name $argsStr: $hypStr. intros; hammer. Qed.\n${ppResolve(name)}"
       }
     }
     private type ReachableMap = Map[CExpr, Set[CExpr]]

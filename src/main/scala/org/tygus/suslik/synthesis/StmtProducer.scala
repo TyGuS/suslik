@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Expressions.{Expr, ExprSubst, Subst, SubstVar, Var}
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.{FunSpec, Heaplet, InductiveClause, PFormula, SApp, SFormula}
+import org.tygus.suslik.logic.{FunSpec, Gamma, Heaplet, InductiveClause, PFormula, SApp, SFormula}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.synthesis.rules.RuleUtils
 
@@ -181,7 +181,7 @@ object StmtProducer {
   case class AbduceCallProducer(f: FunSpec) extends StmtProducer with Noop
 
   // Captures entailments emitted by SMT
-  case class PureEntailmentProducer(prePhi: PFormula, postPhi: PFormula) extends StmtProducer with Noop
+  case class PureEntailmentProducer(prePhi: PFormula, postPhi: PFormula, gamma: Gamma) extends StmtProducer with Noop
 
   // Captures heap unifications
   case class UnificationProducer(preHeaplet: Heaplet, postHeaplet: Heaplet, subst: ExprSubst) extends StmtProducer with Noop

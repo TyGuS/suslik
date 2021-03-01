@@ -31,7 +31,7 @@ object SuslikProofStep {
   }
 
   /** solves a pure entailment with SMT */
-  case class CheckPost(prePhi: PFormula, postPhi: PFormula) extends SuslikProofStep {
+  case class CheckPost(prePhi: PFormula, postPhi: PFormula, gamma: Gamma) extends SuslikProofStep {
     override def pp: String = s"CheckPost(${prePhi.pp}; ${postPhi.pp});"
   }
 
@@ -211,8 +211,8 @@ case class AbduceCall(
         case _ => fail_with_bad_proof_structure()
       }
       case FailRules.CheckPost => node.kont match {
-        case ChainedProducer(PureEntailmentProducer(prePhi, postPhi), IdProducer) => node.children match {
-          case ::(head, Nil) => SuslikProofStep.CheckPost(prePhi, postPhi)
+        case ChainedProducer(PureEntailmentProducer(prePhi, postPhi, gamma), IdProducer) => node.children match {
+          case ::(head, Nil) => SuslikProofStep.CheckPost(prePhi, postPhi, gamma)
           case ls => fail_with_bad_children(ls, 1)
         }
         case _ => fail_with_bad_proof_structure()

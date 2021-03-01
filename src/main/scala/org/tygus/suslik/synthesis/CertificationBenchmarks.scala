@@ -231,6 +231,7 @@ object CertificationBenchmarks {
     val benchmarks = new CertificationBenchmarks {
       override val targets: List[CertificationTarget] = List(HTT(), VST(), Iris())
     }
+    benchmarks.initLog()
     benchmarks.runAllTestsFromDir("certification-benchmarks/ints")
     benchmarks.runAllTestsFromDir("certification-benchmarks/sll-bounds")
     benchmarks.runAllTestsFromDir("certification-benchmarks/sll")

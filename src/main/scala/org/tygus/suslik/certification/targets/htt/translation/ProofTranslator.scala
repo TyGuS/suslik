@@ -109,7 +109,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
 
         // initialize context with post-condition info and predicate hints, if any
         val appAliases = (cgoal.pre.sigma.apps ++ cgoal.post.sigma.apps).map(a => a -> a).toMap
-        ctx.hints ++= ctx.predicates.values.map(p => Hint.PredicateSetTransitive(p))
+//        ctx.hints ++= ctx.predicates.values.map(p => Hint.PredicateSetTransitive(p))
         val postEx = ListMap(cgoal.existentials.map(v => v -> (goal.getType(Var(v.name)).translate, v)): _*)
         val ctx1 = ctx.copy(postEx = postEx, appAliases = appAliases)
 
@@ -288,8 +288,8 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
         Result(List(Proof.Emp andThen), Nil)
 
       /** Pure entailments */
-      case SuslikProofStep.CheckPost(prePhi, postPhi) =>
-        ctx.hints += Hint.PureEntailment(prePhi.conjuncts.map(_.translate), postPhi.conjuncts.map(_.translate))
+      case SuslikProofStep.CheckPost(prePhi, postPhi, gamma) =>
+        ctx.hints += Hint.PureEntailment(prePhi.conjuncts.map(_.translate), postPhi.conjuncts.map(_.translate), gamma.translate)
         Result(List(), List(withNoDeferred(ctx)))
 
       /** Ignored */

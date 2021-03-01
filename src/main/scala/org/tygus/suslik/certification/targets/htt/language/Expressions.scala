@@ -126,7 +126,7 @@ object Expressions {
   }
 
   case class CSetLiteral(elems: List[CExpr]) extends CExpr {
-    override def pp: String = if (elems.isEmpty) "nil" else s"[:: ${elems.map(_.pp).mkString("; ")}]"
+    override def pp: String = if (elems.isEmpty) "@nil nat" else s"[:: ${elems.map(_.pp).mkString("; ")}]"
   }
 
   case class CIfThenElse(cond: CExpr, left: CExpr, right: CExpr) extends CExpr {
@@ -136,12 +136,13 @@ object Expressions {
   case class CBinaryExpr(op: CBinOp, left: CExpr, right: CExpr) extends CExpr {
     override def pp: String = op match {
       case COpSubset => s"@sub_mem nat_eqType (mem (${left.pp})) (mem (${right.pp}))"
-      case COpSetEq => s"@perm_eq nat_eqType (${left.pp}) (${right.pp})"
+//      case COpSetEq => s"@perm_eq nat_eqType (${left.pp}) (${right.pp})"
       case _ => s"(${left.pp}) ${op.pp} (${right.pp})"
     }
 
     override def ppProp: String = op match {
       case COpEq => s"(${left.pp}) ${op.ppProp} (${right.pp})"
+      case COpSetEq => s"(${left.pp}) ${op.ppProp} (${right.pp})"
       case _ => pp
     }
   }
@@ -263,7 +264,10 @@ object Expressions {
 
   object COpIn extends CBinOp
 
-  object COpSetEq extends CBinOp
+  object COpSetEq extends CBinOp {
+    override def ppProp: String = "="
+    override def pp: String = "=="
+  }
 
   object COpSubset extends CBinOp {
     override def pp: String = "<="

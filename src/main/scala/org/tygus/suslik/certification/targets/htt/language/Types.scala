@@ -42,6 +42,6 @@ object Types {
   }
 
   case object CCardType extends HTTType {
-    override def pp: String = ""
+    override def pp: String = "nat"
   }
 }
