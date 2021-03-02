@@ -457,7 +457,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         Result(valid_pointer_rules, List(with_no_deferreds(clientContext)))
 
       /** Ignored rules */
-      case SuslikProofStep.CheckPost(_, _)
+      case SuslikProofStep.CheckPost(_, _, _)
            | SuslikProofStep.WeakenPre(_)
            | SuslikProofStep.HeapUnify(_)
            | SuslikProofStep.HeapUnifyUnfold(_, _, _)
