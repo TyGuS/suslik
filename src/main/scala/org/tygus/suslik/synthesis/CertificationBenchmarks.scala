@@ -18,7 +18,7 @@ import org.tygus.suslik.util.{SynStatUtil, SynStats}
 
 import scala.sys.process._
 
-abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
+trait CertificationBenchmarks extends SynthesisRunnerUtil {
   val targets: List[CertificationTarget]
   val statsFile: File = new File("cert-stats.csv")
   val defFilename: String = "common"
@@ -51,7 +51,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
         throw SynthesisException(s"Failed to synthesise:\n$sresult")
       case procs =>
         synthesizer.trace match {
-          case trace:ProofTraceCert =>
+          case trace: ProofTraceCert =>
             CertTree.fromTrace(trace)
           case _ =>
         }
@@ -97,7 +97,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
 
         println(s"Synthesizing ${tests.length} test cases...")
 
-        val synResults = for ((testName, in, params) <- testCases)  yield {
+        val synResults = for ((testName, in, params) <- testCases) yield {
           println(s"$testName:")
           val fullInput = List(defs, in).mkString("\n")
 
@@ -153,13 +153,13 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
               }
             }
 
-           outputs.find(_.isProof) match {
+            outputs.find(_.isProof) match {
               case Some(proof) =>
                 print(s"  Checking proof size...")
                 val (specSize, proofSize) = checkProofSize(tempDir, proof.filename)
                 println(s"done! (spec: $specSize, proof: $proofSize)")
                 print(s"  Compiling proof...")
-                val (res, proofCheckDuration) = timed (proof.compile(tempDir))
+                val (res, proofCheckDuration) = timed(proof.compile(tempDir))
                 if (res == 0) {
                   println(s"done! (${fmtTime(proofCheckDuration)} s)")
                   testName -> (synDuration, Some(proofGenDuration), Some(specSize, proofSize), Some(proofCheckDuration))
@@ -171,7 +171,8 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
                 println(s"Certificate was generated, but no proof output was found; skipping verification...")
                 testName -> (synDuration, Some(proofGenDuration), None, None)
             }
-        }}.toMap
+        }
+        }.toMap
         println(s"\n****************************************\n")
 
         target -> testToStats
@@ -186,9 +187,11 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
     }
   }
 
-  private def serialize(dir: File, filename: String, body: String): Unit = {
+  def serialize(dir: File, filename: String, body: String): Unit = {
     val file = Paths.get(dir.getCanonicalPath, filename).toFile
-    new PrintWriter(file) { write(body); close() }
+    new PrintWriter(file) {
+      write(body); close()
+    }
   }
 
   private def checkProofSize(dir: File, filename: String): (Int, Int) = {
@@ -219,6 +222,7 @@ abstract class CertificationBenchmarks extends SynthesisRunnerUtil {
       val proofCheckStr = proofCheckDuration.map(fmtTime).getOrElse("-")
       s"${fmtTime(synDuration)}, $proofGenStr, $proofCheckStr, $proofStatsStr"
     }
+
     val data = s"$name, ${targetResults.map(ppRes).mkString(", ")}\n"
     SynStatUtil.using(new FileWriter(statsFile, true))(_.write(data))
   }
@@ -239,3 +243,5 @@ object CertificationBenchmarks {
     benchmarks.runAllTestsFromDir("certification-benchmarks/tree")
   }
 }
+
+
