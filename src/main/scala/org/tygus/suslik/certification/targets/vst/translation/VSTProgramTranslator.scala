@@ -87,7 +87,7 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
     implicit val ctx: VSTProgramTranslator.VSTProgramContext = clientContext
     value match {
       case SuslikProofStep.NilNotLval(_)
-           | SuslikProofStep.CheckPost(_, _)
+           | SuslikProofStep.CheckPost(_, _, _)
            | SuslikProofStep.Pick(_, _)
            | SuslikProofStep.Close(_, _, _, _)
            | SuslikProofStep.StarPartial(_, _)

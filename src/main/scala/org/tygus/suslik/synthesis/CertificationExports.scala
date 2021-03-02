@@ -1,8 +1,8 @@
 package org.tygus.suslik.synthesis
 
 import java.io.File
-
 import org.tygus.suslik.certification.CertificationTarget
+import org.tygus.suslik.certification.targets.iris.Iris
 import org.tygus.suslik.certification.targets.vst.VST
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.StopWatch.timed
@@ -82,6 +82,18 @@ case class CertificationExports(target: CertificationTarget, export_folder: Stri
 object VSTCertificationExports {
   def main(args: Array[String]): Unit = {
     val benchmarks = CertificationExports(VST(), "/tmp/benchmarks")
+    benchmarks.initLog()
+    benchmarks.dump_all_tests("certification-benchmarks", "ints")
+    benchmarks.dump_all_tests("certification-benchmarks", "sll-bounds")
+    benchmarks.dump_all_tests("certification-benchmarks", "sll")
+    benchmarks.dump_all_tests("certification-benchmarks", "dll")
+    benchmarks.dump_all_tests("certification-benchmarks", "tree")
+  }
+}
+
+object IrisCertificationExports {
+  def main(args: Array[String]): Unit = {
+    val benchmarks = CertificationExports(Iris(), "/tmp/benchmarks")
     benchmarks.initLog()
     benchmarks.dump_all_tests("certification-benchmarks", "ints")
     benchmarks.dump_all_tests("certification-benchmarks", "sll-bounds")
