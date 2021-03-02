@@ -6,7 +6,7 @@ import org.tygus.suslik.certification.targets.iris.logic.Assertions.{IFunSpec, I
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CertificationTarget, CoqOutput}
 
 case object IrisCertificate {
-  def prelude(printAxioms: Boolean = true, importCommon: String = ""): String = {
+  def prelude(importCommon: String = ""): String = {
     s"""From SSL_Iris Require Import core.
        |From iris.program_logic Require Export weakestpre.
        |From iris.proofmode Require Export tactics coq_tactics ltac_tactics reduction.
@@ -16,12 +16,7 @@ case object IrisCertificate {
        |From Hammer Require Import Hammer.
        |Context `{!heapG Σ}.
        |Set Default Proof Using "Type".
-       |""".stripMargin + (if (printAxioms)
-        s"""Axiom NilNotLval:
-           |  forall x v,
-           |  x ↦ v -∗ x ↦ v ∗ ⌜x ≠ null_loc⌝.
-           |""".stripMargin
-        else "")
+       |""".stripMargin
   }
 }
 

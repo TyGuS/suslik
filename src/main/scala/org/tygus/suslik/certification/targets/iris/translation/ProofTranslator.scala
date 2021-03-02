@@ -250,7 +250,8 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       ctx = ctx withMappingBetween(ghostFrom, ISpecVar(ghostTo, HLocType()))
       ctx = ctx withRenaming ghostFrom -> ghostTo
       val steps =  List (
-        IMalloc(ICoqName(ghostTo), sz)
+        IMalloc(ICoqName(ghostTo), sz),
+        IMovePure
         )
       Result(steps, List(withNoDeferreds(ctx)))
 
@@ -282,9 +283,9 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
       Result(List(IStore), List(withNoDeferreds(clientCtx)))
 
     case SuslikProofStep.EmpRule(_) => Result(List(IEmp), List())
-    case SuslikProofStep.NilNotLval(vars) =>
-      val steps = vars.map { case Var(name) => INilNotVal(name, clientCtx.freshHypName() )}
-      Result(steps, List(withNoDeferreds(clientCtx)))
+    case SuslikProofStep.NilNotLval(_) =>
+//      val steps = vars.map { case Var(name) => INilNotVal(name, clientCtx.freshHypName() )}
+      Result(List(), List(withNoDeferreds(clientCtx)))
 
 //    case SuslikProofStep.PickArg(Var(from), to) =>
 //      val newCtx = clientCtx withMappingBetween (from,to)
@@ -306,11 +307,11 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
               ISpecVar(name, HCardType(predType))
             ))
       }
-      var ctx = clientCtx withMappingBetween (from, cardExpr)
+      val ctx = clientCtx withMappingBetween(from, cardExpr)
       withNoOp(ctx)
 
     /** Ignored rules */
-    case SuslikProofStep.CheckPost(_, _)
+    case SuslikProofStep.CheckPost(_, _, _)
          | SuslikProofStep.WeakenPre(_)
          | SuslikProofStep.HeapUnify(_)
          | SuslikProofStep.HeapUnifyUnfold(_, _, _)

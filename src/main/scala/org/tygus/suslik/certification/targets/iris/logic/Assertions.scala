@@ -291,11 +291,33 @@ object Assertions {
             s"∃ ${cons.constructorArgs.mkString(" ")}, ${cardinalityParam} = (${predicate.constructorName(cons)} ${cons.constructorArgs.mkString(" ")})"
           }
 
+        val appHyp = "P"
+
+        def proofPerClause(constr: CardConstructor, pclause: IPredicateClause) = {
+          val coqHyps = findExistentials(constr)(pclause).map{ case (v, _) => ICoqName(v) }
+          val pureIntro = pclause.pure.map(_ => IPure(""))
+          val spatialIntro = pclause.spatial.map(_ => IIdent("?"))
+          val irisHyps = IPatDestruct(List(IPatDestruct(pureIntro), IPatDestruct(spatialIntro)))
+          val destruct = IDestruct(IIdent(appHyp), coqHyps, irisHyps)
+          val exists = IExistsMany(coqHyps)
+          val str =
+            s"""|- ${destruct.pp}
+                |   iSplitL.
+                |   ${exists.pp} iFrame. eauto.
+                |   eauto.""".stripMargin
+          str
+        }
+
         s"Lemma ${predicate.learnLemmaName(cardConstructor)} " +
           s"${predicate.params.map({ case (name, proofType) => s"(${name}: ${proofType.pp})" }).mkString(" ")} " +
           s"${cardinalityParam}:\n" +
           s"${ppPred} ${cardinalityParam}  ⊢ ${ppPred} ${cardinalityParam} ∗ ⌜${pclause.selector.ppAsPhi} -> ${ppEqualityTerm(cardConstructor)}⌝.\n" +
-          s"Proof. Admitted.\n"
+          s"Proof.\n" +
+          s"Transparent ${predicate.name}.\n" +
+          s"""destruct ${cardinalityParam}; iIntros "$appHyp".\n""" +
+          s"${predicate.clauses.map{ case (constr, clause) => proofPerClause(constr, clause) }.mkString("\n")}\n" +
+          s"Global Opaque ${predicate.name}.\n" +
+        s"Qed.\n"
       }
     }
 

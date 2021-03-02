@@ -154,6 +154,10 @@ case class IWpApply(applyName: String, exs: Seq[IPureAssertion],
   }
 }
 
+case class IExistsMany(ex: List[ICoqName]) extends IProofStep {
+  override def pp: String = if (ex.isEmpty) "" else s"iExists ${ex.map(_.pp).mkString(", ")}."
+}
+
 case class IExists(e: IPureAssertion) extends IProofStep {
   override def pp: String = s"iExists ${e.ppAsPhi}."
 }
@@ -211,6 +215,9 @@ case object IFree extends IProofStep {
   override def pp: String = "ssl_free."
 }
 
+case object IMovePure extends IProofStep {
+  override def pp: String = "movePure."
+}
 
 case object IFinish extends IProofStep {
   override def pp: String = "ssl_finish."
