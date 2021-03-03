@@ -34,7 +34,7 @@ case class SynConfig(
                       // Timeout and logging
                       interactive: Boolean = false,
                       printStats: Boolean = true,
-                      printSpecs: Boolean = false,
+                      printSpecs: Boolean = true,
                       printDerivations: Boolean = false,
                       printFailed: Boolean = false,
                       printEnv: Boolean = false,

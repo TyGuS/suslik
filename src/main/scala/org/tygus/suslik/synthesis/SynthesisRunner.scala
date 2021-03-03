@@ -118,10 +118,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(timeOut = t)
     }).text("timeout for the derivation; default (in milliseconds): 300000 (5 min)")
 
-    opt[Boolean]('a', "assert").action(cfg { b =>
-      _.copy(assertSuccess = b)
-    }).text("check that the synthesized result against the expected one; default: false")
-
     opt[Int]('c', "maxCloseDepth").action(cfg { d =>
       _.copy(maxCloseDepth = d)
     }).text("maximum unfolding depth in the post-condition; default: 1")
@@ -146,10 +142,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(maxGuardConjuncts = n)
     }).text("maximum number of conjuncts in an abduced guard; default: 2")
 
-    opt[Boolean](name = "phased").action(cfg { b =>
-      _.copy(phased = b)
-    }).text("split rules into unfolding and flat phases; default: true")
-
     opt[Boolean]('d', name = "dfs").action(cfg { b =>
       _.copy(depthFirst = b)
     }).text("depth first search; default: false")
@@ -168,11 +160,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('s', "printStats").action(cfg { b =>
       _.copy(printStats = b)
-    }).text("print synthesis stats; default: false")
+    }).text("print synthesis stats; default: true")
 
     opt[Boolean]('p', "printSpecs").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printSpecs = b))
-    }.text("print specifications for synthesized functions; default: false")
+    }.text("print specifications for synthesized functions; default: true")
 
     opt[Boolean]('e', "printEnv").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
@@ -193,18 +185,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean](name = "memo").action(cfg { b =>
       _.copy(memoization = b)
     }).text("enable memoization; default: true")
-
-    opt[Boolean](name = "lexi").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(termination = if (b) lexicographic else totalSize))
-    }.text("use lexicographic termination metric (as opposed to total size); default: false")
-
-    opt[CertificationTarget](name="certTarget").action { (t, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
-    }.text("set certification target; default: none")
-
-    opt[File](name="certDest").action(cfg { f =>
-      _.copy(certDest = f)
-    }).text("write certificate to path; default: none")
 
     help("help").text("prints this usage text")
 
