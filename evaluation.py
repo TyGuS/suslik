@@ -9,7 +9,6 @@ from colorama import init, Fore, Back, Style
 JAVA8         = 'java'                                             # Path to Java8
 JAVA_OPTS     = ['-Xmx4G']                                         # Java options: increase max heap size
 SUSLIK_JAR    = './target/scala-2.12/suslik.jar'                   # Path to suslik.jar
-SUSLIK_OPTS   = ['-t=3600000']                                     # Shared suslik options: timeout of 1h
 TEST_DIR      = 'src/test/resources/synthesis'                     # Parent directory for benchmarks
 COMPLEX_DIR   = 'cyclic-benchmarks'                                # Subdirectory for complex benchmarks
 SIMPLE_DIR    = 'simple-benchmarks'                                # Subdirectory for simple benchmarks
@@ -128,7 +127,7 @@ def run_benchmark(file):
   with open(RESULTS, "a") as outfile:
     print 'Running', file,
     sys.stdout.flush()
-    call([JAVA8] + JAVA_OPTS + ['-jar', SUSLIK_JAR, file] + SUSLIK_OPTS, stdout=outfile, stderr=outfile)
+    call([JAVA8] + JAVA_OPTS + ['-jar', SUSLIK_JAR, file], stdout=outfile, stderr=outfile)
     read_csv()
     print
     

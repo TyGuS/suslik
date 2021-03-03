@@ -1,9 +1,0 @@
-should be able to flatten the tree into a list given a list accumulator
-
-####
-
-{ true ; tree(x, s)<a> ** z :-> y ** lseg(y, acc)<b>}
-void tree_flatten(loc x, loc z)
-{ s1 =i s ++ acc /\ c <= b + a;  z :-> t ** lseg(t, s1)<c>}
-
-####

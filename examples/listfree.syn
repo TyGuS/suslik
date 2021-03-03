@@ -1,9 +1,0 @@
-Listfree example
-
-###
-
-{true; lseg(x, S)}
-  void listfree(loc x)
-{true ; emp }
-
-###
