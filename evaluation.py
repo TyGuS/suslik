@@ -227,14 +227,25 @@ def cmdline():
   a.add_argument('--tiny', action='store_true')
   a.add_argument('--simple', action='store_true')
   a.add_argument('--all', action='store_true')
+  a.add_argument('--clean', action='store_true')
   return a.parse_args()          
           
 if __name__ == '__main__':
   init()
   cl_opts = cmdline()
   
+  # Clean up files created by this script:
   if os.path.isfile(RESULTS):        
     os.remove(RESULTS)
+  if os.path.isfile(COMPLEX_STATS):        
+    os.remove(COMPLEX_STATS)
+  if os.path.isfile(SIMPLE_STATS):        
+    os.remove(SIMPLE_STATS)
+  # If asked explicitly, clean up suslik output and exit  
+  if cl_opts.clean: 
+    if os.path.isfile(CSV_IN):
+      os.remove(CSV_IN)
+    sys.exit(0)
   
   if cl_opts.tiny:
     cats_to_test = ['tiny']
