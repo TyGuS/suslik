@@ -1,0 +1,19 @@
+predicate sll(loc x, int len, int lo, int hi) {
+|  x == 0        => { len == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == 0)  => { len == 1 + len1  /\  0 <= len1  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= v /\ v <= 7;
+                      [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, len1, lo1, hi1) }
+}
+
+predicate srtl(loc x, int len, int lo, int hi) {
+|  x == 0        => { len == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == 0)  => { len == 1 + len1  /\  0 <= len1  /\
+                      lo == (v <= lo1 ? v : lo1)  /\  hi == (hi1 <= v ? v : hi1) /\ 0 <= lo1 /\ lo1 <= 7 /\ 0 <= hi1 /\ hi1 <= 7 /\
+                      v <= lo1 /\ 0 <= v /\ v <= 7 ;
+                      [x, 2] ** x :-> v ** (x + 1) :-> nxt ** srtl(nxt, len1, lo1, hi1) }
+}
+
+predicate bst(loc x, int sz, int lo, int hi) {
+|  x == 0        => { sz == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == 0)  => { sz == 1 + sz1 + sz2  /\  0 <= sz1 /\  0 <= sz2  /\  lo == (v <= lo1 ? v : lo1)  /\  hi == (hi2 <= v ? v : hi2) /\ 0 <= v /\ v <= 7 /\ hi1 <= v /\ v <= lo2 ;
+                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** bst(l, sz1, lo1, hi1) ** bst(r, sz2, lo2, hi2)  }
+}

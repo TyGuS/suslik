@@ -1,0 +1,7 @@
+singly-linked list: deallocate
+
+###
+
+{ sll(x, s) }
+  void sll_free(loc x)
+{ emp }

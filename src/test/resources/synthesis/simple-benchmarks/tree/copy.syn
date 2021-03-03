@@ -1,0 +1,8 @@
+copy a binary tree
+
+#####
+
+{ r :-> x ** tree(x, s) }
+void tree_copy(loc r)
+{ r :-> y ** tree(x, s) ** tree(y, s) }
+
