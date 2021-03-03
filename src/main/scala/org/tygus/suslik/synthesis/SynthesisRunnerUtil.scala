@@ -189,9 +189,10 @@ trait SynthesisRunnerUtil {
           testPrintln(s"Successfully synthesised in $duration milliseconds:", Console.GREEN)
           printStats(sresult._2)
           testPrintln(result)
-          testPrintln("-----------------------------------------------------")
+          testPrintln("\n-----------------------------------------------------\n")
         } else {
           println(result)
+          testPrintln("\n-----------------------------------------------------\n")
         }
         if (out != noOutputCheck) {
           val tt = out.trim.lines.map(_.trim).toList
