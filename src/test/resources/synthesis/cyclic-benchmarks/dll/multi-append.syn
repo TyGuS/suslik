@@ -1,9 +1,0 @@
-# -x true -p true -c 2 -f 1
-append multiple lists 
-
-###
-
-{true; r :-> unused ** dll(x, a, s1) ** dll(y, b, s2) ** dll(z, c, s3) }
-  void append3(loc x, loc y, loc z, loc r)
-{s =i s1 ++ s2 ++ s3 ; r :-> v ** dll(v, d, s) }
-
