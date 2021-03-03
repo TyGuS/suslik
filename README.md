@@ -1,22 +1,31 @@
-# Synthetic Separation Logic
+# PLDI 2021 Artifact
 
-[![Build Status](https://travis-ci.org/TyGuS/suslik.svg?branch=master)](https://travis-ci.org/TyGuS/suslik)
-[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE)
-[![DOI](https://zenodo.org/badge/101061595.svg)](https://zenodo.org/badge/latestdoi/101061595)
+## Getting Started
 
-Synthesis of Heap-Manipulating Programs from Separation Logic
-Specifications
+This artifact is distirbuted as a VirtualBox VM image. We use [VirtualBox 6.1](https://www.virtualbox.org/wiki/Downloads).
 
-<p align="center">
-  <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150"></a>
-  </p>
+Open the image in VirtualBox, start the VM, and gog in with 
+```
+user: osboxes
+password: osboxes.org
+```
 
-## Theory Behind the Tool
+Here is a quick test if the artifact is working (this should take less than a minute).
+Open terminal and execute:
+```
+cd ~/suslik
+python2 evaluation.py --tiny
+```
 
-The details of Synthetic Separation Logic can be found in the
-[accompanying draft paper](https://arxiv.org/pdf/1807.07022.pdf).
+This should produce the following output (times might differ):
+```
+Running src/test/resources/synthesis/cyclic-benchmarks/sll/free2.syn 1.8s
+Running src/test/resources/synthesis/cyclic-benchmarks/multi-list/free.syn 1.8s
+Running src/test/resources/synthesis/cyclic-benchmarks/tree/free2.syn 3.6s
+Running src/test/resources/synthesis/cyclic-benchmarks/rose-tree/free.syn 1.7s
+``` 
 
-## Usage
+## Step by Step Instructions
 
 The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
 
