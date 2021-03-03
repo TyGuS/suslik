@@ -46,10 +46,8 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
     super.doRun(testName, desc, in, out, params)
-    if (params.printStats) {
-      println(desc)
-      println()
-    }
+    println(desc)
+    println()
     try {
       synthesizeFromSpec(testName, in, out, params)
     } catch {

@@ -33,7 +33,7 @@ case class SynConfig(
                       delegatePure: Boolean = true,
                       // Timeout and logging
                       interactive: Boolean = false,
-                      printStats: Boolean = true,
+                      printStats: Boolean = false,
                       printSpecs: Boolean = true,
                       printDerivations: Boolean = false,
                       printFailed: Boolean = false,
