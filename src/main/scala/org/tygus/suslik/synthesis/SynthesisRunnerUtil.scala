@@ -8,8 +8,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
-import org.tygus.suslik.synthesis.SearchTree.AndNode
+import org.tygus.suslik.report._
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
 
@@ -149,9 +148,6 @@ trait SynthesisRunnerUtil {
     val duration = env.stats.duration
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
-
-    def printHotNode(hotNode: AndNode, descs: Int): String =
-      s"${hotNode.rule.toString} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
 
     def printRuleApplication(name: String, stat: RuleStat): String =
       s"$name: succeeded ${stat.numSuccess} times (${stat.timeSuccess}ms), failed ${stat.numFail} times (${stat.timeFail}ms)"

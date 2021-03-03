@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.scalatest.{FunSpec, Matchers}
 
-class CyclicTests extends FunSpec with Matchers with SynthesisRunnerUtil {
+class CyclicBnechmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
     super.doRun(testName, desc, in, out, params)

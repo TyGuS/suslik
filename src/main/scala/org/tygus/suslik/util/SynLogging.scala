@@ -43,7 +43,8 @@ object SynLogLevels {
     override def println(s: String): Unit = Console.println(s)
 
     override def testPrintln(s: String, color: String = Console.RESET): Unit = {
-      Console.println(s"$color$s${Console.RESET}")
+//      Console.println(s"$color$s${Console.RESET}")
+      Console.println(s)
     }
 
     override def println(): Unit = Console.println()

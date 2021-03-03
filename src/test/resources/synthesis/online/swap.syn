@@ -1,7 +1,0 @@
-swap values of two pointers
-
-###
-
-{true; x :-> a ** y :-> b} void swap(loc x, loc y) {true ; x :-> b ** y :-> a}
-
-###

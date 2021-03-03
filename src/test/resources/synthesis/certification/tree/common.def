@@ -1,4 +1,0 @@
-predicate tree(loc x, set s) {
-|  x == 0        => {s =i {}; emp}
-|  not (x == 0)  => {s =i {v} ++ s1 ++ s2 ; [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1) ** tree(r, s2)}
-}

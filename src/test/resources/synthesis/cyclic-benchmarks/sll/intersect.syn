@@ -1,6 +1,6 @@
-# -x true -b true -p true
+# -b true
 
-intersect two unique lists
+intersect two unique lists (and preserve one of them)
 
 #####
 
@@ -8,7 +8,6 @@ intersect two unique lists
 void intersect (loc r, loc y)
 { r :-> z ** ulist(z, s1 * s2) ** ulist(y, s2) }
 
-#####
 
 
 

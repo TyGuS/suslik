@@ -38,7 +38,7 @@ case class SynConfig(
                       printDerivations: Boolean = false,
                       printFailed: Boolean = false,
                       printEnv: Boolean = false,
-                      printColor: Boolean = true,
+                      printColor: Boolean = false,
                       assertSuccess: Boolean = false,
                       logToFile: Boolean = true,
                       traceToJsonFile: Option[File] = None,
