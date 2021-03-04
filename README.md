@@ -2,9 +2,12 @@
 
 ## Getting Started
 
-This artifact is distributed as a VirtualBox VM image. We use [VirtualBox 6.1](https://www.virtualbox.org/wiki/Downloads).
+This artifact is distributed as an `.ova` VM image, 
+which should work with either VMWare or VirtualBox. 
+We use [VirtualBox 6.1](https://www.virtualbox.org/wiki/Downloads).
 
-Open the image in VirtualBox, start the VM, and log in with 
+Open the image in VirtualBox via `File -> Import Appliance`.
+Start the VM and log in with:
 ```
 user: osboxes
 password: osboxes.org
