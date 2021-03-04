@@ -162,7 +162,7 @@ suslik src/test/resources/synthesis/cyclic-benchmarks/tree/flatten.syn
 the solution Cypress currently synthesizes is different from the one presented in the Overview, 
 but is nevertheless correct).
 
-### Rebuilding from Source
+### Rebuilding from Source on the VM
 
 To build Cypress from scratch in a new location `<dir>` on our VM, execute:
 ```
@@ -172,165 +172,38 @@ git checkout pldi21-artifact
 sbt assembly
 ```
 
-## Setup and Build
+## Building Cypress from Sources
 
-### Requirements 
+This section contains instructions on building Cypress from sources _outside the VM_.
+Note that Cypress has a lot of prerequisites, so this process is quite time-consuming.
+
+Cypress can be built on Linux, Mac, or on Windows under WSL.
+
+### Prerequisites 
+
+To build Cypress:
 
 * [Java SE Development Kit 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
-* [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
-* [Z3 SMT solver](https://github.com/Z3Prover/z3)
+* [Scala Build Tool](https://www.scala-sbt.org/) `sbt`, version >=1.1.6
+* [Z3 SMT solver](https://github.com/Z3Prover/z3), version >=4.8.7
 * [CVC4 SMT solver](https://cvc4.github.io/), version 1.7
 * [Cyclist Theorem Prover](http://www.cyclist-prover.org/installation)
-* [Scala](https://www.scala-lang.org/download/) (version >= 2.12.6) - to run the standalone artifact
 
-### Building and Testing the Project
+To run the evaluation script:
 
-To compile and run the entire test suite (and see some cool synthesis results), execute from the root folder of the project:
+* Python 2.7
+* `colorama` package
 
-```
-sbt test
-```
+### Building the Project
 
-### Compiling the Executables
-
-Just run the following from your command line: 
-
+Once all the prerequisites have been installed, you can build a `jar` by running from the root directory of the repo:
 ```
 sbt assembly
 ```
 
-As the result, an executable `JAR`-file will be produced, so you can run it as explained below.
-
-## Synthesizing Programs from SL Specifications
-
-Alternatively, once you have built the artifact via `sbt assembly`, you can run 
-it as a standalone application (given that the runnable `scala` is in your path).
-
-### Case Studies
-
-At the moment, many interesting case studies can be found in the folder
-`$PROJECT_ROOT/examples`. More examples
-and benchmarks related to the paper on SSL  are in the folders
-`paper-examples` and `paper-benchmarks` under `$PROJECT_ROOT/src/test/resources/synthesis`.
-
-Each set of case studies is in a single folder (e.g., `copy`). The
-definitions of inductive predicates and auxiliary function
-specifications (lemmas) are given in the single `.def`-file, typically
-present in each such folder. For instance, in `examples`, it is
-`predicates.def`, whose contents are as follows:
+To run the `jar` on an input file `file.syn`, execute the following from the root directory of the repo:
 
 ```
-predicate lseg(loc x, set s) {
-|  x == 0        => { s =i {} ; emp }
-|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }
-}
-
-predicate lseg2(loc x, set s) {
-|  x == 0        => { s =i {} ; emp }
-|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, s1) }
-}
-
-...
+java -jar ./target/scala-2.12/suslik.jar file.syn
 ```
 
-The remaining files (`*.syn`) are the actual examples, each
-structured in the following format:
-
-```
-<A textual comment about what capability of the synthesizer is being assessed.>
-#####
-<Hoare-style specification of the synthesized procedure in SL>
-#####
-<Optional expected result>
-```
-
-For example, `examples/listcopy.syn` is defined as follows:
-
-```
-Copy a linked list
-
-#####
-
-{true ; r :-> x ** lseg(x, 0, S)}
-void listcopy(loc r)
-{true ; r :-> y ** lseg(x, 0, S) ** lseg(y, 0, S) }
-
-#####
-
-```
-
-### Trying the Synthesis with the Case Studies
-
-To run the synthesis for a specific case study from a specific folder,
-execute the following script:
-
-```
-suslik fileName [options]
-```
-where the necessary arguments and options are
-
-```
-  fileName                 a synthesis file name (the file under the specified folder, called filename.syn)
-  -r, --trace <value>      print the entire derivation trace; default: true
-  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 120000 (2 min)
-  -d, --depth <value>      derivation depth; default: 100
-  -a, --assert <value>     check that the synthesized result against the expected one; default: false
-  -c, --maxCloseDepth <value>
-                           maximum unfolding depth in the post-condition; default: 1
-  -o, --maxOpenDepth <value>
-                           maximum unfolding depth in the pre-condition; default: 1
-  -b, --branchAbduction <value>
-                           abduce conditional branches; default: false
-  --commute <value>        only try commutative rule applications in one order; default: true
-  --phased <value>         split rules into unfolding and flat phases; default: true
-  --fail <value>           enable early failure rules; default: true
-  --invert <value>         enable invertible rules; default: true
-  -s, --printStats <value> print synthesis stats; default: true
-  -p, --printSpecs <value> print specifications for synthesized functions; default: false
-  -e, --printEnv <value>   print synthesis context; default: false
-  -f, --printFail <value>  print failed rule applications; default: false
-  -g, --tags <value>       print predicate application tags in derivations; default: false
-  -l, --log <value>        log results to a csv file; default: true
-  -x, --auxAbduction <value>
-                           abduce auxiliary functions; default: false 
-  --help                   prints this usage text
-
-```
-
-Once the synthesis is done execution statistics will be available in `stats.csv`.
-
-For instance, to synthesize `$PROJECT_ROOT/examples/listcopy.syn` and see the derivation trace, run
-
-```
-suslik examples/listcopy.syn
-```
-
-to get the following result:
-
-```
-void listcopy (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
-  } else {
-    let v2 = *x2;
-    let nxt2 = *(x2 + 1);
-    *r = nxt2;
-    listcopy(r);
-    let y12 = *r;
-    let y2 = malloc(2);
-    *(x2 + 1) = y12;
-    *r = y2;
-    *(y2 + 1) = nxt2;
-    *y2 = v2;
-  }
-}
-```
-
-For running benchmarks or examples from the accompanying paper, run, e.g.,
-```
-suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
-``` 
-
-### Certification
-
-See the file [certification.md](certification.md) for instructions on certifying the synthesis results. 
