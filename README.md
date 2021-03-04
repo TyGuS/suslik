@@ -87,7 +87,7 @@ pretty_csv simple.csv
 #### Comparing Execution Times
 
 We noticed roughly a *2x overhead* of running Cypress inside the VM
-(hence, you should inspect synthesis times to be twice as long as those reported in the paper).
+(hence, you should expect synthesis times to be twice as long as those reported in the paper).
 
 In addition, the synthesis times reported by the script are measured by Cypress itself
 and do not account for the JVM start-up time,
@@ -96,10 +96,15 @@ For the paper, we ran the whole evaluation in a single JVM instance, using the s
 which avoids this startup overhead.
 For the purposes of artifact evaluation, we provide a Python script instead,
 which has the overhead but offers more flexibility and transparancy.
-To observe the original behavior (without the constant overhead), you can execute:
+To observe the behavior without the constant overhead, you can run scala tests for complex benchmarks using:
 ```
 sbt testOnly org.tygus.suslik.synthesis.CyclicBenchmarks
 ```
+and for simple benchmarks using
+```
+sbt testOnly org.tygus.suslik.synthesis.SimpleBenchmarks
+```
+Note, however, that this will run all benchmarks from eiter category, including the long-running ones (see discussion below).
 
 #### Long-Running Benchmarks
 
@@ -120,7 +125,26 @@ because these are the only benchmarks that take over a minute to run natively (s
 In particular, `instersection` takes 4 min,
 and `BST: delete root` takes ~45 mins to finish on the VM.
 
-
+The benchmark `intersection` needs a clarification, which we have made to reviewers during the rebuttal.
+Originally, we have a tried the following _destructive_ specification for this benchmark:
+```
+{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
+void intersect (loc r, loc y)
+{ r :-> z ** ulist(z, s1 * s2) }
+```
+This version of the benchmark fails, as reported in the submitted version of the paper
+because of the limitation on the class of auxiliaries that Cypress can generate.
+However, after the submission we realized that Cypress can actually handle the following version of this benchmark,
+where one of the original lists is preserved by the procedure:
+```
+{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
+void intersect (loc r, loc y)
+{ r :-> z ** ulist(z, s1 * s2) ** ulist(y, s2) }
+```
+This version allows Cypress to first recurse on the tail of `x`,
+and then check whether the head of `x` is present in `y` and hence whether it should be included in the intersection.
+This is the version of `intersect` included in the artifact (and this is the version we intend to present in the camera-ready);
+it can be synthesized in two minutes on native hardware (and in four minutes on the VM)
 
 ## Setup and Build
 
