@@ -10,14 +10,14 @@ user: osboxes
 password: osboxes.org
 ```
 
-Here is a quick test if the artifact is working (this should take less than a minute).
+Here is a quick test if the artifact is working (this should take *less than a minute*).
 Open terminal and execute:
 ```
 cd ~/suslik
 python2 evaluation.py --tiny
 ```
 
-This should produce the following output (times might differ):
+This should produce the following output (times might differ slightly):
 ```
 Running src/test/resources/synthesis/cyclic-benchmarks/sll/free2.syn 1.8s
 Running src/test/resources/synthesis/cyclic-benchmarks/multi-list/free.syn 1.8s
@@ -27,9 +27,100 @@ Running src/test/resources/synthesis/cyclic-benchmarks/rose-tree/free.syn 1.7s
 
 ## Step by Step Instructions
 
-The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
+These instructions detail how to:
 
-Otherwise, check the building instructions below.
+1. Reproduce the results reported in Sec 5, Table 1 (evaluating Cypress on benchmarks with _complex recursion_)
+2. Reproduce the results reported in Appendix C, Table 1 (evaluating Cypress on benchmarks with _simple recursion_)
+3. Run Cypress on individual synthesis problems
+4. Rebuild Cypress from sources inside the VM
+
+### Structure of the Artifact
+
+The source code for this artifact can be found in the [pldi21-artifact](https://github.com/TyGuS/suslik/tree/pldi21-artifact) branch of the SuSLik github repository.
+
+Inside the VM, the code is located in `~/suslik`. Inside this directory:
+- `evaluation.py` is the Python script to replicate the evaluation in the paper
+- `src/test/resources/synthesis/cyclic-benchmarks` contains the benchmarks with complex recursion
+- `src/test/resources/synthesis/simple-benchmarks` contains the benchmarks with simple recursion
+- `src/main/scala/org/tygus/suslik` contains the source code of Cypress
+
+### Reproducing Evaluation Results
+
+#### Complex Benchmarks
+
+To reproduce the results on _complex benchmarks_ (as defined in Sec 5), execute:
+```
+cd ~/suslik
+python2 evaluation.py
+```
+This will run Cypress on all benchmarks from Table 1 (Sec 5), apart from benchmark 5 `intersection`, which is reported there as failing (see more details below).
+This should take approximately *five minutes*.
+
+After the script terminates, it will create two output files in `~/suslik`:
+- `complex.csv` contains results reported in Table 1
+- `all_resutls` contains the synthesized programs
+
+To inspect the results in a table form, you can execute:
+```
+pretty_csv complex.csv
+```
+
+#### Simple Benchmarks
+
+To reproduce the results on _simple benchmarks_, execute:
+```
+cd ~/suslik
+python2 evaluation.py --simple
+```
+This will run Cypress on all benchmarks from Appendix C, apart from the really long running benchmark `BST: delete root` (see more details below).
+This should take approximately *five minutes*.
+
+After the script terminates, it will create two output files in `~/suslik`:
+- `simple.csv` contains Cypress results reported in Appendix C, Table 1 (For SusLik results, see the [suslik paper](https://cseweb.ucsd.edu/~npolikarpova/publications/suslik.pdf))
+- `all_resutls` contains the synthesized programs
+
+To inspect the results in a table form, you can execute:
+```
+pretty_csv simple.csv
+```
+
+#### Comparing Execution Times
+
+We noticed roughly a *2x overhead* of running Cypress inside the VM
+(hence, you should inspect synthesis times to be twice as long as those reported in the paper).
+
+In addition, the synthesis times reported by the script are measured by Cypress itself
+and do not account for the JVM start-up time,
+which is a constant overhead for each benchmark.
+For the paper, we ran the whole evaluation in a single JVM instance, using the scala testing framework,
+which avoids this startup overhead.
+For the purposes of artifact evaluation, we provide a Python script instead,
+which has the overhead but offers more flexibility and transparancy.
+To observe the original behavior (without the constant overhead), you can execute:
+```
+sbt testOnly org.tygus.suslik.synthesis.CyclicBenchmarks
+```
+
+#### Long-Running Benchmarks
+
+Executing:
+```
+cd ~/suslik
+python2 evaluation.py --all
+```
+will execute all benchmarks, that is, both complex and simple, including the longer-running benchmarks `instersection` and `BST: delete root`, mentioned above.
+This might take *upto an hour*.
+This will generate output files: 
+- `complex.csv`
+- `simple.csv`
+- `all_results` with all the synthesized programs
+
+We have excluded these two long-running benchmarks from the normal script modes for convenience,
+because these are the only benchmarks that take over a minute to run natively (so, over two minutes on the VM).
+In particular, `instersection` takes 4 min,
+and `BST: delete root` takes ~45 mins to finish on the VM.
+
+
 
 ## Setup and Build
 
