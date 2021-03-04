@@ -58,12 +58,17 @@ This should take approximately *five minutes*.
 
 After the script terminates, it will create two output files in `~/suslik`:
 - `complex.csv` contains results reported in Table 1
-- `all_resutls` contains the synthesized programs
+- `all_results` contains the synthesized programs
 
 To inspect the results in a table form, you can execute:
 ```
 pretty_csv complex.csv
 ```
+
+The text file `all_results` should contain the same synthesized code as reported in Appendix C.
+In addition to the code itself, for your information we also print out the inferred specifications of the auxiliary functions,
+however those might contain internal _cardinatlity variables_ and assertions over those 
+(see line 417 in the paper for an explanation of what they are).
 
 #### Simple Benchmarks
 
@@ -145,6 +150,27 @@ This version allows Cypress to first recurse on the tail of `x`,
 and then check whether the head of `x` is present in `y` and hence whether it should be included in the intersection.
 This is the version of `intersect` included in the artifact (and this is the version we intend to present in the camera-ready);
 it can be synthesized in two minutes on native hardware (and in four minutes on the VM)
+
+### Running on Individual Benchmarks
+
+To run Cypress on `file.syn`, you can execute `suslik file.syn` from `~/suslik`.
+For example, to run the tree flattening example from the intro, execute:
+```
+suslik src/test/resources/synthesis/cyclic-benchmarks/tree/flatten.syn
+```
+(Note that due to changes to the cost function, 
+the solution Cypress currently synthesizes is different from the one presented in the Overview, 
+but is nevertheless correct).
+
+### Rebuilding from Source
+
+To build Cypress from scratch in a new location `<dir>` on our VM, execute:
+```
+cd <dir>
+git clone git@github.com:TyGuS/suslik.git .
+git checkout pldi21-artifact
+sbt assembly
+```
 
 ## Setup and Build
 
