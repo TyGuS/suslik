@@ -2,9 +2,9 @@
 
 ## Getting Started
 
-This artifact is distirbuted as a VirtualBox VM image. We use [VirtualBox 6.1](https://www.virtualbox.org/wiki/Downloads).
+This artifact is distributed as a VirtualBox VM image. We use [VirtualBox 6.1](https://www.virtualbox.org/wiki/Downloads).
 
-Open the image in VirtualBox, start the VM, and gog in with 
+Open the image in VirtualBox, start the VM, and log in with 
 ```
 user: osboxes
 password: osboxes.org
@@ -53,7 +53,7 @@ To reproduce the results on _complex benchmarks_ (as defined in Sec 5), execute:
 cd ~/suslik
 python2 evaluation.py
 ```
-This will run Cypress on all benchmarks from Table 1 (Sec 5), apart from benchmark 5 `intersection`, which is reported there as failing (see more details below).
+This will run Cypress on all benchmarks from Sec 5, Table 1, apart from benchmark 5 `intersection`, which is reported there as failing (see more details below).
 This should take approximately *five minutes*.
 
 After the script terminates, it will create two output files in `~/suslik`:
@@ -66,8 +66,8 @@ pretty_csv complex.csv
 ```
 
 The text file `all_results` should contain the same synthesized code as reported in Appendix C.
-In addition to the code itself, for your information we also print out the inferred specifications of the auxiliary functions,
-however those might contain internal _cardinatlity variables_ and assertions over those 
+In addition to the code itself, for your information we also print out the inferred specifications of the auxiliary functions.
+Note that those, unexpectedly, might contain internal _cardinatlity variables_ and assertions over those 
 (see line 417 in the paper for an explanation of what they are).
 
 #### Simple Benchmarks
@@ -77,7 +77,7 @@ To reproduce the results on _simple benchmarks_, execute:
 cd ~/suslik
 python2 evaluation.py --simple
 ```
-This will run Cypress on all benchmarks from Appendix C, apart from the really long running benchmark `BST: delete root` (see more details below).
+This will run Cypress on all benchmarks from Appendix C, Table 1, apart from the really long running benchmark `BST: delete root` (see more details below).
 This should take approximately *five minutes*.
 
 After the script terminates, it will create two output files in `~/suslik`:
@@ -96,12 +96,12 @@ We noticed roughly a *2x overhead* of running Cypress inside the VM
 
 In addition, the synthesis times reported by the script are measured by Cypress itself
 and do not account for the JVM start-up time,
-which is a constant overhead for each benchmark.
-For the paper, we ran the whole evaluation in a single JVM instance, using the scala testing framework,
+which is a constant overhead of ~7s for each benchmark.
+For the paper, we ran the whole evaluation in a single JVM instance, using the `sbt` testing framework,
 which avoids this startup overhead.
 For the purposes of artifact evaluation, we provide a Python script instead,
-which has the overhead but offers more flexibility and transparancy.
-To observe the behavior without the constant overhead, you can run scala tests for complex benchmarks using:
+which has the overhead but offers more flexibility and transparency.
+To observe the behavior without the start-up overhead, you can run `sbt` tests for complex benchmarks using:
 ```
 sbt testOnly org.tygus.suslik.synthesis.CyclicBenchmarks
 ```
@@ -109,7 +109,7 @@ and for simple benchmarks using
 ```
 sbt testOnly org.tygus.suslik.synthesis.SimpleBenchmarks
 ```
-Note, however, that this will run all benchmarks from eiter category, including the long-running ones (see discussion below).
+Note, however, that this will run all benchmarks from either category, including the long-running ones (see discussion below).
 
 #### Long-Running Benchmarks
 
@@ -118,16 +118,16 @@ Executing:
 cd ~/suslik
 python2 evaluation.py --all
 ```
-will execute all benchmarks, that is, both complex and simple, including the longer-running benchmarks `instersection` and `BST: delete root`, mentioned above.
+will execute all benchmarks, that is, both complex and simple, including the longer-running benchmarks `intersection` and `BST: delete root`, mentioned above.
 This might take *upto an hour*.
 This will generate output files: 
-- `complex.csv`
-- `simple.csv`
-- `all_results` with all the synthesized programs
+- `complex.csv`: Cypress results for complex benchmarks
+- `simple.csv`: Cypress results for simple benchmarks
+- `all_results`: all synthesized programs
 
-We have excluded these two long-running benchmarks from the normal script modes for convenience,
+We have excluded these two long-running benchmarks from the previous script modes for convenience,
 because these are the only benchmarks that take over a minute to run natively (so, over two minutes on the VM).
-In particular, `instersection` takes 4 min,
+In particular, `intersection` takes 4 min,
 and `BST: delete root` takes ~45 mins to finish on the VM.
 
 The benchmark `intersection` needs a clarification, which we have made to reviewers during the rebuttal.
@@ -202,7 +202,6 @@ sbt assembly
 ```
 
 To run the `jar` on an input file `file.syn`, execute the following from the root directory of the repo:
-
 ```
 java -jar ./target/scala-2.12/suslik.jar file.syn
 ```
