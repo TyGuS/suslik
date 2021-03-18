@@ -71,38 +71,38 @@ OLD_BENCHMARKS = [
     Benchmark('ints/min2', 'min of two', ['suslik','jennisys'], stime=0.1, scode=10),
     ]),    
   BenchmarkGroup("Singly Linked List", [
-    Benchmark('sll-bounds/sll-len', 'length', ['suslik','natural'], stime=0.4, scode=21),
-    Benchmark('sll-bounds/sll-max', 'max', ['suslik','natural'], stime=0.6, scode=27),
-    Benchmark('sll-bounds/sll-min', 'min', ['suslik','natural'], stime=0.5, scode=27),
-    Benchmark('sll/sll-singleton', 'singleton', ['suslik', 'jennisys'], stime=0.0, scode=11),
-    Benchmark('sll/sll-free', 'dispose', ['suslik'], stime=0.0, scode=11),
-    Benchmark('sll/sll-init', 'initialize', ['suslik'], stime=0.0, scode=13),
-    Benchmark('sll/sll-copy', 'copy', ['suslik','dryad'], stime=0.2, scode=35),
-    Benchmark('sll/sll-append', 'append', ['suslik','dryad'], stime=0.2, scode=19),
-    Benchmark('sll/sll-delete-all', 'delete', ['suslik','dryad'], stime=0.7, scode=44),
+    Benchmark('sll-bounds/len', 'length', ['suslik','natural'], stime=0.4, scode=21),
+    Benchmark('sll-bounds/max', 'max', ['suslik','natural'], stime=0.6, scode=27),
+    Benchmark('sll-bounds/min', 'min', ['suslik','natural'], stime=0.5, scode=27),
+    Benchmark('sll/singleton', 'singleton', ['suslik', 'jennisys'], stime=0.0, scode=11),
+    Benchmark('sll/free', 'dispose', ['suslik'], stime=0.0, scode=11),
+    Benchmark('sll/init', 'initialize', ['suslik'], stime=0.0, scode=13),
+    Benchmark('sll/copy', 'copy', ['suslik','dryad'], stime=0.2, scode=35),
+    Benchmark('sll/append', 'append', ['suslik','dryad'], stime=0.2, scode=19),
+    Benchmark('sll/delete-all', 'delete', ['suslik','dryad'], stime=0.7, scode=44),
     ]),
   BenchmarkGroup("Sorted list", [
-    Benchmark('srtl/srtl-prepend', 'prepend', ['suslik','natural'], stime=0.2, scode=11),
-    Benchmark('srtl/srtl-insert', 'insert', ['suslik','natural'], stime=4.8, scode=58),
+    Benchmark('srtl/prepend', 'prepend', ['suslik','natural'], stime=0.2, scode=11),
+    Benchmark('srtl/insert', 'insert', ['suslik','natural'], stime=4.8, scode=58),
     Benchmark('srtl/insertion-sort', 'insertion sort', ['suslik','natural'], stime=1.1, scode=28),
     ]),
   BenchmarkGroup("Tree", [
-    Benchmark('tree/tree-size', 'size', ['suslik'], stime=0.2, scode=38),
-    Benchmark('tree/tree-free', 'dispose', ['suslik'], stime=0.0, scode=16),
-    Benchmark('tree/tree-copy', 'copy', ['suslik'], stime=0.4, scode=55),
-    Benchmark('tree/tree-flatten', 'flatten w/append', ['suslik'], stime=0.4, scode=48),
-    Benchmark('tree/tree-flatten-acc', 'flatten w/acc', ['suslik'], stime=0.6, scode=35),
+    Benchmark('tree/size', 'size', ['suslik'], stime=0.2, scode=38),
+    Benchmark('tree/free', 'dispose', ['suslik'], stime=0.0, scode=16),
+    Benchmark('tree/copy', 'copy', ['suslik'], stime=0.4, scode=55),
+    Benchmark('tree/flatten-helper', 'flatten w/append', ['suslik'], stime=0.4, scode=48),
+    Benchmark('tree/flatten-acc', 'flatten w/acc', ['suslik'], stime=0.6, scode=35),
     ]),
   BenchmarkGroup("BST", [
-    Benchmark('bst/bst-insert', 'insert', ['suslik','natural'], stime=31.9, scode=58),
-    Benchmark('bst/bst-left-rotate', 'rotate left', ['suslik','natural'], stime=37.7, scode=15),
-    Benchmark('bst/bst-right-rotate', 'rotate right', ['suslik','natural'], stime=17.2, scode=15),
-    Benchmark('bst/bst-delete-root', 'delete root', ['natural']),
+    Benchmark('bst/insert', 'insert', ['suslik','natural'], stime=31.9, scode=58),
+    Benchmark('bst/left-rotate', 'rotate left', ['suslik','natural'], stime=37.7, scode=15),
+    Benchmark('bst/right-rotate', 'rotate right', ['suslik','natural'], stime=17.2, scode=15),
+    Benchmark('bst/delete-root', 'delete root', ['natural']),
     ]),
   BenchmarkGroup("Doubly Linked List", [
-    Benchmark('dll/dll-copy', 'copy'),
-    Benchmark('dll/dll-append', 'append', ['dryad']),
-    Benchmark('dll/dll-delete-all', 'delete', ['dryad']),
+    Benchmark('dll/copy', 'copy'),
+    Benchmark('dll/append', 'append', ['dryad']),
+    Benchmark('dll/delete-all', 'delete', ['dryad']),
     Benchmark('dll/from-sll', 'single to double'),
     ]),    
 ]
@@ -291,7 +291,7 @@ def write_latex_full():
 def write_latex_old():
   '''Generate Latex table from the results dictionary'''
   
-  total_count = 0
+  total_count = sum([len(g.benchmarks) for g in NEW_BENCHMARKS]) + 1
   to_count = {var : 0 for var in VARIANTS}
 
   with open(OLD_LATEX_FILE, 'w') as outfile:
@@ -305,9 +305,10 @@ def write_latex_old():
       for b in group.benchmarks:
         result = results [b.name]        
         row = \
+          ' & ' + str(total_count) +\
           ' & ' + b.description + footnotes(b.source) +\
-          ' & ' + result.code_size + \
-          ' & ' + format_code(b.suslik_code) + \
+          ' & ' + result.statements + \
+          ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
           ' & ' + format_time(result.time) + \
           ' & ' + format_time(b.suslik_time) + ' \\\\'
           
@@ -376,7 +377,7 @@ if __name__ == '__main__':
   cl_opts = cmdline()
   
   results = dict()
-  groups = NEW_BENCHMARKS
+  # groups = NEW_BENCHMARKS
   
   if cl_opts.var:
     generate_variants()
@@ -384,18 +385,18 @@ if __name__ == '__main__':
     clean_variants()
   else:        
     # Read stats into a dictionary of synthesis results
-    read_csv()
+    # read_csv()
     
     # for res in results:
       # print results[res].str()
     
     # Generate Latex table
-    write_latex()
+    # write_latex()
     
     # results = dict()
-    # groups = OLD_BENCHMARKS
-    # read_csv()
-    # write_latex_old()
+    groups = OLD_BENCHMARKS
+    read_csv()
+    write_latex_old()
     
     
 

@@ -11,36 +11,32 @@ class SimpleBenchmarks extends FunSpec with Matchers with SynthesisRunnerUtil {
     }
   }
 
-  describe("SuSLik should be able synthesize") {
-    runAllTestsFromDir("paper-examples")
-  }
-
   describe("Integers") {
-    runAllTestsFromDir("paper-benchmarks/ints")
+    runAllTestsFromDir("simple-benchmarks/ints")
   }
 
   describe("Singly-linked list with bounds") {
-    runAllTestsFromDir("paper-benchmarks/sll-bounds")
+    runAllTestsFromDir("simple-benchmarks/sll-bounds")
   }
 
   describe("Singly-linked list with set of elements") {
-    runAllTestsFromDir("paper-benchmarks/sll")
+    runAllTestsFromDir("simple-benchmarks/sll")
   }
 
   describe("Sorted list") {
-    runAllTestsFromDir("paper-benchmarks/srtl")
+    runAllTestsFromDir("simple-benchmarks/srtl")
   }
 
   describe("Trees with size or elements") {
-    runAllTestsFromDir("paper-benchmarks/tree")
+    runAllTestsFromDir("simple-benchmarks/tree")
   }
 
   describe("Binary search trees") {
-    runAllTestsFromDir("paper-benchmarks/bst")
+    runAllTestsFromDir("simple-benchmarks/bst")
   }
 
   describe("Doubly-linked list with set of elements") {
-    runAllTestsFromDir("paper-benchmarks/dll")
+    runAllTestsFromDir("simple-benchmarks/dll")
   }
 
 }
