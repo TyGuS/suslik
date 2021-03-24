@@ -6,3 +6,4 @@ copy a binary tree
 void tree_copy(loc r)
 { r :-> y ** tree(x, s) ** tree(y, s) }
 
+#####

@@ -5,3 +5,5 @@ flatten a binary tree into into a list given a list accumulator
 { true ; tree(x, s) ** z :-> y ** sll(y, acc)}
 void tree_flatten(loc x, loc z)
 { s1 == s ++ acc ;  z :-> t ** sll(t, s1)}
+
+#####

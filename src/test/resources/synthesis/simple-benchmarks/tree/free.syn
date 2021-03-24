@@ -1,7 +1,9 @@
 deallocate a binary tree
 
-###
+#####
 
 { tree(x, s) }
   void tree_free(loc x)
 { emp }
+
+#####

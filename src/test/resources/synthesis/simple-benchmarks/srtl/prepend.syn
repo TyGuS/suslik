@@ -8,9 +8,3 @@ void srtl_prepend (loc x, int k, loc r)
 
 #####
 
-void srtl_prepend (loc x, int k, loc r) {
-  let y = malloc(2);
-  *r = y;
-  *(y + 1) = x;
-  *y = k;
-}

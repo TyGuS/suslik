@@ -8,3 +8,5 @@ minimum of two integers
 void min2(loc r, int x, int y)
 
 { m <= x  /\  m <= y; r :-> m }
+
+#####

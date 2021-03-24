@@ -7,3 +7,5 @@ doubly-linked list: copy
 {true ; r :-> x ** dll(x, a, s)}
 void dll_copy(loc r)
 {true ; r :-> y ** dll(x, a, s) ** dll(y, b, s) }
+
+#####
