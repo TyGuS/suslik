@@ -1,0 +1,9 @@
+singly-linked list: length
+
+#####
+
+{0 <= n ; ret :-> a ** sll(x, n, lo, hi) }
+void sll_len (loc x, loc ret)
+{true ; ret :-> n ** sll(x, n, lo, hi) }
+
+#####

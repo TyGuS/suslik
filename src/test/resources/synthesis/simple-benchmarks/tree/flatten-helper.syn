@@ -1,0 +1,13 @@
+flatten a binary tree into a list given an auxiliary function for appending lists
+
+####
+
+{ sll(x1, s1) ** sll(x2, s2) ** ret :-> x2 }
+void sll_append (loc x1, loc ret)
+{ s == s1 ++ s2 ; sll(y, s) ** ret :-> y }
+
+{ z :-> x ** tree(x, s)}
+void tree_flatten(loc z)
+{ z :-> y ** sll(y, s)}
+
+#####

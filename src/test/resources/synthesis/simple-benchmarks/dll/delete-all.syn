@@ -1,0 +1,10 @@
+# -b true -c 2
+doubly-linked list: delete all occurrences of x
+
+#####
+
+{true ; dll(x, b, s) ** ret :-> a}
+void dll_delete_all (loc x, loc ret)
+{s1 =i s -- {a} ; dll(y, c, s1) ** ret :-> y }
+
+#####

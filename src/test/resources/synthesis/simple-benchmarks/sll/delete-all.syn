@@ -1,0 +1,10 @@
+# -b true
+singly-linked list: delete all occurrences of x
+
+#####
+
+{ sll(x, s) ** ret :-> a }
+void sll_delete_all (loc x, loc ret)
+{ s1 == s -- {a} ; sll(y, s1) ** ret :-> y }
+
+#####

@@ -1,0 +1,10 @@
+singly-linked list: min
+
+#####
+
+{true ; ret :-> a ** sll(x, n, lo, hi) }
+void sll_min (loc x, loc ret)
+{true ; ret :-> lo ** sll(x, n, lo, hi) }
+
+#####
+

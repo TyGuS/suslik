@@ -12,6 +12,6 @@ package object synthesis {
   type StmtProducer = Seq[Statement] => Statement
 
 
-  val DEFAULT_TIMEOUT = 120000
+  val DEFAULT_TIMEOUT = 3600000
   val defaultConfig : SynConfig = new SynConfig
 }

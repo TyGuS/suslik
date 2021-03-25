@@ -21,14 +21,14 @@ case class SynConfig(
                       fail: Boolean             = true,
                       commute: Boolean          = true,
                       // Timeout and logging
-                      printStats: Boolean       = false,
+                      printStats: Boolean       = true,
                       printDerivations: Boolean = false,
                       printFailed: Boolean      = false,
-                      printTags: Boolean        = false,
+                      printTags: Boolean        = true,
                       printEnv: Boolean         = false,
                       printColor: Boolean       = true,
-                      assertSuccess: Boolean    = true,
-                      logToFile: Boolean        = false,
+                      assertSuccess: Boolean    = false,
+                      logToFile: Boolean        = true,
                       memoization: Boolean      = true,
                       timeOut: Long             = DEFAULT_TIMEOUT*100,
                       inputFormat: InputFormat = dotSyn
