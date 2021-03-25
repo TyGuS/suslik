@@ -2,7 +2,7 @@ binary search tree: rotate left
 
 #####
 
-{ not (r == 0) /\ 0 <= sz1 /\  0 <= sz2  /\  0 <= v /\ v <= 7 /\ hi1 <= v /\ v <= lo2 /\ 0 <= a /\ 0 <= b  ;
+{ not (r == 0) /\ 0 <= sz1 /\  0 <= sz2  /\  0 <= v /\ v <= 7 /\ hi1 <= v /\ v <= lo2  ;
   ret :-> unused ** [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** bst(l, sz1, lo1, hi1) ** bst(r, sz2, lo2, hi2) }
 void bst_left_rotate (loc x, loc ret)
 { sz3 + sz4 == sz1 + sz2 /\  0 <= sz3 /\  0 <= sz4  /\  0 <= v3 /\ v3 <= 7 /\ hi3 <= v3 /\ v3 <= lo4 ;

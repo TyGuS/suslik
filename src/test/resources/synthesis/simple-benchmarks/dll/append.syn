@@ -4,8 +4,8 @@ doubly-linked list: append
 
 #####
 
-{true ; dll(x1, a, s1) ** dll(x2, b, s2) ** ret :-> x2}
+{ dll(x1, a, s1) ** dll(x2, b, s2) ** ret :-> x2 }
 void dll_append (loc x1, loc ret)
-{s =i s1 ++ s2 ; dll(y, c, s) ** ret :-> y }
+{ s == s1 ++ s2 ; dll(y, c, s) ** ret :-> y }
 
 #####
