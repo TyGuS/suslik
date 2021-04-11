@@ -32,8 +32,8 @@ Running src/test/resources/synthesis/cyclic-benchmarks/rose-tree/free.syn 1.7s
 
 These instructions detail how to:
 
-1. Reproduce the results reported in Sec 5, Table 1 (evaluating Cypress on benchmarks with _complex recursion_)
-2. Reproduce the results reported in Appendix C, Table 1 (evaluating Cypress on benchmarks with _simple recursion_)
+1. Reproduce the results reported in Table 1 (evaluating Cypress on benchmarks with _complex recursion_)
+2. Reproduce the results reported in Table 2 (evaluating Cypress on benchmarks with _simple recursion_)
 3. Run Cypress on individual synthesis problems
 4. Rebuild Cypress from sources inside the VM
 
@@ -56,7 +56,7 @@ To reproduce the results on _complex benchmarks_ (as defined in Sec 5), execute:
 cd ~/suslik
 python2 evaluation.py
 ```
-This will run Cypress on all benchmarks from Sec 5, Table 1, apart from benchmark 5 `intersection`, which is reported there as failing (see more details below).
+This will run Cypress on all benchmarks from Table 1, except for benchmark 5 `intersection`, which takes over a minute and is therefore included in the long-running benchmarks (see below).
 This should take approximately *five minutes*.
 
 After the script terminates, it will create two output files in `~/suslik`:
@@ -80,11 +80,11 @@ To reproduce the results on _simple benchmarks_, execute:
 cd ~/suslik
 python2 evaluation.py --simple
 ```
-This will run Cypress on all benchmarks from Appendix C, Table 1, apart from the really long running benchmark `BST: delete root` (see more details below).
+This will run Cypress on all benchmarks from Table 2, apart from the really long running benchmark `BST: delete root` (see more details below).
 This should take approximately *five minutes*.
 
 After the script terminates, it will create two output files in `~/suslik`:
-- `simple.csv` contains Cypress results reported in Appendix C, Table 1 (For SusLik results, see the [suslik paper](https://cseweb.ucsd.edu/~npolikarpova/publications/suslik.pdf))
+- `simple.csv` contains Cypress results reported in Table 2 (For SusLik results, see the [suslik paper](https://cseweb.ucsd.edu/~npolikarpova/publications/suslik.pdf))
 - `all_resutls` contains the synthesized programs
 
 To inspect the results in a table form, you can execute:
@@ -132,27 +132,6 @@ We have excluded these two long-running benchmarks from the previous script mode
 because these are the only benchmarks that take over a minute to run natively (so, over two minutes on the VM).
 In particular, `intersection` takes 4 min,
 and `BST: delete root` takes ~45 mins to finish on the VM.
-
-The benchmark `intersection` needs a clarification, which we have made to reviewers during the rebuttal.
-Originally, we have a tried the following _destructive_ specification for this benchmark:
-```
-{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
-void intersect (loc r, loc y)
-{ r :-> z ** ulist(z, s1 * s2) }
-```
-This version of the benchmark fails, as reported in the submitted version of the paper
-because of the limitation on the class of auxiliaries that Cypress can generate.
-However, after the submission we realized that Cypress can actually handle the following version of this benchmark,
-where one of the original lists is preserved by the procedure:
-```
-{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
-void intersect (loc r, loc y)
-{ r :-> z ** ulist(z, s1 * s2) ** ulist(y, s2) }
-```
-This version allows Cypress to first recurse on the tail of `x`,
-and then check whether the head of `x` is present in `y` and hence whether it should be included in the intersection.
-This is the version of `intersect` included in the artifact (and this is the version we intend to present in the camera-ready);
-it can be synthesized in two minutes on native hardware (and in four minutes on the VM)
 
 ### Running on Individual Benchmarks
 
