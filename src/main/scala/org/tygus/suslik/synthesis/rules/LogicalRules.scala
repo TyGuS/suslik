@@ -249,18 +249,20 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // Should only substitute for a ghost
       def isGhostVar(e: Expr): Boolean = e.isInstanceOf[Var] && goal.universalGhosts.contains(e.asInstanceOf[Var])
 
+      def extractSides(l: Expr, r: Expr): Option[(Var, Expr)] =
+        if (l.vars.intersect(r.vars).isEmpty) {
+          if (isGhostVar(l)) Some(l.asInstanceOf[Var], r)
+          else if (isGhostVar(r)) Some(r.asInstanceOf[Var], l)
+          else None
+        } else None
+
       findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpBoolEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpSetEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case _ => false
+        case BinaryExpr(OpEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
+        case _ => None
       }, p1) match {
-        case Some((BinaryExpr(_, l, r), rest1)) => {
-          val (x, e) = if (isGhostVar(l)) {
-            (l.asInstanceOf[Var], r)
-          } else {
-            (r.asInstanceOf[Var], l)
-          }
+        case Some(((x, e), rest1)) => {
           val _p1 = rest1.subst(x, e)
           val _s1 = s1.subst(x, e)
           val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))

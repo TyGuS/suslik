@@ -426,18 +426,6 @@ object Expressions {
 
     def varSubst(sigma: Map[Var, Var]): Var = subst(sigma).asInstanceOf[Var]
 
-    def refresh(taken: Set[Var], suffix: String): Var = {
-      val safeSuffix = suffix.filter(c => c.isLetterOrDigit || c == '_')
-      var count = 1
-      val original = this.name + safeSuffix
-      var tmpName = original
-      while (taken.exists(_.name == tmpName)) {
-        tmpName = original + count
-        count = count + 1
-      }
-      Var(tmpName)
-    }
-
     def getType(gamma: Gamma): Option[SSLType] = gamma.get(this)
   }
 

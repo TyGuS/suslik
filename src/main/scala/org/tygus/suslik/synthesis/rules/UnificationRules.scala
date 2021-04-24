@@ -115,20 +115,30 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
 
-      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.isExistential(e.asInstanceOf[Var])
+      // Can e be substituted with d?
+      def canSubst(e: Expr, d: Expr) = e match {
+        case x@Var(_) =>
+          // e must be an existential var:
+          goal.isExistential(x) &&
+          // if it's a program-level existential, then all vars in d must be program-level
+          (!goal.isProgramLevelExistential(x) || d.vars.subsetOf(goal.programVars.toSet))
+        case _ => false
+      }
+
+      def extractSides(l: Expr, r: Expr): Option[(Var, Expr)] =
+        if (l.vars.intersect(r.vars).isEmpty) {
+          if (canSubst(l, r)) Some(l.asInstanceOf[Var], r)
+          else if (canSubst(r, l)) Some(r.asInstanceOf[Var], l)
+          else None
+        } else None
 
       findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpBoolEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpSetEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case _ => false
+        case BinaryExpr(OpEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
+        case _ => None
       }, p2) match {
-        case Some((BinaryExpr(_, l, r), rest2)) =>
-          val (x, e) = if (isExsistVar(l)) {
-            (l.asInstanceOf[Var], r)
-          } else {
-            (r.asInstanceOf[Var], l)
-          }
+        case Some(((x, e), rest2)) => {
           val sigma = Map(x -> e)
           val _p2 = rest2.subst(sigma)
           val _s2 = s2.subst(sigma)
@@ -136,6 +146,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
           val kont = IdProducer >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
+        }
         case _ => Nil
       }
     }

@@ -233,6 +233,13 @@ object Specifications extends SepLogicUtils {
 
     def isExistential(x: Var): Boolean = existentials.contains(x)
 
+    // Is x an argument to the call being adbuced
+    // and thus must only be unified with program-level expressions?
+    def isProgramLevelExistential(x:Var): Boolean = callGoal match {
+      case None => false
+      case Some(cg) => cg.call.args.contains(x)
+    }
+
     def getType(x: Var): SSLType = {
       gamma.get(x) match {
         case Some(t) => t
