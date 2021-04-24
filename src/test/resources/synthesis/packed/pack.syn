@@ -2,9 +2,9 @@
 
 ####
 
-{ r :-> x ** r + 1 :-> b ** packed_tree(x, sz) }
+{ r :-> x ** r + 1 :-> b ** packed_tree(x, sz, s) }
 void unpack(loc r)
-{ r :-> x + (2*sz) ** r + 1 :-> y ** packed_tree(x, sz) ** tree(y, sz) }
+{ r :-> x + (2*sz) ** r + 1 :-> y ** packed_tree(x, sz, s) ** tree(y, sz, s) }
 
 ####
 
