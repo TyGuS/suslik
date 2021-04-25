@@ -162,6 +162,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(delegatePure = b)
     }).text("delegate pure synthesis to CVC4; default: true")
 
+    opt[Boolean](name = "extended").action(cfg { b =>
+      _.copy(extendedPure = b)
+    }).text("use extended search space for pure synthesis with CVC4; default: false")
+
     opt[Boolean]('i', "interactive").action(cfg { b =>
       _.copy(interactive = b)
     }).text("interactive mode; default: false")

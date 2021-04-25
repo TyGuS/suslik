@@ -136,8 +136,10 @@ object DelegatePureSynthesis {
         allRHSs += c
       for (v <- otherVars; if v._2.conformsTo(etypeOpt)) {
         allRHSs += v._1
-        for (u <- typeUnaries(etypeOpt.get)) {
-         allRHSs += u(v._1)
+        if (goal.env.config.extendedPure) {
+          for (u <- typeUnaries(etypeOpt.get)) {
+            allRHSs += u(v._1)
+          }
         }
       }
       val notExcluded = allRHSs.filter(e => !grammarExclusion.exists(a => ex == a._1 && e == a._2))

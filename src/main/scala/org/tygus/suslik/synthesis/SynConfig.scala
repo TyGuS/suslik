@@ -31,6 +31,7 @@ case class SynConfig(
                       memoization: Boolean = true,
                       termination: TerminationMetric = lexicographic,
                       delegatePure: Boolean = true,
+                      extendedPure: Boolean = false,
                       // Timeout and logging
                       interactive: Boolean = false,
                       printStats: Boolean = true,
