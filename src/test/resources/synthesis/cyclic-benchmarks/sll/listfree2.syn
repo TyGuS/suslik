@@ -1,4 +1,4 @@
-# -x true
+
 Deallocate two linked lists (needs listfree as an auxiliary, unless we can pass emp as a list)
 
 ###

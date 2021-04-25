@@ -1,4 +1,4 @@
-# -o 2 -x true -p true --lexi true
+# -o 2 -p true
 
 [AuxRec]
 

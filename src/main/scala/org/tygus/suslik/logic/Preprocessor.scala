@@ -3,7 +3,7 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.logic.Specifications.Assertion
-import org.tygus.suslik.synthesis.{SynConfig, lexicographic, totalSize}
+import org.tygus.suslik.synthesis.SynConfig
 
 import scala.collection.immutable.Set
 
@@ -21,12 +21,7 @@ object Preprocessor extends SepLogicUtils {
     // val newPreds = preds
 
     // Enable predicate instrumentation
-    val newPreds =
-      params.termination match {
-        case `totalSize` => preds.map(p => p.copy(clauses = p.clauses.map(addPreciseCardConstraints)))
-        case `lexicographic` => preds.map(p => p.copy(clauses = p.clauses.map(addCardConstraints)))
-      }
-
+    val newPreds = preds.map(p => p.copy(clauses = p.clauses.map(addCardConstraints)))
     val predMap = newPreds.map(ps => ps.name -> ps).toMap
     (List(goal.spec), predMap, funMap, goal.body)
   }

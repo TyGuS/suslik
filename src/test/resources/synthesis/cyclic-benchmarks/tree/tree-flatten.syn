@@ -1,4 +1,4 @@
-# -x true -p true
+# -p true
 
 should be able to flatten the tree into a list 
 

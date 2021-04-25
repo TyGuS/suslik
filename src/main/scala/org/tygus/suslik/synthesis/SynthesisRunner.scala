@@ -146,10 +146,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(maxGuardConjuncts = n)
     }).text("maximum number of conjuncts in an abduced guard; default: 2")
 
-    opt[Boolean](name = "phased").action(cfg { b =>
-      _.copy(phased = b)
-    }).text("split rules into unfolding and flat phases; default: true")
-
     opt[Boolean]('d', name = "dfs").action(cfg { b =>
       _.copy(depthFirst = b)
     }).text("depth first search; default: false")
@@ -197,10 +193,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean](name = "memo").action(cfg { b =>
       _.copy(memoization = b)
     }).text("enable memoization; default: true")
-
-    opt[Boolean](name = "lexi").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(termination = if (b) lexicographic else totalSize))
-    }.text("use lexicographic termination metric (as opposed to total size); default: false")
 
     opt[CertificationTarget](name="certTarget").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
