@@ -1,0 +1,12 @@
+expression with existential in a post points-to
+
+###
+
+{ x :-> y }
+  void test(loc x)
+{ z > y ; x :-> z }
+
+###
+
+###
+

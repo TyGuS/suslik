@@ -1,16 +1,17 @@
 package org.tygus.suslik.synthesis.rules
 
 
-import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Parser
+import org.bitbucket.franck44.scalasmt.parser.{SMTLIB2Parser, SMTLIB2Syntax}
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
-import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Subst}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer}
 
+import scala.collection.mutable
 import scala.sys.process._
 import scala.util.{Failure, Success}
 
@@ -23,8 +24,17 @@ object DelegatePureSynthesis {
   }
 
   val empsetName = "empset"
-  val typeConstants: Map[SSLType, List[String]] = Map(
-    IntType -> List("0"), LocType -> List("0"), IntSetType -> List(empsetName), CardType -> List("0")
+  val typeConstants: Map[SSLType, List[Expressions.Expr]] = Map(
+    IntType -> List(IntConst(0)),
+    LocType -> List(IntConst(0)),
+    IntSetType -> List(SetLiteral(List())),
+    CardType -> List(IntConst(0))
+  )
+  val typeUnaries: Map[SSLType, List[Expressions.Expr => Expressions.Expr]] = Map(
+    IntType -> List(e => e |+| IntConst(1)),
+    LocType -> List(),
+    IntSetType -> List(),
+    CardType -> List()
   )
 
   def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var, String], sb: StringBuilder): Unit = c match {
@@ -121,10 +131,21 @@ object DelegatePureSynthesis {
         sb ++= "(" ++= v._1.name ++= " " ++= typeToSMT(v._2) ++= ") "
       sb ++= ") " ++= etypeStr ++= "\n"
       sb ++= "  ((Start " ++= etypeStr ++= " ("
+      val allRHSs = mutable.ListBuffer.empty[Expressions.Expr]
       for (c <- typeConstants(etypeOpt.get))
-        sb ++= c ++= " "
-      for (v <- otherVars; if grammarExclusion.forall(a => !(ex == a._1 && v._1 == a._2)); if v._2.conformsTo(etypeOpt))
-        sb ++= v._1.name ++= " "
+        allRHSs += c
+      for (v <- otherVars; if v._2.conformsTo(etypeOpt)) {
+        allRHSs += v._1
+        for (u <- typeUnaries(etypeOpt.get)) {
+         allRHSs += u(v._1)
+        }
+      }
+      val notExcluded = allRHSs.filter(e => !grammarExclusion.exists(a => ex == a._1 && e == a._2))
+      for (e <- notExcluded) {
+        toSmtExpr(e, existentialMap, sb)
+        sb ++= " "
+      }
+
       sb ++= ")))"
       sb ++= ")\n"
     }
@@ -173,6 +194,14 @@ object DelegatePureSynthesis {
 
   val parser = SMTLIB2Parser[GetModelResponses]
 
+  def parseTerm(term: SMTLIB2Syntax.Term): Expressions.Expr = term match {
+    case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) =>
+      if (simpleSymbol == empsetName) Expressions.SetLiteral(List())
+      else Expressions.Var(simpleSymbol)
+    case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
+    case PlusTerm(t1, t2) => t2.foldRight(parseTerm(t1)) {case (t, e) => BinaryExpr(Expressions.OpPlus, e, parseTerm(t))}
+  }
+
   def parseAssignments(cvc4Res: String): Subst = {
     //〈FunDefCmd〉::=  (define-fun〈Symbol〉((〈Symbol〉 〈SortExpr〉)∗)〈SortExpr〉 〈Term〉
     parser.apply(StringSource("(model " + cvc4Res + ")")) match {
@@ -180,11 +209,7 @@ object DelegatePureSynthesis {
       case Success(GetModelFunDefResponseSuccess(responses)) =>
         responses.map { response =>
           val existential = response.funDef.sMTLIB2Symbol.asInstanceOf[SSymbol].simpleSymbol.drop(7)
-          val expr = response.funDef.term match {
-            case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) => if (simpleSymbol == empsetName) Expressions.SetLiteral(List())
-                                                                        else Expressions.Var(simpleSymbol)
-            case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
-          }
+          val expr = parseTerm(response.funDef.term)
           Expressions.Var(existential) -> expr
         }.toMap
     }
