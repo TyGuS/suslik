@@ -274,4 +274,44 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       }
     }
   }
+
+  /*
+   This rule replaces a universal ghost RHS of a points-to heaplet in the post
+   with a special existential that can only be replaced with program-level expressions.
+   This is needed so that pure synthesis can solve this existential in terms of program-level expr,
+   so we can write to this heaplet later  (see synthesis/regression/pure_syn3 as an example).
+   */
+  object GhostWrite extends SynthesisRule with InvertibleRule {
+    override def toString: String = "GhostWrite"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val post = goal.post
+
+      // Is this a points-to heaplet with universal ghosts in the RHS?
+      def pointsToGhosts: Heaplet => Boolean = {
+        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.exists(v => goal.universalGhosts.contains(v))
+        case _ => false
+      }
+
+      // When do two heaplets match
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && pointsToGhosts(hr)
+
+      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
+        case None => Nil
+        case Some((_, hr@PointsTo(x, offset, e2))) =>
+          val ex = freshVar(goal.vars, goal.progLevelPrefix)
+          val newPost = Assertion(
+            post.phi && (ex |=| e2),
+            (goal.post.sigma - hr) ** PointsTo(x, offset, ex))
+          val subGoal = goal.spawnChild(post = newPost)
+          val kont: StmtProducer = IdProducer >> ExtractHelper(goal)
+
+          List(RuleResult(List(subGoal), kont, this, goal))
+        case Some((hl, hr)) =>
+          ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
+          Nil
+      }
+    }
+
+  }
 }

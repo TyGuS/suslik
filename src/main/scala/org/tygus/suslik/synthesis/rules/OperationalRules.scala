@@ -41,15 +41,11 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       // When do two heaplets match
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && noGhosts(hr)
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && noGhosts(hr)
 
-      findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
+      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
         case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2))) =>
-          if (e1 == e2) {
-            return Nil
-          } // Do not write if RHSs are the same
-
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
           val subGoal = goal.spawnChild(newPre, newPost)

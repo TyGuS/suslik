@@ -49,15 +49,28 @@ trait SepLogicUtils extends PureLogicUtils {
     * Are two heaplets both points-to with the same LHS?
     */
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
-    if (!hl.isInstanceOf[PointsTo]) false
-    else {
-      val pt = hl.asInstanceOf[PointsTo]
-      hr match {
-        case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+    hl match {
+      case PointsTo(xl, ol, _) => hr match {
+        case PointsTo(xr, or, _) => xl == xr && ol == or
         case _ => false
       }
+      case _ => false
     }
   }
+
+  /**
+    * Are two heaplets both points-to with the same RHS?
+    */
+  def sameRhs(hl: Heaplet): Heaplet => Boolean = hr => {
+    hl match {
+      case PointsTo(_, _, el) => hr match {
+        case PointsTo(_, _, er) => el == er
+        case _ => false
+      }
+      case _ => false
+    }
+  }
+
 
   /**
     * Find a block satisfying a predicate, and all matching chunks.

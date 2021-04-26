@@ -32,7 +32,7 @@ object DelegatePureSynthesis {
   )
   val typeUnaries: Map[SSLType, List[Expressions.Expr => Expressions.Expr]] = Map(
     IntType -> List(e => e |+| IntConst(1)),
-    LocType -> List(),
+    LocType -> List(e => e |+| IntConst(1)),
     IntSetType -> List(),
     CardType -> List()
   )
@@ -134,7 +134,7 @@ object DelegatePureSynthesis {
       val allRHSs = mutable.ListBuffer.empty[Expressions.Expr]
       for (c <- typeConstants(etypeOpt.get))
         allRHSs += c
-      for (v <- otherVars; if v._2.conformsTo(etypeOpt)) {
+      for (v <- otherVars; if v._2.conformsTo(etypeOpt) && (!goal.isProgramLevelExistential(ex) || goal.isProgramVar(v._1))) {
         allRHSs += v._1
         if (goal.env.config.extendedPure) {
           for (u <- typeUnaries(etypeOpt.get)) {

@@ -164,7 +164,7 @@ trait PureLogicUtils {
 
   // Variable name with a given prefix that does not appear in taken
   def freshVar(taken: Set[Var], prefix: String): Var = {
-    val safePrefix = prefix.filter(c => c.isLetterOrDigit || c == '_').dropWhile(!_.isLetter)
+    val safePrefix = prefix.filter(c => c.isLetterOrDigit || c == '_').dropWhile(_.isDigit)
     var count = 1
     var tmpName = safePrefix
     while (taken.exists(_.name == tmpName)) {
