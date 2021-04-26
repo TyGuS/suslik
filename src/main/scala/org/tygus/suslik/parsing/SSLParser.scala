@@ -56,10 +56,12 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     "not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus
 
   // TODO: remove legacy ++, --, =i, /\, \/, <=i
-  def termOpParser: Parser[OverloadedBinOp] = (
+  def termOpParser: Parser[OverloadedBinOp] = "*" ^^^ OpOverloadedStar
+
+  // TODO: remove legacy ++, --, =i, /\, \/, <=i
+  def addOpParser: Parser[OverloadedBinOp] = (
     ("++" ||| "+") ^^^ OpOverloadedPlus
       ||| ("--" ||| "-") ^^^ OpOverloadedMinus
-      ||| "*" ^^^ OpOverloadedStar
     )
 
   def relOpParser: Parser[OverloadedBinOp] = (
@@ -91,8 +93,10 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def term: Parser[Expr] = chainl1(atom, binOpParser(termOpParser))
 
+  def addExpr: Parser[Expr] = chainl1(term, binOpParser(addOpParser))
+
   def relExpr: Parser[Expr] =
-    term ~ opt(relOpParser ~ term) ^^ {
+    addExpr ~ opt(relOpParser ~ addExpr) ^^ {
       case a ~ None => a
       case a ~ Some(op ~ b) => OverloadedBinaryExpr(op, a, b)
     }

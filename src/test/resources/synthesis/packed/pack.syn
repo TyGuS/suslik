@@ -2,9 +2,9 @@
 
 ####
 
-{ y + (2*sz) <= end && 1 <= sz ; r :-> y ** tree(x, sz, s) ** uninitialized(y, end) }
+{ y + 2*sz <= end && 1 <= sz ; r :-> y ** tree(x, sz, s) ** uninitialized(y, end) }
 void pack(loc x, loc r, loc end)
-{ z == y + (2*sz) ; r :-> z ** tree(x, sz, s) ** packed_tree(y, sz, s) ** uninitialized(z, end) }
+{ z == y + 2*sz ; r :-> z ** tree(x, sz, s) ** packed_tree(y, sz, s) ** uninitialized(z, end) }
 
 ####
 
@@ -49,6 +49,7 @@ void pack (loc x, loc r, loc end) {
 1
 1
 2
+1
 1
 1
 6
