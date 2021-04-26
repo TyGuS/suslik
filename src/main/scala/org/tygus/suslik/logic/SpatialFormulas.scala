@@ -75,8 +75,10 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
     s"$head :-> ${value.pp}"
   }
 
-  def subst(sigma: Map[Var, Expr]): Heaplet =
-    PointsTo(loc.subst(sigma), offset, value.subst(sigma))
+  def subst(sigma: Map[Var, Expr]): Heaplet = loc.subst(sigma) match {
+    case BinaryExpr(OpPlus, l, IntConst(off)) => PointsTo(l, offset + off, value.subst (sigma))
+    case _ => PointsTo (loc.subst (sigma), offset, value.subst (sigma) )
+  }
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     for {

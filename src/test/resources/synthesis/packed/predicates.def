@@ -2,7 +2,6 @@ predicate tree(loc x, int sz, set s) {
 |  true  => { x :-> tag ** tree_inner(x, tag, sz, s) }
 }
 
-
 predicate tree_inner(loc x, int tag, int sz, set s) {
 |  tag == 1  => { sz == 1 && s == {v} ; [x,2] ** x + 1 :-> v }
 |  tag == 0  => { sz == 1 + sz1 + sz2  &&  1 <= sz1 &&  1 <= sz2 &&  s == {v} ++ s1 ++ s2  ;
@@ -17,6 +16,11 @@ predicate packed_tree_inner(loc x, int tag, int sz, set s) {
 |  tag == 1  => { sz == 1 && s == {v} ; x + 1 :-> v }
 |  tag == 0  => { sz == 1 + sz1 + sz2  &&  1 <= sz1  &&  1 <= sz2  &&  s == {v} ++ s1 ++ s2;
                  x + 1 :-> v ** packed_tree(x + 2, sz1, s1) ** packed_tree(x + (2*(1 + sz1)), sz2, s2)  }
+}
+
+predicate uninitialized(loc x, loc y) {
+|  x == y => { emp }
+|  x != y => { x :-> v ** uninitialized(x + 1, y) }
 }
 
 
