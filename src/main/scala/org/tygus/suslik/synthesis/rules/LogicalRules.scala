@@ -300,10 +300,12 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case None => Nil
         case Some((_, hr@PointsTo(x, offset, e2))) =>
           val ex = freshVar(goal.vars, goal.progLevelPrefix)
+          val tpy = e2.getType(goal.gamma).get
           val newPost = Assertion(
             post.phi && (ex |=| e2),
             (goal.post.sigma - hr) ** PointsTo(x, offset, ex))
-          val subGoal = goal.spawnChild(post = newPost)
+          val subGoal = goal.spawnChild(post = newPost,
+                                        gamma = goal.gamma + (ex -> tpy))
           val kont: StmtProducer = IdProducer >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))

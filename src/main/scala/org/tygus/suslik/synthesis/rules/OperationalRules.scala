@@ -87,7 +87,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val y = freshVar(goal.vars, e.pp)
           val tpy = e.getType(goal.gamma).get
           val newPhi = phi && (y |=| e)
-          val newSigma = (sigma - pts) ** (PointsTo(x, offset, y))
+          val newSigma = (sigma - pts) ** PointsTo(x, offset, y)
           val subGoal = goal.spawnChild(pre = Assertion(newPhi, newSigma),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
