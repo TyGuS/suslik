@@ -50,7 +50,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     assert(smtTask == """(set-logic ALL)
                         |
                         |(synth-fun target_m ((r Int) (x Int) (y Int) ) Int
-                        |  ((Start Int (0 r (+ r 1) x (+ x 1) y (+ y 1) ))))
+                        |  ((Start Int (0 r x y ))))
                         |
                         |(declare-var r Int)
                         |(declare-var x Int)
@@ -132,7 +132,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
                         |(define-fun empset () (Set Int) (as emptyset (Set Int)))
                         |
                         |(synth-fun target_v1 ((x Int) (S1 (Set Int)) (v Int) (S (Set Int)) ) Int
-                        |  ((Start Int (0 x (+ x 1) v (+ v 1) ))))
+                        |  ((Start Int (0 x v ))))
                         |(synth-fun target_S11 ((x Int) (S1 (Set Int)) (v Int) (S (Set Int)) ) (Set Int)
                         |  ((Start (Set Int) (empset S1 S ))))
                         |
@@ -211,7 +211,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     assert(smt == """(set-logic ALL)
                     |
                     |(synth-fun target_m ((r Int) (x Int) (y Int) ) Int
-                    |  ((Start Int (0 r (+ r 1) (+ x 1) y (+ y 1) ))))
+                    |  ((Start Int (0 r y ))))
                     |
                     |(declare-var r Int)
                     |(declare-var x Int)
