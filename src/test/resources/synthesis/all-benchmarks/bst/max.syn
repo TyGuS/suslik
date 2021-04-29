@@ -1,0 +1,16 @@
+# -c 2 -p true
+
+binary search tree: find smallest element
+
+#####
+
+{ 0 <= sz /\  0 <= lo /\ hi <= 7;
+    ret :-> unused ** 
+    bst(x, sz, lo, hi)  }
+
+void bst_max (loc x, loc ret)
+
+{   ret :-> hi **
+    bst(x, sz, lo, hi) }
+
+#####

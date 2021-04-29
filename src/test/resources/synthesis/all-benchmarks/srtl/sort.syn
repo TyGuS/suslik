@@ -1,0 +1,43 @@
+# -b true -c 2 -p true
+
+sort a list
+
+#####
+
+{ 0 <= n ; sll(x, n, lo, hi) }
+void sort (loc x)
+{ srtl(x, n, lo, hi) }
+
+#####
+
+{0 <= n ; sll(x, n, lo, hi)<_alpha_516>}
+{srtl(x, n, lo, hi)<_alpha_517>}
+void sort (loc x) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    sort(n);
+    sort114(n, v, x);
+  }
+}
+
+{0 <= 1 + len1x && 0 <= len1x && 0 <= vx2 && _alpha_513x < _alpha_516 && not (x == 0) && vx2 <= 7 ; (x + 1) :-> nxtx2 ** x :-> vx2 ** srtl(nxtx2, len1x, lo1x, hi1x)<_alpha_5171>[1,0] ** [x, 2]}
+{srtl(x, 1 + len1x, vx2 <= lo1x ? vx2 : lo1x, hi1x <= vx2 ? vx2 : hi1x)<_alpha_517>}
+void sort114 (loc nxtx2, int vx2, loc x) {
+  if (nxtx2 == 0) {
+    *(x + 1) = 0;
+  } else {
+    let v = *nxtx2;
+    if (vx2 <= v) {
+      let n = *(nxtx2 + 1);
+      sort114(n, v, nxtx2);
+    } else {
+      let n = *(nxtx2 + 1);
+      *nxtx2 = vx2;
+      sort114(n, vx2, nxtx2);
+      *x = v;
+    }
+  }
+}
+

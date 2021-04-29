@@ -1,0 +1,36 @@
+# -o 2 -p true
+
+should be able to deallocate a multi-list
+
+###
+
+{ multilist(x, len, s) }
+  void multilist_free(loc x)
+{ emp }
+
+###
+
+{multilist(x, len, s)<a>}
+{emp}
+void multilist_free (loc x) {
+  if (x == 0) {
+  } else {
+    let h = *x;
+    let t = *(x + 1);
+    multilist_free(t);
+    multilist_free112(t, h, x);
+  }
+}
+
+{_alpha_518x < a && _alpha_519x < a && not (x == 0) ; (x + 1) :-> tx2 ** x :-> hx2 ** sll(hx2, len1x, s1x)<_alpha_518x>[0,1] ** [x, 2]}
+{emp}
+void multilist_free112 (loc tx2, loc hx2, loc x) {
+  if (hx2 == 0) {
+    free(x);
+  } else {
+    let n = *(hx2 + 1);
+    *hx2 = n;
+    multilist_free112(n, n, hx2);
+    free(x);
+  }
+}

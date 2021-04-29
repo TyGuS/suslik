@@ -1,0 +1,37 @@
+# -o 2 -p true
+
+should be able to deallocate a rose tree
+
+###
+
+{ rose_tree(x, s) }
+  void rose_tree_free(loc x)
+{ emp }
+
+###
+
+{rose_tree(x, s)<a>}
+{emp}
+void rose_tree_free (loc x) {
+  if (x == 0) {
+  } else {
+    rose_tree_free10(x);
+  }
+}
+
+{not (x == 0) && zx < a ; x :-> bx ** buds(bx, s)<zx>[1] ** [x, 1]}
+{emp}
+void rose_tree_free10 (loc x) {
+  let b = *x;
+  if (b == 0) {
+    free(x);
+  } else {
+    let r = *(b + 1);
+    let n = *(b + 2);
+    rose_tree_free(r);
+    *x = n;
+    rose_tree_free10(x);
+    free(b);
+  }
+}
+

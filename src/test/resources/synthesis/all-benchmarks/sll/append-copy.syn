@@ -1,0 +1,48 @@
+# -p true
+append multiple lists
+
+###
+
+{ r :-> x2 ** sll(x1, s1) ** sll(x2, s2) }
+void sll_append_copy(loc x1, loc r)
+{ s == s1 ++ s2 ; r :-> y ** sll(x1, s1) ** sll(x2, s2) ** sll(y, s) }
+
+###
+
+{r :-> x2 ** sll(x1, s1)<_alpha_569> ** sll(x2, s2)<_alpha_570>}
+{s == s1 + s2 ; r :-> y ** sll(x1, s1)<_alpha_571> ** sll(x2, s2)<_alpha_572> ** sll(y, s)<_alpha_573>}
+void sll_append_copy (loc x1, loc r) {
+  let x = *r;
+  if (x1 == 0) {
+    sll_append_copy00(x, x1, r);
+  } else {
+    let v = *x1;
+    let n = *(x1 + 1);
+    sll_append_copy(n, r);
+    let y1 = *r;
+    let y = malloc(2);
+    *r = y;
+    *(y + 1) = y1;
+    *y = v;
+  }
+}
+
+{not (r == 0) && s1 =i {} && x1 == 0 ; r :-> x22 ** sll(x22, s2)<_alpha_570>}
+{r :-> y ** sll(x1, s1)<_alpha_571> ** sll(x22, s2)<_alpha_572> ** sll(y, s1 ++ s2)<_alpha_573>}
+void sll_append_copy00 (loc x22, loc x1, loc r) {
+  if (x22 == 0) {
+  } else {
+    let v = *x22;
+    let n = *(x22 + 1);
+    *r = n;
+    sll_append_copy00(n, 0, r);
+    let y1 = *r;
+    let y = malloc(2);
+    *r = y;
+    *(y + 1) = y1;
+    *y = v;
+  }
+}
+
+###
+

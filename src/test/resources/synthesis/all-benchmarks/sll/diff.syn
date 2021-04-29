@@ -1,0 +1,54 @@
+# -b true -c 2 -p true
+
+difference of two unique lists
+
+#####
+
+{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
+void diff (loc r, loc y)
+{ r :-> z ** ulist(z, s1 -- s2) }
+
+#####
+
+{r :-> x ** ulist(x, s1)<_alpha_515> ** ulist(y, s2)<_alpha_516>}
+{r :-> z ** ulist(z, s1 - s2)<_alpha_517>}
+void diff (loc r, loc y) {
+  let x = *r;
+  if (y == 0) {
+  } else {
+    let v = *y;
+    let n = *(y + 1);
+    diff(r, n);
+    diff119(n, v, x, r, y);
+  }
+}
+
+{_alpha_514y < _alpha_516 && not (r == 0) && not (r == y) && not (vy2 in s1y) && not (y == 0) ; (y + 1) :-> nxty2 ** r :-> z1 ** y :-> vy2 ** ulist(z1, s1 -- s1y)<_alpha_5171>[1,0] ** [y, 2]}
+{not (r == 0) ; r :-> z ** ulist(z, s1 -- {vy2} ++ s1y)<_alpha_517>}
+void diff119 (loc nxty2, int vy2, loc x2, loc r, loc y) {
+  let z1 = *r;
+  if (z1 == 0) {
+    free(y);
+    *r = 0;
+  } else {
+    let v = *z1;
+    if (vy2 <= v && v <= vy2) {
+      let n = *(z1 + 1);
+      free(z1);
+      free(y);
+      *r = n;
+    } else {
+      let n = *(z1 + 1);
+      *r = n;
+      *(z1 + 1) = nxty2;
+      *z1 = vy2;
+      diff119(nxty2, vy2, x2, r, z1);
+      let z = *r;
+      *(y + 1) = z;
+      *r = y;
+      *y = v;
+    }
+  }
+}
+
+

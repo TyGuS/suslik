@@ -1,0 +1,35 @@
+Deallocate two trees
+
+###
+
+{tree(x, s1) ** tree(y, s2)}
+  void treefree2(loc x, loc y)
+{emp }
+
+###
+
+void treefree2 (loc x, loc y) {
+  if (x == 0) {
+    if (y == 0) {
+    } else {
+      let l = *y;
+      let r = *(y + 1);
+      treefree2(r, l);
+      free(y);
+    }
+  } else {
+    let lx = *x;
+    let rx = *(x + 1);
+    if (y == 0) {
+      treefree2(rx, lx);
+      free(x);
+    } else {
+      let l = *y;
+      let r = *(y + 1);
+      treefree2(r, l);
+      treefree2(lx, rx);
+      free(x);
+      free(y);
+    }
+  }
+}

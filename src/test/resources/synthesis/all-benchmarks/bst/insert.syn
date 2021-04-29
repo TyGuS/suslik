@@ -1,0 +1,36 @@
+# -b true -c 2
+binary search tree: insert an element
+
+#####
+
+{0 <= n /\ 0 <= k /\ k <= 7 ; ret :-> k ** bst(x, n, lo, hi)<a> }
+void bst_insert (loc x, loc ret)
+{b == a + 3 /\ n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; ret :-> y ** bst(y, n1, lo1, hi1)<b> }
+
+#####
+
+void bst_insert (loc x, loc ret) {
+  let k = *ret;
+  if (x == 0) {
+    let y = malloc(3);
+    *ret = y;
+    *(y + 1) = 0;
+    *(y + 2) = 0;
+    *y = k;
+  } else {
+    let v = *x;
+    if (v <= k) {
+      let r = *(x + 2);
+      bst_insert(r, ret);
+      let y = *ret;
+      *ret = x;
+      *(x + 2) = y;
+    } else {
+      let l = *(x + 1);
+      bst_insert(l, ret);
+      let y = *ret;
+      *(x + 1) = y;
+      *ret = x;
+    }
+  }
+}

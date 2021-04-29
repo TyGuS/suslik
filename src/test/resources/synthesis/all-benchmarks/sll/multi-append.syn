@@ -1,0 +1,41 @@
+# -p true
+append multiple lists 
+
+###
+
+{r :-> a ** sll(x, s1) ** sll(y, s2) ** sll(z, s3)}
+  void append3(loc x, loc y, loc z, loc r)
+{s == s1 ++ s2 ++ s3; r :-> v ** sll(v, s) }
+
+###
+
+{r :-> a ** sll(x, s1)<_alpha_578> ** sll(y, s2)<_alpha_579> ** sll(z, s3)<_alpha_580>}
+{s == (s1 + s2) + s3 ; r :-> v ** sll(v, s)<_alpha_581>}
+void append3 (loc x, loc y, loc z, loc r) {
+  let a = *r;
+  if (x == 0) {
+    append300(a, x, y, z, r);
+  } else {
+    let n = *(x + 1);
+    append3(n, y, z, r);
+    let v = *r;
+    *(x + 1) = v;
+    *r = x;
+  }
+}
+
+{not (r == 0) && s1 =i {} && x == 0 ; r :-> a2 ** sll(y, s2)<_alpha_579> ** sll(z, s3)<_alpha_580>}
+{r :-> v ** sll(v, s1 ++ s2 ++ s3)<_alpha_581>}
+void append300 (loc a2, loc x, loc y, loc z, loc r) {
+  if (y == 0) {
+    *r = z;
+  } else {
+    let n = *(y + 1);
+    append300(a2, 0, n, z, r);
+    let v = *r;
+    *(y + 1) = v;
+    *r = y;
+  }
+}
+
+###

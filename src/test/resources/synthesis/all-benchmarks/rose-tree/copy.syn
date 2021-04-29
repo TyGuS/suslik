@@ -1,0 +1,14 @@
+# -o 2 -c 2 -p true
+
+should be able to copy a rose tree
+
+###
+
+{ r :-> x ** rose_tree(x, s) }
+  void rose_tree_copy(loc r)
+{ r :-> y ** rose_tree(x, s) ** rose_tree(y, s) }
+
+###
+
+###
+

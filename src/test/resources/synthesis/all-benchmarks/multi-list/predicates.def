@@ -1,0 +1,10 @@
+predicate sll(loc x, int len, set s) {
+|  x == 0        => { len == 0 /\ s == {} ; emp }
+|  not (x == 0)  => { len == 1 + len1 /\ s == {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, len1, s1) }
+}
+
+predicate multilist(loc x, int size, set s) {
+|  x == 0        => { size == 0 /\ s == {} ; emp }
+|  not (x == 0)  => { size == len1 + size2 /\ s == s1 ++ s2 ;
+                      [x, 2] ** x :-> h ** (x + 1) :-> t ** sll(h, len1, s1) ** multilist(t, size2, s2) }
+}

@@ -1,0 +1,60 @@
+# -o 2 -c 2 -p true
+
+should be able to flatten a rose tree into a list
+
+###
+
+{ r :-> x ** rose_tree(x, s) }
+  void rose_tree_flatten(loc r)
+{ r :-> y ** sll(y, s) }
+
+###
+
+{r :-> x ** rose_tree(x, s)<_alpha_552>}
+{r :-> y ** sll(y, s)<_alpha_553>}
+void rose_tree_flatten (loc r) {
+  let x = *r;
+  if (x == 0) {
+    *r = 0;
+  } else {
+    rose_tree_flatten10(x, r);
+  }
+}
+
+{_alpha_545x2 < _alpha_552 && not (r == 0) && not (x2 == 0) && s =i {vx2} ++ s1x2 ; (x2 + 1) :-> bx2 ** r :-> x2 ** x2 :-> vx2 ** buds(bx2, s1x2)<_alpha_545x2>[0,1] ** [x2, 2]}
+{not (r == 0) ; r :-> y ** sll(y, s)<_alpha_553>}
+void rose_tree_flatten10 (loc x2, loc r) {
+  let v = *x2;
+  let b = *(x2 + 1);
+  if (b == 0) {
+    *(x2 + 1) = 0;
+  } else {
+    let rb = *b;
+    let n = *(b + 1);
+    *r = rb;
+    rose_tree_flatten(r);
+    let y = *r;
+    *r = b;
+    *b = v;
+    rose_tree_flatten10(b, r);
+    rose_tree_flatten14133(y, n, rb, b, v, x2, r);
+  }
+}
+
+{_alpha_545x2 < _alpha_552 && _alpha_546bx22 < _alpha_545x2 && _alpha_547bx22 < _alpha_545x2 && not (bx22 == 0) && not (bx22 == r) && not (bx22 == x2) && not (r == 0) && not (r == x2) && not (x2 == 0) ; (x2 + 1) :-> bx22 ** r :-> y2 ** x2 :-> vx22 ** sll(y12, s1bx22)<_alpha_5531>[1,0] ** sll(y2, {vx22} ++ s2bx22)<_alpha_5532>[1,0] ** [x2, 2]}
+{not (r == 0) ; r :-> y ** sll(y, {vx22} ++ s1bx22 ++ s2bx22)<_alpha_553>}
+void rose_tree_flatten14133 (loc y12, loc nxtbx222, loc rbx222, loc bx22, int vx22, loc x2, loc r) {
+  if (y12 == 0) {
+    free(x2);
+  } else {
+    let v = *y12;
+    let n = *(y12 + 1);
+    *(y12 + 1) = x2;
+    *y12 = vx22;
+    rose_tree_flatten14133(n, nxtbx222, rbx222, x2, vx22, y12, r);
+    let y = *r;
+    *(x2 + 1) = y;
+    *r = x2;
+    *x2 = v;
+  }
+}

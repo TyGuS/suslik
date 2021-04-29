@@ -1,0 +1,51 @@
+# -p true
+
+should be able to flatten the tree into a list 
+
+####
+
+{ z :-> x ** tree(x, s) }
+void flatten(loc z)
+{ z :-> y ** sll(y, s) }
+
+####
+
+{z :-> x ** tree(x, s)<_alpha_516>}
+{z :-> y ** sll(y, s)<_alpha_517>}
+void flatten (loc z) {
+  let x = *z;
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let l = *(x + 1);
+    let r = *(x + 2);
+    *z = l;
+    flatten(z);
+    let y = *z;
+    *z = r;
+    flatten(z);
+    flatten126(y, r, l, v, x, z);
+  }
+}
+
+{_alpha_514x2 < _alpha_516 && _alpha_515x2 < _alpha_516 && not (x2 == 0) && not (x2 == z) && not (z == 0) ; (x2 + 1) :-> lx22 ** (x2 + 2) :-> rx22 ** x2 :-> vx22 ** z :-> y2 ** sll(y12, s1x2)<_alpha_5171>[3] ** sll(y2, s2x2)<_alpha_5172>[3] ** [x2, 3]}
+{z :-> y ** sll(y, {vx22} ++ s1x2 ++ s2x2)<_alpha_517>}
+void flatten126 (loc y12, loc rx22, loc lx22, int vx22, loc x2, loc z) {
+  let y2 = *z;
+  if (y12 == 0) {
+    let y = malloc(2);
+    free(x2);
+    *z = y;
+    *(y + 1) = y2;
+    *y = vx22;
+  } else {
+    let n = *(y12 + 1);
+    flatten126(n, rx22, lx22, vx22, x2, z);
+    let y = *z;
+    *(y12 + 1) = y;
+    *z = y12;
+  }
+}
+
+#####
+

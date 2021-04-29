@@ -1,0 +1,53 @@
+# -b true -c 2 -p true -f 1
+sorted list: merge
+
+#####
+
+{ 0 <= nx /\ 0 <= ny ;
+    r :-> y ** srtl(x, nx, lox, hix) ** srtl(y, ny, loy, hiy) }
+void srtl_merge (loc x, loc r)
+{ n == nx + ny /\  lo == (lox <= loy ? lox : loy)  /\ hi == (hix <= hiy ? hiy : hix) ;
+    r :-> z ** srtl(z, n, lo, hi) }
+
+#####
+
+{0 <= hix && 0 <= hiy && 0 <= lox && 0 <= loy && 0 <= nx && 0 <= ny && hix <= 7 && hiy <= 7 && lox <= 7 && loy <= 7 ; r :-> x ** srtl(x, nx, lox, hix)<_alpha_586> ** srtl(y, ny, loy, hiy)<_alpha_587>}
+{hi == (hix <= hiy ? hiy : hix) && lo == (lox <= loy ? lox : loy) && n == nx + ny ; r :-> z ** srtl(z, n, lo, hi)<_alpha_588>}
+void srtl_merge (loc y, loc r) {
+  let x = *r;
+  if (x == 0) {
+    *r = y;
+  } else {
+    srtl_merge10(x, y, r);
+  }
+}
+
+{0 <= hi1x2 && 0 <= hix && 0 <= hiy && 0 <= len1x2 && 0 <= lo1x2 && 0 <= lox && 0 <= loy && 0 <= nx && 0 <= ny && 0 <= vx2 && _alpha_585x2 < _alpha_586 && hi1x2 <= 7 && hix <= 7 && hix == (hi1x2 <= vx2 ? vx2 : hi1x2) && hiy <= 7 && lo1x2 <= 7 && lox <= 7 && lox == (vx2 <= lo1x2 ? vx2 : lo1x2) && loy <= 7 && not (r == 0) && not (x2 == 0) && nx == 1 + len1x2 && vx2 <= 7 && vx2 <= lo1x2 ; (x2 + 1) :-> nxtx2 ** r :-> x2 ** x2 :-> vx2 ** srtl(nxtx2, len1x2, lo1x2, hi1x2)<_alpha_585x2>[1] ** srtl(y, ny, loy, hiy)<_alpha_587> ** [x2, 2]}
+{r :-> z ** srtl(z, nx + ny, lox <= loy ? lox : loy, hix <= hiy ? hiy : hix)<_alpha_588>}
+void srtl_merge10 (loc x2, loc y, loc r) {
+  let vx = *x2;
+  let nx = *(x2 + 1);
+  if (y == 0) {
+  } else {
+    let v = *y;
+    if (vx <= v) {
+      *r = y;
+      srtl_merge10(y, nx, r);
+      let z = *r;
+      *(x2 + 1) = z;
+      *r = x2;
+    } else {
+      let n = *(y + 1);
+      *(y + 1) = nx;
+      *r = y;
+      *y = vx;
+      srtl_merge10(y, n, r);
+      let z = *r;
+      *(x2 + 1) = z;
+      *r = x2;
+      *x2 = v;
+    }
+  }
+}
+
+#####

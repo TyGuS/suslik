@@ -1,0 +1,43 @@
+# -o 2 -p true
+
+should be able to flatten a multi-list into a sll
+
+###
+
+{ r :-> x ** multilist(x, len, s) }
+  void multilist_flatten(loc r)
+{ r :-> y ** sll(y, len, s) }
+
+###
+
+{r :-> x ** multilist(x, len, s)<a>}
+{r :-> y ** sll(y, len, s)<_alpha_516>}
+void multilist_flatten (loc r) {
+  let x = *r;
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let h = *x;
+    let t = *(x + 1);
+    *r = t;
+    multilist_flatten(r);
+    multilist_flatten116(t, h, x, r);
+  }
+}
+
+{_alpha_514x2 < a && _alpha_515x2 < a && not (r == 0) && not (r == x2) && not (x2 == 0) ; (x2 + 1) :-> tx22 ** r :-> y1 ** x2 :-> hx22 ** sll(hx22, len1x2, s1x2)<_alpha_514x2>[0,1] ** sll(y1, size2x2, s2x2)<_alpha_5161>[1,0] ** [x2, 2]}
+{not (r == 0) ; r :-> y ** sll(y, len1x2 + size2x2, s1x2 ++ s2x2)<_alpha_516>}
+void multilist_flatten116 (loc tx22, loc hx22, loc x2, loc r) {
+  if (hx22 == 0) {
+    free(x2);
+  } else {
+    let v = *hx22;
+    let n = *(hx22 + 1);
+    *hx22 = n;
+    multilist_flatten116(n, n, hx22, r);
+    let y = *r;
+    *(x2 + 1) = y;
+    *r = x2;
+    *x2 = v;
+  }
+}

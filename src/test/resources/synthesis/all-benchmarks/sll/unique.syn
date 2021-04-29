@@ -1,0 +1,55 @@
+# -b true -c 2 -p true
+
+deduplicate a list
+
+#####
+
+{ r :-> x ** sll(x, s) }
+void unique (loc r)
+{ r :-> y ** ulist(y, s) }
+
+#####
+
+{r :-> x ** sll(x, s)<_alpha_515>}
+{r :-> y ** ulist(y, s)<_alpha_516>}
+void unique (loc r) {
+  let x = *r;
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    *r = n;
+    unique(r);
+    unique114(n, v, x, r);
+  }
+}
+
+{_alpha_513x2 < _alpha_515 && not (r == 0) && not (r == x2) && not (x2 == 0) ; (x2 + 1) :-> nxtx22 ** r :-> y1 ** x2 :-> vx22 ** ulist(y1, s1x2)<_alpha_5161>[1,0] ** [x2, 2]}
+{not (r == 0) ; r :-> y ** ulist(y, {vx22} ++ s1x2)<_alpha_516>}
+void unique114 (loc nxtx22, int vx22, loc x2, loc r) {
+  let y1 = *r;
+  if (y1 == 0) {
+    *(x2 + 1) = 0;
+    *r = x2;
+  } else {
+    let v = *y1;
+    if (vx22 <= v && v <= vx22) {
+      let n = *(y1 + 1);
+      *r = n;
+      unique114(n, v, y1, r);
+      free(x2);
+    } else {
+      let n = *(y1 + 1);
+      *r = n;
+      *(y1 + 1) = nxtx22;
+      *y1 = vx22;
+      unique114(nxtx22, vx22, y1, r);
+      let y = *r;
+      *(x2 + 1) = y;
+      *r = x2;
+      *x2 = v;
+    }
+  }
+}
+

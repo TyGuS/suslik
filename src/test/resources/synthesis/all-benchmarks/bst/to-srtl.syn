@@ -1,0 +1,71 @@
+# -c 2 -p true
+
+flatten a BST into a sorted list
+
+#####
+
+{ 0 <= n ; r :-> 0 ** bst(x, n, lo, hi) }
+void flatten(loc x, loc r)
+{ r :-> y ** srtl(y, n, lo, hi) }
+
+#####
+
+{0 <= n ; r :-> 0 ** bst(x, n, lo, hi)<_alpha_518>}
+{r :-> y ** srtl(y, n, lo, hi)<_alpha_519>}
+void flatten (loc x, loc r) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    flatten(l, r);
+    let y = *r;
+    *r = 0;
+    flatten(rx, r);
+    flatten132(y, rx, l, v, x, r);
+  }
+}
+
+{0 <= 1 + sz1x + sz2x && 0 <= sz1x && 0 <= sz2x && 0 <= vx2 && _alpha_516x < _alpha_518 && _alpha_517x < _alpha_518 && hi1x <= vx2 && not (r == 0) && not (r == x) && not (x == 0) && vx2 <= 7 && vx2 <= lo2x ; (x + 1) :-> lx2 ** (x + 2) :-> rx2 ** r :-> y2 ** x :-> vx2 ** srtl(y12, sz1x, lo1x, hi1x)<_alpha_5191>[1,0] ** srtl(y2, sz2x, lo2x, hi2x)<_alpha_5192>[1,0] ** [x, 3]}
+{not (r == 0) ; r :-> y ** srtl(y, 1 + sz1x + sz2x, vx2 <= lo1x ? vx2 : lo1x, hi2x <= vx2 ? vx2 : hi2x)<_alpha_519>}
+void flatten132 (loc y12, loc rx2, loc lx2, int vx2, loc x, loc r) {
+  let y2 = *r;
+  if (y12 == 0) {
+    flatten13400(y2, y12, rx2, lx2, vx2, x, r);
+  } else {
+    let vy = *y12;
+    let nx = *(y12 + 1);
+    flatten132(nx, rx2, lx2, vx2, x, r);
+    let y = *r;
+    let v = *y;
+    let n = *(y + 1);
+    *(y + 1) = y12;
+    *(y12 + 1) = n;
+    *y = vy;
+    *y12 = v;
+  }
+}
+
+{0 <= 1 + sz1x + sz2x && 0 <= sz1x && 0 <= sz2x && 0 <= vx2 && hi1x <= vx2 && hi1x == 0 && lo1x == 7 && not (r == 0) && not (r == x) && not (x == 0) && sz1x == 0 && vx2 <= 7 && vx2 <= lo2x && y12 == 0 ; (x + 1) :-> lx2 ** (x + 2) :-> rx2 ** r :-> y22 ** x :-> vx2 ** srtl(y22, sz2x, lo2x, hi2x)<_alpha_5192>[1,0] ** [x, 3]}
+{not (r == 0) ; r :-> y ** srtl(y, 1 + sz1x + sz2x, vx2 <= lo1x ? vx2 : lo1x, hi2x <= vx2 ? vx2 : hi2x)<_alpha_519>}
+void flatten13400 (loc y22, loc y12, loc rx2, loc lx2, int vx2, loc x, loc r) {
+  if (y22 == 0) {
+    let y = malloc(2);
+    free(x);
+    *r = y;
+    *(y + 1) = 0;
+    *y = vx2;
+  } else {
+    let v = *y22;
+    let n = *(y22 + 1);
+    *r = n;
+    *(x + 2) = n;
+    *x = v;
+    flatten13400(n, 0, n, lx2, v, x, r);
+    let y = *r;
+    *(y22 + 1) = y;
+    *r = y22;
+    *y22 = vx2;
+  }
+}
+

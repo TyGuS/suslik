@@ -1,0 +1,14 @@
+# -b true -p true
+
+intersect two unique lists
+
+#####
+
+{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
+void intersect (loc r, loc y)
+{ r :-> z ** ulist(z, s1 * s2) ** ulist(y, s2) }
+
+#####
+
+
+
