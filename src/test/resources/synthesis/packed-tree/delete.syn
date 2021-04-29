@@ -1,0 +1,7 @@
+# -o 2
+
+###
+
+{ tree(x, sz, s) }
+void delete(loc x)
+{ emp }

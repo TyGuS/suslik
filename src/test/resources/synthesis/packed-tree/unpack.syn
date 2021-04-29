@@ -1,0 +1,33 @@
+# -o 2 -c 2
+
+####
+
+{ r :-> x ** r + 1 :-> b ** packed_tree(x, sz, s) }
+void unpack(loc r)
+{ r :-> x + 2*sz ** r + 1 :-> y ** packed_tree(x, sz, s) ** tree(y, sz, s) }
+
+####
+
+void unpack (loc r) {
+  let x = *r;
+  let t = *x;
+  if (t == 1) {
+    let y = malloc(2);
+    *x = 1;
+    *r = x + (2 * 1);
+    *(r + 1) = y;
+    *y = 1;
+  } else {
+    *r = x + 2;
+    unpack(r);
+    let y1 = *(r + 1);
+    unpack(r);
+    let y2 = *(r + 1);
+    let y = malloc(4);
+    *x = 0;
+    *(r + 1) = y;
+    *y = 0;
+    *(y + 2) = y1;
+    *(y + 3) = y2;
+  }
+}
