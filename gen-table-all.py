@@ -9,17 +9,14 @@ import csv
 CSV_FILE = 'stats_all.csv'                    # CSV-input file
 LATEX_FILE = 'results.tex'                  # Latex-output file
 PAPER_DIR = '/mnt/h/Work/papers/synsl/challenges/current/tab' # Directory where to copy the latex file (if exists)
+SOURCES = ['jennisys', 'natural', 'dryad', 'eguchi', 'new']
 TIMEOUT = 1800
-# VARIANTS = ['memo', 'dfs', 'bfs']
 
 class Benchmark:
-  def __init__(self, name, description, source=[], stime=-5.0, scode=0, marks=[]):
+  def __init__(self, name, description, source=[], marks=[]):
     self.name = name        # Id (corresponds to test file name)
     self.description = description  # Description (in the table)
     self.source = source      # Where is this benchmark from (in the table)
-    self.suslik_time = stime
-    self.suslik_code = scode
-    self.marks = marks
 
   def str(self):
     return self.name + ': ' + self.description
@@ -39,7 +36,7 @@ BENCHMARKS = [
     Benchmark('sll/max', 'max', ['suslik','natural']),
     Benchmark('sll/min', 'min', ['suslik','natural']),
     Benchmark('sll/singleton', 'singleton', ['suslik', 'jennisys']),
-    Benchmark('sll/free', 'dispose', ['suslik']),
+    Benchmark('sll/free', 'deallocate', ['suslik']),
     Benchmark('sll/init', 'initialize', ['suslik']),
     Benchmark('sll/copy', 'copy', ['suslik','dryad']),
     Benchmark('sll/append', 'append', ['suslik','dryad']),
@@ -70,11 +67,11 @@ BENCHMARKS = [
   BenchmarkGroup("List of Lists", [
     Benchmark('multi-list/free', 'deallocate'),
     Benchmark('multi-list/flatten', 'flatten', ['eguchi']),
-    Benchmark('multi-list/len', 'length'),
+    Benchmark('multi-list/len', 'length', ['new']),
     ]),    
   BenchmarkGroup("Binary Tree", [
     Benchmark('tree/size', 'size', ['suslik']),
-    Benchmark('tree/free', 'dispose', ['suslik']),
+    Benchmark('tree/free', 'deallocate', ['suslik']),
     Benchmark('tree/free2', 'deallocate two'),
     Benchmark('tree/copy', 'copy', ['suslik']),
     Benchmark('tree/flatten-helper', 'flatten w/append', ['suslik']),
@@ -83,23 +80,23 @@ BENCHMARKS = [
     Benchmark('tree/flatten-dll', 'flatten to dll in place'),
     ]),
   BenchmarkGroup("Rose Tree", [
-    Benchmark('rose-tree/free', 'deallocate', marks=['M']),
-    Benchmark('rose-tree/flatten', 'flatten', marks=['M']),
-    Benchmark('rose-tree/copy', 'copy', marks=['M']),
+    Benchmark('rose-tree/free', 'deallocate'),
+    Benchmark('rose-tree/flatten', 'flatten'),
+    Benchmark('rose-tree/copy', 'copy', ['new']),
     ]),
   BenchmarkGroup("BST", [
     Benchmark('bst/insert', 'insert', ['suslik','natural']),
     Benchmark('bst/left-rotate', 'rotate left', ['suslik','natural']),
     Benchmark('bst/right-rotate', 'rotate right', ['suslik','natural']),
-    Benchmark('bst/min', 'find min'),
-    Benchmark('bst/max', 'find max'),
+    Benchmark('bst/min', 'find min', ['new']),
+    Benchmark('bst/max', 'find max', ['new']),
     Benchmark('bst/delete-root', 'delete root', ['natural']),
     Benchmark('bst/list-to-bst', 'from list', ['eguchi']),
     Benchmark('bst/to-srtl', 'to sorted list', ['eguchi']),
     ]),
   BenchmarkGroup("Packed Tree", [
-    Benchmark('packed/pack', 'pack'),
-    Benchmark('packed/unpack', 'unpack'),
+    Benchmark('packed/pack', 'pack', ['new']),
+    Benchmark('packed/unpack', 'unpack', ['new']),
     ]),    
 ]
 
@@ -161,6 +158,18 @@ def store_result(name, time, spec_size, num_procs, code_size, statements, time_s
   results[name] = SynthesisResult(name, timeOrTO(time), spec_size, num_procs, code_size, statements)
   results[name].time_simple_cost = timeOrTO(time_simple_cost)
   results[name].time_no_limits = timeOrTO(time_no_limits)
+  
+def footnotes(sources):
+  res = []
+  for s in sources:
+    if s in SOURCES:      
+      res += str(SOURCES.index(s) + 1)
+  
+  if res == []:
+    return ''
+  else:
+    return '\\textsuperscript{' + ','.join(res) + '}'
+  
 
 def write_latex():
   '''Generate Latex table from the results dictionary'''
@@ -181,7 +190,7 @@ def write_latex():
         result = results [b.name]        
         row = \
           ' & ' + str(total_count) +\
-          ' & ' + b.description +\
+          ' & ' + b.description + footnotes(b.source) +\
           ' & ' + result.num_procs + \
           ' & ' + result.statements + \
           ' & ' + format_ratio(float(result.code_size), float(result.spec_size)) + \
