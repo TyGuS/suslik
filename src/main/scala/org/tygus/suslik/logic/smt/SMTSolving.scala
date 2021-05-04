@@ -25,7 +25,10 @@ object SMTSolving extends Core
   with ArrayExOperators
   with LazyTiming {
 
-  val defaultSolver = "Z3" // other choices: "Z3 <= 4.7.x", "CVC4"
+  val defaultSolver = "Z3 <= 4.7.x" // other choices: "Z3", "Z3 <= 4.7.x", "CVC4"
+
+  def solverName = if (defaultSolver == "Z3" || defaultSolver == "Z3 <= 4.7.x")
+    "Z3" else "CVC4"
 
   override val watchName = "SMTSolving"
 
@@ -36,7 +39,7 @@ object SMTSolving extends Core
 
     // create solver and assert axioms
     // TODO: destroy solver when we're done
-    solverObject = new SMTSolver(defaultSolver, new SMTInit())
+    solverObject = new SMTSolver(solverName, new SMTInit())
     for (cmd <- prelude) {
       solverObject.eval(Raw(cmd))
     }
