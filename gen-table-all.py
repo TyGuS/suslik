@@ -8,7 +8,7 @@ import csv
 # Globals
 CSV_FILE = 'stats_all.csv'                    # CSV-input file
 LATEX_FILE = 'results.tex'                  # Latex-output file
-PAPER_DIR = '/mnt/h/Work/papers/synsl/challenges/current/tab' # Directory where to copy the latex file (if exists)
+PAPER_DIR = '/ mnt/h/Work/papers/synsl/challenges/current/tab' # Directory where to copy the latex file (if exists)
 SOURCES = ['jennisys', 'natural', 'dryad', 'eguchi', 'new']
 TIMEOUT = 1800
 
@@ -181,7 +181,8 @@ def write_latex():
     for group in groups:
       outfile.write ('\multirow{')
       outfile.write (str(group.benchmarks.__len__()))
-      outfile.write ('}{*}{\\parbox{2cm}{\center{')
+      outfile.write ('}{*}{{{')
+      # outfile.write ('}{*}{\\parbox{2cm}{\center{')
       outfile.write (group.name)
       outfile.write ('}}}')      
 
