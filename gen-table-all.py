@@ -78,12 +78,7 @@ BENCHMARKS = [
     Benchmark('tree/flatten-acc', 'flatten w/acc', ['suslik']),
     Benchmark('tree/flatten', 'flatten'),
     Benchmark('tree/flatten-dll', 'flatten to dll in place'),
-    Benchmark('tree/flatten-dll-linear', 'flatten to dll (null-pointer)'),
-    ]),
-  BenchmarkGroup("Rose Tree", [
-    Benchmark('rose-tree/free', 'deallocate'),
-    Benchmark('rose-tree/flatten', 'flatten'),
-    Benchmark('rose-tree/copy', 'copy', ['new']),
+    Benchmark('tree/flatten-dll-linear', 'flatten to dll w/null', ['new']),
     ]),
   BenchmarkGroup("BST", [
     Benchmark('bst/insert', 'insert', ['suslik','natural']),
@@ -94,6 +89,11 @@ BENCHMARKS = [
     Benchmark('bst/delete-root', 'delete root', ['natural']),
     Benchmark('bst/list-to-bst', 'from list', ['eguchi']),
     Benchmark('bst/to-srtl', 'to sorted list', ['eguchi']),
+    ]),
+  BenchmarkGroup("Rose Tree", [
+    Benchmark('rose-tree/free', 'deallocate'),
+    Benchmark('rose-tree/flatten', 'flatten'),
+    Benchmark('rose-tree/copy', 'copy', ['new']),
     ]),
   BenchmarkGroup("Packed Tree", [
     Benchmark('packed/pack', 'pack', ['new']),
