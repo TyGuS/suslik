@@ -10,36 +10,36 @@ void flatten(loc x)
 
 ####
 
-{tree(x, s)<_alpha_517>}
-{dll(x, y, s)<_alpha_518>}
+{tree(x, s)<_alpha_15>}
+{dll(x, 0, s)<_alpha_16>}
 void flatten (loc x) {
   if (x == 0) {
   } else {
     let l = *(x + 1);
     let r = *(x + 2);
-    flatten(r);
-    flatten111(r, l, x);
+    flatten(l);
+    flatten114(r, l, x);
   }
 }
 
-{_alpha_514x < _alpha_517 && _alpha_515x < _alpha_517 && not (x == 0) ; (x + 1) :-> lx ** (x + 2) :-> rx ** x :-> vx2 ** dll(rx, y1, s2x)<_alpha_5181>[1,0] ** tree(lx, s1x)<_alpha_514x>[0,1] ** [x, 3]}
-{dll(x, y, {vx2} ++ s1x ++ s2x)<_alpha_518>}
-void flatten111 (loc rx, loc lx, loc x) {
-  if (lx == 0) {
-    if (rx == 0) {
+{_alpha_10x < _alpha_15 && _alpha_11x < _alpha_15 && not (x == 0) ; (x + 1) :-> lx ** (x + 2) :-> rx ** x :-> vx1 ** dll(lx, 0, s1x)<_alpha_161>[1,0] ** tree(rx, s2x)<_alpha_11x>[0,1] ** [x, 3]}
+{dll(x, 0, {vx1} ++ s1x ++ s2x)<_alpha_16>}
+void flatten114 (loc rx, loc lx, loc x) {
+  if (rx == 0) {
+    if (lx == 0) {
     } else {
-      *(rx + 2) = x;
-      *(x + 1) = rx;
+      *(lx + 2) = x;
     }
   } else {
-    let v = *lx;
-    let l = *(lx + 1);
-    let r = *(lx + 2);
-    *(lx + 2) = rx;
-    flatten111(rx, l, lx);
-    *(x + 1) = r;
-    *(x + 2) = lx;
-    flatten111(lx, r, x);
+    let v = *rx;
+    let l = *(rx + 1);
+    let r = *(rx + 2);
+    *(rx + 2) = l;
+    *(rx + 1) = lx;
+    flatten114(l, lx, rx);
+    *(x + 2) = r;
+    *(x + 1) = rx;
+    flatten114(r, rx, x);
   }
 }
 
