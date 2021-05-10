@@ -136,6 +136,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case BinaryExpr(OpEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l,r)
         case _ => None
       }, p2) match {
         case Some(((x, e), rest2)) => {

@@ -3,49 +3,58 @@ sorted list: merge
 
 #####
 
-{ 0 <= nx /\ 0 <= ny ;
-    r :-> y ** srtl(x, nx, lox, hix) ** srtl(y, ny, loy, hiy) }
+{ 0 <= nx && 0 <= ny ;
+    r :-> y ** srtl(x, sx, nx) ** srtl(y, sy, ny) }
 void srtl_merge (loc x, loc r)
-{ n == nx + ny /\  lo == (lox <= loy ? lox : loy)  /\ hi == (hix <= hiy ? hiy : hix) ;
-    r :-> z ** srtl(z, n, lo, hi) }
+{ n == nx + ny &&  s == sx + sy ;
+    r :-> z ** srtl(z, s, n) }
 
 #####
 
-{0 <= hix && 0 <= hiy && 0 <= lox && 0 <= loy && 0 <= nx && 0 <= ny && hix <= 7 && hiy <= 7 && lox <= 7 && loy <= 7 ; r :-> x ** srtl(x, nx, lox, hix)<_alpha_586> ** srtl(y, ny, loy, hiy)<_alpha_587>}
-{hi == (hix <= hiy ? hiy : hix) && lo == (lox <= loy ? lox : loy) && n == nx + ny ; r :-> z ** srtl(z, n, lo, hi)<_alpha_588>}
-void srtl_merge (loc y, loc r) {
-  let x = *r;
+{0 <= nx && 0 <= ny ; r :-> y ** srtl(x, sx, nx)<_alpha_102> ** srtl(y, sy, ny)<_alpha_103>}
+{n == nx + ny && s == sx + sy ; r :-> z ** srtl(z, s, n)<_alpha_104>}
+void srtl_merge (loc x, loc r) {
+  let y = *r;
   if (x == 0) {
-    *r = y;
   } else {
-    srtl_merge10(x, y, r);
+    srtl_merge0010(y, x, r);
   }
 }
 
-{0 <= hi1x2 && 0 <= hix && 0 <= hiy && 0 <= len1x2 && 0 <= lo1x2 && 0 <= lox && 0 <= loy && 0 <= nx && 0 <= ny && 0 <= vx2 && _alpha_585x2 < _alpha_586 && hi1x2 <= 7 && hix <= 7 && hix == (hi1x2 <= vx2 ? vx2 : hi1x2) && hiy <= 7 && lo1x2 <= 7 && lox <= 7 && lox == (vx2 <= lo1x2 ? vx2 : lo1x2) && loy <= 7 && not (r == 0) && not (x2 == 0) && nx == 1 + len1x2 && vx2 <= 7 && vx2 <= lo1x2 ; (x2 + 1) :-> nxtx2 ** r :-> x2 ** x2 :-> vx2 ** srtl(nxtx2, len1x2, lo1x2, hi1x2)<_alpha_585x2>[1] ** srtl(y, ny, loy, hiy)<_alpha_587> ** [x2, 2]}
-{r :-> z ** srtl(z, nx + ny, lox <= loy ? lox : loy, hix <= hiy ? hiy : hix)<_alpha_588>}
-void srtl_merge10 (loc x2, loc y, loc r) {
-  let vx = *x2;
-  let nx = *(x2 + 1);
+{0 <= len1x && 0 <= nx && 0 <= ny && _alpha_100x < _alpha_102 && not (r == 0) && not (x == 0) && nx == len1x + 1 && sx == [vx] ++ s1x && true && vx == lower sx ; (x + 1) :-> nxtx ** r :-> y ** x :-> vx ** srtl(nxtx, s1x, len1x)<_alpha_100x>[0,1] ** srtl(y, sy, ny)<_alpha_103> ** [x, 2]}
+{not (r == 0) ; r :-> z ** srtl(z, sx ++ sy, nx + ny)<_alpha_104>}
+void srtl_merge0010 (loc y, loc x, loc r) {
+  let vx = *x;
+  let nx = *(x + 1);
   if (y == 0) {
+    *r = x;
   } else {
     let v = *y;
-    if (vx <= v) {
-      *r = y;
-      srtl_merge10(y, nx, r);
+    let n = *(y + 1);
+    if (v <= vx && vx <= v) {
+      *r = nx;
+      srtl_merge(n, r);
       let z = *r;
-      *(x2 + 1) = z;
-      *r = x2;
+      *r = y;
+      *(y + 1) = x;
+      *(x + 1) = z;
     } else {
-      let n = *(y + 1);
-      *(y + 1) = nx;
-      *r = y;
-      *y = vx;
-      srtl_merge10(y, n, r);
-      let z = *r;
-      *(x2 + 1) = z;
-      *r = x2;
-      *x2 = v;
+      if (vx <= v) {
+        *r = nx;
+        srtl_merge0010(nx, y, r);
+        let z = *r;
+        *r = x;
+        *(x + 1) = z;
+      } else {
+        *(y + 1) = nx;
+        *r = n;
+        *y = vx;
+        srtl_merge0010(n, y, r);
+        let z = *r;
+        *r = x;
+        *(x + 1) = z;
+        *x = v;
+      }
     }
   }
 }

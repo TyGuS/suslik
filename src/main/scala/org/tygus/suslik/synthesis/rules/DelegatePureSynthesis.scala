@@ -7,6 +7,7 @@ import org.bitbucket.inkytonik.kiama.util.StringSource
 import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
+import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer}
@@ -21,6 +22,7 @@ object DelegatePureSynthesis {
     case IntType | LocType | CardType => "Int"
     case BoolType => "Bool"
     case IntSetType => "(Set Int)"
+    case IntervalType => "Interval"
   }
 
   val empsetName = "empset"
@@ -28,12 +30,14 @@ object DelegatePureSynthesis {
     IntType -> List(IntConst(0)),
     LocType -> List(IntConst(0)),
     IntSetType -> List(SetLiteral(List())),
+    IntervalType -> List(Expressions.emptyInt),
     CardType -> List(IntConst(0))
   )
   val typeUnaries: Map[SSLType, List[Expressions.Expr => Expressions.Expr]] = Map(
     IntType -> List(e => e |+| IntConst(1)),
     LocType -> List(e => e |+| IntConst(1)),
     IntSetType -> List(),
+    IntervalType -> List(),
     CardType -> List()
   )
 
@@ -73,6 +77,10 @@ object DelegatePureSynthesis {
       case Expressions.OpUnion => "union"
       case Expressions.OpDiff => "setminus"
       case Expressions.OpIntersect => "intersection"
+      case Expressions.OpIntervalEq => "ieq"
+      case Expressions.OpIntervalIn => "imember"
+      case Expressions.OpIntervalUnion => "iunion"
+      case Expressions.OpRange => "interval"
     }) ++= " "
       toSmtExpr(left, existentials, sb)
       sb ++= " "
@@ -82,6 +90,8 @@ object DelegatePureSynthesis {
     case Expressions.UnaryExpr(op, arg) => sb ++= "(" ++= (op match {
       case Expressions.OpNot => "not"
       case Expressions.OpUnaryMinus => "-"
+      case Expressions.OpLower => "lower"
+      case Expressions.OpUpper => "upper"
     }) ++= " "
       toSmtExpr(arg, existentials, sb)
       sb ++= ")"
@@ -121,6 +131,9 @@ object DelegatePureSynthesis {
 
     if (goal.gamma.exists { case (v, t) => t == IntSetType && goal.isExistential(v) } || usesEmptyset(goal.post) || usesEmptyset(goal.pre))
       sb ++= s"(define-fun $empsetName () (Set Int) (as emptyset (Set Int)))\n\n"
+
+    if (goal.gamma.exists { case (_, t) => t == IntervalType })
+      sb ++= SMTSolving.intervalPrelude.mkString("\n")
 
     val otherVars = (goal.gamma -- goal.existentials).toList
     for (ex <- goal.existentials) {

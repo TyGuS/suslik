@@ -4,38 +4,36 @@ sort a list
 
 #####
 
-{ 0 <= n ; sll(x, n, lo, hi) }
+{ 0 <= n ; sll(x, s, n) }
 void sort (loc x)
-{ srtl(x, n, lo, hi) }
+{ srtl(x, s, n) }
 
 #####
 
-{0 <= n ; sll(x, n, lo, hi)<_alpha_516>}
-{srtl(x, n, lo, hi)<_alpha_517>}
+{0 <= n ; sll(x, s, n)<_alpha_118>}
+{srtl(x, s, n)<_alpha_119>}
 void sort (loc x) {
   if (x == 0) {
   } else {
     let v = *x;
     let n = *(x + 1);
     sort(n);
-    sort114(n, v, x);
+    sort001609(n, v, x);
   }
 }
 
-{0 <= 1 + len1x && 0 <= len1x && 0 <= vx2 && _alpha_513x < _alpha_516 && not (x == 0) && vx2 <= 7 ; (x + 1) :-> nxtx2 ** x :-> vx2 ** srtl(nxtx2, len1x, lo1x, hi1x)<_alpha_5171>[1,0] ** [x, 2]}
-{srtl(x, 1 + len1x, vx2 <= lo1x ? vx2 : lo1x, hi1x <= vx2 ? vx2 : hi1x)<_alpha_517>}
-void sort114 (loc nxtx2, int vx2, loc x) {
-  if (nxtx2 == 0) {
-    *(x + 1) = 0;
+{0 <= len1x && 0 <= len1x + 1 && _alpha_115x < _alpha_118 && not (x == 0) && true ; (x + 1) :-> nx ** x :-> vx ** srtl(nx, s1x, len1x)<_alpha_1191>[1,0] ** [x, 2]}
+{srtl(x, [vx] ++ s1x, len1x + 1)<_alpha_119>}
+void sort001609 (loc nx, int vx, loc x) {
+  if (nx == 0) {
   } else {
-    let v = *nxtx2;
-    if (vx2 <= v) {
-      let n = *(nxtx2 + 1);
-      sort114(n, v, nxtx2);
+    let v = *nx;
+    let n = *(nx + 1);
+    if (vx <= v) {
+      sort001609(n, v, nx);
     } else {
-      let n = *(nxtx2 + 1);
-      *nxtx2 = vx2;
-      sort114(n, vx2, nxtx2);
+      *nx = vx;
+      sort001609(n, vx, nx);
       *x = v;
     }
   }

@@ -1,6 +1,6 @@
 # -c 2 -o 2 -f 3 -p true
 
-flatten a tree into a doubly-linked list in learn time
+flatten a tree into a doubly-linked list in linear time
 
 ####
 

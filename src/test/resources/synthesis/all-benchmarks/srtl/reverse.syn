@@ -4,36 +4,38 @@ reverse a list
 
 #####
 
-{ 0 <= n ; srtl(x, n, lo, hi) }
+{ 0 <= n ; srtl(x, s, n) }
 void reverse (loc x)
-{ descl(x, n, lo, hi) }
+{ descl(x, s, n) }
 
 #####
 
-{0 <= n ; srtl(x, n, lo, hi)<_alpha_516>}
-{descl(x, n, lo, hi)<_alpha_517>}
+{0 <= n ; srtl(x, s, n)<_alpha_113>}
+{descl(x, s, n)<_alpha_114>}
 void reverse (loc x) {
   if (x == 0) {
   } else {
     let v = *x;
     let n = *(x + 1);
     reverse(n);
-    reverse114(n, v, x);
+    reverse115(n, v, x);
   }
 }
 
-{0 <= 1 + len1x && 0 <= hi1x && 0 <= len1x && 0 <= lo1x && 0 <= vx2 && _alpha_514x < _alpha_516 && hi1x <= 7 && lo1x <= 7 && not (x == 0) && vx2 <= 7 && vx2 <= lo1x ; (x + 1) :-> nxtx2 ** x :-> vx2 ** descl(nxtx2, len1x, lo1x, hi1x)<_alpha_5171>[1,0] ** [x, 2]}
-{descl(x, 1 + len1x, vx2 <= lo1x ? vx2 : lo1x, hi1x <= vx2 ? vx2 : hi1x)<_alpha_517>}
-void reverse114 (loc nxtx2, int vx2, loc x) {
-  if (nxtx2 == 0) {
-    *(x + 1) = 0;
+{0 <= len1x && 0 <= len1x + 1 && _alpha_111x < _alpha_113 && not (x == 0) && vx == lower ([vx] ++ s1x) ; (x + 1) :-> nx ** x :-> vx ** descl(nx, s1x, len1x)<_alpha_1141>[1,0] ** [x, 2]}
+{descl(x, [vx] ++ s1x, len1x + 1)<_alpha_114>}
+void reverse115 (loc nx, int vx, loc x) {
+  if (nx == 0) {
   } else {
-    let v = *nxtx2;
-    let n = *(nxtx2 + 1);
-    *nxtx2 = vx2;
-    reverse114(n, vx2, nxtx2);
+    let v = *nx;
+    let n = *(nx + 1);
+    *nx = vx;
+    reverse115(n, vx, nx);
     *x = v;
   }
 }
+
+#####
+
 
 

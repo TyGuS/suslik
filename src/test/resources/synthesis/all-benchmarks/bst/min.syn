@@ -1,17 +1,12 @@
-# -c 2 -p true
+# -c 2 -p true -x false
 
 binary search tree: find smallest element
 
 #####
 
-{ 0 <= sz /\  0 <= lo /\ hi <= 7;
-    ret :-> unused ** 
-    bst(x, sz, lo, hi)  }
-
+{ 0 <= sz ; ret :-> unused ** bst(x, s, sz)  }
 void bst_min (loc x, loc ret)
-
-{   ret :-> lo ** 
-    bst(x, sz, lo, hi) }
+{ s == [] || m == lower s ; ret :-> m ** bst(x, s, sz) }
 
 #####
 
@@ -19,12 +14,18 @@ void bst_min (loc x, loc ret)
 {ret :-> lo ** bst(x, sz, lo, hi)<c>}
 void bst_min (loc x, loc ret) {
   if (x == 0) {
-    *ret = 7;
   } else {
     let v = *x;
-    let lx = *(x + 1);
-    bst_min(lx, ret);
-    let l = *ret;
-    *ret = v <= l ? v : l;
+    let l = *(x + 1);
+    let r = *(x + 2);
+    bst_min(l, ret);
+    let m = *ret;
+    bst_min(r, ret);
+    if (l == 0) {
+      *(x + 1) = 0;
+      *ret = v;
+    } else {
+      *ret = m;
+    }
   }
 }

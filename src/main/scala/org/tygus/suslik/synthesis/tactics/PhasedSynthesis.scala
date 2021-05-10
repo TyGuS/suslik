@@ -161,7 +161,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       UnificationRules.HeapUnifyPure,
       LogicalRules.SimplifyConditional,
       OperationalRules.WriteRule,
-      DelegatePureSynthesis.PureSynthesisFinal)
+      if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick)
 //    ++
 //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
   }

@@ -37,6 +37,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       | "bool" ^^^ BoolType
       | "loc" ^^^ LocType
       | "set" ^^^ IntSetType
+      | "interval" ^^^ IntervalType
       | "void" ^^^ VoidType)
 
   def formal: Parser[(Var, SSLType)] = typeParser ~ ident ^^ { case a ~ b => (Var(b), a) }
@@ -50,10 +51,19 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def setLiteral: Parser[Expr] =
     "{" ~> repsep(expr, ",") <~ "}" ^^ SetLiteral
 
+  def intervalLiteral: Parser[Expr] = {
+    def intervalInternal: Parser[Expr] = opt(expr ~ opt(".." ~> expr)) ^^ {
+      case None => emptyInt
+      case Some(e ~ None) => BinaryExpr(OpRange, e, e)
+      case Some(e1 ~ Some(e2)) => BinaryExpr(OpRange, e1, e2)
+    }
+    "[" ~> intervalInternal <~ "]"
+  }
+
   def varParser: Parser[Var] = ident ^^ Var
 
   def unOpParser: Parser[UnOp] =
-    "not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus
+    ("not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus ||| "lower" ^^^ OpLower ||| "upper" ^^^ OpUpper)
 
   // TODO: remove legacy ++, --, =i, /\, \/, <=i
   def termOpParser: Parser[OverloadedBinOp] = "*" ^^^ OpOverloadedStar
@@ -71,7 +81,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       ||| "!=" ^^^ OpNotEqual
       ||| ("==" | "=i") ^^^ OpOverloadedEq
       ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq
-      ||| "in" ^^^ OpIn
+      ||| "in" ^^^ OpOverloadedIn
     )
 
   def logOpParser: Parser[OverloadedBinOp] = (
@@ -87,7 +97,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def atom: Parser[Expr] = (
     unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
       | "(" ~> expr <~ ")"
-      | intLiteral | boolLiteral | setLiteral
+      | intLiteral | boolLiteral | setLiteral | intervalLiteral
       | varParser
     )
 

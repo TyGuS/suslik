@@ -18,6 +18,8 @@ class GoalParserTests extends FunSpec with Matchers {
   val spec7 = "{(42 < b) \\/ (b < 40); x :-> b } void swap(int x, bool y) {(42 < a) /\\ (a < 40) ; y :-> a}"
   val spec8 = "{true; x :-> a ** x + 1 :-> b} void swap(loc x, loc y) {true ; x :-> b ** (x + 1) :-> a}"
   val spec9 = "{true; [x, 2] ** x :-> a ** x + 1 :-> b} void delete(loc x) {true ; emp}"
+  val spec10 = "{[x..y] == []; emp} void interval_test(int x, int y) {[x..y] == [x]; emp}"
+  val spec11 = "{emp} void interval_test(int x, int y) {lower [x..y] == lower [x] && upper [x..y] == upper [y]; emp}"
 
   val log = SynLogLevels.Test
   import log._
@@ -65,6 +67,14 @@ class GoalParserTests extends FunSpec with Matchers {
 
     it("should parse malloc blocks") {
       parseSimpleSpec(spec9)
+    }
+
+    it("should parse interval literals") {
+      parseSimpleSpec(spec10)
+    }
+
+    it("should parse interval bounds") {
+      parseSimpleSpec(spec11)
     }
   }
 

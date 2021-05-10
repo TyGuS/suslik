@@ -1,11 +1,11 @@
-#. -b true -c 2
+# -b true -c 2
 sorted list: insert an element
 
 #####
 
-{0 <= n /\ 0 <= k /\ k <= 7 ; r :-> k ** srtl(x, n, lo, hi) }
-void srtl_insert (loc x, loc r)
-{n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1) }
+{ l >= 0 ; r :-> k ** srtl(x, s, l) }
+void srtl_insert (loc x, loc r)[int k]
+{ r :-> y ** srtl(y, s + [k], l + 1) }
 
 #####
 
@@ -14,21 +14,23 @@ void srtl_insert (loc x, loc r) {
   if (x == 0) {
     let y = malloc(2);
     *r = y;
+    *y = lower ([] ++ [k]);
     *(y + 1) = 0;
-    *y = k;
   } else {
     let v = *x;
+    let n = *(x + 1);
     if (v <= k) {
-      let n = *(x + 1);
       srtl_insert(n, r);
       let y = *r;
       *r = x;
       *(x + 1) = y;
     } else {
-      let y = malloc(2);
-      *r = y;
-      *(y + 1) = x;
-      *y = k;
+      *r = v;
+      srtl_insert(n, r);
+      let y = *r;
+      *r = x;
+      *(x + 1) = y;
+      *x = k;
     }
   }
 }

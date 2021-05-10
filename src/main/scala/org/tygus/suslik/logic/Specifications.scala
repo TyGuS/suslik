@@ -219,9 +219,6 @@ object Specifications extends SepLogicUtils {
     // Variables currently used only in specs
     def ghosts: Set[Var] = pre.vars ++ post.vars -- programVars
 
-    // Currently used universally quantified variables: program variables and ghosts in pre
-    def universals: Set[Var] = pre.vars ++ programVars
-
     // Currently used ghosts that appear only in the postcondition
     def existentials: Set[Var] = post.vars -- allUniversals
 
