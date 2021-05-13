@@ -1,0 +1,8 @@
+predicate bst(loc x, int sz, int lo, int hi) {
+|  x == null       => { sz == 0  /\  lo == 7  /\  hi == 0 ; emp }
+|  not (x == null) => { sz == 1 + sz1 + sz2  /\  0 <= sz1 /\  0 <= sz2  /\
+                      lo == (v <= lo1 ? v : lo1)  /\
+                      hi == (hi2 <= v ? v : hi2)  /\
+                      0 <= v /\ v <= 7 /\ hi1 <= v /\ v <= lo2 ;
+                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** bst(l, sz1, lo1, hi1) ** bst(r, sz2, lo2, hi2)  }
+}

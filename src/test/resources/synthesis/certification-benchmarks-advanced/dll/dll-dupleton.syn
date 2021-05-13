@@ -1,0 +1,22 @@
+# -c 3
+doubly-linked list: construct a list with two elements
+
+#####
+
+{ r :-> a }
+void dll_dupleton (int x, int y, loc r)
+{ elems =i {x, y} ; r :-> z ** dll(z, null, elems) }
+
+#####
+
+void dll_dupleton (int x, int y, loc r) {
+  let z = malloc(3);
+  let w = malloc(3);
+  *r = z;
+  *(z + 1) = w;
+  *(z + 2) = 0;
+  *(w + 1) = 0;
+  *(w + 2) = z;
+  *z = y;
+  *w = x;
+}
