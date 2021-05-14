@@ -47,6 +47,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * --lexi <value>                 use lexicographic termination metric (as opposed to total size); default: false
     * --certTarget <value>           set certification target; default: none
     * --certDest <value>             write certificate to path; default: none
+    * --certSetRepr <value>          use list permutations to represent sets (HTT only); default: false
     *
     * --help                         prints the help reference
     *
@@ -220,6 +221,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[File](name="certDest").action(cfg { f =>
       _.copy(certDest = f)
     }).text("write certificate to path; default: none")
+
+    opt[Boolean](name = "certSetRepr").action(cfg { b =>
+      _.copy(certSetRepr = b)
+    }).text("use list permutations to represent sets (HTT only); default: false")
 
     help("help").text("prints this usage text")
 

@@ -33,7 +33,7 @@ object HTTTranslator {
       case OpUnion => COpUnion
       case OpDiff => COpDiff
       case OpIn => COpIn
-      case OpSetEq => COpSetEq
+      case OpSetEq => if (env.config.certSetRepr) COpSetEq else COpEq
       case OpSubset => COpSubset
       case OpIntersect => COpIntersect
     }

@@ -51,6 +51,7 @@ case class SynConfig(
                       // Certification
                       certTarget: CertificationTarget = NoCert,
                       certDest: File = null,
+                      certSetRepr: Boolean = false,
                       // Internal (not directly settable through CLI)
                       inputFormat: InputFormat = dotSyn,
                       script: List[Int] = List()
@@ -65,7 +66,8 @@ case class SynConfig(
       (if (depthFirst == defaultConfig.depthFirst) Nil else List(s"depthFirst = $depthFirst")) ++
       (if (memoization == defaultConfig.memoization) Nil else List(s"memoization = $memoization")) ++
       (if (certTarget == defaultConfig.certTarget) Nil else List(s"certTarget = ${certTarget.name}")) ++
-      (if (certDest == defaultConfig.certDest) Nil else List(s"certDest = ${certDest.getCanonicalPath}"))
+      (if (certDest == defaultConfig.certDest) Nil else List(s"certDest = ${certDest.getCanonicalPath}")) ++
+      (if (certSetRepr == defaultConfig.certSetRepr) Nil else List(s"certSetRepr = $certSetRepr"))
       ).mkString(", ")
 }
 
