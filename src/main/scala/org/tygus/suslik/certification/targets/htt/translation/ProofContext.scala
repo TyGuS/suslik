@@ -6,6 +6,7 @@ import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CAssertion, CInductivePredicate}
 import org.tygus.suslik.certification.targets.htt.translation.ProofContext.{AppliedConstructor, PredicateEnv}
 import org.tygus.suslik.certification.traversal.Evaluator.{ClientContext, EvaluatorException}
+import org.tygus.suslik.logic.Environment
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
@@ -27,7 +28,9 @@ case class ProofContext(// Map of predicates referenced by the spec
                         // Current number of subgoals; used to calculate how many times to shelve/unshelve
                         numSubgoals: Int = 0,
                         // Used to track which post-condition predicate assertions remain to be solved
-                        appsToSolve: Seq[CSApp] = Seq.empty)
+                        appsToSolve: Seq[CSApp] = Seq.empty,
+                        // Synthesis environment
+                        env: Environment)
   extends ClientContext[Proof.Step] {
 
   /**

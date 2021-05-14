@@ -40,17 +40,17 @@ object Translation {
     val spec = node.goal.translate.toFunspec
     val suslikTree = SuslikProofStep.of_certtree(node)
 
-    val ctx: ProofContext = ProofContext(predicates = cpreds, hints = ListBuffer.empty[Hint])
+    val ctx: ProofContext = ProofContext(predicates = cpreds, hints = ListBuffer.empty[Hint], env = env)
     val proofBody = ProofEvaluator.run(suslikTree, ctx)
     val proof = Proof(proofBody)
     val hints = ctx.hints.filter(_.numHypotheses > 0)
-    val progBody = ProgramEvaluator.run(suslikTree, ProgramContext())
+    val progBody = ProgramEvaluator.run(suslikTree, ProgramContext(env))
     val cproc = Program(proc.name, proc.tp.translate, proc.formals.map(_.translate), progBody)
 
     HTTCertificate(cproc.name, cpreds.values.toList, spec, auxSpecs, proof, cproc, hints)
   }
 
-  private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma): CInductivePredicate = {
+  private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma)(implicit env: Environment): CInductivePredicate = {
     val cParams = el.params.map(_.translate) :+ (CVar("h"), CHeapType)
     val cGamma = gamma.translate
 

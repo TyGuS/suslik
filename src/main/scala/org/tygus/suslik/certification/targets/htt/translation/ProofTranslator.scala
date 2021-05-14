@@ -70,6 +70,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
   }
 
   override def translate(value: SuslikProofStep, ctx: ProofContext): Translator.Result[Proof.Step, ProofContext] = {
+    implicit val env = ctx.env
     value match {
       /** Initialization */
       case SuslikProofStep.Init(goal) =>

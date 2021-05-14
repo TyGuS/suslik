@@ -9,6 +9,7 @@ import org.tygus.suslik.certification.traversal.Translator.Result
 object ProgramTranslator extends Translator[SuslikProofStep, CStatement, ProgramContext] {
   override def translate(value: SuslikProofStep, ctx: ProgramContext): Translator.Result[CStatement, ProgramContext] = {
     val withNoDeferred = (Nil, None, ctx)
+    implicit val env = ctx.env
     value match {
       case SuslikProofStep.Open(_, _, _, selectors) =>
         val stmt = CIf(selectors.map(_.translate))
