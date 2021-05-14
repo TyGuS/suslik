@@ -51,6 +51,7 @@ case class SynConfig(
                       // Certification
                       certTarget: CertificationTarget = NoCert,
                       certDest: File = null,
+                      certHammerPure: Boolean = false,
                       certSetRepr: Boolean = false,
                       // Internal (not directly settable through CLI)
                       inputFormat: InputFormat = dotSyn,
@@ -67,6 +68,7 @@ case class SynConfig(
       (if (memoization == defaultConfig.memoization) Nil else List(s"memoization = $memoization")) ++
       (if (certTarget == defaultConfig.certTarget) Nil else List(s"certTarget = ${certTarget.name}")) ++
       (if (certDest == defaultConfig.certDest) Nil else List(s"certDest = ${certDest.getCanonicalPath}")) ++
+      (if (certHammerPure == defaultConfig.certHammerPure) Nil else List(s"certHammerPure = $certHammerPure")) ++
       (if (certSetRepr == defaultConfig.certSetRepr) Nil else List(s"certSetRepr = $certSetRepr"))
       ).mkString(", ")
 }

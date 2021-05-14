@@ -18,7 +18,7 @@ object Hint {
   private var _hintId: Int = 0
   private def freshHintId: Int = {_hintId += 1; _hintId}
 
-  case class PredicateSetTransitive(pred: CInductivePredicate) extends Hint {
+  case class PredicateSetTransitive(pred: CInductivePredicate, hammer: Boolean) extends Hint {
     val dbName: String = "ssl_pred"
 
     case class Hypothesis(params: Seq[CVar], idx: Int) {
@@ -32,7 +32,8 @@ object Hint {
 
       def pp: String = {
         val hyp = s"Lemma $name ${args.map(_.pp).mkString(" ")} : perm_eq ${s1.pp} ${s2.pp} -> ${pred.name} ${params1.map(_.pp).mkString(" ")} -> ${pred.name} ${params2.map(_.pp).mkString(" ")}"
-        s"$hyp. intros; hammer. Qed.\n${ppResolve(name)}"
+        val prf = if (hammer) "intros; hammer. Qed." else "Admitted."
+        s"$hyp. $prf\n${ppResolve(name)}"
       }
     }
 
@@ -46,7 +47,7 @@ object Hint {
     def pp: String = hypotheses.map(_.pp).mkString(".\n") + "."
   }
 
-  case class PureEntailment(prePhi: Set[CExpr], postPhi: Set[CExpr], gamma: Map[CVar, HTTType]) extends Hint {
+  case class PureEntailment(prePhi: Set[CExpr], postPhi: Set[CExpr], gamma: Map[CVar, HTTType], hammer: Boolean) extends Hint {
     val dbName: String = "ssl_pure"
     case class Hypothesis(args: Set[CVar], ctx: Set[CExpr], goal: CExpr) {
       val name = s"pure$freshHintId"
@@ -61,7 +62,8 @@ object Hint {
           })
           s"${s.mkString(" ")} "
         }
-        s"Lemma $name $argsStr: $hypStr. intros; hammer. Qed.\n${ppResolve(name)}"
+        val prf = if (hammer) "intros; hammer. Qed." else "Admitted."
+        s"Lemma $name $argsStr: $hypStr. $prf\n${ppResolve(name)}"
       }
     }
     private type ReachableMap = Map[CExpr, Set[CExpr]]
