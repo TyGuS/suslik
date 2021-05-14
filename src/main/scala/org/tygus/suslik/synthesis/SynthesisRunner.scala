@@ -45,8 +45,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * -j, --traceToJsonFile <value>  dump entire proof search trace to a json file; default: none
     * --memo <value>                 enable memoization; default: true
     * --lexi <value>                 use lexicographic termination metric (as opposed to total size); default: false
-    * --printTree <value>            print tree of successful derivations to path; default: false
-    * --treeDest <value>             write tree of successful derivations to path; default: none
     * --certTarget <value>           set certification target; default: none
     * --certDest <value>             write certificate to path; default: none
     *
@@ -214,14 +212,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean](name = "lexi").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(termination = if (b) lexicographic else totalSize))
     }.text("use lexicographic termination metric (as opposed to total size); default: false")
-
-    opt[Boolean](name="printTree").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printTree = b))
-    }.text("print tree of successful derivations to path; default: false")
-
-    opt[File](name="treeDest").action { (f, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(treeDest = f))
-    }.text("write tree of successful derivations to path; default: none")
 
     opt[CertificationTarget](name="certTarget").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))

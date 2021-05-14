@@ -181,16 +181,6 @@ trait SynthesisRunnerUtil {
       case _ =>
     }
 
-    def printCertTree(): Unit = if (params.printTree) {
-      val tree = CertTree.pp()
-      println()
-      if (params.treeDest == null) println(tree) else {
-        new PrintWriter(params.treeDest) { write(tree); close() }
-        val msg = s"Successful derivations saved to ${params.treeDest.getCanonicalPath}"
-        testPrintln(msg, Console.MAGENTA)
-      }
-    }
-
     sresult._1 match {
       case Nil =>
         printStats(sresult._2)
@@ -207,7 +197,6 @@ trait SynthesisRunnerUtil {
 
         // [Certify] initialize and print cert tree
         initCertTree(synthesizer.trace)
-        printCertTree()
 
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)

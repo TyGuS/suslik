@@ -48,8 +48,6 @@ case class SynConfig(
                       traceToJsonFile: Option[File] = None,
                       timeOut: Long = 120000,
                       startTime: Deadline = Deadline.now,
-                      printTree: Boolean = false,
-                      treeDest: File = null,
                       // Certification
                       certTarget: CertificationTarget = NoCert,
                       certDest: File = null,

@@ -155,8 +155,6 @@ where the necessary arguments and options are
                            dump entire proof search trace to a json file; default: none
   --memo <value>           enable memoization; default: true
   --lexi <value>           use lexicographic termination metric (as opposed to total size); default: false
-  --printTree <value>      print tree of successful derivations to path; default: false
-  --treeDest <value>       write tree of successful derivations to path; default: none
   --certTarget <value>     set certification target; default: none
   --certDest <value>       write certificate to path; default: none
 
