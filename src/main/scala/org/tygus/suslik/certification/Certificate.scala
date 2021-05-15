@@ -56,6 +56,7 @@ case class CoqOutput(filename: String, name: String, body: String) extends Certi
   * certification backends
   */
 trait Certificate[T <: CertificationTarget, P <: Predicate] {
+  val testName: String
   val predicates: List[P]
 
   /** return a list of outputs */

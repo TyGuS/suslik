@@ -29,8 +29,7 @@ object Translation {
     evaluator.run(proof, initial_context)
   }
 
-  def translate(root: CertTree.Node, proc: Procedure, env: Environment): VSTCertificate = {
-    val base_proof = SuslikProofStep.of_certtree(root)
+  def translate(testName: String, base_proof: ProofTree[SuslikProofStep], proc: Procedure, env: Environment): VSTCertificate = {
     val predicates = env.predicates.map({ case (_, predicate) => ProofSpecTranslation.translate_predicate(env)(predicate)}).toList
     val pred_map = predicates.map(v => (v.name,v)).toMap
     val pred_type_map = predicates.map(v => (v.name, v.params.map(_._2))).toMap
@@ -64,6 +63,6 @@ object Translation {
       uses_malloc = proof_translator.contains_malloc
     )
 
-    VSTCertificate(proc.f.name, procedure, proof)
+    VSTCertificate(testName, proc.f.name, procedure, proof)
   }
 }

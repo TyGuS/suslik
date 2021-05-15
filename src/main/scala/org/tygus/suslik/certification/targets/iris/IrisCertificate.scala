@@ -20,7 +20,7 @@ case object IrisCertificate {
   }
 }
 
-case class IrisCertificate(name: String, predicates: List[IPredicate], funDef: HFunDef, auxSpecs: List[IFunSpec], funSpec: IFunSpec, proofStr: String) extends Certificate[Iris, IPredicate] {
+case class IrisCertificate(testName: String, name: String, predicates: List[IPredicate], funDef: HFunDef, auxSpecs: List[IFunSpec], funSpec: IFunSpec, proofStr: String) extends Certificate[Iris, IPredicate] {
   val target: CertificationTarget = Iris()
 
   def pp : String = {

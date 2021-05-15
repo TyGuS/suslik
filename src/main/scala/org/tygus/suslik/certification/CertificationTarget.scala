@@ -1,10 +1,13 @@
 package org.tygus.suslik.certification
 
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.HTT
 import org.tygus.suslik.certification.targets.iris.Iris
 import org.tygus.suslik.certification.targets.vst.VST
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
+import org.tygus.suslik.logic.Specifications.Goal
 
 
 /**
@@ -19,7 +22,7 @@ trait CertificationTarget {
   type P <: Predicate
   val name: String
   val suffix: String
-  def certify(proc: Procedure, env: Environment): Certificate[T,P]
+  def certify(testName: String, proc: Procedure, tree: ProofTree[SuslikProofStep], goal: Goal, env: Environment): Certificate[T,P]
 
   /**
     * Generate a list of outputs for the following predicates.
@@ -44,7 +47,7 @@ object CertificationTarget {
     val name: String = ""
     override val suffix: String = ""
 
-    override def certify(proc: Procedure, env: Environment): Certificate[T,P] = ???
+    override def certify(testName: String, proc: Procedure, tree: ProofTree[SuslikProofStep], goal: Goal, env: Environment): Certificate[T,P] = ???
 
     override def generate_common_definitions_of(base_filename: String, predicates: List[P]): List[CertificateOutput] = ???
   }

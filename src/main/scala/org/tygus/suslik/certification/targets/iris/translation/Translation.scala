@@ -11,7 +11,8 @@ import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.T
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.certification.targets.iris.translation.IrisTranslator._
-import org.tygus.suslik.certification.traversal.{StackEvaluator, Translator}
+import org.tygus.suslik.certification.traversal.{ProofTree, StackEvaluator, Translator}
+import org.tygus.suslik.logic.Specifications.Goal
 
 object ProgramEvaluator extends StackEvaluator[SuslikProofStep, HExpr, ProgramTranslationContext] {
   val translator: Translator[SuslikProofStep, HExpr, ProgramTranslationContext] = ProgramTranslator
@@ -25,14 +26,13 @@ object Translation {
 
   case class TranslationException(msg: String) extends Exception(msg)
 
-  def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment): IrisCertificate = {
+  def translate(testName: String, suslikTree: ProofTree[SuslikProofStep], goal: Goal, proc: Procedure)(implicit env: Environment): IrisCertificate = {
 
-    val suslikTree = SuslikProofStep.of_certtree(node)
     val params = proc.formals.map(_.translate)
     println(SuslikPrinter.pp(suslikTree))
 
     // We have this "dummy" value to generate progToSpec for the actual context, ctx
-    val pre_ctx = ProgramTranslationContext(env, proc, node.goal.gamma, Map.empty, node.goal.gamma.translate)
+    val pre_ctx = ProgramTranslationContext(env, proc, goal.gamma, Map.empty, goal.gamma.translate)
     val progToSpec = params.map(p => (p, p.translate(progVarToSpecVar, Some(pre_ctx))))
 
     val ctx = pre_ctx.copy(pts = progToSpec.toMap)
@@ -42,7 +42,7 @@ object Translation {
     val progTree = ProgramEvaluator.run(suslikTree, ctx)
 
     val funDef = HFunDef(proc.name, params, progTree)
-    val funSpec = node.goal.translate(goalToFunSpecTranslator, Some(ctx))
+    val funSpec = goal.translate(goalToFunSpecTranslator, Some(ctx))
 
     val predMap = predicates.map(p => (p.name, p)).toMap
     val helperSpecs = env.functions.map { case (fname, spec) =>
@@ -61,6 +61,6 @@ object Translation {
 //        throw e
 //        s"(* Error in proof generation:$e\n${e.getStackTrace.mkString("\n")} *)\n" }
 
-    IrisCertificate(proc.name, predicates, funDef, helperSpecs.values.toList, funSpec, proofStr)
+    IrisCertificate(testName, proc.name, predicates, funDef, helperSpecs.values.toList, funSpec, proofStr)
   }
 }

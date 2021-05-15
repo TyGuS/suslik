@@ -1,11 +1,14 @@
 package org.tygus.suslik.certification.targets.htt
 
 import org.tygus.suslik.certification._
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.CInductivePredicate
 import org.tygus.suslik.certification.targets.htt.translation.Translation
 import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
+import org.tygus.suslik.logic.Specifications.Goal
 
 case class HTT() extends CertificationTarget {
   type T = HTT
@@ -13,9 +16,8 @@ case class HTT() extends CertificationTarget {
   val name: String = "HTT"
   val suffix: String = ".v"
 
-  def certify(proc: Procedure, env: Environment): HTTCertificate = {
-    val root = CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
-    Translation.translate(root, proc)(env)
+  def certify(testName: String, proc: Procedure, tree: ProofTree[SuslikProofStep], goal: Goal, env: Environment): HTTCertificate = {
+    Translation.translate(testName, tree, goal, proc)(env)
   }
 
   def generate_common_definitions_of(defFileName: String, predicates: List[CInductivePredicate]): List[CertificateOutput] = {

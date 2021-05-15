@@ -5,7 +5,7 @@ import org.tygus.suslik.certification.targets.vst.clang.Statements.CProcedureDef
 import org.tygus.suslik.certification.targets.vst.logic.Proof
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
 
-case class VSTCertificate(name:String, CProcedureDefinition: CProcedureDefinition, Proof: Proof) extends Certificate[VST, VSTPredicate] {
+case class VSTCertificate(testName: String, name:String, CProcedureDefinition: CProcedureDefinition, Proof: Proof) extends Certificate[VST, VSTPredicate] {
   override val predicates: List[VSTPredicate] = Proof.predicates
 
   override def outputs: List[CertificateOutput] = {

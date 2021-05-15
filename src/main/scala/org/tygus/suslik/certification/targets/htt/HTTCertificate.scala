@@ -5,7 +5,7 @@ import org.tygus.suslik.certification.targets.htt.logic.Sentences.{CFunSpec, CIn
 import org.tygus.suslik.certification.targets.htt.program.Program
 import org.tygus.suslik.certification.{Certificate, CertificateOutput, CoqOutput}
 
-case class HTTCertificate(name: String, predicates: List[CInductivePredicate], spec: CFunSpec, auxSpecs: Seq[CFunSpec], proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate[HTT, CInductivePredicate] {
+case class HTTCertificate(testName: String, name: String, predicates: List[CInductivePredicate], spec: CFunSpec, auxSpecs: Seq[CFunSpec], proof: Proof, proc: Program, hints: Seq[Hint] = Seq.empty) extends Certificate[HTT, CInductivePredicate] {
   // Replace hyphens with underscores
   def sanitize(txt: String): String = txt.replace('-', '_')
 

@@ -4,22 +4,22 @@ import org.tygus.suslik.certification.source.{SuslikPrinter, SuslikProofStep}
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.IPredicate
 import org.tygus.suslik.certification.targets.iris.translation.Translation
 import org.tygus.suslik.certification.targets.iris.translation.Translation.TranslationException
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.certification.{CertTree, CertificateOutput, CertificationTarget, CoqOutput}
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
+import org.tygus.suslik.logic.Specifications.Goal
 
 case class Iris() extends CertificationTarget {
   type T = Iris
   type P = IPredicate
-  val name: String = "HTT"
+  val name: String = "Iris"
   val suffix: String = ".v"
 
-  def certify(proc: Procedure, env: Environment): IrisCertificate = {
-    val root = CertTree.root.getOrElse(throw TranslationException("Search tree is uninitialized"))
-    val cert = Translation.translate(root, proc)(env)
+  def certify(testName: String, proc: Procedure, tree: ProofTree[SuslikProofStep], goal: Goal, env: Environment): IrisCertificate = {
+    val cert = Translation.translate(testName, tree, goal, proc)(env)
 
-    val simplified = SuslikProofStep.of_certtree(root)
-    println(s"Suslik Proof:\n ${SuslikPrinter.pp(simplified)}")
+    println(s"Suslik Proof:\n ${SuslikPrinter.pp(tree)}")
 
     cert
   }

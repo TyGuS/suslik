@@ -5,7 +5,8 @@ import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.certification.CertificationTarget.NoCert
-import org.tygus.suslik.certification.{CertTree, CertificateOutput}
+import org.tygus.suslik.certification.source.SuslikProofStep
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -223,7 +224,9 @@ trait SynthesisRunnerUtil {
         if (params.certTarget != NoCert) {
           val certTarget = params.certTarget
           val targetName = certTarget.name
-          val certificate = certTarget.certify(procs.head, env)
+          val root = CertTree.root.getOrElse(throw SynthesisException("Search tree is uninitialized"))
+          val tree = SuslikProofStep.of_certtree(root)
+          val certificate = certTarget.certify(testName, procs.head, tree, root.goal, env)
           if (params.certDest == null) {
             testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
             certificate.outputs.foreach(o => {

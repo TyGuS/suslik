@@ -1,7 +1,9 @@
 package org.tygus.suslik.synthesis
 
 import java.io.File
-import org.tygus.suslik.certification.CertificationTarget
+
+import org.tygus.suslik.certification.{CertTree, CertificationTarget}
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.iris.Iris
 import org.tygus.suslik.certification.targets.vst.VST
 import org.tygus.suslik.parsing.SSLParser
@@ -44,7 +46,9 @@ case class CertificationExports(target: CertificationTarget, export_folder: Stri
         val (res, env, synDuration) = synthesizeOne(fullInput, parser, params.copy(assertSuccess = false))
         print(s"  generating certificate...")
         try {
-          val (cert, proofGenDuration) = timed(target.certify(res.head, env))
+          val root = CertTree.root.getOrElse(throw new Exception("Search tree is uninitialized"))
+          val tree = SuslikProofStep.of_certtree(root)
+          val (cert, proofGenDuration) = timed(target.certify(testName, res.head, tree, root.goal, env))
           println("done!")
           (testName, synDuration, Some(cert, proofGenDuration))
         } catch {

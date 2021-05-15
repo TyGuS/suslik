@@ -3,6 +3,7 @@ package org.tygus.suslik.synthesis
 import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.{Files, Paths}
 
+import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.HTT
 import org.tygus.suslik.certification.targets.vst.VST
 import org.tygus.suslik.certification.targets.iris.Iris
@@ -107,7 +108,9 @@ trait CertificationBenchmarks extends SynthesisRunnerUtil {
 
           print(s"  generating certificate...")
           try {
-            val (cert, proofGenDuration) = timed(target.certify(res.head, env))
+            val root = CertTree.root.getOrElse(throw new Exception("Search tree is uninitialized"))
+            val tree = SuslikProofStep.of_certtree(root)
+            val (cert, proofGenDuration) = timed(target.certify(testName, res.head, tree, root.goal, env))
             println("done!")
             (testName, synDuration, Some(cert, proofGenDuration))
           } catch {

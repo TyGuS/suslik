@@ -9,7 +9,9 @@ import org.tygus.suslik.certification.targets.htt.logic.{Hint, Proof}
 import org.tygus.suslik.certification.targets.htt.logic.Sentences._
 import org.tygus.suslik.certification.targets.htt.program.Program
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
+import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.logic.{Environment, FunSpec, Gamma, InductivePredicate, Specifications}
 
 import scala.collection.mutable.ListBuffer
@@ -19,12 +21,12 @@ object Translation {
 
   /**
     * Produces the components of a HTT certificate, from the tree of successful derivations and a synthesized procedure
-    * @param node the root of the derivation tree
+    * @param suslikTree the root of the derivation tree
     * @param proc the synthesized procedure
     * @param env the synthesis environment
     * @return the inductive predicates, fun spec, proof, and program translated to HTT
     */
-  def translate(node: CertTree.Node, proc: Procedure)(implicit env: Environment): HTTCertificate = {
+  def translate(testName: String, suslikTree: ProofTree[SuslikProofStep], goal: Goal, proc: Procedure)(implicit env: Environment): HTTCertificate = {
     val cpreds = env.predicates.mapValues(p => {
       val gamma = p.resolve(p.params.toMap, env).get
       val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
@@ -37,8 +39,7 @@ object Translation {
       goal.translate.toFunspec
     }
 
-    val spec = node.goal.translate.toFunspec
-    val suslikTree = SuslikProofStep.of_certtree(node)
+    val spec = goal.translate.toFunspec
 
     val ctx: ProofContext = ProofContext(predicates = cpreds, hints = ListBuffer.empty[Hint], env = env)
     val proofBody = ProofEvaluator.run(suslikTree, ctx)
@@ -47,7 +48,7 @@ object Translation {
     val progBody = ProgramEvaluator.run(suslikTree, ProgramContext(env))
     val cproc = Program(proc.name, proc.tp.translate, proc.formals.map(_.translate), progBody)
 
-    HTTCertificate(cproc.name, cpreds.values.toList, spec, auxSpecs, proof, cproc, hints)
+    HTTCertificate(testName, cproc.name, cpreds.values.toList, spec, auxSpecs, proof, cproc, hints)
   }
 
   private def translateInductivePredicate(el: InductivePredicate, gamma: Gamma)(implicit env: Environment): CInductivePredicate = {
