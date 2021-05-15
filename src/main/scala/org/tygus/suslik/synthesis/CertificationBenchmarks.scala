@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis
 
 import java.io.{File, FileWriter, PrintWriter}
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
 
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.HTT
@@ -17,12 +17,31 @@ import org.tygus.suslik.report.StopWatch.timed
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
 
-import scala.sys.process._
+import scala.collection.mutable
+import scala.io.StdIn
+import scala.sys.process.Process
 
-trait CertificationBenchmarks extends SynthesisRunnerUtil {
-  val targets: List[CertificationTarget]
-  val statsFile: File = new File("cert-stats.csv")
+class CertificationBenchmarks(
+                               targets: List[CertificationTarget],
+                               params: SynConfig,
+                               outputDirName: String,
+                               statsFilePrefix: String
+                              ) extends SynthesisRunnerUtil {
+  val outputDir: File = new File(outputDirName)
+  val synStatsFile = new File(List(outputDirName, s"$statsFilePrefix-syn.csv").mkString(File.separator))
+  val certStatsFiles: Map[CertificationTarget, File] =
+    targets.map(t => t -> new File(List(outputDirName, s"$statsFilePrefix-${t.name}.csv").mkString(File.separator))).toMap
   val defFilename: String = "common"
+  val exclusions: List[(String, String)] = List(
+    ("VST", "sll-bounds/sll-len"),
+    ("VST", "tree/tree-size"),
+    ("Iris", "sll-bounds/sll-max"),
+    ("Iris", "sll-bounds/sll-min")
+  )
+
+  outputDir.mkdirs()
+  initSynLog()
+  targets.foreach(initCertLog)
 
   def synthesizeOne(text: String, parser: SSLParser, params: SynConfig): (List[Statements.Procedure], Environment, Long) = {
     val res = params.inputFormat match {
@@ -73,120 +92,120 @@ trait CertificationBenchmarks extends SynthesisRunnerUtil {
     println(s"=========================================\n")
     val path = List(rootDir, dir).mkString(File.separator)
     val testDir = new File(path)
-    val tempDirNames = targets.map(t => t -> Files.createTempDirectory("suslik-").toFile).toMap
+    val outputDirs = targets.map { target =>
+      val targetDir = Paths.get(outputDir.getPath, target.name, dir).toFile
+      targetDir.mkdirs()
+      target -> targetDir
+    }.toMap
 
     if (testDir.exists() && testDir.isDirectory) {
       print(s"Retrieving definitions and specs from ${testDir.getName}...")
       val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
       val tests = testDir.listFiles.filter(f => f.isFile
         && (f.getName.endsWith(s".$testExtension") ||
-        f.getName.endsWith(s".$sketchExtension"))).toList
+        f.getName.endsWith(s".$sketchExtension")))
+        .map(f => getDescInputOutput(f.getAbsolutePath, params)).toList
       println("done!")
 
       val parser = new SSLParser
 
-      val testCases = for (f <- tests) yield {
-        val (testName, desc, in, out, params) = getDescInputOutput(f.getAbsolutePath)
-        (testName, in, params)
+      println("Synthesizing specifications...")
+      val synResults = for ((testName, _, in, _, params) <- tests) yield {
+        val fullInput = List(defs, in).mkString("\n")
+        print(s"  $testName...")
+        val (res, env, synDuration) = synthesizeOne(fullInput, parser, params.copy(assertSuccess = false))
+        println(s"done! (${fmtTime(synDuration)} s)")
+
+        val root = CertTree.root.getOrElse(throw new Exception("Search tree is uninitialized"))
+        val tree = SuslikProofStep.of_certtree(root)
+
+        logSynStat(List(testName, fmtTime(synDuration)))
+
+        (testName, res.head, tree, root.goal, env)
       }
+      println("Finished synthesizing specifications!")
 
-      val results = targets.map(target => {
-        val tempDir = tempDirNames(target)
-        println(s"\n****************************************\n")
-        println(s"Running benchmarks for certification target: ${target.name}")
-        println(s"Initialized output directory: ${tempDir.getCanonicalPath}\n")
-
-        println(s"Synthesizing ${tests.length} test cases...")
-
-        val synResults = for ((testName, in, params) <- testCases) yield {
-          println(s"$testName:")
-          val fullInput = List(defs, in).mkString("\n")
-
-          print(s"  synthesizing in certification mode...")
-          val (res, env, synDuration) = synthesizeOne(fullInput, parser, params.copy(assertSuccess = false))
-          println(s"done! (${fmtTime(synDuration)} s)")
-
-          print(s"  generating certificate...")
-          try {
-            val root = CertTree.root.getOrElse(throw new Exception("Search tree is uninitialized"))
-            val tree = SuslikProofStep.of_certtree(root)
-            val (cert, proofGenDuration) = timed(target.certify(testName, res.head, tree, root.goal, env))
-            println("done!")
-            (testName, synDuration, Some(cert, proofGenDuration))
-          } catch {
-            case e =>
-              println(s"- ERR\n   failed to generate certificate for ${testName} (${e.getLocalizedMessage})")
-              (testName, synDuration, None)
+      for (target <- targets) {
+        val outputDir = outputDirs(target)
+        println(s"Generating ${target.name} certificates...")
+        val certs = for ((testName, proc, tree, goal, env) <- synResults) yield {
+          if (exclusions.contains((target.name, testName))) {
+            print(s"  $testName...skipping unsupported test case for ${target.name}")
+            None
+          } else {
+            try {
+              print(s"  $testName...")
+              val cert = target.certify(testName, proc, tree, goal, env)
+              println("done!")
+              Some(cert)
+            } catch {
+              case e: Throwable =>
+                println(s"- ERR\n   failed to generate certificate for $testName (${e.getLocalizedMessage})")
+                None
+            }
           }
         }
+        println(s"Finished generating ${target.name} certificates!")
 
-        println(s"Successfully synthesized ${tests.length} tests.")
-
-        val validCerts = synResults.map(_._3).filter(_.isDefined).map(_.get).map(_._1)
+        val validCerts = certs.filter(_.isDefined).map(_.get)
         val predicates = validCerts.flatMap(_.predicates).groupBy(_.name).map(_._2.head).toList
+        println(s"Compiling ${target.name} common definitions to ${outputDir.getPath}...")
         val defFiles = target.generate_common_definitions_of(defFilename, predicates)
-        defFiles.foreach {
-          case output =>
-            print(s"\nWriting common definitions to file $tempDir/${output.filename}...")
-            serialize(tempDir, output.filename, output.body)
+        defFiles.foreach { output =>
+          print(s"  File ${output.filename}...")
+          serialize(outputDir, output.filename, output.body)
+          print("compiling...")
+          output.compile(outputDir)
+          println("done!")
         }
-        println("done!")
-        print(s"Compiling definitions...")
-        defFiles.foreach(output => output.compile(tempDir))
-        println("done!")
+        println(s"Compiled ${target.name} common definitions to ${outputDir.getPath}!")
 
-        println(s"\nGenerating statistics...")
-        val testToStats = synResults.map { case (testName, synDuration, certOpt) => certOpt match {
-          case None =>
-            println(s"$testName:")
-            println("  No certificate was generated; skipping proof check...")
-            testName -> (synDuration, None, None, None)
-          case Some((cert, proofGenDuration)) =>
-            println(s"$testName:")
-
-            val outputs = cert.outputs_with_common_predicates(defFilename, predicates)
-            for (o <- outputs) yield {
-              print(s"  Writing certificate output to file ${o.filename}...")
-              serialize(tempDir, o.filename, o.body)
-              println("done!")
-              if (!o.isProof) {
-                print(s"  Compiling output...")
-                o.compile(tempDir)
-                println("done!")
+        println(s"Writing ${target.name} certificate outputs to ${outputDir.getPath}...")
+        for (cert <- validCerts) {
+          val outputs = cert.outputs_with_common_predicates(defFilename, predicates)
+          for (o <- outputs) {
+            print(s"  File ${o.filename}...")
+            serialize(outputDir, o.filename, o.body)
+            if (!o.isProof) {
+              print("compiling...")
+              o.compile(outputDir) match {
+                case 0 => println("done!")
+                case _ => println("ERR\n   Failed to compile common definition file!")
               }
-            }
-
-            outputs.find(_.isProof) match {
-              case Some(proof) =>
-                print(s"  Checking proof size...")
-                val (specSize, proofSize) = checkProofSize(tempDir, proof.filename)
-                println(s"done! (spec: $specSize, proof: $proofSize)")
-                print(s"  Compiling proof...")
-                val (res, proofCheckDuration) = timed(proof.compile(tempDir))
-                if (res == 0) {
-                  println(s"done! (${fmtTime(proofCheckDuration)} s)")
-                  testName -> (synDuration, Some(proofGenDuration), Some(specSize, proofSize), Some(proofCheckDuration))
-                } else {
-                  println(s"ERR\n   Failed to verify ${proof.filename}!")
-                  testName -> (synDuration, Some(proofGenDuration), Some(specSize, proofSize), None)
-                }
-              case None =>
-                println(s"Certificate was generated, but no proof output was found; skipping verification...")
-                testName -> (synDuration, Some(proofGenDuration), None, None)
-            }
+            } else println("done!")
+          }
+          outputs.find(_.isProof) match {
+            case None =>
+              println(s"  Warning: No ${target.name} proof output found in certificate for ${cert.testName}! Skipping compilation.")
+              logCertStat(target, List(cert.testName, "-", "-", "-", "-"))
+            case Some(proof) =>
+              print(s"  Checking size of main proof ${proof.filename}...")
+              val (specSize, proofSize) = checkProofSize(outputDir, proof.filename)
+              println(s"done! (spec: $specSize, proof: $proofSize)")
+              print(s"  Compiling main proof ${proof.filename}...")
+              val (res, compileTime) = timed(proof.compile(outputDir))
+              val compileTimeOpt = if (res == 0) {
+                println(s"done! (${fmtTime(compileTime)} s)")
+                Some(compileTime)
+              } else {
+                println(s"ERR\n   Failed to compile ${proof.filename}!")
+                None
+              }
+              logCertStat(target, List(
+                cert.testName,
+                proof.filename,
+                specSize.toString,
+                proofSize.toString,
+                compileTimeOpt.map(fmtTime).getOrElse("-")
+              ))
+          }
         }
-        }.toMap
-        println(s"\n****************************************\n")
-
-        target -> testToStats
-      }).toMap
-
-      for ((testName, _, _) <- testCases) {
-        val resultsByTarget = targets.map(target => results(target)(testName))
-        logStat(testName, resultsByTarget)
+        println(s"Wrote ${target.name} certificate outputs to ${outputDir.getPath}!")
       }
 
-      println(s"\nStatistics written to: ${statsFile.getCanonicalPath}\n\n")
+      println("\n\n")
+    } else {
+      println(s"- ERR\n   no such test directory $testDir!")
     }
   }
 
@@ -204,47 +223,118 @@ trait CertificationBenchmarks extends SynthesisRunnerUtil {
     (specSize.toInt, proofSize.toInt)
   }
 
-  def initLog(): Unit = {
-    if (statsFile.exists()) statsFile.delete()
-    statsFile.createNewFile()
-    val topLevelHeader = List("") ++ targets.flatMap(t => List(t.name, "", "", "", ""))
-    val targetHeader = List("Synthesis Time (sec)", "Proof Generation Time (sec)", "Proof Checking Time (sec)", "Spec Size", "Proof Size")
-    val targetHeaders = targets.flatMap(_ => targetHeader)
-    val statsHeader = topLevelHeader.mkString(", ") + "\n" + (List("Benchmark Name") ++ targetHeaders).mkString(", ") + "\n"
-    SynStatUtil.using(new FileWriter(statsFile, true))(_.write(statsHeader))
+  private def initLog(file: File, header: List[String]): Unit = {
+    if (file.exists()) file.delete()
+    file.getParentFile.mkdirs()
+    file.createNewFile()
+    val data = header.mkString(", ") + "\n"
+    SynStatUtil.using(new FileWriter(file, true))(_.write(data))
   }
 
-  private def logStat(name: String, targetResults: List[(Long, Option[Long], Option[(Int, Int)], Option[Long])]): Unit = {
-    def ppRes(res: (Long, Option[Long], Option[(Int, Int)], Option[Long])): String = {
-      val (synDuration, proofGenDuration, proofStats, proofCheckDuration) = res
-      val proofGenStr = proofGenDuration.map(fmtTime).getOrElse("-")
-      val proofStatsStr = proofStats match {
-        case Some((specSize, proofSize)) => List(specSize, proofSize).mkString(", ")
-        case None => "-, -, -"
-      }
-      val proofCheckStr = proofCheckDuration.map(fmtTime).getOrElse("-")
-      s"${fmtTime(synDuration)}, $proofGenStr, $proofCheckStr, $proofStatsStr"
-    }
-
-    val data = s"$name, ${targetResults.map(ppRes).mkString(", ")}\n"
-    SynStatUtil.using(new FileWriter(statsFile, true))(_.write(data))
+  private def initSynLog(): Unit = {
+    val header = List("Benchmark Name", "Synthesis Time (sec)")
+    initLog(synStatsFile, header)
   }
+
+  private def initCertLog(target: CertificationTarget): Unit = {
+    val header = List("Benchmark Name", "File Name", "Spec Size", "Proof Size", "Proof Checking Time (sec)")
+    initLog(certStatsFiles(target), header)
+  }
+
+  private def logStat(file: File, row: List[String]): Unit = {
+    val data = s"${row.mkString(", ")}\n"
+    SynStatUtil.using(new FileWriter(file, true))(_.write(data))
+  }
+  private def logSynStat(row: List[String]): Unit = logStat(synStatsFile, row)
+  private def logCertStat(target: CertificationTarget, row: List[String]): Unit = logStat(certStatsFiles(target), row)
 
   private def fmtTime(ms: Long): String = "%.1f".format(ms.toDouble / 1000)
 }
 
 object CertificationBenchmarks {
-  def main(args: Array[String]): Unit = {
-    val benchmarks = new CertificationBenchmarks {
-      override val targets: List[CertificationTarget] = List(HTT(), VST(), Iris())
+  val allTargets = List(HTT(), VST(), Iris())
+  val allStandard = List(
+    "certification-benchmarks/ints",
+    "certification-benchmarks/sll-bounds",
+    "certification-benchmarks/sll",
+    "certification-benchmarks/dll",
+    "certification-benchmarks/tree"
+  )
+  val allAdvanced = List(
+    "certification-benchmarks-advanced/bst",
+    "certification-benchmarks-advanced/dll",
+    "certification-benchmarks-advanced/srtl",
+  )
+  val defaultStandardConfig = BenchmarkConfig(allTargets, allStandard)
+  val defaultAdvancedConfig = BenchmarkConfig(List(HTT()), allAdvanced)
+
+  case class BenchmarkConfig(targets: List[CertificationTarget], groups: List[String]) {
+    def updateTargets: BenchmarkConfig = {
+      println(s"\nBenchmarks will be evaluated on target(s): ${targets.map(_.name).mkString(", ")}")
+      val s = StdIn.readLine("Manually select targets instead? y/N: ")
+      if (s.toLowerCase() == "y") {
+        val newTargets = mutable.ListBuffer[CertificationTarget]()
+        for (t <- targets) {
+          val s = StdIn.readLine(s"Include target '${t.name}'? Y/n: ")
+          if (s.toLowerCase() != "n") newTargets.append(t)
+        }
+        println(s"Benchmarks will be evaluated on target(s): ${newTargets.map(_.name).mkString(", ")}")
+        this.copy(targets = newTargets.toList)
+      } else {
+        println("Evaluation targets unchanged.")
+        this
+      }
     }
-    benchmarks.initLog()
-    benchmarks.runAllTestsFromDir("certification-benchmarks/ints")
-    benchmarks.runAllTestsFromDir("certification-benchmarks/sll-bounds")
-    benchmarks.runAllTestsFromDir("certification-benchmarks/sll")
-    benchmarks.runAllTestsFromDir("certification-benchmarks/dll")
-    benchmarks.runAllTestsFromDir("certification-benchmarks/tree")
+
+    def updateGroups: BenchmarkConfig = {
+      println("\nBenchmarks will be run on the following group(s):")
+      for (g <- groups) println(s"- $g")
+      val s = StdIn.readLine("Manually select groups instead? y/N: ")
+      if (s.toLowerCase() == "y") {
+        val newGroups = mutable.ListBuffer[String]()
+        for (g <- groups) {
+          val s = StdIn.readLine(s"Include group '$g'? Y/n: ")
+          if (s.toLowerCase() != "n") newGroups.append(g)
+        }
+        println("Benchmarks will be run on the following group(s):")
+        for (g <- newGroups) println(s"- $g")
+        this.copy(groups = newGroups.toList)
+      } else {
+        println("Evaluation groups unchanged.")
+        this
+      }
+    }
+  }
+
+  def main(args: Array[String]): Unit = {
+    println("==========STANDARD BENCHMARK CONFIGURATION==========")
+    val standardConfig = defaultStandardConfig.updateTargets.updateGroups
+    println("\n\n==========ADVANCED BENCHMARK CONFIGURATION==========")
+    val advancedConfig = defaultAdvancedConfig.updateGroups
+    println("\n\nResults will be produced in the following directory:")
+    println(s"  ${new File("certify").getCanonicalPath}")
+    val s = StdIn.readLine("Existing files will be overwritten. Continue? Y/n: ")
+    if (s.toLowerCase == "n") {
+      println("Canceled job.")
+      sys.exit(0)
+    } else {
+      println("Starting benchmarks...\n\n")
+    }
+
+    val standard = new CertificationBenchmarks (
+      standardConfig.targets,
+      SynConfig(certHammerPure = true),
+      List("certify").mkString(File.separator),
+      "standard"
+    )
+    standardConfig.groups.map(standard.runAllTestsFromDir)
+
+    val advanced = new CertificationBenchmarks(
+      advancedConfig.targets,
+      SynConfig(certSetRepr = true),
+      List("certify").mkString(File.separator),
+      "advanced"
+    )
+    advancedConfig.groups.map(advanced.runAllTestsFromDir)
   }
 }
-
-
