@@ -200,7 +200,6 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
         ctx = ctx with_variables_of program_vars
         ctx = ctx with_variables_of ghost_vars
         ctx = ctx with_existential_variables_of existentials
-        println(goal.pp)
         val deferreds: Deferred = (ctx: VSTClientContext) => {
           val steps: List[VSTProofStep] = existentials.map(v => Exists(ctx resolve_existential v._1))
           val new_ctx = ctx.without_existentials_of (existentials.map(_._1))

@@ -19,8 +19,6 @@ case class Iris() extends CertificationTarget {
   def certify(testName: String, proc: Procedure, tree: ProofTree[SuslikProofStep], goal: Goal, env: Environment): IrisCertificate = {
     val cert = Translation.translate(testName, tree, goal, proc)(env)
 
-    println(s"Suslik Proof:\n ${SuslikPrinter.pp(tree)}")
-
     cert
   }
 

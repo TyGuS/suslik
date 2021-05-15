@@ -29,7 +29,6 @@ object Translation {
   def translate(testName: String, suslikTree: ProofTree[SuslikProofStep], goal: Goal, proc: Procedure)(implicit env: Environment): IrisCertificate = {
 
     val params = proc.formals.map(_.translate)
-    println(SuslikPrinter.pp(suslikTree))
 
     // We have this "dummy" value to generate progToSpec for the actual context, ctx
     val pre_ctx = ProgramTranslationContext(env, proc, goal.gamma, Map.empty, goal.gamma.translate)
@@ -37,7 +36,6 @@ object Translation {
 
     val ctx = pre_ctx.copy(pts = progToSpec.toMap)
     val predicates = env.predicates.map({ case (_, pred) => pred.translate(predicateTranslator, Some(ctx))}).toList
-    predicates.foreach(p => println(p.pp))
 
     val progTree = ProgramEvaluator.run(suslikTree, ctx)
 

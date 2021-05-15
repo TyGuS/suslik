@@ -34,11 +34,9 @@ object Translation {
     val pred_map = predicates.map(v => (v.name,v)).toMap
     val pred_type_map = predicates.map(v => (v.name, v.params.map(_._2))).toMap
     var f_gamma = proc.f.gamma(env)
-    println(f_gamma)
     env.functions.foreach {
       case (_, spec) =>
       val gamma = spec.gamma(env)
-      println(gamma)
     }
     val params = proc.formals.map({case (Var(name), ty) => ty match {
       case LocType => (name, CoqPtrValType)
@@ -46,11 +44,8 @@ object Translation {
     }})
     val spec = ProofSpecTranslation.translate_conditions(env)(pred_type_map)(proc.f)
     val helper_specs = env.functions.map {case (fname, spec) => (fname, ProofSpecTranslation.translate_conditions(env)(pred_type_map)(spec))}
-    println(spec.pp)
     val program_body = translate_proof(base_proof)(new VSTProgramTranslator, VSTProgramTranslator.empty_context)
     val procedure = CProcedureDefinition(proc.name, params, program_body, helper_specs.values.toList)
-    println(procedure.pp)
-    println(spec.pp)
 
     val spec_map = Map(proc.name -> spec) ++ helper_specs
     val proof_translator = VSTProofTranslator(spec)
