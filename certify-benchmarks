@@ -1,0 +1,2 @@
+scala -classpath target/scala-2.12/suslik.jar org.tygus.suslik.synthesis.CertificationBenchmarks
+
