@@ -1,38 +1,23 @@
 # Certified Synthesis
 
-Generation of correctness certificates for synthesized programs. Currently, we support HTT as the certification backend.
+Generation of correctness certificates for synthesized programs.
+Currently, we support three target verification frameworks in Coq: HTT, VST, and Iris.
 
-## HTT
+## Requirements
 
-### Examples
+Follow the instructions in the README of each repository below to install the necessary
+Coq libraries. Each repository also has a `benchmarks/` directory where examples of generated
+certificates are viewable.
 
-Visit the [`ssl-htt`](https://github.com/yasunariw/ssl-htt) repository to see examples of generated certificates.
+- HTT ([`TyGuS/ssl-htt`](https://github.com/TyGuS/ssl-htt))
+- VST ([`TyGuS/ssl-vst`](https://github.com/TyGuS/ssl-vst))
+- Iris ([`TyGuS/ssl-iris`](https://github.com/TyGuS/ssl-iris))
 
-### Requirements
-
-- [Coq](https://coq.inria.fr/) (>= "8.10.0" & < "8.12~")
-- [Mathematical Components](http://math-comp.github.io/math-comp/) `ssreflect` (>= "1.10.0" & < "1.11~")
-- [FCSL PCM library](https://github.com/imdea-software/fcsl-pcm) (>= "1.0.0" & < "1.3~")
-- [HTT](https://github.com/TyGuS/htt)
-- [CoqHammer](https://coqhammer.github.io)
-- [SSL-HTT](https://github.com/TyGuS/ssl-htt)
-
-### Building Definitions and Proofs
-
-We recommend installing with [OPAM](https://opam.ocaml.org/doc/Install.html):
-
-```
-opam repo add coq-released https://coq.inria.fr/opam/released
-opam pin add coq-htt git+https://github.com/TyGuS/htt\#master --no-action --yes
-opam pin add coq-ssl-htt git+https://github.com/TyGuS/ssl-htt\#master --no-action --yes
-opam install coq coq-mathcomp-ssreflect coq-fcsl-pcm coq-htt coq-hammer coq-ssl-htt
-```
-
-### Running Synthesis with Certification
+## Synthesis with Certification
 
 Add the following flags to run synthesis with certification.
 
-- `--certTarget <value>`: Currently supports value `htt`.
+- `--certTarget <value>`: Currently supports values `htt`, `vst`, `iris`.
 - `--certDest <value>` (optional): Specifies the directory in which to generate a certificate file. Logs output to console if not provided.
 
 For example, the following command produces a HTT certificate of the specification `listfree.syn`, and logs its contents to the console.
@@ -46,3 +31,15 @@ By providing the `--certDest` flag, SuSLik writes out this certificate as a file
 ```bash
 ./suslik examples/listfree.syn --assert false --certTarget htt --certDest .
 ```
+
+### Optional Flags
+
+If HTT is chosen as the certification target, you can control additional certification parameters.
+Note that this has no effect if Iris or VST are chosen.
+
+- `--certHammerPure <value>` (boolean; default is `false`):
+Controls whether to use CoqHammer to solve pure lemmas.
+If `false`, the generated certificate will have all pure lemmas `Admitted` instead.
+- `--certSetRepr <value>` (boolean; default is `false`):
+Controls whether to use SSReflect's `perm_eq` to express multi-set equality.
+If `false`, the generated certificate will use regular equality (`=`) instead.

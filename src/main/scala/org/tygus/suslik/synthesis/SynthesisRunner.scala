@@ -45,10 +45,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * -j, --traceToJsonFile <value>  dump entire proof search trace to a json file; default: none
     * --memo <value>                 enable memoization; default: true
     * --lexi <value>                 use lexicographic termination metric (as opposed to total size); default: false
-    * --certTarget <value>           set certification target; default: none
-    * --certDest <value>             write certificate to path; default: none
-    * --certHammerPure <value>       use hammer to solve pure lemmas (HTT only); default: false
-    * --certSetRepr <value>          use list permutations to represent sets (HTT only); default: false
+    * --certTarget <value>           set certification target; default: none (options: htt | vst | iris)
+    * --certDest <value>             specify the directory in which to store the certificate file; default: none
+    * --certHammerPure <value>       use hammer to solve pure lemmas instead of admitting them (HTT only); default: false
+    * --certSetRepr <value>          use SSReflect's perm_eq to represent set equality (HTT only); default: false
     *
     * --help                         prints the help reference
     *
@@ -217,19 +217,19 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[CertificationTarget](name="certTarget").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
-    }.text("set certification target; default: none")
+    }.text("set certification target; default: none (options: htt | vst | iris)")
 
     opt[File](name="certDest").action(cfg { f =>
       _.copy(certDest = f)
-    }).text("write certificate to path; default: none")
+    }).text("specify the directory in which to store the certificate file; default: none")
 
     opt[Boolean](name = "certHammerPure").action(cfg { b =>
       _.copy(certHammerPure = b)
-    }).text("use hammer to solve pure lemmas (HTT only); default: false")
+    }).text("use hammer to solve pure lemmas instead of admitting them (HTT only); default: false")
 
     opt[Boolean](name = "certSetRepr").action(cfg { b =>
       _.copy(certSetRepr = b)
-    }).text("use list permutations to represent sets (HTT only); default: false")
+    }).text("use SSReflect's perm_eq to represent set equality (HTT only); default: false")
 
     help("help").text("prints this usage text")
 
