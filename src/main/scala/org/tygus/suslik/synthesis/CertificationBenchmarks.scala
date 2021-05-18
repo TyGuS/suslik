@@ -14,6 +14,7 @@ import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.report.StopWatch.timed
+import org.tygus.suslik.synthesis.CertificationBenchmarks.{BenchmarkConfig, BenchmarkMode}
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
 
@@ -22,15 +23,13 @@ import scala.io.StdIn
 import scala.sys.process.Process
 
 class CertificationBenchmarks(
-                               targets: List[CertificationTarget],
                                params: SynConfig,
-                               outputDirName: String,
-                               statsFilePrefix: String
+                               cfg: BenchmarkConfig
                               ) extends SynthesisRunnerUtil {
-  val outputDir: File = new File(outputDirName)
-  val synStatsFile = new File(List(outputDirName, s"$statsFilePrefix-syn.csv").mkString(File.separator))
+  val outputDir: File = new File(cfg.outputDirName)
+  val synStatsFile = new File(List(cfg.outputDirName, s"${cfg.statsFilePrefix}-syn.csv").mkString(File.separator))
   val certStatsFiles: Map[CertificationTarget, File] =
-    targets.map(t => t -> new File(List(outputDirName, s"$statsFilePrefix-${t.name}.csv").mkString(File.separator))).toMap
+    cfg.targets.map(t => t -> new File(List(cfg.outputDirName, s"${cfg.statsFilePrefix}-${t.name}.csv").mkString(File.separator))).toMap
   val defFilename: String = "common"
   val exclusions: List[(String, String)] = List(
     ("VST", "sll-bounds/sll-len"),
@@ -38,10 +37,6 @@ class CertificationBenchmarks(
     ("Iris", "sll-bounds/sll-max"),
     ("Iris", "sll-bounds/sll-min")
   )
-
-  outputDir.mkdirs()
-  initSynLog()
-  targets.foreach(initCertLog)
 
   def synthesizeOne(text: String, parser: SSLParser, params: SynConfig): (List[Statements.Procedure], Environment, Long) = {
     val res = params.inputFormat match {
@@ -87,12 +82,12 @@ class CertificationBenchmarks(
   }
 
   override def runAllTestsFromDir(dir: String): Unit = {
-    println(s"=========================================\n")
+    println(s"\n\n=========================================\n")
     println(s"  Benchmark Group: $dir\n")
     println(s"=========================================\n")
     val path = List(rootDir, dir).mkString(File.separator)
     val testDir = new File(path)
-    val outputDirs = targets.map { target =>
+    val outputDirs = cfg.targets.map { target =>
       val targetDir = Paths.get(outputDir.getPath, target.name, dir).toFile
       targetDir.mkdirs()
       target -> targetDir
@@ -125,7 +120,11 @@ class CertificationBenchmarks(
       }
       println("Finished synthesizing specifications!")
 
-      for (target <- targets) {
+      if (cfg.mode == BenchmarkMode.SynOnly) {
+        return
+      }
+
+      for (target <- cfg.targets) {
         val outputDir = outputDirs(target)
         println(s"Generating ${target.name} certificates...")
         val certs = for ((testName, proc, tree, goal, env) <- synResults) yield {
@@ -149,24 +148,26 @@ class CertificationBenchmarks(
 
         val validCerts = certs.filter(_.isDefined).map(_.get)
         val predicates = validCerts.flatMap(_.predicates).groupBy(_.name).map(_._2.head).toList
-        println(s"Compiling ${target.name} common definitions to ${outputDir.getPath}...")
+        println(s"Writing ${target.name} common definitions to ${outputDir.getPath}...")
         val defFiles = target.generate_common_definitions_of(defFilename, predicates)
         defFiles.foreach { output =>
-          print(s"  File ${output.filename}...")
+          print(s"  File ${output.filename}: serializing...")
           serialize(outputDir, output.filename, output.body)
-          print("compiling...")
-          output.compile(outputDir)
+          if (cfg.mode == BenchmarkMode.SynGenCompile) {
+            print("compiling...")
+            output.compile(outputDir)
+          }
           println("done!")
         }
-        println(s"Compiled ${target.name} common definitions to ${outputDir.getPath}!")
+        println(s"Wrote ${target.name} common definitions to ${outputDir.getPath}!")
 
         println(s"Writing ${target.name} certificate outputs to ${outputDir.getPath}...")
         for (cert <- validCerts) {
           val outputs = cert.outputs_with_common_predicates(defFilename, predicates)
           for (o <- outputs) {
-            print(s"  File ${o.filename}...")
+            print(s"  File ${o.filename}: serializing...")
             serialize(outputDir, o.filename, o.body)
-            if (!o.isProof) {
+            if (!o.isProof && cfg.mode == BenchmarkMode.SynGenCompile) {
               print("compiling...")
               o.compile(outputDir) match {
                 case 0 => println("done!")
@@ -182,13 +183,17 @@ class CertificationBenchmarks(
               print(s"  Checking size of main proof ${proof.filename}...")
               val (specSize, proofSize) = checkProofSize(outputDir, proof.filename)
               println(s"done! (spec: $specSize, proof: $proofSize)")
-              print(s"  Compiling main proof ${proof.filename}...")
-              val (res, compileTime) = timed(proof.compile(outputDir))
-              val compileTimeOpt = if (res == 0) {
-                println(s"done! (${fmtTime(compileTime)} s)")
-                Some(compileTime)
+              val compileTimeOpt = if (cfg.mode == BenchmarkMode.SynGenCompile) {
+                print(s"  Compiling main proof ${proof.filename}...")
+                val (res, compileTime) = timed(proof.compile(outputDir))
+                if (res == 0) {
+                  println(s"done! (${fmtTime(compileTime)} s)")
+                  Some(compileTime)
+                } else {
+                  println(s"ERR\n   Failed to compile ${proof.filename}!")
+                  None
+                }
               } else {
-                println(s"ERR\n   Failed to compile ${proof.filename}!")
                 None
               }
               logCertStat(target, List(
@@ -202,14 +207,23 @@ class CertificationBenchmarks(
         }
         println(s"Wrote ${target.name} certificate outputs to ${outputDir.getPath}!")
       }
-
-      println("\n\n")
     } else {
       println(s"- ERR\n   no such test directory $testDir!")
     }
   }
 
-  def serialize(dir: File, filename: String, body: String): Unit = {
+  def runBenchmarks(): Unit = {
+    outputDir.mkdirs()
+    initSynLog()
+    if (cfg.groups.nonEmpty) {
+      if (cfg.mode != BenchmarkMode.SynOnly) {
+        cfg.targets.foreach(initCertLog)
+      }
+      cfg.groups.foreach(runAllTestsFromDir)
+    }
+  }
+
+  private def serialize(dir: File, filename: String, body: String): Unit = {
     val file = Paths.get(dir.getCanonicalPath, filename).toFile
     new PrintWriter(file) {
       write(body); close()
@@ -265,20 +279,48 @@ object CertificationBenchmarks {
     "certification-benchmarks-advanced/dll",
     "certification-benchmarks-advanced/srtl",
   )
-  val defaultStandardConfig = BenchmarkConfig(allTargets, allStandard)
-  val defaultAdvancedConfig = BenchmarkConfig(List(HTT()), allAdvanced)
+  val defaultStandardConfig: BenchmarkConfig = BenchmarkConfig(allTargets, allStandard, BenchmarkMode.SynGenCompile, "standard")
+  val defaultAdvancedConfig: BenchmarkConfig = BenchmarkConfig(List(HTT()), allAdvanced, BenchmarkMode.SynGen, "advanced")
 
-  case class BenchmarkConfig(targets: List[CertificationTarget], groups: List[String]) {
-    def updateTargets: BenchmarkConfig = {
+  trait BenchmarkMode {
+    def pp: String
+  }
+  object BenchmarkMode {
+    case object SynOnly extends BenchmarkMode {
+      def pp: String = "synthesize only"
+    }
+    case object SynGen extends BenchmarkMode {
+      def pp: String = "synthesize; generate proofs"
+    }
+    case object SynGenCompile extends BenchmarkMode {
+      def pp: String = "synthesize; generate and compile proofs"
+    }
+  }
+
+  case class BenchmarkConfig(
+                              targets: List[CertificationTarget],
+                              groups: List[String],
+                              mode: BenchmarkMode,
+                              statsFilePrefix: String,
+                              outputDirName: String = "certify",
+                            ) {
+    def updateTargets(): BenchmarkConfig = {
+      if (mode == BenchmarkMode.SynOnly) {
+        return this
+      }
       println(s"\nBenchmarks will be evaluated on target(s): ${targets.map(_.name).mkString(", ")}")
-      val s = StdIn.readLine("Manually select targets instead? y/N: ")
+      val s = StdIn.readLine("Manually select targets instead? [y/N] ")
       if (s.toLowerCase() == "y") {
         val newTargets = mutable.ListBuffer[CertificationTarget]()
         for (t <- targets) {
-          val s = StdIn.readLine(s"Include target '${t.name}'? Y/n: ")
+          val s = StdIn.readLine(s"Include target '${t.name}'? [Y/n] ")
           if (s.toLowerCase() != "n") newTargets.append(t)
         }
-        println(s"Benchmarks will be evaluated on target(s): ${newTargets.map(_.name).mkString(", ")}")
+        if (newTargets.isEmpty) {
+          println(s"Benchmarks will not be evaluated on any targets.")
+        } else {
+          println(s"Benchmarks will be evaluated on target(s): ${newTargets.map(_.name).mkString(", ")}")
+        }
         this.copy(targets = newTargets.toList)
       } else {
         println("Evaluation targets unchanged.")
@@ -286,21 +328,57 @@ object CertificationBenchmarks {
       }
     }
 
-    def updateGroups: BenchmarkConfig = {
+    def updateGroups(): BenchmarkConfig = {
+      if (targets.isEmpty) {
+        return this
+      }
       println("\nBenchmarks will be run on the following group(s):")
       for (g <- groups) println(s"- $g")
-      val s = StdIn.readLine("Manually select groups instead? y/N: ")
+      val s = StdIn.readLine("Manually select groups instead? [y/N] ")
       if (s.toLowerCase() == "y") {
         val newGroups = mutable.ListBuffer[String]()
         for (g <- groups) {
-          val s = StdIn.readLine(s"Include group '$g'? Y/n: ")
+          val s = StdIn.readLine(s"Include group '$g'? [Y/n] ")
           if (s.toLowerCase() != "n") newGroups.append(g)
         }
-        println("Benchmarks will be run on the following group(s):")
-        for (g <- newGroups) println(s"- $g")
+        if (newGroups.isEmpty) {
+          println("Benchmarks will not be evaluated on any groups.")
+        } else {
+          println("Benchmarks will be run on the following group(s):")
+          for (g <- newGroups) println(s"- $g")
+        }
         this.copy(groups = newGroups.toList)
       } else {
         println("Evaluation groups unchanged.")
+        this
+      }
+    }
+
+    def updateMode(): BenchmarkConfig = {
+      println(s"\nBenchmarks will be run in mode: ${mode.pp}")
+      val s = StdIn.readLine("Manually select mode instead? [y/N] ")
+      if (s.toLowerCase() == "y") {
+        var generate = true
+        var compile = true
+        var s = StdIn.readLine("Generate proof certificates for synthesized results? [Y/n] ")
+        if (s.toLowerCase() == "n") {
+          generate = false
+          compile = false
+        } else {
+          s = StdIn.readLine("Compile generated certificates? [Y/n] ")
+          if (s.toLowerCase() == "n") {
+            compile = false
+          }
+        }
+        val newMode = (generate, compile) match {
+          case (true, true) => BenchmarkMode.SynGenCompile
+          case (true, false) => BenchmarkMode.SynGen
+          case _ => BenchmarkMode.SynOnly
+        }
+        println(s"\nBenchmarks updated to run in mode: ${newMode.pp}")
+        this.copy(mode = newMode)
+      } else {
+        println("Evaluation mode unchanged.")
         this
       }
     }
@@ -308,12 +386,12 @@ object CertificationBenchmarks {
 
   def main(args: Array[String]): Unit = {
     println("==========STANDARD BENCHMARK CONFIGURATION==========")
-    val standardConfig = defaultStandardConfig.updateTargets.updateGroups
+    val standardConfig = defaultStandardConfig.updateMode().updateTargets().updateGroups()
     println("\n\n==========ADVANCED BENCHMARK CONFIGURATION==========")
-    val advancedConfig = defaultAdvancedConfig.updateGroups
+    val advancedConfig = defaultAdvancedConfig.updateMode().updateGroups()
     println("\n\nResults will be produced in the following directory:")
     println(s"  ${new File("certify").getCanonicalPath}")
-    val s = StdIn.readLine("Existing files will be overwritten. Continue? Y/n: ")
+    val s = StdIn.readLine("Existing files will be overwritten. Continue? [Y/n] ")
     if (s.toLowerCase == "n") {
       println("Canceled job.")
       sys.exit(0)
@@ -322,19 +400,15 @@ object CertificationBenchmarks {
     }
 
     val standard = new CertificationBenchmarks (
-      standardConfig.targets,
       SynConfig(certHammerPure = true),
-      List("certify").mkString(File.separator),
-      "standard"
+      standardConfig
     )
-    standardConfig.groups.map(standard.runAllTestsFromDir)
+    standard.runBenchmarks()
 
     val advanced = new CertificationBenchmarks(
-      advancedConfig.targets,
-      SynConfig(certSetRepr = true),
-      List("certify").mkString(File.separator),
-      "advanced"
+      SynConfig(certSetRepr = true, certHammerPure = true),
+      advancedConfig
     )
-    advancedConfig.groups.map(advanced.runAllTestsFromDir)
+    advanced.runBenchmarks()
   }
 }
