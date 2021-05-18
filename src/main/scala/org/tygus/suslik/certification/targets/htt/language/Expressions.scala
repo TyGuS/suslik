@@ -152,7 +152,7 @@ object Expressions {
 
   case class CPointsTo(loc: CExpr, offset: Int = 0, value: CExpr) extends CExpr {
     def locPP: String = if (offset == 0) loc.pp else s"${loc.pp} .+ $offset"
-    override def pp: String = s"$locPP :-> ${value.pp}"
+    override def pp: String = s"$locPP :-> (${value.pp})"
     override def subst(sigma: CSubst): CPointsTo =
       CPointsTo(loc.subst(sigma), offset, value.subst(sigma))
   }

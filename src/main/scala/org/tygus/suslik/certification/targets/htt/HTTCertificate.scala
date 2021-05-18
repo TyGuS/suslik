@@ -9,13 +9,9 @@ case class HTTCertificate(testName: String, name: String, predicates: List[CIndu
   // Replace hyphens with underscores
   def sanitize(txt: String): String = txt.replace('-', '_')
 
-  def pp: String =
-    s"""${HTT.prelude}
-       |${predicates.map(_.pp).mkString("\n\n")}
-       |$ppMain
-       |""".stripMargin
+  def pp: String = s"${HTT.prelude}\n${predicates.map(_.pp).mkString("\n\n")}\n$ppMain"
 
-  def ppExternalDefs: String = s"${HTT.prelude}\nRequire Import common.\n\n$ppMain"
+  def ppExternalDefs(baseFileName: String): String = s"${HTT.prelude}\nRequire Import $baseFileName.\n\n$ppMain"
 
   private def ppMain: String = {
     val builder = new StringBuilder
@@ -39,6 +35,9 @@ case class HTTCertificate(testName: String, name: String, predicates: List[CIndu
     builder.toString
   }
 
-  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"${sanitize(name)}.v", sanitize(name), ppExternalDefs))
+  override def outputs: List[CertificateOutput] =  List(CoqOutput(s"${sanitize(name)}.v", sanitize(name), pp))
+
+  override def outputs_with_common_predicates(base_filename: String, common_predicates: List[CInductivePredicate]): List[CertificateOutput] =
+    List(CoqOutput(s"${sanitize(name)}.v", sanitize(name), ppExternalDefs(base_filename)))
 
 }

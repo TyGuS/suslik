@@ -1,7 +1,7 @@
 
 predicate dllseg(loc x, loc z, set s) {
-|  x == 0 => { s =i {} ; emp }
-|  not (x == 0) =>
+|  x == null => { s =i {} ; emp }
+|  not (x == null) =>
    { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dllseg(w, x, s1) }
 }
 
@@ -15,7 +15,7 @@ void sll_to_dll(loc f)
 { true ;  f :-> i ** dllseg(i, z, s)}
 {
   let x2 = *f;
-  if (x2 == 0) {
+  if (x2 == null) {
   } else {
     /*strange bug: if you remove this comment, then synthesis will break if printDerivations=false*/
     let nxt2 = *(x2 + 1);
