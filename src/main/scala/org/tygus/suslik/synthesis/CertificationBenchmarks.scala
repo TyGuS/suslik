@@ -175,7 +175,7 @@ class CertificationBenchmarks(
               }
             } else println("done!")
           }
-          outputs.find(_.isProof) match {
+          if (cfg.mode == BenchmarkMode.SynGenCompile) outputs.find(_.isProof) match {
             case None =>
               println(s"  Warning: No ${target.name} proof output found in certificate for ${cert.testName}! Skipping compilation.")
               logCertStat(target, List(cert.testName, "-", "-", "-", "-"))
@@ -183,17 +183,13 @@ class CertificationBenchmarks(
               print(s"  Checking size of main proof ${proof.filename}...")
               val (specSize, proofSize) = checkProofSize(outputDir, proof.filename)
               println(s"done! (spec: $specSize, proof: $proofSize)")
-              val compileTimeOpt = if (cfg.mode == BenchmarkMode.SynGenCompile) {
-                print(s"  Compiling main proof ${proof.filename}...")
-                val (res, compileTime) = timed(proof.compile(outputDir))
-                if (res == 0) {
-                  println(s"done! (${fmtTime(compileTime)} s)")
-                  Some(compileTime)
-                } else {
-                  println(s"ERR\n   Failed to compile ${proof.filename}!")
-                  None
-                }
+              print(s"  Compiling main proof ${proof.filename}...")
+              val (res, compileTime) = timed(proof.compile(outputDir))
+              val compileTimeOpt = if (res == 0) {
+                println(s"done! (${fmtTime(compileTime)} s)")
+                Some(compileTime)
               } else {
+                println(s"ERR\n   Failed to compile ${proof.filename}!")
                 None
               }
               logCertStat(target, List(
@@ -216,7 +212,7 @@ class CertificationBenchmarks(
     outputDir.mkdirs()
     initSynLog()
     if (cfg.groups.nonEmpty) {
-      if (cfg.mode != BenchmarkMode.SynOnly) {
+      if (cfg.mode == BenchmarkMode.SynGenCompile) {
         cfg.targets.foreach(initCertLog)
       }
       cfg.groups.foreach(runAllTestsFromDir)
@@ -241,7 +237,7 @@ class CertificationBenchmarks(
     if (file.exists()) file.delete()
     file.getParentFile.mkdirs()
     file.createNewFile()
-    val data = header.mkString(", ") + "\n"
+    val data = header.mkString(",") + "\n"
     SynStatUtil.using(new FileWriter(file, true))(_.write(data))
   }
 
@@ -256,7 +252,7 @@ class CertificationBenchmarks(
   }
 
   private def logStat(file: File, row: List[String]): Unit = {
-    val data = s"${row.mkString(", ")}\n"
+    val data = s"${row.mkString(",")}\n"
     SynStatUtil.using(new FileWriter(file, true))(_.write(data))
   }
   private def logSynStat(row: List[String]): Unit = logStat(synStatsFile, row)
@@ -308,9 +304,9 @@ object CertificationBenchmarks {
       if (mode == BenchmarkMode.SynOnly) {
         return this
       }
-      println(s"\nBenchmarks will be evaluated on target(s): ${targets.map(_.name).mkString(", ")}")
-      val s = StdIn.readLine("Manually select targets instead? [y/N] ")
-      if (s.toLowerCase() == "y") {
+      println(s"\nBy default, benchmarks will be evaluated on target(s): ${targets.map(_.name).mkString(", ")}")
+      val s = StdIn.readLine("Proceed with default targets? [Y/n] ")
+      if (s.toLowerCase() == "n") {
         val newTargets = mutable.ListBuffer[CertificationTarget]()
         for (t <- targets) {
           val s = StdIn.readLine(s"Include target '${t.name}'? [Y/n] ")
@@ -332,10 +328,10 @@ object CertificationBenchmarks {
       if (targets.isEmpty) {
         return this
       }
-      println("\nBenchmarks will be run on the following group(s):")
+      println("\nBy default, benchmarks will be run on the following group(s):")
       for (g <- groups) println(s"- $g")
-      val s = StdIn.readLine("Manually select groups instead? [y/N] ")
-      if (s.toLowerCase() == "y") {
+      val s = StdIn.readLine("Proceed with default groups? [Y/n] ")
+      if (s.toLowerCase() == "n") {
         val newGroups = mutable.ListBuffer[String]()
         for (g <- groups) {
           val s = StdIn.readLine(s"Include group '$g'? [Y/n] ")
@@ -355,9 +351,9 @@ object CertificationBenchmarks {
     }
 
     def updateMode(): BenchmarkConfig = {
-      println(s"\nBenchmarks will be run in mode: ${mode.pp}")
-      val s = StdIn.readLine("Manually select mode instead? [y/N] ")
-      if (s.toLowerCase() == "y") {
+      println(s"\nBy default, benchmarks will be run in mode: ${mode.pp}")
+      val s = StdIn.readLine("Proceed with default mode? [Y/n] ")
+      if (s.toLowerCase() == "n") {
         var generate = true
         var compile = true
         var s = StdIn.readLine("Generate proof certificates for synthesized results? [Y/n] ")
