@@ -4,7 +4,6 @@ import org.tygus.suslik.certification._
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.logic.Sentences.CInductivePredicate
 import org.tygus.suslik.certification.targets.htt.translation.Translation
-import org.tygus.suslik.certification.targets.htt.translation.Translation.TranslationException
 import org.tygus.suslik.certification.traversal.ProofTree
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment

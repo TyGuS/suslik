@@ -17,6 +17,7 @@ abstract class Hint {
 object Hint {
   private var _hintId: Int = 0
   private def freshHintId: Int = {_hintId += 1; _hintId}
+  def initHintId: Unit = _hintId = 0
 
   case class PredicateSetTransitive(pred: CInductivePredicate, hammer: Boolean) extends Hint {
     val dbName: String = "ssl_pred"

@@ -27,6 +27,7 @@ object Translation {
     * @return the inductive predicates, fun spec, proof, and program translated to HTT
     */
   def translate(testName: String, suslikTree: ProofTree[SuslikProofStep], goal: Goal, proc: Procedure)(implicit env: Environment): HTTCertificate = {
+    Hint.initHintId
     val cpreds = env.predicates.mapValues(p => {
       val gamma = p.resolve(p.params.toMap, env).get
       val p1 = p.copy(clauses = p.clauses.map(_.resolveOverloading(gamma)))
