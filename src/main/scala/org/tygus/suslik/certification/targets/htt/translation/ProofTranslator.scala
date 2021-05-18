@@ -112,7 +112,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
         val appAliases = (cgoal.pre.sigma.apps ++ cgoal.post.sigma.apps).map(a => a -> a).toMap
         if (env.config.certSetRepr) {
           val hammer = env.config.certHammerPure
-          ctx.hints ++= ctx.predicates.values.map(p => Hint.PredicateSetTransitive(p, hammer))
+          ctx.hints ++= ctx.predicates.values.map(p => Hint.PredicateSetCongruence(p, hammer))
         }
         val postEx = ListMap(cgoal.existentials.map(v => v -> (goal.getType(Var(v.name)).translate, v)): _*)
         val ctx1 = ctx.copy(postEx = postEx, appAliases = appAliases)

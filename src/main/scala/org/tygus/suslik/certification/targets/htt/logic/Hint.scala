@@ -19,11 +19,11 @@ object Hint {
   private def freshHintId: Int = {_hintId += 1; _hintId}
   def initHintId: Unit = _hintId = 0
 
-  case class PredicateSetTransitive(pred: CInductivePredicate, hammer: Boolean) extends Hint {
+  case class PredicateSetCongruence(pred: CInductivePredicate, hammer: Boolean) extends Hint {
     val dbName: String = "ssl_pred"
 
     case class Hypothesis(params: Seq[CVar], idx: Int) {
-      val name = s"${pred.name}_perm_eq_trans$freshHintId"
+      val name = s"${pred.name}_perm_eq_congr$freshHintId"
       val (before, after) = pred.params.map(_._1).splitAt(idx)
       val s1: CVar = CVar("s_1")
       val s2: CVar = CVar("s_2")
