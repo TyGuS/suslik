@@ -126,7 +126,7 @@ class CertificationBenchmarks(
         println(s"Generating ${target.name} certificates...")
         val certs = for ((testName, proc, tree, goal, env) <- synResults) yield {
           if (exclusions.contains((target.name, testName))) {
-            print(s"  $testName...skipping unsupported test case for ${target.name}")
+            println(s"  $testName...skipping unsupported test case for ${target.name}")
             None
           } else {
             try {
