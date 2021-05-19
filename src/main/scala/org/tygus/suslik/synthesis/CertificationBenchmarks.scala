@@ -206,9 +206,9 @@ class CertificationBenchmarks(
   }
 
   def runBenchmarks(): Unit = {
-    outputDir.mkdirs()
-    initSynLog()
     if (cfg.groups.nonEmpty) {
+      outputDir.mkdirs()
+      initSynLog()
       if (cfg.compile) {
         cfg.targets.foreach(initCertLog)
       }
