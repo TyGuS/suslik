@@ -14,7 +14,7 @@ import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.report.StopWatch.timed
-import org.tygus.suslik.synthesis.CertificationBenchmarks.{BenchmarkConfig, BenchmarkMode}
+import org.tygus.suslik.synthesis.CertificationBenchmarks.BenchmarkConfig
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
 import scopt.OptionParser
@@ -121,10 +121,6 @@ class CertificationBenchmarks(
       }
       println("Finished synthesizing specifications!")
 
-      if (cfg.mode == BenchmarkMode.SynOnly) {
-        return
-      }
-
       for (target <- cfg.targets) {
         val outputDir = outputDirs(target)
         println(s"Generating ${target.name} certificates...")
@@ -154,7 +150,7 @@ class CertificationBenchmarks(
         defFiles.foreach { output =>
           print(s"  File ${output.filename}: serializing...")
           serialize(outputDir, output.filename, output.body)
-          if (cfg.mode == BenchmarkMode.SynGenCompile) {
+          if (cfg.compile) {
             print("compiling...")
             output.compile(outputDir)
           }
@@ -168,7 +164,7 @@ class CertificationBenchmarks(
           for (o <- outputs) {
             print(s"  File ${o.filename}: serializing...")
             serialize(outputDir, o.filename, o.body)
-            if (!o.isProof && cfg.mode == BenchmarkMode.SynGenCompile) {
+            if (!o.isProof && cfg.compile) {
               print("compiling...")
               o.compile(outputDir) match {
                 case 0 => println("done!")
@@ -176,7 +172,7 @@ class CertificationBenchmarks(
               }
             } else println("done!")
           }
-          if (cfg.mode == BenchmarkMode.SynGenCompile) outputs.find(_.isProof) match {
+          if (cfg.compile) outputs.find(_.isProof) match {
             case None =>
               println(s"  Warning: No ${target.name} proof output found in certificate for ${cert.testName}! Skipping compilation.")
               logCertStat(target, List(cert.testName, "-", "-", "-", "-"))
@@ -213,7 +209,7 @@ class CertificationBenchmarks(
     outputDir.mkdirs()
     initSynLog()
     if (cfg.groups.nonEmpty) {
-      if (cfg.mode == BenchmarkMode.SynGenCompile) {
+      if (cfg.compile) {
         cfg.targets.foreach(initCertLog)
       }
       cfg.groups.foreach(runAllTestsFromDir)
@@ -276,35 +272,17 @@ object CertificationBenchmarks {
     "certification-benchmarks-advanced/dll",
     "certification-benchmarks-advanced/srtl",
   )
-  val defaultStandardConfig: BenchmarkConfig = BenchmarkConfig(allTargets, allStandard, BenchmarkMode.SynGenCompile, "standard")
-  val defaultAdvancedConfig: BenchmarkConfig = BenchmarkConfig(List(HTT()), allAdvanced, BenchmarkMode.SynGen, "advanced")
-
-  trait BenchmarkMode {
-    def pp: String
-  }
-  object BenchmarkMode {
-    case object SynOnly extends BenchmarkMode {
-      def pp: String = "synthesize only"
-    }
-    case object SynGen extends BenchmarkMode {
-      def pp: String = "synthesize; generate proofs"
-    }
-    case object SynGenCompile extends BenchmarkMode {
-      def pp: String = "synthesize; generate and compile proofs"
-    }
-  }
+  val defaultStandardConfig: BenchmarkConfig = BenchmarkConfig(allTargets, allStandard, compile = true, "standard")
+  val defaultAdvancedConfig: BenchmarkConfig = BenchmarkConfig(List(HTT()), allAdvanced, compile = false, "advanced")
 
   case class BenchmarkConfig(
                               targets: List[CertificationTarget],
                               groups: List[String],
-                              mode: BenchmarkMode,
+                              compile: Boolean,
                               statsFilePrefix: String,
                               outputDirName: String = "certify",
                             ) {
     def updateTargets(): BenchmarkConfig = {
-      if (mode == BenchmarkMode.SynOnly) {
-        return this
-      }
       println(s"\nBy default, benchmarks will be evaluated on target(s): ${targets.map(_.name).mkString(", ")}")
       val s = StdIn.readLine("Proceed with default targets? [Y/n] ")
       if (s.toLowerCase() == "n") {
@@ -351,33 +329,11 @@ object CertificationBenchmarks {
       }
     }
 
-    def updateMode(): BenchmarkConfig = {
-      println(s"\nBy default, benchmarks will be run in mode: ${mode.pp}")
-      val s = StdIn.readLine("Proceed with default mode? [Y/n] ")
-      if (s.toLowerCase() == "n") {
-        var generate = true
-        var compile = true
-        var s = StdIn.readLine("Generate proof certificates for synthesized results? [Y/n] ")
-        if (s.toLowerCase() == "n") {
-          generate = false
-          compile = false
-        } else {
-          s = StdIn.readLine("Compile generated certificates? [Y/n] ")
-          if (s.toLowerCase() == "n") {
-            compile = false
-          }
-        }
-        val newMode = (generate, compile) match {
-          case (true, true) => BenchmarkMode.SynGenCompile
-          case (true, false) => BenchmarkMode.SynGen
-          case _ => BenchmarkMode.SynOnly
-        }
-        println(s"\nBenchmarks updated to run in mode: ${newMode.pp}")
-        this.copy(mode = newMode)
-      } else {
-        println("Evaluation mode unchanged.")
-        this
-      }
+    def updateCompile(): BenchmarkConfig = {
+      val s = StdIn.readLine("Do you wish to compile generated certificates? [Y/n] ")
+      val newCompile = s.toLowerCase() != "n"
+      println(s"\nBenchmarks will be evaluated with certificate compilation ${if (newCompile) "ENABLED" else "DISABLED"}")
+      this.copy(compile = newCompile)
     }
   }
 
@@ -406,9 +362,9 @@ object CertificationBenchmarks {
 
     val (standardConfig, advancedConfig) = if (runConfig.configure) {
       println("==========STANDARD BENCHMARK CONFIGURATION==========")
-      val standardConfig = defaultStandardConfig.updateMode().updateTargets().updateGroups()
+      val standardConfig = defaultStandardConfig.updateCompile().updateTargets().updateGroups()
       println("\n\n==========ADVANCED BENCHMARK CONFIGURATION==========")
-      val advancedConfig = defaultAdvancedConfig.updateMode().updateGroups()
+      val advancedConfig = defaultAdvancedConfig.updateCompile().updateGroups()
       (standardConfig, advancedConfig)
     } else (defaultStandardConfig, defaultAdvancedConfig)
 
