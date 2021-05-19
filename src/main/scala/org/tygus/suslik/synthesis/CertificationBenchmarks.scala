@@ -17,6 +17,7 @@ import org.tygus.suslik.report.StopWatch.timed
 import org.tygus.suslik.synthesis.CertificationBenchmarks.{BenchmarkConfig, BenchmarkMode}
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
+import scopt.OptionParser
 
 import scala.collection.mutable
 import scala.io.StdIn
@@ -380,30 +381,50 @@ object CertificationBenchmarks {
     }
   }
 
+  private case class Config(
+                     configure: Boolean = false,
+                     outputDirName: String = "certify"
+                   )
+
+  private val parser = new OptionParser[Config]("certify-benchmarks") {
+    head("Certified Synthesis Benchmarks")
+    help("help") text "prints this usage text"
+
+    opt[Unit]("configure") action { (_, c) =>
+      c.copy(configure = true) } text "Evaluate benchmarks with custom parameters (invoke config wizard)"
+    opt[String]("outputDir") action { (x, c) =>
+      c.copy(outputDirName = x) } text "Specify a custom directory for output files"
+  }
+
   def main(args: Array[String]): Unit = {
-    println("==========STANDARD BENCHMARK CONFIGURATION==========")
-    val standardConfig = defaultStandardConfig.updateMode().updateTargets().updateGroups()
-    println("\n\n==========ADVANCED BENCHMARK CONFIGURATION==========")
-    val advancedConfig = defaultAdvancedConfig.updateMode().updateGroups()
-    println("\n\nResults will be produced in the following directory:")
-    println(s"  ${new File("certify").getCanonicalPath}")
-    val s = StdIn.readLine("Existing files will be overwritten. Continue? [Y/n] ")
-    if (s.toLowerCase == "n") {
-      println("Canceled job.")
-      sys.exit(0)
-    } else {
-      println("Starting benchmarks...\n\n")
+    val runConfig = parser.parse(args, Config()) match {
+      case Some(config) => config
+      case None =>
+        System.err.println("Bad argument format.")
+        sys.exit(1)
     }
+
+    val (standardConfig, advancedConfig) = if (runConfig.configure) {
+      println("==========STANDARD BENCHMARK CONFIGURATION==========")
+      val standardConfig = defaultStandardConfig.updateMode().updateTargets().updateGroups()
+      println("\n\n==========ADVANCED BENCHMARK CONFIGURATION==========")
+      val advancedConfig = defaultAdvancedConfig.updateMode().updateGroups()
+      (standardConfig, advancedConfig)
+    } else (defaultStandardConfig, defaultAdvancedConfig)
+
+    println("\n\nResults will be produced in the following directory:")
+    println(s"  ${new File(runConfig.outputDirName).getCanonicalPath}")
+    println("\n\nStarting benchmarks...\n\n")
 
     val standard = new CertificationBenchmarks (
       SynConfig(certHammerPure = true),
-      standardConfig
+      standardConfig.copy(outputDirName = runConfig.outputDirName)
     )
     standard.runBenchmarks()
 
     val advanced = new CertificationBenchmarks(
       SynConfig(certSetRepr = true, certHammerPure = true),
-      advancedConfig
+      advancedConfig.copy(outputDirName = runConfig.outputDirName)
     )
     advanced.runBenchmarks()
   }
