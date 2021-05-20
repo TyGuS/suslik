@@ -59,7 +59,14 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     }
   }
 
-  protected def anyPhaseRules: List[SynthesisRule] = List(
+
+  val directoryPath = os.pwd
+  val up = os.up
+  val jsonFile = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"orderOfRules.json")
+  val jsonData = ujson.read(jsonFile)
+  val orderOfAnyPhaseRules = jsonData("orderOfAnyPhaseRules").arr.map(_.num).map(_.toInt)
+
+/*  protected def anyPhaseRules: List[SynthesisRule] = List(
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
     LogicalRules.Inconsistency,
@@ -68,7 +75,29 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     UnificationRules.SubstRight,
 //    LogicalRules.WeakenPre,
     OperationalRules.ReadRule,
-    BranchRules.Branch)
+    BranchRules.Branch)*/
+
+  val unorderedAnyPhaseRules = Vector (
+    LogicalRules.StarPartial,
+    LogicalRules.NilNotLval,
+    LogicalRules.Inconsistency,
+    FailRules.PostInconsistent,
+    LogicalRules.SubstLeft,
+    UnificationRules.SubstRight,
+    OperationalRules.ReadRule,
+    BranchRules.Branch
+  )
+
+  protected def anyPhaseRules: List[SynthesisRule] = List(
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(2)),
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(3)),
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(4)),
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(5)),
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
+    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
+  )
 
   protected def symbolicExecutionRules: List[SynthesisRule] = List(
     SymbolicExecutionRules.Open,

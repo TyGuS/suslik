@@ -26,6 +26,7 @@ libraryDependencies ++= Seq(
   "com.github.scopt" %% "scopt" % "3.7.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
   "com.lihaoyi" %% "upickle" % "0.9.5",
+  "com.lihaoyi" %% "os-lib" % "0.7.7",
   "org.bitbucket.franck44.scalasmt" %% "scalasmt" % "2.1.1-SNAPSHOT" withSources()
 )
 
