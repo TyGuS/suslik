@@ -26,6 +26,9 @@ case class SynConfig(
                       branchAbduction: Boolean = false,
                       maxGuardConjuncts: Int = 2,
                       phased: Boolean = true,
+                      invert: Boolean = true,
+                      fail: Boolean = true,
+                      commute: Boolean = false,
                       depthFirst: Boolean = false,
                       breadthFirst: Boolean = false,
                       memoization: Boolean = true,
@@ -37,10 +40,12 @@ case class SynConfig(
                       printSpecs: Boolean = false,
                       printDerivations: Boolean = false,
                       printFailed: Boolean = false,
+                      printTags: Boolean = false,
                       printEnv: Boolean = false,
                       printColor: Boolean = true,
                       assertSuccess: Boolean = false,
                       logToFile: Boolean = true,
+                      logFile: String = "",
                       traceToJsonFile: Option[File] = None,
                       timeOut: Long = 300000,
                       // Certification
@@ -48,7 +53,19 @@ case class SynConfig(
                       certDest: File = null,
                       // Internal (not directly settable through CLI)
                       inputFormat: InputFormat = dotSyn,
-                      script: List[Int] = List()
+                      script: List[Int] = List(),
+                      // Global state
+                      startTime: Long = 0,
+                      /**
+                       * [EVALUATION] these dummy `flags` are solely used for the evaluation purposes.
+                       * By default they have no meaning, but one can use them to turn on/off some
+                       * feature of choice. If more flags are needed, simply add more elements to
+                       * the flags list below.
+                       *
+                       * IMPORTANT: remember to remove the flags check from the scala code once done
+                       * with the evaluation, to make sure it does not interfere with future evaluations.
+                       */
+                      flags: List[Boolean]      = (1 to 18).toList.map( _ => false),
                     ) extends PrettyPrinting {
 
   override def pp: String =

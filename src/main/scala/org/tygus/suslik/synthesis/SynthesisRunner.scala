@@ -146,9 +146,21 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(maxGuardConjuncts = n)
     }).text("maximum number of conjuncts in an abduced guard; default: 2")
 
+    opt[Boolean](name = "commute").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(commute = b))
+    }.text("only try commutative rule applications in one order; default: true")
+
     opt[Boolean](name = "phased").action(cfg { b =>
       _.copy(phased = b)
     }).text("split rules into unfolding and flat phases; default: true")
+
+    opt[Boolean](name = "fail").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(fail = b))
+    }.text("enable early failure rules; default: true")
+
+    opt[Boolean](name = "invert").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(invert = b))
+    }.text("enable invertible rules; default: true")
 
     opt[Boolean]('d', name = "dfs").action(cfg { b =>
       _.copy(depthFirst = b)
@@ -182,9 +194,18 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(printFailed = b)
     }).text("print failed rule applications; default: false")
 
+    opt[Boolean]('g', "tags").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(printTags = b))
+    }.text("print predicate application tags in derivations; default: false")
+
     opt[Boolean]('l', "log").action(cfg { b =>
       _.copy(logToFile = b)
     }).text("log results to a csv file; default: false")
+
+    opt[String]( "logFile").action { (b, rc) =>
+      rc.copy(synConfig = rc.synConfig.copy(logFile = b))
+      //      rc.copy(synConfig = rc.synConfig.copy(logToFile = true))
+    }.text("log results to the given csv file; default file: stats.csv")
 
     opt[String]('j', "traceToJsonFile").action(cfg { fn =>
       _.copy(traceToJsonFile = Some(new File(fn)))
@@ -205,6 +226,18 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[File](name="certDest").action(cfg { f =>
       _.copy(certDest = f)
     }).text("write certificate to path; default: none")
+
+    /**
+      * [EVALUATION] these dummy flags are solely used for the evaluation purposes.
+      * They are populated based on the `flags` list in SynConfig.
+      */
+    val robustness_flags_name = (1 to SynConfig().flags.length).toList.map(a => "flag" + a)
+    robustness_flags_name.foreach(arg_str =>
+      opt[Boolean](name = arg_str).action { (b, rc) =>
+        rc.copy(synConfig = rc.synConfig.copy(
+          flags = rc.synConfig.flags.updated(robustness_flags_name.indexOf(arg_str), b)))
+      }.text("set flags for evaluation; default: false")
+    )
 
     help("help").text("prints this usage text")
 

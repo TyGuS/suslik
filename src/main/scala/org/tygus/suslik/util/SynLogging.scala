@@ -187,7 +187,7 @@ object SynStatUtil {
   val myStats = "stats.csv"
   val myFile = new File(myStats)
   val initRow: String =
-    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Num Statements", "Goals generated", "Rules applied", "Max Worklist Size").mkString(", ") + "\n"
+    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Backtrackings", "Applications", "Num Statements", "Goals generated", "Rules applied", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
 
   def init(config: SynConfig){
     if (config.logToFile) {
