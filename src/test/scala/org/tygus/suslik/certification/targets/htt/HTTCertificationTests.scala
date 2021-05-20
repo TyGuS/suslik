@@ -8,10 +8,6 @@ import org.tygus.suslik.synthesis.{SynConfig, SynthesisRunnerUtil, defaultConfig
 
 import scala.sys.process._
 
-/**
-  * @author Yasunari Watanabe
-  */
-
 class HTTCertificationTests extends FunSpec with Matchers with SynthesisRunnerUtil {
   // Create a temporary directory to store the generated certificates
   // (The directory and its contents remain accessible after the test ends, but are eventually deleted)

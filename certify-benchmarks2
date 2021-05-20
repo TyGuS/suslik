@@ -2,5 +2,4 @@
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 cd "$parent_path"
-
-java -Dfile.encoding=UTF-8 -jar ./target/scala-2.12/suslik.jar  $*
+python3 ssl-htt/benchmarks/advanced/benchmark.py --outputDir certify  $*

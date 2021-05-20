@@ -1,0 +1,9 @@
+[submodule "ssl-htt"]
+	path = ssl-htt
+	url = https://github.com/TyGuS/ssl-htt.git
+[submodule "ssl-iris"]
+	path = ssl-iris
+	url = https://github.com/TyGuS/ssl-iris.git
+[submodule "ssl-vst"]
+	path = ssl-vst
+	url = https://github.com/TyGuS/ssl-vst.git
