@@ -7,15 +7,15 @@ import org.tygus.suslik.certification.targets.htt.logic.Sentences.CAssertion
 import org.tygus.suslik.certification.targets.htt.translation.ProofContext.AppliedConstructor
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
 import org.tygus.suslik.certification.traversal.Evaluator.{Deferred, EvaluatorException}
-import org.tygus.suslik.certification.traversal.Translator
-import org.tygus.suslik.certification.traversal.Translator.Result
+import org.tygus.suslik.certification.traversal.Interpreter
+import org.tygus.suslik.certification.traversal.Interpreter.Result
 import org.tygus.suslik.language.Expressions.Var
 import org.tygus.suslik.language.Statements.{Free, Load, Malloc, Store}
 import org.tygus.suslik.logic.SApp
 
 import scala.collection.immutable.ListMap
 
-object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofContext] {
+object ProofInterpreter extends Interpreter[SuslikProofStep, Proof.Step, ProofContext] {
   private def withNoDeferred(ctx: ProofContext): (List[Proof.Step], Option[Deferred[Proof.Step, ProofContext]], ProofContext) = (Nil, None, ctx)
 
   private def initPre(asn: CAssertion, uniqueName: String): List[Proof.Step] = {
@@ -50,7 +50,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
     } yield Proof.Rename(from, to)
   }
 
-  def handleSubstitution(m: Map[CVar, CExpr], ctx: ProofContext): Translator.Result[Proof.Step, ProofContext] = {
+  def handleSubstitution(m: Map[CVar, CExpr], ctx: ProofContext): Interpreter.Result[Proof.Step, ProofContext] = {
     val affectedApps = ctx.appsAffectedBySubst(m)
     val ctx1 = ctx.withSubst(m, affectedApps)
     val steps = renameAppsStep(affectedApps)
@@ -69,7 +69,7 @@ object ProofTranslator extends Translator[SuslikProofStep, Proof.Step, ProofCont
     }
   }
 
-  override def translate(value: SuslikProofStep, ctx: ProofContext): Translator.Result[Proof.Step, ProofContext] = {
+  override def interpret(value: SuslikProofStep, ctx: ProofContext): Interpreter.Result[Proof.Step, ProofContext] = {
     implicit val env = ctx.env
     value match {
       /** Initialization */

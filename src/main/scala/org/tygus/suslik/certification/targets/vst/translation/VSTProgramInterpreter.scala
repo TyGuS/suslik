@@ -8,19 +8,19 @@ import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.VSTPredicate
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{Forward, ForwardIf, ValidPointer}
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
-import org.tygus.suslik.certification.traversal.Translator.Result
-import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
+import org.tygus.suslik.certification.traversal.Interpreter.Result
+import org.tygus.suslik.certification.traversal.{Evaluator, Interpreter}
 import org.tygus.suslik.language.Expressions.{Expr, Subst, SubstVar, Var}
 import org.tygus.suslik.language.{IntType, LocType, SSLType}
 import org.tygus.suslik.certification.targets.vst.clang.Statements.{CCall, CElif, CFree, CIf, CLoadInt, CLoadLoc, CMalloc, CSkip, CWriteInt, CWriteLoc, StatementStep}
-import org.tygus.suslik.certification.targets.vst.translation.VSTProgramTranslator.VSTProgramContext
-import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.VSTClientContext
+import org.tygus.suslik.certification.targets.vst.translation.VSTProgramInterpreter.VSTProgramContext
+import org.tygus.suslik.certification.targets.vst.translation.VSTProofInterpreter.VSTClientContext
 import org.tygus.suslik.language.Statements.{Call, Free, Load, Malloc, Store}
 import org.tygus.suslik.logic.{Block, Gamma, Heaplet, PointsTo, SApp}
 
 import scala.collection.immutable.Queue
 
-object VSTProgramTranslator {
+object VSTProgramInterpreter {
 
   case class VSTProgramContext
   (
@@ -34,7 +34,7 @@ object VSTProgramTranslator {
 
 }
 
-class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VSTProgramContext] {
+class VSTProgramInterpreter extends Interpreter[SuslikProofStep, StatementStep, VSTProgramContext] {
   type Deferred = Evaluator.Deferred[StatementStep, VSTProgramContext]
   private val no_deferreds: Option[Deferred] = None
   private val no_ops : List[StatementStep] = List()
@@ -45,7 +45,7 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
 
 
 
-  def with_no_op(implicit context: VSTProgramTranslator.VSTProgramContext): Result[StatementStep, VSTProgramTranslator.VSTProgramContext] =
+  def with_no_op(implicit context: VSTProgramInterpreter.VSTProgramContext): Result[StatementStep, VSTProgramInterpreter.VSTProgramContext] =
     Result(List(), List((Nil, None, context)))
 
 
@@ -83,8 +83,8 @@ class VSTProgramTranslator extends Translator[SuslikProofStep, StatementStep, VS
     case LocType => CoqPtrValType
   }
 
-  override def translate(value: SuslikProofStep, clientContext: VSTProgramTranslator.VSTProgramContext): Result[StatementStep, VSTProgramTranslator.VSTProgramContext] = {
-    implicit val ctx: VSTProgramTranslator.VSTProgramContext = clientContext
+  override def interpret(value: SuslikProofStep, clientContext: VSTProgramInterpreter.VSTProgramContext): Result[StatementStep, VSTProgramInterpreter.VSTProgramContext] = {
+    implicit val ctx: VSTProgramInterpreter.VSTProgramContext = clientContext
     value match {
       case SuslikProofStep.NilNotLval(_)
            | SuslikProofStep.CheckPost(_, _, _)

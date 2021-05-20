@@ -5,5 +5,5 @@ import org.tygus.suslik.certification.targets.htt.program.Statements.CStatement
 import org.tygus.suslik.certification.traversal.StackEvaluator
 
 object ProgramEvaluator extends StackEvaluator[SuslikProofStep, CStatement, ProgramContext] {
-  val translator = ProgramTranslator
+  val interpreter = ProgramInterpreter
 }

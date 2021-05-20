@@ -7,7 +7,7 @@ import org.tygus.suslik.logic.Specifications.GoalLabel
 import scala.collection.immutable.Queue
 
 trait Evaluator[S <: SourceStep, D <: DestStep, C <: ClientContext[D]] {
-  implicit val translator: Translator[S,D,C]
+  implicit val interpreter: Interpreter[S,D,C]
 
   def run(node: ProofTree[S], initialClientContext: C): ProofTree[D]
 

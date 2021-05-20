@@ -3,11 +3,11 @@ package org.tygus.suslik.certification.targets.htt.translation
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.program.Statements.{CFree, CGuarded, CIf, CSkip, CStatement, Noop}
 import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Translatable
-import org.tygus.suslik.certification.traversal.Translator
-import org.tygus.suslik.certification.traversal.Translator.Result
+import org.tygus.suslik.certification.traversal.Interpreter
+import org.tygus.suslik.certification.traversal.Interpreter.Result
 
-object ProgramTranslator extends Translator[SuslikProofStep, CStatement, ProgramContext] {
-  override def translate(value: SuslikProofStep, ctx: ProgramContext): Translator.Result[CStatement, ProgramContext] = {
+object ProgramInterpreter extends Interpreter[SuslikProofStep, CStatement, ProgramContext] {
+  override def interpret(value: SuslikProofStep, ctx: ProgramContext): Interpreter.Result[CStatement, ProgramContext] = {
     val withNoDeferred = (Nil, None, ctx)
     implicit val env = ctx.env
     value match {

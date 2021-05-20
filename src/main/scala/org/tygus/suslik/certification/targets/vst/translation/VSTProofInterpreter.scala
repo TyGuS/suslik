@@ -8,14 +8,14 @@ import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{FormalSpecif
 import org.tygus.suslik.certification.targets.vst.logic.{Formulae, VSTProofStep}
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{AssertProp, AssertPropSubst, Exists, Forward, ForwardCall, ForwardEntailer, ForwardIf, ForwardIfConstructor, ForwardTernary, Free, Intros, IntrosTuple, Malloc, Rename, TentativeEntailer, UnfoldRewrite, ValidPointer}
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
-import org.tygus.suslik.certification.traversal.Translator.Result
-import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
+import org.tygus.suslik.certification.traversal.Interpreter.Result
+import org.tygus.suslik.certification.traversal.{Evaluator, Interpreter}
 import org.tygus.suslik.language.Expressions.{Expr, SubstVar, Var}
 import org.tygus.suslik.language.{Expressions, Ident, SSLType, Statements}
-import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.{PendingCall, VSTClientContext, normalize_renaming}
+import org.tygus.suslik.certification.targets.vst.translation.VSTProofInterpreter.{PendingCall, VSTClientContext, normalize_renaming}
 import org.tygus.suslik.language.Statements.Load
 
-object VSTProofTranslator {
+object VSTProofInterpreter {
 
   /**
     * Represents a pending function call.
@@ -170,9 +170,9 @@ object VSTProofTranslator {
 
 }
 
-case class VSTProofTranslator(spec: FormalSpecification) extends Translator[SuslikProofStep, VSTProofStep, VSTProofTranslator.VSTClientContext] {
+case class VSTProofInterpreter(spec: FormalSpecification) extends Interpreter[SuslikProofStep, VSTProofStep, VSTProofInterpreter.VSTClientContext] {
   type Deferred = Evaluator.Deferred[VSTProofStep, VSTClientContext]
-  type Result = Translator.Result[VSTProofStep, VSTClientContext]
+  type Result = Interpreter.Result[VSTProofStep, VSTClientContext]
 
   var contains_free: Boolean = false
   var contains_malloc: Boolean = false
@@ -189,7 +189,7 @@ case class VSTProofTranslator(spec: FormalSpecification) extends Translator[Susl
     case v => v
   }
 
-  override def translate(value: SuslikProofStep, clientContext: VSTClientContext): Result = {
+  override def interpret(value: SuslikProofStep, clientContext: VSTClientContext): Result = {
     value match {
       /** Initialization */
       case SuslikProofStep.Init(goal) =>

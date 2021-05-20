@@ -5,10 +5,10 @@ import org.tygus.suslik.certification.targets.iris.heaplang.Types.{HCardType, HL
 import org.tygus.suslik.certification.targets.iris.logic.Assertions.{ICardConstructor, IFunSpec, IPredicate, IPureAssertion, ISpecVar}
 import org.tygus.suslik.certification.targets.iris.logic._
 import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.Translatable
-import org.tygus.suslik.certification.targets.vst.translation.VSTProofTranslator.normalize_renaming
+import org.tygus.suslik.certification.targets.vst.translation.VSTProofInterpreter.normalize_renaming
 import org.tygus.suslik.certification.traversal.Evaluator.ClientContext
-import org.tygus.suslik.certification.traversal.Translator.Result
-import org.tygus.suslik.certification.traversal.{Evaluator, Translator}
+import org.tygus.suslik.certification.traversal.Interpreter.Result
+import org.tygus.suslik.certification.traversal.{Evaluator, Interpreter}
 import org.tygus.suslik.language.Expressions.{Expr, Var}
 import org.tygus.suslik.language.Statements.Load
 import org.tygus.suslik.language.{Expressions, Ident, Statements}
@@ -88,9 +88,9 @@ case class IProofContext(
   }
 }
 
-case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, IProofStep, IProofContext] {
+case class ProofInterpreter(spec: IFunSpec) extends Interpreter[SuslikProofStep, IProofStep, IProofContext] {
   type Deferred = Evaluator.Deferred[IProofStep, IProofContext]
-  type Result = Translator.Result[IProofStep, IProofContext]
+  type Result = Interpreter.Result[IProofStep, IProofContext]
 
   private val noDeferreds: Option[Deferred] = None
 
@@ -99,7 +99,7 @@ case class ProofTranslator(spec: IFunSpec) extends Translator[SuslikProofStep, I
   private val irisRet = "Ret"
   private val irisSelf: String = spec.fname
 
-  override def translate(value: SuslikProofStep, clientCtx: IProofContext): Result =
+  override def interpret(value: SuslikProofStep, clientCtx: IProofContext): Result =
     value match {
     case SuslikProofStep.Init(_) =>
       var ctx = clientCtx

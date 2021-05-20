@@ -11,15 +11,15 @@ import org.tygus.suslik.certification.targets.iris.translation.TranslatableOps.T
 import org.tygus.suslik.language.Statements.Procedure
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.certification.targets.iris.translation.IrisTranslator._
-import org.tygus.suslik.certification.traversal.{ProofTree, StackEvaluator, Translator}
+import org.tygus.suslik.certification.traversal.{ProofTree, StackEvaluator, Interpreter}
 import org.tygus.suslik.logic.Specifications.Goal
 
 object ProgramEvaluator extends StackEvaluator[SuslikProofStep, HExpr, ProgramTranslationContext] {
-  val translator: Translator[SuslikProofStep, HExpr, ProgramTranslationContext] = ProgramTranslator
+  val interpreter: Interpreter[SuslikProofStep, HExpr, ProgramTranslationContext] = ProgramInterpreter$
 }
 
 case class ProofEvaluator(spec: IFunSpec) extends StackEvaluator[SuslikProofStep, IProofStep, IProofContext] {
-  val translator: Translator[SuslikProofStep, IProofStep, IProofContext] = ProofTranslator(spec)
+  val interpreter: Interpreter[SuslikProofStep, IProofStep, IProofContext] = ProofInterpreter(spec)
 }
 
 object Translation {

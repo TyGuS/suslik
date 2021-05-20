@@ -5,5 +5,5 @@ import org.tygus.suslik.certification.targets.htt.logic.Proof
 import org.tygus.suslik.certification.traversal.StackEvaluator
 
 object ProofEvaluator extends StackEvaluator[SuslikProofStep, Proof.Step, ProofContext] {
-  val translator = ProofTranslator
+  val interpreter = ProofInterpreter
 }
