@@ -155,8 +155,10 @@ where the necessary arguments and options are
                            dump entire proof search trace to a json file; default: none
   --memo <value>           enable memoization; default: true
   --lexi <value>           use lexicographic termination metric (as opposed to total size); default: false
-  --certTarget <value>     set certification target; default: none
-  --certDest <value>       write certificate to path; default: none
+  --certTarget <value>           set certification target; default: none (options: htt | vst | iris)
+  --certDest <value>             specify the directory in which to store the certificate file; default: none
+  --certHammerPure <value>       use hammer to solve pure lemmas instead of admitting them (HTT only); default: false
+  --certSetRepr <value>          use SSReflect's perm_eq to represent set equality (HTT only); default: false
 
   --help                         prints the help reference
 

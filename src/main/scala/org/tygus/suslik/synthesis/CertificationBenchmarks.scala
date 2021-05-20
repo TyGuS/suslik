@@ -3,6 +3,7 @@ package org.tygus.suslik.synthesis
 import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.Paths
 
+import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.HTT
 import org.tygus.suslik.certification.targets.vst.VST
@@ -40,6 +41,7 @@ class CertificationBenchmarks(
   )
 
   def synthesizeOne(text: String, parser: SSLParser, params: SynConfig): (List[Statements.Procedure], Environment, Long) = {
+    LanguageUtils.resetFreshNameGenerator()
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
       case `dotSus` => parser.parseGoalSUS(text)
