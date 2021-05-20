@@ -36,6 +36,7 @@ object HTT {
       |Require Import core.
       |From Hammer Require Import Hammer.
       |(* Configure Hammer *)
+      |Set Hammer ATPLimit 60.
       |Unset Hammer Eprover.
       |Unset Hammer Vampire.
       |Add Search Blacklist "fcsl.".
