@@ -227,6 +227,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(certDest = f)
     }).text("write certificate to path; default: none")
 
+    opt[Boolean]("evolutionary").action(cfg { b =>
+      _.copy(evolutionary = b)
+    }).text("evolutionary computation to improve rule orderings; default: false")
+
     /**
       * [EVALUATION] these dummy flags are solely used for the evaluation purposes.
       * They are populated based on the `flags` list in SynConfig.

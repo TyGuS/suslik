@@ -56,6 +56,8 @@ case class SynConfig(
                       script: List[Int] = List(),
                       // Global state
                       startTime: Long = 0,
+                      // genetic algorithm to improve rule orderings.
+                      evolutionary: Boolean = false,
                       /**
                        * [EVALUATION] these dummy `flags` are solely used for the evaluation purposes.
                        * By default they have no meaning, but one can use them to turn on/off some

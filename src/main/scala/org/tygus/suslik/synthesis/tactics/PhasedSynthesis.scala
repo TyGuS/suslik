@@ -14,29 +14,31 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def nextRules(node: OrNode): List[SynthesisRule] = {
     val goal = node.goal
+    val config = goal.env.config
     if (goal.isUnsolvable)
       Nil
     else if (goal.sketch != Hole)
     // Until we encounter a hole, symbolically execute the sketch
-      anyPhaseRules.filterNot(_.isInstanceOf[GeneratesCode]) ++
+      anyPhaseRules(config).filterNot(_.isInstanceOf[GeneratesCode]) ++
         symbolicExecutionRules ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
     else if (!config.phased)
     // Phase distinction is disabled: use all rules
-      anyPhaseRules ++ unfoldingPhaseRules ++
+      anyPhaseRules(config) ++ unfoldingPhaseRules ++
         postBlockPhaseRules ++ preBlockPhaseRules ++
         pointerPhaseRules ++ purePhaseRules
-    else anyPhaseRules ++ specBasedRules(node)
+    else anyPhaseRules(config) ++ specBasedRules(node)
   }
 
   def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
 
   protected def specBasedRules(node: OrNode): List[SynthesisRule] = {
     val goal = node.goal
+    val config = goal.env.config
     if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
-      val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules.contains).headOption
+      val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules(config).contains).headOption
       if (lastUnfoldingRule.contains(HeapUnifyUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfoldingFinal))
@@ -61,7 +63,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   val directoryPath = os.pwd
   val up = os.up
-  val jsonFile = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"orderOfRules.json")
+  val jsonFile = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"orderOfRulesNew.json")
   val jsonData = ujson.read(jsonFile)
   val orderOfAnyPhaseRules = jsonData("orderOfAnyPhaseRules").arr.map(_.num).map(_.toInt)
 
@@ -77,16 +79,22 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     BranchRules.Branch
   )
 
-  protected def anyPhaseRules: List[SynthesisRule] = List(
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(2)),
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(3)),
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(4)),
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(5)),
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
-    unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
-  )
+  protected def anyPhaseRules(config:SynConfig): List[SynthesisRule] = {
+    val evolutionary = config.evolutionary
+    if (evolutionary)
+      List(
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(2)),
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(3)),
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(4)),
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(5)),
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
+        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
+      )
+    else
+      List(unorderedAnyPhaseRules:_*)
+  }
 
   protected def symbolicExecutionRules: List[SynthesisRule] = List(
     SymbolicExecutionRules.Open,

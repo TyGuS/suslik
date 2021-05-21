@@ -42,6 +42,7 @@ def main():
     print("write the reversed order to a json file then read it")
     print(newNumbOfAnyPhaseRules)
     print(newOrderOfAnyPhaseRules)
+    call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000', '--evolutionary', 'true'])
     call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000'])
     return 0
 
