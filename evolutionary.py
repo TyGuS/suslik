@@ -3,6 +3,8 @@ import random
 import json
 from subprocess import call
 
+import roboevaluation
+
 import numpy
 
 from deap import algorithms
@@ -42,6 +44,14 @@ def main():
     print("write the reversed order to a json file then read it")
     print(newNumbOfAnyPhaseRules)
     print(newOrderOfAnyPhaseRules)
+
+    # Use robo-evaluation.py to run produce the CSV file.
+    results1 = roboevaluation.evaluate_n_times(1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP)
+    roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, results1, roboevaluation.STATS1)
+    # But the CSV file should have the iteration ID and individual ID.
+    # Read the CSV file.
+    # Compute the fitness value from the CSV file.
+
     call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000', '--evolutionary', 'true'])
     call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000'])
     return 0
