@@ -25,7 +25,7 @@ object SMTSolving extends Core
   with ArrayExOperators
   with LazyTiming {
 
-  val defaultSolver = "Z3" // choices: "Z3", "Z3 <= 4.7.x", "CVC4"
+  val defaultSolver = "Z3 <= 4.7.x" // choices: "Z3", "Z3 <= 4.7.x", "CVC4"
 
   def solverName = if (defaultSolver == "Z3" || defaultSolver == "Z3 <= 4.7.x")
     "Z3" else "CVC4"
@@ -97,7 +97,6 @@ object SMTSolving extends Core
   def intervalUpperSymbol = SimpleQId(SymbolId(SSymbol("upper")))
 
   def intervalPrelude: List[String] = List(
-    "(declare-datatypes ((Interval 0)) (((interval (lower Int) (upper Int)))))",
     "(define-fun min ((x Int) (y Int)) Int (ite (<= x y) x y))",
     "(define-fun max ((x Int) (y Int)) Int (ite (<= x y) y x))",
     "(define-fun iempty ((s Interval)) Bool (> (lower s) (upper s)))",
@@ -113,7 +112,8 @@ object SMTSolving extends Core
     List(
       "(set-logic ALL_SUPPORTED)",
       "(define-sort SetInt () (Set Int))",
-      "(define-fun empty () SetInt (as emptyset (Set Int)))"
+      "(define-fun empty () SetInt (as emptyset (Set Int)))",
+      "(declare-datatypes ((Interval 0)) (((interval (lower Int) (upper Int)))))"
     ) ++ intervalPrelude
   } else if (defaultSolver == "Z3") {
     List(
@@ -126,6 +126,7 @@ object SMTSolving extends Core
       "(declare-fun andNot (Bool Bool) Bool)",
       "(assert (forall ((b1 Bool) (b2 Bool)) (= (andNot b1 b2) (and b1 (not b2)))))",
       "(define-fun difference ((s1 SetInt) (s2 SetInt)) SetInt ((_ map andNot) s1 s2))",
+      "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
     ) ++ intervalPrelude
   } else if (defaultSolver == "Z3 <= 4.7.x") {
     // In Z3 4.7.x and below, difference is built in and intersection is called intersect
@@ -134,6 +135,7 @@ object SMTSolving extends Core
       "(define-fun empty () SetInt ((as const SetInt) false))",
       "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
       "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))",
+      "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
     ) ++ intervalPrelude
   } else throw SolverUnsupportedExpr(defaultSolver)
 
