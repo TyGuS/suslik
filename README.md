@@ -87,8 +87,7 @@ it as a standalone application (given that the runnable `scala` is in your path)
 
 At the moment, many interesting case studies can be found in the folder
 `$PROJECT_ROOT/examples`. More examples
-and benchmarks related to the paper on SSL  are in the folders
-`paper-examples` and `paper-benchmarks` under `$PROJECT_ROOT/src/test/resources/synthesis`.
+and benchmarks can be found under `$PROJECT_ROOT/src/test/resources/synthesis/all-benchmarks`.
 
 Each set of case studies is in a single folder (e.g., `copy`). The
 definitions of inductive predicates and auxiliary function
@@ -100,11 +99,6 @@ present in each such folder. For instance, in `examples`, it is
 predicate lseg(loc x, set s) {
 |  x == 0        => { s =i {} ; emp }
 |  not (x == 0)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }
-}
-
-predicate lseg2(loc x, set s) {
-|  x == 0        => { s =i {} ; emp }
-|  not (x == 0)  => { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> v + 1 ** (x + 2) :-> nxt ** lseg2(nxt, s1) }
 }
 
 ...
@@ -142,34 +136,50 @@ To run the synthesis for a specific case study from a specific folder,
 execute the following script:
 
 ```
-suslik fileName [options]
+./suslik fileName [options]
 ```
 where the necessary arguments and options are
 
 ```
   fileName                 a synthesis file name (the file under the specified folder, called filename.syn)
-  -r, --trace <value>      print the entire derivation trace; default: true
-  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 120000 (2 min)
-  -d, --depth <value>      derivation depth; default: 100
+  -r, --trace <value>      print the entire derivation trace; default: false
+  -t, --timeout <value>    timeout for the derivation; default (in milliseconds): 300000 (5 min)
   -a, --assert <value>     check that the synthesized result against the expected one; default: false
   -c, --maxCloseDepth <value>
                            maximum unfolding depth in the post-condition; default: 1
   -o, --maxOpenDepth <value>
                            maximum unfolding depth in the pre-condition; default: 1
+  -f, --maxCallDepth <value>
+                           maximum call depth; default: 1
+  -x, --auxAbduction <value>
+                           abduce auxiliary functions; default: false
+  --topLevelRecursion <value>
+                           allow top-level recursion; default: true
   -b, --branchAbduction <value>
                            abduce conditional branches; default: false
-  --commute <value>        only try commutative rule applications in one order; default: true
+  --maxGuardConjuncts <value>
+                           maximum number of conjuncts in an abduced guard; default: 2
   --phased <value>         split rules into unfolding and flat phases; default: true
-  --fail <value>           enable early failure rules; default: true
-  --invert <value>         enable invertible rules; default: true
-  -s, --printStats <value> print synthesis stats; default: true
-  -p, --printSpecs <value> print specifications for synthesized functions; default: false
+  -d, --dfs <value>        depth first search; default: false
+  --bfs <value>            breadth first search (ignore weights); default: false
+  --delegate <value>       delegate pure synthesis to CVC4; default: true
+  -i, --interactive <value>
+                           interactive mode; default: false
+  -s, --printStats <value>
+                           print synthesis stats; default: false
+  -p, --printSpecs <value>
+                           print specifications for synthesized functions; default: false
   -e, --printEnv <value>   print synthesis context; default: false
-  -f, --printFail <value>  print failed rule applications; default: false
-  -g, --tags <value>       print predicate application tags in derivations; default: false
-  -l, --log <value>        log results to a csv file; default: true
-  -x, --auxAbduction <value>
-                           abduce auxiliary functions; default: false 
+  --printFail <value>      print failed rule applications; default: false
+  -l, --log <value>        log results to a csv file; default: false
+  -j, --traceToJsonFile <value>
+                           dump entire proof search trace to a json file; default: none
+  --memo <value>           enable memoization; default: true
+  --lexi <value>           use lexicographic termination metric (as opposed to total size); default: false
+  --printTree <value>      print tree of successful derivations to path; default: false
+  --treeDest <value>       write tree of successful derivations to path; default: none
+  --certTarget <value>     set certification target; default: none
+  --certDest <value>       write certificate to path; default: none
   --help                   prints this usage text
 
 ```
