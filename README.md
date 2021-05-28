@@ -10,16 +10,16 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
   <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150"></a>
 </p>
 
-## Theory Behind the Tool and Corresponding Development Snapshots (Artifacts)
+## Theory Behind the Tool and Corresponding Development Snapshots
 
 The details of Synthetic Separation Logic and its extensions can be found in the following published research papers:
 
-* [Structuring the Synthesis of Heap-Manipulating Programs](https://dl.acm.org/doi/10.1145/3290385), Nadia Polikarpova and Ilya Sergey, POPL'19
+* **[Structuring the Synthesis of Heap-Manipulating Programs](https://dl.acm.org/doi/10.1145/3290385)**, Nadia Polikarpova and Ilya Sergey. POPL'19.
   - [Artifact, 10 Nov 2018](https://doi.org/10.5281/zenodo.1482574)
-* [Concise Read-Only Specifications for Better Synthesis of Programs with Pointers](https://link.springer.com/chapter/10.1007/978-3-030-44914-8_6), 
-  Andreea Costea et al., ESOP'20
+* **[Concise Read-Only Specifications for Better Synthesis of Programs with Pointers](https://link.springer.com/chapter/10.1007/978-3-030-44914-8_6)**, 
+  Andreea Costea, Amy Zhu, Nadia Polikarpova, and Ilya Sergey. ESOP'20.
   - [Artifact, 29 Jan 2020](https://doi.org/10.5281/zenodo.3630045)
-* [Cyclic Program Synthesis](https://doi.org/10.1145/3453483.3454087), Shachar Itzhaky et al., PLDI'21
+* **[Cyclic Program Synthesis](https://doi.org/10.1145/3453483.3454087)**, Shachar Itzhaky, Hila Peleg, Nadia Polikarpova, Reuben Rowe, and Ilya Sergey. PLDI'21
   - [Artifact, 11 Apr 2021](https://doi.org/10.5281/zenodo.4679743)
 
 ## Usage
