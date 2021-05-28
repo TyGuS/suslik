@@ -1,4 +1,4 @@
-# --lexi 0
+
 should be able to synthesize list copy with omitted cardinalities
 
 #####

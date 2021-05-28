@@ -1,4 +1,5 @@
-# --lexi 0
+# -c 2 -o 2 -p true
+
 should be able to synthesize list beheading
 
 #####
