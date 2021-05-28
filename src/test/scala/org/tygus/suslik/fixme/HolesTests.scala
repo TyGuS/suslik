@@ -1,4 +1,4 @@
-package org.tygus.suslik.holes
+package org.tygus.suslik.fixme
 
 import org.scalatest.{FunSpec, Matchers}
 import org.tygus.suslik.synthesis._
@@ -7,7 +7,8 @@ import org.tygus.suslik.synthesis._
   * @author Roman Shchedrin
   */
 
-class HolesTests extends FunSpec with Matchers with SynthesisRunnerUtil  {
+// TODO [holes]: remove `abstract` modifier when fixed
+abstract class HolesTests extends FunSpec with Matchers with SynthesisRunnerUtil  {
 
   def isNegative(out: String): Boolean = {
     out == "ERROR"

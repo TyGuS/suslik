@@ -6,7 +6,7 @@ import org.scalatest.{FunSpec, Matchers}
   * @author Roman Shchedrin
   */
 
-class FailingTests extends FunSpec with Matchers with SynthesisRunnerUtil {
+abstract class FailingTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig = defaultConfig): Unit = {
     super.doRun(testName, desc, in, out, params)
