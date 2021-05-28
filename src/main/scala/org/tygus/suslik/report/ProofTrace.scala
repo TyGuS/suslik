@@ -8,6 +8,7 @@ import org.tygus.suslik.synthesis.Memoization
 import org.tygus.suslik.synthesis.Memoization.GoalStatus
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.rules.Rules
+import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import upickle.default.{macroRW, ReadWriter => RW}
 
 
@@ -18,10 +19,13 @@ sealed abstract class ProofTrace {
   def add(at: NodeId, status: GoalStatus, from: Option[String] = None) { }
   def add(result: Rules.RuleResult, parent: OrNode) { }
   def add(backlink: BackLink) { }
+  def add(ruleTrail: RuleTrail) { }
 }
 
 object ProofTrace {
   case class BackLink(bud: Goal, companion: Goal)
+  case class RuleTrail(from: Goal, to: Seq[Goal], rule: SynthesisRule,
+                       subst: Map[String, String])
 
   var current: ProofTrace = ProofTraceNone  // oops, not thread-safe
 }
@@ -68,8 +72,14 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
   }
 
   override def add(backlink: BackLink) {
-    writeObject(CyclicEntry(
-      BackLinkEntry(backlink.bud.label.pp, backlink.companion.label.pp)))
+    writeObject(BackLinkEntry("BackLink",
+        backlink.bud.label.pp, backlink.companion.label.pp))
+  }
+
+  override def add(ruleTrail: RuleTrail) {
+    writeObject(RuleTrailEntry("RuleTrail",
+      ruleTrail.from.label.pp, ruleTrail.to.map(_.label.pp),
+      ruleTrail.rule.toString, ruleTrail.subst))
   }
 }
 
@@ -82,7 +92,7 @@ object ProofTraceJson {
     implicit val rw: RW[NodeEntry] = macroRW
   }
 
-  case class GoalEntry(id: String,
+  case class GoalEntry(id: GoalEntry.Id,
                        pre: String,
                        post: String,
                        sketch: String,
@@ -90,6 +100,7 @@ object ProofTraceJson {
                        existentials: Seq[(String, String)],
                        ghosts: Seq[(String, String)])
   object GoalEntry {
+    type Id = String
     implicit val rw: RW[GoalEntry] = macroRW
 
     def apply(goal: Goal): GoalEntry = GoalEntry(goal.label.pp,
@@ -119,8 +130,17 @@ object ProofTraceJson {
     implicit val rw: RW[CyclicEntry] = macroRW
   }
 
-  case class BackLinkEntry(bud: String, companion: String)
+  case class BackLinkEntry(tag: String, bud: String, companion: String)
   object BackLinkEntry {
     implicit val rw: RW[BackLinkEntry] = macroRW
+  }
+
+  case class RuleTrailEntry(tag: String,
+                            from: GoalEntry.Id,
+                            to: Seq[GoalEntry.Id],
+                            ruleName: String,
+                            subst: Map[String, String])
+  object RuleTrailEntry {
+    implicit val rw: RW[RuleTrailEntry] = macroRW
   }
 }

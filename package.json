@@ -26,6 +26,9 @@
     "nw-vue-devtools-prebuilt": "0.0.10",
     "typescript": "^3.8.3"
   },
+  "alias": {
+    "vue": "./node_modules/vue/dist/vue"
+  },
   "browserslist": [
     "Chrome 80"
   ],

@@ -26,7 +26,7 @@ class MainDocument {
                 var data = ProofTrace.Data.parse(content),
                     pt = new ProofTrace(data);
 
-                this.pane.replaceWith(this.pane = $(pt.view.$el));
+                this.pane.replaceWith(this.pane = $(pt.view.$el as HTMLElement));
                 return pt;
             }
             catch (e) {
@@ -39,8 +39,10 @@ class MainDocument {
     }
 
     async openUrl(url: string, opts?: OpenOptions) {
-        this.storage['suslik:doc:lastUrl'] = url;
-        return this.open(await (await fetch(url)).text(), opts)
+        var doc = await this.open(await (await fetch(url)).text(), opts)
+        if (doc)
+            this.storage['suslik:doc:lastUrl'] = url;
+        return doc;
     }
 
     openRecent(opts?: OpenOptions) {
@@ -59,7 +61,7 @@ class MainDocument {
 }
 
 type OpenOptions = {name?: string, silent?: boolean};
-const DEFAULT_URL = '/trace.out';
+const DEFAULT_URL = '/trace.json';
 
 
 class DragDropJson extends EventEmitter {

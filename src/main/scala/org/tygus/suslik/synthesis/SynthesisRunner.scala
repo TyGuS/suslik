@@ -36,6 +36,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     * -e, --printEnv <value>         print synthesis context; default: false
     * -f, --printFail <value>        print failed rule applications; default: false
     * -l, --log <value>              log results to a csv file; default: true
+    * -j, --traceToJson <filename>   dump entire proof search trace to a json file; default: none
     * --memoization <value>          enable memoization; default: true
     * --certTarget <value>           set certification target; default: none
     * --certDest <value>             write certificate to path; default: none
@@ -187,7 +188,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(logToFile = b)
     }).text("log results to a csv file; default: false")
 
-    opt[String]('j', "traceToJsonFile").action(cfg { fn =>
+    opt[String]('j', "traceToJson").action(cfg { fn =>
       _.copy(traceToJsonFile = Some(new File(fn)))
     }).text("dump entire proof search trace to a json file; default: none")
 

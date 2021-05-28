@@ -1,6 +1,6 @@
 import arreq from 'array-equal';
 import $ from 'jquery';
-import Vue from 'vue/dist/vue';
+import Vue from 'vue';
 import { VueContext } from 'vue-context'
 import 'vue-context/dist/css/vue-context.css';
 
@@ -22,7 +22,7 @@ class ProofTrace {
         viewById: JSONMap<Data.NodeId, View.Node>
     }
 
-    view: Vue
+    view: Vue & {root: View.Node}
 
     constructor(data: ProofTrace.Data) {
         this.data = data;
@@ -239,7 +239,7 @@ namespace ProofTrace {
                             JSON.parse(ln));
             var nodes = [], statuses = [];
             for (let e of entries) {
-                if (e.tag) nodes.push(e);
+                if (["AndNode", "OrNode"].includes(e.tag)) nodes.push(e);
                 else if (e.status) statuses.push(e);
             }
             return {nodes, statuses};
