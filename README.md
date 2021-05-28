@@ -26,7 +26,8 @@ The details of Synthetic Separation Logic can be found in the following papers:
 
 The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
 
-Otherwise, check the building instructions below.
+However, this will only work with examples of the first version of the tool (0.1, of 10 Nov 2018). For later versions,
+please check the artifacts referred above or follow the building instructions below. 
 
 ## Setup and Build
 
