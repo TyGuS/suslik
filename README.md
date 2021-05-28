@@ -198,19 +198,18 @@ to get the following result:
 
 ```
 void listcopy (loc r) {
-  let x2 = *r;
-  if (x2 == 0) {
+  let x = *r;
+  if (x == 0) {
   } else {
-    let v2 = *x2;
-    let nxt2 = *(x2 + 1);
-    *r = nxt2;
+    let v = *x;
+    let n = *(x + 1);
+    *r = n;
     listcopy(r);
-    let y12 = *r;
-    let y2 = malloc(2);
-    *(x2 + 1) = y12;
-    *r = y2;
-    *(y2 + 1) = nxt2;
-    *y2 = v2;
+    let y1 = *r;
+    let y = malloc(2);
+    *r = y;
+    *(y + 1) = y1;
+    *y = v;
   }
 }
 ```
