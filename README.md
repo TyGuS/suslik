@@ -2,19 +2,22 @@
 
 [![Build Status](https://travis-ci.org/TyGuS/suslik.svg?branch=master)](https://travis-ci.org/TyGuS/suslik)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE)
-[![DOI](https://zenodo.org/badge/101061595.svg)](https://zenodo.org/badge/latestdoi/101061595)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4679743.svg)](https://doi.org/10.5281/zenodo.4679743)
 
-Synthesis of Heap-Manipulating Programs from Separation Logic
-Specifications
+Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
 <p align="center">
   <a href = "http://comcom.csail.mit.edu/comcom/#SuSLik"><img src="https://github.com/TyGuS/suslik/blob/master/misc/suslik-logo.png" width="150" height="150"></a>
-  </p>
+</p>
 
 ## Theory Behind the Tool
 
-The details of Synthetic Separation Logic can be found in the
-[accompanying draft paper](https://arxiv.org/pdf/1807.07022.pdf).
+The details of Synthetic Separation Logic can be found in the following papers:
+
+* [Structuring the Synthesis of Heap-Manipulating Programs](https://dl.acm.org/doi/10.1145/3290385), Nadia Polikarpova and Ilya Sergey, POPL'19
+* [Concise Read-Only Specifications for Better Synthesis of Programs with Pointers](https://link.springer.com/chapter/10.1007/978-3-030-44914-8_6), 
+  Andreea Costea et al., ESOP'20
+* [Cyclic Program Synthesis](https://doi.org/10.1145/3453483.3454087), Shachar Itzhaky et al., PLDI'21
 
 ## Usage
 
