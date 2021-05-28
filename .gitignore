@@ -147,4 +147,4 @@ node_modules
 
 # traces
 *.out
-results.tex
+*results.tex
