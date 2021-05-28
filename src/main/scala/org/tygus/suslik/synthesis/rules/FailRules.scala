@@ -27,7 +27,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post.phi
 
       if (!SMTSolving.sat((pre && post).toExpr))
-        // post inconsistent with pre
+      // post inconsistent with pre
         List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
       else
         Nil
@@ -52,7 +52,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val (uniPost, exPost) = goal.splitPost
       // If precondition does not contain predicates, we can't get new facts from anywhere
       if (!SMTSolving.valid(goal.pre.phi ==> uniPost))
-        // universal post not implied by pre
+      // universal post not implied by pre
         List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
       else filterOutValidPost(goal, exPost, uniPost)
     }
@@ -66,8 +66,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       assert(!(goal.hasPredicates() || goal.hasBlocks))
       if ((goal.pre.sigma.profile == goal.post.sigma.profile) && // profiles must match
-        goal.post.sigma.chunks.forall { case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
-          findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined
+        goal.post.sigma.chunks.forall {
+          case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
+            findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined
+          case _ => false
         }) // or has a heaplet in pre with the same LHS
         Nil
       else

@@ -10,7 +10,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.{ChainedProducer, StmtProducer}
+import org.tygus.suslik.synthesis.{ChainedProducer, StmtProducer, SynthesisException}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.Open
 
 object Translation {
@@ -157,11 +157,13 @@ object Translation {
     case el@OverloadedBinaryExpr(_, _, _) => translateOverloadedBinaryExpr(el)
     case SetLiteral(elems) => CSetLiteral(elems.map(e => translateExpr(e)))
     case IfThenElse(c, t, e) => CIfThenElse(translateExpr(c), translateExpr(t), translateExpr(e))
+    case c => throw SynthesisException(s"Not supported: ${c.pp} (${c.getClass.getName})")
   }
 
   private def translateHeaplet(el: Heaplet): CExpr = el match {
     case PointsTo(loc, offset, value) => CPointsTo(translateExpr(loc), offset, translateExpr(value))
     case SApp(pred, args, tag, card) => CSApp(pred, args.map(translateExpr))
+    case h => throw SynthesisException(s"Not supported: ${h.pp} (${h.getClass.getName})")
   }
 
   private def translateAsn(el: Assertion): CAssertion = {
@@ -181,7 +183,8 @@ object Translation {
       case BinaryExpr(OpEq, left, right) => COverloadedBinaryExpr(COpNotEqual, translateExpr(left), translateExpr(right))
       case _ => CUnaryExpr(COpNot, translateExpr(e))
     }
-    case UnaryExpr(OpUnaryMinus, e) => ???
+    // case UnaryExpr(OpUnaryMinus, e) => ???
+    case c => throw SynthesisException(s"Not supported: ${c.pp} (${c.getClass.getName})")
   }
 
   private def translateOverloadedBinaryExpr(el: OverloadedBinaryExpr) : CExpr = el match {
@@ -193,8 +196,6 @@ object Translation {
       COverloadedBinaryExpr(COpGt, translateExpr(l), translateExpr(r))
     case OverloadedBinaryExpr(OpGeq, l, r) =>
       COverloadedBinaryExpr(COpGeq, translateExpr(l), translateExpr(r))
-    case OverloadedBinaryExpr(OpGeq, l, r) =>
-      COverloadedBinaryExpr(COpGeq, translateExpr(l), translateExpr(r))
     case OverloadedBinaryExpr(OpOverloadedPlus, l, r) =>
       COverloadedBinaryExpr(COpOverloadedPlus, translateExpr(l), translateExpr(r))
     case OverloadedBinaryExpr(OpOverloadedMinus, l, r) =>
@@ -203,6 +204,7 @@ object Translation {
       COverloadedBinaryExpr(COpOverloadedLeq, translateExpr(l), translateExpr(r))
     case OverloadedBinaryExpr(OpOverloadedStar, l, r) =>
       COverloadedBinaryExpr(COpOverloadedStar, translateExpr(l), translateExpr(r))
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
   private def translateBinaryExpr(el: BinaryExpr) : CExpr = el match {
@@ -238,5 +240,6 @@ object Translation {
       CBinaryExpr(COpSubset, translateExpr(l), translateExpr(r))
     case BinaryExpr(OpIntersect, l, r) =>
       CBinaryExpr(COpIntersect, translateExpr(l), translateExpr(r))
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 }

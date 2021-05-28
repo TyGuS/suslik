@@ -3,6 +3,7 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.SynthesisException
 
 /**
   * Utilities for spatial formulae
@@ -88,6 +89,7 @@ trait SepLogicUtils extends PureLogicUtils {
         val pts = ptsMb.flatten
         if (pts.length == sz) Some((h, pts))
         else None
+      case Some(h) => throw SynthesisException(s"Not supported: ${h.pp} (${h.getClass.getName})")
     }
   }
 

@@ -10,7 +10,7 @@ import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
-import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer}
+import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer, SynthesisException}
 
 import scala.collection.mutable
 import scala.sys.process._
@@ -81,6 +81,7 @@ object DelegatePureSynthesis {
       case Expressions.OpIntervalIn => "imember"
       case Expressions.OpIntervalUnion => "iunion"
       case Expressions.OpRange => "interval"
+      case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")  
     }) ++= " "
       toSmtExpr(left, existentials, sb)
       sb ++= " "
@@ -104,6 +105,7 @@ object DelegatePureSynthesis {
       toSmtExpr(right, existentials, sb)
       sb ++= ")"
     case Expressions.Unknown(_,_,_) => sb ++= Expressions.eTrue.pp
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
   def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var, String] =
@@ -215,6 +217,7 @@ object DelegatePureSynthesis {
       else Expressions.Var(simpleSymbol)
     case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
     case PlusTerm(t1, t2) => t2.foldRight(parseTerm(t1)) {case (t, e) => BinaryExpr(Expressions.OpPlus, e, parseTerm(t))}
+    case t => throw SynthesisException(s"Not supported: ${t.getClass.getName}")
   }
 
   def parseAssignments(cvc4Res: String): Subst = {
@@ -227,6 +230,7 @@ object DelegatePureSynthesis {
           val expr = parseTerm(response.funDef.term)
           Expressions.Var(existential) -> expr
         }.toMap
+      case Success(e) => throw SynthesisException(s"Not supported (${e.getClass.getName})")
     }
   }
 

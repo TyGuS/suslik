@@ -12,6 +12,7 @@ import org.tygus.suslik.synthesis.rules.Rules._
 /**
   * Logical rules simplify specs and terminate the derivation;
   * they do not eliminate existentials.
+  *
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
@@ -36,9 +37,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post
 
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
-        goal.existentials.isEmpty &&             // no existentials
-        SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
-        List(RuleResult(Nil, ConstProducer(Skip), this, goal))      // we are done
+        goal.existentials.isEmpty && // no existentials
+        SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post
+        List(RuleResult(Nil, ConstProducer(Skip), this, goal)) // we are done
       else Nil
     }
   }
@@ -90,7 +91,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case _ => false
       } match {
         case None => Nil
-        case Some(h@PointsTo(l, o, IfThenElse(c, t, e))) => {
+        case Some(h@PointsTo(l, o, IfThenElse(c, t, e))) =>
           if (SMTSolving.valid(goal.pre.phi ==> (c || (t |=| e)))) {
             val thenSigma = (goal.post.sigma - h) ** PointsTo(l, o, t)
             val thenPhi = goal.post.phi // && c
@@ -102,7 +103,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
             val elseGoal = goal.spawnChild(post = Assertion(elsePhi, elseSigma))
             List(RuleResult(List(elseGoal), kont, this, goal))
           } else Nil
-        }
+        case Some(h) => throw SynthesisException(s"SimplifyConditional does not support ${h.getClass.getName}")
       }
     }
   }
@@ -257,10 +258,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         } else None
 
       findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => extractSides(l,r)
-        case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
-        case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
-        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpEq, l, r) => extractSides(l, r)
+        case BinaryExpr(OpBoolEq, l, r) => extractSides(l, r)
+        case BinaryExpr(OpSetEq, l, r) => extractSides(l, r)
+        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l, r)
         case _ => None
       }, p1) match {
         case Some(((x, e), rest1)) => {
@@ -306,7 +307,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
             post.phi && (ex |=| e2),
             (goal.post.sigma - hr) ** PointsTo(x, offset, ex))
           val subGoal = goal.spawnChild(post = newPost,
-                                        gamma = goal.gamma + (ex -> tpy))
+            gamma = goal.gamma + (ex -> tpy))
           val kont: StmtProducer = IdProducer >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))
@@ -317,4 +318,5 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
 
   }
+
 }

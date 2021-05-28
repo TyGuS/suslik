@@ -2,6 +2,7 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.synthesis.SynthesisException
 
 /**
   * Utilities for pure formulae
@@ -42,6 +43,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(propagate_not(e1),propagate_not(e2), propagate_not(e3))
     case SetLiteral(args) => SetLiteral(args.map(propagate_not))
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
   def desugar(e: Expr): Expr = e match {
@@ -63,6 +65,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(desugar(e1),desugar(e2), desugar(e3))
     case SetLiteral(args) => SetLiteral(args.map(desugar))
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
   /**
