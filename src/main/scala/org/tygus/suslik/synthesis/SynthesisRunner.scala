@@ -96,7 +96,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     implicit val certTargetRead: scopt.Read[CertificationTarget] =
       scopt.Read.reads {
         case "coq" => coq.Coq
-        case _ => ???
+        case t => throw SynthesisException(s"Certification target $t is not supported") 
       }
 
     private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =

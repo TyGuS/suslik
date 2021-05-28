@@ -25,7 +25,7 @@ object SMTSolving extends Core
   with ArrayExOperators
   with LazyTiming {
 
-  val defaultSolver = "Z3 <= 4.7.x" // choices: "Z3", "Z3 <= 4.7.x", "CVC4"
+  val defaultSolver = "Z3" // choices: "Z3", "Z3 <= 4.7.x", "CVC4"
 
   def solverName = if (defaultSolver == "Z3" || defaultSolver == "Z3 <= 4.7.x")
     "Z3" else "CVC4"
