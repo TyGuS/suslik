@@ -1,8 +1,7 @@
 # Synthetic Separation Logic
 
-[![Build Status](https://travis-ci.org/TyGuS/suslik.svg?branch=master)](https://travis-ci.org/TyGuS/suslik)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://raw.githubusercontent.com/TyGuS/suslik/master/LICENSE)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4679743.svg)](https://doi.org/10.5281/zenodo.4679743)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1482573.svg)](https://doi.org/10.5281/zenodo.1482573)
 
 Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
@@ -21,8 +20,16 @@ The details of Synthetic Separation Logic and its extensions can be found in the
   - [Artifact, 29 Jan 2020](https://doi.org/10.5281/zenodo.3630045)
 * **[Cyclic Program Synthesis](https://doi.org/10.1145/3453483.3454087)**, Shachar Itzhaky, Hila Peleg, Nadia Polikarpova, Reuben Rowe, and Ilya Sergey. PLDI'21
   - [Artifact, 11 Apr 2021](https://doi.org/10.5281/zenodo.4679743)
+  
+## Benchmark Statistics
 
-## Usage
+The most up to date statistics on the benchmarks can be found under the folder `cav21-artifact`:
+
+* `stats_all.csv` contains all benchmarks associated with the CAV'21 tutorial 
+  **Deductive Synthesis of Programs with Pointers: Techniques, Challenges, Opportunities**
+* `gen-table-all.py` is a script that generates the LaTeX table with the results (requires Python 2.7 to run)   
+
+## Online Interface
 
 The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
 
@@ -48,7 +55,7 @@ Just run the following from your command line:
 sbt assembly
 ```
 
-As the result, an executable `JAR`-file will be produced, so you can run it as explained below.
+As the result, an executable `.jar`-file will be produced, so you can run it as explained below.
 
 ### Generating Latest Benchmark Results
 
@@ -70,7 +77,6 @@ To run the entire test suite, execute from the root folder of the project:
 ```
 sbt test
 ```
-
 
 ## Synthesizing Programs from SL Specifications
 
@@ -173,7 +179,7 @@ Once the synthesis is done execution statistics will be available in `stats.csv`
 For instance, to synthesize `$PROJECT_ROOT/examples/listcopy.syn` and see the derivation trace, run
 
 ```
-suslik examples/listcopy.syn
+./suslik examples/listcopy.syn
 ```
 
 to get the following result:
@@ -197,11 +203,7 @@ void listcopy (loc r) {
 }
 ```
 
-For running benchmarks or examples from the accompanying paper, run, e.g.,
+For running benchmarks or examples from the accompanying test suite, run, e.g.,
 ```
-suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
+./suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
 ``` 
-
-### Certification
-
-See the file [certification.md](certification.md) for instructions on certifying the synthesis results. 
