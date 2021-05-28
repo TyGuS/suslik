@@ -28,8 +28,8 @@ Otherwise, check the building instructions below.
 
 * [Java SE Development Kit 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 * [Scala Build Tool](https://www.scala-sbt.org/), `sbt` (version >=1.1.6)
-* [Z3 SMT solver](https://github.com/Z3Prover/z3)
-* [CVC4 SMT solver](https://cvc4.github.io/), version 1.7
+* [Z3 SMT solver](https://github.com/Z3Prover/z3) (version >= 4.8.10)
+* [CVC4 SMT solver](https://cvc4.github.io/), version 1.7 (precise version is important!)
 * [Cyclist Theorem Prover](http://www.cyclist-prover.org/installation)
 * [Scala](https://www.scala-lang.org/download/) (version >= 2.12.6) - to run the standalone artifact
 
