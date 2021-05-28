@@ -64,7 +64,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   val TOOLNAME = "SuSLik"
   val SCRIPTNAME = "suslik"
-  private val VERSION = "0.1"
+  private val VERSION = "0.5"
   private val VERSION_STRING = s"v$VERSION"
 
   private val defaultFile = List(".", "examples", "swap").mkString(File.separator)
