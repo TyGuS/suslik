@@ -12,7 +12,7 @@ Synthesis of Heap-Manipulating Programs from Separation Logic Specifications
 
 ## Theory Behind the Tool and Corresponding Development Snapshots (Artifacts)
 
-The details of Synthetic Separation Logic can be found in the following papers:
+The details of Synthetic Separation Logic and its extensions can be found in the following published research papers:
 
 * [Structuring the Synthesis of Heap-Manipulating Programs](https://dl.acm.org/doi/10.1145/3290385), Nadia Polikarpova and Ilya Sergey, POPL'19
   - [Artifact, 10 Nov 2018](https://doi.org/10.5281/zenodo.1482574)
