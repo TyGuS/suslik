@@ -33,10 +33,10 @@ The most up to date statistics on the benchmarks can be found under the folder `
 
 ## Online Interface
 
-The easiest way to try out examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
+The easiest way to try out basic examples is via the [online demo](http://comcom.csail.mit.edu/comcom/#SuSLik). 
 
-However, this will only work with examples of the first version of the tool (0.1, of 10 Nov 2018). For later versions,
-please check the artifacts referred above or follow the building instructions below. 
+However, this will only work with examples of the first version of the tool (0.1, of 10 Nov 2018). For later versions
+and more advanced examples please check the artifacts referred above or follow the building instructions below. 
 
 ## Setup and Build
 
