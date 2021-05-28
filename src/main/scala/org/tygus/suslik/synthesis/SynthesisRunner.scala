@@ -6,6 +6,7 @@ import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.certification.targets._
 import org.tygus.suslik.report.Log
 import org.tygus.suslik.util.SynLogLevels
+import scopt.OptionParser
 
 /**
   * @author Ilya Sergey
@@ -88,7 +89,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }
   }
 
-  private val parser = new scopt.OptionParser[RunConfig](SCRIPTNAME) {
+  private val parser: OptionParser[RunConfig] = new scopt.OptionParser[RunConfig](SCRIPTNAME) {
     // See examples at https://github.com/scopt/scopt
 
     head(TOOLNAME, VERSION_STRING)
@@ -100,7 +101,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       }
 
     private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =
-      Function.uncurried { (c:C) => lens =>= f(c) }
+      Function.uncurried { c:C => lens =>= f(c) }
 
     private val configLens = scalaz.Lens.lensu[RunConfig, SynConfig](
       (c, v) => c.copy(synConfig = v), _.synConfig)
