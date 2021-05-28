@@ -215,7 +215,7 @@ void listcopy (loc r) {
 }
 ```
 
-For running benchmarks or examples from the accompanying test suite, run, e.g.,
+For running advanced examples from the accompanying test suite, execute, e.g.,
 ```
-./suslik src/test/resources/synthesis/paper-benchmarks/sll/sll-append.syn
+./suslik src/test/resources/synthesis/all-benchmarks/sll/append.syn
 ``` 
