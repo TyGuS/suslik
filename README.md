@@ -40,16 +40,6 @@ please check the artifacts referred above or follow the building instructions be
 * [Cyclist Theorem Prover](http://www.cyclist-prover.org/installation)
 * [Scala](https://www.scala-lang.org/download/) (version >= 2.12.6) - to run the standalone artifact
 
-### Building and Testing the Project
-
-To compile and run the entire test suite (and see some cool synthesis results), execute from the root folder of the project:
-
-```
-sbt test
-```
-
-**WARNING:** This will take about an hour on a regular machine. For shorter turnarounds, consider the options below.
-
 ### Compiling the Executables
 
 Just run the following from your command line: 
@@ -72,6 +62,15 @@ Alternatively, you can run the test suite `ChallengeTests` from an IDE.
 
 In both cases, this will run the most complete suite, generating the file `stats.csv` in the root of the project with all
 the benchmark data.
+
+### Testing the Project
+
+To run the entire test suite, execute from the root folder of the project:
+
+```
+sbt test
+```
+
 
 ## Synthesizing Programs from SL Specifications
 
