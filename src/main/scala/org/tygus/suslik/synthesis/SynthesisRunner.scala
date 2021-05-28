@@ -192,7 +192,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(logToFile = b)
     }).text("log results to a csv file; default: false")
 
-    opt[String]('j', "traceToJsonFile").action(cfg { fn =>
+    opt[String]('j', "traceToJson").action(cfg { fn =>
       _.copy(traceToJsonFile = Some(new File(fn)))
     }).text("dump entire proof search trace to a json file; default: none")
 

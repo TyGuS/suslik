@@ -94,9 +94,6 @@ fabric.properties
 # Compiled class file
 *.class
 
-# Log file
-*.log
-
 # BlueJ files
 *.ctxt
 
@@ -117,9 +114,6 @@ hs_err_pid*
 # Vim/Emacs
 *~
 .*.swp
-
-# stats
-*.csv
 
 # Emacs-generated
 .#*
@@ -151,4 +145,9 @@ node_modules
 # certification results
 certify/
 
+# logs, stats, and other outputs
+*.log
+*.csv
 *results.tex
+trace.json
+*.trace.json

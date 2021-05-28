@@ -6,6 +6,7 @@ import org.tygus.suslik.language.{CardType, Ident}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.report.ProofTrace
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
@@ -50,6 +51,9 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             childId = Some(clauses.indexOf(c)),
             hasProgressed = true,
             isCompanion = true))
+
+          ProofTrace.current.add(ProofTrace.RuleTrail(goal, newGoals.map(_._2), this,
+            Map("pred" -> pred, "args" -> args.toString)))
 
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
