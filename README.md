@@ -48,6 +48,8 @@ To compile and run the entire test suite (and see some cool synthesis results), 
 sbt test
 ```
 
+**WARNING:** This will take about an hour on a regular machine. For shorter turnarounds, consider the options below.
+
 ### Compiling the Executables
 
 Just run the following from your command line: 
@@ -57,6 +59,19 @@ sbt assembly
 ```
 
 As the result, an executable `JAR`-file will be produced, so you can run it as explained below.
+
+### Generating Latest Benchmark Results
+
+Run from the command line
+
+```
+sbt "testOnly org.tygus.suslik.synthesis.ChallengeTests"
+```
+
+Alternatively, you can run the test suite `ChallengeTests` from an IDE.  
+
+In both cases, this will run the most complete suite, generating the file `stats.csv` in the root of the project with all
+the benchmark data.
 
 ## Synthesizing Programs from SL Specifications
 
