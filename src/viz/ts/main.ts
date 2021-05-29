@@ -18,19 +18,19 @@ if (typeof nw !== 'undefined') {
 
 $(async () => {
     var doc = new MainDocument($('#proof-trace-pane'), $('#notifications'));
+    doc.on('open', pt => Object.assign(window, {pt}));
+
     try {
-        var pt = await doc.openRecent({silent: true});
-        Object.assign(window, {pt});
+        await doc.openRecent({silent: true});
     }
     catch (e) { console.error('open failed:', e); }
 
     var drop = new DragDropJson($('html'));
     drop.on('open', async ({file}) => {
         try {
-            var pt = await doc.open(file);
-            Object.assign(window, {pt});
+            await doc.open(file);
         }
-        catch (e) { }
+        catch (e) { console.error('open failed:', e); }
     });
 
     Object.assign(window, {doc});

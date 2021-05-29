@@ -5,28 +5,31 @@ import { ProofTrace } from './proof-trace';
 
 
 
-class MainDocument {
+class MainDocument extends EventEmitter {
 
+    pt: ProofTrace
     pane: JQuery
     notifications: JQuery
 
     storage: {'suslik:doc:lastUrl'?: string} = <any>localStorage;
 
-    constructor(pane: JQuery, notifications: JQuery) { 
+    constructor(pane: JQuery, notifications: JQuery) {
+        super();
         this.pane = pane;
         this.notifications = notifications;
     }
 
-    async open(content: string | File, opts: OpenOptions = {}) {
+    async open(content: string | File, opts: OpenOptions = {}): Promise<ProofTrace> {
         if (content instanceof File) {
             return this.open(await this.read(content), {name: content.name, ...opts});
         }
         else {
             try {
                 var data = ProofTrace.Data.parse(content),
-                    pt = new ProofTrace(data);
+                    pt = this.pt = new ProofTrace(data);
 
                 this.pane.replaceWith(this.pane = $(pt.view.$el as HTMLElement));
+                this.emit('open', pt);
                 return pt;
             }
             catch (e) {
@@ -39,10 +42,10 @@ class MainDocument {
     }
 
     async openUrl(url: string, opts?: OpenOptions) {
-        var doc = await this.open(await (await fetch(url)).text(), opts)
-        if (doc)
+        var pt = await this.open(await (await fetch(url)).text(), opts)
+        if (pt)
             this.storage['suslik:doc:lastUrl'] = url;
-        return doc;
+        return pt;
     }
 
     openRecent(opts?: OpenOptions) {
