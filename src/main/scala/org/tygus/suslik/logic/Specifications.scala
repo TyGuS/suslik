@@ -219,9 +219,6 @@ object Specifications extends SepLogicUtils {
     // Variables currently used only in specs
     def ghosts: Set[Var] = pre.vars ++ post.vars -- programVars
 
-    // Currently used universally quantified variables: program variables and ghosts in pre
-    def universals: Set[Var] = pre.vars ++ programVars
-
     // Currently used ghosts that appear only in the postcondition
     def existentials: Set[Var] = post.vars -- allUniversals
 
@@ -232,6 +229,16 @@ object Specifications extends SepLogicUtils {
     def isProgramVar(x: Var): Boolean = programVars.contains(x)
 
     def isExistential(x: Var): Boolean = existentials.contains(x)
+
+    def progLevelPrefix: String = "_prog_"
+
+    // Is x an argument to the call being adbuced
+    // and thus must only be unified with program-level expressions?
+    def isProgramLevelExistential(x:Var): Boolean = x.name.startsWith(progLevelPrefix) || (
+      callGoal match {
+        case None => false
+        case Some(cg) => cg.call.args.contains(x)
+      })
 
     def getType(x: Var): SSLType = {
       gamma.get(x) match {

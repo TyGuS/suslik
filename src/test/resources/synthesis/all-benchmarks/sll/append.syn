@@ -1,0 +1,20 @@
+singly-linked list: append
+
+#####
+
+{true ; sll(x1, s1) ** sll(x2, s2) ** ret :-> x2}
+void sll_append (loc x1, loc ret)
+{s =i s1 ++ s2 ; sll(y, s) ** ret :-> y }
+
+#####
+
+void sll_append (loc x1, loc ret) {
+  if (x1 == 0) {
+  } else {
+    let n = *(x1 + 1);
+    sll_append(n, ret);
+    let y = *ret;
+    *(x1 + 1) = y;
+    *ret = x1;
+  }
+}

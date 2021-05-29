@@ -1,0 +1,14 @@
+# --extended true
+
+expression with existential in a post points-to
+
+###
+
+{ x :-> a + 1 }
+  void test(loc x)
+{ x :-> a + 2 }
+
+###
+
+###
+

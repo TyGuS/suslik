@@ -1,0 +1,18 @@
+# -c 2
+singly-linked list: construct a list with one element
+
+#####
+
+{ ret :-> a }
+void dll_singleton (int x, loc ret)
+{ elems =i {x} ; ret :-> y ** dll(y, 0, elems) }
+
+#####
+
+void dll_singleton (int x, loc ret) {
+  let y = malloc(3);
+  *ret = y;
+  *(y + 1) = 0;
+  *(y + 2) = 0;
+  *y = x;
+}

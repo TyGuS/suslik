@@ -1,4 +1,4 @@
-# -b true -o 2 -c 2 --lexi 0
+# -c 2 -o 2 -p true
 
 should be able to synthesize removal of the second element of the list 
 

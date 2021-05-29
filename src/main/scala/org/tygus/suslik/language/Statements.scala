@@ -290,7 +290,12 @@ object Statements {
   }
 
   // assume cond { body } else { els }
-  case class Guarded(cond: Expr, body: Statement) extends Statement
+  case class Guarded(cond: Expr, body: Statement) extends Statement {
+    override def simplify: Statement = body match {
+      case Guarded(c1, b1) => Guarded(cond && c1, b1)
+      case _ => this
+    }
+  }
 
   // A procedure
   case class Procedure(f: FunSpec, body: Statement) {

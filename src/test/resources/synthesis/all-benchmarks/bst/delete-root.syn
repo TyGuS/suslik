@@ -1,0 +1,39 @@
+# -c 2 -p true
+
+binary search tree: delete root
+
+#####
+
+{ 0 <= sz1 /\  0 <= sz2  /\  (v == upper ([v] + s1)) /\  (v == lower ([v] + s2)) ;
+  ret :-> 0 ** 
+  [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** 
+  bst(l, s1, sz1) ** bst(r, s2, sz2) }
+void bst_delete_root (loc x, loc ret)
+{ ret :-> y ** bst(y, s1 + s2, sz1 + sz2)  }
+
+#####
+
+{0 <= sz1 && 0 <= sz2 && v == lower ([v] + s2) && v == upper ([v] + s1) ; (x + 1) :-> l ** (x + 2) :-> r ** ret :-> 0 ** x :-> v ** bst(l, s1, sz1)<_alpha_262> ** bst(r, s2, sz2)<_alpha_263> ** [x, 3]}
+{ret :-> y ** bst(y, s1 + s2, sz1 + sz2)<_alpha_264>}
+void bst_delete_root (loc x, loc ret) {
+  let v1 = *x;
+  let l1 = *(x + 1);
+  let r1 = *(x + 2);
+  if (l1 == 0) {
+    free(x);
+    *ret = r1;
+  } else {
+    let v = *l1;
+    let l = *(l1 + 1);
+    let r = *(l1 + 2);
+    *(l1 + 2) = r1;
+    *(l1 + 1) = r;
+    *l1 = v1;
+    bst_delete_root(l1, ret);
+    let y = *ret;
+    *ret = x;
+    *(x + 2) = y;
+    *(x + 1) = l;
+    *x = v;
+  }
+}

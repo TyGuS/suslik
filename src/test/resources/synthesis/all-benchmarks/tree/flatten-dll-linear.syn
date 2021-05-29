@@ -1,0 +1,47 @@
+# -c 2 -o 2 -f 3 -p true
+
+flatten a tree into a doubly-linked list in learn time
+
+####
+
+{ tree(x, s) }
+void flatten(loc x)
+{ dll(x, 0, s) }
+
+####
+
+{tree(x, s)<_alpha_15>}
+{dll(x, 0, s)<_alpha_16>}
+void flatten (loc x) {
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let r = *(x + 2);
+    flatten(l);
+    flatten114(r, l, x);
+  }
+}
+
+{_alpha_10x < _alpha_15 && _alpha_11x < _alpha_15 && not (x == 0) ; (x + 1) :-> lx ** (x + 2) :-> rx ** x :-> vx1 ** dll(lx, 0, s1x)<_alpha_161>[1,0] ** tree(rx, s2x)<_alpha_11x>[0,1] ** [x, 3]}
+{dll(x, 0, {vx1} ++ s1x ++ s2x)<_alpha_16>}
+void flatten114 (loc rx, loc lx, loc x) {
+  if (rx == 0) {
+    if (lx == 0) {
+    } else {
+      *(lx + 2) = x;
+    }
+  } else {
+    let v = *rx;
+    let l = *(rx + 1);
+    let r = *(rx + 2);
+    *(rx + 2) = l;
+    *(rx + 1) = lx;
+    flatten114(l, lx, rx);
+    *(x + 2) = r;
+    *(x + 1) = rx;
+    flatten114(r, rx, x);
+  }
+}
+
+###
+

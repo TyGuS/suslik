@@ -6,7 +6,7 @@ import org.tygus.suslik.logic.FunSpec
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.report.StopWatch
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
-import org.tygus.suslik.synthesis.{Memoization, SynConfig}
+import org.tygus.suslik.synthesis.{Memoization, SynConfig, SynthesisException}
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -213,6 +213,7 @@ object SynStatUtil {
       case Statements.SeqComp(s1, s2) => countInner(s1) + countInner(s2)
       case Statements.If(_, tb, eb) => 1 + countInner(tb) + countInner(eb)
       case Statements.Guarded(_, body) => 1 + countInner(body)
+      case s => throw SynthesisException(s"countStmts is not supported for ${s.getClass.getName}")
     }
     countInner(proc.body)
   }

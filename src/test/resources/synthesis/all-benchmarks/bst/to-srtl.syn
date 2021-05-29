@@ -1,0 +1,65 @@
+# -c 2 -p true
+
+flatten a BST into a sorted list
+
+#####
+
+{ 0 <= n ; r :-> 0 ** bst(x, s, n) }
+void flatten(loc x, loc r)
+{ r :-> y ** srtl(y, s, n) }
+
+#####
+
+{0 <= n ; r :-> 0 ** bst(x, s, n)<_alpha_309>}
+{r :-> y ** srtl(y, s, n)<_alpha_310>}
+void flatten (loc x, loc r) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    flatten(l, r);
+    let y = *r;
+    *r = 0;
+    flatten(rx, r);
+    flatten135(y, v, x, r);
+  }
+}
+
+{0 <= 1 + sz1x + sz2x && 0 <= sz1x && 0 <= sz2x && _alpha_307x < _alpha_309 && _alpha_308x < _alpha_309 && not (r == 0) && not (r == x) && not (x == 0) && v == lower ([v] ++ s2x) && v == upper ([v] ++ s1x) ; (x + 1) :-> lx1 ** (x + 2) :-> rx1 ** r :-> y2 ** x :-> v ** srtl(y1, s1x, sz1x)<_alpha_3101>[1,0] ** srtl(y2, s2x, sz2x)<_alpha_3102>[1,0] ** [x, 3]}
+{not (r == 0) ; r :-> y ** srtl(y, [v] ++ s1x ++ s2x, 1 + sz1x + sz2x)<_alpha_310>}
+void flatten135 (loc y1, int v, loc x, loc r) {
+  let y2 = *r;
+  if (y1 == 0) {
+    flatten13700(y2, v, x, r);
+  } else {
+    let n = *(y1 + 1);
+    flatten135(n, v, x, r);
+    let y = *r;
+    *r = y1;
+    *(y1 + 1) = y;
+  }
+}
+
+{0 <= 1 + sz1x + sz2x && 0 <= sz1x && 0 <= sz2x && _alpha_307x < _alpha_309 && _alpha_308x < _alpha_309 && not (r == 0) && not (r == x) && not (x == 0) && s1x == [] && sz1x == 0 && vx == lower ([vx] ++ s2x) && vx == upper ([vx] ++ s1x) && y11 == 0 ; (x + 1) :-> lx1 ** (x + 2) :-> rx1 ** r :-> y2 ** x :-> vx ** srtl(y2, s2x, sz2x)<_alpha_3102>[1,0] ** [x, 3]}
+{not (r == 0) ; r :-> y ** srtl(y, [vx] ++ s1x ++ s2x, 1 + sz1x + sz2x)<_alpha_310>}
+void flatten13700 (loc y2, int vx, loc x, loc r) {
+  if (y2 == 0) {
+    let y = malloc(2);
+    free(x);
+    *r = y;
+    *y = lower ([vx] ++ [] ++ []);
+    *(y + 1) = 0;
+  } else {
+    let v = *y2;
+    let n = *(y2 + 1);
+    *r = n;
+    *x = v;
+    flatten13700(n, v, x, r);
+    let y = *r;
+    *r = y2;
+    *(y2 + 1) = y;
+    *y2 = vx;
+  }
+}
+

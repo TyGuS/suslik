@@ -1,0 +1,68 @@
+# -o 2 -c 2 -x false
+
+####
+
+{ y + 2*sz <= end && 1 <= sz ; r :-> y ** tree(x, sz, s) ** uninitialized(y, end) }
+void pack(loc x, loc r, loc end)
+{ z == y + 2*sz ; r :-> z ** tree(x, sz, s) ** packed_tree(y, sz, s) ** uninitialized(z, end) }
+
+####
+
+void pack (loc x, loc r, loc end) {
+  let y = *r;
+  let t = *x;
+  if (t == 1) {
+    let v = *(x + 1);
+    *y = 1;
+    *x = 1;
+    *r = y + (2 * 1);
+    *(y + 1) = v;
+  } else {
+    let v = *(x + 1);
+    let l = *(x + 2);
+    let rx = *(x + 3);
+    *r = y + 1 + 1;
+    pack(l, r, end);
+    pack(rx, r, end);
+    *y = 0;
+    *(y + 1) = v;
+  }
+}
+
+####
+
+2
+2
+2
+1
+1
+4
+1
+3
+1
+2
+2
+2
+1
+2
+2
+1
+1
+2
+1
+1
+1
+6
+5
+1
+4
+1
+1
+1
+1
+1
+1
+2
+2
+2
+

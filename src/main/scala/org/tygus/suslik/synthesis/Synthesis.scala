@@ -109,7 +109,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           // if this ever fails, we can either:
           // 1. not recall solutions with outgoing backlinks or
           // 2. generate new transitions from these backlinks
-          assert(sol._1.companions.isEmpty, "Recalled solution with an outgoing backlink, this is unsound!")
+//          assert(sol._1.companions.isEmpty, "Recalled solution with an outgoing backlink, this is unsound!")
           successLeaves = node :: successLeaves // Treat this node as a succeeded leaf
           trace.add(node.id, Succeeded(sol), Some("cache"))
           node.succeed(sol) match {

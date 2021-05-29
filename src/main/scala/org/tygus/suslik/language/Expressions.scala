@@ -10,15 +10,30 @@ import org.tygus.suslik.synthesis.SynthesisException
 object Expressions {
 
   sealed abstract class UnOp extends PrettyPrinting {
-    def outputType : SSLType
+    def inputType: SSLType
+    def outputType: SSLType
   }
   object OpNot extends UnOp {
     override def pp: String = "not"
+    override def inputType: SSLType = BoolType
     override def outputType: SSLType = BoolType
   }
 
   object OpUnaryMinus extends UnOp {
     override def pp: String = "-"
+    override def inputType: SSLType = IntType
+    override def outputType: SSLType = IntType
+  }
+
+  object OpLower extends UnOp {
+    override def pp: String = "lower"
+    override def inputType: SSLType = IntervalType
+    override def outputType: SSLType = IntType
+  }
+
+  object OpUpper extends UnOp {
+    override def pp: String = "upper"
+    override def inputType: SSLType = IntervalType
     override def outputType: SSLType = IntType
   }
 
@@ -57,6 +72,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpEq,
       (IntSetType, IntSetType) -> OpSetEq,
+      (IntervalType, IntervalType) -> OpIntervalEq,
       (BoolType, BoolType) -> OpBoolEq,
     )
 
@@ -96,12 +112,25 @@ object Expressions {
     override def resType: SSLType = BoolType
   }
 
+  object OpOverloadedIn extends OverloadedBinOp {
+    override def level: Int = 3
+    override def pp: String = "in"
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntSetType) -> OpIn,
+      (IntType, IntervalType) -> OpIntervalIn,
+    )
+
+    override def default: BinOp = OpIn
+  }
+
+
   object OpOverloadedPlus extends OverloadedBinOp {
     override def level: Int = 4
     override def pp: String = "+"
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpPlus,
       (IntSetType, IntSetType) -> OpUnion,
+      (IntervalType, IntervalType) -> OpIntervalUnion,
     )
 
     override def default: BinOp = OpPlus
@@ -124,6 +153,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpLeq,
       (IntSetType, IntSetType) -> OpSubset,
+      (IntervalType, IntervalType) -> OpSubinterval,
     )
 
     override def default: BinOp = OpLeq
@@ -235,6 +265,40 @@ object Expressions {
     override def resType: SSLType = IntSetType
   }
 
+  object OpRange extends BinOp {
+    def level: Int = 5
+    override def pp: String = ".."
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
+    override def resType: SSLType = IntervalType
+  }
+  object OpIntervalUnion extends BinOp with SymmetricOp with AssociativeOp {
+    def level: Int = 4
+    override def pp: String = "++"
+    def lType: SSLType = IntervalType
+    def rType: SSLType = IntervalType
+    def resType: SSLType = IntervalType
+  }
+  object OpIntervalIn extends RelOp {
+    def level: Int = 3
+    override def pp: String = "in"
+    def lType: SSLType = IntType
+    def rType: SSLType = IntervalType
+  }
+  object OpIntervalEq extends RelOp with SymmetricOp {
+    def level: Int = 3
+    override def pp: String = "=="
+    def lType: SSLType = IntervalType
+    def rType: SSLType = IntervalType
+  }
+  object OpSubinterval extends RelOp {
+    def level: Int = 3
+    override def pp: String = "<="
+    def lType: SSLType = IntervalType
+    def rType: SSLType = IntervalType
+  }
+
+
   sealed abstract class Expr extends PrettyPrinting with HasExpressions[Expr] with Ordered[Expr] {
 
     def compare(that: Expr): Int = this.pp.compare(that.pp)
@@ -323,10 +387,7 @@ object Expressions {
       }
       case BoolConst(_) => if (BoolType.conformsTo(target)) Some(gamma) else None
       case IntConst(_) => if (IntType.conformsTo(target)) Some(gamma) else None
-      case UnaryExpr(op, e) => op match {
-        case OpNot => if (BoolType.conformsTo(target)) e.resolve(gamma, Some(BoolType)) else None
-        case OpUnaryMinus => if (IntType.conformsTo(target)) e.resolve(gamma, Some(IntType)) else None
-      }
+      case UnaryExpr(op, e) => if (op.outputType.conformsTo(target)) e.resolve(gamma, Some(op.inputType)) else None
       case BinaryExpr(op, l, r) =>
         if (op.resType.conformsTo(target)) {
           for {
@@ -426,18 +487,6 @@ object Expressions {
 
     def varSubst(sigma: Map[Var, Var]): Var = subst(sigma).asInstanceOf[Var]
 
-    def refresh(taken: Set[Var], suffix: String): Var = {
-      val safeSuffix = suffix.filter(c => c.isLetterOrDigit || c == '_')
-      var count = 1
-      val original = this.name + safeSuffix
-      var tmpName = original
-      while (taken.exists(_.name == tmpName)) {
-        tmpName = original + count
-        count = count + 1
-      }
-      Var(tmpName)
-    }
-
     def getType(gamma: Gamma): Option[SSLType] = gamma.get(this)
   }
 
@@ -467,8 +516,17 @@ object Expressions {
     override def substUnknown(sigma: UnknownSubst): Expr = BinaryExpr(op, left.substUnknown(sigma), right.substUnknown(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
-    override def pp: String = s"${left.printInContext(this)} ${op.pp} ${right.printInContext(this)}"
+    override def pp: String = op match {
+      case OpRange => printInterval(left, right)
+      case _ => s"${left.printInContext(this)} ${op.pp} ${right.printInContext(this)}"
+    }
     def getType(gamma: Gamma): Option[SSLType] = Some(op.resType)
+
+    def printInterval(left: Expr, right: Expr): String = (left, right) match {
+      case (IntConst(x), IntConst(y)) if x > y => "[]"
+      case _ if left == right => s"[${left.printInContext(this)}]"
+      case _ => s"[${left.printInContext(this)} ${op.pp} ${right.printInContext(this)}]"
+    }
   }
 
   case class OverloadedBinaryExpr(overloaded_op: OverloadedBinOp, left: Expr, right: Expr) extends Expr {
@@ -578,6 +636,7 @@ object Expressions {
 
   def eTrue: Expr = BoolConst(true)
   def eFalse: Expr = BoolConst(false)
+  def emptyInt: Expr = BinaryExpr(OpRange, IntConst(1), IntConst(0))
 
   /*
   Substitutions

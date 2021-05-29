@@ -25,7 +25,10 @@ object SMTSolving extends Core
   with ArrayExOperators
   with LazyTiming {
 
-  val defaultSolver = "Z3" // other choices: "Z3 <= 4.7.x", "CVC4"
+  val defaultSolver = "Z3" // choices: "Z3", "Z3 <= 4.7.x", "CVC4"
+
+  def solverName = if (defaultSolver == "Z3" || defaultSolver == "Z3 <= 4.7.x")
+    "Z3" else "CVC4"
 
   override val watchName = "SMTSolving"
 
@@ -36,7 +39,7 @@ object SMTSolving extends Core
 
     // create solver and assert axioms
     // TODO: destroy solver when we're done
-    solverObject = new SMTSolver(defaultSolver, new SMTInit())
+    solverObject = new SMTSolver(solverName, new SMTInit())
     for (cmd <- prelude) {
       solverObject.eval(Raw(cmd))
     }
@@ -50,11 +53,12 @@ object SMTSolving extends Core
   /** Communication with the solver  */
 
   trait SetTerm
+  trait IntervalTerm
 
   type SMTBoolTerm = TypedTerm[BoolTerm, Term]
   type SMTIntTerm = TypedTerm[IntTerm, Term]
-  //  type SMTSetTerm = TypedTerm[ArrayTerm[BoolTerm], Term]
   type SMTSetTerm = TypedTerm[SetTerm, Term]
+  type SMTIntervalTerm = TypedTerm[IntervalTerm, Term]
 
   def setSort: Sort = SortId(SymbolId(SSymbol("SetInt")))
 
@@ -74,12 +78,43 @@ object SMTSolving extends Core
 
   def emptySetTerm: Term = QIdTerm(emptySetSymbol)
 
+  def intervalSort: Sort = SortId(SymbolId(SSymbol("Interval")))
+
+  def intervalConstructorSymbol = SimpleQId(SymbolId(SSymbol("interval")))
+
+  def intervalInsertSymbol = SimpleQId(SymbolId(SSymbol("iinsert")))
+
+  def intervalUnionSymbol = SimpleQId(SymbolId(SSymbol("iunion")))
+
+  def intervalMemberSymbol = SimpleQId(SymbolId(SSymbol("imember")))
+
+  def intervalSubsetSymbol = SimpleQId(SymbolId(SSymbol("isubset")))
+
+  def intervalEqSymbol = SimpleQId(SymbolId(SSymbol("ieq")))
+
+  def intervalLowerSymbol = SimpleQId(SymbolId(SSymbol("lower")))
+
+  def intervalUpperSymbol = SimpleQId(SymbolId(SSymbol("upper")))
+
+  def intervalPrelude: List[String] = List(
+    "(define-fun min ((x Int) (y Int)) Int (ite (<= x y) x y))",
+    "(define-fun max ((x Int) (y Int)) Int (ite (<= x y) y x))",
+    "(define-fun iempty ((s Interval)) Bool (> (lower s) (upper s)))",
+    "(define-fun ieq ((s1 Interval) (s2 Interval)) Bool (or (and (iempty s1) (iempty s2)) (and (= (lower s1) (lower s2)) (= (upper s1) (upper s2)))))",
+    "(define-fun imember ((x Int) (s Interval)) Bool (and (<= (lower s) x) (<= x (upper s))))",
+    "(define-fun isubset ((s1 Interval) (s2 Interval)) Bool (or (iempty s1) (and (<= (lower s2) (lower s1)) (<= (upper s1) (upper s2)))))",
+    "(define-fun iinsert ((x Int) (s Interval)) Interval (ite (iempty s) (interval x x) (interval (min x (lower s)) (max x (upper s)))))",
+    "(define-fun iunion ((s1 Interval) (s2 Interval)) Interval (ite (iempty s1) s2 (iinsert (lower s1) (iinsert (upper s1) s2))))",
+  )
+
   // Commands to be executed before solving starts
   def prelude = if (defaultSolver == "CVC4") {
     List(
       "(set-logic ALL_SUPPORTED)",
       "(define-sort SetInt () (Set Int))",
-      "(define-fun empty () SetInt (as emptyset (Set Int)))")
+      "(define-fun empty () SetInt (as emptyset (Set Int)))",
+      "(declare-datatypes ((Interval 0)) (((interval (lower Int) (upper Int)))))"
+    ) ++ intervalPrelude
   } else if (defaultSolver == "Z3") {
     List(
       "(define-sort SetInt () (Array Int Bool))",
@@ -90,15 +125,18 @@ object SMTSolving extends Core
       "(define-fun subset ((s1 SetInt) (s2 SetInt)) Bool (= s1 (intersect s1 s2)))",
       "(declare-fun andNot (Bool Bool) Bool)",
       "(assert (forall ((b1 Bool) (b2 Bool)) (= (andNot b1 b2) (and b1 (not b2)))))",
-      "(define-fun difference ((s1 SetInt) (s2 SetInt)) SetInt ((_ map andNot) s1 s2))")
+      "(define-fun difference ((s1 SetInt) (s2 SetInt)) SetInt ((_ map andNot) s1 s2))",
+      "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
+    ) ++ intervalPrelude
   } else if (defaultSolver == "Z3 <= 4.7.x") {
     // In Z3 4.7.x and below, difference is built in and intersection is called intersect
     List(
       "(define-sort SetInt () (Array Int Bool))",
       "(define-fun empty () SetInt ((as const SetInt) false))",
       "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
-      "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))")
-//      "(define-fun union ((s1 SetInt) (s2 SetInt)) SetInt (((_ map or) s1 s2)))",
+      "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))",
+      "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
+    ) ++ intervalPrelude
   } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean =
@@ -174,6 +212,32 @@ object SMTSolving extends Core
     }
   }
 
+  private def convertIntervalExpr(e: Expr): SMTIntervalTerm = e match {
+    case Var(name) => new VarTerm[IntervalTerm](name, intervalSort)
+    case BinaryExpr(OpRange, l, u) => {
+      val lTerm = convertIntExpr(l)
+      val uTerm = convertIntExpr(u)
+      new TypedTerm[IntervalTerm, Term](lTerm.typeDefs ++ uTerm.typeDefs,
+        QIdAndTermsTerm(intervalConstructorSymbol, List(lTerm.termDef, uTerm.termDef)))
+    }
+    // Special case for unions with a literal
+    case BinaryExpr(OpIntervalUnion, BinaryExpr(OpRange, l, u), e) if l == u => {
+      val lTerm = convertIntExpr(l)
+      val eTerm = convertIntervalExpr(e)
+      new TypedTerm[IntervalTerm, Term](lTerm.typeDefs ++ eTerm.typeDefs,
+        QIdAndTermsTerm(intervalInsertSymbol, List(lTerm.termDef, eTerm.termDef)))
+    }
+    case BinaryExpr(OpIntervalUnion, e, r@BinaryExpr(OpRange, l, u)) if l == u =>
+      convertIntervalExpr(BinaryExpr(OpIntervalUnion, r, e))
+    case BinaryExpr(OpIntervalUnion, left, right) => {
+      val lTerm = convertIntervalExpr(left)
+      val rTerm = convertIntervalExpr(right)
+      new TypedTerm[IntervalTerm, Term](lTerm.typeDefs ++ rTerm.typeDefs,
+        QIdAndTermsTerm(intervalUnionSymbol, List(lTerm.termDef, rTerm.termDef)))
+    }
+    case _ => throw SMTUnsupportedExpr(e)
+  }
+
   private def convertBoolExpr(e: Expr): SMTBoolTerm = e match {
     case Var(name) => Bools(name)
     case BoolConst(true) => True()
@@ -226,6 +290,24 @@ object SMTSolving extends Core
       new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(setSubsetSymbol, List(l.termDef, r.termDef)))
     }
+    case BinaryExpr(OpIntervalIn, left, right) => {
+      val l = convertIntExpr(left)
+      val r = convertIntervalExpr(right)
+      new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(intervalMemberSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpIntervalEq, left, right) => {
+      val l = convertIntervalExpr(left)
+      val r = convertIntervalExpr(right)
+      new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(intervalEqSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpSubinterval, left, right) => {
+      val l = convertIntervalExpr(left)
+      val r = convertIntervalExpr(right)
+      new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(intervalSubsetSymbol, List(l.termDef, r.termDef)))
+    }
     case Unknown(_, _, _) => True() // Treat unknown predicates as true
     case _ => throw SMTUnsupportedExpr(e)
   }
@@ -233,6 +315,14 @@ object SMTSolving extends Core
   private def convertIntExpr(e: Expr): SMTIntTerm = e match {
     case Var(name) => Ints(name)
     case IntConst(c) => Ints(c)
+    case UnaryExpr(OpLower, e) => {
+      val s = convertIntervalExpr(e)
+      new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalLowerSymbol, List(s.termDef)))
+    }
+    case UnaryExpr(OpUpper, e) => {
+      val s = convertIntervalExpr(e)
+      new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalUpperSymbol, List(s.termDef)))
+    }
     case BinaryExpr(op, left, right) => {
       val l = convertIntExpr(left)
       val r = convertIntExpr(right)

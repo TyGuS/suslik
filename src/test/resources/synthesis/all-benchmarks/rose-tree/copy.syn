@@ -1,0 +1,88 @@
+# -o 2 -c 2 -p true
+
+should be able to copy a rose tree
+
+###
+
+{ r :-> x ** rose_tree(x, s) }
+  void rose_tree_copy(loc r)
+{ r :-> y ** rose_tree(x, s) ** rose_tree(y, s) }
+
+###
+
+{r :-> x ** rose_tree(x, s)<_alpha_7>}
+{r :-> y ** rose_tree(x, s)<_alpha_8> ** rose_tree(y, s)<_alpha_9>}
+void rose_tree_copy (loc r) {
+  let x = *r;
+  if (x == 0) {
+  } else {
+    rose_tree_copy10(x, r);
+  }
+}
+
+{_alpha_0x1 < _alpha_7 && not (r == 0) && not (x == 0) && s =i {vx1} ++ s1x1 ; (x + 1) :-> bx1 ** r :-> x ** x :-> vx1 ** buds(bx1, s1x1)<_alpha_0x1>[0,1] ** [x, 2]}
+{not (r == 0) ; r :-> y ** rose_tree(x, s)<_alpha_8> ** rose_tree(y, s)<_alpha_9>}
+void rose_tree_copy10 (loc x, loc r) {
+  let vx1 = *x;
+  let bx1 = *(x + 1);
+  if (bx1 == 0) {
+    let y = malloc(2);
+    *(x + 1) = 0;
+    *r = y;
+    *(y + 1) = 0;
+    *y = vx1;
+  } else {
+    let rb = *bx1;
+    let n = *(bx1 + 1);
+    *r = rb;
+    rose_tree_copy(r);
+    let y1 = *r;
+    *r = x;
+    *(x + 1) = n;
+    rose_tree_copy10(x, r);
+    let y = *r;
+    let vx = *x;
+    let bx = *(x + 1);
+    let v = *y;
+    let b = malloc(2);
+    *y = rb;
+    *(x + 1) = y;
+    *r = bx1;
+    *(bx1 + 1) = b;
+    *b = y1;
+    *(b + 1) = bx;
+    *x = v;
+    *bx1 = vx;
+  }
+}
+
+###
+
+1
+1
+1
+1
+1
+2
+2
+1
+1
+2
+2
+1
+2
+2
+2
+1
+2
+2
+2
+1
+2
+2
+4
+8
+10
+4
+2
+2

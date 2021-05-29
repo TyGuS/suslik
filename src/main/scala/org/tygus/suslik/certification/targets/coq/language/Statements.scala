@@ -1,5 +1,6 @@
 package org.tygus.suslik.certification.targets.coq.language
 
+import org.tygus.suslik.synthesis.SynthesisException
 import org.tygus.suslik.util.StringUtil._
 
 object Statements {
@@ -33,6 +34,7 @@ object Statements {
         case CGuarded(cond, b, eb) =>
           val acc1 = collector(acc ++ cond.collect(p))(b)
           collector(acc1)(eb)
+        case c => throw SynthesisException(s"Not supported: ${c.pp} (${c.getClass.getName})")
       }
 
       collector(Set.empty)(this)
@@ -103,6 +105,7 @@ object Statements {
             builder.append(mkSpaces(offset)).append(s"else\n")
             build(els, offset + 2)
             builder.append("\n")
+          case c => throw SynthesisException(s"Not supported: ${c.pp} (${c.getClass.getName})")
         }
       }
 

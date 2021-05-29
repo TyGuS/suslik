@@ -1,0 +1,41 @@
+# -c 2 -p true
+
+reverse a list
+
+#####
+
+{ 0 <= n ; srtl(x, s, n) }
+void reverse (loc x)
+{ descl(x, s, n) }
+
+#####
+
+{0 <= n ; srtl(x, s, n)<_alpha_113>}
+{descl(x, s, n)<_alpha_114>}
+void reverse (loc x) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    reverse(n);
+    reverse115(n, v, x);
+  }
+}
+
+{0 <= len1x && 0 <= len1x + 1 && _alpha_111x < _alpha_113 && not (x == 0) && vx == lower ([vx] ++ s1x) ; (x + 1) :-> nx ** x :-> vx ** descl(nx, s1x, len1x)<_alpha_1141>[1,0] ** [x, 2]}
+{descl(x, [vx] ++ s1x, len1x + 1)<_alpha_114>}
+void reverse115 (loc nx, int vx, loc x) {
+  if (nx == 0) {
+  } else {
+    let v = *nx;
+    let n = *(nx + 1);
+    *nx = vx;
+    reverse115(n, vx, nx);
+    *x = v;
+  }
+}
+
+#####
+
+
+

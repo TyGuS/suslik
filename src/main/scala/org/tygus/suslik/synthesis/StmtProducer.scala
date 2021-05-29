@@ -151,7 +151,7 @@ case class GuardedBranchProducer(goal: Goal) extends StmtProducer {
 // Creates a guarded statement with condition cond
 case class GuardedProducer(cond: Expr) extends StmtProducer {
   val arity: Int = 1
-  val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head))
+  val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head).simplify)
 }
 
 // Captures the existential substitution map produced by the Pick rule

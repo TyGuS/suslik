@@ -1,0 +1,54 @@
+# -b true -c 2 -p true
+
+covert a list into a BST
+
+#####
+
+{ 0 <= n ; r :-> 0 ** sll(x, s, n) }
+void toBST (loc x, loc r)
+{ r :-> y ** bst(y, s, n) }
+
+#####
+
+{0 <= n ; r :-> 0 ** sll(x, s, n)<_alpha_283>}
+{r :-> y ** bst(y, s, n)<_alpha_284>}
+void toBST (loc x, loc r) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    toBST(n, r);
+    toBST0017012(v, x, r);
+  }
+}
+
+{0 <= len1x && 0 <= len1x + 1 && _alpha_279x < _alpha_283 && not (r == 0) && not (r == x) && not (x == 0) && true ; (x + 1) :-> nxtx1 ** r :-> y1 ** x :-> vx ** bst(y1, s1x, len1x)<_alpha_2841>[1,0] ** [x, 2]}
+{not (r == 0) ; r :-> y ** bst(y, [vx] ++ s1x, len1x + 1)<_alpha_284>}
+void toBST0017012 (int vx, loc x, loc r) {
+  let y1 = *r;
+  if (y1 == 0) {
+    let y = malloc(3);
+    free(x);
+    *r = y;
+    *(y + 1) = 0;
+    *(y + 2) = 0;
+    *y = vx;
+  } else {
+    let v = *y1;
+    let l = *(y1 + 1);
+    let ry = *(y1 + 2);
+    if (vx <= v) {
+      *r = l;
+      toBST0017012(vx, x, r);
+      let y = *r;
+      *r = y1;
+      *(y1 + 1) = y;
+    } else {
+      *r = ry;
+      toBST0017012(vx, x, r);
+      let y = *r;
+      *r = y1;
+      *(y1 + 2) = y;
+    }
+  }
+}

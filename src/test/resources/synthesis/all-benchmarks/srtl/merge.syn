@@ -1,0 +1,62 @@
+# -b true -c 2 -p true -f 1
+sorted list: merge
+
+#####
+
+{ 0 <= nx && 0 <= ny ;
+    r :-> y ** srtl(x, sx, nx) ** srtl(y, sy, ny) }
+void srtl_merge (loc x, loc r)
+{ n == nx + ny &&  s == sx + sy ;
+    r :-> z ** srtl(z, s, n) }
+
+#####
+
+{0 <= nx && 0 <= ny ; r :-> y ** srtl(x, sx, nx)<_alpha_102> ** srtl(y, sy, ny)<_alpha_103>}
+{n == nx + ny && s == sx + sy ; r :-> z ** srtl(z, s, n)<_alpha_104>}
+void srtl_merge (loc x, loc r) {
+  let y = *r;
+  if (x == 0) {
+  } else {
+    srtl_merge0010(y, x, r);
+  }
+}
+
+{0 <= len1x && 0 <= nx && 0 <= ny && _alpha_100x < _alpha_102 && not (r == 0) && not (x == 0) && nx == len1x + 1 && sx == [vx] ++ s1x && true && vx == lower sx ; (x + 1) :-> nxtx ** r :-> y ** x :-> vx ** srtl(nxtx, s1x, len1x)<_alpha_100x>[0,1] ** srtl(y, sy, ny)<_alpha_103> ** [x, 2]}
+{not (r == 0) ; r :-> z ** srtl(z, sx ++ sy, nx + ny)<_alpha_104>}
+void srtl_merge0010 (loc y, loc x, loc r) {
+  let vx = *x;
+  let nx = *(x + 1);
+  if (y == 0) {
+    *r = x;
+  } else {
+    let v = *y;
+    let n = *(y + 1);
+    if (v <= vx && vx <= v) {
+      *r = nx;
+      srtl_merge(n, r);
+      let z = *r;
+      *r = y;
+      *(y + 1) = x;
+      *(x + 1) = z;
+    } else {
+      if (vx <= v) {
+        *r = nx;
+        srtl_merge0010(nx, y, r);
+        let z = *r;
+        *r = x;
+        *(x + 1) = z;
+      } else {
+        *(y + 1) = nx;
+        *r = n;
+        *y = vx;
+        srtl_merge0010(n, y, r);
+        let z = *r;
+        *r = x;
+        *(x + 1) = z;
+        *x = v;
+      }
+    }
+  }
+}
+
+#####

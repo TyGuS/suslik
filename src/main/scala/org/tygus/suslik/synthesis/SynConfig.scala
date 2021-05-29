@@ -32,8 +32,8 @@ case class SynConfig(
                       depthFirst: Boolean = false,
                       breadthFirst: Boolean = false,
                       memoization: Boolean = true,
-                      termination: TerminationMetric = lexicographic,
-                      delegatePure: Boolean = true,
+                      delegatePure: Boolean = false,
+                      extendedPure: Boolean = false,
                       // Timeout and logging
                       interactive: Boolean = false,
                       printStats: Boolean = true,
@@ -42,12 +42,11 @@ case class SynConfig(
                       printFailed: Boolean = false,
                       printTags: Boolean = false,
                       printEnv: Boolean = false,
-                      printColor: Boolean = true,
                       assertSuccess: Boolean = false,
                       logToFile: Boolean = true,
                       logFile: String = "",
                       traceToJsonFile: Option[File] = None,
-                      timeOut: Long = 300000,
+                      timeOut: Long = 1800000,
                       // Certification
                       certTarget: CertificationTarget = null,
                       certDest: File = null,
@@ -75,7 +74,6 @@ case class SynConfig(
       (if (maxCloseDepth == defaultConfig.maxCloseDepth) Nil else List(s"maxCloseDepth = $maxCloseDepth")) ++
       (if (auxAbduction == defaultConfig.auxAbduction) Nil else List(s"auxAbduction = $auxAbduction")) ++
       (if (branchAbduction == defaultConfig.branchAbduction) Nil else List(s"branchAbduction = $branchAbduction")) ++
-      (if (phased == defaultConfig.phased) Nil else List(s"phased = $phased")) ++
       (if (depthFirst == defaultConfig.depthFirst) Nil else List(s"depthFirst = $depthFirst")) ++
       (if (memoization == defaultConfig.memoization) Nil else List(s"memoization = $memoization")) ++
       (if (certTarget == defaultConfig.certTarget) Nil else List(s"certTarget = ${certTarget.name}")) ++

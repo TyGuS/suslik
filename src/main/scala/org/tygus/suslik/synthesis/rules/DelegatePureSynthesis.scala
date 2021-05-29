@@ -1,16 +1,18 @@
 package org.tygus.suslik.synthesis.rules
 
 
-import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Parser
+import org.bitbucket.franck44.scalasmt.parser.{SMTLIB2Parser, SMTLIB2Syntax}
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
-import org.tygus.suslik.language.Expressions.{IntConst, SetLiteral, Subst}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
+import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.logic.{PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
-import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer}
+import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer, SynthesisException}
 
+import scala.collection.mutable
 import scala.sys.process._
 import scala.util.{Failure, Success}
 
@@ -20,11 +22,23 @@ object DelegatePureSynthesis {
     case IntType | LocType | CardType => "Int"
     case BoolType => "Bool"
     case IntSetType => "(Set Int)"
+    case IntervalType => "Interval"
   }
 
   val empsetName = "empset"
-  val typeConstants: Map[SSLType, List[String]] = Map(
-    IntType -> List("0"), LocType -> List("0"), IntSetType -> List(empsetName), CardType -> List("0")
+  val typeConstants: Map[SSLType, List[Expressions.Expr]] = Map(
+    IntType -> List(IntConst(0)),
+    LocType -> List(IntConst(0)),
+    IntSetType -> List(SetLiteral(List())),
+    IntervalType -> List(Expressions.emptyInt),
+    CardType -> List(IntConst(0))
+  )
+  val typeUnaries: Map[SSLType, List[Expressions.Expr => Expressions.Expr]] = Map(
+    IntType -> List(e => e |+| IntConst(1)),
+    LocType -> List(e => e |+| IntConst(1)),
+    IntSetType -> List(),
+    IntervalType -> List(),
+    CardType -> List()
   )
 
   def toSmtExpr(c: Expressions.Expr, existentials: Map[Expressions.Var, String], sb: StringBuilder): Unit = c match {
@@ -63,6 +77,11 @@ object DelegatePureSynthesis {
       case Expressions.OpUnion => "union"
       case Expressions.OpDiff => "setminus"
       case Expressions.OpIntersect => "intersection"
+      case Expressions.OpIntervalEq => "ieq"
+      case Expressions.OpIntervalIn => "imember"
+      case Expressions.OpIntervalUnion => "iunion"
+      case Expressions.OpRange => "interval"
+      case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")  
     }) ++= " "
       toSmtExpr(left, existentials, sb)
       sb ++= " "
@@ -72,6 +91,8 @@ object DelegatePureSynthesis {
     case Expressions.UnaryExpr(op, arg) => sb ++= "(" ++= (op match {
       case Expressions.OpNot => "not"
       case Expressions.OpUnaryMinus => "-"
+      case Expressions.OpLower => "lower"
+      case Expressions.OpUpper => "upper"
     }) ++= " "
       toSmtExpr(arg, existentials, sb)
       sb ++= ")"
@@ -84,6 +105,7 @@ object DelegatePureSynthesis {
       toSmtExpr(right, existentials, sb)
       sb ++= ")"
     case Expressions.Unknown(_,_,_) => sb ++= Expressions.eTrue.pp
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
   def mkExistentialCalls(existentials: Set[Expressions.Var], otherVars: List[(Expressions.Var, SSLType)]): Map[Expressions.Var, String] =
@@ -112,6 +134,9 @@ object DelegatePureSynthesis {
     if (goal.gamma.exists { case (v, t) => t == IntSetType && goal.isExistential(v) } || usesEmptyset(goal.post) || usesEmptyset(goal.pre))
       sb ++= s"(define-fun $empsetName () (Set Int) (as emptyset (Set Int)))\n\n"
 
+    if (goal.gamma.exists { case (_, t) => t == IntervalType })
+      sb ++= SMTSolving.intervalPrelude.mkString("\n")
+
     val otherVars = (goal.gamma -- goal.existentials).toList
     for (ex <- goal.existentials) {
       val etypeOpt = ex.getType(goal.gamma)
@@ -121,10 +146,23 @@ object DelegatePureSynthesis {
         sb ++= "(" ++= v._1.name ++= " " ++= typeToSMT(v._2) ++= ") "
       sb ++= ") " ++= etypeStr ++= "\n"
       sb ++= "  ((Start " ++= etypeStr ++= " ("
+      val allRHSs = mutable.ListBuffer.empty[Expressions.Expr]
       for (c <- typeConstants(etypeOpt.get))
-        sb ++= c ++= " "
-      for (v <- otherVars; if grammarExclusion.forall(a => !(ex == a._1 && v._1 == a._2)); if v._2.conformsTo(etypeOpt))
-        sb ++= v._1.name ++= " "
+        allRHSs += c
+      for (v <- otherVars; if v._2.conformsTo(etypeOpt) && (!goal.isProgramLevelExistential(ex) || goal.isProgramVar(v._1))) {
+        allRHSs += v._1
+        if (goal.env.config.extendedPure) {
+          for (u <- typeUnaries(etypeOpt.get)) {
+            allRHSs += u(v._1)
+          }
+        }
+      }
+      val notExcluded = allRHSs.filter(e => !grammarExclusion.exists(a => ex == a._1 && e == a._2))
+      for (e <- notExcluded) {
+        toSmtExpr(e, existentialMap, sb)
+        sb ++= " "
+      }
+
       sb ++= ")))"
       sb ++= ")\n"
     }
@@ -173,6 +211,15 @@ object DelegatePureSynthesis {
 
   val parser = SMTLIB2Parser[GetModelResponses]
 
+  def parseTerm(term: SMTLIB2Syntax.Term): Expressions.Expr = term match {
+    case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) =>
+      if (simpleSymbol == empsetName) Expressions.SetLiteral(List())
+      else Expressions.Var(simpleSymbol)
+    case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
+    case PlusTerm(t1, t2) => t2.foldRight(parseTerm(t1)) {case (t, e) => BinaryExpr(Expressions.OpPlus, e, parseTerm(t))}
+    case t => throw SynthesisException(s"Not supported: ${t.getClass.getName}")
+  }
+
   def parseAssignments(cvc4Res: String): Subst = {
     //〈FunDefCmd〉::=  (define-fun〈Symbol〉((〈Symbol〉 〈SortExpr〉)∗)〈SortExpr〉 〈Term〉
     parser.apply(StringSource("(model " + cvc4Res + ")")) match {
@@ -180,13 +227,10 @@ object DelegatePureSynthesis {
       case Success(GetModelFunDefResponseSuccess(responses)) =>
         responses.map { response =>
           val existential = response.funDef.sMTLIB2Symbol.asInstanceOf[SSymbol].simpleSymbol.drop(7)
-          val expr = response.funDef.term match {
-            case QIdTerm(SimpleQId(SymbolId(SSymbol(simpleSymbol)))) => if (simpleSymbol == empsetName) Expressions.SetLiteral(List())
-                                                                        else Expressions.Var(simpleSymbol)
-            case ConstantTerm(NumLit(numeralLiteral)) => IntConst(numeralLiteral.toInt)
-          }
+          val expr = parseTerm(response.funDef.term)
           Expressions.Var(existential) -> expr
         }.toMap
+      case Success(e) => throw SynthesisException(s"Not supported (${e.getClass.getName})")
     }
   }
 

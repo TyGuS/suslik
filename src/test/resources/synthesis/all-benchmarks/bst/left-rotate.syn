@@ -1,0 +1,19 @@
+binary search tree: rotate left
+
+#####
+
+{ not (r == 0) && 0 <= sz1 &&  0 <= sz2  && v <= lower s2 && (v == upper ([v] + s1)) ;
+  ret :-> unused ** [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** bst(l, s1, sz1) ** bst(r, s2, sz2) }
+void bst_left_rotate (loc x, loc ret)
+{ sz3 + sz4 == sz1 + sz2 && (v3 == lower ([v3] + s4)) && v3 >= upper s3 ;
+  ret :-> y ** [y, 3] ** y :-> v3 ** (y + 1) :-> x ** (y + 2) :-> r3 ** bst(x, s3, sz3) ** bst(r3, s4, sz4) }
+
+#####
+
+void bst_left_rotate (loc x, loc ret) {
+  let r = *(x + 2);
+  let l = *(r + 1);
+  *(r + 1) = x;
+  *(x + 2) = l;
+  *ret = r;
+}

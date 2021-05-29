@@ -23,12 +23,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         symbolicExecutionRules ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
-    else if (!config.phased)
-    // Phase distinction is disabled: use all rules
-      anyPhaseRules(config) ++ unfoldingPhaseRules ++
-        postBlockPhaseRules ++ preBlockPhaseRules ++
-        pointerPhaseRules ++ purePhaseRules
-    else anyPhaseRules(config) ++ specBasedRules(node)
+    else anyPhaseRules ++ specBasedRules(node)
   }
 
   def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
@@ -109,13 +104,14 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def unfoldingPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfolding,
     UnificationRules.HeapUnifyUnfolding,
+    UnfoldingRules.AbduceCall,
     UnfoldingRules.Open,
     UnfoldingRules.Close,
-    UnfoldingRules.AbduceCall,
+//    UnfoldingRules.AbduceCall, // HERE: move AbduceCall here to achieve old behavior
   )
 
   protected def unfoldingPostPhaseRules: List[SynthesisRule] = List(
-    LogicalRules.FrameUnfolding,
+    LogicalRules.FrameUnfoldingFinal,
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.Close,
   )
@@ -149,6 +145,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 //          OperationalRules.WriteRule,
           UnificationRules.PickArg,
           UnificationRules.PickCard,
+          LogicalRules.GhostWrite,
           UnificationRules.HeapUnifyPure,
           LogicalRules.SimplifyConditional,
           OperationalRules.WriteRule,
@@ -186,10 +183,11 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       FailRules.HeapUnreachable,
       LogicalRules.FrameFlat,
       UnificationRules.PickCard,
+      LogicalRules.GhostWrite,
       UnificationRules.HeapUnifyPure,
       LogicalRules.SimplifyConditional,
       OperationalRules.WriteRule,
-      DelegatePureSynthesis.PureSynthesisFinal)
+      if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick)
 //    ++
 //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
   }

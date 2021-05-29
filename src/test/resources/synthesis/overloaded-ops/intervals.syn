@@ -1,0 +1,12 @@
+testing intervals
+
+#####
+
+{x <= y && i1 == [x..y] && i3 == [] && i2 == i3 + [x] && s1 == {x, y} && s2 == {}; emp}
+void interval_test(int x, int y)
+{lower i1 == lower i2 && x in i1 && x in s1 && x in (i1 + i2) && x in (s1 + s2) ; emp}
+
+#####
+
+void foo (int v) {
+}

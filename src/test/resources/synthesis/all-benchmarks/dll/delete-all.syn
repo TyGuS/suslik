@@ -1,0 +1,42 @@
+# -b true -c 2 -f 1
+doubly-linked list: delete all occurrences of x
+
+#####
+
+{true ; dll(x, b, s) ** ret :-> a}
+void dll_delete_all (loc x, loc ret)
+{s1 =i s -- {a} ; dll(y, c, s1) ** ret :-> y }
+
+#####
+
+void dll_delete_all (loc x, loc ret) {
+  let a = *ret;
+  if (x == 0) {
+    *ret = 0;
+  } else {
+    let vx = *x;
+    if (a <= vx && vx <= a) {
+      let w = *(x + 1);
+      dll_delete_all(w, ret);
+      free(x);
+    } else {
+      let w = *(x + 1);
+      dll_delete_all(w, ret);
+      let y = *ret;
+      if (y == 0) {
+        *(x + 1) = 0;
+        *ret = x;
+      } else {
+        let v = *y;
+        if (vx <= v && v <= vx) {
+          free(x);
+        } else {
+          *(y + 2) = x;
+          *(x + 1) = y;
+          *ret = x;
+        }
+      }
+    }
+  }
+}
+
