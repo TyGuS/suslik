@@ -52,8 +52,8 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             hasProgressed = true,
             isCompanion = true))
 
-          ProofTrace.current.add(ProofTrace.RuleTrail(goal, newGoals.map(_._2), this,
-            Map("pred" -> pred, "args" -> args.toString)))
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, newGoals.map(_._2), this,
+            Map("pred" -> pred, "args" -> args.map(_.toString))))
 
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
