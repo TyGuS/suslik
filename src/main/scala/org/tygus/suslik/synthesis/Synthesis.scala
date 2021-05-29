@@ -74,7 +74,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
                                      config: SynConfig): Option[Solution] = {
     // Check for timeouts
     if (!config.interactive && stats.timedOut) {
-      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut} seconds.\n")
+      throw SynTimeOutException(s"\n\nThe derivation took too long: more than ${config.timeOut / 1000.0} seconds.\n")
     }
 
     val sz = worklist.length
