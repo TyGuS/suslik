@@ -8,7 +8,7 @@
 }
 
 .proof-trace .subtrees {
-    white-space: nowrap;
+    display: flex;
 }
 
 .proof-trace-node {
@@ -52,9 +52,14 @@
 }
 
 .proof-trace-goal {
+    clear: both; /* skip any floats from title */
     white-space: normal;
     border: 1px solid #999;
     padding: 2px;
+}
+
+.proof-trace-goal .synth-arrow {
+    color: #88f;
 }
 
 .proof-trace-node:hover > .proof-trace-goal {
@@ -67,6 +72,7 @@
     margin-right: 0.2em;   
     margin-bottom: 0.5em;
     vertical-align: top;
+    flex-shrink: 0;
 }
 
 .proof-trace-vars > span:not(:last-child)::after {

@@ -1,3 +1,4 @@
+import assert from 'assert';
 import arreq from 'array-equal';
 import $ from 'jquery';
 import Vue from 'vue';
@@ -96,6 +97,11 @@ class ProofTrace {
             m.set(parent, l.concat([child]));
     }
 
+    parent(node: Data.NodeEntry) {
+        var id = node.id.slice(1);
+        return this.nodeIndex.byId.get(id);
+    }
+
     children(node: Data.NodeEntry) {
         function lex2(a1: number[], a2: number[]) {
             let n = Math.min(2, a1.length, a2.length);
@@ -134,7 +140,9 @@ class ProofTrace {
     createNode(node: Data.NodeEntry): View.Node {
         var v = {value: node, children: undefined, focus: false, expanded: false,
                  status: this.getStatus(node),
+                 derivation: this.getDerivationTrail(node),
                  numDescendants: this.getSubtreeSize(node)};
+        console.log(node, v.derivation);
         this.nodeIndex.viewById.set(node.id, v);
         return v;
     }
@@ -178,6 +186,17 @@ class ProofTrace {
             this.expandAll(c);
     }
 
+    getDerivationTrail(node: Data.NodeEntry) {
+        if (node.tag !== Data.NodeType.AndNode) return;
+        var from = this.parent(node),
+            to = this.children(node);
+        assert(from.tag == Data.NodeType.OrNode &&
+                to.every(v => v.tag == Data.NodeType.OrNode));
+        return this.data.trail.find(dte => 
+            dte.from === from.goal.id &&
+            arreq(dte.to, to.map(v => v.goal.id)));
+    }
+
     viewAction(ev: View.ActionEvent) {
         switch (ev.type) {
         case 'expand':
@@ -200,7 +219,8 @@ namespace ProofTrace {
 
     export type Data = {
         nodes: Data.NodeEntry[],
-        statuses: Data.StatusEntry[]
+        statuses: Data.StatusEntry[],
+        trail: Data.DerivationTrailEntry[]
     };
 
     export namespace Data {
@@ -216,14 +236,17 @@ namespace ProofTrace {
         export type NodeId = number[];
 
         export enum NodeType { AndNode = 'AndNode', OrNode = 'OrNode' };
+        const NODE_TAGS = Object.values(NodeType);
 
         export type GoalEntry = {
-            id: string
+            id: GoalId
             pre: string, post: string, sketch: string,
             programVars:  [string, string][]
             existentials: [string, string][]
             ghosts:       [string, string][]
         };
+
+        export type GoalId = string
 
         export type Environment = Map<string, {type: string, of: string}>;
 
@@ -234,15 +257,27 @@ namespace ProofTrace {
 
         export type GoalStatusEntry = {tag: "Succeeded" | "Failed", from?: string | string[]};
 
+        export type DerivationTrailEntry = {
+            tag: "DerivationTrail"
+            from: GoalId
+            to: GoalId[]
+            ruleName: string
+            subst: {[metavar: string]: OrVec<string>}
+        };
+        const DERIVATION_TRAIL_TAG = "DerivationTrail"
+
+        export type OrVec<T> = T | T[];
+
         export function parse(traceText: string): Data {
             var entries = traceText.split('\n\n').filter(x => x).map(ln =>
                             JSON.parse(ln));
-            var nodes = [], statuses = [];
+            var nodes = [], statuses = [], trail = [];
             for (let e of entries) {
-                if (["AndNode", "OrNode"].includes(e.tag)) nodes.push(e);
+                if (NODE_TAGS.includes(e.tag)) nodes.push(e);
+                else if (e.tag === DERIVATION_TRAIL_TAG) trail.push(e);
                 else if (e.status) statuses.push(e);
             }
-            return {nodes, statuses};
+            return {nodes, statuses, trail};
         }
 
         export function envOfGoal(goal: GoalEntry) {
@@ -362,7 +397,8 @@ Vue.component('proof-trace', {
         <div class="proof-trace" :class="[statusClass, root && root.children && root.children.length == 0 ? 'no-children' : 'has-children']">
             <template v-if="root">
                 <proof-trace-node ref="nroot" :value="root.value"
-                                  :status="root.status" :num-descendants="root.numDescendants"
+                                  :status="root.status" :derivation="root.derivation"
+                                  :num-descendants="root.numDescendants"
                                   @action="nodeAction"/>
                 <div class="proof-trace-expand-all" :class="{root: root.value.id.length == 0}">
                     <span @click="expandAll">++</span>
@@ -407,7 +443,7 @@ Vue.component('proof-trace', {
 });
 
 Vue.component('proof-trace-node', {
-    props: ['value', 'status', 'numDescendants'],
+    props: ['value', 'status', 'derivation', 'numDescendants'],
     data: () => ({_anchor: false}),
     template: `
         <div class="proof-trace-node" :class="[value.tag, statusClass]"
@@ -443,7 +479,16 @@ Vue.component('proof-trace-node', {
     methods: {
         action(ev) { this.$emit('action', ev); },
         toggle() { this.action({type: 'expand/collapse', target: this.value}); },
-        showId() { $('#hint').text(JSON.stringify(this.value.id)); },
+        showId() {
+            // temporary: show derivation trail in hint
+            var d = this.derivation;
+            if (d) {
+                var subst = Object.entries(d.subst).map(([k,v]) => `${k} ↦ ${v}`);
+                $('#hint').text(`${d.ruleName} @ ${subst.join(', ')}`);
+            }
+            else
+                $('#hint').text(JSON.stringify(this.value.id));
+        },
         hideId() { $('#hint').empty(); },
 
         showRefs(ev) {
@@ -481,8 +526,9 @@ Vue.component('proof-trace-goal', {
             <proof-trace-vars :value="value.programVars"  class="proof-trace-program-vars"/>
             <proof-trace-vars :value="value.existentials" class="proof-trace-existentials"/>
             <proof-trace-formula class="proof-trace-pre" :pp="value.pre" :env="env"/>
-            <div class="proof-trace-sketch">{{value.sketch}} </div>
+            <span class="synth-arrow">⤳</span>
             <proof-trace-formula class="proof-trace-post" :pp="value.post" :env="env"/>
+            <!-- <div class="proof-trace-sketch">{{value.sketch}} </div> -->
         </div>`,
     computed: {
         env() { return Data.envOfGoal(this.value); }
