@@ -198,8 +198,8 @@ trait SynthesisRunnerUtil {
           println(result)
         }
         if (out != noOutputCheck) {
-          val tt = out.trim.lines.map(_.trim).toList
-          val res = result.trim.lines.toList.map(_.trim)
+          val tt = out.trim.linesIterator.map(_.trim).toList
+          val res = result.trim.linesIterator.map(_.trim).toList
           if (params.assertSuccess && res != tt) {
             throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
           }
