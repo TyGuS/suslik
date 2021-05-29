@@ -136,13 +136,12 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           else None
         } else None
 
-      findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => extractSides(l,r)
-        case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
-        case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
-        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l,r)
-        case _ => None
-      }, p2) match {
+      def extractSidesFromMatch[T](m: ((Expr, Expr), T)) = m match {
+        case ((l, r), phi) => extractSides(l, r).map((_, phi))
+      }
+
+      findConjunctAndRest(extractEquality, p2).flatMap(extractSidesFromMatch)
+      match {
         case Some(((x, e), rest2)) => {
           val sigma = Map(x -> e)
           val _p2 = rest2.subst(sigma)

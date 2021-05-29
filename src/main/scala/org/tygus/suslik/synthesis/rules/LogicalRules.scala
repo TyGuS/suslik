@@ -251,13 +251,12 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           else None
         } else None
 
-      findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => extractSides(l, r)
-        case BinaryExpr(OpBoolEq, l, r) => extractSides(l, r)
-        case BinaryExpr(OpSetEq, l, r) => extractSides(l, r)
-        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l, r)
-        case _ => None
-      }, p1) match {
+      def extractSidesFromMatch[T](m: ((Expr, Expr), T)) = m match {
+        case ((l, r), phi) => extractSides(l, r).map((_, phi))
+      }
+
+      findConjunctAndRest(extractEquality, p1).flatMap(extractSidesFromMatch)
+      match {
         case Some(((x, e), rest1)) => {
           val _p1 = rest1.subst(x, e)
           val _s1 = s1.subst(x, e)
