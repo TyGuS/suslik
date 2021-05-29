@@ -46,11 +46,17 @@ def main():
     print(newOrderOfAnyPhaseRules)
 
     # Use robo-evaluation.py to run produce the CSV file.
-    results1 = roboevaluation.evaluate_n_times(1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP)
-    roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, results1, roboevaluation.STATS1)
     # But the CSV file should have the iteration ID and individual ID.
+    pathToCSV = roboevaluation.EVAL_FOLDER + '/stats-performance-generatuin-' + str(10) + '-individual-' + str(7) + '.csv'
+    results1 = roboevaluation.evaluate_n_times(1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP)
+    roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, results1, pathToCSV)
     # Read the CSV file.
+    import pandas as pd
+    df = pd.read_csv(pathToCSV)
+    print(df)
     # Compute the fitness value from the CSV file.
+    totalTime = df['Time(mut)'].sum()
+    print(totalTime)
 
     call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000', '--evolutionary', 'true'])
     call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000'])
