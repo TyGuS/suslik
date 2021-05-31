@@ -21,8 +21,8 @@ def getNewJsonFilePath (population_id:int, individual_id:int):
     return jsonFilePath
 
 def main():
-    individual_id = 12
     population_id = 3
+    individual_id = 12
     print("individual ID is ")
     print(individual_id)
     print("populationID is ")
@@ -62,8 +62,10 @@ def main():
 
     # Use robo-evaluation.py to run produce the CSV file.
     # But the CSV file should have the iteration ID and individual ID.
-    pathToCSV = roboevaluation.EVAL_FOLDER + '/stats-performance-generatuin-' + str(10) + '-individual-' + str(7) + '.csv'
-    results1 = roboevaluation.evaluate_n_times(1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP)
+    pathToCSV = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(population_id) + '_' + str(individual_id) + '.csv'
+    results1 = roboevaluation.evaluate_n_times(
+        1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1,roboevaluation.ALL_BENCHMARKS, roboevaluation.RESULTS1,
+        roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, population_id, individual_id)
     roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS, results1, pathToCSV)
     # Read the CSV file.
     import pandas as pd
@@ -73,7 +75,7 @@ def main():
     totalTime = df['Time(mut)'].sum()
     print(totalTime)
 
-    call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000', '--evolutionary', 'true'])
+    call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000', '--evolutionary', 'true', '--populationID', '3', '--individualID', '12'])
     call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn', '-t=120000'])
     return 0
 

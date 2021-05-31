@@ -23,7 +23,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         symbolicExecutionRules ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
-    else anyPhaseRules ++ specBasedRules(node)
+    else anyPhaseRules(config) ++ specBasedRules(node)
   }
 
   def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
@@ -56,12 +56,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     }
   }
 
-  val directoryPath = os.pwd
-  val up = os.up
-  val jsonFile = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"orderOfRulesNew.json")
-  val jsonData = ujson.read(jsonFile)
-  val orderOfAnyPhaseRules = jsonData("orderOfAnyPhaseRules").arr.map(_.num).map(_.toInt)
-
   val unorderedAnyPhaseRules = Vector (
     LogicalRules.StarPartial,
     LogicalRules.NilNotLval,
@@ -75,8 +69,14 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def anyPhaseRules(config:SynConfig): List[SynthesisRule] = {
-    val evolutionary = config.evolutionary
-    if (evolutionary)
+    val populationID  = config.populationID
+    val individualID  = config.individualID
+    val fileName      = "orderOfRules_" + populationID.toString + "_" + individualID.toString + ".json"
+    val directoryPath = os.pwd
+    val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/fileName)
+    val jsonData      = ujson.read(jsonFile)
+    val orderOfAnyPhaseRules = jsonData("orderOfAnyPhaseRules").arr.map(_.num).map(_.toInt)
+    if (config.evolutionary)
       List(
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
