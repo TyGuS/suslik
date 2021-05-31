@@ -82,10 +82,8 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   private def getParentDir(filePath: String): String = {
     val file = new File(filePath)
-    if (!file.exists()) {
-      "."
-    }
-    else file.getParentFile.getAbsolutePath
+    if (file.exists()) file.getParentFile.getAbsolutePath
+    else file.getParent
   }
 
   private def handleInput(args: Array[String]): Unit = {
