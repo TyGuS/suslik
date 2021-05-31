@@ -2,11 +2,11 @@ package org.tygus.suslik.synthesis
 
 import java.io.{File, PrintWriter}
 import java.nio.file.Paths
-
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -15,6 +15,7 @@ import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceCert, ProofTraceJson,
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
+import resource.managed
 
 import scala.io.Source
 
@@ -52,7 +53,7 @@ trait SynthesisRunnerUtil {
       case s if s.endsWith(sketchExtension) => dotSus
     }
     // The path is counted from the root
-    val allLines = Source.fromFile(file).getLines.toList
+    val allLines = readLines(file)
     val (params, lines) =
       if (allLines.nonEmpty && allLines.head.startsWith(paramPrefix)) {
         (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' '), initialParams), allLines.tail)
@@ -121,12 +122,14 @@ trait SynthesisRunnerUtil {
     new Synthesis(tactic, log, trace)
   }
 
-  def synthesizeFromFile(dir: String, testName: String): Unit = {
-    val (_, _, in, out, params) = getDescInputOutput(testName)
+  def synthesizeFromFile(dir: String, testName: String,
+                         initialParams: SynConfig = defaultConfig) : List[Statements.Procedure] = {
+    val (_, _, in, out, params) = getDescInputOutput(testName, initialParams)
     synthesizeFromSpec(testName, in, out, params)
   }
 
-  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig) : Unit = {
+  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck,
+                         params: SynConfig = defaultConfig) : List[Statements.Procedure] = {
     import log.out.testPrintln
 
     val parser = new SSLParser
@@ -241,6 +244,7 @@ trait SynthesisRunnerUtil {
             })
           }
         }
+        procs
     }
   }
 
@@ -302,6 +306,9 @@ trait SynthesisRunnerUtil {
     }
   }
 
+  def readLines(file: File): List[String] =
+    managed(Source.fromFile(file)).map(_.getLines.toList)
+      .opt.get
 
   def removeSuffix(s: String, suffix: String): String = {
     if (s.endsWith(suffix)) s.substring(0, s.length - suffix.length) else s
