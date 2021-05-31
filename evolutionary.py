@@ -12,30 +12,45 @@ from deap import base
 from deap import creator
 from deap import tools
 
-with open("src/main/scala/org/tygus/suslik/synthesis/tactics/orderOfRules.json", "r") as jsonFile:
-    jsonData = json.load(jsonFile)
+PATH_TO_TACTICS    = "src/main/scala/org/tygus/suslik/synthesis/tactics/"
+DEFAULT_ORDER_JSON = PATH_TO_TACTICS + "defaultOrderOfRules.json"
 
-numbOfAnyPhaseRules = jsonData["numbOfAnyPhaseRules"]
-orderOfAnyPhaseRules = jsonData["orderOfAnyPhaseRules"]
-
-reversedOrderOfAnyPhaseRules = orderOfAnyPhaseRules.copy()
-reversedOrderOfAnyPhaseRules.reverse()
-
-newJsonDataToWrite = {
-  "numbOfAnyPhaseRules" : numbOfAnyPhaseRules,
-  "orderOfAnyPhaseRules": reversedOrderOfAnyPhaseRules
-}
-
-with open("src/main/scala/org/tygus/suslik/synthesis/tactics/orderOfRulesNew.json", 'w') as newJsonFileToWrite:
-  json.dump(newJsonDataToWrite, newJsonFileToWrite)
-
-with open("src/main/scala/org/tygus/suslik/synthesis/tactics/orderOfRulesNew.json", "r") as newJsonFileToRead:
-  newJsonDataToRead = json.load(newJsonFileToRead)
-
-newNumbOfAnyPhaseRules  = newJsonDataToRead["numbOfAnyPhaseRules"]
-newOrderOfAnyPhaseRules = newJsonDataToRead["orderOfAnyPhaseRules"]
+def getNewJsonFilePath (population_id:int, individual_id:int):
+    jsonFileName = "orderOfRules" + "_" + str(population_id) + "_" + str(individual_id) + ".json"
+    jsonFilePath = PATH_TO_TACTICS + jsonFileName
+    return jsonFilePath
 
 def main():
+    individual_id = 12
+    population_id = 3
+    print("individual ID is ")
+    print(individual_id)
+    print("populationID is ")
+    print(population_id)
+
+    with open(DEFAULT_ORDER_JSON, "r") as jsonFile:
+        jsonData = json.load(jsonFile)
+
+    numbOfAnyPhaseRules = jsonData["numbOfAnyPhaseRules"]
+    orderOfAnyPhaseRules = jsonData["orderOfAnyPhaseRules"]
+
+    reversedOrderOfAnyPhaseRules = orderOfAnyPhaseRules.copy()
+    reversedOrderOfAnyPhaseRules.reverse()
+
+    newJsonDataToWrite = {
+        "numbOfAnyPhaseRules": numbOfAnyPhaseRules,
+        "orderOfAnyPhaseRules": reversedOrderOfAnyPhaseRules
+    }
+
+    with open(getNewJsonFilePath(population_id, individual_id), 'w') as newJsonFileToWrite:
+        json.dump(newJsonDataToWrite, newJsonFileToWrite)
+
+    with open(getNewJsonFilePath(population_id, individual_id), "r") as newJsonFileToRead:
+        newJsonDataToRead = json.load(newJsonFileToRead)
+
+    newNumbOfAnyPhaseRules = newJsonDataToRead["numbOfAnyPhaseRules"]
+    newOrderOfAnyPhaseRules = newJsonDataToRead["orderOfAnyPhaseRules"]
+
     print("read a rule-odering from a json file")
     print(numbOfAnyPhaseRules)
     print(orderOfAnyPhaseRules)
