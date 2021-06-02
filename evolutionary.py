@@ -16,6 +16,7 @@ from deap import tools
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/"
 DEFAULT_ORDER_JSON = PATH_TO_TACTICS + "defaultOrderOfRules.json"
 IND_SIZE = 8
+POPULATION_SIZE = 3
 
 # define new types
 creator.create("FitnessMins", base.Fitness, weights=(-1.0, -1.0,))
@@ -57,16 +58,16 @@ class Individual(list):
 
     def evaluate(self):
 
-    #    self.write_json()
-    #
-    #    results1 = roboevaluation.evaluate_n_times(
-    #        1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
-    #        roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.population_id,
-    #        self.individual_id)
-    #
-    #    roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
-    #                                results1, self.csv_path())
-    #
+        self.write_json()
+
+        results1 = roboevaluation.evaluate_n_times(
+            1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
+            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.population_id,
+            self.individual_id)
+
+        roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
+                                    results1, self.csv_path())
+
         df = pandas.read_csv(filepath_or_buffer=self.csv_path(), na_values=['FAIL', '-'])
 
         number_of_nans = df['Time(mut)'].isna().sum()
@@ -76,14 +77,11 @@ class Individual(list):
 
         return number_of_nans, total_time
 
+def eval_fitness(individual:Individual):
+    result = individual.evaluate()
+    return result
+
 toolbox = base.Toolbox()
-
-# attribute generator
-# toolbox.register("indices", random.sample, range(IND_SIZE), IND_SIZE)
-
-# structure initializers
-# toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
-
 
 # -----------------------
 # operator registration
@@ -102,15 +100,11 @@ toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
 # by the best of three randomly drawn individuals.
 toolbox.register("select", tools.selTournament, tournsize=3)
 
-def eval_fitness(individual:Individual):
-    result = individual.evaluate()
-    return result
-
 def main():
     random.seed(169)
 
     # create an initial population of 20 individuals (where each individual is a list of integers)
-    individual_ids = list(range(0, 2))
+    individual_ids = list(range(0, POPULATION_SIZE))
 
     # initialize the population
     population = []
