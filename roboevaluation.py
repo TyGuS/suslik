@@ -77,11 +77,18 @@ class Benchmark:
   def __str__(self):
     return self.name + ': ' + self.description + ' with results: ' + self.res
 
-  def run_benchmark(self, file, args, results_file, csv_in, csv_out, population_id=0, individual_id=0):
+  def run_benchmark(self, file, args, results_file, csv_in, csv_out, evolution=False, population_id=0, individual_id=0):
     '''Runs single benchmark/file'''
+
     self.res = None
+
     fargs = list(filter(None, args))
-    args_evolution = ['--populationID', str(population_id), '--individualID', str(individual_id)]
+
+    if evolution:
+        args_evolution = ['--evolutionary', 'True', '--populationID', str(population_id), '--individualID', str(individual_id)]
+    else:
+        args_evolution = []
+
     with open(results_file, "at") as outfile:
       print ('Running ' + file + ' ' + (' '.join(fargs)))
       call([JAVA8, '-jar', SUSLIK_JAR, file, TIMEOUT] + fargs + args_evolution, stdout=outfile)
@@ -102,7 +109,7 @@ class BenchmarkGroup:
 
   # returns a dict of type string -> (SynthesisResult object) which maps
   # the name of each benchmark to the result of running the respective benchmark
-  def run_group(self, results_file, csv_in, csv_out, args = [], population_id=0, individual_id=0):
+  def run_group(self, results_file, csv_in, csv_out, args = [], evolution=False, population_id=0, individual_id=0):
     '''Runs all the benchmarks in one group'''
     res = dict()
     for b in self.benchmarks:
@@ -111,7 +118,7 @@ class BenchmarkGroup:
       if not os.path.isfile(testFileName):
         print ("Test file not found:", testFileName)
       else:
-        res[b.name] = b.run_benchmark(testFileName, args, results_file,csv_in, csv_out, population_id, individual_id)
+        res[b.name] = b.run_benchmark(testFileName, args, results_file,csv_in, csv_out, evolution, population_id, individual_id)
     return res
 
 
@@ -129,12 +136,12 @@ class Config:
   def __str__(self):
     return self.name + ': ' +  ('\n'.join([self.res[group.name] for group in self.groups]))
 
-  def run_config(self, meta_args, csv_in, csv_out, results_file = RESULTS, population_id=0, individual_id=0):
+  def run_config(self, meta_args, csv_in, csv_out, results_file = RESULTS, evolution=False, population_id=0, individual_id=0):
     '''Runs all the groups with one configuration'''
     print ('>>>', self.name)
     for group in self.groups:
-      self.res[group.name] = group.run_group(results_file, csv_in, csv_out,meta_args + self.args, population_id,
-                                             individual_id) # a map from filename to result
+      self.res[group.name] = group.run_group(results_file, csv_in, csv_out, meta_args + self.args, evolution,
+                                             population_id, individual_id) # a map from filename to result
     with open(csv_out, "at") as tempfile:
       tempfile.write('>>>' + self.name + '\n')
       for group in self.groups:
@@ -163,7 +170,7 @@ class MetaConfig:
   def __str__(self):
     return self.name + ': ' + ('\n'.join([self.res[conf[0]] for conf in self.configs]))
 
-  def run_metaconfig(self, groups, csv_in, csv_out, results_file = RESULTS, population_id=0, individual_id=0):
+  def run_metaconfig(self, groups, csv_in, csv_out, results_file = RESULTS, evolution=False, population_id=0, individual_id=0):
     '''Runs all the configs assuming the current meta-configuration'''
     print ('***********')
     print ('**', self.name)
@@ -172,7 +179,7 @@ class MetaConfig:
       tempfile.write('****' + self.name + '\n')
     for conf in self.configs:
       cnf = Config(groups, conf)
-      res_conf  = cnf.run_config(self.args, csv_in, csv_out, results_file, population_id, individual_id)
+      res_conf  = cnf.run_config(self.args, csv_in, csv_out, results_file, evolution, population_id, individual_id)
       self.res[conf[0]] = res_conf
     return self.res  # a dictionary from group to result of running the whole group
 
@@ -188,22 +195,22 @@ def foldl(func, acc, xs):
 
 ##########
 
-def evaluate(metaconfigs, configs, groups, results_file, csv_in, csv_out, population_id=0, individual_id=0):
+def evaluate(metaconfigs, configs, groups, results_file, csv_in, csv_out, evolution=False, population_id=0, individual_id=0):
   '''Test all the configurations defined in METACONFIG + CONFIG '''
   results = dict()
   for metaconf in metaconfigs:
       cnf = MetaConfig(configs, metaconf)
-      results[metaconf[0]] = cnf.run_metaconfig(groups, csv_in, csv_out, results_file)
+      results[metaconf[0]] = cnf.run_metaconfig(groups, csv_in, csv_out, results_file, evolution, population_id, individual_id)
   return results
 
 
-def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_out, population_id=0, individual_id=0):
+def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_out, evolution=False, population_id=0, individual_id=0):
   res_lst = []
   for i in range(n):
     groups0 = groups.copy()
     if os.path.isfile(results_file):
       os.remove(results_file)
-    res_lst.append(evaluate(metaconfigs, configs, groups0, results_file, csv_in, csv_out, population_id, individual_id))
+    res_lst.append(evaluate(metaconfigs, configs, groups0, results_file, csv_in, csv_out, evolution, population_id, individual_id))
 
   results = res_lst[0].copy()
 

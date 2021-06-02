@@ -15,17 +15,22 @@ from deap import tools
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/"
 DEFAULT_ORDER_JSON = PATH_TO_TACTICS + "defaultOrderOfRules.json"
+IND_SIZE = 8
+
+# define new types
+creator.create("FitnessMins", base.Fitness, weights=(-1.0, -1.0,))
 
 
-class Strategy:
-    """This class describe SuSLik's search strategy."""
+class Individual(list):
+    """This class describe SuSLik's search strategy for individuals in each population."""
 
-    def __init__(self, population=0, individual=0, ordering=None):
+    def __init__(self, population, individual, ordering=None, fitness=creator.FitnessMins):
         if ordering is None:
-            ordering = [0, 1, 2, 3, 4, 5, 6, 7]
+            ordering = random.sample(range(IND_SIZE), IND_SIZE)
         self.population_id = population
         self.individual_id = individual
         self.rule_ordering = ordering[:]
+        self.fitness = fitness
 
     def mutate(self):
         mutShuffleIndexes(self, indpb=0.05)
@@ -35,36 +40,50 @@ class Strategy:
         path = PATH_TO_TACTICS + json_file_name
         return path
 
+    def write_json(self):
+
+        json_data_to_write = {
+            "numbOfAnyPhaseRules": IND_SIZE,
+            "orderOfAnyPhaseRules": self.rule_ordering
+        }
+
+        with open(self.json_file_path(), 'w') as new_json_file_to_write:
+            json.dump(json_data_to_write, new_json_file_to_write)
+
     def csv_path(self):
         path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.population_id) + '_' + str(
             self.individual_id) + '.csv'
         return path
 
     def evaluate(self):
-        results1 = roboevaluation.evaluate_n_times(
-            1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
-            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, self.population_id,
-            self.individual_id)
-        roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
-                                    results1, csv_path(self))
-        df = pandas.read_csv(csv_path(self))
+
+    #    self.write_json()
+    #
+    #    results1 = roboevaluation.evaluate_n_times(
+    #        1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
+    #        roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.population_id,
+    #        self.individual_id)
+    #
+    #    roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
+    #                                results1, self.csv_path())
+    #
+        df = pandas.read_csv(filepath_or_buffer=self.csv_path(), na_values=['FAIL', '-'])
+
+        number_of_nans = df['Time(mut)'].isna().sum()
         total_time = df['Time(mut)'].sum()
-        return total_time
 
+        self.fitness.values = (number_of_nans, total_time)
 
-# define new types
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-creator.create("Individual", list, fitness=creator.FitnessMax)
-
-IND_SIZE = 8
+        return number_of_nans, total_time
 
 toolbox = base.Toolbox()
 
 # attribute generator
-toolbox.register("indices", random.sample, range(IND_SIZE), IND_SIZE)
+# toolbox.register("indices", random.sample, range(IND_SIZE), IND_SIZE)
 
 # structure initializers
-toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
+# toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
+
 
 # -----------------------
 # operator registration
@@ -83,53 +102,53 @@ toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
 # by the best of three randomly drawn individuals.
 toolbox.register("select", tools.selTournament, tournsize=3)
 
+def eval_fitness(individual:Individual):
+    result = individual.evaluate()
+    return result
 
 def main():
     random.seed(169)
 
-    population_id = 3
-    individual_id = 12
-    print("individual ID is ")
-    print(individual_id)
-    print("populationID is ")
-    print(population_id)
+    # create an initial population of 20 individuals (where each individual is a list of integers)
+    individual_ids = list(range(0, 2))
 
-    with open(DEFAULT_ORDER_JSON, "r") as jsonFile:
-        jsonData = json.load(jsonFile)
+    # initialize the population
+    population = []
+    for individual_id in individual_ids:
+        population.append (Individual(0, individual_id, None, creator.FitnessMins))
 
-    numbOfAnyPhaseRules = jsonData["numbOfAnyPhaseRules"]
-    orderOfAnyPhaseRules = jsonData["orderOfAnyPhaseRules"]
+    # evaluate the entire population
+    for individual in population:
+        individual.evaluate()
+        print("individual ID is ")
+        print(individual.individual_id)
+        print("rule ordering is ")
+        print(individual.rule_ordering)
+        print("fitness is ")
+        print(individual.fitness.values)
 
-    reversedOrderOfAnyPhaseRules = orderOfAnyPhaseRules.copy()
-    reversedOrderOfAnyPhaseRules.reverse()
+    print("---------------")
 
-    newJsonDataToWrite = {
-        "numbOfAnyPhaseRules": numbOfAnyPhaseRules,
-        "orderOfAnyPhaseRules": reversedOrderOfAnyPhaseRules
-    }
+    for individual in population:
+        print("individual ID is ")
+        print(individual.individual_id)
+        print("rule ordering is ")
+        print(individual.rule_ordering)
+        print("fitness is ")
+        print(individual.fitness.values)
 
-    with open(getJsonFilePath(population_id, individual_id), 'w') as newJsonFileToWrite:
-        json.dump(newJsonDataToWrite, newJsonFileToWrite)
+    print("---------------")
 
-    with open(getJsonFilePath(population_id, individual_id), "r") as newJsonFileToRead:
-        newJsonDataToRead = json.load(newJsonFileToRead)
+    fitnesses = list(map(eval_fitness, population))
 
-    newNumbOfAnyPhaseRules = newJsonDataToRead["numbOfAnyPhaseRules"]
-    newOrderOfAnyPhaseRules = newJsonDataToRead["orderOfAnyPhaseRules"]
+    for fit in fitnesses:
+        print(fit)
 
-    print("read a rule-odering from a json file")
-    print(numbOfAnyPhaseRules)
-    print(orderOfAnyPhaseRules)
-    print("reverse")
-    print(reversedOrderOfAnyPhaseRules)
-    print("write the reversed order to a json file then read it")
-    print(newNumbOfAnyPhaseRules)
-    print(newOrderOfAnyPhaseRules)
-
-    call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn',
-          '-t=120000', '--evolutionary', 'true', '--populationID', '3', '--individualID', '12'])
-    call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn',
-          '-t=120000'])
+    #
+    # call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn',
+    #       '-t=120000', '--evolutionary', 'true', '--populationID', '3', '--individualID', '12'])
+    # call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn',
+    #       '-t=120000'])
     return 0
 
 
