@@ -28,7 +28,7 @@ import operator
 #################
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
-TIMEOUT      = '-t=120000'                                        # Timeout option for suslik
+TIMEOUT      = '-t=2000'                                        # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/synthesis/paper-benchmarks/'   # Root directory for the tests
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
 CSV_TEMP     = 'stats-temp.csv'                                   # Intermediate CSV file produced by suslik

@@ -1,6 +1,7 @@
 import array
 import random
 import json
+import copy
 from subprocess import call
 
 import roboevaluation
@@ -16,7 +17,10 @@ from deap import tools
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/"
 DEFAULT_ORDER_JSON = PATH_TO_TACTICS + "defaultOrderOfRules.json"
 IND_SIZE = 8
-POPULATION_SIZE = 3
+POPULATION_SIZE = 4
+MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 1
+MAXIMUM_TOTAL_TIME = 50.0
+MAXIMUM_NUMBER_OF_GENERATIONS = 5
 
 # define new types
 creator.create("FitnessMins", base.Fitness, weights=(-1.0, -1.0,))
@@ -25,16 +29,23 @@ creator.create("FitnessMins", base.Fitness, weights=(-1.0, -1.0,))
 class Individual(list):
     """This class describe SuSLik's search strategy for individuals in each population."""
 
-    def __init__(self, population, individual, ordering=None, fitness=creator.FitnessMins):
+    def __init__(self, population_id, individual_id, fitness=(0, 9999999999.0), ordering=None):
+        super().__init__()
         if ordering is None:
             ordering = random.sample(range(IND_SIZE), IND_SIZE)
-        self.population_id = population
-        self.individual_id = individual
-        self.rule_ordering = ordering[:]
+        self.population_id = population_id
+        self.individual_id = individual_id
+        self.rule_ordering = ordering
         self.fitness = fitness
 
+    def get_fitness(self):
+        return self.fitness
+
+    def set_fitness(self, pair):
+        self.fitness = pair
+
     def mutate(self):
-        mutShuffleIndexes(self, indpb=0.05)
+        tools.mutShuffleIndexes(self.rule_ordering, indpb=0.05)
 
     def json_file_path(self):
         json_file_name = "orderOfRules" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
@@ -73,32 +84,39 @@ class Individual(list):
         number_of_nans = df['Time(mut)'].isna().sum()
         total_time = df['Time(mut)'].sum()
 
-        self.fitness.values = (number_of_nans, total_time)
+        self.fitness = (number_of_nans, total_time)
 
         return number_of_nans, total_time
 
-def eval_fitness(individual:Individual):
+    def is_not_good_enough(self):
+        return (self.fitness[0] > MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS) or (self.fitness[1] > MAXIMUM_TOTAL_TIME)
+
+
+def eval_fitness(individual: Individual):
     result = individual.evaluate()
     return result
+
+
+def get_total_time(individual: Individual):
+    return individual.get_fitness()[1]
+
+
+def get_number_of_nans(individual: Individual):
+    return individual.get_fitness()[0]
+
+
+def select(population):
+    population.sort(key=get_total_time)
+    population.sort(key=get_number_of_nans)
+    best_individuals = population[:POPULATION_SIZE]
+    return best_individuals
+
 
 toolbox = base.Toolbox()
 
 # -----------------------
 # operator registration
 # -----------------------
-
-# register the goal
-
-# register the crossover operator
-toolbox.register("mate", tools.cxPartialyMatched)
-
-# register a mutation operator with a probability to
-# flip each attribute/gene of 0.05
-toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
-
-# register a selection operator: each individual is replaced
-# by the best of three randomly drawn individuals.
-toolbox.register("select", tools.selTournament, tournsize=3)
 
 def main():
     random.seed(169)
@@ -109,40 +127,44 @@ def main():
     # initialize the population
     population = []
     for individual_id in individual_ids:
-        population.append (Individual(0, individual_id, None, creator.FitnessMins))
+        population.append (Individual(0, individual_id, (0, 0.0), None))
 
     # evaluate the entire population
+    list(map(eval_fitness, population))
+
+    print("----- initial fitness values -----")
     for individual in population:
-        individual.evaluate()
-        print("individual ID is ")
-        print(individual.individual_id)
-        print("rule ordering is ")
-        print(individual.rule_ordering)
-        print("fitness is ")
-        print(individual.fitness.values)
+        print(individual.get_fitness())
 
-    print("---------------")
+    # current number of generation
+    generation_id = 0
 
-    for individual in population:
-        print("individual ID is ")
-        print(individual.individual_id)
-        print("rule ordering is ")
-        print(individual.rule_ordering)
-        print("fitness is ")
-        print(individual.fitness.values)
+    # begin the evolution
+    while all((individual.is_not_good_enough()) for individual in population) \
+            and generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
+        generation_id = generation_id + 1
+        print("----- generation %i -----" % generation_id)
 
-    print("---------------")
+        # select the next generation individuals
+        offspring1 = select(population)
 
-    fitnesses = list(map(eval_fitness, population))
+        # mutate the best from the previous round
+        offspring2 = copy.deepcopy(offspring1)
 
-    for fit in fitnesses:
-        print(fit)
+        for individual in offspring2:
+            individual.mutate()
 
-    #
-    # call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn',
-    #       '-t=120000', '--evolutionary', 'true', '--populationID', '3', '--individualID', '12'])
-    # call(['java', '-jar', 'target/scala-2.12/suslik.jar', 'src/test/resources/synthesis/paper-benchmarks/ints/swap.syn',
-    #       '-t=120000'])
+        list(map(eval_fitness, population))
+
+        population[:] = offspring1 + offspring2
+
+        print("----- fitness is -----")
+        for individual in population:
+            print(individual.get_fitness())
+
+        print("----- the length of population is -----")
+        print(len(population))
+
     return 0
 
 
