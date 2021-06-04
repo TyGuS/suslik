@@ -8,7 +8,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJsonFile, ProofTraceNone, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -112,7 +112,7 @@ trait SynthesisRunnerUtil {
         new PhasedSynthesis(env.config)
     val trace : ProofTrace = env.config.traceToJsonFile match {
       case None => ProofTraceNone
-      case Some(file) => new ProofTraceJson(file)
+      case Some(file) => new ProofTraceJsonFile(file)
     }
     new Synthesis(tactic, log, trace)
   }
