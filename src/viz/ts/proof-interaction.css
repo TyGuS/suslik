@@ -1,0 +1,6 @@
+.proof-interaction-choices div.goal {
+    display: inline-block;
+    max-width: 20em;
+    vertical-align: top;
+    margin-right: .5em;
+}

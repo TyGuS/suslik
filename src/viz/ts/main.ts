@@ -1,5 +1,6 @@
 import $ from 'jquery';
 import { MainDocument, DragDropJson } from './open';
+import { ProofInteraction } from './proof-interaction';
 
 
 
@@ -33,5 +34,8 @@ $(async () => {
         catch (e) { console.error('open failed:', e); }
     });
 
-    Object.assign(window, {doc});
+    var pi = new ProofInteraction(<any>doc.pt.view);
+    pi.on('message', console.log);
+
+    Object.assign(window, {doc, pi});
 });

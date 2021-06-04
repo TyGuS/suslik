@@ -7,6 +7,8 @@
         <div class="proof-trace-pane-area" :style="{'--zoom': zoom}">
             <proof-trace :root="root" @action="toplevelAction"/>
         </div>
+        <proof-interaction :choices="interaction && interaction.choices"
+            @action="$emit('interaction:action', $event)"/>
     </div>
 </template>
 
@@ -14,10 +16,11 @@
 import AppToolbar from './app-toolbar.vue';
 import AppContextMenu from './app-context-menu';
 import ProofTrace from './proof-trace.vue';
+import ProofInteraction from './proof-interaction.vue';
 
 
 export default {
-    props: ['root'],
+    props: ['root', 'interaction'],
     data: () => ({options: {}, zoom: 1}),
     methods: {
         toplevelAction(ev) {
@@ -27,6 +30,6 @@ export default {
             this.$emit('action', ev);
         }
     },
-    components: { AppToolbar, AppContextMenu, ProofTrace }
+    components: { AppToolbar, AppContextMenu, ProofTrace, ProofInteraction }
 }
 </script>
