@@ -1,8 +1,6 @@
 import assert from 'assert';
 import arreq from 'array-equal';
-import $ from 'jquery';
 import Vue from 'vue';
-import { VueContext } from 'vue-context'
 import 'vue-context/dist/css/vue-context.css';
 
 import './proof-trace.css';
@@ -119,7 +117,7 @@ class ProofTrace {
     }
 
     createView() {
-        this.view = new (Vue.component('proof-trace-pane'))();
+        this.view = new Vue(ProofTracePane);
         this.view.root = this.createNode(this.root);
         this.expandNode(this.view.root);
         this.expandNode(this.view.root.children[0]);
@@ -142,7 +140,6 @@ class ProofTrace {
                  status: this.getStatus(node),
                  derivation: this.getDerivationTrail(node),
                  numDescendants: this.getSubtreeSize(node)};
-        console.log(node, v.derivation);
         this.nodeIndex.viewById.set(node.id, v);
         return v;
     }
@@ -349,6 +346,11 @@ namespace ProofTrace {
 import Data = ProofTrace.Data;
 import View = ProofTrace.View;
 
+export { ProofTrace }  /** @todo Kremlin bug? */
+
+
+// @ts-ignore
+import ProofTracePane from '../vue/proof-trace-pane.vue';
 
 
 abstract class KeyedMap<K, V, K0> {
@@ -365,242 +367,3 @@ abstract class KeyedMap<K, V, K0> {
 class JSONMap<K, V> extends KeyedMap<K, V, string> {
     key(k: K) { return JSON.stringify(k); }
 }
-
-
-Vue.component('proof-trace-pane', {
-    props: ['root'],
-    data: () => ({options: {}, zoom: 1}),
-    template: `
-        <div id="proof-trace-pane" 
-            :class="{'proof-trace-filter--only-success': options.proofOnly,
-                     'proof-trace-filter--only-expanded': options.expandedOnly}">
-            <proof-trace-toolbar :options="options"/>
-            <proof-trace-context-menu ref="contextMenu" @action="toplevelAction"/>
-            <div class="proof-trace-pane-area" :style="{'--zoom': zoom}">
-                <proof-trace :root="root" @action="toplevelAction"/>
-            </div>
-        </div>`,
-    methods: {
-        toplevelAction(ev) {
-            switch (ev.type) {
-            case 'menu': this.$refs.contextMenu.open(ev); break;
-            }
-            this.$emit('action', ev);
-        }
-    }
-});
-
-Vue.component('proof-trace', {
-    props: ['root'],
-    data: () => ({statusClass: undefined}),
-    template: `
-        <div class="proof-trace" :class="[statusClass, root && root.children && root.children.length == 0 ? 'no-children' : 'has-children']">
-            <template v-if="root">
-                <proof-trace-node ref="nroot" :value="root.value"
-                                  :status="root.status" :derivation="root.derivation"
-                                  :num-descendants="root.numDescendants"
-                                  @action="nodeAction"/>
-                <div class="proof-trace-expand-all" :class="{root: root.value.id.length == 0}">
-                    <span @click="expandAll">++</span>
-                </div>
-                <div class="subtrees" ref="subtrees" v-if="root.expanded">
-                    <template v-for="child in root.children">
-                        <proof-trace :root="child" @action="action"/>
-                    </template>
-                </div>
-            </template>
-        </div>`,
-    mounted() {
-        this.$watch('root.expanded', () => {
-            requestAnimationFrame(() => {
-                if (this.root.focus && this.$refs.subtrees)
-                    this.focusElement(this.$refs.subtrees);
-            });
-        });
-        if (this.$refs.nroot)
-            this.statusClass = this.$refs.nroot.statusClass;
-    },
-    methods: {
-        action(ev) { this.$emit('action', ev); },
-        nodeAction(ev) {
-            if (ev.type == 'expand/collapse') {
-                this.root.expanded = !this.root.expanded;
-                ev.type = this.root.expanded ? 'expand' : 'collapse';
-            }
-            this.action({...ev, target: this.root});
-        },
-        expandAll() { this.action({type: 'expandAll', target: this.root})},
-        focusElement(el: HTMLElement) {
-            var box = el.getBoundingClientRect(), clrse = 50,
-                viewport = (<any>window).visualViewport,
-                v = (box.bottom + clrse) - viewport.height,
-                hl = box.left - clrse - viewport.width * 0.33,
-                hr = (box.right + clrse) - viewport.width,
-                h = Math.min(hl, hr);
-            window.scrollBy({left: Math.max(h, 0), top: Math.max(v, 0), behavior: 'smooth'});
-        }
-    }
-});
-
-Vue.component('proof-trace-node', {
-    props: ['value', 'status', 'derivation', 'numDescendants'],
-    data: () => ({_anchor: false}),
-    template: `
-        <div class="proof-trace-node" :class="[value.tag, statusClass]"
-                @click="toggle" @click.capture="clickCapture"
-                @mouseenter="showId" @mouseleave="hideId" @mousedown="clickStart"
-                @mouseover="showRefs" @mouseout="hideRefs"
-                @contextmenu.prevent="action({type: 'menu', $event})">
-            <div @mousedown="stopDbl" class="title">
-                <span class="pp">{{value.pp}}</span>
-                <span class="cost" v-if="value.cost >= 0">{{value.cost}}</span>
-                <span class="num-descendants">{{numDescendants}}</span>
-                <span class="goal-id" v-if="value.goal">{{value.goal.id}}</span>
-                <span class="tag" v-else>{{tag}}</span>
-            </div>
-            <proof-trace-goal v-if="value.goal" :value="value.goal"
-                @click.native.stop="action"/>
-        </div>`,
-    computed: {
-        tag() {
-            var pfx = (this.value.tag == Data.NodeType.OrNode) ? 2 : 1;
-            return this.value.id.slice(0, pfx)
-                   .reverse().filter((n:number) => n >= 0).join('→');
-        },
-        statusClass() {
-            if (this.status) {
-                var {tag, from: fr} = this.status,
-                    suffix = fr ? (fr === '*' ? '*' : `-${fr}`) : ''
-                return `${tag}${suffix}`;
-            }
-            else return undefined;
-        }
-    },
-    methods: {
-        action(ev) { this.$emit('action', ev); },
-        toggle() { this.action({type: 'expand/collapse', target: this.value}); },
-        showId() {
-            // temporary: show derivation trail in hint
-            var d = this.derivation;
-            if (d) {
-                var subst = Object.entries(d.subst).map(([k,v]) => `${k} ↦ ${v}`);
-                $('#hint').text(`${d.ruleName} @ ${subst.join(', ')}`);
-            }
-            else
-                $('#hint').text(JSON.stringify(this.value.id));
-        },
-        hideId() { $('#hint').empty(); },
-
-        showRefs(ev) {
-            var el = ev.target;
-            if (['var', 'name', 'cardinality'].some(c => el.classList.contains(c))) {
-                this.varSpans(el.textContent).addClass('highlight');
-            }
-        },
-        hideRefs() {
-            this.varSpans().removeClass('highlight');
-        },
-        varSpans(nm?: string) {
-            if (nm) return this.varSpans().filter((_,x: Node) => x.textContent == nm);
-            else {
-                var el = $(this.$el);
-                return el.find('span.var, span.cardinality, .proof-trace-vars span.name');
-            }
-        },
-
-        stopDbl(ev) { if (ev.detail > 1) ev.preventDefault(); },
-        // boilerplate to prevent click after selection
-        clickStart(ev) { this.$data._anchor = {x: ev.pageX, y: ev.pageY}; },
-        clickCapture(ev) { 
-            var a = this.$data._anchor;
-            if (a && (Math.abs(ev.pageX - a.x) > 3 || Math.abs(ev.pageY - a.y) > 3))
-                ev.stopPropagation();
-        }
-    }
-});
-
-Vue.component('proof-trace-goal', {
-    props: ['value'],
-    template: `
-        <div class="proof-trace-goal">
-            <proof-trace-vars :value="value.programVars"  class="proof-trace-program-vars"/>
-            <proof-trace-vars :value="value.existentials" class="proof-trace-existentials"/>
-            <proof-trace-formula class="proof-trace-pre" :pp="value.pre" :env="env"/>
-            <span class="synth-arrow">⤳</span>
-            <proof-trace-formula class="proof-trace-post" :pp="value.post" :env="env"/>
-            <!-- <div class="proof-trace-sketch">{{value.sketch}} </div> -->
-        </div>`,
-    computed: {
-        env() { return Data.envOfGoal(this.value); }
-    }
-});
-
-Vue.component('proof-trace-vars', {
-    props: ['value'],
-    template: `
-        <div class="proof-trace-vars" v-show="value.length > 0">
-            <template v-for="v in value">
-                <span>
-                    <span class="type">{{v[0]}}</span>
-                    <span class="name">{{pp(v[1])}}</span>
-                </span>
-            </template>
-        </div>`,
-    methods: {
-        pp: View.pprintIdentifier
-    }
-});
-
-Vue.component('proof-trace-formula', {
-    props: ['pp', 'env', 'css-class'],
-    template: `
-        <div class="proof-trace-formula">
-            <template v-for="token in tokenize(pp, env)">
-                <span :class="token.kind" 
-                    :data-of="token.of">{{token.pp || token.text}}</span>
-            </template>
-        </div>`,
-    methods: {
-        tokenize: View.tokenize
-    }
-});
-
-Vue.component('proof-trace-toolbar', {
-    props: {options: {default: () => ({})}},
-    template: `
-        <div class="proof-trace-toolbar">
-            <form>
-                Show:
-                <input type="checkbox" name="proof-only" id="proof-only" v-model="options.proofOnly">
-                <label for="proof-only">Proof only</label>
-                <input type="checkbox" name="expanded-only" id="expanded-only" v-model="options.expandedOnly">
-                <label for="expended-only">Expanded only</label>
-            </form>
-        </div>`
-});
-
-Vue.component('proof-trace-context-menu', {
-    template: `
-        <vue-context ref="m">
-            <li><a name="expandAll" @click="action">Expand all</a></li>
-            <li><a name="copyNodeId" @click="action">Copy Node Id</a></li>
-            <li><a name="copyGoal" @click="action">Copy goal</a></li>
-        </vue-context>`,
-    components: {VueContext},
-    methods: {
-        open(ev: View.ActionEvent) {
-            this._target = ev.target;
-            this.$refs.m.open(ev.$event);
-        },
-        action(ev) {
-            this.$emit('action', {
-                type: ev.currentTarget.name,
-                target: this._target
-            });
-        }
-    }
-});
-
-
-
-export { ProofTrace }
