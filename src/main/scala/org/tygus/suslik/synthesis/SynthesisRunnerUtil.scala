@@ -124,8 +124,10 @@ trait SynthesisRunnerUtil {
 
   def synthesizeFromFile(dir: String, testName: String,
                          initialParams: SynConfig = defaultConfig) : List[Statements.Procedure] = {
-    val (_, _, in, out, params) = getDescInputOutput(testName, initialParams)
-    synthesizeFromSpec(testName, in, out, params)
+    val fullPath = Paths.get(dir, testName)
+    val defs = getDefsFromDir(new File(dir))
+    val (_, _, in, out, params) = getDescInputOutput(fullPath.toString, initialParams)
+    synthesizeFromSpec(testName, List(defs, in).mkString("\n"), out, params)
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck,
@@ -252,7 +254,13 @@ trait SynthesisRunnerUtil {
     if (defFiles.isEmpty) return ""
     assert(defFiles.size == 1, "More than one file with definitions in the folder")
     val file = new File(defFiles.head.getAbsolutePath)
-    Source.fromFile(file).getLines.toList.mkString("\n")
+    readLines(file).mkString("\n")
+  }
+
+  def getDefsFromDir(dir: File): String = {
+    if (dir.exists() && dir.isDirectory)
+      getDefs(dir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+    else ""
   }
 
   def runAllTestsFromDir(dir: String) {
@@ -262,7 +270,7 @@ trait SynthesisRunnerUtil {
       // Create log file
       SynStatUtil.init(defaultConfig)
       // Get definitions
-      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+      val defs = getDefsFromDir(testDir)
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile
         && (f.getName.endsWith(s".$testExtension") ||
@@ -290,7 +298,7 @@ trait SynthesisRunnerUtil {
       // Maybe create log file (depending on params)
       SynStatUtil.init(params)
       // Get definitions
-      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+      val defs = getDefsFromDir(testDir)
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile
         && (f.getName.endsWith(s".$testExtension") ||
