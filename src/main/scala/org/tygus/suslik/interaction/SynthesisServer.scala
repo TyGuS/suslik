@@ -1,21 +1,23 @@
 package org.tygus.suslik.interaction
 
+import akka.NotUsed
+
 import java.util.concurrent.ArrayBlockingQueue
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
-
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.report.ProofTraceJson
 import org.tygus.suslik.synthesis.rules.Rules
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
 import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil}
-
 
 
 class SynthesisServer {
@@ -26,8 +28,6 @@ class SynthesisServer {
   def start(): Unit = { //
     val root = Behaviors.setup[Nothing] { context =>
       implicit val system: ActorSystem[Nothing] = context.system
-      import system.executionContext
-      //ClientSessionSynthesis.initQueue
       startHttpServer(routes)
       Behaviors.empty
     }
@@ -47,26 +47,24 @@ class SynthesisServer {
       }
   }
 
-  def go(): String = {
-    val fn = "./src/test/resources/synthesis/simple/free.syn" /** @todo */
-    runner.synthesizeFromFile("" /* ignored :( */, fn, config).toString()
+  def go(session: SynthesisRunnerUtil = runner): String = {
+    val dir = "./src/test/resources/synthesis/all-benchmarks/sll" /** @todo */
+    val fn = "free.syn"
+    session.synthesizeFromFile(dir, fn, config).toString()
   }
 
-  private def routes(implicit ctx: ExecutionContext) = {
+  private def routes(implicit system: ActorSystem[_]) = {
+    import system.executionContext
     concat(
       pathSingleSlash {
-        new Thread(() => { go() }).start(); complete(".")
-      },
-      pathPrefix("next") {
         concat(
+          handleWebSocketMessages({
+            val session = new ClientSessionSynthesis()
+            new Thread(() => go(session)).start()
+            session.wsFlow
+          }),
           get {
-            complete(runner.outbound.take())
-          },
-          post {
-            entity(as[String]) { choice =>
-              runner.inbound.put(choice)
-              complete(".")
-            }
+            new Thread(() => go()).start(); complete(".")
           }
         )
       }
@@ -81,7 +79,11 @@ object SynthesisServer {
   }
 }
 
-class ClientSessionSynthesis extends SynthesisRunnerUtil {
+/**
+  * A synthesizer that sends and receives choices via async queues.
+  * Data is serialized in and out using a JSON format.
+  */
+class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   import org.tygus.suslik.report.ProofTraceJson._
   import upickle.default.{Writer, write}
 
@@ -124,4 +126,26 @@ class ClientSessionSynthesis extends SynthesisRunnerUtil {
     }
     catch { case e: Throwable => outbound.put(e.toString); throw e }
   }
+}
+
+/**
+  * Connects `AsyncSynthesisRunner` to an HTTP client.
+  */
+class ClientSessionSynthesis extends AsyncSynthesisRunner {
+
+  def subscribe(implicit ec: ExecutionContext): Source[String, _] =
+    Source.unfoldAsync(())(_ => Future {
+      try Some((), outbound.take())
+      catch { case _: InterruptedException => None }
+    })
+
+  def offer(implicit ec: ExecutionContext): Sink[String, _] =
+    Sink.foreachAsync[String](1)(s => Future { inbound.put(s) })
+
+  def wsFlow(implicit ec: ExecutionContext): Flow[Message, Message, NotUsed] =
+    Flow.fromSinkAndSource(Flow[Message].mapConcat {
+        case m: TextMessage.Strict => println(m.text); List(m.text)
+        case _ => println("some other message"); Nil
+      }.to(offer),
+      subscribe.map(TextMessage(_)))
 }
