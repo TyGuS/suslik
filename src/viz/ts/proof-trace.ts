@@ -3,6 +3,8 @@ import arreq from 'array-equal';
 import Vue from 'vue';
 import 'vue-context/dist/css/vue-context.css';
 
+import type { ProofInteraction } from './proof-interaction'
+
 import './proof-trace.css';
 import './menu.css';
 
