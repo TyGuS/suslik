@@ -44,19 +44,11 @@ object ProofTrace {
 
 object ProofTraceNone extends ProofTrace
 
-class ProofTraceJson(val outputFile: File) extends ProofTrace {
+abstract class ProofTraceJson extends ProofTrace {
   import ProofTrace._
   import ProofTraceJson._
 
-  val writer = new BufferedWriter(new FileWriter(outputFile))
-
-  def this(outputFilename: String) = this(new File(outputFilename))
-
-  private def writeObject[T](t: T)(implicit w: upickle.default.Writer[T]): Unit = {
-    writer.write(upickle.default.write(t))
-    writer.write("\n\n")
-    writer.flush()
-  }
+  protected def writeObject[T](t: T)(implicit w: upickle.default.Writer[T]): Unit
 
   override def add(node: OrNode): Unit =
     writeObject(NodeEntry(node.id, "OrNode", node.pp(), GoalEntry(node.goal), -1, node.cost))
@@ -95,6 +87,17 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
   }
 }
 
+class ProofTraceJsonFile(val outputFile: File) extends ProofTraceJson {
+  val writer = new BufferedWriter(new FileWriter(outputFile))
+
+  def this(outputFilename: String) = this(new File(outputFilename))
+
+  override protected def writeObject[T](t: T)(implicit w: upickle.default.Writer[T]): Unit = {
+    writer.write(upickle.default.write(t))
+    writer.write("\n\n")
+    writer.flush()
+  }
+}
 
 object ProofTraceJson {
 

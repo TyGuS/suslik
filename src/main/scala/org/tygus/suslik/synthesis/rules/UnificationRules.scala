@@ -7,6 +7,8 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
+import scala.Function.tupled
+
 /**
   * The goal of unification rules is to eliminate existentials
   * via either heap unification or various forms of pure synthesis.
@@ -136,11 +138,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           else None
         } else None
 
-      def extractSidesFromMatch[T](m: ((Expr, Expr), T)) = m match {
-        case ((l, r), phi) => extractSides(l, r).map((_, phi))
-      }
-
-      findConjunctAndRest(extractEquality, p2).flatMap(extractSidesFromMatch)
+      findConjunctAndRest(e => extractEquality(e).flatMap(tupled(extractSides)), p2)
       match {
         case Some(((x, e), rest2)) => {
           val sigma = Map(x -> e)

@@ -9,6 +9,8 @@ import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
+import scala.Function.tupled
+
 /**
   * Logical rules simplify specs and terminate the derivation;
   * they do not eliminate existentials.
@@ -251,11 +253,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           else None
         } else None
 
-      def extractSidesFromMatch[T](m: ((Expr, Expr), T)) = m match {
-        case ((l, r), phi) => extractSides(l, r).map((_, phi))
-      }
-
-      findConjunctAndRest(extractEquality, p1).flatMap(extractSidesFromMatch)
+      findConjunctAndRest(e => extractEquality(e).flatMap(tupled(extractSides)), p1)
       match {
         case Some(((x, e), rest1)) => {
           val _p1 = rest1.subst(x, e)

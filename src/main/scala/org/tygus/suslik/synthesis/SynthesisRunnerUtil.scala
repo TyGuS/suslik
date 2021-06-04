@@ -11,7 +11,7 @@ import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceCert, ProofTraceJson, ProofTraceNone, StopWatch}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJsonFile, ProofTraceCert, ProofTraceJson, ProofTraceNone, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
