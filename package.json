@@ -23,7 +23,7 @@
     "@types/jquery": "^3.3.34",
     "@types/node": "^13.11.1",
     "@vue/component-compiler-utils": "^3.2.0",
-    "cssnano": "^4.1.10",
+    "cssnano": "^5.0.5",
     "nw-vue-devtools-prebuilt": "^0.0.10",
     "typescript": "^4.3.2",
     "vue-hot-reload-api": "^2.3.4",
