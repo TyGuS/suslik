@@ -16,18 +16,21 @@
   "dependencies": {
     "array-equal": "^1.0.0",
     "jquery": "^3.5.0",
-    "vue": "^2.6.11",
+    "vue": "^2.6.13",
     "vue-context": "^5.2.0"
   },
   "devDependencies": {
     "@types/jquery": "^3.3.34",
     "@types/node": "^13.11.1",
+    "@vue/component-compiler-utils": "^3.2.0",
     "cssnano": "^4.1.10",
-    "nw-vue-devtools-prebuilt": "0.0.10",
-    "typescript": "^3.8.3"
+    "nw-vue-devtools-prebuilt": "^0.0.10",
+    "typescript": "^4.3.2",
+    "vue-hot-reload-api": "^2.3.4",
+    "vue-template-compiler": "^2.6.13"
   },
-  "alias": {
-    "vue": "./node_modules/vue/dist/vue"
+  "posthtml": {
+    "recognizeSelfClosing": true
   },
   "browserslist": [
     "Chrome 80"
