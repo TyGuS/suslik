@@ -1,7 +1,8 @@
 <template>
     <ul class="proof-interaction-choices">
         <li class="choice" v-for="(choice, $i) in choices" :key="$i">
-            <div class="goal" v-for="goal in choice" :key="goal.id"
+            <div>From <span v-for="l in choice.from" :key="l"> {{l}}</span>; {{choice.rule}}</div>
+            <div class="goal" v-for="goal in choice.subgoals" :key="goal.id"
                     @click="selectGoal($event, goal)">
                 <span class="title">{{goal.id}}</span>
                 <proof-trace-goal :value="goal"/>

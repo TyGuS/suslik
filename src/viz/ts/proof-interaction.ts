@@ -12,7 +12,7 @@ class ProofInteraction extends EventEmitter {
 
     constructor(view: Vue & {interaction: ProofInteraction.View.State}) {
         super();
-        this.baseURL = new URL('http://localhost:8080');
+        this.baseURL = new URL('http://localhost:8033');
         this.view = view;
         this.view.interaction = {choices: undefined};
         this.view.$on('interaction:action', action => this.handleAction(action));
@@ -49,10 +49,11 @@ class ProofInteraction extends EventEmitter {
     }
 
     handleAction(action: ProofInteraction.View.Action) {
-        console.log(action);
         switch (action.type) {
         case 'select':
-            this.continue(action.goal.id); break;
+            this.view.interaction.choices = undefined; // clear choices
+            this.continue(action.goal.id);
+            break;
         }
     }
 

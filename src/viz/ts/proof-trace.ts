@@ -25,6 +25,8 @@ class ProofTrace {
 
     view: Vue & {root: View.Node}
 
+    _dirty: {nodes: Data.NodeEntry[]} = {nodes: []}
+
     constructor(data: ProofTrace.Data) {
         this.data = data;
         this.root = this.data.nodes[0];
@@ -34,9 +36,11 @@ class ProofTrace {
     }
 
     append(data: Data) {
+        Data.append(this.data, data);
         this.updateIndex(data);
         for (let node of data.nodes)
             this.addNode(node);
+        this.refreshView();
     }
 
     createIndex() {
@@ -68,6 +72,7 @@ class ProofTrace {
         for (let entry of data.statuses) {
             var id = entry.at;
             this.nodeIndex.statusById.set(id, entry);
+            this._dirty.nodes.push(this.nodeIndex.byId.get(id));
         }
 
         // - compute transitive success
@@ -80,13 +85,17 @@ class ProofTrace {
                 if (children.length) {
                     switch (node.tag) {
                     case Data.NodeType.OrNode:
-                        if (children.some(x => x && x.status.tag === 'Succeeded'))
+                        if (children.some(x => x && x.status.tag === 'Succeeded')) {
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
+                            this._dirty.nodes.push(node);
+                        }
                         break;
                     case Data.NodeType.AndNode:
                         if (children.length == node.nChildren &&
-                            children.every(x => x && x.status.tag === 'Succeeded'))
+                            children.every(x => x && x.status.tag === 'Succeeded')) {
                             this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
+                            this._dirty.nodes.push(node);
+                        }
                         break;
                     }
                 }
@@ -94,8 +103,9 @@ class ProofTrace {
         }
 
         // Build subtreeSizeById
+        // (same here)
         var sz = this.nodeIndex.subtreeSizeById;
-        for (let node of data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
             let children = (this.nodeIndex.childrenById.get(node.id) || []);
             sz.set(node.id, 1 + children.map(u => sz.get(u.id) || 1)
                                         .reduce((x,y) => x + y, 0));
@@ -133,6 +143,7 @@ class ProofTrace {
 
     createView() {
         this.view = new Vue(ProofTracePane);
+        this._dirty.nodes = [];
         if (this.root) {
             this.view.root = this.createNode(this.root);
             this.expandNode(this.view.root);
@@ -141,6 +152,12 @@ class ProofTrace {
         this.view.$mount();
 
         this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
+    }
+
+    refreshView() {
+        for (let node of this._dirty.nodes)
+            this.refreshNode(node);
+        this._dirty.nodes = [];
     }
 
     addNode(node: Data.NodeEntry) {
@@ -154,6 +171,7 @@ class ProofTrace {
             if (parentView) {
                 parentView.children ??= [];
                 parentView.children.push(this.createNode(node));
+                parentView.expanded = true; /** @todo only if view is visible */
             }
         }
     }
@@ -174,6 +192,14 @@ class ProofTrace {
                  numDescendants: this.getSubtreeSize(node)};
         this.nodeIndex.viewById.set(node.id, v);
         return v;
+    }
+
+    refreshNode(node: Data.NodeEntry) {
+        var view = this.nodeIndex.viewById.get(node.id);
+        if (view) {
+            view.status = this.getStatus(node);
+            view.numDescendants = this.getSubtreeSize(node);
+        }
     }
 
     expandNode(nodeView: View.Node, focus: boolean = false) {
@@ -299,6 +325,13 @@ namespace ProofTrace {
 
         export function empty() {
             return {nodes: [], statuses: [], trail: []};
+        }
+
+        export function append(to: Data, from: Data): Data {
+            to.nodes.push(...from.nodes);
+            to.statuses.push(...from.statuses);
+            to.trail.push(...from.trail);
+            return to;
         }
 
         export function parse(traceText: string): Data {
