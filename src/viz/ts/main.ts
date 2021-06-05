@@ -1,5 +1,6 @@
 import $ from 'jquery';
 import { MainDocument, DragDropJson } from './open';
+import { ProofTrace } from './proof-trace';
 import { ProofInteraction } from './proof-interaction';
 
 
@@ -21,10 +22,13 @@ $(async () => {
     var doc = new MainDocument($('#proof-trace-pane'), $('#notifications'));
     doc.on('open', pt => Object.assign(window, {pt}));
 
+    /*
     try {
         await doc.openRecent({silent: true});
     }
     catch (e) { console.error('open failed:', e); }
+    */
+   doc.new();
 
     var drop = new DragDropJson($('html'));
     drop.on('open', async ({file}) => {
@@ -36,6 +40,11 @@ $(async () => {
 
     var pi = new ProofInteraction(<any>doc.pt.view);
     pi.on('message', console.log);
+    pi.on('trace', u => {
+        var data = ProofTrace.Data.fromEntries([u]);
+        console.log(data);
+        doc.pt.append(data);
+    });
 
     Object.assign(window, {doc, pi});
 });

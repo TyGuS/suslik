@@ -19,18 +19,18 @@ class MainDocument extends EventEmitter {
         this.notifications = notifications;
     }
 
+    new() {
+        return this.set(new ProofTrace(ProofTrace.Data.empty()));
+    }
+
     async open(content: string | File, opts: OpenOptions = {}): Promise<ProofTrace> {
         if (content instanceof File) {
             return this.open(await this.read(content), {name: content.name, ...opts});
         }
         else {
             try {
-                var data = ProofTrace.Data.parse(content),
-                    pt = this.pt = new ProofTrace(data);
-
-                this.pane.replaceWith(this.pane = $(pt.view.$el as HTMLElement));
-                this.emit('open', pt);
-                return pt;
+                var data = ProofTrace.Data.parse(content);
+                return this.set(new ProofTrace(data));
             }
             catch (e) {
                 if (!opts.silent) {
@@ -50,6 +50,13 @@ class MainDocument extends EventEmitter {
 
     openRecent(opts?: OpenOptions) {
         return this.openUrl(this.storage['suslik:doc:lastUrl'] || DEFAULT_URL, opts);
+    }
+
+    set(pt: ProofTrace) {
+        this.pt = pt;
+        this.pane.replaceWith(this.pane = $(pt.view.$el as HTMLElement));
+        this.emit('open', pt);
+        return pt;
     }
 
     async read(file: File) {
