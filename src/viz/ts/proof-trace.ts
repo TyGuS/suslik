@@ -33,6 +33,12 @@ class ProofTrace {
         this.createView();
     }
 
+    append(data: Data) {
+        this.updateIndex(data);
+        for (let node of data.nodes)
+            this.addNode(node);
+    }
+
     createIndex() {
         this.nodeIndex = {
             byId: new JSONMap(),
@@ -40,26 +46,33 @@ class ProofTrace {
             statusById: new JSONMap(),
             viewById: new JSONMap()
         };
+        this.updateIndex(this.data);
+    }
+
+    updateIndex(data: Data) {
         // Build byId
-        for (let node of this.data.nodes) {
+        for (let node of data.nodes) {
             if (!this.nodeIndex.byId.get(node.id))
                 this.nodeIndex.byId.set(node.id, node);
         }
 
         // Build childrenById
-        for (let node of this.data.nodes) {
+        for (let node of data.nodes) {
             if (node.id.length >= 1) {
                 var parent = node.id.slice(1);
-                this.addChild(parent, node);
+                this.addChildToIndex(parent, node);
             }
         }
 
         // Build statusById
-        for (let entry of this.data.statuses) {
+        for (let entry of data.statuses) {
             var id = entry.at;
             this.nodeIndex.statusById.set(id, entry);
         }
 
+        // - compute transitive success
+        // This has to be computed over *all* data; can optimize by only
+        // considering ancestors of newly indexed nodes
         for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
             if (!this.nodeIndex.statusById.get(node.id)) {
                 let children = (this.nodeIndex.childrenById.get(node.id) || [])
@@ -82,14 +95,14 @@ class ProofTrace {
 
         // Build subtreeSizeById
         var sz = this.nodeIndex.subtreeSizeById;
-        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+        for (let node of data.nodes.sort((a, b) => b.id.length - a.id.length)) {
             let children = (this.nodeIndex.childrenById.get(node.id) || []);
             sz.set(node.id, 1 + children.map(u => sz.get(u.id) || 1)
                                         .reduce((x,y) => x + y, 0));
         }
     }
 
-    addChild(parent: Data.NodeId, child: Data.NodeEntry) {
+    addChildToIndex(parent: Data.NodeId, child: Data.NodeEntry) {
         var m = this.nodeIndex.childrenById;
         // Note: nodes can re-occur if they were suspended during the search
         var l = m.get(parent) || [];
@@ -98,7 +111,7 @@ class ProofTrace {
     }
 
     parent(node: Data.NodeEntry) {
-        var id = node.id.slice(1);
+        var id = Data.parentId(node.id);
         return this.nodeIndex.byId.get(id);
     }
 
@@ -120,12 +133,29 @@ class ProofTrace {
 
     createView() {
         this.view = new Vue(ProofTracePane);
-        this.view.root = this.createNode(this.root);
-        this.expandNode(this.view.root);
-        this.expandNode(this.view.root.children[0]);
+        if (this.root) {
+            this.view.root = this.createNode(this.root);
+            this.expandNode(this.view.root);
+            this.expandNode(this.view.root.children[0]);
+        }
         this.view.$mount();
 
         this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
+    }
+
+    addNode(node: Data.NodeEntry) {
+        if (node.id.length == 0) {  // this is the root
+            this.root = node;
+            this.view.root = this.createNode(node);
+        }
+        else {
+            var parentId = Data.parentId(node.id),
+                parentView = this.nodeIndex.viewById.get(parentId);
+            if (parentView) {
+                parentView.children ??= [];
+                parentView.children.push(this.createNode(node));
+            }
+        }
     }
 
     getStatus(node: Data.NodeEntry): Data.GoalStatusEntry { 
@@ -267,9 +297,17 @@ namespace ProofTrace {
 
         export type OrVec<T> = T | T[];
 
+        export function empty() {
+            return {nodes: [], statuses: [], trail: []};
+        }
+
         export function parse(traceText: string): Data {
-            var entries = traceText.split('\n\n').filter(x => x).map(ln =>
-                            JSON.parse(ln));
+            var entries = traceText.split('\n\n').filter(x => x)
+                                   .map(ln => JSON.parse(ln));
+            return fromEntries(entries);
+        }
+
+        export function fromEntries(entries: any[]): Data {
             var nodes = [], statuses = [], trail = [];
             for (let e of entries) {
                 if (NODE_TAGS.includes(e.tag)) nodes.push(e);
@@ -277,6 +315,10 @@ namespace ProofTrace {
                 else if (e.status) statuses.push(e);
             }
             return {nodes, statuses, trail};
+        }
+
+        export function parentId(id: NodeId) {
+            return id.slice(1);
         }
 
         export function envOfGoal(goal: GoalEntry) {

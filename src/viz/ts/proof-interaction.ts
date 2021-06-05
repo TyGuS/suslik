@@ -43,6 +43,9 @@ class ProofInteraction extends EventEmitter {
             this.view.interaction.choices = msg;
             this.emit('choose', msg);
         }
+        else {
+            this.emit('trace', msg);
+        }
     }
 
     handleAction(action: ProofInteraction.View.Action) {

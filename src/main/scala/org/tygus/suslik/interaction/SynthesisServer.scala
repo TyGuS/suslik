@@ -101,9 +101,13 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     val tactic =
       new PhasedSynthesis(env.config) {
         override def filterExpansions(allExpansions: Seq[Rules.RuleResult]): Seq[Rules.RuleResult] = {
-          outbound.put(write(allExpansions.map(_.subgoals.map(GoalEntry(_)))))
-          val choice = inbound.take()
-          allExpansions.filter(_.subgoals.exists(goal => goal.label.pp.contains(choice)))
+          allExpansions.find(_.subgoals.isEmpty) match {
+            case Some(fin) => Seq(fin)
+            case _ =>
+              outbound.put(write(allExpansions.map(_.subgoals.map(GoalEntry(_)))))
+              val choice = inbound.take()
+              allExpansions.filter(_.subgoals.exists(goal => goal.label.pp.contains(choice)))
+          }
         }
       }
     val trace = new ProofTraceJson {
