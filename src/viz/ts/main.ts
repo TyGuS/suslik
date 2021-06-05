@@ -39,10 +39,9 @@ $(async () => {
     });
 
     var pi = new ProofInteraction(<any>doc.pt.view);
-    pi.on('message', console.log);
+    pi.on('message', m => console.log('%cmessage', 'color: blue', m));
     pi.on('trace', u => {
         var data = ProofTrace.Data.fromEntries([u]);
-        console.log(data);
         doc.pt.append(data);
     });
 
