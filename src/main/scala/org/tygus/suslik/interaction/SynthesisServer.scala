@@ -13,7 +13,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
@@ -70,7 +70,6 @@ class SynthesisServer {
         concat(
           handleWebSocketMessages({
             val session = new ClientSessionSynthesis()
-            new Thread(() => go(session)).start()
             session.wsFlow
           }),
           get {
@@ -100,6 +99,10 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
 
   val inbound = new ArrayBlockingQueueWithCancel[String](1)
   val outbound = new ArrayBlockingQueueWithCancel[String](1)
+
+  def go(spec: SpecMessage): Unit = {
+    new Thread(() => synthesizeFromSpec(spec, SynConfig())).start()
+  }
 
   /**
     * Creates a `PhasedSynthesizer` that expands goals based on input sent
@@ -132,14 +135,24 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     * Wraps parent implementation, reporting success or failure to the client.
     */
   override def synthesizeFromSpec(testName: String, text: String, out: String,
-                                  params: SynConfig): List[Statements.Procedure] = {
-    try {
-      val ret = super.synthesizeFromSpec(testName, text, out, params)
-      outbound.put(write(SynthesisResultEntry(ret.map(_.toString))))
-      ret
+                                  params: SynConfig): List[Statements.Procedure] =
+    wrapError {
+      try {
+        val ret = super.synthesizeFromSpec(testName, text, out, params)
+        outbound.put(write(SynthesisResultEntry(ret.map(_.toString))))
+        ret
+      }
+      catch {
+        case _: InterruptedException => List() /* can happen if `inbound` is cancelled */
+      }
     }
-    catch {
-      case _: InterruptedException => List() /* can happen if `inbound` is cancelled */
+
+  def synthesizeFromSpec(spec: SpecMessage, params: SynConfig): List[Statements.Procedure] =
+    synthesizeFromSpec(spec.name, (spec.defs :+ spec.in).mkString("\n"),
+                       noOutputCheck, params)
+
+  protected def wrapError[T](op: => T): T = {
+    try op catch {
       case e: Throwable => outbound.put(write(SynthesisErrorEntry(e.toString))); throw e
     }
   }
@@ -185,12 +198,19 @@ object AsyncSynthesisRunner {
   object SynthesisErrorEntry {
     implicit val rw: RW[SynthesisErrorEntry] = macroRW
   }
+
+  case class SpecMessage(name: String, defs: Seq[String], in: String)
+  object SpecMessage {
+    implicit val rw: RW[SpecMessage] = macroRW
+  }
 }
 
 /**
   * Connects `AsyncSynthesisRunner` to an HTTP client.
   */
 class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthesisRunner {
+  import upickle.default.read
+  import AsyncSynthesisRunner.SpecMessage
 
   val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
@@ -203,6 +223,12 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
   def offer: Sink[String, Future[Done]] =
     Sink.foreachAsync[String](1)(s => Future { inbound.put(s) })
 
+  def initializeAnd[Mat](sink: Sink[String, Mat]): Sink[String, Mat] =
+    Flow[String].flatMapPrefix(1) { s =>
+      wrapError { go(read[SpecMessage](s.head)) }; Flow[String]
+    }
+    .toMat(sink)(Keep.right)
+
   def done(d: Done): Unit = {
     outbound.cancel(); inbound.cancel()
     logger.info(s"client session ended; $d")
@@ -210,8 +236,8 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
 
   def wsFlow: Flow[Message, Message, NotUsed] =
     Flow.fromSinkAndSource(Flow[Message].mapConcat {
-        case m: TextMessage.Strict => println(m.text); List(m.text)
-        case _ => println("some other message"); Nil
-      }.to(offer.mapMaterializedValue(m => m.foreach(done))),
+        case m: TextMessage.Strict => List(m.text)
+        case _ => logger.warn("received a non-text message"); Nil
+      }.to(initializeAnd(offer).mapMaterializedValue(m => m.foreach(done))),
       subscribe.map(TextMessage(_)))
 }

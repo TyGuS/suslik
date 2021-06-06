@@ -47,7 +47,7 @@ class ProofInteraction extends EventEmitter {
             this.emit('choose', msg);
         }
         else if (msg.procs) this.emit('done', msg);
-        else if (msg.error) this.emit('error', msg);
+        else if (msg.error) this.emit('error', {message: msg.error});
         else this.emit('trace', msg);
     }
 
