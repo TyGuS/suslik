@@ -140,11 +140,6 @@ object ProofTraceJson {
     implicit val rw: RW[StatusEntry] = macroRW
   }
 
-  case class CyclicEntry(backlink: BackLinkEntry)
-  object CyclicEntry {
-    implicit val rw: RW[CyclicEntry] = macroRW
-  }
-
   case class BackLinkEntry(tag: String, bud: String, companion: String)
   object BackLinkEntry {
     implicit val rw: RW[BackLinkEntry] = macroRW

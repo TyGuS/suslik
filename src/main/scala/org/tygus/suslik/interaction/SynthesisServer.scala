@@ -74,10 +74,11 @@ class SynthesisServer {
             session.wsFlow
           }),
           get {
-            new Thread(() => go(new AsyncSynthesisRunner)).start(); complete(".")
+            getFromFile("./dist/index.html")
           }
         )
-      }
+      },
+      getFromDirectory("./dist")
     )
   }
 }
@@ -97,7 +98,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   import upickle.default.{Writer, write}
   import AsyncSynthesisRunner._
 
-  val inbound = new ArrayBlockingQueue[String](1)
+  val inbound = new ArrayBlockingQueueWithCancel[String](1)
   val outbound = new ArrayBlockingQueueWithCancel[String](1)
 
   /**
@@ -129,20 +130,22 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
 
   /**
     * Wraps parent implementation, reporting success or failure to the client.
-    * @todo make results be JSON
     */
   override def synthesizeFromSpec(testName: String, text: String, out: String,
                                   params: SynConfig): List[Statements.Procedure] = {
     try {
       val ret = super.synthesizeFromSpec(testName, text, out, params)
-      outbound.put(ret.toString)
+      outbound.put(write(SynthesisResultEntry(ret.map(_.toString))))
       ret
     }
-    catch { case e: Throwable => outbound.put(e.toString); throw e }
+    catch {
+      case _: InterruptedException => List() /* can happen if `inbound` is cancelled */
+      case e: Throwable => outbound.put(write(SynthesisErrorEntry(e.toString))); throw e
+    }
   }
 
   protected def serializeChoices(allExpansions: Seq[Rules.RuleResult]): String =
-    write(allExpansions.map(ExpansionChoice.from))
+    write(allExpansions.map(ExpansionChoiceEntry.from))
 }
 
 object AsyncSynthesisRunner {
@@ -160,17 +163,27 @@ object AsyncSynthesisRunner {
 
   type GoalLabel = String
 
-  case class ExpansionChoice(from: Set[GoalLabel],
-                             rule: String,
-                             subgoals: Seq[GoalEntry])
+  case class ExpansionChoiceEntry(from: Set[GoalLabel],
+                                  rule: String,
+                                  subgoals: Seq[GoalEntry])
 
-  object ExpansionChoice {
-    def from(rr: Rules.RuleResult): ExpansionChoice =
-      ExpansionChoice(rr.subgoals.flatMap(_.parent).map(_.label.pp).toSet,
+  object ExpansionChoiceEntry {
+    def from(rr: Rules.RuleResult): ExpansionChoiceEntry =
+      ExpansionChoiceEntry(rr.subgoals.flatMap(_.parent).map(_.label.pp).toSet,
         rr.rule.toString,
         rr.subgoals.map(GoalEntry(_)))
 
-    implicit val readWriter: RW[ExpansionChoice] = macroRW
+    implicit val rw: RW[ExpansionChoiceEntry] = macroRW
+  }
+
+  case class SynthesisResultEntry(procs: Seq[String])
+  object SynthesisResultEntry {
+    implicit val rw: RW[SynthesisResultEntry] = macroRW
+  }
+
+  case class SynthesisErrorEntry(error: String)
+  object SynthesisErrorEntry {
+    implicit val rw: RW[SynthesisErrorEntry] = macroRW
   }
 }
 
@@ -191,7 +204,7 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
     Sink.foreachAsync[String](1)(s => Future { inbound.put(s) })
 
   def done(d: Done): Unit = {
-    outbound.cancel()
+    outbound.cancel(); inbound.cancel()
     logger.info(s"client session ended; $d")
   }
 
