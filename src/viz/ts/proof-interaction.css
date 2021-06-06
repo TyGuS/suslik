@@ -6,3 +6,7 @@
     border: 1px solid #888;
     padding: 2px;
 }
+
+.proof-trace .proof-trace-highlight-interact-focus {
+    outline: 3px solid violet;
+}

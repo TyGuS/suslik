@@ -38,7 +38,7 @@ $(async () => {
         catch (e) { console.error('open failed:', e); }
     });
 
-    var pi = new ProofInteraction(<any>doc.pt.view);
+    var pi = new ProofInteraction(doc.pt);
     pi.on('message', m => console.log('%cmessage', 'color: blue', m));
     pi.on('trace', u => {
         var data = ProofTrace.Data.fromEntries([u]);
