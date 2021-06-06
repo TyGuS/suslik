@@ -17,15 +17,18 @@ class ProofTrace {
 
     nodeIndex: {
         byId: JSONMap<Data.NodeId, Data.NodeEntry>
+        byGoalId: JSONMap<Data.GoalId, Data.NodeEntry>
         childrenById: JSONMap<Data.NodeId, Data.NodeEntry[]>
         subtreeSizeById: JSONMap<Data.NodeId, number>
         statusById: JSONMap<Data.NodeId, Data.StatusEntry>
+        derivationById: JSONMap<Data.NodeId, Data.DerivationTrailEntry>
+        derivationByGoalId: JSONMap<Data.GoalId, Data.DerivationTrailEntry>
         viewById: JSONMap<Data.NodeId, View.Node>
     }
 
     view: Vue & {root: View.Node}
 
-    _dirty: {nodes: Data.NodeEntry[]} = {nodes: []}
+    _dirty: {nodes: Set<Data.NodeEntry>} = {nodes: new Set}
 
     constructor(data: ProofTrace.Data) {
         this.data = data;
@@ -45,19 +48,21 @@ class ProofTrace {
 
     createIndex() {
         this.nodeIndex = {
-            byId: new JSONMap(),
-            childrenById: new JSONMap(), subtreeSizeById: new JSONMap(),
-            statusById: new JSONMap(),
-            viewById: new JSONMap()
+            byId: new JSONMap, byGoalId: new JSONMap,
+            childrenById: new JSONMap, subtreeSizeById: new JSONMap,
+            statusById: new JSONMap, derivationById: new JSONMap,
+            derivationByGoalId: new JSONMap,
+            viewById: new JSONMap
         };
         this.updateIndex(this.data);
     }
 
     updateIndex(data: Data) {
-        // Build byId
+        // Build byId, byGoalId
         for (let node of data.nodes) {
-            if (!this.nodeIndex.byId.get(node.id))
-                this.nodeIndex.byId.set(node.id, node);
+            this.nodeIndex.byId.set(node.id, node);
+            if (node.goal)
+                this.nodeIndex.byGoalId.set(node.goal.id, node);
         }
 
         // Build childrenById
@@ -68,11 +73,21 @@ class ProofTrace {
             }
         }
 
+        let update = <T>(m: JSONMap<Data.NodeId, T>,
+                         node: Data.NodeEntry, value: T) => {
+            if (!node) return;
+            var key = node.id, old = m.get(key);
+            if (value !== old) { /** @todo better equality check */
+                m.set(key, value);
+                this._dirty.nodes.add(node);
+            }
+        }
+
         // Build statusById
         for (let entry of data.statuses) {
             var id = entry.at;
-            this.nodeIndex.statusById.set(id, entry);
-            this._dirty.nodes.push(this.nodeIndex.byId.get(id));
+            update(this.nodeIndex.statusById,
+                   this.nodeIndex.byId.get(id), entry);
         }
 
         // - compute transitive success
@@ -85,17 +100,15 @@ class ProofTrace {
                 if (children.length) {
                     switch (node.tag) {
                     case Data.NodeType.OrNode:
-                        if (children.some(x => x && x.status.tag === 'Succeeded')) {
-                            this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
-                            this._dirty.nodes.push(node);
-                        }
+                        if (children.some(x => x && x.status.tag === 'Succeeded'))
+                            update(this.nodeIndex.statusById, node,
+                                {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
                     case Data.NodeType.AndNode:
                         if (children.length == node.nChildren &&
-                            children.every(x => x && x.status.tag === 'Succeeded')) {
-                            this.nodeIndex.statusById.set(node.id, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
-                            this._dirty.nodes.push(node);
-                        }
+                            children.every(x => x && x.status.tag === 'Succeeded'))
+                            update(this.nodeIndex.statusById,
+                                node, {at: node.id, status: {tag: 'Succeeded', from: '*'}});
                         break;
                     }
                 }
@@ -107,8 +120,27 @@ class ProofTrace {
         var sz = this.nodeIndex.subtreeSizeById;
         for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
             let children = (this.nodeIndex.childrenById.get(node.id) || []);
-            sz.set(node.id, 1 + children.map(u => sz.get(u.id) || 1)
-                                        .reduce((x,y) => x + y, 0));
+            update(sz, node, 1 + children.map(u => sz.get(u.id) || 1)
+                                         .reduce((x,y) => x + y, 0));
+        }
+
+        // Build derivationById, derivationByGoalId
+        for (let deriv of data.trail) {
+            for (let goal of deriv.to) {
+                this.nodeIndex.derivationByGoalId.set(goal, deriv);
+                let node = this.nodeIndex.byGoalId.get(goal),
+                    parent = node && this.parent(node);
+                if (parent)
+                    update(this.nodeIndex.derivationById, parent, deriv);
+            }
+        }
+
+        for (let node of data.nodes) {
+            if (node.goal) {
+                var deriv = this.nodeIndex.derivationByGoalId.get(node.goal.id);
+                if (deriv)
+                    update(this.nodeIndex.derivationById, this.parent(node), deriv);
+            }
         }
     }
 
@@ -143,7 +175,7 @@ class ProofTrace {
 
     createView() {
         this.view = new Vue(ProofTracePane);
-        this._dirty.nodes = [];
+        this._dirty.nodes.clear();
         if (this.root) {
             this.view.root = this.createNode(this.root);
             this.expandNode(this.view.root);
@@ -157,7 +189,7 @@ class ProofTrace {
     refreshView() {
         for (let node of this._dirty.nodes)
             this.refreshNode(node);
-        this._dirty.nodes = [];
+        this._dirty.nodes.clear();
     }
 
     addNode(node: Data.NodeEntry) {
@@ -185,6 +217,10 @@ class ProofTrace {
         return this.nodeIndex.subtreeSizeById.get(node.id) || 1;
     }
 
+    getDerivationTrail(node: Data.NodeEntry): Data.DerivationTrailEntry { 
+        return this.nodeIndex.derivationById.get(node.id);
+    }
+
     createNode(node: Data.NodeEntry): View.Node {
         var v = {value: node, children: undefined, focus: false, expanded: false,
                  status: this.getStatus(node),
@@ -198,6 +234,7 @@ class ProofTrace {
         var view = this.nodeIndex.viewById.get(node.id);
         if (view) {
             view.status = this.getStatus(node);
+            view.derivation = this.getDerivationTrail(node);
             view.numDescendants = this.getSubtreeSize(node);
         }
     }
@@ -239,17 +276,6 @@ class ProofTrace {
         this.expandNode(nodeView);
         for (let c of nodeView.children)
             this.expandAll(c);
-    }
-
-    getDerivationTrail(node: Data.NodeEntry) {
-        if (node.tag !== Data.NodeType.AndNode) return;
-        var from = this.parent(node),
-            to = this.children(node);
-        assert(from.tag == Data.NodeType.OrNode &&
-                to.every(v => v.tag == Data.NodeType.OrNode));
-        return this.data.trail.find(dte => 
-            dte.from === from.goal.id &&
-            arreq(dte.to, to.map(v => v.goal.id)));
     }
 
     viewAction(ev: View.ActionEvent) {
@@ -376,7 +402,8 @@ namespace ProofTrace {
             value: Data.NodeEntry
             children: Node[]
             numDescendants: number
-            status: Data.GoalStatusEntry
+            status?: Data.GoalStatusEntry
+            derivation?: Data.DerivationTrailEntry
             focus: boolean
             expanded: boolean
         };
