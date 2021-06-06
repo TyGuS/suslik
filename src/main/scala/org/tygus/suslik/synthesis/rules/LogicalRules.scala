@@ -6,6 +6,7 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.report.ProofTrace
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -261,6 +262,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))
           val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
           assert(goal.callGoal.isEmpty)
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, List(newGoal), this,
+            Map("x" -> x.pp, "e" -> e.pp)))
           List(RuleResult(List(newGoal), kont, this, goal))
         }
         case _ => Nil

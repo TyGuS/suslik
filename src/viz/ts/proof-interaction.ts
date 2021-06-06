@@ -8,13 +8,15 @@ class ProofInteraction extends EventEmitter {
     baseURL: URL
     ws: WebSocket
 
-    view: Vue & {interaction: ProofInteraction.View.State}
+    pt: ProofTrace
+    view: Vue & ProofInteraction.ViewProps
 
-    constructor(view: Vue & {interaction: ProofInteraction.View.State}) {
+    constructor(pt: ProofTrace) {
         super();
         this.baseURL = new URL('http://localhost:8033');
-        this.view = view;
-        this.view.interaction = {choices: undefined};
+        this.pt = pt;
+        this.view = <any>pt.view;
+        this.view.interaction = {focused: [], choices: undefined};
         this.view.$on('interaction:action', action => this.handleAction(action));
     }
 
@@ -40,6 +42,7 @@ class ProofInteraction extends EventEmitter {
         this.emit('message', msg);
 
         if (Array.isArray(msg)) {
+            this.view.interaction.focused = this.getNodesForChoices(msg);
             this.view.interaction.choices = msg;
             this.emit('choose', msg);
         }
@@ -57,6 +60,17 @@ class ProofInteraction extends EventEmitter {
         }
     }
 
+    getNodesForChoices(choices: {from: ProofTrace.Data.GoalId[]}[]): ProofTrace.Data.NodeId[] {
+        var ret: ProofTrace.Data.NodeId[] = [];
+        for (let choice of choices) {
+            for (let goalId of choice.from) {
+                let node = this.pt.nodeIndex.byGoalId.get(goalId);
+                if (node) ret.push(node.id);
+            }
+        }
+        return ret;
+    }
+
     fetch(urlPath: string, options?: {}) {
         return fetch(this._url(urlPath).href, options);
     }
@@ -67,9 +81,15 @@ class ProofInteraction extends EventEmitter {
 
 namespace ProofInteraction {
 
+    export type ViewProps = {
+        interaction: ProofInteraction.View.State
+        highlight: {[kind: string]: ProofTrace.Data.NodeId[]}
+    }
+
     export namespace View {
 
         export type State = {
+            focused: ProofTrace.Data.NodeId[]
             choices: ProofTrace.Data.GoalEntry[]
         }
 

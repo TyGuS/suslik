@@ -1,5 +1,5 @@
 <template>
-    <div class="proof-trace-node" :class="[value.tag, statusClass]"
+    <div class="proof-trace-node" :class="[value.tag, statusClass, ...highClasses]"
             @click="toggle" @click.capture="clickCapture"
             @mouseenter="showId" @mouseleave="hideId" @mousedown="clickStart"
             @mouseover="showRefs" @mouseout="hideRefs"
@@ -23,7 +23,7 @@ import ProofTraceGoal from './proof-trace-goal.vue';
 
 
 export default {
-    props: ['value', 'status', 'derivation', 'numDescendants'],
+    props: ['value', 'status', 'derivation', 'numDescendants', 'highlight'],
     data: () => ({_anchor: false}),
     computed: {
         tag() {
@@ -38,6 +38,9 @@ export default {
                 return `${tag}${suffix}`;
             }
             else return undefined;
+        },
+        highClasses() {
+            return this.highlight?.map(nm => `proof-trace-highlight-${nm}`);
         }
     },
     methods: {

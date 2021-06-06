@@ -5,7 +5,8 @@
         <app-toolbar :options="options"/>
         <app-context-menu ref="contextMenu" @action="toplevelAction"/>
         <div class="proof-trace-pane-area" :style="{'--zoom': zoom}">
-            <proof-trace :root="root" @action="toplevelAction"/>
+            <proof-trace :root="root" :highlight="jointHigh"
+                @action="toplevelAction"/>
         </div>
         <proof-interaction :choices="interaction && interaction.choices"
             @action="$emit('interaction:action', $event)"/>
@@ -21,7 +22,12 @@ import ProofInteraction from './proof-interaction.vue';
 
 export default {
     props: ['root', 'interaction'],
-    data: () => ({options: {}, zoom: 1}),
+    data: () => ({options: {}, zoom: 1, highlight: {'special': [[]]}}),
+    computed: {
+        jointHigh() {
+            return {'interact-focus': this.interaction?.focused, ...this.highlight};
+        }
+    },
     methods: {
         toplevelAction(ev) {
             switch (ev.type) {

@@ -4,6 +4,7 @@
             <proof-trace-node ref="nroot" :value="root.value"
                                 :status="root.status" :derivation="root.derivation"
                                 :num-descendants="root.numDescendants"
+                                :highlight="getHigh(root.value.id)"
                                 @action="nodeAction"/>
             <div class="proof-trace-expand-all" :class="{root: root.value.id.length == 0}">
                 <span @click="expandAll">++</span>
@@ -11,7 +12,8 @@
             <div class="subtrees" ref="subtrees" v-if="root.expanded">
                 <template v-for="child in root.children">
                     <proof-trace :key="child.value.id.toString()"
-                                 :root="child" @action="action"/>
+                                 :root="child" :highlight="highlight"
+                                 @action="action"/>
                 </template>
             </div>
         </template>
@@ -19,12 +21,14 @@
 </template>
 
 <script>
+import arreq from 'array-equal';
+
 import ProofTraceNode from './proof-trace-node.vue';
 
 
 export default {
     name: 'proof-trace',
-    props: ['root'],
+    props: ['root', 'highlight'],
     data: () => ({statusClass: undefined}),
     mounted() {
         this.$watch('root.expanded', () => {
@@ -54,6 +58,11 @@ export default {
                 hr = (box.right + clrse) - viewport.width,
                 h = Math.min(hl, hr);
             window.scrollBy({left: Math.max(h, 0), top: Math.max(v, 0), behavior: 'smooth'});
+        },
+        getHigh(id) {
+            return Object.entries(this.highlight || {})
+                .map(([k, v]) => v.some(x => arreq(x, id)) ? k : undefined)
+                .filter(x => x);
         }
     },
     components: { ProofTraceNode }

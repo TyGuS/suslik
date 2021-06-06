@@ -116,7 +116,7 @@ trait SynthesisRunnerUtil {
     val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
       env.config.traceToJsonFile match {
         case None => ProofTraceNone
-        case Some(file) => new ProofTraceJson(file)
+        case Some(file) => new ProofTraceJsonFile(file)
       }
     }
     new Synthesis(tactic, log, trace)

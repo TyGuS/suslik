@@ -4,6 +4,7 @@ import org.tygus.suslik.language.CardType
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
+import org.tygus.suslik.report.ProofTrace
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
@@ -147,6 +148,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
           val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, List(newGoal), this,
+            Map("x" -> x.pp, "e" -> e.pp)))
           List(RuleResult(List(newGoal), kont, this, goal))
         }
         case _ => Nil
