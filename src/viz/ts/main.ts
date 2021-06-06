@@ -46,5 +46,9 @@ $(async () => {
     });
     pi.start();
 
-    Object.assign(window, {doc, pi});
+    const defs = [await (await fetch('/src/test/resources/synthesis/all-benchmarks/sll/predicates.def')).text()],
+          in_ = (await (await fetch('/src/test/resources/synthesis/all-benchmarks/sll/free.syn')).text())
+                .match(/###([^]*?)###/)[1];
+
+    Object.assign(window, {doc, pi, spec: {name: "free", defs, in: in_}});
 });
