@@ -44,6 +44,7 @@ $(async () => {
         var data = ProofTrace.Data.fromEntries([u]);
         doc.pt.append(data);
     });
+    pi.start();
 
     Object.assign(window, {doc, pi});
 });
