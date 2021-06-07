@@ -275,18 +275,18 @@ ALL_BENCHMARKS = [
         Benchmark('srtl/srtl-insert', 'insert'),
         Benchmark('srtl/insertion-sort', 'insertion sort'),
     ]),
-    #BenchmarkGroup("Tree", [
-    #    Benchmark('tree/tree-size', 'size'),
-    #    Benchmark('tree/tree-free', 'dispose'),
-    #    Benchmark('tree/tree-copy', 'copy'),
-    #    Benchmark('tree/tree-flatten', 'flatten w/append'),
-    #    Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
-    #]),
-    #BenchmarkGroup("BST", [
-    #    Benchmark('bst/bst-insert', 'insert'),
-    #    Benchmark('bst/bst-left-rotate', 'rotate left'),
-    #    Benchmark('bst/bst-right-rotate', 'rotate right'),
-    #]),
+    BenchmarkGroup("Tree", [
+        Benchmark('tree/tree-size', 'size'),
+        Benchmark('tree/tree-free', 'dispose'),
+        Benchmark('tree/tree-copy', 'copy'),
+        Benchmark('tree/tree-flatten', 'flatten w/append'),
+        Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
+    ]),
+    BenchmarkGroup("BST", [
+        Benchmark('bst/bst-insert', 'insert'),
+        Benchmark('bst/bst-left-rotate', 'rotate left'),
+        Benchmark('bst/bst-right-rotate', 'rotate right'),
+    ]),
   ]
 
 ROBUSTNESS      = ALL_BENCHMARKS.copy()
