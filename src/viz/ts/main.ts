@@ -2,6 +2,7 @@ import $ from 'jquery';
 import { MainDocument, DragDropJson } from './open';
 import { ProofTrace } from './proof-trace';
 import { ProofInteraction } from './proof-interaction';
+import { BenchmarksDB } from './benchmarks';
 
 
 
@@ -46,9 +47,8 @@ $(async () => {
     });
     pi.start();
 
-    const defs = [await (await fetch('/src/test/resources/synthesis/all-benchmarks/sll/predicates.def')).text()],
-          in_ = (await (await fetch('/src/test/resources/synthesis/all-benchmarks/sll/free.syn')).text())
-                .match(/###([^]*?)###/)[1];
+    const bench = await BenchmarksDB.load(),
+          spec = bench.getSpec('sll', 'free.syn');
 
-    Object.assign(window, {doc, pi, spec: {name: "free", defs, in: in_}});
+    Object.assign(window, {doc, pi, bench, spec});
 });
