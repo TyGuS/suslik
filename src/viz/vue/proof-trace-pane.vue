@@ -21,8 +21,8 @@ import ProofInteraction from './proof-interaction.vue';
 
 
 export default {
-    props: ['root', 'interaction'],
-    data: () => ({options: {}, zoom: 1, highlight: {'special': [[]]}}),
+    data: () => ({root: undefined, options: {}, zoom: 1, 
+         interaction: {}, highlight: {'special': [[]]}}),
     computed: {
         jointHigh() {
             return {'interact-focus': this.interaction?.focused, ...this.highlight};

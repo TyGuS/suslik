@@ -26,16 +26,16 @@ class ProofTrace {
         viewById: JSONMap<Data.NodeId, View.Node>
     }
 
-    view: Vue & {root: View.Node}
+    view: Vue & View.Props
 
     _dirty: {nodes: Set<Data.NodeEntry>} = {nodes: new Set}
 
-    constructor(data: ProofTrace.Data) {
+    constructor(data: ProofTrace.Data, view?: Vue & View.Props) {
         this.data = data;
         this.root = this.data.nodes[0];
 
         this.createIndex();
-        this.createView();
+        this.createView(view);
     }
 
     append(data: Data) {
@@ -173,15 +173,14 @@ class ProofTrace {
             .sort(byId2); // modifies the list but that's ok
     }
 
-    createView() {
-        this.view = new Vue(ProofTracePane);
+    createView(view?: Vue & View.Props) {
+        this.view = view || <any>new Vue(ProofTracePane).$mount();
         this._dirty.nodes.clear();
         if (this.root) {
             this.view.root = this.createNode(this.root);
             this.expandNode(this.view.root);
             this.expandNode(this.view.root.children[0]);
         }
-        this.view.$mount();
 
         this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
     }
@@ -397,6 +396,8 @@ namespace ProofTrace {
     // View Part
     // =========
     export namespace View {
+        
+        export type Props = {root: View.Node};
 
         export type Node = {
             value: Data.NodeEntry
