@@ -1,5 +1,9 @@
 import { EventEmitter } from 'events';
 import $ from 'jquery';
+import Vue from 'vue';
+
+// @ts-ignore
+import app from '../vue/app.vue';
 
 import { ProofTrace } from './proof-trace';
 
@@ -7,20 +11,27 @@ import { ProofTrace } from './proof-trace';
 
 class MainDocument extends EventEmitter {
 
+    container: JQuery
+
+    app: Vue
     pt: ProofTrace
-    pane: JQuery
     notifications: JQuery
+
+    props: any
 
     storage: {'suslik:doc:lastUrl'?: string} = <any>localStorage;
 
-    constructor(pane: JQuery, notifications: JQuery) {
+    constructor(container: JQuery, notifications: JQuery) {
         super();
-        this.pane = pane;
+        this.container = container;
+        this.app = new Vue(app).$mount();
         this.notifications = notifications;
     }
 
+    get $el() { return this.app.$el; }
+
     new() {
-        return this.set(new ProofTrace(ProofTrace.Data.empty()));
+        return this.set(ProofTrace.Data.empty());
     }
 
     async open(content: string | File, opts: OpenOptions = {}): Promise<ProofTrace> {
@@ -29,8 +40,7 @@ class MainDocument extends EventEmitter {
         }
         else {
             try {
-                var data = ProofTrace.Data.parse(content);
-                return this.set(new ProofTrace(data));
+                return this.set(ProofTrace.Data.parse(content));
             }
             catch (e) {
                 if (!opts.silent) {
@@ -52,9 +62,9 @@ class MainDocument extends EventEmitter {
         return this.openUrl(this.storage['suslik:doc:lastUrl'] || DEFAULT_URL, opts);
     }
 
-    set(pt: ProofTrace) {
+    set(ptData: ProofTrace.Data) {
+        var pt = new ProofTrace(ptData, this.app.$refs.proofTrace as any);
         this.pt = pt;
-        this.pane.replaceWith(this.pane = $(pt.view.$el as HTMLElement));
         this.emit('open', pt);
         return pt;
     }

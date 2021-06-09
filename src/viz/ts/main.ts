@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import { MainDocument, DragDropJson } from './open';
+import { MainDocument, DragDropJson } from './app';
 import { ProofTrace } from './proof-trace';
 import { ProofInteraction } from './proof-interaction';
 import { BenchmarksDB } from './benchmarks';
@@ -22,6 +22,8 @@ if (typeof nw !== 'undefined') {
 $(async () => {
     var doc = new MainDocument($('#proof-trace-pane'), $('#notifications'));
     doc.on('open', pt => Object.assign(window, {pt}));
+
+    document.querySelector('#document-area').replaceWith(doc.$el);
 
     /*
     try {

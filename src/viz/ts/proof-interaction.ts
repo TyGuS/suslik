@@ -9,7 +9,7 @@ class ProofInteraction extends EventEmitter {
     ws: WebSocket
 
     pt: ProofTrace
-    view: Vue & ProofInteraction.ViewProps
+    view: Vue & ProofInteraction.View.Props
 
     constructor(pt: ProofTrace) {
         super();
@@ -81,22 +81,22 @@ class ProofInteraction extends EventEmitter {
 
 namespace ProofInteraction {
 
-    export type ViewProps = {
-        interaction: ProofInteraction.View.State
-        highlight: {[kind: string]: ProofTrace.Data.NodeId[]}
-    }
-
     export namespace View {
 
+        export type Props = {
+            interaction: ProofInteraction.View.State
+            highlight: {[kind: string]: ProofTrace.Data.NodeId[]}
+        };
+    
         export type State = {
             focused: ProofTrace.Data.NodeId[]
             choices: ProofTrace.Data.GoalEntry[]
-        }
+        };
 
         export type Action = {
             type: 'select'
             goal?: ProofTrace.Data.GoalEntry
-        }
+        };
 
     }
 
