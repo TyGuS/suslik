@@ -77,7 +77,7 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
 object ProofTraceJson {
 
   case class NodeEntry(id: Vector[Int], tag: String, pp: String, goal: GoalEntry,
-                       nChildren: Int, cost: Int)
+                       nChildren: Int, cost: Double)
   object NodeEntry {
     implicit val rw: RW[NodeEntry] = macroRW
   }

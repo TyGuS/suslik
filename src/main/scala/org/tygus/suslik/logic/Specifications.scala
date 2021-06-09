@@ -57,7 +57,7 @@ object Specifications extends SepLogicUtils {
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
 
-    def cost: Int = sigma.cost
+    def cost: Double = sigma.cost
   }
 
   /**
@@ -264,14 +264,27 @@ object Specifications extends SepLogicUtils {
     // Size of the specification in this goal (in AST nodes)
     def specSize: Int = pre.size + post.size
 
+    // TODO refactor these
+    private val populationID  = env.config.populationID
+    private val individualID  = env.config.individualID
+    private val fileName      = "search_parameters_" + populationID.toString + "_" + individualID.toString + ".json"
+    private val directoryPath = os.pwd
+    private val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
+    private val jsonData      = ujson.read(jsonFile)
+    private val weight_of_cost_no_call_goal_pre = jsonData("weight_of_cost_no_call_goal_pre").num: Double
+    private val weight_of_cost_no_call_goal_post = jsonData("weight_of_cost_no_call_goal_post").num: Double
+    private val weight_of_cost_call_goal = jsonData("weight_of_cost_call_goal").num: Double
+    private val weight_of_cost_call_goal_pre = jsonData("weight_of_cost_call_goal_pre").num: Double
+    private val weight_of_cost_call_goal_post = jsonData("weight_of_cost_call_goal_post").num: Double
+
     /**
       * Cost of a goal:
       * for now just the number of heaplets in pre and post
       */
     //    lazy val cost: Int = pre.cost.max(post.cost)
-    lazy val cost: Int = callGoal match {
-        case None => 3*pre.cost + post.cost  // + existentials.size //
-        case Some(cg) => 10 + 3*cg.callerPre.cost + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
+    lazy val cost: Double = callGoal match {
+        case None => weight_of_cost_no_call_goal_pre * pre.cost + weight_of_cost_no_call_goal_post * post.cost  // + existentials.size //
+        case Some(cg) => weight_of_cost_call_goal + weight_of_cost_call_goal_pre * cg.callerPre.cost + weight_of_cost_call_goal_post * cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
       }
   }
 
@@ -328,7 +341,7 @@ object Specifications extends SepLogicUtils {
 
     def actualCall: Call = call.copy(args = call.args.map(_.subst(freshToActual)))
 
-    lazy val cost: Int = calleePost.cost
+    lazy val cost: Double = calleePost.cost
   }
 }
 

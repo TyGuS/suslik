@@ -16,34 +16,47 @@ from deap import creator
 from deap import tools
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
-DEFAULT_ORDER_JSON = PATH_TO_TACTICS + "defaultOrderOfRules.json"
 IND_SIZE = 8
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 5
+POPULATION_SIZE = 10
 MAXIMUM_NUMBER_OF_GENERATIONS = 50
-INDPB = 0.2
+INDPB = 0.1
 
 class Individual(list):
     """This class describe SuSLik's search strategy for individuals in each population."""
 
-    def __init__(self, population_id, individual_id, nan=10, time=9999999999.0 , rule_ordering=None,
-                 weight_of_cost_no_call_goal_pre=3.0, weight_of_cost_no_call_goal_post=1.0,
-                 weight_of_cost_call_goal=10.0, weight_of_cost_call_goal_pre=3.0, weight_of_cost_call_goal_post=1.0):
+    def __init__(self, population_id, individual_id, nan=10, time=9999999999.0, rule_ordering=None,
+                 weight_of_cost_no_call_goal_pre: float = 3.0, weight_of_cost_no_call_goal_post: float = 1.0,
+                 weight_of_cost_call_goal: float = 10.0, weight_of_cost_call_goal_pre: float = 3.0, weight_of_cost_call_goal_post: float = 1.0):
         super().__init__()
+        #if weights is None:
+        #    weights = [3.0, 1.0, 10.0, 3.0, 1.0]
+        #if weight_of_cost_call_goal_post is None:
+        #    weight_of_cost_call_goal_post = 1.0
+        #if weight_of_cost_call_goal_pre is None:
+        #    weight_of_cost_call_goal_pre = 3.0
+        #if weight_of_cost_call_goal is None:
+        #    weight_of_cost_call_goal = 10.0
+        #if weight_of_cost_no_call_goal_post is None:
+        #    weight_of_cost_no_call_goal_post = 1.0
+        #if weight_of_cost_no_call_goal_pre is None:
+        #    weight_of_cost_no_call_goal_pre = 3.0
         if rule_ordering is None:
             rule_ordering = random.sample(range(IND_SIZE), IND_SIZE)
         self.population_id = population_id
         self.individual_id = individual_id
         self.rule_ordering = rule_ordering
-        self.nan = nan,
-        self.time = time,
-        self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre,
-        self.weight_of_cost_no_call_goal_post = weight_of_cost_no_call_goal_post,
-        self.weight_of_cost_call_goal = weight_of_cost_call_goal,
-        self.weight_of_cost_call_goal_pre = weight_of_cost_call_goal_pre,
-        self.weight_of_cost_call_goal_post = weight_of_cost_call_goal_post,
-        self.json_search_parameter_file_path = PATH_TO_TACTICS + "search_parameters_" + str(population_id) + "_" + str(individual_id) + ".json"
+        self.nan = nan
+        self.time = time
+        self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre
+        self.weight_of_cost_no_call_goal_post = weight_of_cost_no_call_goal_post
+        self.weight_of_cost_call_goal = weight_of_cost_call_goal
+        self.weight_of_cost_call_goal_pre = weight_of_cost_call_goal_pre
+        self.weight_of_cost_call_goal_post = weight_of_cost_call_goal_post
+
+    def json_search_parameter_file_path(self):
+        return PATH_TO_TACTICS + "search_parameters_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
 
     def get_individual_id(self):
         return self.individual_id
@@ -98,6 +111,11 @@ class Individual(list):
 
     def mutate(self):
         tools.mutShuffleIndexes(self.rule_ordering, indpb=INDPB)
+        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
+        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
+        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(0.8, 1.2)
+        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
+        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
 
     def write_json_search_parameter_file(self):
 
@@ -110,7 +128,7 @@ class Individual(list):
             "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
         }
 
-        with open(self.json_search_parameter_file_path, 'w') as new_json_file_to_write:
+        with open(self.json_search_parameter_file_path(), 'w') as new_json_file_to_write:
             json.dump(json_search_parameter_to_write, new_json_file_to_write)
 
     def csv_path(self):
@@ -221,25 +239,16 @@ def main():
     # evaluate the entire population
     list(map(eval_fitness, population))
 
-    print("----- initial nan and time -----")
-    for individual in population:
-        print(individual.get_nan())
-        print(individual.get_time())
-
     # current number of generation
     generation_id = 0
+
+    write_json_result(generation_id, population)
+
+    offspring1 = population[:]
 
     # begin the evolution
     while all((individual.is_not_good_enough()) for individual in population) \
             and generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
-        generation_id = generation_id + 1
-        print("----- generation %i -----" % generation_id)
-
-        for individual in population:
-            individual.set_population_id(generation_id)
-
-        # select the next generation individuals
-        offspring1 = select(population)
 
         # mutate the best from the previous round
         offspring2 = copy.deepcopy(offspring1)
@@ -247,29 +256,30 @@ def main():
         for individual in offspring2:
             individual.mutate()
 
+        population[:] = offspring1 + offspring2
+
+        # update generation_id
+        generation_id = generation_id + 1
+        print("----- generation %i -----" % generation_id)
+        for individual in population:
+            individual.set_population_id(generation_id)
+
+        # update individual_id
+        individual_id = 0
+        for individual in population:
+            individual.set_individual_id(individual_id)
+            individual_id = individual_id + 1
+
         # write down json files containing search parameters
         list(map(write_json_search_parameters, population))
 
         # evaluate the entire population
         list(map(eval_fitness, offspring2))
 
-        population[:] = offspring1 + offspring2
-
-        individual_id = 0
-
-        for individual in population:
-            individual.set_individual_id(individual_id)
-            individual_id = individual_id + 1
-
         write_json_result(generation_id, population)
 
-        print("----- fitness is -----")
-        for individual in population:
-            print(individual.get_nan())
-            print(individual.get_time())
-
-        print("----- the length of population is -----")
-        print(len(population))
+        # select the next generation individuals
+        offspring1 = select(population)
 
     return 0
 

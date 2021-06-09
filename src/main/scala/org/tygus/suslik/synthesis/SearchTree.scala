@@ -36,7 +36,7 @@ object SearchTree {
     * represents a synthesis goal to solve.
     * For this node to succeed, one of its children has to succeed.
     */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Double = 0.0) {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -153,7 +153,7 @@ object SearchTree {
         }
     }
 
-    lazy val cost: Int = {
+    lazy val cost: Double = {
       goal.cost.max(extraCost)
     }
 
@@ -191,7 +191,7 @@ object SearchTree {
       val origGoal = childGoals(nextChildIndex)
       val goal = updates(nextChildIndex)(childSolutions)(origGoal)
       val j = if (nChildren == 1) -1 else nextChildIndex
-      val extraCost = (0 +: childGoals.drop(nextChildIndex + 1).map(_.cost)).max
+      val extraCost = (0.0 +: childGoals.drop(nextChildIndex + 1).map(_.cost:Double)).max
       nextChildIndex = nextChildIndex + 1
       OrNode(j +: this.id, goal, Some(this), parent.extraCost.max(extraCost))
     }
