@@ -265,9 +265,9 @@ object Specifications extends SepLogicUtils {
     def specSize: Int = pre.size + post.size
 
     // TODO refactor these
-    private val populationID  = env.config.populationID
+    private val generationID  = env.config.generationID
     private val individualID  = env.config.individualID
-    private val fileName      = "search_parameters_" + populationID.toString + "_" + individualID.toString + ".json"
+    private val fileName      = "search_parameters_" + generationID.toString + "_" + individualID.toString + ".json"
     private val directoryPath = os.pwd
     private val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     private val jsonData      = ujson.read(jsonFile)

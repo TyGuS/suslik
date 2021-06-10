@@ -19,32 +19,20 @@ PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/
 IND_SIZE = 8
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 10
+GENERATION_SIZE = 10
 MAXIMUM_NUMBER_OF_GENERATIONS = 50
 INDPB = 0.1
 
 class Individual(list):
-    """This class describe SuSLik's search strategy for individuals in each population."""
+    """This class describe SuSLik's search strategy for individuals in each generation."""
 
-    def __init__(self, population_id, individual_id, nan=10, time=9999999999.0, rule_ordering=None,
+    def __init__(self, generation_id, individual_id, nan=10, time=9999999999.0, rule_ordering=None,
                  weight_of_cost_no_call_goal_pre: float = 3.0, weight_of_cost_no_call_goal_post: float = 1.0,
                  weight_of_cost_call_goal: float = 10.0, weight_of_cost_call_goal_pre: float = 3.0, weight_of_cost_call_goal_post: float = 1.0):
         super().__init__()
-        #if weights is None:
-        #    weights = [3.0, 1.0, 10.0, 3.0, 1.0]
-        #if weight_of_cost_call_goal_post is None:
-        #    weight_of_cost_call_goal_post = 1.0
-        #if weight_of_cost_call_goal_pre is None:
-        #    weight_of_cost_call_goal_pre = 3.0
-        #if weight_of_cost_call_goal is None:
-        #    weight_of_cost_call_goal = 10.0
-        #if weight_of_cost_no_call_goal_post is None:
-        #    weight_of_cost_no_call_goal_post = 1.0
-        #if weight_of_cost_no_call_goal_pre is None:
-        #    weight_of_cost_no_call_goal_pre = 3.0
         if rule_ordering is None:
             rule_ordering = random.sample(range(IND_SIZE), IND_SIZE)
-        self.population_id = population_id
+        self.generation_id = generation_id
         self.individual_id = individual_id
         self.rule_ordering = rule_ordering
         self.nan = nan
@@ -56,7 +44,7 @@ class Individual(list):
         self.weight_of_cost_call_goal_post = weight_of_cost_call_goal_post
 
     def json_search_parameter_file_path(self):
-        return PATH_TO_TACTICS + "search_parameters_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
+        return PATH_TO_TACTICS + "search_parameters_" + str(self.generation_id) + "_" + str(self.individual_id) + ".json"
 
     def get_individual_id(self):
         return self.individual_id
@@ -64,8 +52,8 @@ class Individual(list):
     def set_individual_id(self, individual_id):
         self.individual_id = individual_id
 
-    def set_population_id(self, population_id):
-        self.population_id = population_id
+    def set_generation_id(self, generation_id):
+        self.generation_id = generation_id
 
     def get_time(self):
         return self.time
@@ -132,7 +120,7 @@ class Individual(list):
             json.dump(json_search_parameter_to_write, new_json_file_to_write)
 
     def csv_path(self):
-        path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.population_id) + '_' + str(
+        path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.generation_id) + '_' + str(
             self.individual_id) + '.csv'
         return path
 
@@ -140,7 +128,7 @@ class Individual(list):
 
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
-            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.population_id,
+            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.generation_id,
             self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
@@ -159,12 +147,12 @@ class Individual(list):
         return (self.nan > MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS) or (self.time > MAXIMUM_TOTAL_TIME)
 
     def json_result_file_path(self):
-        return "robo-evaluation-utils/result" + "_" + str(self.population_id) + "_" + str(self.individual_id) \
+        return "robo-evaluation-utils/result" + "_" + str(self.generation_id) + "_" + str(self.individual_id) \
                          + ".json"
 
     def json_result(self):
         return {
-            "generation_ID": self.population_id,
+            "generation_ID": self.generation_id,
             "individual_ID": self.individual_id,
             "number_of_nan": self.nan,
             "search_time": self.time,
@@ -177,47 +165,15 @@ class Individual(list):
             json.dump(json_result(), json_result_file_to_write)
 
 
-def write_json_search_parameters(individual:Individual):
-    individual.write_json_search_parameter_file()
-
-
-def eval_fitness(individual: Individual):
-    result = individual.evaluate()
-    return result
-
-
-def get_total_time(individual: Individual):
-    return individual.get_time()
-
-
-def get_number_of_nans(individual: Individual):
-    return individual.get_nan()
-
-
-def select(population):
-    population.sort(key=get_total_time)
-    population.sort(key=get_number_of_nans)
-    best_individuals = population[:POPULATION_SIZE]
+def select(generation):
+    generation.sort(key=get_total_time)
+    generation.sort(key=get_number_of_nans)
+    best_individuals = generation[:GENERATION_SIZE]
     return best_individuals
 
 
 def json_result_file_path(generation_id: int):
     return "robo-evaluation-utils/result" + "_" + str(generation_id) + ".json"
-
-
-def write_json_result(generation_id, population):
-    path = json_result_file_path(generation_id)
-    json_data = {
-        "generation_id": generation_id,
-        "number_of_nan": list(map(get_number_of_nans, population)),
-        "total_time": list(map(get_total_time, population))
-    }
-    with open(path, 'w') as file:
-        json.dump(json_data, file)
-
-
-toolbox = base.Toolbox()
-
 
 # -----------------------
 # operator registration
@@ -225,29 +181,31 @@ toolbox = base.Toolbox()
 def main():
     random.seed(169)
 
-    # create an initial population of 20 individuals (where each individual is a list of integers)
-    individual_ids = list(range(0, POPULATION_SIZE))
+    # create an initial generation of 20 individuals (where each individual is a list of integers)
+    individual_ids = list(range(0, GENERATION_SIZE))
 
-    # initialize the population
-    population = []
+    # initialize the generation
+    generation = []
     for individual_id in individual_ids:
-        population.append(Individual(0, individual_id, 0, 0.0, None))
+        generation.append(Individual(0, individual_id, 0, 0.0, None))
 
     # write down json files containing search parameters
-    list(map(write_json_search_parameters, population))
+    for individual in generation:
+        individual.write_json_search_parameter_file()
 
-    # evaluate the entire population
-    list(map(eval_fitness, population))
+    # evaluate the entire generation
+    for individual in generation:
+        individual.evaluate()
 
     # current number of generation
     generation_id = 0
 
-    write_json_result(generation_id, population)
+    write_json_result(generation_id, generation)
 
-    offspring1 = population[:]
+    offspring1 = generation[:]
 
     # begin the evolution
-    while all((individual.is_not_good_enough()) for individual in population) \
+    while all((individual.is_not_good_enough()) for individual in generation) \
             and generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
 
         # mutate the best from the previous round
@@ -256,30 +214,32 @@ def main():
         for individual in offspring2:
             individual.mutate()
 
-        population[:] = offspring1 + offspring2
+        generation[:] = offspring1 + offspring2
 
         # update generation_id
         generation_id = generation_id + 1
         print("----- generation %i -----" % generation_id)
-        for individual in population:
-            individual.set_population_id(generation_id)
+        for individual in generation:
+            individual.set_generation_id(generation_id)
 
         # update individual_id
         individual_id = 0
-        for individual in population:
+        for individual in generation:
             individual.set_individual_id(individual_id)
             individual_id = individual_id + 1
 
         # write down json files containing search parameters
-        list(map(write_json_search_parameters, population))
+        for individual in generation:
+            individual.write_json_search_parameter_file()
 
-        # evaluate the entire population
-        list(map(eval_fitness, offspring2))
+        # evaluate the entire generation
+        for individual in offspring2:
+            individual.evaluate()
 
-        write_json_result(generation_id, population)
+        write_json_result(generation_id, generation)
 
         # select the next generation individuals
-        offspring1 = select(population)
+        offspring1 = select(generation)
 
     return 0
 

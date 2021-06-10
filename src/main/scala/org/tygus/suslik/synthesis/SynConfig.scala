@@ -57,7 +57,7 @@ case class SynConfig(
                       startTime: Long = 0,
                       // genetic algorithm to improve rule orderings.
                       evolutionary: Boolean = false,
-                      populationID: Int = 0,
+                      generationID: Int = 0,
                       individualID: Int = 0,
                       /**
                        * [EVALUATION] these dummy `flags` are solely used for the evaluation purposes.

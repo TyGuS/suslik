@@ -69,9 +69,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def anyPhaseRules(config:SynConfig): List[SynthesisRule] = {
-    val populationID  = config.populationID
+    val generationID  = config.generationID
     val individualID  = config.individualID
-    val fileName      = "search_parameters_" + populationID.toString + "_" + individualID.toString + ".json"
+    val fileName      = "search_parameters_" + generationID.toString + "_" + individualID.toString + ".json"
     val directoryPath = os.pwd
     val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     val jsonData      = ujson.read(jsonFile)

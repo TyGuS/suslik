@@ -236,9 +236,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(evolutionary = b)
     }).text("evolutionary computation to improve rule orderings; default: false")
 
-    opt[Int]("populationID").action(cfg { d =>
-      _.copy(populationID = d)
-    }).text("population ID used during evolutionary computation; default: 0")
+    opt[Int]("generationID").action(cfg { d =>
+      _.copy(generationID = d)
+    }).text("generation ID used during evolutionary computation; default: 0")
 
     opt[Int]("individualID").action(cfg { d =>
       _.copy(individualID = d)
