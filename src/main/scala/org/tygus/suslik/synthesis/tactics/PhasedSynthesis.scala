@@ -68,6 +68,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     BranchRules.Branch
   )
 
+  //TODO
+  private val zippedUnorderedAnyPhaseRules = List(1,1,1,1,1,1,1,1) zip unorderedAnyPhaseRules
+
   protected def anyPhaseRules(config:SynConfig): List[SynthesisRule] = {
     val generationID  = config.generationID
     val individualID  = config.individualID
@@ -75,18 +78,20 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val directoryPath = os.pwd
     val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     val jsonData      = ujson.read(jsonFile)
+
     val orderOfAnyPhaseRules = jsonData("order_of_any_phase_rules").arr.map(_.num).map(_.toInt)
+
     if (config.evolutionary)
       List(
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(2)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(3)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(4)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(5)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
-      )
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(2)),
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(3)),
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(4)),
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(5)),
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
+        zippedUnorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
+      ).filter(p=>{p._1 == 1}).map(_._2)
     else
       List(unorderedAnyPhaseRules:_*)
   }
@@ -155,7 +160,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
   protected def postBlockPhaseRules: List[SynthesisRule] = List(
-      (if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost),
+      if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
       LogicalRules.FrameBlock,
       UnificationRules.HeapUnifyBlock,
       OperationalRules.AllocRule
