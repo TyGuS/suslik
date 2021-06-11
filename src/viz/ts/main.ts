@@ -25,13 +25,16 @@ $(async () => {
 
     document.querySelector('#document-area').replaceWith(doc.$el);
 
+    const bench = await BenchmarksDB.load();
+    doc.setBenchmarks(bench.data);
+
     /*
     try {
         await doc.openRecent({silent: true});
     }
     catch (e) { console.error('open failed:', e); }
     */
-   doc.new();
+    doc.new();
 
     var drop = new DragDropJson($('html'));
     drop.on('open', async ({file}) => {
@@ -41,16 +44,21 @@ $(async () => {
         catch (e) { console.error('open failed:', e); }
     });
 
+    /*
     var pi = new ProofInteraction(doc.pt);
     pi.on('message', m => console.log('%cmessage', 'color: blue', m));
-    pi.on('trace', u => {
-        var data = ProofTrace.Data.fromEntries([u]);
-        doc.pt.append(data);
-    });
     pi.start();
+    */
 
-    const bench = await BenchmarksDB.load(),
-          spec = bench.getSpec('sll', 'free.syn');
+    var spec = bench.getSpec('sll', 'free.syn');
 
-    Object.assign(window, {doc, pi, bench, spec});
+    doc.on('benchmarks:action', async ev => {
+        spec = bench.getSpec(ev.dir, ev.fn);
+        doc.hideBenchmarks();
+        await doc.pi.start();
+        doc.pi.ws.send(JSON.stringify(spec));
+        Object.assign(window, {spec});
+    });
+
+    Object.assign(window, {doc, bench, spec});
 });
