@@ -4,17 +4,17 @@ import Vue from 'vue';
 
 // @ts-ignore
 import app from '../vue/app.vue';
-
+import { BenchmarksDB } from './benchmarks';
 import { ProofTrace } from './proof-trace';
+import { ProofInteraction } from './proof-interaction';
 
 
 
 class MainDocument extends EventEmitter {
 
-    container: JQuery
-
     app: Vue
     pt: ProofTrace
+    pi: ProofInteraction
     notifications: JQuery
 
     props: any
@@ -23,15 +23,18 @@ class MainDocument extends EventEmitter {
 
     constructor(container: JQuery, notifications: JQuery) {
         super();
-        this.container = container;
         this.app = new Vue(app).$mount();
         this.notifications = notifications;
+
+        (<Vue>this.app.$refs.benchmarks).$on('action', ev => {
+            this.emit('benchmarks:action', ev);
+        });
     }
 
     get $el() { return this.app.$el; }
 
     new() {
-        return this.set(ProofTrace.Data.empty());
+        return this.setProofTrace(ProofTrace.Data.empty());
     }
 
     async open(content: string | File, opts: OpenOptions = {}): Promise<ProofTrace> {
@@ -40,7 +43,7 @@ class MainDocument extends EventEmitter {
         }
         else {
             try {
-                return this.set(ProofTrace.Data.parse(content));
+                return this.setProofTrace(ProofTrace.Data.parse(content));
             }
             catch (e) {
                 if (!opts.silent) {
@@ -62,11 +65,27 @@ class MainDocument extends EventEmitter {
         return this.openUrl(this.storage['suslik:doc:lastUrl'] || DEFAULT_URL, opts);
     }
 
-    set(ptData: ProofTrace.Data) {
-        var pt = new ProofTrace(ptData, this.app.$refs.proofTrace as any);
+    setProofTrace(ptData: ProofTrace.Data) {
+        var pt = new ProofTrace(ptData, this.app.$refs.proofTrace as any),
+            pi = new ProofInteraction(pt);
         this.pt = pt;
+        this.pi = pi;
+        pi.on('trace', u =>
+            this.pt.append(ProofTrace.Data.fromEntries([u])));
+
         this.emit('open', pt);
         return pt;
+    }
+
+    setBenchmarks(bmData: BenchmarksDB.Data) {
+        var bm = <any>this.app.$refs.benchmarks;
+        bm.data = bmData;
+        bm.show = true;
+    }
+
+    hideBenchmarks() {
+        var bm = <any>this.app.$refs.benchmarks;
+        bm.show = false;
     }
 
     async read(file: File) {

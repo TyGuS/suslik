@@ -1,10 +1,10 @@
 
 
 class BenchmarksDB {
-    db: BenchmarksDB.Data
+    data: BenchmarksDB.Data
 
-    constructor(db: BenchmarksDB.Data) {
-        this.db = db;
+    constructor(data: BenchmarksDB.Data) {
+        this.data = data;
     }
 
     getSpec(dir: string, fn: string) {
@@ -16,12 +16,12 @@ class BenchmarksDB {
     }
 
     getDefs(dir: string) {
-        return Object.entries(this.db[dir])
+        return Object.entries(this.data[dir])
             .map(([fn, txt]) => fn.endsWith('.def') && txt).filter(x => x);
     }
 
     getInputSpec(dir: string, fn: string) {
-        return this.db[dir][fn].match(/###([^]*?)###/)[1];
+        return this.data[dir][fn].match(/###+([^]*?)###+/)[1];
     }
 
     static async load(url = '/benchmarks.db.json') {
