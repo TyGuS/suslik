@@ -214,6 +214,10 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
 
   val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
+  {
+    logger.info("client session started")
+  }
+
   def subscribe: Source[String, _] =
     Source.unfoldAsync(())(_ => Future {
       try Some((), outbound.take())

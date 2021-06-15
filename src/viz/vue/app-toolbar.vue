@@ -1,5 +1,8 @@
 <template>
     <div class="proof-trace-toolbar">
+        <div class="toolbox">
+            <button @click="reload()">↻</button>
+        </div>
         <form>
             Show:
             <input type="checkbox" name="proof-only" id="proof-only" v-model="options.proofOnly">
@@ -10,8 +13,27 @@
     </div>
 </template>
 
+<style>
+div.proof-trace-toolbar {
+    box-sizing: border-box;
+    padding: 1em 1em .75em 1em;
+}
+
+div.proof-trace-toolbar .toolbox {
+    float: right;
+}
+div.proof-trace-toolbar .toolbox button {
+    font-size: 150%;
+}
+</style>
+
 <script>
 export default {
-    props: {options: {default: () => ({})}}
+    props: {options: {default: () => ({})}},
+    methods: {
+        reload() {
+            window.location.reload();
+        }
+    }
 }
 </script>
