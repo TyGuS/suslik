@@ -238,8 +238,8 @@
     position: fixed;
     top: 0;
     left: 20em;
+    width: calc(100% - 20em);
     background: #ffffffd0;
-    padding: 1em 5em .75em 1em;
     z-index: 1;
 }
 
