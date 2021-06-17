@@ -28,6 +28,15 @@ $(async () => {
     const bench = await BenchmarksDB.load();
     doc.setBenchmarks(bench.data);
 
+    async function startBenchmark(w: {dir: string, fn: string}) {
+        var spec = bench.getSpec(w.dir, w.fn);
+        doc.hideBenchmarks();
+        await doc.pi.start(spec);
+        Object.assign(window, {spec});
+    }
+
+    doc.on('benchmarks:action', startBenchmark);
+
     /*
     try {
         await doc.openRecent({silent: true});
@@ -44,21 +53,11 @@ $(async () => {
         catch (e) { console.error('open failed:', e); }
     });
 
-    /*
-    var pi = new ProofInteraction(doc.pt);
-    pi.on('message', m => console.log('%cmessage', 'color: blue', m));
-    pi.start();
-    */
+    /* Start a benchmark on load if instructed so by local config */
+    var openOnStart = localStorage['openOnStart']
+    if (openOnStart) {
+        startBenchmark(JSON.parse(openOnStart));
+    }
 
-    var spec = bench.getSpec('sll', 'free.syn');
-
-    doc.on('benchmarks:action', async ev => {
-        spec = bench.getSpec(ev.dir, ev.fn);
-        doc.hideBenchmarks();
-        await doc.pi.start();
-        doc.pi.sendSpec(spec);
-        Object.assign(window, {spec});
-    });
-
-    Object.assign(window, {doc, bench, spec});
+    Object.assign(window, {doc, bench});
 });

@@ -16,12 +16,14 @@ import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import org.tygus.suslik.interaction.AsyncSynthesisRunner.ChooseMessage
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
-import org.tygus.suslik.report.ProofTraceJson
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson}
 import org.tygus.suslik.report.ProofTraceJson.GoalEntry
-import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
+import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
+import org.tygus.suslik.synthesis.Termination.isTerminatingExpansion
 import org.tygus.suslik.synthesis.rules.Rules
-import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
+import org.tygus.suslik.synthesis.tactics.{PhasedSynthesis, Tactic}
 import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil}
+import org.tygus.suslik.util.SynStats
 
 
 class SynthesisServer {
@@ -103,6 +105,8 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   val cached = new collection.mutable.HashMap[NodeId, OrNode]()
   val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
+  protected var isynth: IterativeUnorderedSynthesis = null
+
   def go(spec: SpecMessage): Unit = {
     new Thread(() => synthesizeFromSpec(spec, SynConfig())).start()
   }
@@ -133,6 +137,9 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
       override protected def writeObject[T](t: T)(implicit w: Writer[T]): Unit =
         outbound.put(write(t))
     }
+    val stats = new SynStats(2500)
+    val config = SynConfig()
+    isynth = new IterativeUnorderedSynthesis(new PhasedSynthesis(env.config), log, trace)(stats, config)
     new Synthesis(tactic, log, trace)
   }
 
@@ -155,6 +162,9 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   def synthesizeFromSpec(spec: SpecMessage, params: SynConfig): List[Statements.Procedure] =
     synthesizeFromSpec(spec.name, (spec.defs :+ spec.in).mkString("\n"),
                        noOutputCheck, params)
+
+  def grow(id: NodeId): Unit =
+    cached.get(id).foreach(isynth.grow)
 
   protected def wrapError[T](op: => T): T = {
     try op catch {
@@ -179,6 +189,30 @@ object AsyncSynthesisRunner {
       try super.take() finally { waiting = None }
     }
     def cancel() { waiting foreach (_.interrupt()) }
+  }
+
+  class IterativeUnorderedSynthesis(tactic: Tactic, log: Log, trace: ProofTrace)
+                                   (implicit stats: SynStats, config: SynConfig)
+      extends Synthesis(tactic, log, trace) {
+
+    def grow(node: OrNode): Unit = {
+      val goal = node.goal
+      implicit val log: Log = this.log
+      implicit val ctx: Log.Context = Log.Context(goal)
+
+      for {
+        (e, i) <- expansionsForNode(node).zipWithIndex
+        andNode = AndNode(i +: node.id, node, e)
+        if isTerminatingExpansion(andNode) // termination check
+      } {
+        trace.add(andNode, andNode.nChildren)
+        for (_ <- 1 to andNode.nChildren) trace.add(andNode.nextChild)
+      }
+    }
+
+    protected def submitNodes(nodes: Seq[OrNode]): Unit = {
+      for (node <- nodes) trace.add(node)
+    }
   }
 
   type GoalLabel = String
@@ -249,6 +283,7 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
       read[ClientMessage](s) match {
         case sp@SpecMessage(_, _, _) => go(sp)
         case ChooseMessage(choice) => inbound.put(choice)
+        case ExpandRequestMessage(id) => grow(id)
       }
     }}}
 
@@ -261,6 +296,6 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
     Flow.fromSinkAndSource(Flow[Message].mapConcat {
         case m: TextMessage.Strict => List(m.text)
         case _ => logger.warn("received a non-text message"); Nil
-      }.to((offer).mapMaterializedValue(m => m.foreach(done))),
+      }.to(offer.mapMaterializedValue(m => m.foreach(done))),
       subscribe.map(TextMessage(_)))
 }
