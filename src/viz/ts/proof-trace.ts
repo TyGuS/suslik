@@ -320,13 +320,21 @@ namespace ProofTrace {
 
         export type GoalEntry = {
             id: GoalId
-            pre: string, post: string, sketch: string,
+            pre: AssertionEntry, post: AssertionEntry, sketch: string,
             programVars:  [string, string][]
             existentials: [string, string][]
             ghosts:       [string, string][]
         };
 
         export type GoalId = string
+
+        export type AssertionEntry = {
+            pp: String,
+            phi: AST[],
+            sigma: AST[]
+        };
+
+        export type AST = any /** @todo */
 
         export type Environment = Map<string, {type: string, of: string}>;
 

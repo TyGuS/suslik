@@ -56,7 +56,7 @@ $(async () => {
         spec = bench.getSpec(ev.dir, ev.fn);
         doc.hideBenchmarks();
         await doc.pi.start();
-        doc.pi.ws.send(JSON.stringify(spec));
+        doc.pi.sendSpec(spec);
         Object.assign(window, {spec});
     });
 

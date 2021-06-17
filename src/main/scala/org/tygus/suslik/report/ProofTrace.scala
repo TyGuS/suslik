@@ -2,6 +2,7 @@ package org.tygus.suslik.report
 
 import java.io.{BufferedWriter, File, FileWriter}
 import org.tygus.suslik.language.Expressions
+import org.tygus.suslik.logic.{Block, Heaplet, PointsTo, SApp, Specifications}
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.Memoization
 import org.tygus.suslik.synthesis.Memoization.GoalStatus
@@ -108,8 +109,8 @@ object ProofTraceJson {
   }
 
   case class GoalEntry(id: GoalEntry.Id,
-                       pre: String,
-                       post: String,
+                       pre: AssertionEntry,
+                       post: AssertionEntry,
                        sketch: String,
                        programVars: Seq[(String, String)],
                        existentials: Seq[(String, String)],
@@ -118,13 +119,23 @@ object ProofTraceJson {
     type Id = String
     implicit val rw: RW[GoalEntry] = macroRW
 
-    def apply(goal: Goal): GoalEntry = GoalEntry(goal.label.pp,
-      goal.pre.pp, goal.post.pp, goal.sketch.pp,
+    def apply(goal: Goal): GoalEntry = apply(goal.label.pp,
+      AssertionEntry(goal.pre), AssertionEntry(goal.post), goal.sketch.pp,
       vars(goal, goal.programVars), vars(goal, goal.existentials),
       vars(goal, goal.universalGhosts))
 
     private def vars(goal: Goal, vs: Iterable[Expressions.Var]) =
       vs.map(v => (goal.getType(v).pp, v.pp)).toSeq
+  }
+
+  case class AssertionEntry(pp: String, phi: Seq[AST], sigma: Seq[AST])
+  object AssertionEntry {
+    implicit val rw: RW[AssertionEntry] = macroRW
+
+    def apply(a: Specifications.Assertion): AssertionEntry =
+      apply(a.pp,
+            a.phi.conjuncts.toSeq.map(AST.fromExpr),
+            a.sigma.chunks.map(AST.fromHeaplet))
   }
 
   case class GoalStatusEntry(tag: String, from: Option[String] = None)
@@ -164,6 +175,58 @@ object ProofTraceJson {
                                   subst: Map[String, OrVec])
   object DerivationTrailEntry {
     implicit val rw: RW[DerivationTrailEntry] = macroRW
+  }
+
+
+  case class AST(root: String, subtrees: Seq[AST]) {
+    def -:(root: String): AST = AST(root, Seq(this))
+    def :/(sub: Seq[AST]): AST = AST(root, subtrees ++ sub)
+
+    import Expressions._
+    import AST._
+
+    def toExpr: Expr = (root, subtrees) match {
+      case ("Var", Seq(Leaf(v))) => Var(v)
+      case ("IntConst", Seq(Leaf(v))) => IntConst(Integer.parseInt(v))
+      case ("BoolConst", Seq(Leaf(v))) => BoolConst(v == "true")
+      case _ => throw new RuntimeException(s"error in expression: '${this}'")
+    }
+  }
+
+  object AST {
+    implicit val rw: RW[AST] = macroRW
+
+    def apply(root: String): AST = apply(root, Seq())
+    def apply(root: AnyVal): AST = apply(root.toString)
+
+    import Expressions._
+
+    def fromExpr(e: Expr): AST = e match {
+      case Var(name) => "Var" -: AST(name)
+      case IntConst(_) => "IntConst" -: AST(e.pp)
+      case BoolConst(_) => "BoolConst" -: AST(e.pp)
+      case UnaryExpr(op, arg) => op.pp -: fromExpr(arg)
+      case BinaryExpr(op, left, right) => AST(op.pp, Seq(left, right).map(fromExpr))
+      case SetLiteral(elems) => AST("{}", elems.map(fromExpr))
+      case IfThenElse(cond, left, right) => AST("ite", Seq(cond, left, right).map(fromExpr))
+      case Unknown(name, params, pendingSubst) =>
+        AST("Unknown", AST(name) +: params.toSeq.map(fromExpr) :+ fromSubst(pendingSubst))
+    }
+
+    def fromSubst(subst: Subst): AST =
+      AST("{}") :/
+        subst.toSeq.map { case (v, e) => AST("↦", Seq(v, e).map(fromExpr)) }
+
+    def fromHeaplet(heaplet: Heaplet): AST = heaplet match {
+      case PointsTo(loc, offset, value) => AST("↦", Seq(fromExpr(loc), AST(offset), fromExpr(value)))
+      case Block(loc, sz) => AST("[]", Seq(fromExpr(loc), AST(sz)))
+      case SApp(pred, args, tag, card) => AST("SApp", AST(pred) +: args.map(fromExpr))
+    }
+
+    object Leaf {
+      def unapply(t: AST): Option[String] =
+        if (t.subtrees.isEmpty) Some(t.root) else None
+    }
   }
 }
 

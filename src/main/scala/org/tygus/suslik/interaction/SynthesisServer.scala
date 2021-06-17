@@ -5,7 +5,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 import org.slf4j.Logger
 import upickle.default.{macroRW, ReadWriter => RW}
-
 import akka.{Done, NotUsed}
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
@@ -14,11 +13,12 @@ import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-
+import org.tygus.suslik.interaction.AsyncSynthesisRunner.ChooseMessage
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.report.ProofTraceJson
 import org.tygus.suslik.report.ProofTraceJson.GoalEntry
+import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
 import org.tygus.suslik.synthesis.rules.Rules
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
 import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil}
@@ -100,6 +100,9 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   val inbound = new ArrayBlockingQueueWithCancel[String](1)
   val outbound = new ArrayBlockingQueueWithCancel[String](1)
 
+  val cached = new collection.mutable.HashMap[NodeId, OrNode]()
+  val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
+
   def go(spec: SpecMessage): Unit = {
     new Thread(() => synthesizeFromSpec(spec, SynConfig())).start()
   }
@@ -125,6 +128,8 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
         }
       }
     val trace = new ProofTraceJson {
+      override def add(node: OrNode): Unit =
+        { cached.put(node.id, node); super.add(node) }
       override protected def writeObject[T](t: T)(implicit w: Writer[T]): Unit =
         outbound.put(write(t))
     }
@@ -153,7 +158,9 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
 
   protected def wrapError[T](op: => T): T = {
     try op catch {
-      case e: Throwable => outbound.put(write(SynthesisErrorEntry(e.toString))); throw e
+      case e: Throwable =>
+        logger.error("Error", e)
+        outbound.put(write(SynthesisErrorEntry(e.toString))); throw e
     }
   }
 
@@ -199,9 +206,24 @@ object AsyncSynthesisRunner {
     implicit val rw: RW[SynthesisErrorEntry] = macroRW
   }
 
-  case class SpecMessage(name: String, defs: Seq[String], in: String)
+  /* Messages sent from the client */
+
+  sealed abstract class ClientMessage(tag: String)
+  object ClientMessage { implicit val rw: RW[ClientMessage] = macroRW }
+
+  case class SpecMessage(name: String, defs: Seq[String], in: String) extends ClientMessage("Spec")
   object SpecMessage {
     implicit val rw: RW[SpecMessage] = macroRW
+  }
+
+  case class ExpandRequestMessage(id: NodeId) extends ClientMessage("ExpandRequest")
+  object ExpandRequestMessage {
+    implicit val rw: RW[ExpandRequestMessage] = macroRW
+  }
+
+  case class ChooseMessage(choice: String) extends ClientMessage("Choose")
+  object ChooseMessage {
+    implicit val rw: RW[ChooseMessage] = macroRW
   }
 }
 
@@ -210,9 +232,7 @@ object AsyncSynthesisRunner {
   */
 class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthesisRunner {
   import upickle.default.read
-  import AsyncSynthesisRunner.SpecMessage
-
-  val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
+  import AsyncSynthesisRunner._
 
   {
     logger.info("client session started")
@@ -225,13 +245,12 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
     })
 
   def offer: Sink[String, Future[Done]] =
-    Sink.foreachAsync[String](1)(s => Future { inbound.put(s) })
-
-  def initializeAnd[Mat](sink: Sink[String, Mat]): Sink[String, Mat] =
-    Flow[String].flatMapPrefix(1) { s =>
-      wrapError { go(read[SpecMessage](s.head)) }; Flow[String]
-    }
-    .toMat(sink)(Keep.right)
+    Sink.foreachAsync[String](1) { s => Future { wrapError {
+      read[ClientMessage](s) match {
+        case sp@SpecMessage(_, _, _) => go(sp)
+        case ChooseMessage(choice) => inbound.put(choice)
+      }
+    }}}
 
   def done(d: Done): Unit = {
     outbound.cancel(); inbound.cancel()
@@ -242,6 +261,6 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
     Flow.fromSinkAndSource(Flow[Message].mapConcat {
         case m: TextMessage.Strict => List(m.text)
         case _ => logger.warn("received a non-text message"); Nil
-      }.to(initializeAnd(offer).mapMaterializedValue(m => m.foreach(done))),
+      }.to((offer).mapMaterializedValue(m => m.foreach(done))),
       subscribe.map(TextMessage(_)))
 }

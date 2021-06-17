@@ -9,7 +9,7 @@ class ProofInteraction extends EventEmitter {
     ws: WebSocket
 
     pt: ProofTrace
-    view: Vue & ProofInteraction.View.Props
+    view: Vue & View.Props
 
     constructor(pt: ProofTrace) {
         super();
@@ -28,11 +28,19 @@ class ProofInteraction extends EventEmitter {
             this.ws.addEventListener('error', reject)
         });
     }
-    
-    continue(choice: string) {
-        this.ws.send(choice);
+
+    sendSpec(spec: Data.Spec) {
+        this._send(spec, ProofInteraction.Data.Classes.SPEC);
     }
 
+    continue(choice: string) {
+        this._send({choice}, ProofInteraction.Data.Classes.CHOOSE);
+    }
+
+    _send(json: any, $type?: string) {
+        this.ws.send(JSON.stringify($type ? {$type, ...json} : json))
+    }
+    
     handleMessage(data: string) {
         try {
             var msg = JSON.parse(data);
@@ -51,7 +59,7 @@ class ProofInteraction extends EventEmitter {
         else this.emit('trace', msg);
     }
 
-    handleAction(action: ProofInteraction.View.Action) {
+    handleAction(action: View.Action) {
         switch (action.type) {
         case 'select':
             this.view.interaction.choices = undefined; // clear choices
@@ -79,7 +87,25 @@ class ProofInteraction extends EventEmitter {
 }
 
 
+import Data = ProofInteraction.Data;
+import View = ProofInteraction.View;
+
+
 namespace ProofInteraction {
+
+    export namespace Data {
+
+        export enum Classes {
+            SPEC = "org.tygus.suslik.interaction.AsyncSynthesisRunner.SpecMessage",
+            CHOOSE = "org.tygus.suslik.interaction.AsyncSynthesisRunner.ChooseMessage"
+        }
+
+        export type Spec = {
+            name?: string
+            defs: string[]
+            in: string
+        }
+    }
 
     export namespace View {
 
