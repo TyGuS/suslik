@@ -8,12 +8,7 @@ import org.tygus.suslik.util.SynLogging
 import scala.Console.{GREEN, MAGENTA, RESET}
 
 class Log(val out: SynLogging) {
-
-  case class Context(goal: Option[Goal] = None)
-
-  object Context{
-    def apply(goal: Goal): Context = Context(Some(goal))
-  }
+  import Log.Context
 
   def showChildren(goal: Goal)(c: RuleResult): String = {
     def showFootprint(f: Footprint): String = s"$GREEN${f.pre.pp}$MAGENTA${f.post.pp}$RESET"
@@ -40,6 +35,13 @@ class Log(val out: SynLogging) {
       out.print(s"$RESET")
     }
   }
+}
 
+object Log {
+
+  case class Context(goal: Option[Goal] = None)
+  object Context {
+    def apply(goal: Goal): Context = Context(Some(goal))
+  }
 }
 

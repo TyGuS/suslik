@@ -87,7 +87,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     else {
       val (node, addNewNodes) = popNode // Select next node to expand
       val goal = node.goal
-      implicit val ctx: log.Context = log.Context(goal)
+      implicit val ctx: Log.Context = Log.Context(goal)
       stats.addExpandedGoal(node)
       log.print(s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW) //      <goal: ${node.goal.label.pp}>
       log.print(s"${goal.pp}", Console.BLUE)
@@ -159,13 +159,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
                                                                                     config: SynConfig): Option[Solution] = {
     val goal = node.goal
     memo.save(goal, Expanded)
-    implicit val ctx = log.Context(goal)
+    implicit val ctx: Log.Context = Log.Context(goal)
 
-    // Apply all possible rules to the current goal to get a list of alternative expansions,
-    // each of which can have multiple open subgoals
-    val rules = tactic.nextRules(node)
-    val allExpansions = applyRules(rules)(node, stats, config, ctx)
-    val expansions = tactic.filterExpansions(allExpansions)
+    val expansions = expansionsForNode(node)
 
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
@@ -173,14 +169,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         trace.add(e, node)
         successLeaves = node :: successLeaves
         node.succeed(e.producer(Nil)) match {
-          case Left(sibling) => {
+          case Left(sibling) =>
             // This node had a suspended and-sibling: add to the worklist
             worklist = addNewNodes(List(sibling))
             None
-          }
           case Right(sol) => Some(sol) // This node had no more and-siblings: return solution
         }
-      case None => { // no terminals: add all expansions to worklist
+      case None =>   // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
@@ -201,15 +196,28 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           stats.addGeneratedGoals(newNodes.size)
         }
         None
-      }
     }
   }
 
+  protected def allExpansionsForNode(node: OrNode)(implicit stats: SynStats,
+                                                   config: SynConfig): Seq[RuleResult] = {
+    val goal = node.goal
+    implicit val ctx: Log.Context = Log.Context(goal)
+
+    // Apply all possible rules to the current goal to get a list of alternative expansions,
+    // each of which can have multiple open subgoals
+    val rules = tactic.nextRules(node)
+    applyRules(rules)(node, stats, config, ctx)
+  }
+
+  protected def expansionsForNode(node: OrNode)(implicit stats: SynStats,
+                                                config: SynConfig): Seq[RuleResult] =
+    tactic.filterExpansions(allExpansionsForNode(node))
 
   protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
                                                        stats: SynStats,
                                                        config: SynConfig,
-                                                       ctx: log.Context): Seq[RuleResult] = {
+                                                       ctx: Log.Context): Seq[RuleResult] = {
     implicit val goal: Goal = node.goal
     rules match {
       case Nil => Vector() // No more rules to apply: done expanding the goal

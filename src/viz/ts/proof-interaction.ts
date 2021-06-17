@@ -20,21 +20,26 @@ class ProofInteraction extends EventEmitter {
         this.view.$on('interaction:action', action => this.handleAction(action));
     }
 
-    start() {
+    async start(spec?: Data.Spec) {
         this.ws = new WebSocket(`ws://${this.baseURL.host}${this.baseURL.pathname}`);
         this.ws.addEventListener('message', m => this.handleMessage(m.data));
-        return new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
             this.ws.addEventListener('open', resolve);
             this.ws.addEventListener('error', reject)
         });
+        if (spec) this.sendSpec(spec);
     }
 
     sendSpec(spec: Data.Spec) {
         this._send(spec, ProofInteraction.Data.Classes.SPEC);
     }
 
-    continue(choice: string) {
+    sendChoose(choice: string) {
         this._send({choice}, ProofInteraction.Data.Classes.CHOOSE);
+    }
+
+    sendExpandRequest(nodeId: ProofTrace.Data.NodeId) {
+        this._send({id: nodeId}, ProofInteraction.Data.Classes.EXPAND_REQUEST);
     }
 
     _send(json: any, $type?: string) {
@@ -63,7 +68,7 @@ class ProofInteraction extends EventEmitter {
         switch (action.type) {
         case 'select':
             this.view.interaction.choices = undefined; // clear choices
-            this.continue(action.goal.id);
+            this.sendChoose(action.goal.id);
             break;
         }
     }
@@ -95,9 +100,12 @@ namespace ProofInteraction {
 
     export namespace Data {
 
-        export enum Classes {
-            SPEC = "org.tygus.suslik.interaction.AsyncSynthesisRunner.SpecMessage",
-            CHOOSE = "org.tygus.suslik.interaction.AsyncSynthesisRunner.ChooseMessage"
+        export namespace Classes {
+            const NS = "org.tygus.suslik.interaction.AsyncSynthesisRunner";
+
+            export const SPEC           = `${NS}.SpecMessage`,
+                         CHOOSE         = `${NS}.ChooseMessage`,
+                         EXPAND_REQUEST = `${NS}.ExpandRequestMessage`;
         }
 
         export type Spec = {
