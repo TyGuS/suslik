@@ -2,9 +2,9 @@
     <div class="proof-trace-goal">
         <proof-trace-vars :value="value.programVars"  class="proof-trace-program-vars"/>
         <proof-trace-vars :value="value.existentials" class="proof-trace-existentials"/>
-        <proof-trace-formula class="proof-trace-pre" :pp="value.pre" :env="env"/>
+        <proof-trace-formula class="proof-trace-pre" :pp="value.pre.pp" :env="env"/>
         <span class="synth-arrow">⤳</span>
-        <proof-trace-formula class="proof-trace-post" :pp="value.post" :env="env"/>
+        <proof-trace-formula class="proof-trace-post" :pp="value.post.pp" :env="env"/>
     </div>
 </template>
 
