@@ -160,6 +160,15 @@ for all three target frameworks.
 Then, for the standard benchmarks, it will also compile the generated
 certificates.
 
+As this script produces verbose output, you may consider teeing the script's
+output to a log file for viewing/debugging later, instead of running the script
+directly.
+
+```
+./certify-benchmarks> >(tee certify.log)
+cat certify.log
+```
+
 When running the tool, please keep in mind the following.
 
 - **It should take _2-3 hours_ to run this evaluation on all benchmark
@@ -223,8 +232,8 @@ After the script terminates, it will create two output files in
 - `advanced-HTT.diff` compares the original SuSLik-generated certificates
   (stored in
   `$SUSLIK_HOME/certify/HTT/certification-benchmarks-advanced`) with the
-  manually edited ones (stored in the same directory as the script), showing
-  which lines have been modified. The diff file will only be created if
+  manually edited ones (stored in `$SUSLIK_HOME/ssl-htt/benchmarks/advanced`),
+  showing which lines have been modified. The diff file will only be created if
   the original SuSLik-generated certificates exist.
 
 To inspect the results in table form, you can execute:
@@ -244,9 +253,13 @@ less advanced-HTT.diff
 
 You can expect to see the following differences between the two proof versions.
 
-- _Proofs for the pure lemmas:_ Note that pure lemmas may be ordered
-  differently in the compared proofs, due to non-determinism in the way
-  Scala accumulates hints during execution.
+- _Proofs for the pure lemmas:_ In the generated scripts, pure lemmas have
+  their `hammer` proofs replaced with `Admitted` statements. In the manually
+  edited scripts, these are replaced with either a call to `hammer` when that is
+  sufficient, or with a proof manually constructed by the authors. Note that in
+  the diff file, pure lemmas may be ordered differently between the two
+  versions, due to non-determinism in the way Scala accumulates hints during
+  execution.
 - _Administrative renaming statements in the main proof:_ These are
   identifiable by the `try rename ...` statements; they may occur when
   two variable rename statements resulting from the same proof step
@@ -287,6 +300,36 @@ generate programs and certificates from user specifications.
 - `src/main/scala/org/tygus/suslik` contains the source code for
   SuSLik. In particular, `certification` contains the code relevant to
   certified synthesis.
+
+The benchmark test cases are stored in `.syn` files. The first line
+contains flags to pass to the backend SMT solvers used by SuSLik (e.g.,
+`#. -c 2`). The second line gives a description of the test case.
+The lines between the two `###` separators contain the main item---the
+declarative specification of the desired program, with pre- and
+postconditions expressed in SSL. After the second `###` separator, some
+test cases also include a SuSLang implementation of the specification. This is
+the expected program that the actual synthesized result can be compared
+against to test the functionality of the synthesizer itself. It is thus
+optional and has no bearing on the actual synthesis/certification task.
+
+The table below summarizes the source code's structure in relation
+to key concepts from the paper. The right column displays files and folders
+located in `$SUSLIK_HOME/src/main/scala`, using Scala/Java's package notation;
+for brevity we omit the common prefix `org.tygus.suslik` in all listings.
+
+|  Concept  |  Location in source  |
+| ---- | ---- |
+|  Synthesis  |  `synthesis.Synthesis`  |
+|  Proof trees (sec 3.2, 4.1)  |  `report.ProofTrace` (collection); `certification.CertTree`, `certification.source.SuslikProofStep`, `certification.traversal.ProofTree` (construction)  |
+|  Proof evaluator - interface (fig 6, sec 3.3-3.5)  |  `certification.traversal.Evaluator`  |
+|  Proof step interpreter - interface (Fig 6, sec 3.3-3.5)  |  `certification.traversal.Interpreter`  |
+|  Proof evaluator - implementation (e.g., HTT proofs, sec 5)  |  `certification.targets.htt.translation.ProofEvaluator`  |
+|  Proof step interpreter - implementation (e.g., HTT proofs, sec 5)  |  `certification.targets.htt.translation.ProofInterpreter`  |
+|  Context (sec 3.4) - implementation (e.g., HTT proofs, sec 5)  |  `certification.targets.htt.translation.ProofContext`  |
+|  Iris implementation (sec 6)  |  `certification.targets.iris.*`  |
+|  VST implementation (sec 7)  |  `certification.targets.vst.*`  |
+|  Collection of pure lemmas (Coq hints) for HTT (sec 4.2.3)  |  `certification.targets.htt.logic.Hint`  |
+|  Predicate interface and conversion to fixpoint (sec 6.1)  |  `certification.translation.GenericPredicate`, `certification.translation.PredicateTranslation`  |
 
 The following subdirectories each contain SuSLik's Coq bindings for the
 respective target verification frameworks.
