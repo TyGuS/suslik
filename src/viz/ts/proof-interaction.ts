@@ -1,8 +1,11 @@
 import { EventEmitter } from 'events';
 
+import { VueEventHook } from './infra/event-hooks';
 import type { ProofTrace } from './proof-trace';
 import type { BenchmarksDB } from './benchmarks';
+
 import './proof-interaction.css';
+
 
 
 class ProofInteraction extends EventEmitter {
@@ -12,6 +15,8 @@ class ProofInteraction extends EventEmitter {
     pt: ProofTrace
     view: Vue & View.Props
 
+    _actionHook = new VueEventHook('interaction:action')
+
     defaultMode = ProofInteraction.Data.ProofMode.INTERACTIVE
 
     constructor(pt: ProofTrace) {
@@ -20,7 +25,11 @@ class ProofInteraction extends EventEmitter {
         this.pt = pt;
         this.view = <any>pt.view;
         this.view.interaction = {focused: [], choices: undefined};
-        this.view.$on('interaction:action', action => this.handleAction(action));
+        this._actionHook.attach(this.view, action => this.handleAction(action));
+    }
+
+    destroy() {
+        this._actionHook.detach();
     }
 
     async start(spec?: Data.Spec, mode?: Data.ProofMode) {
@@ -141,6 +150,7 @@ namespace ProofInteraction {
     }
 
 }
+
 
 
 export { ProofInteraction }

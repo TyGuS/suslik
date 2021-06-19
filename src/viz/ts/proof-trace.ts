@@ -1,16 +1,16 @@
-import assert from 'assert';
+import { EventEmitter } from 'events';
 import arreq from 'array-equal';
 import Vue from 'vue';
 import 'vue-context/dist/css/vue-context.css';
 
-import type { ProofInteraction } from './proof-interaction'
+import { VueEventHook } from './infra/event-hooks';
 
 import './proof-trace.css';
 import './menu.css';
 
 
 
-class ProofTrace {
+class ProofTrace extends EventEmitter {
 
     data: Data
     root: Data.NodeEntry
@@ -28,9 +28,11 @@ class ProofTrace {
 
     view: Vue & View.Props
 
+    _actionHook = new VueEventHook('action')
     _dirty: {nodes: Set<Data.NodeEntry>} = {nodes: new Set}
 
     constructor(data: ProofTrace.Data, view?: Vue & View.Props) {
+        super();
         this.data = data;
         this.root = this.data.nodes[0];
 
@@ -182,13 +184,18 @@ class ProofTrace {
             this.expandNode(this.view.root.children[0]);
         }
 
-        this.view.$on('action', (ev: View.ActionEvent) => this.viewAction(ev));
+        this._actionHook.attach(
+            this.view, (ev: View.ActionEvent) => this.viewAction(ev));
     }
 
     refreshView() {
         for (let node of this._dirty.nodes)
             this.refreshNode(node);
         this._dirty.nodes.clear();
+    }
+
+    destroy() {
+        this._actionHook.detach();
     }
 
     addNode(node: Data.NodeEntry) {
@@ -243,13 +250,14 @@ class ProofTrace {
         nodeView.expanded = true;
         nodeView.children = this.children(nodeView.value)
             .map(node => this.createNode(node));
+        this.emit('expand', nodeView);
     }
 
     expandOrNode(nodeView: View.Node, focus: boolean = false) {
         this.expandNode(nodeView, focus);
         for (let c of nodeView.children) {
             if (c.value.tag == Data.NodeType.AndNode) {
-                this.expandOrNode(c, focus);
+                this.expandNode(c, focus);
             }
         }
     }

@@ -34,7 +34,7 @@ export default {
     methods: {
         makeResizable($el) {
             this.split = Split($el.children, {
-                sizes: [10, 45, 45],
+                sizes: [10, 25, 65],
                 snapOffset: 0,
                 gutterSize: 3
             });
