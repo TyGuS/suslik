@@ -5,6 +5,13 @@
     </div>
 </template>
 
+<style>
+.editor-pane .editor-container,
+.editor-pane .editor-container .cm-editor {
+    height: 100%;
+}
+</style>
+
 <script>
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
 import {Text} from "@codemirror/text";
@@ -13,7 +20,7 @@ import {Text} from "@codemirror/text";
 export default {
     data: () => ({docs: {}, show: true}),
     mounted() {
-        this.createEditor(this.$el);
+        this.createEditor(this.$refs.editorContainer);
     },
     methods: {
         createEditor(parent) {
