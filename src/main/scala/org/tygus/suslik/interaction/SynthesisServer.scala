@@ -31,8 +31,11 @@ class SynthesisServer {
   val config: SynConfig = SynConfig()
 
   /* Server configuration */
-  protected def port(implicit system: ActorSystem[_]): Int =
-    system.settings.config.getInt("suslik.server.port");
+  protected def port(implicit system: ActorSystem[_]): Int = {
+    val envPort = System.getenv("PORT")
+    if (envPort != null) Integer.parseInt(envPort)
+    else system.settings.config.getInt("suslik.server.port")
+  }
 
   def start(): Unit = {
     val root = Behaviors.setup[Nothing] { context =>
@@ -48,7 +51,8 @@ class SynthesisServer {
     */
   private def startHttpServer(routes: Route, port: Int)(implicit system: ActorSystem[_]): Unit = {
     import system.executionContext
-    Http().newServerAt("localhost", port).bind(routes)
+    system.log.info(s"Z3 at ${System.getenv("Z3_BINARY_PATH")}")
+    Http().newServerAt("0.0.0.0", port).bind(routes)
       .onComplete {
         case Success(binding) =>
           val address = binding.localAddress

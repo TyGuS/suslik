@@ -6,7 +6,7 @@ import './proof-interaction.css';
 
 
 class ProofInteraction extends EventEmitter {
-    baseURL: URL
+    wsURL: string
     ws: WebSocket
 
     pt: ProofTrace
@@ -14,7 +14,7 @@ class ProofInteraction extends EventEmitter {
 
     constructor(pt: ProofTrace) {
         super();
-        this.baseURL = new URL('http://localhost:8033');
+        this.wsURL = this._wsURL();
         this.pt = pt;
         this.view = <any>pt.view;
         this.view.interaction = {focused: [], choices: undefined};
@@ -22,7 +22,7 @@ class ProofInteraction extends EventEmitter {
     }
 
     async start(spec?: Data.Spec) {
-        this.ws = new WebSocket(`ws://${this.baseURL.host}${this.baseURL.pathname}`);
+        this.ws = new WebSocket(this.wsURL);
         this.ws.addEventListener('message', m => this.handleMessage(m.data));
         await new Promise((resolve, reject) => {
             this.ws.addEventListener('open', resolve);
@@ -85,11 +85,13 @@ class ProofInteraction extends EventEmitter {
         return ret;
     }
 
-    fetch(urlPath: string, options?: {}) {
-        return fetch(this._url(urlPath).href, options);
+    _wsURL() {
+        switch (window.location.protocol) {
+            case 'https:': return `wss://${location.host}${location.pathname}`;
+            case 'http:': return `ws://${location.host}${location.pathname}`;
+            default: return 'ws://localhost:8033'; // dev mode
+        }
     }
-
-    _url(urlPath: string) { return new URL(urlPath, this.baseURL); }
 }
 
 

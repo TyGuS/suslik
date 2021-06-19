@@ -11,8 +11,7 @@ target/
 lib_managed/
 src_managed/
 project/boot/
-project/
-project/plugins/project/
+target/
 .history
 .cache
 .lib/
