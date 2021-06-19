@@ -66,8 +66,8 @@ object Termination {
   def isTerminatingExpansion(andNode: AndNode)(implicit log: Log, config: SynConfig, stats: SynStats): Boolean = {
     if (andNode.transitions.exists(_.isBacklink)) {
         // Construct the trace using only success leaves from my branch of the search and my own proof branch
-        val relevantSucceessLeaves = andNode.parent.partialDerivation
-        val trace = collectTrace(andNode.parent :: relevantSucceessLeaves, andNode.transitions)
+        val relevantSuccessLeaves = andNode.parent.partialDerivation
+        val trace = collectTrace(andNode.parent :: relevantSuccessLeaves, andNode.transitions)
 //        log.print(List((s"New backlink formed by ${andNode.rule}", Console.CYAN)))
 //        log.print(List((s"${trace.map(_.pp).mkString("\n")};", Console.CYAN)))
         val traceToCheck = s"${trace.map(_.pp).mkString("\n")};"

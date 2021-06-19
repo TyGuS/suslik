@@ -1,5 +1,5 @@
 <template>
-    <div class="benchmark-list-pane" :class="{hidden: !show}">
+    <div class="ide-pane benchmark-list-pane" :class="{hidden: !show}">
         <ul class="benchmark-list">
             <li v-for="(files, dir) in data" :key="dir">
                 <span class="benchmark-list-dirname">{{dir}}</span>
@@ -20,14 +20,18 @@
 }
 
 ul.benchmark-list {
-    padding-left: 1em;
+    padding-left: .2em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 ul.benchmark-list ul {
-    padding-left: .8em;
+    padding-left: 0;
 }
 
 ul.benchmark-list li {
     list-style: none;
+    padding-left: .8em;
+    overflow: hidden;
 }
 
 ul.benchmark-list li::before {
