@@ -15,7 +15,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import org.tygus.suslik.interaction.AsyncSynthesisRunner.ChooseMessage
 import org.tygus.suslik.language.Statements
-import org.tygus.suslik.logic.Environment
+import org.tygus.suslik.logic.{Environment, FunSpec, Specifications}
 import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson}
 import org.tygus.suslik.report.ProofTraceJson.GoalEntry
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
@@ -51,7 +51,6 @@ class SynthesisServer {
     */
   private def startHttpServer(routes: Route, port: Int)(implicit system: ActorSystem[_]): Unit = {
     import system.executionContext
-    system.log.info(s"Z3 at ${System.getenv("Z3_BINARY_PATH")}")
     Http().newServerAt("0.0.0.0", port).bind(routes)
       .onComplete {
         case Success(binding) =>
@@ -112,9 +111,24 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   val config: SynConfig = SynConfig()
   protected var isynth: IterativeUnorderedSynthesis = null
 
-  def go(spec: SpecMessage): Unit = {
-    val sconfig = SynthesisRunner.parseParams("." +: spec.params.toArray, config);
-    new Thread(() => synthesizeFromSpec(spec, sconfig)).start()
+  protected val trace: ProofTraceJson = new ProofTraceJson {
+    override def add(node: OrNode): Unit =
+    { cached.put(node.id, node); super.add(node) }
+    override protected def writeObject[T](t: T)(implicit w: Writer[T]): Unit =
+      outbound.put(write(t))
+  }
+
+  def goAutomatic(spec: SpecMessage): Unit = {
+    new Thread(() => synthesizeFromSpec(spec)).start()
+  }
+
+  def goInteractive(spec: SpecMessage): Unit = {
+    val specConfig = configFromSpec(spec)
+    val (funSpec, env, sketch) = prepareSynthesisTask(textFromSpec(spec), specConfig)
+    createSynthesizer(env)  // just to initialize isynth :/
+
+    val initialGoal = Specifications.topLevelGoal(funSpec, env, sketch)
+    trace.add(OrNode(Vector(), initialGoal, None))
   }
 
   /**
@@ -137,12 +151,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
           }
         }
       }
-    val trace = new ProofTraceJson {
-      override def add(node: OrNode): Unit =
-        { cached.put(node.id, node); super.add(node) }
-      override protected def writeObject[T](t: T)(implicit w: Writer[T]): Unit =
-        outbound.put(write(t))
-    }
+
     val stats = new SynStats(2500)
     val config = SynConfig()
     isynth = new IterativeUnorderedSynthesis(new PhasedSynthesis(env.config), log, trace)(stats, config)
@@ -166,9 +175,14 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
       }
     }
 
-  def synthesizeFromSpec(spec: SpecMessage, params: SynConfig): List[Statements.Procedure] =
-    synthesizeFromSpec(spec.name, (spec.defs :+ spec.in).mkString("\n"),
-                       noOutputCheck, params)
+  def synthesizeFromSpec(spec: SpecMessage): List[Statements.Procedure] =
+    synthesizeFromSpec(spec.name, textFromSpec(spec),
+                       noOutputCheck, configFromSpec(spec))
+
+  def textFromSpec(spec: SpecMessage): String = (spec.defs :+ spec.in).mkString("\n")
+
+  def configFromSpec(spec: SpecMessage): SynConfig =
+    SynthesisRunner.parseParams("." +: spec.params.toArray, config)
 
   def grow(id: NodeId): Unit =
     cached.get(id).foreach(isynth.grow)
@@ -256,7 +270,8 @@ object AsyncSynthesisRunner {
   sealed abstract class ClientMessage(val tag: String)
   object ClientMessage { implicit val rw: RW[ClientMessage] = macroRW }
 
-  case class SpecMessage(name: String, defs: Seq[String], in: String,
+  case class SpecMessage(mode: String = "automatic",
+                         name: String, defs: Seq[String], in: String,
                          params: Seq[String] = Seq()) extends ClientMessage("Spec")
   object SpecMessage {
     implicit val rw: RW[SpecMessage] = macroRW
@@ -293,7 +308,10 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
   def offer: Sink[String, Future[Done]] =
     Sink.foreachAsync[String](1) { s => Future { wrapError {
       read[ClientMessage](s) match {
-        case sp@SpecMessage(_, _, _, _) => go(sp)
+        case sp@SpecMessage(mode, _, _, _, _) => mode match {
+          case "automatic" => goAutomatic(sp)
+          case "interactive" => goInteractive(sp)
+        }
         case ChooseMessage(choice) => inbound.put(choice)
         case ExpandRequestMessage(id) => grow(id)
       }

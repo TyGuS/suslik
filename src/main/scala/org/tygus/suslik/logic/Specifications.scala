@@ -294,6 +294,11 @@ object Specifications extends SepLogicUtils {
   // Label of the top-level goal
   def topLabel: GoalLabel = GoalLabel(List(0), List())
 
+  def topLevelGoal(funSpec: FunSpec, env: Environment, sketch: Statement): Goal = {
+    val FunSpec(name, _, formals, pre, post, var_decl) = funSpec
+    topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
+  }
+
   def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment, sketch: Statement, vars_decl: Formals): Goal = {
     val gamma0 = (formals ++ vars_decl).toMap // initial environemnt: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)

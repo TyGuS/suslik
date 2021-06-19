@@ -28,7 +28,7 @@ class BenchmarksDB {
         return {in: in_, params};
     }
 
-    static async load(url = '/benchmarks.db.json') {
+    static async load(url = './benchmarks.db.json') {
         return new BenchmarksDB(await (await fetch(url)).json());
     }
 }

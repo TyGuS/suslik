@@ -104,6 +104,28 @@ trait SynthesisRunnerUtil {
     }
   }
 
+  def prepareSynthesisTask(text: String, params: SynConfig = defaultConfig) = {
+    val parser = new SSLParser
+    val res = params.inputFormat match {
+      case `dotSyn` => parser.parseGoalSYN(text)
+      case `dotSus` => parser.parseGoalSUS(text)
+    }
+    if (!res.successful) {
+      throw SynthesisException(s"Failed to parse the input:\n$res")
+    }
+
+    val prog = res.get
+    val (specs, predEnv, funcEnv, body) = preprocessProgram(prog, params)
+
+    if (specs.lengthCompare(1) != 0) {
+      throw SynthesisException("Expected a single synthesis goal")
+    }
+
+    val spec = specs.head
+    val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
+    (spec, env, body)
+  }
+
   // Create synthesizer object, choosing search tactic based on the config
   def createSynthesizer(env: Environment): Synthesis = {
     val tactic =
@@ -134,24 +156,7 @@ trait SynthesisRunnerUtil {
                          params: SynConfig = defaultConfig) : List[Statements.Procedure] = {
     import log.out.testPrintln
 
-    val parser = new SSLParser
-    val res = params.inputFormat match {
-      case `dotSyn` => parser.parseGoalSYN(text)
-      case `dotSus` => parser.parseGoalSUS(text)
-    }
-    if (!res.successful) {
-      throw SynthesisException(s"Failed to parse the input:\n$res")
-    }
-
-    val prog = res.get
-    val (specs, predEnv, funcEnv, body) = preprocessProgram(prog, params)
-
-    if (specs.lengthCompare(1) != 0) {
-      throw SynthesisException("Expected a single synthesis goal")
-    }
-
-    val spec = specs.head
-    val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
+    val (spec, env, body) = prepareSynthesisTask(text, params)
     val synthesizer = createSynthesizer(env)
 
     env.stats.start()
