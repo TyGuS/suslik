@@ -7,11 +7,11 @@ class BenchmarksDB {
         this.data = data;
     }
 
-    getSpec(dir: string, fn: string) {
+    getSpec(dir: string, fn: string): BenchmarksDB.Data.Spec {
         return {
             name: `${dir}:${fn}`, 
             defs: this.getDefs(dir),
-            in: this.getInputSpec(dir, fn)
+            ...this.getInputSpec(dir, fn),
         };
     }
 
@@ -21,7 +21,11 @@ class BenchmarksDB {
     }
 
     getInputSpec(dir: string, fn: string) {
-        return this.data[dir][fn].match(/###+([^]*?)###+/)[1];
+        var prog = this.data[dir][fn],
+            hashline = prog.match(/^#[.]?(.*)/)?.[1],
+            params = hashline && hashline.trim().split(/\s+/),
+            in_ = prog.match(/###+([^]*?)###+/)[1];
+        return {in: in_, params};
     }
 
     static async load(url = '/benchmarks.db.json') {
@@ -31,6 +35,20 @@ class BenchmarksDB {
 
 namespace BenchmarksDB {
     export type Data = {[dir: string]: {[fn: string]: string}};
+
+    export namespace Data {
+        export type Spec = {
+            name?: string
+            defs: string[]
+            in: string
+            params?: string[]
+        }
+
+        export function unparseSpec(spec: Spec) {
+            var params = spec.params ? [`# ${spec.params.join(' ')}`] : [];
+            return [...params, ...spec.defs, spec.in].join('\n');
+        }
+    }
 }
 
 

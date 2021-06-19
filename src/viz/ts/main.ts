@@ -32,7 +32,7 @@ $(async () => {
         var spec = bench.getSpec(w.dir, w.fn);
         doc.hideBenchmarks();
         doc.new();
-        doc.setEditorText([...spec.defs, spec.in].join('\n'));
+        doc.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         await doc.pi.start(spec);
         Object.assign(window, {spec});
     }

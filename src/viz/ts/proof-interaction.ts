@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 
 import type { ProofTrace } from './proof-trace';
+import type { BenchmarksDB } from './benchmarks';
 import './proof-interaction.css';
 
 
@@ -108,11 +109,7 @@ namespace ProofInteraction {
                          EXPAND_REQUEST = `${NS}.ExpandRequestMessage`;
         }
 
-        export type Spec = {
-            name?: string
-            defs: string[]
-            in: string
-        }
+        export type Spec = BenchmarksDB.Data.Spec;
     }
 
     export namespace View {

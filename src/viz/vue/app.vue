@@ -1,8 +1,14 @@
 <template>
     <div class="app--ide">
-        <benchmark-list-pane ref="benchmarks"/>
-        <editor-pane ref="editors"/>
-        <proof-trace-pane ref="proofTrace"/>
+        <div class="app--ide--split-area">
+            <benchmark-list-pane ref="benchmarks"/>
+        </div>
+        <div class="app--ide--split-area">
+            <editor-pane ref="editors"/>
+        </div>
+        <div class="app--ide--split-area">
+            <proof-trace-pane ref="proofTrace"/>
+        </div>
     </div>
 </template>
 
@@ -21,16 +27,16 @@ import Split from 'split.js';
 
 
 export default {
+    data: () => ({sizes: {benchmarks: 10, editors: 45, proofTrace: 45}}),
     mounted() {
         this.makeResizable(this.$el);
     },
     methods: {
         makeResizable($el) {
-            this.split = Split($el.querySelectorAll('.ide-pane'), {
+            this.split = Split($el.children, {
                 sizes: [10, 45, 45],
                 snapOffset: 0,
-                minSize: 1000,
-                gutterSize: 5
+                gutterSize: 3
             });
         }
     },

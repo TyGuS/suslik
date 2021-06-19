@@ -22,7 +22,7 @@ import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.Termination.isTerminatingExpansion
 import org.tygus.suslik.synthesis.rules.Rules
 import org.tygus.suslik.synthesis.tactics.{PhasedSynthesis, Tactic}
-import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunnerUtil}
+import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunner, SynthesisRunnerUtil}
 import org.tygus.suslik.util.SynStats
 
 
@@ -105,10 +105,12 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   val cached = new collection.mutable.HashMap[NodeId, OrNode]()
   val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
+  val config: SynConfig = SynConfig()
   protected var isynth: IterativeUnorderedSynthesis = null
 
   def go(spec: SpecMessage): Unit = {
-    new Thread(() => synthesizeFromSpec(spec, SynConfig())).start()
+    val sconfig = SynthesisRunner.parseParams("." +: spec.params.toArray, config);
+    new Thread(() => synthesizeFromSpec(spec, sconfig)).start()
   }
 
   /**
@@ -140,8 +142,8 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     val stats = new SynStats(2500)
     val config = SynConfig()
     isynth = new IterativeUnorderedSynthesis(new PhasedSynthesis(env.config), log, trace)(stats, config)
-    //new Synthesis(tactic, log, trace)
-    isynth
+    new Synthesis(new PhasedSynthesis(env.config), log, trace)
+    //isynth
   }
 
   /**
@@ -247,10 +249,11 @@ object AsyncSynthesisRunner {
 
   /* Messages sent from the client */
 
-  sealed abstract class ClientMessage(tag: String)
+  sealed abstract class ClientMessage(val tag: String)
   object ClientMessage { implicit val rw: RW[ClientMessage] = macroRW }
 
-  case class SpecMessage(name: String, defs: Seq[String], in: String) extends ClientMessage("Spec")
+  case class SpecMessage(name: String, defs: Seq[String], in: String,
+                         params: Seq[String] = Seq()) extends ClientMessage("Spec")
   object SpecMessage {
     implicit val rw: RW[SpecMessage] = macroRW
   }
@@ -286,7 +289,7 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
   def offer: Sink[String, Future[Done]] =
     Sink.foreachAsync[String](1) { s => Future { wrapError {
       read[ClientMessage](s) match {
-        case sp@SpecMessage(_, _, _) => go(sp)
+        case sp@SpecMessage(_, _, _, _) => go(sp)
         case ChooseMessage(choice) => inbound.put(choice)
         case ExpandRequestMessage(id) => grow(id)
       }
