@@ -68,10 +68,20 @@ class MainDocument extends EventEmitter {
     }
 
     setProofTrace(ptData: ProofTrace.Data) {
+        this.pt?.destroy();
+        this.pi?.destroy();
+
         var pt = new ProofTrace(ptData, this.app.$refs.proofTrace as any),
             pi = new ProofInteraction(pt);
         this.pt = pt;
         this.pi = pi;
+        pt.on('expand', (nodeView: ProofTrace.View.Node) => {
+            if (nodeView.value.tag == ProofTrace.Data.NodeType.OrNode &&
+                nodeView.children.length == 0) {
+                /* send request to server */
+                if (this.pi) this.pi.sendExpandRequest(nodeView.value.id);
+            }
+        });
         pi.on('trace', u =>
             this.pt.append(ProofTrace.Data.fromEntries([u])));
 
