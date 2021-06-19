@@ -10,7 +10,7 @@ declare var nw: any;
 
 if (typeof nw !== 'undefined') {
     var win = nw.Window.get();
-    win.zoomLevel = -2;
+    //win.zoomLevel = -2;
     Object.assign(window, {
         printDocument() {
             win.print({autoprint: false, scaleFactor: 5});
@@ -31,6 +31,8 @@ $(async () => {
     async function startBenchmark(w: {dir: string, fn: string}) {
         var spec = bench.getSpec(w.dir, w.fn);
         doc.hideBenchmarks();
+        doc.new();
+        doc.setEditorText([...spec.defs, spec.in].join('\n'));
         await doc.pi.start(spec);
         Object.assign(window, {spec});
     }

@@ -8,6 +8,8 @@ import { BenchmarksDB } from './benchmarks';
 import { ProofTrace } from './proof-trace';
 import { ProofInteraction } from './proof-interaction';
 
+import './ide.css';
+
 
 
 class MainDocument extends EventEmitter {
@@ -85,7 +87,11 @@ class MainDocument extends EventEmitter {
 
     hideBenchmarks() {
         var bm = <any>this.app.$refs.benchmarks;
-        bm.show = false;
+        //bm.show = false;
+    }
+
+    setEditorText(text: string) {
+        (<any>this.app.$refs.editors).open(text);
     }
 
     async read(file: File) {

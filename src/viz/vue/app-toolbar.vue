@@ -16,6 +16,9 @@
 <style>
 div.proof-trace-toolbar {
     box-sizing: border-box;
+}
+
+div.proof-trace-toolbar form {
     padding: 1em 1em .75em 1em;
 }
 

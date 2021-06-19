@@ -140,7 +140,8 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     val stats = new SynStats(2500)
     val config = SynConfig()
     isynth = new IterativeUnorderedSynthesis(new PhasedSynthesis(env.config), log, trace)(stats, config)
-    new Synthesis(tactic, log, trace)
+    //new Synthesis(tactic, log, trace)
+    isynth
   }
 
   /**
@@ -191,6 +192,10 @@ object AsyncSynthesisRunner {
     def cancel() { waiting foreach (_.interrupt()) }
   }
 
+  /**
+    * Provides a Synthesis object that can be asked to expand nodes on-demand.
+    * All expansions are immediately sent to the trace (no nodes are suspended).
+    */
   class IterativeUnorderedSynthesis(tactic: Tactic, log: Log, trace: ProofTrace)
                                    (implicit stats: SynStats, config: SynConfig)
       extends Synthesis(tactic, log, trace) {

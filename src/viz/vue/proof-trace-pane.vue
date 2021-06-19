@@ -1,5 +1,5 @@
 <template>
-    <div id="proof-trace-pane" 
+    <div id="proof-trace-pane" class="ide-pane proof-trace-pane"
         :class="{'proof-trace-filter--only-success': options.proofOnly,
                     'proof-trace-filter--only-expanded': options.expandedOnly}">
         <app-toolbar :options="options"/>

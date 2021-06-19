@@ -235,10 +235,10 @@
 /* Toobar */
 
 .proof-trace-toolbar {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 20em;
-    width: calc(100% - 20em);
+    left: 2em;
+    width: calc(100% - 2em);
     background: #ffffffd0;
     z-index: 1;
 }
