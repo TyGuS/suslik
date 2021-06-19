@@ -12,6 +12,8 @@ class ProofInteraction extends EventEmitter {
     pt: ProofTrace
     view: Vue & View.Props
 
+    defaultMode = ProofInteraction.Data.ProofMode.INTERACTIVE
+
     constructor(pt: ProofTrace) {
         super();
         this.wsURL = this._wsURL();
@@ -21,18 +23,18 @@ class ProofInteraction extends EventEmitter {
         this.view.$on('interaction:action', action => this.handleAction(action));
     }
 
-    async start(spec?: Data.Spec) {
+    async start(spec?: Data.Spec, mode?: Data.ProofMode) {
         this.ws = new WebSocket(this.wsURL);
         this.ws.addEventListener('message', m => this.handleMessage(m.data));
         await new Promise((resolve, reject) => {
             this.ws.addEventListener('open', resolve);
             this.ws.addEventListener('error', reject)
         });
-        if (spec) this.sendSpec(spec);
+        if (spec) this.sendSpec(spec, mode);
     }
 
-    sendSpec(spec: Data.Spec) {
-        this._send(spec, ProofInteraction.Data.Classes.SPEC);
+    sendSpec(spec: Data.Spec, mode: Data.ProofMode = this.defaultMode) {
+        this._send({mode, ...spec}, ProofInteraction.Data.Classes.SPEC);
     }
 
     sendChoose(choice: string) {
@@ -112,6 +114,11 @@ namespace ProofInteraction {
         }
 
         export type Spec = BenchmarksDB.Data.Spec;
+
+        export enum ProofMode {
+            AUTOMATIC = "automatic",
+            INTERACTIVE = "interactive"
+        }
     }
 
     export namespace View {
