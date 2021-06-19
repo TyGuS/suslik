@@ -10,13 +10,19 @@ function main() {
     var dir = BENCHMARKS_ROOT,
         collection = {};
 
+    function bucket(k) {
+        var v = collection[k];
+        if (!v) v = collection[k] = {};
+        return v;
+    }
+
     find.eachfile(/\.(syn|def)$/, dir, fn => {
         var rel = path.relative(dir, fn),
             reldir = path.dirname(rel), base = path.basename(rel);
         console.log(reldir, base);
-        (collection[reldir] ??= {})[base] = fs.readFileSync(fn, 'utf-8');
+        bucket(reldir)[base] = fs.readFileSync(fn, 'utf-8');
     }).end(() => {
-        fs.writeFileSync('benchmarks.db.json', JSON.stringify(collection));
+        fs.writeFileSync('dist/benchmarks.db.json', JSON.stringify(collection));
     });
 }
 
