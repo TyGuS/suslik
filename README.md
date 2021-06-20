@@ -306,11 +306,14 @@ contains flags to pass to the backend SMT solvers used by SuSLik (e.g.,
 `#. -c 2`). The second line gives a description of the test case.
 The lines between the two `###` separators contain the main item---the
 declarative specification of the desired program, with pre- and
-postconditions expressed in SSL. After the second `###` separator, some
-test cases also include a SuSLang implementation of the specification. This is
-the expected program that the actual synthesized result can be compared
-against to test the functionality of the synthesizer itself. It is thus
-optional and has no bearing on the actual synthesis/certification task.
+postconditions expressed in SSL. If multiple specifications are present, then
+the last one is the main one to synthesize a program for, and the rest are
+specifications for auxiliary functions that can be invoked in the main program.
+After the second `###` separator, some test cases also include a SuSLang
+implementation of the specification. This is the expected program that the
+actual synthesized result can be compared against to test the functionality of
+the synthesizer itself. It is thus optional and has no bearing on the actual
+synthesis/certification task.
 
 The table below summarizes the source code's structure in relation
 to key concepts from the paper. The right column displays files and folders
