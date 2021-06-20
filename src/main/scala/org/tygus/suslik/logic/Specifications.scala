@@ -118,17 +118,18 @@ object Specifications extends SepLogicUtils {
 
     extends PrettyPrinting with PureLogicUtils {
 
-    override def pp: String =
+    override def pp: String = {
+      def postWithCall: String = {
+        val actualCG = callGoal.get.applySubstitution
+        s"${post.pp.init} ** ...}\n${actualCG.call.pp}${actualCG.calleePost.pp.init} ** ...}\n...\n${actualCG.callerPost.pp}"
+      }
+
 //      s"${label.pp}\n" +
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
         s"[${universalGhosts.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}]" +
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
         s"${pre.pp}\n${sketch.pp}" +
         (if (callGoal.isEmpty) post.pp else postWithCall)
-
-    def postWithCall: String = {
-      val actualCG = callGoal.get.applySubstitution
-      s"${post.pp.init} ** ...}\n${actualCG.call.pp}${actualCG.calleePost.pp.init} ** ...}\n...\n${actualCG.callerPost.pp}"
     }
 
     lazy val splitPost: (PFormula, PFormula) = {
