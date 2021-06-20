@@ -13,10 +13,6 @@ sealed trait InputFormat
 case object dotSyn extends InputFormat
 case object dotSus extends InputFormat
 
-sealed trait TerminationMetric
-case object totalSize extends TerminationMetric
-case object lexicographic extends TerminationMetric
-
 case class SynConfig(
                       // Synthesis params
                       maxOpenDepth: Int = 1,
@@ -32,11 +28,9 @@ case class SynConfig(
                       extendedPure: Boolean = false,
                       // Timeout and logging
                       interactive: Boolean = false,
-                      printStats: Boolean = true,
-                      printSpecs: Boolean = false,
-                      printDerivations: Boolean = false,
-                      printFailed: Boolean = false,
-                      printEnv: Boolean = false,
+                      printStats: Boolean = false,
+                      printSpecs: Boolean = true,
+                      traceLevel: Int = 0,
                       assertSuccess: Boolean = false,
                       logToFile: Boolean = true,
                       traceToJsonFile: Option[File] = None,

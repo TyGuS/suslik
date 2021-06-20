@@ -111,13 +111,13 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       c.copy(fileName = x)
     }.text("a synthesis file name (the file under the specified folder, called filename.syn)")
 
-    opt[Boolean]('r', "trace").action(cfg { b =>
-      _.copy(printDerivations = b)
+    opt[Int]('r', "trace").action(cfg { l =>
+      _.copy(traceLevel = l)
     }).text("print the entire derivation trace; default: false")
 
     opt[Long]('t', "timeout").action(cfg { t =>
       _.copy(timeOut = t)
-    }).text("timeout for the derivation; default (in milliseconds): 300000 (5 min)")
+    }).text("timeout for the derivation; default (in milliseconds): 1800000 (30 min)")
 
     opt[Boolean]('a', "assert").action(cfg { b =>
       _.copy(assertSuccess = b)
@@ -133,11 +133,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Int]('f', "maxCallDepth").action(cfg { d =>
       _.copy(maxCalls = d)
-    }).text("maximum call depth; default: 1")
+    }).text("maximum call depth; default: 2")
 
     opt[Boolean]('x', "auxAbduction").action(cfg { b =>
       _.copy(auxAbduction = b)
-    }).text("abduce auxiliary functions; default: false")
+    }).text("abduce auxiliary functions; default: true")
 
     opt[Boolean]('b', "branchAbduction").action(cfg { b =>
       _.copy(branchAbduction = b)
@@ -157,7 +157,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean](name = "delegate").action(cfg { b =>
       _.copy(delegatePure = b)
-    }).text("delegate pure synthesis to CVC4; default: true")
+    }).text("delegate pure synthesis to CVC4; default: false")
 
     opt[Boolean](name = "extended").action(cfg { b =>
       conf => conf.copy(extendedPure = b, delegatePure = b || conf.delegatePure)
@@ -173,15 +173,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[Boolean]('p', "printSpecs").action { (b, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(printSpecs = b))
-    }.text("print specifications for synthesized functions; default: false")
-
-    opt[Boolean]('e', "printEnv").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(printEnv = b))
-    }.text("print synthesis context; default: false")
-
-    opt[Boolean]("printFail").action(cfg { b =>
-      _.copy(printFailed = b)
-    }).text("print failed rule applications; default: false")
+    }.text("print specifications for synthesized functions; default: true")
 
     opt[Boolean]('l', "log").action(cfg { b =>
       _.copy(logToFile = b)

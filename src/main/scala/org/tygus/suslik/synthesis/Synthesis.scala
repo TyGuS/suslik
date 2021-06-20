@@ -14,7 +14,7 @@ import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
 import org.tygus.suslik.util.SynStats
 
-import scala.Console._
+import scala.Console
 import scala.annotation.tailrec
 
 /**
@@ -29,24 +29,28 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     val FunSpec(name, tp, formals, pre, post, var_decl) = funGoal
 
     if (!CyclicProofChecker.isConfigured()) {
-      log.print(List((s"Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n", Console.RED)))
+      log.print("Cyclic proof checker is not configured! All termination check will be considered TRUE (this not sound).\n",
+        Console.RED, 2)
     } else {
-      log.print(List((s"The mighty cyclic proof checker is available. Well done!\n", Console.GREEN)))
+      log.print("The mighty cyclic proof checker is available. Well done!\n",
+        Console.GREEN, 2)
     }
 
     if (config.delegatePure && !DelegatePureSynthesis.isConfigured()) {
-      log.print(List((s"CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n", Console.RED)))
+      log.print("CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n",
+        Console.RED, 2)
     }
     
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
-    log.print(List(("Initial specification:", Console.RESET), (s"${goal.pp}\n", Console.BLUE)))
+    log.print("Initial specification:", Console.RESET)
+    log.print(s"${goal.pp}\n", Console.BLUE)
     SMTSolving.init()
     memo.clear()
     ProofTrace.current = trace
     try {
       synthesize(goal)(stats = stats) match {
         case Some((body, helpers)) =>
-          log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
+          log.print(s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW, 2)
           val main = Procedure(funGoal, body)
           (main :: helpers, stats)
         case None =>
@@ -75,9 +79,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     }
 
     val sz = worklist.length
-    log.print(List((s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)))
-    log.print(List((s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW)))
-    log.print(List((s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW)))
+    log.print(s"Worklist ($sz): ${worklist.map(n => s"${n.pp()}[${n.cost}]").mkString(" ")}", Console.YELLOW)
+    log.print(s"Succeeded leaves (${successLeaves.length}): ${successLeaves.map(n => s"${n.pp()}").mkString(" ")}", Console.YELLOW, 2)
+    log.print(s"Memo (${memo.size}) Suspended (${memo.suspendedSize})", Console.YELLOW, 2)
     stats.updateMaxWLSize(sz)
 
     if (worklist.isEmpty) None // No more goals to try: synthesis failed
@@ -86,24 +90,21 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val goal = node.goal
       implicit val ctx: log.Context = log.Context(goal)
       stats.addExpandedGoal(node)
-      log.print(List((s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW))) //      <goal: ${node.goal.label.pp}>
-      if (config.printEnv) {
-        log.print(List((s"${goal.env.pp}", Console.MAGENTA)))
-      }
-      log.print(List((s"${goal.pp}", Console.BLUE)))
+      log.print(s"Expand: ${node.pp()}[${node.cost}]", Console.YELLOW) //      <goal: ${node.goal.label.pp}>
+      log.print(s"${goal.pp}", Console.BLUE)
       trace.add(node)
 
       // Lookup the node in the memo
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
-          log.print(List((s"Recalled FAIL", RED)))
+          log.print("Recalled FAIL", Console.RED)
           trace.add(node.id, Failed, Some("cache"))
           node.fail
           None
         }
         case Some(Succeeded(sol)) =>
         { // Same goal has succeeded before: return the same solution
-          log.print(List((s"Recalled solution ${sol._1.pp}", RED)))
+          log.print(s"Recalled solution ${sol._1.pp}", Console.RED)
           // This seems to always hold in practice because we always get to the companion
           // before we get to any of its children;
           // if this ever fails, we can either:
@@ -121,7 +122,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           }
         }
         case Some(Expanded) => { // Same goal has been expanded before: wait until it's fully explored
-          log.print(List(("Suspend", RED)))
+          log.print("Suspend", Console.RED)
           memo.suspend(node)
           worklist = addNewNodes(List(node))
           None
@@ -198,7 +199,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         worklist = addNewNodes(newNodes.toList)
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
-          log.print(List((s"Cannot expand goal: BACKTRACK", Console.RED)))
+          log.print("Cannot expand goal: BACKTRACK", Console.RED)
           trace.add(node.id, Failed)
           node.fail
         } else {
@@ -223,14 +224,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules
-          log.print(List((s"$r FAIL", RESET)), isFail = true)
           applyRules(rs)
         } else {
           // Rule applicable: try all possible sub-derivations
           val childFootprints = children.map(log.showChildren(goal))
-          log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
+          log.print(s"$r (${children.size}): ${childFootprints.head}", Console.RESET)
           for {c <- childFootprints.tail}
-            log.print(List((s" <|>  $c", CYAN)))
+            log.print(s" <|>  $c", Console.CYAN)
 
           if (r.isInstanceOf[InvertibleRule]) {
             // The rule is invertible: do not try other rules on this goal
