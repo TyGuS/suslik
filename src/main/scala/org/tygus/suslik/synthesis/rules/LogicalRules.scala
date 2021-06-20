@@ -114,6 +114,8 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   abstract class Frame extends SynthesisRule {
     def heapletFilter(h: Heaplet): Boolean
 
+    override def toString: String = "Frame"
+
     // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
     def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
 
@@ -139,21 +141,13 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     }
   }
 
-  object FrameUnfolding extends Frame with UnfoldingPhase {
-    override def toString: String = "FrameUnfold"
-  }
+  object FrameUnfolding extends Frame with UnfoldingPhase
 
-  object FrameUnfoldingFinal extends Frame with UnfoldingPhase with InvertibleRule {
-    override def toString: String = "FrameUnfold"
-  }
+  object FrameUnfoldingFinal extends Frame with UnfoldingPhase with InvertibleRule
 
-  object FrameBlock extends Frame with BlockPhase with InvertibleRule {
-    override def toString: String = "FrameBlock"
-  }
+  object FrameBlock extends Frame with BlockPhase with InvertibleRule
 
-  object FrameFlat extends Frame with FlatPhase with InvertibleRule {
-    override def toString: String = "FrameFlat"
-  }
+  object FrameFlat extends Frame with FlatPhase with InvertibleRule
 
 
   /*
@@ -241,7 +235,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   Γ ; {φ ∧ x = l ; P} ; {ψ ; Q} ---> S
   */
   object SubstLeft extends SynthesisRule with InvertibleRule {
-    override def toString: String = "SubstL"
+    override def toString: String = "SubstGhost"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val p1 = goal.pre.phi

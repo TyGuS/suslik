@@ -19,6 +19,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   val exceptionQualifier: String = "rule-unification"
 
   abstract class HeapUnify extends SynthesisRule {
+    override def toString: String = "Unify"
+
     def heapletFilter(h: Heaplet): Boolean
 
     // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
@@ -58,16 +60,12 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   }
 
 
-  object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase {
-    override def toString: String = "HeapUnifyUnfold"
-  }
+  object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase
 
-  object HeapUnifyBlock extends HeapUnify with BlockPhase {
-    override def toString: String = "HeapUnifyBlock"
-  }
+  object HeapUnifyBlock extends HeapUnify with BlockPhase
 
   object HeapUnifyPointer extends HeapUnify with FlatPhase with InvertibleRule {
-    override def toString: String = "HeapUnifyPointer"
+    override def toString: String = "UnifyLHS"
 
     override def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
@@ -98,9 +96,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     }
   }
 
-  object HeapUnifyPure extends HeapUnify with FlatPhase {
-    override def toString: String = "HeapUnifyPure"
-  }
+  object HeapUnifyPure extends HeapUnify with FlatPhase
 
   /*
     X ∈ GV(post) / GV (pre)
@@ -109,7 +105,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     Γ ; {φ ; P} ; {ψ ∧ X = l; Q} ---> S
   */
   object SubstRight extends SynthesisRule with InvertibleRule {
-    override def toString: String = "SubstR"
+    override def toString: String = "SubstExist"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val p2 = goal.post.phi
@@ -160,7 +156,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
    */
 
   object Pick extends SynthesisRule {
-    override def toString: String = "Pick"
+    override def toString: String = "PickExist"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val constants = List(IntConst(0), SetLiteral(List()), eTrue, eFalse)
