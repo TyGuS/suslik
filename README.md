@@ -159,6 +159,11 @@ for all three target frameworks.
 (Section "Artifact Structure" below shows the location of these files.)
 Then, for the standard benchmarks, it will also compile the generated
 certificates.
+These are the default evaluation configuration, and the exact actions that will
+be performed under this configuration are written to timestamped `.log` files in
+the `certify` directory before each run. This configuration can be modified
+by setting the `--configure` flag. See section "Customizing Benchmark Options"
+for details.
 
 As this script produces verbose output, you may consider teeing the script's
 output to a log file for viewing/debugging later, instead of running the script
@@ -404,7 +409,7 @@ This will load an Emacs session in your terminal window. Some useful commands:
 - `C-c C-u` to move backward in the current buffer's Coq proof
 - `C-x C-c` (type "yes" if prompted) to exit Emacs.
 
-### Customizing the Benchmark Options
+### Customizing Benchmark Options
 
 You may wish to run the benchmarks with alternative settings.
 
@@ -441,6 +446,10 @@ the desired option (`y` or `n`). The default settings are:
   generate and compile certificates for all three targets (HTT/VST/Iris).
 - _For advanced benchmarks_: Synthesize programs in all benchmark groups. Then
   generate (but _don't_ compile) certificates for HTT only.
+
+Each execution of the script generates a timestamped `.log` file listing
+exactly what actions will be performed given the user-specified configuration,
+which may be useful for debugging.
 
 ### Downloading and Compiling Sources
 
