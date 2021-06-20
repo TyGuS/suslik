@@ -27,15 +27,11 @@ class Log(val out: SynLogging) {
     case Some(goal) => getIndent(goal.depth)
   }
 
-  def print(sc: List[(String, String)], isFail: Boolean = false)
+  def print(msg: String, color: String, level: Int = 1)
                         (implicit config: SynConfig, ctx: Context = Context()): Unit = {
-    if (config.printDerivations) {
-      if (!isFail || config.printFailed) {
-        for ((s, c) <- sc if s.trim.length > 0) {
-          out.print(s"$RESET$getIndent")
-          out.println(s"$c${s.replaceAll("\n", s"\n$RESET$getIndent$c")}")
-        }
-      }
+    if (config.traceLevel >= level) {
+      out.print(s"$RESET$getIndent")
+      out.println(s"$color${msg.replaceAll("\n", s"\n$RESET$getIndent$color")}")
       out.print(s"$RESET")
     }
   }

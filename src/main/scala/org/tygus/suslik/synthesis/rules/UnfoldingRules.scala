@@ -80,7 +80,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
   object AbduceCall extends SynthesisRule {
 
-    override def toString: Ident = "AbduceCall"
+    override def toString: Ident = "TryCall"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val cands = goal.companionCandidates

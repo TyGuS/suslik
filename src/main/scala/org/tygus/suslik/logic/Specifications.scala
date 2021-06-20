@@ -123,7 +123,13 @@ object Specifications extends SepLogicUtils {
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
         s"[${universalGhosts.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}]" +
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
-        s"${pre.pp}\n${sketch.pp}${post.pp}"
+        s"${pre.pp}\n${sketch.pp}" +
+        (if (callGoal.isEmpty) post.pp else postWithCall)
+
+    def postWithCall: String = {
+      val actualCG = callGoal.get.applySubstitution
+      s"${post.pp.init} ** ...}\n${actualCG.call.pp}${actualCG.calleePost.pp.init} ** ...}\n...\n${actualCG.callerPost.pp}"
+    }
 
     lazy val splitPost: (PFormula, PFormula) = {
       val (ex, uni) = post.phi.conjuncts.partition(p => p.vars.exists(this.isExistential))
