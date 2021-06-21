@@ -65,6 +65,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     }
   }
 
+  object HeapUnifySimple extends  HeapUnify with PhaseDisabled
 
   object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase
 
