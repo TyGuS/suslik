@@ -45,10 +45,13 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2))) =>
-          val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
-          val newPost = Assertion(post.phi, goal.post.sigma - hr)
-          val subGoal = goal.spawnChild(newPre, newPost)
+        case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, e2))) =>
+          // TUTORIAL:
+//          val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
+//          val newPost = Assertion(post.phi, goal.post.sigma - hr)
+//          val subGoal = goal.spawnChild(newPre, newPost)
+          val newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** hr)
+          val subGoal = goal.spawnChild(newPre)
           val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))
@@ -83,6 +86,16 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
+          // TUTORIAL:
+        case Some(pts@PointsTo(x@Var(_), offset, v@Var(name))) =>
+          val y = freshVar(goal.vars, name)
+          val tpy = v.getType(goal.gamma).get
+          val subGoal = goal.spawnChild(pre = goal.pre.subst(v, y),
+            post = goal.post.subst(v, y),
+            gamma = goal.gamma + (y -> tpy),
+            programVars = y :: goal.programVars)
+          val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+          List(RuleResult(List(subGoal), kont, this, goal))
         case Some(pts@PointsTo(x@Var(_), offset, e)) =>
           val y = freshVar(goal.vars, e.pp)
           val tpy = e.getType(goal.gamma).get
