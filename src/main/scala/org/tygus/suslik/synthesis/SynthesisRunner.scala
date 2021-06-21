@@ -174,6 +174,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       conf => conf.copy(extendedPure = b, delegatePure = b || conf.delegatePure)
     }).text("use extended search space for pure synthesis with CVC4; default: false")
 
+    opt[Boolean](name = "simple").action(cfg { b =>
+      _.copy(simple = b)
+    }).text("use simple, unphased rules (this is very slow); default: false")
+
     opt[Boolean]('i', "interactive").action(cfg { b =>
       _.copy(interactive = b)
     }).text("interactive mode; default: false")
