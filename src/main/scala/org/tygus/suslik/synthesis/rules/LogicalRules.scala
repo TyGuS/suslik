@@ -152,6 +152,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   object FrameFlat extends Frame with FlatPhase with InvertibleRule
 
+  object FrameSimple extends Frame with PhaseDisabled
 
   /*
   x ≠ nil ∉ φ

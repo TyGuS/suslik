@@ -1,0 +1,24 @@
+// flatten a tree into a doubly-linked list in-place;
+// this task needs a recursive auxiliary function!
+
+predicate tree(loc x, set s) {
+|  x == 0  => { s == {} ; emp }
+|  x != 0  => { s == {v} ++ s1 ++ s2 ;
+                [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1) ** tree(r, s2) }
+}
+
+predicate dll(loc x, loc z, set s) {
+|  x == 0 => { s == {} ; emp }
+|  x != 0 => { s == {v} ++ s1 ; 
+                [x, 3] ** x :-> v ** (x + 1) :-> y ** (x + 2) :-> z ** dll(y, x, s1) }
+}
+
+
+// Flatten a tree with root `x`
+void flatten(loc x)
+{ tree(x, s) }
+{ dll(x, z, s) }
+{
+  ??
+}
+

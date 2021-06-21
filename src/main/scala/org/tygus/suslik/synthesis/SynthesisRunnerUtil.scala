@@ -131,7 +131,8 @@ trait SynthesisRunnerUtil {
       else if (env.config.script.nonEmpty)
         new ReplaySynthesis(env.config)
       else
-        new PhasedSynthesis(env.config)
+//        new PhasedSynthesis(env.config)
+        new SimpleSynthesis(env.config)
     val trace : ProofTrace = env.config.traceToJsonFile match {
       case None => ProofTraceNone
       case Some(file) => new ProofTraceJsonFile(file)

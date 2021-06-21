@@ -147,7 +147,8 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: PTag, card: Expr) extends Hea
   override def pp: String = {
     def ppCard(e: Expr) = s"<${e.pp}>"
 
-    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${tag.pp}"
+//    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${tag.pp}"
+    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}"
   }
 
 
