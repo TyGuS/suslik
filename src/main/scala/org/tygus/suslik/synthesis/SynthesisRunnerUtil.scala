@@ -129,9 +129,12 @@ trait SynthesisRunnerUtil {
   // Create synthesizer object, choosing search tactic based on the config
   def createSynthesizer(env: Environment): Synthesis = {
     val tactic =
-      if (env.config.interactive)
-        new InteractiveSynthesis(env.config, env.stats)
-      else if (env.config.script.nonEmpty)
+      if (env.config.interactive) {
+        if (env.config.simple)
+          new InteractiveSimple(env.config, env.stats)
+        else
+          new InteractivePhased(env.config, env.stats)
+      } else if (env.config.script.nonEmpty)
         new ReplaySynthesis(env.config)
       else
         new PhasedSynthesis(env.config)

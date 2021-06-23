@@ -65,7 +65,39 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     }
   }
 
-  object HeapUnifySimple extends  HeapUnify with PhaseDisabled
+  // Unify syntactically (i.e. only allowed to unify existentials that are top-level in a pure expression)
+  abstract class SyntacticUnify extends SynthesisRule {
+    override def toString: String = "Unify"
+
+    def heapletFilter(h: Heaplet): Boolean
+
+    // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val pre = goal.pre
+      val post = goal.post
+      if (!profilesMatch(pre.sigma, post.sigma, goal.callGoal.isEmpty)) return Nil
+
+      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
+
+      val alternatives = for {
+        s <- postCandidates
+        t <- pre.sigma.chunks
+        sub <- s.unifySyntactic(t, goal.existentials)
+        newPost = post.subst(sub)
+        if newPost.sigma.chunks.distinct.size == newPost.sigma.chunks.size // discard substitution if is produces duplicate chunks in the post
+      } yield {
+        val newCallGoal = goal.callGoal.map(_.updateSubstitution(sub))
+        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
+        val kont = IdProducer >> ExtractHelper(goal)
+        RuleResult(List(newGoal), kont, this, goal)
+      }
+      nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
+    }
+  }
+
+  object HeapUnifySimple extends SyntacticUnify with PhaseDisabled
 
   object HeapUnifyUnfolding extends HeapUnify with UnfoldingPhase
 

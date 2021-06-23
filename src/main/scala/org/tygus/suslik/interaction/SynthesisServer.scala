@@ -21,7 +21,7 @@ import org.tygus.suslik.report.ProofTraceJson.GoalEntry
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.Termination.isTerminatingExpansion
 import org.tygus.suslik.synthesis.rules.Rules
-import org.tygus.suslik.synthesis.tactics.{PhasedSynthesis, Tactic}
+import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunner, SynthesisRunnerUtil}
 import org.tygus.suslik.util.SynStats
 
@@ -154,8 +154,8 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
 
     val stats = new SynStats(2500)
     val config = SynConfig()
-    isynth = new IterativeUnorderedSynthesis(new PhasedSynthesis(env.config), log, trace)(stats, config)
-    new Synthesis(new PhasedSynthesis(env.config), log, trace)
+    isynth = new IterativeUnorderedSynthesis(new AutomaticPhased(env.config), log, trace)(stats, config)
+    new Synthesis(new AutomaticPhased(env.config), log, trace)
     //isynth
   }
 
