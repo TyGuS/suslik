@@ -5,12 +5,13 @@ import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.LogicalRules.{FrameUnfolding, FrameUnfoldingFinal}
-import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
+import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.Close
 import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
 import org.tygus.suslik.synthesis.rules._
+import org.tygus.suslik.util.SynStats
 
-class PhasedSynthesis(config: SynConfig) extends Tactic {
+abstract class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def nextRules(node: OrNode): List[SynthesisRule] = {
     val goal = node.goal
@@ -24,8 +25,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
     else anyPhaseRules ++ specBasedRules(node)
   }
-
-  def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
 
   protected def specBasedRules(node: OrNode): List[SynthesisRule] = {
     val goal = node.goal
@@ -167,3 +166,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
 }
+
+class AutomaticPhased(config: SynConfig) extends PhasedSynthesis(config) with AutomaticSynthesis
+class InteractivePhased(config: SynConfig, override val stats: SynStats) extends PhasedSynthesis(config) with InteractiveSynthesis

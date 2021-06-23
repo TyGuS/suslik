@@ -1,3 +1,5 @@
+# -o 2
+
 // deallocate a rose tree;
 // a rose tree is an n-ary tree that stores child nodes in a linked list;
 // this task requires uses mutual recursion
