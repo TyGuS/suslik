@@ -32,6 +32,7 @@ abstract class SimpleSynthesis (config: SynConfig) extends Tactic {
   }
 
   protected def simpleRules(goal: Goal): List[SynthesisRule] = List(
+    LogicalRules.NilNotLval,
     LogicalRules.EmpRule,
     LogicalRules.Inconsistency,
     FailRules.PostInconsistent,

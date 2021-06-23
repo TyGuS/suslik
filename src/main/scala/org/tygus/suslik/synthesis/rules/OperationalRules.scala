@@ -194,7 +194,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val toRemove = mkSFormula(pts.toList) ** h
           val newPre = Assertion(pre.phi, pre.sigma - toRemove)
 
-          val subGoal = goal.spawnChild(newPre)
+          val subGoal = goal.spawnChild(newPre, isCompanion = true)
           val kont: StmtProducer = PrependProducer(Free(x)) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))
