@@ -46,10 +46,10 @@ namespace BenchmarksDB {
         }
 
         export function parseInputSpec(text: string) {
-            var hashline = text.match(/^#[.]?(.*)/)?.[1],
+            var hashline = text.match(/^#[.]?(.*)\n([^]*)/),
                 enclosure = text.match(/###+([^]*?)###+/),
-                params = hashline?.trim().split(/\s+/),
-                in_ = enclosure?.[1] || text;
+                params = hashline?.[1].trim().split(/\s+/),
+                in_ = enclosure?.[1] || hashline?.[2] || text;
             return {in: in_, params};
         }
 
