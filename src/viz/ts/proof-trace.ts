@@ -12,6 +12,7 @@ import './menu.css';
 
 class ProofTrace extends EventEmitter {
 
+    id: string
     data: Data
     root: Data.NodeEntry
 
@@ -26,18 +27,19 @@ class ProofTrace extends EventEmitter {
         viewById: JSONMap<Data.NodeId, View.Node>
     }
 
-    view: Vue & View.Props
+    view: View.Props
 
     _actionHook = new VueEventHook('action')
     _dirty: {nodes: Set<Data.NodeEntry>} = {nodes: new Set}
 
-    constructor(data: ProofTrace.Data, view?: Vue & View.Props) {
+    constructor(id: string, data: ProofTrace.Data, pane?: Vue & View.PaneProps) {
         super();
+        this.id = id;
         this.data = data;
         this.root = this.data.nodes[0];
 
         this.createIndex();
-        this.createView(view);
+        this.createView(pane);
     }
 
     append(data: Data) {
@@ -175,8 +177,8 @@ class ProofTrace extends EventEmitter {
             .sort(byId2); // modifies the list but that's ok
     }
 
-    createView(view?: Vue & View.Props) {
-        this.view = view || <any>new Vue(ProofTracePane).$mount();
+    createView(pane: Vue & View.PaneProps) {
+        this.view = {root: undefined};
         this._dirty.nodes.clear();
         if (this.root) {
             this.view.root = this.createNode(this.root);
@@ -184,8 +186,9 @@ class ProofTrace extends EventEmitter {
             this.expandNode(this.view.root.children[0]);
         }
 
+        Vue.set(pane.traces, this.id, this.view);
         this._actionHook.attach(
-            this.view, (ev: View.ActionEvent) => this.viewAction(ev));
+            pane, (ev: View.ActionEvent) => this.viewAction(ev));
     }
 
     refreshView() {
@@ -413,6 +416,8 @@ namespace ProofTrace {
     // =========
     export namespace View {
         
+        export type PaneProps = {traces: {[id: string]: Props}};
+
         export type Props = {root: View.Node};
 
         export type Node = {

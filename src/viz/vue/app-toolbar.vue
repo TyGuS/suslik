@@ -1,7 +1,7 @@
 <template>
     <div class="proof-trace-toolbar">
         <div class="toolbox">
-            <button @click="reload()">↻</button>
+            <button @click="action('restart')">↻</button>
         </div>
         <form>
             Show:
@@ -9,6 +9,9 @@
             <label for="proof-only">Proof only</label>
             <input type="checkbox" name="expanded-only" id="expanded-only" v-model="options.expandedOnly">
             <label for="expended-only">Expanded only</label>
+            <span style="margin-left: 2em">Manual</span>
+            <slider-switch v-model="options.auto"></slider-switch>
+            <span>Auto</span> 
         </form>
     </div>
 </template>
@@ -31,12 +34,16 @@ div.proof-trace-toolbar .toolbox button {
 </style>
 
 <script>
+import SliderSwitch from './widgets/slider-switch.vue';
+
+
 export default {
     props: {options: {default: () => ({})}},
     methods: {
-        reload() {
-            window.location.reload();
+        action(type) {
+            this.$emit('action', {type});
         }
-    }
+    },
+    components: { SliderSwitch }
 }
 </script>

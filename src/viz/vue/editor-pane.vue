@@ -32,6 +32,9 @@ export default {
         open(text) {
             this.cm.setState(this.makeEditorState(text));
         },
+        current() {
+            return this.cm?.state.doc.toString();
+        },
         makeEditorState(text) {
             var doc = text && Text.of(text.split('\n'));
             return EditorState.create({doc, extensions: [basicSetup]})
