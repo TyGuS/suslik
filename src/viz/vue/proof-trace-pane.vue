@@ -2,14 +2,17 @@
     <div id="proof-trace-pane" class="ide-pane proof-trace-pane"
         :class="{'proof-trace-filter--only-success': options.proofOnly,
                     'proof-trace-filter--only-expanded': options.expandedOnly}">
-        <app-toolbar :options="options"/>
+        <app-toolbar :options="options" @action="toplevelAction($event)"/>
         <app-context-menu ref="contextMenu" @action="toplevelAction"/>
-        <div class="proof-trace-pane-area" :style="{'--zoom': zoom}">
-            <proof-trace :root="root" :highlight="jointHigh"
-                @action="toplevelAction"/>
-        </div>
+        <template v-for="(t,id) in traces">
+            <div class="proof-trace-pane-area" :style="{'--zoom': zoom}" :key="id">
+                <proof-trace :root="t.root" :highlight="jointHigh"
+                    @action="toplevelAction($event, id)"/>
+            </div>
+        </template>
+        <!--
         <proof-interaction :choices="interaction && interaction.choices"
-            @action="$emit('interaction:action', $event)"/>
+            @action="$emit('interaction:action', $event)"/> -->
     </div>
 </template>
 
@@ -21,7 +24,7 @@ import ProofInteraction from './proof-interaction.vue';
 
 
 export default {
-    data: () => ({root: undefined, options: {}, zoom: 1, 
+    data: () => ({traces: {}, options: {}, zoom: 1, 
          interaction: {}, highlight: {'special': [[]]}}),
     computed: {
         jointHigh() {
@@ -29,7 +32,8 @@ export default {
         }
     },
     methods: {
-        toplevelAction(ev) {
+        toplevelAction(ev, id) {
+            ev = {id, ...ev};
             switch (ev.type) {
             case 'menu': this.$refs.contextMenu.open(ev); break;
             }

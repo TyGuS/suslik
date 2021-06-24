@@ -13,19 +13,19 @@ class ProofInteraction extends EventEmitter {
     ws: WebSocket
 
     pt: ProofTrace
-    view: Vue & View.Props
+    view: View.Props
 
     _actionHook = new VueEventHook('interaction:action')
 
     defaultMode = ProofInteraction.Data.ProofMode.INTERACTIVE
 
-    constructor(pt: ProofTrace) {
+    constructor(pt: ProofTrace, pane: Vue) {
         super();
         this.wsURL = this._wsURL();
         this.pt = pt;
         this.view = <any>pt.view;
         this.view.interaction = {focused: [], choices: undefined};
-        this._actionHook.attach(this.view, action => this.handleAction(action));
+        this._actionHook.attach(pane, action => this.handleAction(action));
     }
 
     destroy() {

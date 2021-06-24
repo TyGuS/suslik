@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import { MainDocument, DragDropJson } from './app';
+import { SuSLikApp, MainDocument, DragDropJson } from './app';
 import { ProofTrace } from './proof-trace';
 import { ProofInteraction } from './proof-interaction';
 import { BenchmarksDB } from './benchmarks';
@@ -20,24 +20,43 @@ if (typeof nw !== 'undefined') {
 
 
 $(async () => {
-    var doc = new MainDocument($('#proof-trace-pane'), $('#notifications'));
-    doc.on('open', pt => Object.assign(window, {pt}));
+    var app = new SuSLikApp($('#notifications'));
 
-    document.querySelector('#document-area').replaceWith(doc.$el);
+    document.querySelector('#document-area').replaceWith(app.$el);
 
     const bench = await BenchmarksDB.load();
-    doc.setBenchmarks(bench.data);
+    app.setBenchmarks(bench.data);
 
     async function startBenchmark(w: {dir: string, fn: string}) {
-        var spec = bench.getSpec(w.dir, w.fn);
-        doc.hideBenchmarks();
+        var spec = bench.getSpec(w.dir, w.fn),
+            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any)
+        app.hideBenchmarks();
+        app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
+        app.add(doc);
         doc.new();
-        doc.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         await doc.pi.start(spec);
-        Object.assign(window, {spec});
     }
 
-    doc.on('benchmarks:action', startBenchmark);
+    async function restartBenchmark(mode?: ProofInteraction.Data.ProofMode) {
+        console.log(app.getEditorText());
+        var spec = BenchmarksDB.Data.parseSpec('todo', app.getEditorText()),
+            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any);
+        app.add(doc);
+        doc.new();
+        await doc.pi.start(spec, mode);
+    }
+
+    function proofMode() {
+        return app.options.auto ? ProofInteraction.Data.ProofMode.AUTOMATIC
+                                : ProofInteraction.Data.ProofMode.INTERACTIVE;
+    }
+
+    app.on('benchmarks:action', startBenchmark);
+    app.on('proofTrace:action', (action) => {
+        switch (action.type) {
+            case 'restart': restartBenchmark(proofMode()); break;
+        }
+    });
 
     /*
     try {
@@ -45,12 +64,13 @@ $(async () => {
     }
     catch (e) { console.error('open failed:', e); }
     */
-    doc.new();
 
     var drop = new DragDropJson($('html'));
     drop.on('open', async ({file}) => {
         try {
+            var doc = new MainDocument('json-0', app.app.$refs.proofTrace as any)
             await doc.open(file);
+            app.add(doc);
         }
         catch (e) { console.error('open failed:', e); }
     });
@@ -61,5 +81,5 @@ $(async () => {
         startBenchmark(JSON.parse(openOnStart));
     }
 
-    Object.assign(window, {doc, bench});
+    Object.assign(window, {app, bench});
 });

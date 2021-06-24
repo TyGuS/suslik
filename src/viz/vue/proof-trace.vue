@@ -32,10 +32,9 @@ export default {
     data: () => ({statusClass: undefined}),
     mounted() {
         this.$watch('root.expanded', () => {
-            requestAnimationFrame(() => {
-                if (this.root.focus && this.$refs.subtrees)
-                    this.focusElement(this.$refs.subtrees);
-            });
+            if (this.root?.focus && this.$refs.subtrees)
+                requestAnimationFrame(() =>
+                    this.focusElement(this.$refs.subtrees));
         });
         if (this.$refs.nroot)
             this.statusClass = this.$refs.nroot.statusClass;
@@ -61,7 +60,7 @@ export default {
         },
         getHigh(id) {
             return Object.entries(this.highlight || {})
-                .map(([k, v]) => v.some(x => arreq(x, id)) ? k : undefined)
+                .map(([k, v]) => v?.some(x => arreq(x, id)) ? k : undefined)
                 .filter(x => x);
         }
     },
