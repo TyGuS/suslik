@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import _ from 'lodash';
 import $ from 'jquery';
 import Vue from 'vue';
 
@@ -15,6 +16,8 @@ import './ide.css';
 class SuSLikApp extends EventEmitter {
     app: Vue
     notifications: JQuery
+
+    doc: MainDocument
 
     constructor(notifications: JQuery) {
         super();
@@ -36,6 +39,8 @@ class SuSLikApp extends EventEmitter {
     }
 
     add(doc: MainDocument) {
+        this.doc?.close();
+        this.doc = doc;
         doc.on('error', err => this.message(err.message));
     }
 
@@ -69,6 +74,7 @@ class SuSLikApp extends EventEmitter {
 class MainDocument extends EventEmitter {
     id: string
     pane: Vue & ProofTrace.View.PaneProps
+    options: DocumentOptions
 
     pt: ProofTrace
     pi: ProofInteraction
@@ -77,10 +83,12 @@ class MainDocument extends EventEmitter {
 
     storage: {'suslik:doc:lastUrl'?: string} = <any>localStorage;
 
-    constructor(id: string, pane: Vue & ProofTrace.View.PaneProps) {
+    constructor(id: string, pane: Vue & ProofTrace.View.PaneProps,
+                options: DocumentOptions = {}) {
         super();
         this.id = id;
         this.pane = pane;
+        this.options = options;
     }
 
     new() {
@@ -112,7 +120,7 @@ class MainDocument extends EventEmitter {
     }
 
     openRecent(opts?: OpenOptions) {
-        return this.openUrl(this.storage['suslik:doc:lastUrl'] || DEFAULT_URL, opts);
+        return this.openUrl(this.storage['suslik:doc:lastUrl'] || MainDocument.DEFAULT_URL, opts);
     }
 
     setProofTrace(ptData: ProofTrace.Data) {
@@ -130,9 +138,12 @@ class MainDocument extends EventEmitter {
                 if (this.pi) this.pi.sendExpandRequest(nodeView.value.id);
             }
         });
-        pi.on('trace', u =>
-            this.pt.append(ProofTrace.Data.fromEntries([u])));
 
+        pi.on('trace', throttleCollate((values: [any][]) => {
+            this.pt.append(ProofTrace.Data.fromEntries(values.map(x => x[0])),
+                           {expand: this.options.expandImmediately});
+        }, this.options.throttle));
+        
         this.emit('open', pt);
         return pt;
     }
@@ -140,10 +151,24 @@ class MainDocument extends EventEmitter {
     async read(file: File) {
         return new TextDecoder().decode(await file.arrayBuffer());
     }
+
+    close() {
+        this.pt?.destroy();
+        this.pi?.destroy();
+    }
 }
 
-type OpenOptions = {name?: string, silent?: boolean};
-const DEFAULT_URL = '/trace.json';
+namespace MainDocument {
+    export type Options = {
+        throttle?: number           /* min delay between trace updates */
+        expandImmediately?: true    /* whether to expand nodes as soon as they are received */
+    };
+    export type OpenOptions = {name?: string, silent?: boolean};
+    export const DEFAULT_URL = '/trace.json';
+}
+
+import DocumentOptions = MainDocument.Options;
+import OpenOptions = MainDocument.OpenOptions;
 
 
 class DragDropJson extends EventEmitter {
@@ -165,6 +190,17 @@ class DragDropJson extends EventEmitter {
         }
         else this.emit('error', "Can only process one file at a time");
     }
+}
+
+
+/**
+ * Service routine; throttle call then invoke with accumulated
+ * lists of args.
+ */
+function throttleCollate<T extends any[]>(func: (c: T[]) => void, wait?: number) {
+    var queue = [],
+        tflush = _.throttle(() => { func(queue); queue = []; }, wait);
+    return (...args: any[]) => { queue.push(args); tflush(); };
 }
 
 
