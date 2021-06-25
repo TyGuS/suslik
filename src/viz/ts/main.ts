@@ -1,8 +1,9 @@
 import $ from 'jquery';
 import { SuSLikApp, MainDocument, DragDropJson } from './app';
-import { ProofTrace } from './proof-trace';
 import { ProofInteraction } from './proof-interaction';
 import { BenchmarksDB } from './benchmarks';
+
+import ProofMode = ProofInteraction.Data.ProofMode;
 
 
 
@@ -27,31 +28,37 @@ $(async () => {
     const bench = await BenchmarksDB.load();
     app.setBenchmarks(bench.data);
 
-    async function startBenchmark(w: {dir: string, fn: string}) {
+    async function startBenchmark(w: {dir: string, fn: string}, mode: ProofMode = ProofMode.INTERACTIVE) {
         var spec = bench.getSpec(w.dir, w.fn),
-            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any)
+            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any,
+                                   OPTIONS[mode]);
         app.hideBenchmarks();
         app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         app.add(doc);
         doc.new();
-        await doc.pi.start(spec);
+        await doc.pi.start(spec, mode);
     }
 
-    async function restartBenchmark(mode?: ProofInteraction.Data.ProofMode) {
+    async function restartBenchmark(mode: ProofMode = ProofMode.INTERACTIVE) {
         console.log(app.getEditorText());
         var spec = BenchmarksDB.Data.parseSpec('todo', app.getEditorText()),
-            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any);
+            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any,
+                                   OPTIONS[mode]);
         app.add(doc);
         doc.new();
         await doc.pi.start(spec, mode);
     }
 
     function proofMode() {
-        return app.options.auto ? ProofInteraction.Data.ProofMode.AUTOMATIC
-                                : ProofInteraction.Data.ProofMode.INTERACTIVE;
+        return app.options.auto ? ProofMode.AUTOMATIC : ProofMode.INTERACTIVE;
     }
 
-    app.on('benchmarks:action', startBenchmark);
+    const OPTIONS: {[mode: string]: MainDocument.Options} = {
+        [ProofMode.AUTOMATIC]: {throttle: 750},
+        [ProofMode.INTERACTIVE]: {expandImmediately: true}
+    };
+
+    app.on('benchmarks:action', w => startBenchmark(w, proofMode()));
     app.on('proofTrace:action', (action) => {
         switch (action.type) {
             case 'restart': restartBenchmark(proofMode()); break;

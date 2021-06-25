@@ -42,11 +42,11 @@ class ProofTrace extends EventEmitter {
         this.createView(pane);
     }
 
-    append(data: Data) {
+    append(data: Data, opts: {expand?: boolean} = {}) {
         Data.append(this.data, data);
         this.updateIndex(data);
         for (let node of data.nodes)
-            this.addNode(node);
+            this.addNode(node, opts);
         this.refreshView();
     }
 
@@ -201,7 +201,7 @@ class ProofTrace extends EventEmitter {
         this._actionHook.detach();
     }
 
-    addNode(node: Data.NodeEntry) {
+    addNode(node: Data.NodeEntry, opts: {expand?: boolean}) {
         if (node.id.length == 0) {  // this is the root
             this.root = node;
             this.view.root = this.createNode(node);
@@ -212,7 +212,8 @@ class ProofTrace extends EventEmitter {
             if (parentView) {
                 parentView.children ??= [];
                 parentView.children.push(this.createNode(node));
-                parentView.expanded = true; /** @todo only if view is visible */
+                if (opts.expand)
+                    parentView.expanded = true; /** @todo only if parent is visible */
             }
         }
     }

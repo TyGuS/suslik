@@ -30,6 +30,7 @@ class ProofInteraction extends EventEmitter {
 
     destroy() {
         this._actionHook.detach();
+        this.ws?.close();
     }
 
     async start(spec?: Data.Spec, mode?: Data.ProofMode) {
