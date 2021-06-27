@@ -1,0 +1,26 @@
+should be able to flatten the tree into a list given a list accumulator
+
+####
+
+{ true ; tree(x, s) ** z :-> y ** sll(y, acc)}
+void tree_flatten(loc x, loc z)
+{ s1 =i s ++ acc ;  z :-> t ** sll(t, s1)}
+
+####
+
+void tree_flatten (loc x, loc z) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let l = *(x + 1);
+    let r = *(x + 2);
+    tree_flatten(l, z);
+    tree_flatten(r, z);
+    let tr = *z;
+    let t = malloc(2);
+    free(x);
+    *z = t;
+    *(t + 1) = tr;
+    *t = v;
+  }
+}

@@ -271,6 +271,7 @@ object CertificationBenchmarks {
   )
   val allAdvanced = List(
     "certification-benchmarks-advanced/bst",
+    "certification-benchmarks-advanced/sll",
     "certification-benchmarks-advanced/dll",
     "certification-benchmarks-advanced/srtl",
   )

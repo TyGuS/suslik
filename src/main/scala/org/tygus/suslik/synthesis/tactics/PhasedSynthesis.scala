@@ -22,11 +22,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         symbolicExecutionRules ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
-    else if (!config.phased)
-    // Phase distinction is disabled: use all rules
-      anyPhaseRules ++ unfoldingPhaseRules ++
-        postBlockPhaseRules ++ preBlockPhaseRules ++
-        pointerPhaseRules ++ purePhaseRules
     else anyPhaseRules ++ specBasedRules(node)
   }
 
@@ -66,9 +61,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     FailRules.PostInconsistent,
     LogicalRules.SubstLeft,
     UnificationRules.SubstRight,
-    LogicalRules.WeakenPre,
-    OperationalRules.ReadRule
-  )
+//    LogicalRules.WeakenPre,
+    OperationalRules.ReadRule,
+    BranchRules.Branch)
 
   protected def symbolicExecutionRules: List[SynthesisRule] = List(
     SymbolicExecutionRules.Open,
@@ -83,13 +78,14 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def unfoldingPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfolding,
     UnificationRules.HeapUnifyUnfolding,
+    UnfoldingRules.AbduceCall,
     UnfoldingRules.Open,
     UnfoldingRules.Close,
-    UnfoldingRules.AbduceCall,
+//    UnfoldingRules.AbduceCall, // HERE: move AbduceCall here to achieve old behavior
   )
 
   protected def unfoldingPostPhaseRules: List[SynthesisRule] = List(
-    LogicalRules.FrameUnfolding,
+    LogicalRules.FrameUnfoldingFinal,
     UnificationRules.HeapUnifyUnfolding,
     UnfoldingRules.Close,
   )
@@ -123,6 +119,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 //          OperationalRules.WriteRule,
           UnificationRules.PickArg,
           UnificationRules.PickCard,
+          LogicalRules.GhostWrite,
           UnificationRules.HeapUnifyPure,
           LogicalRules.SimplifyConditional,
           OperationalRules.WriteRule,
@@ -132,7 +129,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
   protected def postBlockPhaseRules: List[SynthesisRule] = List(
-      (if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost),
+      (if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost),
       LogicalRules.FrameBlock,
       UnificationRules.HeapUnifyBlock,
       OperationalRules.AllocRule
@@ -143,7 +140,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def pointerPhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
+    if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
 //    LogicalRules.SubstLeft,
 //    UnificationRules.SubstRight,
     FailRules.HeapUnreachable,
@@ -153,17 +150,18 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   protected def purePhaseRules: List[SynthesisRule] = {
     List(
-      if (config.branchAbduction) FailRules.AbduceBranch else FailRules.CheckPost,
+      if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
       LogicalRules.EmpRule,
 //      LogicalRules.SubstLeft,
 //      UnificationRules.SubstRight,
       FailRules.HeapUnreachable,
       LogicalRules.FrameFlat,
       UnificationRules.PickCard,
+      LogicalRules.GhostWrite,
       UnificationRules.HeapUnifyPure,
       LogicalRules.SimplifyConditional,
       OperationalRules.WriteRule,
-      DelegatePureSynthesis.PureSynthesisFinal)
+      if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick)
 //    ++
 //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
   }

@@ -150,3 +150,5 @@ node_modules
 
 # certification results
 certify/
+
+*results.tex

@@ -3,6 +3,7 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.synthesis.SynthesisException
 
 /**
   * Utilities for spatial formulae
@@ -49,15 +50,28 @@ trait SepLogicUtils extends PureLogicUtils {
     * Are two heaplets both points-to with the same LHS?
     */
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
-    if (!hl.isInstanceOf[PointsTo]) false
-    else {
-      val pt = hl.asInstanceOf[PointsTo]
-      hr match {
-        case PointsTo(y, off, _) => pt.loc == y && pt.offset == off
+    hl match {
+      case PointsTo(xl, ol, _) => hr match {
+        case PointsTo(xr, or, _) => xl == xr && ol == or
         case _ => false
       }
+      case _ => false
     }
   }
+
+  /**
+    * Are two heaplets both points-to with the same RHS?
+    */
+  def sameRhs(hl: Heaplet): Heaplet => Boolean = hr => {
+    hl match {
+      case PointsTo(_, _, el) => hr match {
+        case PointsTo(_, _, er) => el == er
+        case _ => false
+      }
+      case _ => false
+    }
+  }
+
 
   /**
     * Find a block satisfying a predicate, and all matching chunks.
@@ -75,6 +89,7 @@ trait SepLogicUtils extends PureLogicUtils {
         val pts = ptsMb.flatten
         if (pts.length == sz) Some((h, pts))
         else None
+      case Some(h) => throw SynthesisException(s"Not supported: ${h.pp} (${h.getClass.getName})")
     }
   }
 

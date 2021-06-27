@@ -79,6 +79,15 @@ case class FunSpec(name: Ident, rType: SSLType, params: Formals,
     (sub, this.copy(params = newParams, pre = newPre, post = newPost, var_decl = newVarDecl))
   }
 
+  def varSubst(sigma: SubstVar): FunSpec = this.copy(
+    params = this.params.map({ case (v, t) => (v.varSubst(sigma), t)}),
+    pre = this.pre.subst(sigma),
+    post = this.post.subst(sigma))
+
+  def substUnknown(sigma: UnknownSubst): FunSpec = this.copy(
+    pre = this.pre.copy(this.pre.phi.substUnknown(sigma), this.pre.sigma),
+    post = this.post.copy(this.post.phi.substUnknown(sigma), this.post.sigma)
+  )
 }
 
 /**
@@ -204,8 +213,10 @@ case class Program(predicates: Seq[InductivePredicate],
   * Environment: stores module-level declarations that might be needed during synthesis
   * (predicates, component functions, etc)
   */
-case class Environment(predicates: PredicateEnv, functions: FunctionEnv,
-                       config: SynConfig, stats: SynStats) {
+case class Environment(predicates: PredicateEnv,
+                       functions: FunctionEnv,
+                       config: SynConfig,
+                       stats: SynStats) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

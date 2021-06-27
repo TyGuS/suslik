@@ -1,0 +1,14 @@
+should be able to synthesize a swap program
+
+###
+
+{true; x :-> a ** y :-> b} void swap(loc x, loc y) {true ; x :-> b ** y :-> a}
+
+###
+
+void swap (loc x, loc y) {
+  let a = *x;
+  let b = *y;
+  *x = b;
+  *y = a;
+}

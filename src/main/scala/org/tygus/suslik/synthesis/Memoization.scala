@@ -19,6 +19,7 @@ object Memoization {
                       universalGhosts: Set[Var],
                       sketch: Statement,
                       callGoal: Option[SuspendedCallGoal],
+                      isCompanion: Boolean,
                       companionCands: List[GoalLabel])
 
   /**
@@ -28,7 +29,7 @@ object Memoization {
   // This goal has been fully explored and failed
   case object Failed extends GoalStatus
   // This goal has been fully explored and produces solution `sol`
-  case class Succeeded(sol: Solution) extends GoalStatus
+  case class Succeeded(sol: Solution, nodeId: NodeId) extends GoalStatus
   // This goal has been expanded but not yet fully explored
   // (its descendants are still in the worklist)
   case object Expanded extends GoalStatus
@@ -66,7 +67,7 @@ object Memoization {
       cache(key) = status
       status match {
         case Failed => suspended.remove(key)
-        case Succeeded(_) => suspended.remove(key)
+        case Succeeded(_, _) => suspended.remove(key)
         case _ =>
       }
     }
@@ -90,12 +91,6 @@ object Memoization {
       suspended(key) = suspended(key) + node.id
     }
 
-    // Suspend node until keyNode is fully explored
-    def suspendSibling(node: OrNode, keyNode: OrNode): Unit = {
-      val key = trimGoal(keyNode.goal)
-      suspended(key) = suspended(key) + node.id
-    }
-
     def isSuspended(node: OrNode): Boolean = {
       suspended.values.exists(_.contains(node.id))
     }
@@ -112,6 +107,7 @@ object Memoization {
         g.universalGhosts.intersect(usedVars),
         g.sketch,
         g.callGoal,
+        g.isCompanion,
         g.companionCandidates.map(_.label)
       )
     }

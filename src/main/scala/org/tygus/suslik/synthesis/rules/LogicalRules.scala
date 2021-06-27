@@ -6,12 +6,13 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.synthesis.StmtProducer._
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
   * Logical rules simplify specs and terminate the derivation;
   * they do not eliminate existentials.
+  *
   * @author Nadia Polikarpova, Ilya Sergey
   */
 
@@ -36,9 +37,9 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post
 
       if (pre.sigma.isEmp && post.sigma.isEmp && // heaps are empty
-        goal.existentials.isEmpty &&             // no existentials
-        SMTSolving.valid(pre.phi ==> post.phi))  // pre implies post
-        List(RuleResult(Nil, ConstProducer(Skip), this, goal))      // we are done
+        goal.existentials.isEmpty && // no existentials
+        SMTSolving.valid(pre.phi ==> post.phi)) // pre implies post
+        List(RuleResult(Nil, ConstProducer(Skip), this, goal)) // we are done
       else Nil
     }
   }
@@ -69,12 +70,12 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "WeakenPre"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val unused = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars)
-      if (unused.conjuncts.isEmpty) Nil
+      val unusedConjuncts = goal.pre.phi.indepedentOf(goal.pre.sigma.vars ++ goal.post.vars).conjuncts.filterNot(_.isInstanceOf[Unknown])
+      if (unusedConjuncts.isEmpty) Nil
       else {
-        val newPre = Assertion(goal.pre.phi - unused, goal.pre.sigma)
+        val newPre = Assertion(goal.pre.phi - PFormula(unusedConjuncts), goal.pre.sigma)
         val newGoal = goal.spawnChild(pre = newPre)
-        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = IdProducer >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this, goal))
       }
     }
@@ -84,13 +85,13 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     override def toString: String = "Simplify"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      val kont = IdProducer >> ExtractHelper(goal)
       goal.post.sigma.chunks.find {
         case h@PointsTo(_, _, IfThenElse(_, _, _)) => h.vars.forall(v => !goal.isGhost(v))
         case _ => false
       } match {
         case None => Nil
-        case Some(h@PointsTo(l, o, IfThenElse(c, t, e))) => {
+        case Some(h@PointsTo(l, o, IfThenElse(c, t, e))) =>
           if (SMTSolving.valid(goal.pre.phi ==> (c || (t |=| e)))) {
             val thenSigma = (goal.post.sigma - h) ** PointsTo(l, o, t)
             val thenPhi = goal.post.phi // && c
@@ -102,7 +103,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
             val elseGoal = goal.spawnChild(post = Assertion(elsePhi, elseSigma))
             List(RuleResult(List(elseGoal), kont, this, goal))
           } else Nil
-        }
+        case Some(h) => throw SynthesisException(s"SimplifyConditional does not support ${h.getClass.getName}")
       }
     }
   }
@@ -131,7 +132,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, newPreSigma)
           val newPost = Assertion(post.phi, newPostSigma)
           val newGoal = goal.spawnChild(newPre, newPost)
-          val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = IdProducer >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -193,7 +194,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         val newPre = addToAssertion(pre, prePointers)
         val newPost = addToAssertion(post, postPointers)
         val newGoal = goal.spawnChild(newPre, newPost)
-        val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = IdProducer >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this, goal))
       }
     }
@@ -220,7 +221,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[RuleResult] = {
       if (goal.pre.phi == pFalse) return Nil
-      val kont = IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      val kont = IdProducer >> ExtractHelper(goal)
 
       val newPrePhi = extendPure(goal.pre.phi, goal.pre.sigma)
       val newPostPhi = extendPure(goal.pre.phi && goal.post.phi, goal.post.sigma)
@@ -249,22 +250,25 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // Should only substitute for a ghost
       def isGhostVar(e: Expr): Boolean = e.isInstanceOf[Var] && goal.universalGhosts.contains(e.asInstanceOf[Var])
 
+      def extractSides(l: Expr, r: Expr): Option[(Var, Expr)] =
+        if (l.vars.intersect(r.vars).isEmpty) {
+          if (isGhostVar(l)) Some(l.asInstanceOf[Var], r)
+          else if (isGhostVar(r)) Some(r.asInstanceOf[Var], l)
+          else None
+        } else None
+
       findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpBoolEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpSetEq, l, r) => (isGhostVar(l) || isGhostVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case _ => false
+        case BinaryExpr(OpEq, l, r) => extractSides(l, r)
+        case BinaryExpr(OpBoolEq, l, r) => extractSides(l, r)
+        case BinaryExpr(OpSetEq, l, r) => extractSides(l, r)
+        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l, r)
+        case _ => None
       }, p1) match {
-        case Some((BinaryExpr(_, l, r), rest1)) => {
-          val (x, e) = if (isGhostVar(l)) {
-            (l.asInstanceOf[Var], r)
-          } else {
-            (r.asInstanceOf[Var], l)
-          }
+        case Some(((x, e), rest1)) => {
           val _p1 = rest1.subst(x, e)
           val _s1 = s1.subst(x, e)
           val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))
-          val kont = SubstProducer(x, e) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
           assert(goal.callGoal.isEmpty)
           List(RuleResult(List(newGoal), kont, this, goal))
         }
@@ -272,4 +276,47 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       }
     }
   }
+
+  /*
+   This rule replaces a universal ghost RHS of a points-to heaplet in the post
+   with a special existential that can only be replaced with program-level expressions.
+   This is needed so that pure synthesis can solve this existential in terms of program-level expr,
+   so we can write to this heaplet later  (see synthesis/regression/pure_syn3 as an example).
+   */
+  object GhostWrite extends SynthesisRule with InvertibleRule {
+    override def toString: String = "GhostWrite"
+
+    def apply(goal: Goal): Seq[RuleResult] = {
+      val post = goal.post
+
+      // Is this a points-to heaplet with universal ghosts in the RHS?
+      def pointsToGhosts: Heaplet => Boolean = {
+        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.exists(v => goal.universalGhosts.contains(v))
+        case _ => false
+      }
+
+      // When do two heaplets match
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && pointsToGhosts(hr)
+
+      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
+        case None => Nil
+        case Some((_, hr@PointsTo(x, offset, e2))) =>
+          val ex = freshVar(goal.vars, goal.progLevelPrefix)
+          val tpy = e2.getType(goal.gamma).get
+          val newPost = Assertion(
+            post.phi && (ex |=| e2),
+            (goal.post.sigma - hr) ** PointsTo(x, offset, ex))
+          val subGoal = goal.spawnChild(post = newPost,
+            gamma = goal.gamma + (ex -> tpy))
+          val kont: StmtProducer = IdProducer >> ExtractHelper(goal)
+
+          List(RuleResult(List(subGoal), kont, this, goal))
+        case Some((hl, hr)) =>
+          ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
+          Nil
+      }
+    }
+
+  }
+
 }

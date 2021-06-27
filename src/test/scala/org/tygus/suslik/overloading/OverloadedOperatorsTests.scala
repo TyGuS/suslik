@@ -85,6 +85,23 @@ class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunne
       assert(goal.gamma(Var("j")) == IntType)
       assert(goal.gamma(Var("k")) == IntType)
     }
+
+    it("should be able to resolve sets from intervals") {
+      val code =
+        """
+          {i1 == [x..y] && i2 == [x] && i3 == [] && s1 == {x, y} && s2 == {}; emp}
+          void interval_test(int x, int y)
+          {lower i1 == lower i2 && x in i1 && x in s1 && x in (i1 + i2) && x in (s1 + s2); emp}
+        """
+
+      val goal = resolveFromSpec("interval_test", code)
+      assert(goal.gamma(Var("i1")) == IntervalType)
+      assert(goal.gamma(Var("i2")) == IntervalType)
+      assert(goal.gamma(Var("i3")) == IntervalType)
+      assert(goal.gamma(Var("s1")) == IntSetType)
+      assert(goal.gamma(Var("s2")) == IntSetType)
+    }
+
   }
 
   describe("Overloaded operators tests") {

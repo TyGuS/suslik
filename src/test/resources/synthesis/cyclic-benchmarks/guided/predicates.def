@@ -1,0 +1,22 @@
+predicate rose_tree(loc x, set s) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> b ** buds(b, s1)}
+}
+
+predicate buds(loc x, set s) {
+|  x == 0        => { s == {}; emp }
+|  not (x == 0)  => { s == s1 ++ s2 ;
+                      [x, 2] ** x :-> r ** rose_tree(r, s1) ** (x + 1) :-> nxt ** buds(nxt, s2) }
+}
+
+predicate tree(loc x, set s) {
+|  x == 0        => {s == {} ; emp}
+|  not (x == 0)  => {s == {v} ++ s1 ++ s2 ;
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** tree(l, s1) ** tree(r, s2)}
+}
+
+predicate dll(loc x, loc z, set s) {
+|  x == 0 => { s == {} ; emp }
+|  not (x == 0) =>
+   { s == {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dll(w, x, s1) }
+}

@@ -1,6 +1,6 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.Gamma
+import org.tygus.suslik.logic.{Gamma, PureLogicUtils}
 import org.tygus.suslik.synthesis.SynthesisException
 
 /**
@@ -10,15 +10,30 @@ import org.tygus.suslik.synthesis.SynthesisException
 object Expressions {
 
   sealed abstract class UnOp extends PrettyPrinting {
-    def outputType : SSLType
+    def inputType: SSLType
+    def outputType: SSLType
   }
   object OpNot extends UnOp {
     override def pp: String = "not"
+    override def inputType: SSLType = BoolType
     override def outputType: SSLType = BoolType
   }
 
   object OpUnaryMinus extends UnOp {
     override def pp: String = "-"
+    override def inputType: SSLType = IntType
+    override def outputType: SSLType = IntType
+  }
+
+  object OpLower extends UnOp {
+    override def pp: String = "lower"
+    override def inputType: SSLType = IntervalType
+    override def outputType: SSLType = IntType
+  }
+
+  object OpUpper extends UnOp {
+    override def pp: String = "upper"
+    override def inputType: SSLType = IntervalType
     override def outputType: SSLType = IntType
   }
 
@@ -58,6 +73,7 @@ object Expressions {
       (IntType, IntType) -> OpEq,
       (LocType, LocType) -> OpEq,
       (IntSetType, IntSetType) -> OpSetEq,
+      (IntervalType, IntervalType) -> OpIntervalEq,
       (BoolType, BoolType) -> OpBoolEq,
     )
 
@@ -97,12 +113,25 @@ object Expressions {
     override def resType: SSLType = BoolType
   }
 
+  object OpOverloadedIn extends OverloadedBinOp {
+    override def level: Int = 3
+    override def pp: String = "in"
+    override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
+      (IntType, IntSetType) -> OpIn,
+      (IntType, IntervalType) -> OpIntervalIn,
+    )
+
+    override def default: BinOp = OpIn
+  }
+
+
   object OpOverloadedPlus extends OverloadedBinOp {
     override def level: Int = 4
     override def pp: String = "+"
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpPlus,
       (IntSetType, IntSetType) -> OpUnion,
+      (IntervalType, IntervalType) -> OpIntervalUnion,
     )
 
     override def default: BinOp = OpPlus
@@ -125,6 +154,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpLeq,
       (IntSetType, IntSetType) -> OpSubset,
+      (IntervalType, IntervalType) -> OpSubinterval,
     )
 
     override def default: BinOp = OpLeq
@@ -236,6 +266,40 @@ object Expressions {
     override def resType: SSLType = IntSetType
   }
 
+  object OpRange extends BinOp {
+    def level: Int = 5
+    override def pp: String = ".."
+    def lType: SSLType = IntType
+    def rType: SSLType = IntType
+    override def resType: SSLType = IntervalType
+  }
+  object OpIntervalUnion extends BinOp with SymmetricOp with AssociativeOp {
+    def level: Int = 4
+    override def pp: String = "++"
+    def lType: SSLType = IntervalType
+    def rType: SSLType = IntervalType
+    def resType: SSLType = IntervalType
+  }
+  object OpIntervalIn extends RelOp {
+    def level: Int = 3
+    override def pp: String = "in"
+    def lType: SSLType = IntType
+    def rType: SSLType = IntervalType
+  }
+  object OpIntervalEq extends RelOp with SymmetricOp {
+    def level: Int = 3
+    override def pp: String = "=="
+    def lType: SSLType = IntervalType
+    def rType: SSLType = IntervalType
+  }
+  object OpSubinterval extends RelOp {
+    def level: Int = 3
+    override def pp: String = "<="
+    def lType: SSLType = IntervalType
+    def rType: SSLType = IntervalType
+  }
+
+
   sealed abstract class Expr extends PrettyPrinting with HasExpressions[Expr] with Ordered[Expr] {
 
     def compare(that: Expr): Int = this.pp.compare(that.pp)
@@ -267,6 +331,9 @@ object Expressions {
           val acc2 = collector(acc1)(cond)
           val acc3 = collector(acc2)(l)
           collector(acc3)(r)
+        case c@Unknown(_,params,_) =>
+          val acc1 = if (p(c)) acc + c.asInstanceOf[R] else acc
+          params.foldLeft(acc1)((a,e) => collector(a)(e))
         case _ => acc
       }
 
@@ -276,11 +343,13 @@ object Expressions {
     def level: Int = 6
     def associative: Boolean = false
 
-    def printAtLevel(lvl: Int): String = {
+    def printInContext(parent: Expr): String = {
       val s = pp
-      if (lvl < this.level) s
-      else if (lvl == this.level && associative) s
-      else s"($s)"
+      if (parent.level < this.level) s
+      else this match {
+        case expr: BinaryExpr if associative && parent.isInstanceOf[BinaryExpr] && expr.op == parent.asInstanceOf[BinaryExpr].op => s
+        case _ => s"($s)"
+      }
     }
 
     // Convenience operators for building expressions
@@ -305,6 +374,8 @@ object Expressions {
 
     def getType(gamma: Gamma): Option[SSLType]
 
+    def substUnknown(sigma: UnknownSubst): Expr = this
+
     def resolve(gamma: Gamma, target: Option[SSLType]): Option[Gamma] = this match {
       case v@Var(_) => gamma.get(v) match {
         case Some(t) => t.subtype(target) match {
@@ -319,10 +390,7 @@ object Expressions {
       case BoolConst(_) => if (BoolType.conformsTo(target)) Some(gamma) else None
       case LocConst(_) => if (LocType.conformsTo(target)) Some(gamma) else None
       case IntConst(_) => if (IntType.conformsTo(target)) Some(gamma) else None
-      case UnaryExpr(op, e) => op match {
-        case OpNot => if (BoolType.conformsTo(target)) e.resolve(gamma, Some(BoolType)) else None
-        case OpUnaryMinus => if (IntType.conformsTo(target)) e.resolve(gamma, Some(IntType)) else None
-      }
+      case UnaryExpr(op, e) => if (op.outputType.conformsTo(target)) e.resolve(gamma, Some(op.inputType)) else None
       case BinaryExpr(op, l, r) =>
         if (op.resType.conformsTo(target)) {
           for {
@@ -372,6 +440,7 @@ object Expressions {
             }
           }
         } yield gamma4
+      case Unknown(_,_,_) => if (BoolType.conformsTo(target)) Some(gamma) else None
     }
 
     // Expression size in AST nodes
@@ -384,17 +453,6 @@ object Expressions {
       case _ => 1
     }
 
-    // Should this atomic formula be a candidate for pure unification?
-    // For now, only allow set relations
-    def allowUnify: Boolean = this match {
-      case BinaryExpr(op, _, _) => op match {
-        case OpSetEq => true
-        case OpIn => true
-        case OpSubset => true
-        case _ => false
-      }
-      case _ => false
-    }
 
     def conjuncts: List[Expr] = this match {
         case BoolConst(true) => Nil
@@ -412,7 +470,8 @@ object Expressions {
       case Var(_)
       | BoolConst(_)
       | LocConst(_)
-      | IntConst(_)  => this
+      | IntConst(_)
+      | Unknown(_,_,_) => this
       case UnaryExpr(op, e) => UnaryExpr(op, e.resolveOverloading(gamma))
       case BinaryExpr(op, l, r) => BinaryExpr(op, l.resolveOverloading(gamma), r.resolveOverloading(gamma))
       case SetLiteral(elems) => SetLiteral(elems.map(_.resolveOverloading(gamma)))
@@ -431,17 +490,6 @@ object Expressions {
       sigma.getOrElse(this, this)
 
     def varSubst(sigma: Map[Var, Var]): Var = subst(sigma).asInstanceOf[Var]
-
-    def refresh(taken: Set[Var], suffix: String): Var = {
-      var count = 1
-      val original = this.name + suffix
-      var tmpName = original
-      while (taken.exists(_.name == tmpName)) {
-        tmpName = original + count
-        count = count + 1
-      }
-      Var(tmpName)
-    }
 
     def getType(gamma: Gamma): Option[SSLType] = gamma.get(this)
   }
@@ -468,17 +516,28 @@ object Expressions {
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Subst): Expr = BinaryExpr(op, left.subst(sigma), right.subst(sigma))
+    override def substUnknown(sigma: UnknownSubst): Expr = BinaryExpr(op, left.substUnknown(sigma), right.substUnknown(sigma))
     override def level: Int = op.level
     override def associative: Boolean = op.isInstanceOf[AssociativeOp]
-    override def pp: String = s"${left.printAtLevel(level)} ${op.pp} ${right.printAtLevel(level)}"
+    override def pp: String = op match {
+      case OpRange => printInterval(left, right)
+      case _ => s"${left.printInContext(this)} ${op.pp} ${right.printInContext(this)}"
+    }
     def getType(gamma: Gamma): Option[SSLType] = Some(op.resType)
+
+    def printInterval(left: Expr, right: Expr): String = (left, right) match {
+      case (IntConst(x), IntConst(y)) if x > y => "[]"
+      case _ if left == right => s"[${left.printInContext(this)}]"
+      case _ => s"[${left.printInContext(this)} ${op.pp} ${right.printInContext(this)}]"
+    }
   }
 
   case class OverloadedBinaryExpr(overloaded_op: OverloadedBinOp, left: Expr, right: Expr) extends Expr {
     def subst(sigma: Subst): Expr = OverloadedBinaryExpr(overloaded_op, left.subst(sigma), right.subst(sigma))
+    override def substUnknown(sigma: UnknownSubst): Expr = OverloadedBinaryExpr(overloaded_op, left.substUnknown(sigma), right.substUnknown(sigma))
     override def level: Int = overloaded_op.level
     override def associative: Boolean = overloaded_op.isInstanceOf[AssociativeOp]
-    override def pp: String = s"${left.printAtLevel(level)} ${overloaded_op.pp} ${right.printAtLevel(level)}"
+    override def pp: String = s"${left.printInContext(this)} ${overloaded_op.pp} ${right.printInContext(this)}"
 
     def inferConcreteOp(gamma: Gamma): BinOp = {
       val lType = left.getType(gamma)
@@ -531,9 +590,9 @@ object Expressions {
 
   case class UnaryExpr(op: UnOp, arg: Expr) extends Expr {
     def subst(sigma: Subst): Expr = UnaryExpr(op, arg.subst(sigma))
-
+    override def substUnknown(sigma: UnknownSubst): Expr = UnaryExpr(op, arg.substUnknown(sigma))
     override def level = 5
-    override def pp: String = s"${op.pp} ${arg.printAtLevel(level)}"
+    override def pp: String = s"${op.pp} ${arg.printInContext(this)}"
     def getType(gamma: Gamma): Option[SSLType] = Some(op.outputType)
   }
 
@@ -545,9 +604,33 @@ object Expressions {
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {
     override def level: Int = 0
-    override def pp: String = s"${cond.printAtLevel(level)} ? ${left.printAtLevel(level)} : ${right.printAtLevel(level)}"
+    override def pp: String = s"${cond.printInContext(this)} ? ${left.printInContext(this)} : ${right.printInContext(this)}"
     override def subst(sigma: Subst): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
+    override def substUnknown(sigma: UnknownSubst): Expr = IfThenElse(cond.substUnknown(sigma), left.substUnknown(sigma), right.substUnknown(sigma))
     def getType(gamma: Gamma): Option[SSLType] = left.getType(gamma)
+  }
+
+  /**
+    * Unknown predicate (to be replaced by a term)
+    * @param name Predicate name
+    * @param params Variables that may appear in the instantiation
+    */
+  case class Unknown(name: String, params: Set[Var], pendingSubst: Subst = Map()) extends Expr with PureLogicUtils {
+    override def getType(gamma: Gamma): Option[SSLType] = Some(BoolType)
+
+    override def pp: String = s"?$name(${params.map(_.name).mkString(", ")})"
+
+    override def subst(sigma: Subst): Expr = this.copy(pendingSubst = compose(this.pendingSubst, sigma))
+
+    // Compare ignoring the pending substitution
+    def sameVar(other: Unknown): Boolean = other.name == name && other.params == params
+
+    override def substUnknown(sigma: UnknownSubst): Expr =
+      // Find unknown but ignore pending subst
+      sigma.find({case (k, _) => sameVar(k)}) match {
+      case None => this
+      case Some((_,e)) => e.subst(pendingSubst)
+    }
   }
 
   /*
@@ -556,6 +639,7 @@ object Expressions {
 
   def eTrue: Expr = BoolConst(true)
   def eFalse: Expr = BoolConst(false)
+  def emptyInt: Expr = BinaryExpr(OpRange, IntConst(1), IntConst(0))
 
   /*
   Substitutions
@@ -563,6 +647,7 @@ object Expressions {
   type Subst = Map[Var, Expr]
   type SubstVar = Map[Var, Var]
   type ExprSubst = Map[Expr, Expr]
+  type UnknownSubst = Map[Unknown, Expr]
 
   def toSorted[A <: Expr](s: Set[A]): List[A] = s.toList.sorted(Ordering[Expr])
   def least[A <: Expr](s: Set[Var]): List[Var] = if (s.isEmpty) Nil else List(s.min(Ordering[Expr]))

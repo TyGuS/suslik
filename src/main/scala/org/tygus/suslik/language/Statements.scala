@@ -1,7 +1,7 @@
 package org.tygus.suslik.language
 
-import org.tygus.suslik.logic.{Formals, FunSpec, Gamma}
 import org.tygus.suslik.logic.Specifications.GoalLabel
+import org.tygus.suslik.logic.{Formals, FunSpec, Gamma}
 import org.tygus.suslik.util.StringUtil._
 
 /**
@@ -57,12 +57,10 @@ object Statements {
             builder.append(mkSpaces(offset)).append(s"} else {\n")
             build(eb, offset + 2)
             builder.append(mkSpaces(offset)).append(s"}\n")
-          case Guarded(cond, b, eb, _) =>
+          case Guarded(cond, b) =>
             builder.append(mkSpaces(offset))
             builder.append(s"assume (${cond.pp}) {\n")
             build(b, offset + 2)
-            builder.append(mkSpaces(offset)).append(s"}\n")
-            build(eb, offset + 2)
             builder.append(mkSpaces(offset)).append(s"}\n")
         }
       }
@@ -94,9 +92,8 @@ object Statements {
         case If(cond, tb, eb) =>
           val acc1 = collector(acc ++ cond.collect(p))(tb)
           collector(acc1)(eb)
-        case Guarded(cond, b, eb, _) =>
-          val acc1 = collector(acc ++ cond.collect(p))(b)
-          collector(acc1)(eb)
+        case Guarded(cond, b) =>
+          collector(acc ++ cond.collect(p))(b)
       }
 
       collector(Set.empty)(this)
@@ -123,7 +120,7 @@ object Statements {
       case Call(fun, args, companion) => Call(fun, args.map(_.subst(sigma)), companion)
       case SeqComp(s1, s2) => SeqComp(s1.subst(sigma), s2.subst(sigma))
       case If(cond, tb, eb) => If(cond.subst(sigma), tb.subst(sigma), eb.subst(sigma))
-      case Guarded(cond, b, eb, l) => Guarded(cond.subst(sigma), b.subst(sigma), eb.subst(sigma), l)
+      case Guarded(cond, b) => Guarded(cond.subst(sigma), b.subst(sigma))
       case _ => this
     }
 
@@ -139,7 +136,27 @@ object Statements {
       case Call(_, args, _) => 1 + args.map(_.size).sum
       case SeqComp(s1,s2) => s1.size + s2.size
       case If(cond, tb, eb) => 1 + cond.size + tb.size + eb.size
-      case Guarded(cond, b, eb, _) => 1 + cond.size + b.size + eb.size
+      case Guarded(cond, b) => 1 + cond.size + b.size
+    }
+
+    // Simplified statement: by default do nothing
+    def simplify: Statement = this
+
+    // Is this an atomic statement?
+    def isAtomic: Boolean = this match {
+      case Skip => false
+      case If(_,_,_) => false
+      case Guarded(_,_) => false
+      case SeqComp(_,_) => false
+      case _ => true
+    }
+
+    // Variables defined by this atomic statement
+    def definedVars: Set[Var] = this match {
+      case Load(y, _, _, _) => Set(y)
+      case Malloc(y, _, _)  => Set (y)
+      case _ if !isAtomic => {assert(false, "definedVars called on non-atomic statement"); Set()}
+      case _ => Set()
     }
 
     // All atomic statements (load, store, malloc, free, call) inside this statement
@@ -147,8 +164,17 @@ object Statements {
       case Skip => List()
       case SeqComp(s1,s2) => s1.atomicStatements ++ s2.atomicStatements
       case If(_, tb, eb) => tb.atomicStatements ++ eb.atomicStatements
-      case Guarded(_, b, eb, _) => b.atomicStatements ++ eb.atomicStatements
+      case Guarded(_, b) => b.atomicStatements
       case _ => List(this)
+    }
+
+    // Apply f to all atomic statements inside this statement
+    def mapAtomic(f: Statement => Statement): Statement = this match {
+      case SeqComp(s1, s2) => SeqComp(s1.mapAtomic(f), s2.mapAtomic(f))
+      case If(cond, tb, eb) => If(cond, tb.mapAtomic(f), eb.mapAtomic(f))
+      case Guarded(cond, b) => Guarded(cond, b.mapAtomic(f))
+      case Skip => Skip
+      case _ => f(this)
     }
 
     // Companions of all calls inside this statement
@@ -178,17 +204,24 @@ object Statements {
         tb.resolveOverloading(gamma),
         eb.resolveOverloading(gamma)
       )
-      case Guarded(cond, body, els, branchPoint) => Guarded(
+      case Guarded(cond, body) => Guarded(
         cond.resolveOverloading(gamma),
-        body.resolveOverloading(gamma),
-        els.resolveOverloading(gamma),
-        branchPoint
+        body.resolveOverloading(gamma)
       )
       case cmd:Store => cmd.copy(e = cmd.e.resolveOverloading(gamma))
       case cmd:Call => cmd.copy(args = cmd.args.map({e => e.resolveOverloading(gamma)}))
       case other => other
     }
 
+    // Shorten a variable v to its minimal prefix unused in the current statement.
+    def simplifyVariable(v: Var): (Var, Statement) = {
+      val used = this.vars
+      val prefixes = Range(1, v.name.length).map(n => v.name.take(n))
+      prefixes.find(p => !used.contains(Var(p))) match {
+        case None => (v, this) // All shorter names are taken
+        case Some(name) => (Var(name), this.subst(v, Var(name)))
+      }
+    }
   }
 
   // skip
@@ -218,10 +251,15 @@ object Statements {
 
   // s1; s2
   case class SeqComp(s1: Statement, s2: Statement) extends Statement {
-    def simplify: Statement = {
+    override def simplify: Statement = {
       (s1, s2) match {
-        case (Guarded(cond, b, eb, l), _) => Guarded(cond, SeqComp(b, s2).simplify, eb, l) // Guards are propagated to the top
-        case (_, Guarded(cond, b, eb, l)) => Guarded(cond, SeqComp(s1, b).simplify, eb, l) // Guards are propagated to the top
+        case (Skip, _) => s2.simplify // Remove compositions with skip
+//        case (_, Skip) => s1.simplify
+        case (SeqComp(s11, s12), _) => SeqComp(s11, SeqComp(s12, s2)).simplify // Left-nested compositions are transformed to right-nested
+        case (Guarded(_, _), _) => { assert(false, "Guarded statement on LHS of seq comp"); this}
+        case (If(_, _, _), _) => { assert(false, "Conditional on LHS of seq comp"); this }
+        case (_, Guarded(cond, b)) // Guards are propagated to the top but not beyond the definition of any var in their cond
+            if cond.vars.intersect(s1.definedVars).isEmpty => Guarded(cond, SeqComp(s1, b).simplify)
         case (Load(y, tpe, from, offset), _) => simplifyBinding(y, newY => Load(newY, tpe, from, offset))
         case (Malloc(to, tpe, sz), _) => simplifyBinding(to, newTo => Malloc(newTo, tpe, sz))
         case _ => this
@@ -230,35 +268,34 @@ object Statements {
 
     // Eliminate or shorten newly bound variable newvar
     // depending on the rest of the program (s2)
-    private def simplifyBinding(newvar: Var, mkBinding: Var => Statement): Statement = {
-      val used = s2.vars
-      if (used.contains(newvar)) {
-        // Try to shorten the variable name
-        val prefixes = Range(1, newvar.name.length).map(n => newvar.name.take(n))
-        prefixes.find(p => !used.contains(Var(p))) match {
-          case None => this // All shorter names are used
-          case Some(name) => SeqComp(mkBinding(Var(name)), s2.subst(newvar, Var(name)))
-        }
-      } else s2 // Do not generate bindings for unused variables
-    }
+    private def simplifyBinding(newvar: Var, mkBinding: Var => Statement): Statement =
+      if (s2.vars.contains(newvar)) {
+        val (v, s) = s2.simplifyVariable(newvar)
+        SeqComp(mkBinding(v), s)
+      } else s2  // Do not generate bindings for unused variables
   }
 
   // if (cond) { tb } else { eb }
   case class If(cond: Expr, tb: Statement, eb: Statement) extends Statement {
-    def simplify: Statement = {
+    override def simplify: Statement = {
       (tb, eb) match {
         case (Skip, Skip) => Skip
         case (Error, _) => eb
         case (_, Error) => tb
-        case (Guarded(gcond, gb, geb, _), _) => If(cond, If(gcond, gb, geb), eb).simplify // TODO: this handles nested branch abductions but it's not particularly sound
-        case (_, Guarded(gcond, gb, geb, _)) => If(cond, tb, If(gcond, gb, geb)).simplify
+        case (Guarded(gcond, gb), _) => Guarded(gcond, If(cond, gb, eb).simplify)
+        case (_, Guarded(gcond, gb)) => Guarded(gcond, If(cond, tb, gb).simplify)
         case _ => this
       }
     }
   }
 
   // assume cond { body } else { els }
-  case class Guarded(cond: Expr, body: Statement, els: Statement, branchPoint: GoalLabel) extends Statement
+  case class Guarded(cond: Expr, body: Statement) extends Statement {
+    override def simplify: Statement = body match {
+      case Guarded(c1, b1) => Guarded(cond && c1, b1)
+      case _ => this
+    }
+  }
 
   // A procedure
   case class Procedure(f: FunSpec, body: Statement) {
@@ -270,6 +307,52 @@ object Statements {
          |${tp.pp} $name (${formals.map { case (i, t) => s"${t.pp} ${i.pp}" }.mkString(", ")}) {
          |${body.pp}}
     """.stripMargin
+
+    // Shorten parameter names
+    def simplifyParams: Procedure = {
+      type Acc = (FunSpec, Statement)
+      def updateParam(formal: (Var, SSLType), acc: Acc): Acc = {
+        val (newParam, newBody) = acc._2.simplifyVariable(formal._1)
+        val newSpec = acc._1.varSubst(Map(formal._1 -> newParam))
+        (newSpec, newBody)
+      }
+      val (newSpec, newBody) = f.params.foldRight((f, body))(updateParam)
+      this.copy(f = newSpec, body = newBody)
+    }
+
+    // Removed unused formals from this procedure
+    // and corresponding actuals in all recursive calls;
+    // a parameter is considered unused if it is only mentioned in a recursive call
+    // at the same (or other unused) position
+    def removeUnusedParams(outerCall: Call): (Procedure, Call) = {
+
+      def isRecCall(s: Statement) = s.isInstanceOf[Call] && s.asInstanceOf[Call].fun.name == f.name
+      val recCalls = body.atomicStatements.filter(isRecCall).map(_.asInstanceOf[Call])
+      val rest = body.mapAtomic(s => if (isRecCall(s)) Skip else s)
+
+      def rmAtIndex(args: Seq[Expr], i: Int): Seq[Expr] = args.take(i) ++ args.drop(i + 1)
+
+      val unusedParams = for {
+        param <- f.params
+        if !rest.vars.contains(param._1)
+        ind = f.params.indexOf(param)
+        if recCalls.forall(c => !rmAtIndex(c.args, ind).flatMap(_.vars).contains(param._1))
+      } yield (ind, param)
+
+      val unusedArgs = unusedParams.map(_._1)
+      def removeUnusedArgs(c:Call): Call = {
+        val newArgs = c.args.indices.filterNot(unusedArgs.contains(_)).map(i => c.args(i))
+        c.copy(args = newArgs)
+      }
+      def removeCallArgs(s: Statement): Statement = if (isRecCall(s)) {
+        removeUnusedArgs(s.asInstanceOf[Call])
+      } else s
+
+      val usedParams = f.params.filterNot(p => unusedParams.map(_._2).contains(p))
+      val newProc = this.copy(f = this.f.copy(params = usedParams), body = this.body.mapAtomic(removeCallArgs))
+      val newCall = removeUnusedArgs(outerCall)
+      (newProc, newCall)
+    }
 
   }
 

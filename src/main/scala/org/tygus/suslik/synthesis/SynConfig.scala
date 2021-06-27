@@ -26,15 +26,13 @@ case class SynConfig(
                       maxCloseDepth: Int = 1,
                       maxCalls: Int = 2,
                       auxAbduction: Boolean = true,
-                      topLevelRecursion: Boolean = true,
                       branchAbduction: Boolean = false,
                       maxGuardConjuncts: Int = 2,
-                      phased: Boolean = true,
                       depthFirst: Boolean = false,
                       breadthFirst: Boolean = false,
                       memoization: Boolean = true,
-                      termination: TerminationMetric = lexicographic,
-                      delegatePure: Boolean = true,
+                      delegatePure: Boolean = false,
+                      extendedPure: Boolean = false,
                       // Timeout and logging
                       interactive: Boolean = false,
                       printStats: Boolean = true,
@@ -42,12 +40,10 @@ case class SynConfig(
                       printDerivations: Boolean = false,
                       printFailed: Boolean = false,
                       printEnv: Boolean = false,
-                      printColor: Boolean = true,
                       assertSuccess: Boolean = false,
                       logToFile: Boolean = true,
                       traceToJsonFile: Option[File] = None,
-                      timeOut: Long = 120000,
-                      startTime: Deadline = Deadline.now,
+                      timeOut: Long = 1800000,
                       // Certification
                       certTarget: CertificationTarget = NoCert,
                       certDest: File = null,
@@ -63,7 +59,6 @@ case class SynConfig(
       (if (maxCloseDepth == defaultConfig.maxCloseDepth) Nil else List(s"maxCloseDepth = $maxCloseDepth")) ++
       (if (auxAbduction == defaultConfig.auxAbduction) Nil else List(s"auxAbduction = $auxAbduction")) ++
       (if (branchAbduction == defaultConfig.branchAbduction) Nil else List(s"branchAbduction = $branchAbduction")) ++
-      (if (phased == defaultConfig.phased) Nil else List(s"phased = $phased")) ++
       (if (depthFirst == defaultConfig.depthFirst) Nil else List(s"depthFirst = $depthFirst")) ++
       (if (memoization == defaultConfig.memoization) Nil else List(s"memoization = $memoization")) ++
       (if (certTarget == defaultConfig.certTarget) Nil else List(s"certTarget = ${certTarget.name}")) ++

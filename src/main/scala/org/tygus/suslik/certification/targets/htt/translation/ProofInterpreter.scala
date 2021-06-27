@@ -9,7 +9,7 @@ import org.tygus.suslik.certification.targets.htt.translation.TranslatableOps.Tr
 import org.tygus.suslik.certification.traversal.Evaluator.{Deferred, EvaluatorException}
 import org.tygus.suslik.certification.traversal.Interpreter
 import org.tygus.suslik.certification.traversal.Interpreter.Result
-import org.tygus.suslik.language.Expressions.Var
+import org.tygus.suslik.language.Expressions.{Unknown, Var}
 import org.tygus.suslik.language.Statements.{Free, Load, Malloc, Store}
 import org.tygus.suslik.logic.SApp
 
@@ -128,7 +128,7 @@ object ProofInterpreter extends Interpreter[SuslikProofStep, Proof.Step, ProofCo
         Result(List(), List(withNoDeferred(ctx1)))
 
       /** Control flow */
-      case SuslikProofStep.Branch(cond, _) =>
+      case SuslikProofStep.Branch(cond) =>
         val childContexts = List(ctx.copy(numSubgoals = ctx.numSubgoals + 1), ctx)
         Result(List(Proof.Branch(cond.translate)), childContexts.map(withNoDeferred))
       case SuslikProofStep.Open(sapp, freshExistentials, freshParamArgs, selectors) =>
@@ -294,7 +294,9 @@ object ProofInterpreter extends Interpreter[SuslikProofStep, Proof.Step, ProofCo
       /** Pure entailments */
       case SuslikProofStep.CheckPost(prePhi, postPhi, gamma) =>
         val hammer = env.config.certHammerPure
-        ctx.hints += Hint.PureEntailment(prePhi.conjuncts.map(_.translate), postPhi.conjuncts.map(_.translate), gamma.translate, hammer)
+        val preConjuncts = prePhi.conjuncts.filterNot(_.isInstanceOf[Unknown]).map(_.translate)
+        val postConjuncts = postPhi.conjuncts.filterNot(_.isInstanceOf[Unknown]).map(_.translate)
+        ctx.hints += Hint.PureEntailment(preConjuncts, postConjuncts, gamma.translate, hammer)
         Result(List(), List(withNoDeferred(ctx)))
 
       /** Ignored */

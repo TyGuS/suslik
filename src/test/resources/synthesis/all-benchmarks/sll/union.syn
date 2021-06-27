@@ -1,0 +1,55 @@
+# -b true -c 2 -p true
+
+union of two unique lists
+
+#####
+
+{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
+void union (loc r, loc y)
+{ r :-> z ** ulist(z, s1 ++ s2) }
+
+#####
+
+{r :-> x ** ulist(x, s1)<_alpha_515> ** ulist(y, s2)<_alpha_516>}
+{r :-> z ** ulist(z, s1 + s2)<_alpha_517>}
+void union (loc r, loc y) {
+  let x = *r;
+  if (x == 0) {
+    *r = y;
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    *r = n;
+    union(r, y);
+    union119(n, v, x, r, y);
+  }
+}
+
+{_alpha_514x2 < _alpha_515 && not (r == 0) && not (r == x2) && not (vx22 in s1x2) && not (x2 == 0) ; (x2 + 1) :-> nxtx22 ** r :-> z1 ** x2 :-> vx22 ** ulist(z1, s1x2 ++ s2)<_alpha_5171>[1,0] ** [x2, 2]}
+{not (r == 0) ; r :-> z ** ulist(z, {vx22} ++ s1x2 ++ s2)<_alpha_517>}
+void union119 (loc nxtx22, int vx22, loc x2, loc r, loc y) {
+  let z1 = *r;
+  if (z1 == 0) {
+    *(x2 + 1) = 0;
+    *r = x2;
+  } else {
+    let v = *z1;
+    if (vx22 <= v && v <= vx22) {
+      let n = *(z1 + 1);
+      *r = n;
+      union119(n, v, z1, r, y);
+      free(x2);
+    } else {
+      let n = *(z1 + 1);
+      *r = n;
+      *(z1 + 1) = nxtx22;
+      *z1 = vx22;
+      union119(nxtx22, vx22, z1, r, y);
+      let z = *r;
+      *(x2 + 1) = z;
+      *r = x2;
+      *x2 = v;
+    }
+  }
+}
+

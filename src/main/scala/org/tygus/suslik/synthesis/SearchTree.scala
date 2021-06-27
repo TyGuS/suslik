@@ -4,8 +4,7 @@ import org.tygus.suslik.language.Statements.Solution
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.Termination.Transition
-import org.tygus.suslik.synthesis.rules.Rules.{RuleResult, SynthesisRule}
-import org.tygus.suslik.synthesis.StmtProducer._
+import org.tygus.suslik.synthesis.rules.Rules.{GoalUpdater, RuleResult, SynthesisRule}
 import org.tygus.suslik.util.SynStats
 
 /**
@@ -53,15 +52,6 @@ object SearchTree {
         case _ => false
       }
 
-    // Replace the ancestor labeled l with newAN
-    def replaceAncestor(l: NodeId, n: AndNode): OrNode = parent match {
-      case None => this
-      case Some(p) =>
-        if (p.id == l) copy(parent = Some(n))
-        else if (p.id.length <= l.length) this
-        else copy(parent = Some(p.copy(parent = p.parent.replaceAncestor(l, n))))
-    }
-
     // This node has failed: prune siblings from worklist
     def fail(implicit stats: SynStats, config: SynConfig): Unit = {
       memo.save(goal, Failed)
@@ -78,22 +68,21 @@ object SearchTree {
       }
     }
 
-    // This node has succeeded: update worklist or return solution
-    def succeed(s: Solution)(implicit config: SynConfig): Option[Solution] = {
-      memo.save(goal, Succeeded(s))
+    // This node has succeeded: return either its next suspended and-sibling or the solution
+    def succeed(s: Solution)(implicit config: SynConfig): Either[OrNode, Solution] = {
+      memo.save(goal, Succeeded(s, id))
+      worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
       successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
-        case None => Some(s) // this is the root: synthesis succeeded
+        case None => Right(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
-          worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
-          val newAN = an.copy(kont = an.kont.partApply(s)) // record solution in my parent
-          worklist = worklist.map(_.replaceAncestor(an.id, newAN)) // replace my parent in the tree
-          successLeaves = successLeaves.map(_.replaceAncestor(an.id, newAN))
+          an.childSolutions = an.childSolutions :+ s
           // Check if my parent has more open subgoals:
-          if (newAN.kont.arity == 0) { // there are no more open subgoals: an has succeeded
-            newAN.parent.succeed(newAN.kont(List()))
-          } else { // there are other open subgoals:
-            None
+          if (an.nextChildIndex == an.nChildren) { // there are no more open subgoals: an has succeeded
+            val sol = an.kont(an.childSolutions) // compute solution
+            an.parent.succeed(sol) // tell parent it succeeded
+          } else { // there are other open subgoals: add next open subgoal to the worklist
+            Left(an.nextChild)
           }
         }
       }
@@ -118,7 +107,7 @@ object SearchTree {
     // Is n part of a branch of my descendants that hasn't yet fully succeeded?
     // Yes if there's a incomplete and-node on the way from n to me
     private def isFailedDescendant(n: OrNode): Boolean =
-      n.andAncestors.find(an => an.kont.arity > 0) match {
+      n.andAncestors.find(an => an.childSolutions.length < an.nChildren) match {
       case None => false
       case Some(an) => an.hasAncestor(this.id)
     }
@@ -156,30 +145,6 @@ object SearchTree {
     // The partial derivation that this node is part of (represented as a subset of success leaves)
     def partialDerivation: List[OrNode] = successLeaves.filter(isAndSibling)
 
-    // All alternative partial derivations that this node is participating in
-    // (each partial derivation is represented as a subset of success leaves)
-    // this is needed when and-siblings are not necessarily suspended, e.g. when memo is off
-    def allPartialDerivations: List[List[OrNode]] = {
-      // These nodes are in the same branch as me, but not necessarily with each other
-      val relevantNodes = successLeaves.filter(isAndSibling)
-
-      // Are all nodes in s pairwise and-siblings?
-      def allAndSiblings(s: Set[OrNode]): Boolean = {
-        val results: Set[Boolean] = for { x <- s ; y <- s - x} yield x.isAndSibling(y)
-        results.forall(x => x)
-      }
-
-      val candidateDerivations = relevantNodes.toSet.subsets.filter(allAndSiblings).toList
-      assert(candidateDerivations.nonEmpty, "Candidate derivations should not be empty")
-      val maximalDerivations = for {
-        d <- candidateDerivations
-        // Only keep d if it's maximal, i.e. there is no candidate derivation that is a strict superset of d
-        if candidateDerivations.forall(c => c == d || !d.subsetOf(c))
-      } yield d.toList
-      assert(maximalDerivations.nonEmpty)
-      maximalDerivations
-    }
-
     def pp(d: Int = 0): String = parent match {
       case None => "-"
       case Some(p) =>
@@ -203,12 +168,35 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  case class AndNode(id: NodeId, parent: OrNode, kont: StmtProducer, rule: SynthesisRule, transitions: Seq[Transition]) extends SearchNode {
+  class AndNode(_id: NodeId, _parent: OrNode, _result: RuleResult) extends SearchNode {
+    val id: NodeId = _id                                      // Unique id within the search tree
+    val parent: OrNode = _parent                              // Parent or-node
+    val rule: SynthesisRule = _result.rule                    // Rule that was applied to create this node from parent
+    val childGoals: Seq[Goal] = _result.subgoals              // Goals of all child or-nodes
+    val transitions: Seq[Transition] = _result.transitions    // Transitions between goals added during rule application (for termination checking)
+    val kont: StmtProducer = _result.producer                 // Statement producer: combines solutions from children into a single solution
+    val updates: Seq[GoalUpdater] = _result.updates           // How to update goals of future children based on solutions of succeeded children
+    var nextChildIndex: Int = 0                               // The index of first child that hasn't yet been explored
+    var childSolutions: Seq[Solution] = List()                // Solutions of children that already succeeded
+
     // Does this node have an ancestor with label l?
     def hasAncestor(l: NodeId): Boolean =
       if (id == l) true
       else if (id.length < l.length) false
       else parent.hasAncestor(l)
+
+    // Total number of child or nodes
+    def nChildren: Int = childGoals.size
+
+    // Return the first previously suspended or-node and increase nextChildIndex
+    def nextChild: OrNode = {
+      val origGoal = childGoals(nextChildIndex)
+      val goal = updates(nextChildIndex)(childSolutions)(origGoal)
+      val j = if (nChildren == 1) -1 else nextChildIndex
+      val extraCost = (0 +: childGoals.drop(nextChildIndex + 1).map(_.cost)).max
+      nextChildIndex = nextChildIndex + 1
+      OrNode(j +: this.id, goal, Some(this), parent.extraCost.max(extraCost))
+    }
 
     def pp(d: Int = 0): String = {
       val parentPP = parent.parent match {
@@ -224,7 +212,7 @@ object SearchTree {
 
   object AndNode {
     def apply(id: NodeId, parent: OrNode, result: RuleResult): AndNode =
-      new AndNode(id, parent, result.producer, result.rule, result.transitions)
+      new AndNode(id, parent, result)
   }
 
 }

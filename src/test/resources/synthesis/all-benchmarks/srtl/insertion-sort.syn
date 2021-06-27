@@ -1,0 +1,25 @@
+sorted list: insert an element
+
+#####
+
+{ l >= 0 ; r :-> k ** srtl(x, s, l) }
+void srtl_insert (loc x, loc r)[int k]
+{ r :-> y ** srtl(y, s + [k], l + 1) }
+
+{ n >= 0 ; r :-> 0 ** sll(x, s, n) }
+void insertion_sort (loc x, loc r)
+{ r :-> y ** sll(x, s, n) ** srtl(y, s, n) }
+
+#####
+
+void insertion_sort (loc x, loc r) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    insertion_sort(n, r);
+    let y = *r;
+    *r = v;
+    srtl_insert(y, r);
+  }
+}

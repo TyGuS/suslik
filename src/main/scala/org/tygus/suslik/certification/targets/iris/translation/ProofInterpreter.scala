@@ -259,7 +259,7 @@ case class ProofInterpreter(spec: IFunSpec) extends Interpreter[SuslikProofStep,
       val steps = (0 until sz).map(_ => IFree).toList
       Result(steps, List(withNoDeferreds(clientCtx)))
 
-    case SuslikProofStep.Branch(_, _) =>
+    case SuslikProofStep.Branch(_) =>
       val cont = withNoDeferreds(clientCtx)
       val step = IIf(ICoqName(clientCtx.freshHypName()))
       Result(List(step), List(cont, cont))
@@ -312,6 +312,9 @@ case class ProofInterpreter(spec: IFunSpec) extends Interpreter[SuslikProofStep,
 
     /** Ignored rules */
     case SuslikProofStep.CheckPost(_, _, _)
+         | SuslikProofStep.AbduceBranch(_)
+         | SuslikProofStep.Inconsistency(_)
+         | SuslikProofStep.PickArg(_, _)
          | SuslikProofStep.WeakenPre(_)
          | SuslikProofStep.HeapUnify(_)
          | SuslikProofStep.HeapUnifyUnfold(_, _, _)

@@ -94,6 +94,7 @@ class VSTProgramInterpreter extends Interpreter[SuslikProofStep, StatementStep, 
            | SuslikProofStep.PickCard(_, _)
            | SuslikProofStep.PickArg(_, _)
            | SuslikProofStep.AbduceCall(_, _, _, _, _, _, _, _)
+           | SuslikProofStep.AbduceBranch(_)
            | SuslikProofStep.HeapUnify(_)
            | SuslikProofStep.HeapUnifyUnfold(_, _, _)
            | SuslikProofStep.HeapUnifyPointer(_, _)
@@ -117,7 +118,7 @@ class VSTProgramInterpreter extends Interpreter[SuslikProofStep, StatementStep, 
           (Nil, no_deferreds, ctx)
         })
         Result(List(ops), children)
-      case SuslikProofStep.Branch(cond, bLabel) =>
+      case SuslikProofStep.Branch(cond) =>
         val ops = CIf(ProofSpecTranslation.translate_expression(ctx.typing_context)(cond).asInstanceOf[CLangExpr])
         val children = List((Nil, no_deferreds, ctx), (Nil, no_deferreds, ctx))
         Result(List(ops), children)

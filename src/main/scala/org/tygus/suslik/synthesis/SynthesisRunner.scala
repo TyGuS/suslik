@@ -7,6 +7,7 @@ import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.targets._
 import org.tygus.suslik.report.Log
 import org.tygus.suslik.util.SynLogLevels
+import scopt.OptionParser
 
 /**
   * @author Ilya Sergey
@@ -74,7 +75,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   val TOOLNAME = "SuSLik"
   val SCRIPTNAME = "suslik"
-  private val VERSION = "0.1"
+  private val VERSION = "0.5"
   private val VERSION_STRING = s"v$VERSION"
 
   private val defaultFile = List(".", "examples", "swap").mkString(File.separator)
@@ -99,7 +100,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }
   }
 
-  private val parser = new scopt.OptionParser[RunConfig](SCRIPTNAME) {
+  private val parser: OptionParser[RunConfig] = new scopt.OptionParser[RunConfig](SCRIPTNAME) {
     // See examples at https://github.com/scopt/scopt
 
     head(TOOLNAME, VERSION_STRING)
@@ -113,7 +114,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       }
 
     private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =
-      Function.uncurried { (c:C) => lens =>= f(c) }
+      Function.uncurried { c:C => lens =>= f(c) }
 
     private val configLens = scalaz.Lens.lensu[RunConfig, SynConfig](
       (c, v) => c.copy(synConfig = v), _.synConfig)
@@ -151,10 +152,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(auxAbduction = b)
     }).text("abduce auxiliary functions; default: false")
 
-    opt[Boolean]("topLevelRecursion").action(cfg { b =>
-      _.copy(topLevelRecursion = b)
-    }).text("allow top-level recursion; default: true")
-
     opt[Boolean]('b', "branchAbduction").action(cfg { b =>
       _.copy(branchAbduction = b)
     }).text("abduce conditional branches; default: false")
@@ -162,10 +159,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Int]("maxGuardConjuncts").action(cfg { n =>
       _.copy(maxGuardConjuncts = n)
     }).text("maximum number of conjuncts in an abduced guard; default: 2")
-
-    opt[Boolean](name = "phased").action(cfg { b =>
-      _.copy(phased = b)
-    }).text("split rules into unfolding and flat phases; default: true")
 
     opt[Boolean]('d', name = "dfs").action(cfg { b =>
       _.copy(depthFirst = b)
@@ -178,6 +171,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean](name = "delegate").action(cfg { b =>
       _.copy(delegatePure = b)
     }).text("delegate pure synthesis to CVC4; default: true")
+
+    opt[Boolean](name = "extended").action(cfg { b =>
+      conf => conf.copy(extendedPure = b, delegatePure = b || conf.delegatePure)
+    }).text("use extended search space for pure synthesis with CVC4; default: false")
 
     opt[Boolean]('i', "interactive").action(cfg { b =>
       _.copy(interactive = b)
@@ -210,10 +207,6 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[Boolean](name = "memo").action(cfg { b =>
       _.copy(memoization = b)
     }).text("enable memoization; default: true")
-
-    opt[Boolean](name = "lexi").action { (b, rc) =>
-      rc.copy(synConfig = rc.synConfig.copy(termination = if (b) lexicographic else totalSize))
-    }.text("use lexicographic termination metric (as opposed to total size); default: false")
 
     opt[CertificationTarget](name="certTarget").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))

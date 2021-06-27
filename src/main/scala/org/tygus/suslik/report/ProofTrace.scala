@@ -51,7 +51,7 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
 
   override def add(node: SearchNode, status: GoalStatus, from: Option[String] = None): Unit = {
     val st = status match {
-      case Memoization.Succeeded(_) => Succeeded
+      case Memoization.Succeeded(_, _) => Succeeded
       case Memoization.Failed => Failed
       case _ => throw new RuntimeException(s"cannot serialize $status")
     }
@@ -61,7 +61,7 @@ class ProofTraceJson(val outputFile: File) extends ProofTrace {
   override def add(result: Rules.RuleResult, parent: OrNode) {
     if (result.subgoals.isEmpty) {
       val resolution = AndNode(-1 +: parent.id, parent, result)
-      val status = Memoization.Succeeded(null) // ignoring solution, sry
+      val status = Memoization.Succeeded(null, null) // ignoring solution, sry
       add(resolution, 0)
       add(resolution, status)
       add(parent, status)
@@ -134,6 +134,7 @@ class ProofTraceCert extends ProofTrace {
   val subgoals: mutable.HashMap[AndNode, Seq[(Boolean, OrNode)]] = mutable.HashMap.empty
   val failed: mutable.Set[OrNode] = mutable.Set.empty
   val succeeded: mutable.Set[OrNode] = mutable.Set.empty
+  val cachedGoals: mutable.HashMap[OrNode, OrNode] = mutable.HashMap.empty
   var root: OrNode = _
 
   override def add(node: OrNode): Unit = {
@@ -155,8 +156,12 @@ class ProofTraceCert extends ProofTrace {
   }
 
   override def add(node: SearchNode, status: GoalStatus, from: Option[String] = None): Unit = (node, status) match {
-    case (node: OrNode, Memoization.Succeeded(_)) =>
+    case (node: OrNode, Memoization.Succeeded(_, id)) =>
       succeeded.add(node)
+      derivations.keys.find(_.id == id) match {
+        case Some(succeededOr) => cachedGoals(node) = succeededOr
+        case None => assert(false, s"Couldn't find cached OrNode with id $id")
+      }
     case (node: OrNode, Memoization.Failed) =>
       failed.add(node)
     case _ =>

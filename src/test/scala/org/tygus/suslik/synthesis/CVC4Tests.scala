@@ -2,7 +2,7 @@ package org.tygus.suslik.synthesis
 
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language._
+import org.tygus.suslik.language.{Expressions, _}
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal, GoalLabel}
 import org.tygus.suslik.logic.{Environment, PFormula, PointsTo, SFormula}
 import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
@@ -17,13 +17,18 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
   //loc r, int x, int y [int m] |-
   //{not (r == 0) && x < y ; r :-> 0}
   //  ??
-  //{x <= m && y <= m ; r :-> m}
+  //{x <= m && y <= m && (m == x || m == y) ; r :-> m}
   val goal1 = Goal(
     Assertion(PFormula(Set[Expr](UnaryExpr(Expressions.OpNot,BinaryExpr(Expressions.OpEq,Expressions.Var("r"),IntConst(0))),
       BinaryExpr(Expressions.OpLt,Expressions.Var("x"),Expressions.Var("y")))),
       SFormula(List(PointsTo(Expressions.Var("r"),0,IntConst(0))))), //pre
-    Assertion(PFormula(Set[Expr](BinaryExpr(Expressions.OpLeq,Expressions.Var("x"),Expressions.Var("m")),
-      BinaryExpr(Expressions.OpLeq,Expressions.Var("y"),Expressions.Var("m")))),
+    Assertion(PFormula(Set[Expr](
+      BinaryExpr(Expressions.OpLeq,Expressions.Var("x"),Expressions.Var("m")),
+      BinaryExpr(Expressions.OpLeq,Expressions.Var("y"),Expressions.Var("m")),
+      BinaryExpr(Expressions.OpOr,
+        BinaryExpr(Expressions.OpEq,Expressions.Var("x"),Expressions.Var("m")),
+        BinaryExpr(Expressions.OpEq,Expressions.Var("y"),Expressions.Var("m"))
+      ))),
       SFormula(List(PointsTo(Expressions.Var("r"),0,Expressions.Var("m"))))), //post
     Map(Expressions.Var("r") -> LocType,
       Expressions.Var("x") -> IntType,
@@ -36,7 +41,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
     Statements.Hole,
-    None
+    None, false, false
   )
 
   test("Translate ints to SYGUS") {
@@ -52,7 +57,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
                         |(declare-var y Int)
                         |
                         |(constraint
-                        |    (=> (and (not (= r 0)) (< x y) ) (and (<= x (target_m r x y)) (<= y (target_m r x y)) )))
+                        |    (=> (and (not (= r 0)) (< x y) ) (and (<= x (target_m r x y)) (or (= x (target_m r x y)) (= y (target_m r x y))) (<= y (target_m r x y)) )))
                         |(check-synth)""".stripMargin)
   }
   test("Parsing a synthesis fail") {
@@ -118,7 +123,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params,new SynStats(params.timeOut)),
     Statements.Hole,
-    None
+    None, false, false
   )
   test("Translate goal with set to SyGuS") {
     val smtTask = DelegatePureSynthesis.toSMTTask(goal2)
@@ -176,7 +181,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     assert(sb.toString == "(setminus S1 S2)")
 
     //Expressions.IfThenElse(cond, left, right)
-    val ite = Expressions.IfThenElse(Expressions.BoolConst(true),Expressions.Var("x"),IntConst(3))
+    val ite = Expressions.IfThenElse(Expressions.eTrue,Expressions.Var("x"),IntConst(3))
     sb.clear()
     DelegatePureSynthesis.toSmtExpr(ite,Map.empty,sb)
     assert(sb.toString == "(ite true x 3)")
@@ -199,7 +204,7 @@ class CVC4Tests extends FunSuite with SynthesisRunnerUtil with BeforeAndAfterAll
     None,
     Environment(Map.empty, Map.empty, params, new SynStats(params.timeOut)),
     Statements.Hole,
-    None
+    None, false, false
   )
   test("to SMT with exclusions") {
     val smt = DelegatePureSynthesis.toSMTTask(goal3,Some((Expressions.Var("m"),Expressions.Var("x"))))

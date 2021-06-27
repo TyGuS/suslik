@@ -1,0 +1,42 @@
+# -p true -c 2
+
+flatten the tree into a doubly-linked list in place
+
+####
+
+{ tree(x, s) }
+void flatten(loc x)
+{ dll(x, y, s) }
+
+####
+
+{tree(x, s)<_alpha_517>}
+{dll(x, y, s)<_alpha_518>}
+void flatten (loc x) {
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let r = *(x + 2);
+    flatten(l);
+    flatten(r);
+    flatten118(r, l, x);
+  }
+}
+
+{_alpha_514x < _alpha_517 && _alpha_515x < _alpha_517 && not (x == 0) ; (x + 1) :-> l ** (x + 2) :-> r ** x :-> vx2 ** dll(l, y1, s1x)<_alpha_5181>[1,0] ** dll(r, y2, s2x)<_alpha_5182>[1,0] ** [x, 3]}
+{dll(x, y, {vx2} ++ s1x ++ s2x)<_alpha_518>}
+void flatten118 (loc r, loc l, loc x) {
+  if (l == 0) {
+    if (r == 0) {
+    } else {
+      *(r + 2) = x;
+      *(x + 1) = r;
+    }
+  } else {
+    let v = *l;
+    let w = *(l + 1);
+    *(l + 2) = r;
+    flatten118(r, w, l);
+    *(l + 2) = x;
+  }
+}

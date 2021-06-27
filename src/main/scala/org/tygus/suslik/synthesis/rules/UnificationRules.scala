@@ -5,7 +5,6 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -52,7 +51,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 //        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
-        val kont = UnificationProducer(t, s, sub) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont = UnificationProducer(t, s, sub) >> IdProducer >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
       nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
@@ -97,7 +96,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val subExpr = goal.substToFormula(subst)
           val newPost = Assertion(post.phi && subExpr, post.sigma)
           val newGoal = goal.spawnChild(post = newPost)
-          val kont = SubstVarProducer(y.asInstanceOf[Var], x.asInstanceOf[Var]) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstVarProducer(y.asInstanceOf[Var], x.asInstanceOf[Var]) >> IdProducer >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -121,27 +120,39 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val p2 = goal.post.phi
       val s2 = goal.post.sigma
 
-      def isExsistVar(e: Expr) = e.isInstanceOf[Var] && goal.isExistential(e.asInstanceOf[Var])
+      // Can e be substituted with d?
+      def canSubst(e: Expr, d: Expr) = e match {
+        case x@Var(_) =>
+          // e must be an existential var:
+          goal.isExistential(x) &&
+          // if it's a program-level existential, then all vars in d must be program-level
+          (!goal.isProgramLevelExistential(x) || d.vars.subsetOf(goal.programVars.toSet))
+        case _ => false
+      }
+
+      def extractSides(l: Expr, r: Expr): Option[(Var, Expr)] =
+        if (l.vars.intersect(r.vars).isEmpty) {
+          if (canSubst(l, r)) Some(l.asInstanceOf[Var], r)
+          else if (canSubst(r, l)) Some(r.asInstanceOf[Var], l)
+          else None
+        } else None
 
       findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpBoolEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case BinaryExpr(OpSetEq, l, r) => (isExsistVar(l) || isExsistVar(r)) && l.vars.intersect(r.vars).isEmpty
-        case _ => false
+        case BinaryExpr(OpEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l,r)
+        case _ => None
       }, p2) match {
-        case Some((BinaryExpr(_, l, r), rest2)) =>
-          val (x, e) = if (isExsistVar(l)) {
-            (l.asInstanceOf[Var], r)
-          } else {
-            (r.asInstanceOf[Var], l)
-          }
+        case Some(((x, e), rest2)) => {
           val sigma = Map(x -> e)
           val _p2 = rest2.subst(sigma)
           val _s2 = s2.subst(sigma)
           val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
-          val kont = SubstProducer(x, e) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
           List(RuleResult(List(newGoal), kont, this, goal))
+        }
         case _ => Nil
       }
     }
@@ -157,7 +168,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "Pick"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val constants = List(IntConst(0), SetLiteral(List()), BoolConst(true), BoolConst(false))
+      val constants = List(IntConst(0), SetLiteral(List()), eTrue, eFalse)
 
       val exCandidates = // goal.existentials
        if (goal.post.sigma.isEmp) goal.existentials else goal.existentials.intersect(goal.post.sigma.vars)
@@ -176,7 +187,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = SubstProducer(ex, v) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = SubstProducer(ex, v) >> IdProducer >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
@@ -213,7 +224,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = SubstProducer(ex, sol) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        kont = SubstProducer(ex, sol) >> IdProducer >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
@@ -244,7 +255,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val newPost = goal.post.subst(sigma)
       val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
       val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-      val kont = SubstVarProducer(v, arg) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+      val kont = SubstVarProducer(v, arg) >> IdProducer >> ExtractHelper(goal)
       List(RuleResult(List(newGoal), kont, this, goal))
     }
   }

@@ -2,6 +2,7 @@ package org.tygus.suslik.logic
 
 import org.tygus.suslik.SSLException
 import org.tygus.suslik.language.Expressions._
+import org.tygus.suslik.synthesis.SynthesisException
 
 /**
   * Utilities for pure formulae
@@ -20,11 +21,6 @@ trait PureLogicUtils {
 
   def ppSubst(m: Subst): String = {
     s"{${m.map { case (k, v) => s"${k.pp} -> ${v.pp}" }.mkString("; ")}}"
-  }
-
-  def agreeOnSameKeys(m1: Subst, m2: Subst): Boolean = {
-    val common = m1.keySet.intersect(m2.keySet)
-    common.forall(k => m1.isDefinedAt(k) && m2.isDefinedAt(k) && m1(k) == m2(k))
   }
 
   /**
@@ -48,6 +44,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(propagate_not(e1),propagate_not(e2), propagate_not(e3))
     case SetLiteral(args) => SetLiteral(args.map(propagate_not))
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
   def desugar(e: Expr): Expr = e match {
@@ -70,6 +67,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(desugar(e1),desugar(e2), desugar(e3))
     case SetLiteral(args) => SetLiteral(args.map(desugar))
+    case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
   /**
@@ -136,11 +134,6 @@ trait PureLogicUtils {
     case _ => e
   }
 
-  private def isAtomicExpr(e: Expr): Boolean = e match {
-    case BinaryExpr(op, _, _) => !op.isInstanceOf[RelOp] && !op.isInstanceOf[LogicOp]
-    case _ => true
-  }
-
   def pTrue: PFormula = PFormula(Set[Expr]())
 
   def pFalse: PFormula = PFormula(Set(eFalse))
@@ -159,16 +152,32 @@ trait PureLogicUtils {
     None
   }
 
-  def findConjunctAndRest(p: Expr => Boolean, phi: PFormula): Option[(Expr, PFormula)] =
-    phi.conjuncts.find(p) match {
-      case Some(c) => Some((c, phi - c))
-      case None => None
+  def findConjunctAndRest[T](p: Expr => Option[T], phi: PFormula): Option[(T, PFormula)] = {
+    for (c <- phi.conjuncts) {
+      p(c) match {
+        case Some(res) => return Some(res, phi - c)
+        case None => None
+      }
     }
+    None
+  }
 
   /**
     * Assemble a formula from a list of conjunctions
     */
   def toFormula(e: Expr): PFormula = PFormula(e.conjuncts.toSet)
+
+  // Variable name with a given prefix that does not appear in taken
+  def freshVar(taken: Set[Var], prefix: String): Var = {
+    val safePrefix = prefix.filter(c => c.isLetterOrDigit || c == '_').dropWhile(_.isDigit)
+    var count = 1
+    var tmpName = safePrefix
+    while (taken.exists(_.name == tmpName)) {
+      tmpName = safePrefix + count
+      count = count + 1
+    }
+    Var(tmpName)
+  }
 
   /**
     * @param vs    a list of variables to refresh
@@ -181,7 +190,7 @@ trait PureLogicUtils {
       vsToRefresh match {
         case Nil => acc
         case x :: xs =>
-          val y = x.refresh(taken, suffix)
+          val y = freshVar(taken, x.name + suffix)
           val newAcc = acc + (x -> y)
           val newTaken = taken + x + y
           go(xs, newTaken, newAcc)

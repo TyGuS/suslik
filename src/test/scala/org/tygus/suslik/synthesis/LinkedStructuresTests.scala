@@ -15,6 +15,11 @@ class LinkedStructuresTests extends FunSpec with Matchers with SynthesisRunnerUt
     }
   }
 
+  describe("Packed binary trees") {
+    runAllTestsFromDir("packed")
+  }
+
+
   describe("SL-based synthesizer with linked lists") {
     runAllTestsFromDir("llist")
   }

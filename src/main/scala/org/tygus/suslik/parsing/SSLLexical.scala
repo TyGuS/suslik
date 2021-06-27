@@ -1,7 +1,6 @@
 package org.tygus.suslik.parsing
 
 import scala.util.parsing.combinator.lexical.StdLexical
-import scala.util.parsing.input.CharArrayReader.EofCh
 
 /**
   * @author Ilya Sergey
@@ -9,14 +8,14 @@ import scala.util.parsing.input.CharArrayReader.EofCh
 class SSLLexical extends StdLexical {
 
   // Add keywords
-  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate", "in")
+  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate", "in", "lower", "upper")
   reserved += ("error","magic","malloc", "free", "let", "assume")
   reserved += ("null")
 
   // Types
-  reserved += ("int", "bool", "loc", "set", "void")
+  reserved += ("int", "bool", "loc", "set", "void", "interval")
 
-  delimiters += ("(", ")", "=", ";", "**", "*", ":->", "=i", "<=i", "++", "--",
+  delimiters += ("(", ")", "=", ";", "**", "*", ":->", "=i", "<=i", "++", "--", "..",
       "{", "}", "/\\", "&&", "\\/", "||", "\n", "\r", "=>", "?", ":",
       "<", ">", ",", "/",   "+", "-", "==", "!=", "==>", "<=", ">=", "[", "]", "|", "??"
   )

@@ -1,0 +1,15 @@
+predicate sll(loc x, set s) {
+|  x == 0        => { s == {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}
+
+predicate ulist(loc x, set s) {
+|  x == 0        => { s == {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 /\ not (v in s1); [x, 2] ** x :-> v ** (x + 1) :-> nxt ** ulist(nxt, s1) }
+}
+
+predicate sll_bounded(loc x, int len, interval s) {
+|  x == 0        => { len == 0  && s == [] ; emp }
+|  not (x == 0)  => { 0 <= len1 && len == len1 + 1 && s == s1 + [v]  ;
+                      [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll_bounded(nxt, len1, s1) }
+}

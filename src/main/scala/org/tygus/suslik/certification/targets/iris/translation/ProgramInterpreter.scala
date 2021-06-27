@@ -26,7 +26,7 @@ object ProgramInterpreter$ extends Interpreter[SuslikProofStep, HExpr, ProgramTr
         val stmt = HIf(selectors.map(_.translate))
         val conts = selectors.map(_ => withNoDeferred)
         Result(List(stmt), conts)
-      case SuslikProofStep.Branch(cond, _) =>
+      case SuslikProofStep.Branch(cond) =>
         val stmt = HGuarded(cond.translate)
         Result(List(stmt), List(withNoDeferred, withNoDeferred))
       case _:SuslikProofStep.EmpRule | _: SuslikProofStep.Inconsistency =>

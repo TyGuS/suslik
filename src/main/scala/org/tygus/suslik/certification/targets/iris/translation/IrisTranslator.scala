@@ -217,7 +217,8 @@ object IrisTranslator {
     val newGamma = g.gamma.translate ++ cardinalityParams
 
     // We quantify over all universals, ignoring the type of function arguments
-    val specUniversal = g.universals.map(v => (v.translate.translate(progVarToSpecVar, ctx), newGamma(v.name)))
+    val universals = g.pre.vars ++ g.programVars
+    val specUniversal = universals.map(v => (v.translate.translate(progVarToSpecVar, ctx), newGamma(v.name)))
     val specExistential = g.existentials.map(v => (v.translate.translate(progVarToSpecVar, ctx), newGamma(v.name))).toSeq
 
     val pre = g.pre.translate(assertionTranslator, ctx)

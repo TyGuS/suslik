@@ -15,7 +15,7 @@ object ProgramInterpreter extends Interpreter[SuslikProofStep, CStatement, Progr
         val stmt = CIf(selectors.map(_.translate))
         val childParams = selectors.map(_ => withNoDeferred)
         Result(List(stmt), childParams)
-      case SuslikProofStep.Branch(cond, _) =>
+      case SuslikProofStep.Branch(cond) =>
         val stmt = CGuarded(cond.translate)
         Result(List(stmt), List(withNoDeferred, withNoDeferred))
       case _:SuslikProofStep.EmpRule | _:SuslikProofStep.Inconsistency =>

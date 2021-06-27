@@ -1,0 +1,20 @@
+singly-linked list: length
+
+#####
+
+{ 0 <= n ; ret :-> a ** sll_bounded(x, n, s) }
+void sll_len (loc x, loc ret)
+{ ret :-> n ** sll_bounded(x, n, s) }
+
+#####
+
+void sll_len (loc x, loc ret) {
+  if (x == 0) {
+    *ret = 0;
+  } else {
+    let n = *(x + 1);
+    sll_len(n, ret);
+    let l = *ret;
+    *ret = l + 1;
+  }
+}

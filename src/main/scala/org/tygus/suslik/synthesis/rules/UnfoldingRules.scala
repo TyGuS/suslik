@@ -1,14 +1,13 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{CardType, Ident}
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.language.{CardType, Ident}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.StmtProducer._
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -47,7 +46,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             // The tags in the body should be one more than in the current application:
             _newPreSigma1 = mkSFormula(body.chunks).setSAppTags(PTag(cls, unf + 1))
             newPreSigma = _newPreSigma1 ** remainingSigma
-          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma), childId = Some(clauses.indexOf(c))))
+          } yield (sel, goal.spawnChild(Assertion(newPrePhi, newPreSigma),
+            childId = Some(clauses.indexOf(c)),
+            hasProgressed = true,
+            isCompanion = true))
 
           // This is important, otherwise the rule is unsound and produces programs reading from ghosts
           // We can make the conditional without additional reading
@@ -65,7 +67,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
           case None => None
           case Some((selGoals, heaplet, fresh_subst, sbst)) =>
             val (selectors, subGoals) = selGoals.unzip
-            val kont = BranchProducer(Some (heaplet), fresh_subst, sbst, selectors) >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = BranchProducer(Some (heaplet), fresh_subst, sbst, selectors) >> ExtractHelper(goal)
             Some(RuleResult(subGoals, kont, this, goal))
         }
       } yield s
@@ -86,7 +88,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
 
         // Optimization: do not consider f if its pre has predicates that cannot possibly match ours
         if multiSubset(f.pre.sigma.profile.apps, goal.pre.sigma.profile.apps)
-        if goal.pre.sigma.callTags.min < goal.env.config.maxCalls
+        if (goal.env.config.maxCalls :: goal.pre.sigma.callTags).min < goal.env.config.maxCalls
 
         newGamma = goal.gamma ++ (f.params ++ f.var_decl).toMap // Add f's (fresh) variables to gamma
         call = Call(Var(f.name), f.params.map(_._1), l)
@@ -95,7 +97,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         suspendedCallGoal = Some(SuspendedCallGoal(goal.pre, goal.post, callePost, call, freshSub))
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
-        val kont: StmtProducer = AbduceCallProducer(f) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = AbduceCallProducer(f) >> IdProducer >> ExtractHelper(goal)
         RuleResult(List(newGoal), kont, this, goal)
       }
     }
@@ -112,22 +114,22 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
       val post = goal.post
       val callGoal = goal.callGoal.get.applySubstitution
       val call = callGoal.call
-      val callTag = (callGoal.callerPre.sigma - goal.pre.sigma).callTags.max + 1
+      // In case of a non-recursive call, there might be no predicates in the callee post, and hence no call tags:
+      val callTag = (0 :: (callGoal.callerPre.sigma - goal.pre.sigma).callTags).max + 1
       val noGhostArgs = call.args.forall(_.vars.subsetOf(goal.programVars.toSet))
 
       if (post.sigma.isEmp &&                                   // companion's transformed pre-heap is empty
         goal.existentials.isEmpty &&                            // no existentials
         callTag <= goal.env.config.maxCalls &&
         noGhostArgs &&                                          // TODO: if slow, move this check to when substitution is made
-        // canEmitCall(budHeap, goal, call.companion) &&           // termination
         SMTSolving.valid(pre.phi ==> post.phi))                 // pre implies post
       {
         val calleePostSigma = callGoal.calleePost.sigma.setSAppTags(PTag(callTag))
         val newPre = Assertion(pre.phi && callGoal.calleePost.phi, pre.sigma ** calleePostSigma)
         val newPost = callGoal.callerPost
-        val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None)
+        val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None, isCompanion = true)
         val postCallTransition = Transition(goal, newGoal)
-        val kont: StmtProducer = SubstMapProducer(callGoal.freshToActual) >> PrependProducer(call) >> HandleGuard(goal) >> ExtractHelper(goal)
+        val kont: StmtProducer = SubstMapProducer(callGoal.freshToActual) >> PrependProducer(call) >> ExtractHelper(goal)
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }
@@ -143,19 +145,6 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val nonProgressingFlipped = cardVars.zip(cardVars.map(_.subst(sub))).filter(_._2.isInstanceOf[Var])
         val nonProgressing = nonProgressingFlipped.map{ case (v, e) => (e.asInstanceOf[Var], v) }
         Some(Transition(goal.label, label, List(), nonProgressing))
-      }
-    }
-
-    // [Cardinality] Checking size constraints before emitting the call
-    def canEmitCall(budHeap: SFormula, goal: Goal, l: Option[GoalLabel]): Boolean = l match {
-      case None => true // non-recursive call
-      case Some(label) => {
-        val companion = goal.ancestorWithLabel(label).get
-        val companionHeap = companion.pre.sigma
-        goal.env.config.termination match {
-          case `totalSize` => totalLT(budHeap, companionHeap, goal.pre.phi)
-          case `lexicographic` => lexiLT(budHeap, companionHeap, goal.pre.phi)
-        }
       }
     }
   }
@@ -210,7 +199,7 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
             val newPhi = post.phi && actualConstraints && actualSelector
             val newPost = Assertion(newPhi, goal.post.sigma ** actualBody - h)
 
-            val kont = UnfoldProducer(a, selector, Assertion(actualConstraints, actualBody), predSbst ++ freshExistentialsSubst) >> IdProducer >> HandleGuard(goal) >> ExtractHelper(goal)
+            val kont = UnfoldProducer(a, selector, Assertion(actualConstraints, actualBody), predSbst ++ freshExistentialsSubst) >> IdProducer >> ExtractHelper(goal)
 
             RuleResult(List(goal.spawnChild(post = newPost)), kont, this, goal)
           }

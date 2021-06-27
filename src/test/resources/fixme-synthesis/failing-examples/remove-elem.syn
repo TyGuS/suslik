@@ -1,8 +1,0 @@
-should be able to remove an element from a list
-###
-
-{s == {v} ++ s1; r :-> x ** lsegs(x, 0, s)}
-  void remove_elem(loc x, int v)
-{r :-> y ** lsegs(y, 0, s1)}
-
-###

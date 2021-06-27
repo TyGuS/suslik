@@ -5,7 +5,7 @@ binary search tree: find smallest element
 #####
 
 { 0 <= sz /\  0 <= lo /\ hi <= 7;
-    retv :-> unused ** 
+    retv :-> 666 **
     bst(x, sz, lo, hi)<a>  }
 
 void bst_find_smallest (loc x, loc retv)

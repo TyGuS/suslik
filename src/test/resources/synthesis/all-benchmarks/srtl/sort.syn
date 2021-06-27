@@ -1,0 +1,41 @@
+# -b true -c 2 -p true
+
+sort a list
+
+#####
+
+{ 0 <= n ; sll(x, s, n) }
+void sort (loc x)
+{ srtl(x, s, n) }
+
+#####
+
+{0 <= n ; sll(x, s, n)<_alpha_118>}
+{srtl(x, s, n)<_alpha_119>}
+void sort (loc x) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    sort(n);
+    sort001609(n, v, x);
+  }
+}
+
+{0 <= len1x && 0 <= len1x + 1 && _alpha_115x < _alpha_118 && not (x == 0) && true ; (x + 1) :-> nx ** x :-> vx ** srtl(nx, s1x, len1x)<_alpha_1191>[1,0] ** [x, 2]}
+{srtl(x, [vx] ++ s1x, len1x + 1)<_alpha_119>}
+void sort001609 (loc nx, int vx, loc x) {
+  if (nx == 0) {
+  } else {
+    let v = *nx;
+    let n = *(nx + 1);
+    if (vx <= v) {
+      sort001609(n, v, nx);
+    } else {
+      *nx = vx;
+      sort001609(n, vx, nx);
+      *x = v;
+    }
+  }
+}
+

@@ -212,7 +212,7 @@ case class VSTProofInterpreter(spec: FormalSpecification) extends Interpreter[Su
         Result(List(), List((Nil, Some(deferreds), ctx)))
 
       /** Branching rules */
-      case SuslikProofStep.Branch(cond, bLabel) =>
+      case SuslikProofStep.Branch(cond) =>
         val cont = with_no_deferreds(clientContext)
         Result(List(ForwardIf), List(cont, cont))
 
@@ -457,6 +457,7 @@ case class VSTProofInterpreter(spec: FormalSpecification) extends Interpreter[Su
 
       /** Ignored rules */
       case SuslikProofStep.CheckPost(_, _, _)
+           | SuslikProofStep.AbduceBranch(_)
            | SuslikProofStep.WeakenPre(_)
            | SuslikProofStep.HeapUnify(_)
            | SuslikProofStep.HeapUnifyUnfold(_, _, _)

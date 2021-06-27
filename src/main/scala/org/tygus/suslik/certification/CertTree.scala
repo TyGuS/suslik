@@ -4,7 +4,7 @@ import org.tygus.suslik.logic.Specifications.{Footprint, Goal}
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
 import org.tygus.suslik.synthesis.SynthesisException
-import org.tygus.suslik.synthesis.StmtProducer._
+import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 
 import scala.collection.mutable
@@ -22,25 +22,23 @@ object CertTree {
                   kont: StmtProducer,
                   rule: SynthesisRule) {
     lazy val footprint: Footprint = goal.toFootprint
-    val id: Int = hashCode()
 
     def children: Seq[Node] = childrenMap.getOrElse(this, Seq.empty)
     def parent: Option[Node] = parentMap.get(this)
 
-    override def equals(obj: Any): Boolean = obj.isInstanceOf[Node] && (obj.asInstanceOf[Node].nodeId == this.nodeId)
-    override def hashCode(): Int = nodeId.hashCode()
+    def ppId: String = s"<${nodeId.mkString(",")}>"
 
     def pp: String = {
       val cs = children
 
       val builder = new StringBuilder()
-      builder.append(s"Node <$id>\n")
+      builder.append(s"Node $ppId\n")
       builder.append(s"Goal to solve:\n")
       builder.append(s"${goal.pp}\n")
       builder.append(s"Rule applied: $rule\n")
       builder.append(s"Footprint: $showChildren\n")
-      builder.append(s"Parent node: ${parent.map(_.id).getOrElse("none")}\n")
-      builder.append(s"Child nodes: [${cs.map(_.id).mkString(", ")}]\n")
+      builder.append(s"Parent node: ${parent.map(_.ppId).getOrElse("none")}\n")
+      builder.append(s"Child nodes: [${cs.map(_.ppId).mkString(", ")}]\n")
 
       builder.toString()
     }
@@ -66,8 +64,8 @@ object CertTree {
       val ans = trace.childAnds(on)
       if (ans.isEmpty) {
         // Cached result was used; search for the same goal in previously encountered nodes
-        val n = findByGoal(on.goal).get
-        Node(on.id, n.goal, n.kont, n.rule)
+        val n = trace.cachedGoals(on)
+        traverse(n)
       } else {
         // Candidate derivations exist; find and process the correct one
         val n = for {
@@ -94,11 +92,9 @@ object CertTree {
   private val parentMap: mutable.Map[Node, Node] = mutable.Map.empty
   def root: Option[Node] = get(Vector())
 
-  private def findByGoal(goal: Goal): Option[Node] =
-    parentMap.keySet.find(n => n.goal.pre == goal.pre && n.goal.post == goal.post)
-
-  def get(id: NodeId): Option[Node] =
-    childrenMap.keySet.find(_ == Node(id, null, null, null))
+  def get(id: NodeId): Option[Node] = {
+    childrenMap.keys.find(_.nodeId == id)
+  }
 
   def clear(): Unit = {
     childrenMap.clear

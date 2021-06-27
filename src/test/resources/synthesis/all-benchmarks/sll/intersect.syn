@@ -1,0 +1,69 @@
+# -b true -p true
+
+intersect two unique lists
+
+#####
+
+{ r :-> x ** ulist(x, s1) ** ulist(y, s2) }
+void intersect (loc r, loc y)
+{ r :-> z ** ulist(z, s1 * s2) ** ulist(y, s2) }
+
+#####
+
+{r :-> x ** ulist(x, s1)<_alpha_3> ** ulist(y, s2)<_alpha_4>}
+{r :-> z ** ulist(y, s2)<_alpha_6> ** ulist(z, s1 * s2)<_alpha_5>}
+void intersect (loc r, loc y) {
+  let x = *r;
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    *r = n;
+    intersect(r, y);
+    intersect0016015(v, x, r, y);
+  }
+}
+
+{_alpha_1x1 < _alpha_3 && not (r == 0) && not (r == x) && not (vx in s1x1) && not (x == 0) && true ; (x + 1) :-> nxtx11 ** r :-> z1 ** x :-> vx ** ulist(y, s2)<_alpha_61>[1,0] ** ulist(z1, s1x1 * s2)<_alpha_51>[1,0] ** [x, 2]}
+{not (r == 0) ; r :-> z ** ulist(y, s2)<_alpha_6> ** ulist(z, ({vx} ++ s1x1) * s2)<_alpha_5>}
+void intersect0016015 (int vx, loc x, loc r, loc y) {
+  let z1 = *r;
+  if (z1 == 0) {
+    intersect00160170000(vx, x, r, y);
+  } else {
+    let v = *z1;
+    let n = *(z1 + 1);
+    *r = n;
+    *z1 = vx;
+    intersect0016015(vx, z1, r, y);
+    let z = *r;
+    *r = x;
+    *(x + 1) = z;
+    *x = v;
+  }
+}
+
+{_alpha_1x1 < _alpha_3 && not (r == 0) && not (r == x) && not (vx in s1x1) && not (x == 0) && s1x1 * s2 =i {} && true && z11 == 0 ; (x + 1) :-> nxtx11 ** r :-> z11 ** x :-> vx ** ulist(y, s2)<_alpha_61>[1,0] ** [x, 2]}
+{not (r == 0) ; r :-> z ** ulist(y, s2)<_alpha_6> ** ulist(z, ({vx} ++ s1x1) * s2)<_alpha_5>}
+void intersect00160170000 (int vx, loc x, loc r, loc y) {
+  if (y == 0) {
+    free(x);
+  } else {
+    let v = *y;
+    let n = *(y + 1);
+    if (vx <= v && v <= vx) {
+      intersect00160170000(vx, x, r, n);
+      let z2 = *r;
+      let z = malloc(2);
+      *r = z;
+      *(z + 1) = z2;
+      *y = vx;
+      *z = v;
+    } else {
+      intersect00160170000(vx, x, r, n);
+    }
+  }
+}
+
+
+

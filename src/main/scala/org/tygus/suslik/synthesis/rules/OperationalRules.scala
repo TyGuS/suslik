@@ -1,11 +1,10 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.LanguageUtils.generateFreshVar
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.StmtProducer._
+import org.tygus.suslik.synthesis.{ExtractHelper, PrependProducer, StmtProducer, SubstVarProducer}
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -42,19 +41,15 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       }
 
       // When do two heaplets match
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && noGhosts(hr)
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && noGhosts(hr)
 
-      findMatchingHeaplets(noGhosts, isMatch, goal.pre.sigma, goal.post.sigma) match {
+      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
         case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2))) =>
-          if (e1 == e2) {
-            return Nil
-          } // Do not write if RHSs are the same
-
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
           val newPost = Assertion(post.phi, goal.post.sigma - hr)
           val subGoal = goal.spawnChild(newPre, newPost)
-          val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some((hl, hr)) =>
@@ -77,26 +72,29 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     override def toString: Ident = "Read"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val pre = goal.pre
-      val post = goal.post
+      val phi = goal.pre.phi
+      val sigma = goal.pre.sigma
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, a@Var(_)) =>
-           !goal.isGhost(x) && goal.isGhost(a)
+        case PointsTo(x@Var(_), _, e) =>
+           !goal.isGhost(x) && e.vars.intersect(goal.ghosts).nonEmpty
         case _ => false
       }
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
-        case Some(PointsTo(x@Var(_), offset, a@Var(_))) =>
-          val y = generateFreshVar(goal, a.name)
-          val tpy = goal.getType(a)
-
-          val subGoal = goal.spawnChild(pre = pre.subst(a, y),
-                                        post = post.subst(a, y),
+        case Some(pts@PointsTo(x@Var(_), offset, e)) =>
+          val y = freshVar(goal.vars, e.pp)
+          val tpy = e.getType(goal.gamma).get
+          val newPhi = phi && (y |=| e)
+          val newSigma = (sigma - pts) ** PointsTo(x, offset, y)
+          val subGoal = goal.spawnChild(pre = Assertion(newPhi, newSigma),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
-          val kont: StmtProducer = SubstVarProducer(a, y) >> PrependProducer(Load(y, tpy, x, offset)) >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont: StmtProducer = e match {
+            case a:Var => SubstVarProducer(a, y) >> PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+            case _ => PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+          }
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
@@ -134,8 +132,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findTargetHeaplets(goal) match {
         case None => Nil
-        case Some((h@Block(x@Var(_), sz), pts)) =>
-          val y = generateFreshVar(goal, x.name)
+        case Some((Block(x@Var(_), sz), pts)) =>
+          val y = freshVar(goal.vars, x.name)
           val tpy = LocType
 
           val freshChunks = for {
@@ -148,7 +146,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         post.subst(x, y),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
-          val kont: StmtProducer = SubstVarProducer(x, y) >> PrependProducer(Malloc(y, tpy, sz)) >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont: StmtProducer = SubstVarProducer(x, y) >> PrependProducer(Malloc(y, tpy, sz)) >> ExtractHelper(goal)
           List(RuleResult(List(subGoal), kont, this, goal))
         case _ => Nil
       }
@@ -184,7 +182,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val newPre = Assertion(pre.phi, pre.sigma - toRemove)
 
           val subGoal = goal.spawnChild(newPre)
-          val kont: StmtProducer = PrependProducer(Free(x)) >> HandleGuard(goal) >> ExtractHelper(goal)
+          val kont: StmtProducer = PrependProducer(Free(x)) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some(_) => Nil
