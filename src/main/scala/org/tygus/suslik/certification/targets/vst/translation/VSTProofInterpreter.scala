@@ -3,7 +3,7 @@ package org.tygus.suslik.certification.targets.vst.translation
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.vst.Types
 import org.tygus.suslik.certification.targets.vst.Types.{CoqCardType, CoqPtrValType, VSTType}
-import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCCardinalityConstructor, ProofCExpr, ProofCIfThenElse, ProofCVar}
+import org.tygus.suslik.certification.targets.vst.logic.Expressions.{ProofCBinaryExpr, ProofCCardinalityConstructor, ProofCExpr, ProofCIfThenElse, ProofCVar}
 import org.tygus.suslik.certification.targets.vst.logic.ProofTerms.{FormalSpecification, PureFormula, VSTPredicate}
 import org.tygus.suslik.certification.targets.vst.logic.{Formulae, VSTProofStep}
 import org.tygus.suslik.certification.targets.vst.logic.VSTProofStep.{AssertProp, AssertPropSubst, Exists, Forward, ForwardCall, ForwardEntailer, ForwardIf, ForwardIfConstructor, ForwardTernary, Free, Intros, IntrosTuple, Malloc, Rename, TentativeEntailer, UnfoldRewrite, ValidPointer}
@@ -353,8 +353,8 @@ case class VSTProofInterpreter(spec: FormalSpecification) extends Interpreter[Su
         // SubstL translated into `assert (from = to) as H; rewrite H in *`
         // No changes to context
         val ctx = clientContext with_mapping_between(from, to)
-        val from_type = clientContext.typing_context(from)
-        val to_expr = ProofSpecTranslation.translate_expression(clientContext.typing_context)(to, target = Some(from_type))
+        val from_type = clientContext.typing_context.get(from)
+        val to_expr = ProofSpecTranslation.translate_expression(clientContext.typing_context)(to, target = from_type)
         val step = AssertPropSubst(from, to_expr)
         Result(List(step), List((with_no_deferreds(ctx))))
 
