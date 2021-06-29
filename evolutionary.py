@@ -26,9 +26,16 @@ INDPB = 0.1
 class Individual(list):
     """This class describe SuSLik's search strategy for individuals in each generation."""
 
-    def __init__(self, generation_id, individual_id, nan=10, time=9999999999.0, rule_ordering=None,
-                 weight_of_cost_no_call_goal_pre: float = 3.0, weight_of_cost_no_call_goal_post: float = 1.0,
-                 weight_of_cost_call_goal: float = 10.0, weight_of_cost_call_goal_pre: float = 3.0, weight_of_cost_call_goal_post: float = 1.0):
+    def __init__(self, generation_id,
+                 individual_id,
+                 nan=10,
+                 time=9999999999.0,
+                 rule_ordering=None,
+                 weight_of_cost_no_call_goal_pre: float = 3.0,
+                 weight_of_cost_no_call_goal_post: float = 1.0,
+                 weight_of_cost_call_goal: float = 10.0,
+                 weight_of_cost_call_goal_pre: float = 3.0,
+                 weight_of_cost_call_goal_post: float = 1.0):
         super().__init__()
         if rule_ordering is None:
             rule_ordering = random.sample(range(IND_SIZE), IND_SIZE)
@@ -166,8 +173,6 @@ class Individual(list):
 
 
 def select(generation):
-    generation.sort(key=get_total_time)
-    generation.sort(key=get_number_of_nans)
     best_individuals = generation[:GENERATION_SIZE]
     return best_individuals
 
@@ -238,7 +243,9 @@ def main():
 
         write_json_result(generation_id, generation)
 
-        # select the next generation individuals
+        # sort and select the next generation individuals
+        generation.sort(key=get_total_time)
+        generation.sort(key=get_number_of_nans)
         offspring1 = select(generation)
 
     return 0
