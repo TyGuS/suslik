@@ -353,10 +353,15 @@ case class VSTProofInterpreter(spec: FormalSpecification) extends Interpreter[Su
         // SubstL translated into `assert (from = to) as H; rewrite H in *`
         // No changes to context
         val ctx = clientContext with_mapping_between(from, to)
-        val from_type = clientContext.typing_context.get(from)
-        val to_expr = ProofSpecTranslation.translate_expression(clientContext.typing_context)(to, target = from_type)
-        val step = AssertPropSubst(from, to_expr)
-        Result(List(step), List((with_no_deferreds(ctx))))
+        val step =
+          if (ctx.coq_context.contains(from)) {
+            val from_type = clientContext.typing_context.get(from)
+            val to_expr = ProofSpecTranslation.translate_expression(clientContext.typing_context)(to, target = from_type)
+            List(AssertPropSubst(from, to_expr))
+          } else {
+            List()
+          }
+        Result(step, List((with_no_deferreds(ctx))))
 
       case SuslikProofStep.SubstR(Var(from), to) =>
         val from_type = clientContext.typing_context.get(from)
