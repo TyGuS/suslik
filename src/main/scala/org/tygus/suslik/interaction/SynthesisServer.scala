@@ -154,8 +154,8 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
 
     val stats = new SynStats(2500)
     val config = SynConfig()
-    isynth = new IterativeUnorderedSynthesis(new AutomaticPhased(env.config), log, trace)(stats, config)
-    new Synthesis(new AutomaticPhased(env.config), log, trace)
+    isynth = new IterativeUnorderedSynthesis(new AutomaticSimple(env.config), log, trace)(stats, config)
+    new Synthesis(new AutomaticSimple(env.config), log, trace)
     //isynth
   }
 
