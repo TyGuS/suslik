@@ -5,13 +5,13 @@ minimum of two integers
 
 { true ; r :-> null }
 
-void min2(loc r, int x, int y)
+void min(loc r, int x, int y)
 
 { m <= x  /\  m <= y; r :-> m }
 
 ###
 
-void min2 (loc r, int x, int y) {
+void min (loc r, int x, int y) {
   if (x <= y) {
     *r = x;
   } else {
