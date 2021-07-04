@@ -2,6 +2,8 @@ package org.tygus.suslik.synthesis
 
 import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.Paths
+import java.text.SimpleDateFormat
+import java.util.Date
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.certification.source.SuslikProofStep
@@ -15,7 +17,7 @@ import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.report.StopWatch.timed
-import org.tygus.suslik.synthesis.CertificationBenchmarks.BenchmarkConfig
+import org.tygus.suslik.synthesis.CertificationBenchmarks.{BenchmarkConfig, serialize}
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
 import scopt.OptionParser
@@ -27,7 +29,7 @@ import scala.sys.process.Process
 class CertificationBenchmarks(
                                params: SynConfig,
                                cfg: BenchmarkConfig
-                              ) extends SynthesisRunnerUtil {
+                             ) extends SynthesisRunnerUtil {
   val outputDir: File = new File(cfg.outputDirName)
   val synStatsFile = new File(List(cfg.outputDirName, s"${cfg.statsFilePrefix}-syn.csv").mkString(File.separator))
   val certStatsFiles: Map[CertificationTarget, File] =
@@ -102,7 +104,8 @@ class CertificationBenchmarks(
       val tests = testDir.listFiles.filter(f => f.isFile
         && (f.getName.endsWith(s".$testExtension") ||
         f.getName.endsWith(s".$sketchExtension")))
-        .map(f => getDescInputOutput(f.getAbsolutePath, params)).toList
+        .map(f => getDescInputOutput(f.getAbsolutePath, params))
+        .sortWith { case (a,b) => a._1 < b._1 }.toList // alphabetize by test name
       println("done!")
 
       val parser = new SSLParser
@@ -218,13 +221,6 @@ class CertificationBenchmarks(
     }
   }
 
-  private def serialize(dir: File, filename: String, body: String): Unit = {
-    val file = Paths.get(dir.getCanonicalPath, filename).toFile
-    new PrintWriter(file) {
-      write(body); close()
-    }
-  }
-
   private def checkProofSize(dir: File, filename: String): (Int, Int) = {
     val cmd = Seq("coqwc", filename)
     val proofSizes = Process(cmd, dir).!!
@@ -270,21 +266,51 @@ object CertificationBenchmarks {
     "certification-benchmarks/tree"
   )
   val allAdvanced = List(
-    "certification-benchmarks-advanced/bst",
-    "certification-benchmarks-advanced/sll",
     "certification-benchmarks-advanced/dll",
+    "certification-benchmarks-advanced/bst",
     "certification-benchmarks-advanced/srtl",
   )
-  val defaultStandardConfig: BenchmarkConfig = BenchmarkConfig(allTargets, allStandard, compile = true, "standard")
-  val defaultAdvancedConfig: BenchmarkConfig = BenchmarkConfig(List(HTT()), allAdvanced, compile = false, "advanced")
+  val defaultStandardConfig: BenchmarkConfig = BenchmarkConfig(allTargets, allStandard, allStandard, compile = true, "standard")
+  val defaultAdvancedConfig: BenchmarkConfig = BenchmarkConfig(List(HTT()), allAdvanced, allAdvanced, compile = false, "advanced")
 
   case class BenchmarkConfig(
                               targets: List[CertificationTarget],
+                              allGroups: List[String],
                               groups: List[String],
                               compile: Boolean,
                               statsFilePrefix: String,
-                              outputDirName: String = "certify",
+                              outputDirName: String = "certify"
                             ) {
+    def pp: String = {
+      val builder = new StringBuilder()
+      if (groups.nonEmpty) {
+        builder.append(s"${groups.length} benchmark group(s) will be evaluated with ${targets.length} certification target(s).\n")
+        builder.append("Results will be written to:\n")
+        builder.append(s"- $outputDirName${File.separator}$statsFilePrefix-syn.csv (synthesis times)\n")
+        for (t <- targets) {
+          builder.append(s"- $outputDirName${File.separator}$statsFilePrefix-${t.name}.csv (${t.name} statistics)\n")
+        }
+        builder.append("\nThis run will perform actions in the following order.\n\n")
+        for (g <- allGroups) {
+          if (groups.contains(g)) {
+            builder.append(s"Group '$g': synthesize/generate certificates with compilation ${if (compile) "ENABLED" else "DISABLED"} for ${if (targets.nonEmpty) targets.map(_.name).mkString(", ") else "no targets"}\n")
+            val rootDir = "./src/test/resources/synthesis".replace("/", File.separator)
+            val path = List(rootDir, g).mkString(File.separator)
+            val testDir = new File(path)
+            val tests = testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(".syn")).map(_.getName).sorted.toList
+            for (test <- tests) {
+              builder.append(s"- ${test.stripSuffix(".syn")}\n")
+            }
+          } else {
+            builder.append(s"Group '$g': don't synthesize, don't compile, don't certify\n")
+          }
+        }
+      } else {
+        builder.append("No benchmark groups will be evaluated.")
+      }
+      builder.toString
+    }
+
     def updateTargets(): BenchmarkConfig = {
       println(s"\nBy default, benchmarks will be evaluated on target(s): ${targets.map(_.name).mkString(", ")}")
       val s = StdIn.readLine("Proceed with default targets? [Y/n] ")
@@ -340,7 +366,7 @@ object CertificationBenchmarks {
     }
   }
 
-  private case class Config(
+  case class Config(
                      configure: Boolean = false,
                      outputDirName: String = "certify"
                    )
@@ -355,6 +381,13 @@ object CertificationBenchmarks {
       c.copy(outputDirName = x) } text "Specify a custom directory for output files"
   }
 
+  def serialize(dir: File, filename: String, body: String): Unit = {
+    val file = Paths.get(dir.getCanonicalPath, filename).toFile
+    new PrintWriter(file) {
+      write(body); close()
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     val runConfig = parser.parse(args, Config()) match {
       case Some(config) => config
@@ -363,28 +396,51 @@ object CertificationBenchmarks {
         sys.exit(1)
     }
 
+    // Initialize output dir
+    val outputDir = new File(runConfig.outputDirName)
+    if (!outputDir.exists()) {
+      outputDir.mkdirs()
+    }
+
+    // Build standard + advanced config from user input
     val (standardConfig, advancedConfig) = if (runConfig.configure) {
       println("==========STANDARD BENCHMARK CONFIGURATION==========")
-      val standardConfig = defaultStandardConfig.updateCompile().updateTargets().updateGroups()
+      val standardConfig = defaultStandardConfig.copy(outputDirName = runConfig.outputDirName).updateCompile().updateTargets().updateGroups()
       println("\n\n==========ADVANCED BENCHMARK CONFIGURATION==========")
-      val advancedConfig = defaultAdvancedConfig.updateCompile().updateGroups()
+      val advancedConfig = defaultAdvancedConfig.copy(outputDirName = runConfig.outputDirName).updateCompile().updateGroups()
       (standardConfig, advancedConfig)
-    } else (defaultStandardConfig, defaultAdvancedConfig)
+    } else (defaultStandardConfig.copy(outputDirName = runConfig.outputDirName), defaultAdvancedConfig.copy(outputDirName = runConfig.outputDirName))
 
+    // Finalize configuration settings
+    val standardConfigStr = standardConfig.pp
+    val advancedConfigStr = advancedConfig.pp
+    val timestamp = new SimpleDateFormat("YYYY-MM-dd_HHmmss").format(new Date)
+    val configStr = s"Evaluation start time: $timestamp\n\nSTANDARD BENCHMARK CONFIGURATION:\n$standardConfigStr\n\nADVANCED BENCHMARK CONFIGURATION:\n$advancedConfigStr"
+    val logFilename = s"certify-benchmarks-$timestamp.log"
+
+    // Write configuration settings for this run to a log file and also print to stdout
+    serialize(new File(runConfig.outputDirName), logFilename, configStr)
+    println(s"\n$configStr")
     println("\n\nResults will be produced in the following directory:")
     println(s"  ${new File(runConfig.outputDirName).getCanonicalPath}")
     println("\n\nStarting benchmarks...\n\n")
 
+    // Run standard benchmarks
     val standard = new CertificationBenchmarks (
       SynConfig(certHammerPure = true),
       standardConfig.copy(outputDirName = runConfig.outputDirName)
     )
     standard.runBenchmarks()
+    println("\n\nFinished evaluating all standard benchmarks!\n\n")
 
+    // Run advanced benchmarks
     val advanced = new CertificationBenchmarks(
       SynConfig(certSetRepr = true, certHammerPure = true),
       advancedConfig.copy(outputDirName = runConfig.outputDirName)
     )
     advanced.runBenchmarks()
+    println("\n\nFinished evaluating all advanced benchmarks!\n\n")
+
+    println(s"\n\nEnd of benchmark evaluation! Please check CSV files in directory ${runConfig.outputDirName} for results.")
   }
 }
