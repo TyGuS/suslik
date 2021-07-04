@@ -96,7 +96,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val subExpr = goal.substToFormula(subst)
           val newPost = Assertion(post.phi && subExpr, post.sigma)
           val newGoal = goal.spawnChild(post = newPost)
-          val kont = SubstVarProducer(y.asInstanceOf[Var], x.asInstanceOf[Var]) >> IdProducer >> ExtractHelper(goal)
+          val kont = (x, y) match {
+            case (x:Var, y:Var) => SubstVarProducer(y, x) >> IdProducer >> ExtractHelper(goal)
+            case _ =>  IdProducer >> ExtractHelper(goal)
+          }
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
