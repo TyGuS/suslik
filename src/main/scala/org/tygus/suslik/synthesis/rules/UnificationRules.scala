@@ -84,7 +84,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         PointsTo(y, oy, _) <- postPtss
         if y.vars.exists(goal.isExistential)
         t@PointsTo(x, ox, _) <- prePtss
-        if post.sigma.block_size(y) == pre.sigma.block_size(x)
+//        if post.sigma.block_size(y) == pre.sigma.block_size(x)
         if ox == oy
         if !postPtss.exists(sameLhs(t))
       } yield (y -> x)
