@@ -212,8 +212,10 @@ class ProofTrace extends EventEmitter {
             if (parentView) {
                 parentView.children ??= [];
                 parentView.children.push(this.createNode(node));
-                if (opts.expand)
-                    parentView.expanded = true; /** @todo only if parent is visible */
+                if (opts.expand) {   /** @todo only if parent is visible */
+                    parentView.focus = true;
+                    parentView.expanded = true;
+                }
             }
         }
     }

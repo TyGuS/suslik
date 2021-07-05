@@ -50,13 +50,14 @@ export default {
         },
         expandAll() { this.action({type: 'expandAll', target: this.root})},
         focusElement(el) {
-            var box = el.getBoundingClientRect(), clrse = 50,
-                viewport = window.visualViewport,
+            var pane = el.closest('.ide-pane') || document.body,
+                box = el.getBoundingClientRect(), clrse = 50,
+                viewport = pane.getBoundingClientRect(), //window.visualViewport,
                 v = (box.bottom + clrse) - viewport.height,
                 hl = box.left - clrse - viewport.width * 0.33,
                 hr = (box.right + clrse) - viewport.width,
                 h = Math.min(hl, hr);
-            window.scrollBy({left: Math.max(h, 0), top: Math.max(v, 0), behavior: 'smooth'});
+            pane.scrollBy({left: Math.max(h, 0), top: Math.max(v, 0), behavior: 'smooth'});
         },
         getHigh(id) {
             return Object.entries(this.highlight || {})
