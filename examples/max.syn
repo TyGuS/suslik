@@ -3,7 +3,7 @@ maximum of two integers
 
 ###
 
-{ r :-> 0 }
+{ r :-> null }
 
 void max (loc r, int x, int y)
 

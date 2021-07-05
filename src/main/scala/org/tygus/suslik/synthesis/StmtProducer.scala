@@ -1,9 +1,10 @@
 package org.tygus.suslik.synthesis
 
 import org.tygus.suslik.language.Expressions
-import org.tygus.suslik.language.Expressions.{Expr, Var}
+import org.tygus.suslik.language.Expressions.{Expr, ExprSubst, Subst, SubstVar, Unknown, Var}
 import org.tygus.suslik.language.Statements._
-import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.logic.{FunSpec, Gamma, Heaplet, PFormula, SApp}
+import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.synthesis.rules.BranchRules.Branch
 import org.tygus.suslik.synthesis.rules.RuleUtils
 
@@ -22,12 +23,7 @@ sealed abstract class StmtProducer extends RuleUtils {
     fn(children)
   }
 
-  /**
-    * Producer transformer that sequences two producers:
-    * the resulting producer first applies p1 to a prefix of child solutions,
-    * then applies p2 to the result of p1 and a suffix of child solutions
-    */
-  def >>(p: StmtProducer): StmtProducer = ChainedProducer(this, p)
+  def >>(p: StmtProducer): StmtProducer = StmtProducerOps.>>(this, p)
 
   def liftToSolutions(f: Seq[Statement] => Statement)(arg: Seq[Solution]): Solution = {
     val (stmts, helpers) = arg.unzip
@@ -38,12 +34,19 @@ sealed abstract class StmtProducer extends RuleUtils {
 
 }
 
-case class ChainedProducer(p1: StmtProducer, p2: StmtProducer) extends StmtProducer {
-  val arity: Int = p1.arity + p2.arity - 1
-  val fn: Kont = sols => {
-    val (sols1, sols2) = sols.splitAt(p1.arity)
-    val sol = p1.fn(sols1)
-    p2.fn(sol +: sols2)
+object StmtProducerOps {
+  /**
+    * Producer transformer that sequences two producers:
+    * the resulting producer first applies p1 to a prefix of child solutions,
+    * then applies p2 to the result of p1 and a suffix of child solutions
+    */
+  case class >>(p1: StmtProducer, p2: StmtProducer) extends StmtProducer {
+    val arity: Int = p1.arity + p2.arity - 1
+    val fn: Kont = sols => {
+      val (sols1, sols2) = sols.splitAt(p1.arity)
+      val sol = p1.fn(sols1)
+      p2.fn(sol +: sols2)
+    }
   }
 }
 
@@ -123,7 +126,7 @@ case class ExtractHelper(goal: Goal) extends StmtProducer {
 }
 
 // Produces a conditional that branches on the selectors
-case class BranchProducer(selectors: Seq[Expr]) extends StmtProducer {
+case class BranchProducer(pred: Option[SApp], freshVars: SubstVar, sbst: Subst, selectors: Seq[Expr]) extends StmtProducer {
   val arity: Int = selectors.length
   val fn: Kont = liftToSolutions(stmts => {
     if (stmts.length == 1) stmts.head else {
@@ -137,12 +140,12 @@ case class BranchProducer(selectors: Seq[Expr]) extends StmtProducer {
 
 // Joins a guarded statement and an else-branch into a conditional,
 // if goal is the right branching point (otherwise simply propagates the guarded statement)
-case class GuardedBranchProducer(goal: Goal) extends StmtProducer {
+case class GuardedBranchProducer(goal: Goal, unknown: Unknown) extends StmtProducer {
   val arity: Int = 2
   val fn: Kont = liftToSolutions(stmts => {
     stmts.head match {
       case Guarded(cond, body) if Branch.isBranchingPoint(goal, cond)
-        => If(cond, body, stmts.last).simplify // Current goal is the branching point: create conditional
+      => If(cond, body, stmts.last).simplify // Current goal is the branching point: create conditional
       case stmt => stmt // Current goal is not the branching point: second child is always vacuous, so ignore it
     }
   })
@@ -154,10 +157,26 @@ case class GuardedProducer(cond: Expr) extends StmtProducer {
   val fn: Kont = liftToSolutions(stmts => Guarded(cond, stmts.head).simplify)
 }
 
-// Captures the existential substitution map produced by the Pick rule
-case class ExistentialProducer(subst: Map[Var, Expr]) extends StmtProducer {
+trait Noop {
   val arity: Int = 1
-  val fn: Kont = liftToSolutions(stmts => stmts.head)
+  val fn: Kont = _.head
 }
 
+// Captures variable to expression substitutions
+case class SubstProducer(from: Var, to: Expr) extends StmtProducer with Noop
+case class SubstMapProducer(subst: Subst) extends StmtProducer with Noop
 
+// Captures variable to variable substitutions
+case class SubstVarProducer(from: Var, to: Var) extends StmtProducer with Noop
+
+// Captures an unfolded predicate application
+case class UnfoldProducer(app: SApp, selector: Expr, asn: Assertion, substEx: SubstVar) extends StmtProducer with Noop
+
+// Abduce Call
+case class AbduceCallProducer(f: FunSpec) extends StmtProducer with Noop
+
+// Captures entailments emitted by SMT
+case class PureEntailmentProducer(prePhi: PFormula, postPhi: PFormula, gamma: Gamma) extends StmtProducer with Noop
+
+// Captures heap unifications
+case class UnificationProducer(preHeaplet: Heaplet, postHeaplet: Heaplet, subst: ExprSubst) extends StmtProducer with Noop

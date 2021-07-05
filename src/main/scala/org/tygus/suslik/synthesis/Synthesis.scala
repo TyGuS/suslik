@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis
 
-import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.language.Statements.{Solution, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -10,8 +9,8 @@ import org.tygus.suslik.synthesis.Memoization._
 import org.tygus.suslik.synthesis.SearchTree._
 import org.tygus.suslik.synthesis.Termination._
 import org.tygus.suslik.synthesis.rules.DelegatePureSynthesis
-import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.synthesis.rules.Rules._
+import org.tygus.suslik.synthesis.tactics.Tactic
 import org.tygus.suslik.util.SynStats
 
 import scala.Console
@@ -40,7 +39,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       log.print("CVC4 is not available! All pure synthesis steps will be performed by enumeration (this takes more steps).\n",
         Console.RED, 2)
     }
-    
+
     val goal = topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
     log.print("Initial specification:", Console.RESET)
     log.print(s"${goal.pp}\n", Console.BLUE)
@@ -98,11 +97,11 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       val res = memo.lookup(goal) match {
         case Some(Failed) => { // Same goal has failed before: record as failed
           log.print("Recalled FAIL", Console.RED)
-          trace.add(node.id, Failed, Some("cache"))
+          trace.add(node, Failed, Some("cache"))
           node.fail
           None
         }
-        case Some(Succeeded(sol)) =>
+        case Some(Succeeded(sol, id)) =>
         { // Same goal has succeeded before: return the same solution
           log.print(s"Recalled solution ${sol._1.pp}", Console.RED)
           // This seems to always hold in practice because we always get to the companion
@@ -110,9 +109,9 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           // if this ever fails, we can either:
           // 1. not recall solutions with outgoing backlinks or
           // 2. generate new transitions from these backlinks
-//          assert(sol._1.companions.isEmpty, "Recalled solution with an outgoing backlink, this is unsound!")
+          //          assert(sol._1.companions.isEmpty, "Recalled solution with an outgoing backlink, this is unsound!")
           successLeaves = node :: successLeaves // Treat this node as a succeeded leaf
-          trace.add(node.id, Succeeded(sol), Some("cache"))
+          trace.add(node, Succeeded(sol, id), Some("cache"))
           node.succeed(sol) match {
             case Left(sibling) => {
               worklist = addNewNodes(List(sibling))
@@ -171,10 +170,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
-        if (config.certTarget != null) {
-          // [Certify]: Add a terminal node and its ancestors to the certification tree
-          CertTree.addSuccessfulPath(node, e)
-        }
         trace.add(e, node)
         successLeaves = node :: successLeaves
         node.succeed(e.producer(Nil)) match {
@@ -200,7 +195,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         if (newNodes.isEmpty) {
           // This is a dead-end: prune worklist and try something else
           log.print("Cannot expand goal: BACKTRACK", Console.RED)
-          trace.add(node.id, Failed)
+          trace.add(node, Failed)
           node.fail
         } else {
           stats.addGeneratedGoals(newNodes.size)

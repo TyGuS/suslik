@@ -18,6 +18,8 @@ object SearchTree {
 
   type Worklist = List[OrNode]
 
+  trait SearchNode { val id: NodeId }
+
   // List of nodes to process
   var worklist: Worklist = List()
 
@@ -36,7 +38,7 @@ object SearchTree {
     * represents a synthesis goal to solve.
     * For this node to succeed, one of its children has to succeed.
     */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) extends SearchNode {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -68,7 +70,7 @@ object SearchTree {
 
     // This node has succeeded: return either its next suspended and-sibling or the solution
     def succeed(s: Solution)(implicit config: SynConfig): Either[OrNode, Solution] = {
-      memo.save(goal, Succeeded(s))
+      memo.save(goal, Succeeded(s, id))
       worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
       successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
@@ -166,7 +168,7 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  class AndNode(_id: NodeId, _parent: OrNode, _result: RuleResult) {
+  class AndNode(_id: NodeId, _parent: OrNode, _result: RuleResult) extends SearchNode {
     val id: NodeId = _id                                      // Unique id within the search tree
     val parent: OrNode = _parent                              // Parent or-node
     val rule: SynthesisRule = _result.rule                    // Rule that was applied to create this node from parent

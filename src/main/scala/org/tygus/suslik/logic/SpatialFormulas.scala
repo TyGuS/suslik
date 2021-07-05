@@ -225,6 +225,8 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   def isEmp: Boolean = chunks.isEmpty
 
+  def block_size (expr: Expr) = blocks find { case Block(loc,_) if loc == expr => true case _ => false } map (v => v.sz)
+
   // Add h to chunks (multiset semantics)
   def **(h: Heaplet): SFormula = SFormula(h :: chunks)
 

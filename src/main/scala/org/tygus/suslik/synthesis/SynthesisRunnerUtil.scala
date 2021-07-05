@@ -4,11 +4,14 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.certification.CertificationTarget.NoCert
+import org.tygus.suslik.certification.source.SuslikProofStep
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson, ProofTraceNone, StopWatch}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceCert, ProofTraceJson, ProofTraceNone, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
@@ -109,9 +112,11 @@ trait SynthesisRunnerUtil {
         new ReplaySynthesis(env.config)
       else
         new PhasedSynthesis(env.config)
-    val trace : ProofTrace = env.config.traceToJsonFile match {
-      case None => ProofTraceNone
-      case Some(file) => new ProofTraceJson(file)
+    val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
+      env.config.traceToJsonFile match {
+        case None => ProofTraceNone
+        case Some(file) => new ProofTraceJson(file)
+      }
     }
     new Synthesis(tactic, log, trace)
   }
@@ -172,6 +177,11 @@ trait SynthesisRunnerUtil {
       testPrintln(StopWatch.summary.toString)
     }
 
+    def initCertTree(trace: ProofTrace): Unit = trace match {
+      case trace: ProofTraceCert => CertTree.fromTrace(trace)
+      case _ =>
+    }
+
     sresult._1 match {
       case Nil =>
         printStats(sresult._2)
@@ -185,7 +195,10 @@ trait SynthesisRunnerUtil {
         } else {
           procs.map(_.pp.trim).mkString("\n\n")
         }
-          
+
+        // [Certify] initialize and print cert tree
+        initCertTree(synthesizer.trace)
+
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
@@ -208,17 +221,24 @@ trait SynthesisRunnerUtil {
           testPrintln(sresult._2.getExpansionChoices.mkString("\n"))
           testPrintln("-----------------------------------------------------")
         }
-        if (params.certTarget != null) {
+        if (params.certTarget != NoCert) {
           val certTarget = params.certTarget
           val targetName = certTarget.name
-          val certificate = certTarget.certify(procs.head, env)
+          val root = CertTree.root.getOrElse(throw SynthesisException("Search tree is uninitialized"))
+          val tree = SuslikProofStep.of_certtree(root)
+          val certificate = certTarget.certify(testName, procs.head, tree, root.goal, env)
           if (params.certDest == null) {
             testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
-            testPrintln(certificate.body)
+            certificate.outputs.foreach(o => {
+              testPrintln(s"File ${o.filename}:\n", Console.MAGENTA)
+              testPrintln(s"${o.body}")
+            })
           } else {
-            val path = Paths.get(params.certDest.getCanonicalPath, certificate.fileName).toFile
-            new PrintWriter(path) { write(certificate.body); close() }
-            testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
+            certificate.outputs.foreach(o => {
+              val path = Paths.get(params.certDest.getCanonicalPath, o.filename).toFile
+              new PrintWriter(path) { write(o.body); close() }
+              testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
+            })
           }
         }
     }

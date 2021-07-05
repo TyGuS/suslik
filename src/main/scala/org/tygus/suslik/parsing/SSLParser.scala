@@ -42,6 +42,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def formal: Parser[(Var, SSLType)] = typeParser ~ ident ^^ { case a ~ b => (Var(b), a) }
 
+  def locLiteral: Parser[Const] =
+    "null" ^^ (_ => NilPtr)
+
   def intLiteral: Parser[Const] =
     numericLit ^^ (x => IntConst(Integer.parseInt(x)))
 
@@ -97,7 +100,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def atom: Parser[Expr] = (
     unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
       | "(" ~> expr <~ ")"
-      | intLiteral | boolLiteral | setLiteral | intervalLiteral
+      | intLiteral | boolLiteral | setLiteral | locLiteral | intervalLiteral
       | varParser
     )
 
@@ -167,7 +170,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def varsDeclaration: Parser[Formals] = "[" ~> repsep(formal, ",") <~ "]"
 
   def goalFunctionSYN: Parser[FunSpec] = assertion ~ typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ^^ {
-    case pre ~ tpe ~ name ~ formals ~ vars_decl ~ post => FunSpec(name, tpe, formals, pre, post, vars_decl.getOrElse(Nil))
+    case pre ~ tpe ~ name ~ formals ~ vars_decl ~ post => FunSpec(name, tpe, formals, pre, post,  vars_decl.getOrElse(Nil))
   }
 
   def nonGoalFunction: Parser[FunSpec] = typeParser ~ ident ~ ("(" ~> repsep(formal, ",") <~ ")") ~ varsDeclaration.? ~ assertion ~ assertion ^^ {

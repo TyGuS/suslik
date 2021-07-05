@@ -1,0 +1,22 @@
+singly-linked list: max
+
+#####
+
+{true ; r :-> a ** sll(x, n, lo, hi) }
+void sll_max (loc x, loc r)
+{true ; r :-> hi ** sll(x, n, lo, hi) }
+
+#####
+
+void sll_max (loc x, loc r) {
+  if (x == null) {
+    *r = 0;
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    sll_max(n, x);
+    let h = *x;
+    *r = h <= v ? v : h;
+    *x = v;
+  }
+}

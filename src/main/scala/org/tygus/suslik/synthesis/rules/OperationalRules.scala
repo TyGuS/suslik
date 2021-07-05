@@ -4,7 +4,7 @@ import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis._
+import org.tygus.suslik.synthesis.{ExtractHelper, PrependProducer, StmtProducer, SubstVarProducer}
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -91,7 +91,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = goal.spawnChild(pre = Assertion(newPhi, newSigma),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
-          val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+          val kont: StmtProducer = e match {
+            case a:Var => SubstVarProducer(a, y) >> PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+            case _ => PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+          }
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some(h) =>
           ruleAssert(false, s"Read rule matched unexpected heaplet ${h.pp}")
@@ -143,7 +146,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
                                         post.subst(x, y),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
-          val kont: StmtProducer = PrependProducer(Malloc(y, tpy, sz)) >> ExtractHelper(goal)
+          val kont: StmtProducer = SubstVarProducer(x, y) >> PrependProducer(Malloc(y, tpy, sz)) >> ExtractHelper(goal)
           List(RuleResult(List(subGoal), kont, this, goal))
         case _ => Nil
       }

@@ -1,0 +1,12 @@
+#. -b true
+An account constructor
+
+###
+
+{ r :-> bal }
+
+void mk_acc (loc r, int id)
+
+{ r :-> x ** account(x, id, bal) }
+
+###

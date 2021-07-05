@@ -147,4 +147,8 @@ node_modules
 
 # traces
 *.out
+
+# certification results
+certify/
+
 *results.tex

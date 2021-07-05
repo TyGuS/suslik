@@ -22,6 +22,9 @@ The details of Synthetic Separation Logic and its extensions can be found in the
 * **[Cyclic Program Synthesis](https://doi.org/10.1145/3453483.3454087)**  
   Shachar Itzhaky, Hila Peleg, Nadia Polikarpova, Reuben Rowe, and Ilya Sergey. PLDI'21
   - [Artifact, 11 Apr 2021](https://doi.org/10.5281/zenodo.4679743)
+* **[Certifying the Synthesis of Heap-Manipulating Programs](https://doi.org/10.1145/3473589)**
+  Yasunari Watanabe, Kiran Gopinathan, George Pîrlea, Nadia Polikarpova, and Ilya Sergey. ICFP'21
+  - [Artifact, 21 May 2021](http://doi.org/10.5281/zenodo.5005829)
   
 ## Benchmark Statistics
 
@@ -178,10 +181,10 @@ where the necessary arguments and options are
                            dump entire proof search trace to a json file; default: none
   --memo <value>           enable memoization; default: true
   --lexi <value>           use lexicographic termination metric (as opposed to total size); default: false
-  --printTree <value>      print tree of successful derivations to path; default: false
-  --treeDest <value>       write tree of successful derivations to path; default: none
-  --certTarget <value>     set certification target; default: none
-  --certDest <value>       write certificate to path; default: none
+  --certTarget <value>           set certification target; default: none (options: htt | vst | iris)
+  --certDest <value>             specify the directory in which to store the certificate file; default: none
+  --certHammerPure <value>       use hammer to solve pure lemmas instead of admitting them (HTT only); default: false
+  --certSetRepr <value>          use SSReflect's perm_eq to represent set equality (HTT only); default: false
   --help                   prints this usage text
 
 ```
@@ -218,3 +221,7 @@ For running advanced examples from the accompanying test suite, execute, e.g.,
 ```
 ./suslik src/test/resources/synthesis/all-benchmarks/sll/append.syn
 ``` 
+
+## Certification
+
+Please refer to `certification.md` for information on certifying the synthesis results.

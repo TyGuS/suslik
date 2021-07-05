@@ -1,0 +1,36 @@
+# -x true -c 2 -p true
+
+binary search tree: delete root
+
+Simple case: no left subtree
+
+#####
+
+{ l == null /\
+  0 <= sz1 /\ 0 <= sz2  /\  
+  0 <= v /\ v <= 7 /\ hi1 <= v /\ v <= lo2   ;
+    retv :-> unused ** 
+    [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** 
+    bst(l, sz1, lo1, hi1)<a> ** bst(r, sz2, lo2, hi2)<b> }
+
+void bst_remove_root_no_left (loc x, loc retv)
+
+{ n1 == sz1 + sz2 /\
+  lo == (l == null ? (r == null ? 7 : lo2) : lo1) /\
+  hi == (r == null ? (l == null ? 0 : hi1) : hi2) ;
+   retv :-> y ** bst(y, n1, lo, hi)<c>  }
+
+#####
+
+{0 <= sz1 && 0 <= sz2 && 0 <= v && hi1 <= v && l == 0 && v <= 7 && v <= lo2 ; (x + 1) :-> l ** (x + 2) :-> r ** retv :-> unused ** x :-> v ** bst(l, sz1, lo1, hi1)<a> ** bst(r, sz2, lo2, hi2)<b> ** [x, 3]}
+{hi == (r == 0 ? (l == 0 ? 0 : hi1) : hi2) && lo == (l == 0 ? (r == 0 ? 7 : lo2) : lo1) && n1 == sz1 + sz2 ; retv :-> y ** bst(y, n1, lo, hi)<c>}
+void bst_remove_root_no_left (loc x, loc retv) {
+  let r = *(x + 2);
+  if (r == 0) {
+    free(x);
+    *retv = 0;
+  } else {
+    free(x);
+    *retv = r;
+  }
+}

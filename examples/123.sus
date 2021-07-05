@@ -1,0 +1,34 @@
+
+predicate dllseg(loc x, loc z, set s) {
+|  x == null => { s =i {} ; emp }
+|  not (x == null) =>
+   { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dllseg(w, x, s1) }
+}
+
+void set_prev(loc x, loc prev)
+{ true; (prev + 1) :-> x ** dllseg(x, z, s) }
+{ true; (prev + 1) :-> x ** dllseg(x, prev, s)}
+
+
+void sll_to_dll(loc f)
+{ true ; f :-> x ** lseg(x, s)}
+{ true ;  f :-> i ** dllseg(i, z, s)}
+{
+  let x2 = *f;
+  if (x2 == null) {
+  } else {
+    /*strange bug: if you remove this comment, then synthesis will break if printDerivations=false*/
+    let nxt2 = *(x2 + 1);
+    *f = nxt2;
+    sll_to_dll(f);
+    let i12 = *f;
+    *(x2 + 1) = i12;
+    let i2 = malloc(3);
+    *(i2 + 1) = i12;
+    ??
+  }
+}
+
+###
+
+nope

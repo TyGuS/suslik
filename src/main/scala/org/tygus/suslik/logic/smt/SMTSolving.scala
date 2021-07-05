@@ -315,6 +315,7 @@ object SMTSolving extends Core
   private def convertIntExpr(e: Expr): SMTIntTerm = e match {
     case Var(name) => Ints(name)
     case IntConst(c) => Ints(c)
+    case LocConst(c) => Ints(c)
     case UnaryExpr(OpLower, e) => {
       val s = convertIntervalExpr(e)
       new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalLowerSymbol, List(s.termDef)))

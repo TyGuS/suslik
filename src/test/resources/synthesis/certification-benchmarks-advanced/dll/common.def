@@ -1,0 +1,10 @@
+predicate dll(loc x, loc z, set s) {
+|  x == null => { s =i {} ; emp }
+|  not (x == null) =>
+   { s =i {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dll(w, x, s1) }
+}
+
+predicate sll(loc x, set s) {
+|  x == null        => { s =i {} ; emp }
+|  not (x == null)  => { s =i {v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}

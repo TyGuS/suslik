@@ -22,15 +22,36 @@ sealed abstract class TopLevelDeclaration extends PrettyPrinting with PureLogicU
   *
   * @param name  function name
   * @param rType function return type
+  * @param params function parameters names and types
+  * @param pre precondition
+  * @param post post-condition
+  * @param var_decl local variable of function?
   */
 case class FunSpec(name: Ident, rType: SSLType, params: Formals,
-                   pre: Assertion, post: Assertion, var_decl: Formals = Nil) extends TopLevelDeclaration {
+                   pre: Assertion, post: Assertion,
+                   var_decl: Formals = Nil) extends TopLevelDeclaration {
 
   def resolveOverloading(env: Environment): FunSpec = {
     val gamma0 = params.toMap // initial environment: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
     this.copy(pre = pre.resolveOverloading(gamma), post = post.resolveOverloading(gamma))
   }
+
+  def gamma(env: Environment): Gamma = {
+    val gamma0 = params.toMap // initial environment: derived from the formals
+    val gamma = resolvePrePost(gamma0, env, pre, post)
+    gamma
+  }
+
+  def existentials() : List[Var] = {
+    val params = this.params.map(_._1).toSet
+    val formal_params = pre.ghosts(params)
+    val existentials = post.ghosts(formal_params ++ params)
+    existentials.toList
+  }
+
+  // Currently used universally qualtified variables: program variables and ghosts in pre
+  def universals : Set[Var] = pre.vars ++ this.params.map(v => v._1)
 
   override def pp: String = {
     (""
@@ -160,12 +181,12 @@ case class InductivePredicate(name: Ident, params: Formals, clauses: Seq[Inducti
     * Renames existentials so they wouldn't capture the parameters and `vars`
     *
     * @param vars additional contextual variables that can be captures
-    * @return inductive predicate
+    * @return inductive predicate and substitution used
     */
-  def refreshExistentials(vars: Set[Var], suffix: String = ""): InductivePredicate = {
+  def refreshExistentials(vars: Set[Var], suffix: String = ""): (InductivePredicate, SubstVar) = {
     val bound = Set(selfCardVar) ++ vars ++ params.map(_._1).toSet
     val sbst = refreshVars(existentials.toList, bound, suffix)
-    this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst))))
+    (this.copy(clauses = this.clauses.map(c => InductiveClause(c.selector.subst(sbst), c.asn.subst(sbst)))), sbst)
   }
 
   def vars: Set[Var] = clauses.flatMap(c => c.selector.vars ++ c.asn.vars).toSet
@@ -209,5 +230,6 @@ case class Environment(predicates: PredicateEnv,
     this.copy(predicates = predicates.map{case (k,v) => (k, v.resolveOverloading(this))},
       functions=functions.map{case (k,v) => (k, v.resolveOverloading(this))})
   }
+
 }
 
