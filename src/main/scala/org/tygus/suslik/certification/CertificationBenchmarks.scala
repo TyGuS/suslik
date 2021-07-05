@@ -1,4 +1,4 @@
-package org.tygus.suslik.synthesis
+package org.tygus.suslik.certification
 
 import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.Paths
@@ -6,25 +6,25 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import org.tygus.suslik.LanguageUtils
+import org.tygus.suslik.certification.CertificationBenchmarks.{BenchmarkConfig, serialize}
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.targets.htt.HTT
-import org.tygus.suslik.certification.targets.vst.VST
 import org.tygus.suslik.certification.targets.iris.Iris
-import org.tygus.suslik.certification.{CertTree, CertificationTarget}
+import org.tygus.suslik.certification.targets.vst.VST
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.report.StopWatch.timed
-import org.tygus.suslik.synthesis.CertificationBenchmarks.{BenchmarkConfig, serialize}
 import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
+import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisException, SynthesisRunnerUtil, dotSus, dotSyn}
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
 import scopt.OptionParser
 
 import scala.collection.mutable
 import scala.io.StdIn
-import scala.sys.process.Process
+import scala.sys.process._
 
 class CertificationBenchmarks(
                                params: SynConfig,
@@ -395,6 +395,12 @@ object CertificationBenchmarks {
       case None =>
         System.err.println("Bad argument format.")
         sys.exit(1)
+    }
+
+    // Check that Coq exists
+    if (Seq("command", "-v", "coqc").! != 0) {
+      println("Coq is not installed. Aborting!")
+      scala.sys.exit(0)
     }
 
     // Initialize output dir
