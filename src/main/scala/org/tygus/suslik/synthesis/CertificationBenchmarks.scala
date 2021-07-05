@@ -266,6 +266,7 @@ object CertificationBenchmarks {
     "certification-benchmarks/tree"
   )
   val allAdvanced = List(
+    "certification-benchmarks-advanced/sll",
     "certification-benchmarks-advanced/dll",
     "certification-benchmarks-advanced/bst",
     "certification-benchmarks-advanced/srtl",
