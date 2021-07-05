@@ -185,7 +185,10 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     SynthesisRunner.parseParams("." +: spec.params.toArray, config)
 
   def grow(id: NodeId): Unit =
-    cached.get(id).foreach(isynth.grow)
+    cached.get(id) match {
+      case Some(node) => isynth.grow(node)
+      case _ => logger.warn(s"requested unknown node ${id.mkString(",")}")
+    }
 
   protected def wrapError[T](op: => T): T = {
     try op catch {
@@ -225,13 +228,20 @@ object AsyncSynthesisRunner {
       implicit val log: Log = this.log
       implicit val ctx: Log.Context = Log.Context(goal)
 
-      for {
-        (e, i) <- expansionsForNode(node).zipWithIndex
-        andNode = AndNode(i +: node.id, node, e)
-        if isTerminatingExpansion(andNode) // termination check
-      } {
-        trace.add(andNode, andNode.nChildren)
-        for (_ <- 1 to andNode.nChildren) trace.add(andNode.nextChild)
+      val expansions = expansionsForNode(node)
+
+      expansions.find(_.subgoals.isEmpty) match {
+        case Some(e) =>
+          trace.add(e, node)  /* node succeeded; record status */
+        case None =>
+          for {
+            (e, i) <- expansions.zipWithIndex
+            andNode = AndNode(i +: node.id, node, e)
+            if isTerminatingExpansion(andNode) // termination check
+          } {
+            trace.add(andNode, andNode.nChildren)
+            for (_ <- 1 to andNode.nChildren) trace.add(andNode.nextChild)
+          }
       }
     }
 
