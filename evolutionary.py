@@ -1,4 +1,5 @@
 import array
+import os
 import random
 import json
 import copy
@@ -14,33 +15,47 @@ from deap import base
 from deap import creator
 from deap import tools
 
-PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/"
-DEFAULT_ORDER_JSON = PATH_TO_TACTICS + "defaultOrderOfRules.json"
+PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
 IND_SIZE = 8
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 5
+POPULATION_SIZE = 1
 MAXIMUM_NUMBER_OF_GENERATIONS = 20
 INDPB = 0.1
+NUMB_OF_FEATURES = 3
+NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
 
 class Individual(list):
     """This class describe SuSLik's search strategy for individuals in each population."""
 
-    def __init__(self, population_id, individual_id, nan=10, time=9999999999.0 , rule_ordering=None):
+    def __init__(self,
+                 population_id,
+                 individual_id,
+                 nan=10,
+                 time=9999999999.0,
+                 rule_orderings=None):
         super().__init__()
-        if rule_ordering is None:
-            rule_ordering = random.sample(range(IND_SIZE), IND_SIZE)
         self.population_id = population_id
         self.individual_id = individual_id
-        self.rule_ordering = rule_ordering
-        self.nan = nan,
+        self.nan = nan
         self.time = time
+        if rule_orderings is None:
+            rule_orderings = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                rule_orderings.append(random.sample(range(IND_SIZE), IND_SIZE))
+        self.rule_orderings = rule_orderings
 
     def get_individual_id(self):
         return self.individual_id
 
     def set_individual_id(self, individual_id):
         self.individual_id = individual_id
+
+    def get_population_id(self):
+        return self.population_id
+
+    def set_population_id(self, population_id):
+        self.population_id = population_id
 
     def get_time(self):
         return self.time
@@ -55,7 +70,8 @@ class Individual(list):
         self.nan = nan
 
     def mutate(self):
-        tools.mutShuffleIndexes(self.rule_ordering, indpb=INDPB)
+        for rule_ordering in self.rule_orderings:
+            tools.mutShuffleIndexes(rule_ordering, indpb=INDPB)
 
     def json_file_path(self):
         json_file_name = "orderOfRules" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
@@ -66,7 +82,7 @@ class Individual(list):
 
         json_data_to_write = {
             "numbOfAnyPhaseRules": IND_SIZE,
-            "orderOfAnyPhaseRules": self.rule_ordering
+            "orderOfAnyPhaseRules": self.rule_orderings
         }
 
         with open(self.json_file_path(), 'w') as new_json_file_to_write:
@@ -111,18 +127,18 @@ class Individual(list):
             "individual_ID": self.individual_id,
             "number_of_nan": self.nan,
             "search_time": self.time,
-            "rule_ordering": self.rule_ordering
+            "rule_ordering": self.rule_orderings
         }
 
     def write_json_result(self):
 
         with open(self.json_result_file_path(), 'w') as json_result_file_to_write:
-            json.dump(json_result(), json_result_file_to_write)
+            json.dump(self.json_result(), json_result_file_to_write)
 
 
-def eval_fitness(individual: Individual):
-    result = individual.evaluate()
-    return result
+#def eval_fitness(individual: Individual):
+#    result = individual.evaluate()
+#    return result
 
 
 def get_total_time(individual: Individual):
@@ -139,22 +155,6 @@ def select(population):
     best_individuals = population[:POPULATION_SIZE]
     return best_individuals
 
-
-def json_result_file_path(generation_id: int):
-    return "robo-evaluation-utils/result" + "_" + str(generation_id) + ".json"
-
-
-def write_json_result(generation_id, population):
-    path = json_result_file_path(generation_id)
-    json_data = {
-        "generation_id": generation_id,
-        "number_of_nan": list(map(get_number_of_nans, population)),
-        "total_time": list(map(get_total_time, population))
-    }
-    with open(path, 'w') as file:
-        json.dump(json_data, file)
-
-
 toolbox = base.Toolbox()
 
 
@@ -164,16 +164,22 @@ toolbox = base.Toolbox()
 def main():
     random.seed(169)
 
+    try:
+        os.mkdir(PATH_TO_TACTICS)
+    except:
+        print("Oops! The directory for parameters already exists. Anyway, we keep going.")
+
     # create an initial population of 20 individuals (where each individual is a list of integers)
     individual_ids = list(range(0, POPULATION_SIZE))
 
     # initialize the population
     population = []
     for individual_id in individual_ids:
-        population.append(Individual(0, individual_id, 0, 0.0, None))
+        population.append(Individual(population_id=0, individual_id=individual_id))
 
     # evaluate the entire population
-    list(map(eval_fitness, population))
+    for individual in population:
+        individual.evaluate()
 
     print("----- initial nan and time -----")
     for individual in population:
@@ -201,7 +207,9 @@ def main():
         for individual in offspring2:
             individual.mutate()
 
-        list(map(eval_fitness, offspring2))
+        for individual in offspring2:
+            individual.set_population_id(generation_id)
+            individual.evaluate()
 
         population[:] = offspring1 + offspring2
 
@@ -210,9 +218,8 @@ def main():
         for individual in population:
             individual.set_individual_id(individual_id)
             individual_id = individual_id + 1
-            #individual.write_json_result()
-
-        write_json_result(generation_id, population)
+            individual.write_json_result()
+            individual.set_population_id(generation_id)
 
         print("----- fitness is -----")
         for individual in population:

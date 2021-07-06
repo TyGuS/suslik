@@ -73,9 +73,10 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val individualID  = config.individualID
     val fileName      = "orderOfRules_" + populationID.toString + "_" + individualID.toString + ".json"
     val directoryPath = os.pwd
-    val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/fileName)
+    val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     val jsonData      = ujson.read(jsonFile)
-    val orderOfAnyPhaseRules = jsonData("orderOfAnyPhaseRules").arr.map(_.num).map(_.toInt)
+    val orderOfAnyPhaseRuless = jsonData("orderOfAnyPhaseRules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val orderOfAnyPhaseRules = orderOfAnyPhaseRuless.apply(0)
     if (config.evolutionary)
       List(
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
