@@ -19,10 +19,10 @@ PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/
 IND_SIZE = 8
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 1
+POPULATION_SIZE = 5
 MAXIMUM_NUMBER_OF_GENERATIONS = 20
 INDPB = 0.1
-NUMB_OF_FEATURES = 3
+NUMB_OF_FEATURES = 7
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
 
 class Individual(list):
@@ -43,6 +43,7 @@ class Individual(list):
             rule_orderings = []
             for i in range(NUMB_OF_FEATURE_COMBINATION):
                 rule_orderings.append(random.sample(range(IND_SIZE), IND_SIZE))
+        print("Number of items in the list = ", len(rule_orderings))
         self.rule_orderings = rule_orderings
 
     def get_individual_id(self):
@@ -134,12 +135,6 @@ class Individual(list):
 
         with open(self.json_result_file_path(), 'w') as json_result_file_to_write:
             json.dump(self.json_result(), json_result_file_to_write)
-
-
-#def eval_fitness(individual: Individual):
-#    result = individual.evaluate()
-#    return result
-
 
 def get_total_time(individual: Individual):
     return individual.get_time()

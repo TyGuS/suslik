@@ -28,7 +28,7 @@ import operator
 #################
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
-TIMEOUT      = '-t=1000'                                          # Timeout option for suslik
+TIMEOUT      = '-t=5000'                                          # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/synthesis/paper-benchmarks/'   # Root directory for the tests
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
 CSV_TEMP     = 'stats-temp.csv'                                   # Intermediate CSV file produced by suslik
@@ -275,18 +275,18 @@ ALL_BENCHMARKS = [
         Benchmark('srtl/srtl-insert', 'insert'),
         Benchmark('srtl/insertion-sort', 'insertion sort'),
     ]),
-    #BenchmarkGroup("Tree", [
-    #    Benchmark('tree/tree-size', 'size'),
-    #    Benchmark('tree/tree-free', 'dispose'),
-    #    Benchmark('tree/tree-copy', 'copy'),
-    #    Benchmark('tree/tree-flatten', 'flatten w/append'),
-    #    Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
-    #]),
-    #BenchmarkGroup("BST", [
-    #    Benchmark('bst/bst-insert', 'insert'),
-    #    Benchmark('bst/bst-left-rotate', 'rotate left'),
-    #    Benchmark('bst/bst-right-rotate', 'rotate right'),
-    #]),
+    BenchmarkGroup("Tree", [
+        Benchmark('tree/tree-size', 'size'),
+        Benchmark('tree/tree-free', 'dispose'),
+        Benchmark('tree/tree-copy', 'copy'),
+        Benchmark('tree/tree-flatten', 'flatten w/append'),
+        Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
+    ]),
+    BenchmarkGroup("BST", [
+        Benchmark('bst/bst-insert', 'insert'),
+        Benchmark('bst/bst-left-rotate', 'rotate left'),
+        Benchmark('bst/bst-right-rotate', 'rotate right'),
+    ]),
   ]
 
 ROBUSTNESS      = ALL_BENCHMARKS.copy()

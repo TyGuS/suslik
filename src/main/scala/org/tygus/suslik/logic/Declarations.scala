@@ -7,6 +7,7 @@ import org.tygus.suslik.language.SSLType
 import org.tygus.suslik.language.Statements.Statement
 import org.tygus.suslik.synthesis.SynConfig
 import org.tygus.suslik.util.SynStats
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * @author Ilya Sergey
@@ -195,7 +196,8 @@ case class Program(predicates: Seq[InductivePredicate],
 case class Environment(predicates: PredicateEnv,
                        functions: FunctionEnv,
                        config: SynConfig,
-                       stats: SynStats) {
+                       stats: SynStats,
+                       orderOfAnyPhaseRuless: ArrayBuffer[ArrayBuffer[Int]]) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

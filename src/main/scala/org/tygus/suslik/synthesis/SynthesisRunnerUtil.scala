@@ -2,6 +2,7 @@ package org.tygus.suslik.synthesis
 
 import java.io.{File, PrintWriter}
 import java.nio.file.Paths
+import scala.collection.mutable.ArrayBuffer
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.logic.Environment
@@ -141,7 +142,18 @@ trait SynthesisRunnerUtil {
     }
 
     val spec = specs.head
-    val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
+
+    //TODO WIP
+    val populationID  = params.populationID
+    val individualID  = params.individualID
+    val fileName      = "orderOfRules_" + populationID.toString + "_" + individualID.toString + ".json"
+    val directoryPath = os.pwd
+    val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
+    val jsonData      = ujson.read(jsonFile)
+    val orderOfAnyPhaseRuless = jsonData("orderOfAnyPhaseRules").arr.map(_.arr.map(_.num).map(_.toInt))
+
+    val env = Environment(predEnv, funcEnv, params,
+                          new SynStats(params.timeOut), orderOfAnyPhaseRuless)
     val synthesizer = createSynthesizer(env)
 
     env.stats.start()

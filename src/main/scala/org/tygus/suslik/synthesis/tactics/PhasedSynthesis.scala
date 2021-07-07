@@ -10,6 +10,8 @@ import org.tygus.suslik.synthesis.rules.UnfoldingRules.Close
 import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
 import org.tygus.suslik.synthesis.rules._
 
+import scala.collection.mutable.ArrayBuffer
+
 class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def nextRules(node: OrNode): List[SynthesisRule] = {
@@ -19,11 +21,11 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       Nil
     else if (goal.sketch != Hole)
     // Until we encounter a hole, symbolically execute the sketch
-      anyPhaseRules(config).filterNot(_.isInstanceOf[GeneratesCode]) ++
+      anyPhaseRules(goal).filterNot(_.isInstanceOf[GeneratesCode]) ++
         symbolicExecutionRules ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
-    else anyPhaseRules(config) ++ specBasedRules(node)
+    else anyPhaseRules(goal) ++ specBasedRules(node)
   }
 
   def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
@@ -33,7 +35,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val config = goal.env.config
     if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
-      val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules(config).contains).headOption
+      val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules(goal).contains).headOption
       if (lastUnfoldingRule.contains(HeapUnifyUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfoldingFinal))
@@ -68,7 +70,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     BranchRules.Branch
   )
 
-  protected def anyPhaseRules(config:SynConfig): List[SynthesisRule] = {
+  protected def anyPhaseRules(goal:Goal): List[SynthesisRule] = {
+    /*
     val populationID  = config.populationID
     val individualID  = config.individualID
     val fileName      = "orderOfRules_" + populationID.toString + "_" + individualID.toString + ".json"
@@ -76,8 +79,25 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     val jsonData      = ujson.read(jsonFile)
     val orderOfAnyPhaseRuless = jsonData("orderOfAnyPhaseRules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val orderOfAnyPhaseRules = orderOfAnyPhaseRuless.apply(0)
-    if (config.evolutionary)
+    */
+    // TODO
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val int = index.toInt
+    // if check-feature-0 then scala.math.pow(2,0) else 0
+    // if check-feature-1 then scala.math.pow(2,1) else 0
+    // if check-feature-2 then scala.math.pow(2,2) else 0
+
+    val orderOfAnyPhaseRuless = goal.env.orderOfAnyPhaseRuless //TODO to be improved
+    val orderOfAnyPhaseRules = orderOfAnyPhaseRuless.apply(int)
+    if (goal.env.config.evolutionary)
       List(
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
