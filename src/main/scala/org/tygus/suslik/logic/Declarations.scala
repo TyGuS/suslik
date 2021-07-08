@@ -197,7 +197,9 @@ case class Environment(predicates: PredicateEnv,
                        functions: FunctionEnv,
                        config: SynConfig,
                        stats: SynStats,
-                       orderOfAnyPhaseRuless: ArrayBuffer[ArrayBuffer[Int]]) {
+                       ordersOfAnyPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
+                       ordersOfPurePhaseRules: ArrayBuffer[ArrayBuffer[Int]]
+                      ) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
     val psStr = if (ps.nonEmpty) s"[Predicates (${predicates.size}): $ps]" else ""

@@ -54,7 +54,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       pointerPhaseRules
     } else {
       // Pure phase: get rid of all the heap
-      purePhaseRules
+      purePhaseRules(goal)
     }
   }
 
@@ -71,16 +71,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def anyPhaseRules(goal:Goal): List[SynthesisRule] = {
-    /*
-    val populationID  = config.populationID
-    val individualID  = config.individualID
-    val fileName      = "orderOfRules_" + populationID.toString + "_" + individualID.toString + ".json"
-    val directoryPath = os.pwd
-    val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
-    val jsonData      = ujson.read(jsonFile)
-    val orderOfAnyPhaseRuless = jsonData("orderOfAnyPhaseRules").arr.map(_.arr.map(_.num).map(_.toInt))
-    */
-    // TODO
+
     val index =
       (if (goal.isUnsolvable) math.pow(2,0) else 0)
     + (if (goal.sketch != Hole) math.pow(2,1) else 0)
@@ -90,14 +81,10 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     + (if (goal.hasBlocks) math.pow(2,5) else 0)
     + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
 
-    val int = index.toInt
-    // if check-feature-0 then scala.math.pow(2,0) else 0
-    // if check-feature-1 then scala.math.pow(2,1) else 0
-    // if check-feature-2 then scala.math.pow(2,2) else 0
+    val ordersOfAnyPhaseRules = goal.env.ordersOfAnyPhaseRules
+    val orderOfAnyPhaseRules = ordersOfAnyPhaseRules.apply(index.toInt)
 
-    val orderOfAnyPhaseRuless = goal.env.orderOfAnyPhaseRuless //TODO to be improved
-    val orderOfAnyPhaseRules = orderOfAnyPhaseRuless.apply(int)
-    if (goal.env.config.evolutionary)
+    if (goal.env.config.evolutionary) {
       List(
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
@@ -108,19 +95,21 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
         unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
       )
-    else
+    } else
       List(unorderedAnyPhaseRules:_*)
   }
 
-  protected def symbolicExecutionRules: List[SynthesisRule] = List(
-    SymbolicExecutionRules.Open,
-    SymbolicExecutionRules.GuidedRead,
-    SymbolicExecutionRules.GuidedWrite,
-    SymbolicExecutionRules.GuidedAlloc,
-    SymbolicExecutionRules.GuidedFree,
-    SymbolicExecutionRules.Conditional,
+  protected def symbolicExecutionRules: List[SynthesisRule] =
+
+    List(
+      SymbolicExecutionRules.Open,
+      SymbolicExecutionRules.GuidedRead,
+      SymbolicExecutionRules.GuidedWrite,
+      SymbolicExecutionRules.GuidedAlloc,
+      SymbolicExecutionRules.GuidedFree,
+      SymbolicExecutionRules.Conditional,
 //    SymbolicExecutionRules.GuidedCall, // TODO: Fix this later with new call rule
-  )
+    )
 
   protected def unfoldingPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfolding,
@@ -195,8 +184,10 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     UnificationRules.HeapUnifyPointer,
   )
 
-  protected def purePhaseRules: List[SynthesisRule] = {
-    List(
+  protected def purePhaseRules(goal: Goal): List[SynthesisRule] = {
+
+    val unorderedPurePhaseRules =
+    Vector(
       if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
       LogicalRules.EmpRule,
 //      LogicalRules.SubstLeft,
@@ -211,6 +202,35 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick)
 //    ++
 //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
+
+    val index = //TODO refactor.
+        (if (goal.isUnsolvable) math.pow(2,0) else 0)
+      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+      + (if (goal.hasBlocks) math.pow(2,5) else 0)
+      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfPurePhaseRules = goal.env.ordersOfPurePhaseRules
+    val orderOfPurePhaseRules = ordersOfPurePhaseRules.apply(index.toInt)
+
+    if (goal.env.config.evolutionary) {
+      List(
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(0)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(1)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(2)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(3)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(4)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(5)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(6)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(7)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(8)),
+        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(9))
+      )
+    } else
+      List(unorderedPurePhaseRules:_*)
+
   }
 
 }
