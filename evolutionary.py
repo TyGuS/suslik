@@ -21,7 +21,7 @@ NUMB_OF_PURE_PHASE_RULE = 10
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 5
-MAXIMUM_NUMBER_OF_GENERATIONS = 20
+MAXIMUM_NUMBER_OF_GENERATIONS = 30
 INDPB = 0.1
 NUMB_OF_FEATURES = 7
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
@@ -32,6 +32,7 @@ class Individual(list):
     def __init__(self,
                  population_id,
                  individual_id,
+                 rank,
                  nan=10,
                  time=9999999999.0,
                  orders_of_any_phase_rules=None,
@@ -39,6 +40,7 @@ class Individual(list):
         super().__init__()
         self.population_id = population_id
         self.individual_id = individual_id
+        self.rank = rank
         self.nan = nan
         self.time = time
 
@@ -67,6 +69,9 @@ class Individual(list):
 
     def set_population_id(self, population_id):
         self.population_id = population_id
+
+    def set_rank(self, rank):
+        self.rank = rank
 
     def get_time(self):
         return self.time
@@ -129,14 +134,16 @@ class Individual(list):
     def is_not_good_enough(self):
         return (self.nan > MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS) or (self.time > MAXIMUM_TOTAL_TIME)
 
+    # Note that we use the rank of individual in the file name.
     def json_result_file_path(self):
-        return "robo-evaluation-utils/result" + "_" + str(self.population_id) + "_" + str(self.individual_id) \
+        return "robo-evaluation-utils/result" + "_" + str(self.population_id) + "_" + str(self.rank) \
                          + ".json"
 
     def json_result(self):
         return {
             "generation_ID": self.population_id,
             "individual_ID": self.individual_id,
+            "rank": self.rank,
             "number_of_nan": self.nan,
             "search_time": self.time,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
@@ -151,16 +158,8 @@ class Individual(list):
 def get_total_time(individual: Individual):
     return individual.get_time()
 
-
 def get_number_of_nans(individual: Individual):
     return individual.get_nan()
-
-
-def select(population):
-    population.sort(key=get_total_time)
-    population.sort(key=get_number_of_nans)
-    best_individuals = population[:POPULATION_SIZE]
-    return best_individuals
 
 toolbox = base.Toolbox()
 
@@ -182,23 +181,27 @@ def main():
     # initialize the population
     population = []
     for individual_id in individual_ids:
-        population.append(Individual(population_id=0, individual_id=individual_id))
+        population.append(Individual(population_id=0, individual_id=individual_id, rank=0))
 
     # evaluate the entire population
     for individual in population:
         individual.evaluate()
-        individual.write_json_result()
 
-    print("----- initial nan and time -----")
+    # sort populations
+    population.sort(key=get_total_time)
+    population.sort(key=get_number_of_nans)
+
+    # set the rank
+    rank = 0
     for individual in population:
-        print(individual.get_nan())
-        print(individual.get_time())
+        individual.set_rank(rank)
+        rank = rank + 1
+
+    for individual in population:
+        individual.write_json_result()
 
     # current number of generation
     generation_id = 0
-
-    # whole result
-    final_json = []
 
     # begin the evolution
     while all((individual.is_not_good_enough()) for individual in population) \
@@ -207,35 +210,34 @@ def main():
         print("----- generation %i -----" % generation_id)
 
         # select the next generation individuals
-        offspring1 = select(population)
+        offspring1 = population[:POPULATION_SIZE]
+
+        for individual in offspring1:
+            individual.set_population_id(generation_id)
 
         # mutate the best from the previous round
-        offspring2 = copy.deepcopy(offspring1)
+        offspring2 = copy.deepcopy(offspring1) + copy.deepcopy(offspring1[:2])
 
+        # for offspring2, 1) mutate, 2) set ind-id, 3) set generation-id, 4) evaluate
+        individual_id = POPULATION_SIZE
         for individual in offspring2:
             individual.mutate()
-
-        for individual in offspring2:
-            individual.set_population_id(generation_id)
+            individual.set_individual_id(individual_id)
+            individual_id = individual_id + 1
             individual.evaluate()
 
         population[:] = offspring1 + offspring2
 
-        individual_id = 0
-
+        # sort populations
+        population.sort(key=get_total_time)
+        population.sort(key=get_number_of_nans)
+        print("----- population size is %i -----" % len(population))
+        rank = 0
         for individual in population:
-            individual.set_individual_id(individual_id)
-            individual_id = individual_id + 1
+            print("----- writing result for ind-id %i -----" % individual.individual_id)
+            individual.set_rank(rank)
+            rank = rank + 1
             individual.write_json_result()
-            individual.set_population_id(generation_id)
-
-        print("----- fitness is -----")
-        for individual in population:
-            print(individual.get_nan())
-            print(individual.get_time())
-
-        print("----- the length of population is -----")
-        print(len(population))
 
     return 0
 
