@@ -19,6 +19,7 @@ PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/
 NUMB_OF_ANY_PHASE_RULE = 8
 NUMB_OF_PURE_PHASE_RULE = 10
 NUMB_OF_SYMBOLIC_EXECUTION_RULE = 6
+NUMB_OF_UNFOLDING_PHASE_RULE = 5
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 5
@@ -38,7 +39,8 @@ class Individual(list):
                  time=9999999999.0,
                  orders_of_any_phase_rules=None,
                  orders_of_pure_phase_rules=None,
-                 orders_of_symbolic_execution_rules=None):
+                 orders_of_symbolic_execution_rules=None,
+                 orders_of_unfolding_phase_rules=None):
         super().__init__()
         self.population_id = population_id
         self.individual_id = individual_id
@@ -65,9 +67,17 @@ class Individual(list):
             orders_of_symbolic_execution_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATION):
                 orders_of_symbolic_execution_rules.append\
-                    (random.sample(range(NUMB_OF_PURE_PHASE_RULE), NUMB_OF_SYMBOLIC_EXECUTION_RULE))
+                    (random.sample(range(NUMB_OF_SYMBOLIC_EXECUTION_RULE), NUMB_OF_SYMBOLIC_EXECUTION_RULE))
         print("Number of items in orders_of_symbolic_execution_rules = ", len(orders_of_symbolic_execution_rules))
         self.orders_of_symbolic_execution_rules = orders_of_symbolic_execution_rules
+
+        if orders_of_unfolding_phase_rules is None:
+            orders_of_unfolding_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_unfolding_phase_rules.append\
+                    (random.sample(range(NUMB_OF_UNFOLDING_PHASE_RULE), NUMB_OF_UNFOLDING_PHASE_RULE))
+        print("Number of items in orders_of_unfolding_phase_rules = ", len(orders_of_unfolding_phase_rules))
+        self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
 
     def get_individual_id(self):
         return self.individual_id
@@ -103,6 +113,9 @@ class Individual(list):
             tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
         for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
             tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
+        for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
+            tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
+
 
     def json_file_path(self):
         json_file_name = "search_parameter" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
@@ -115,7 +128,8 @@ class Individual(list):
             "numbOfAnyPhaseRules": NUMB_OF_ANY_PHASE_RULE,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
-            "order_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules
+            "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
+            "orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules
         }
 
         with open(self.json_file_path(), 'w') as new_json_file_to_write:
@@ -164,7 +178,8 @@ class Individual(list):
             "search_time": self.time,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
-            "order_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules
+            "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
+            "orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules
         }
 
     def write_json_result(self):

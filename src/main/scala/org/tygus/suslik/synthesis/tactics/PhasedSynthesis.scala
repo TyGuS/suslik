@@ -43,7 +43,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       else if (lastUnfoldingRule.contains(Close))
       // Once a rule that works on post was used, only use those
         unfoldingPostPhaseRules
-      else unfoldingPhaseRules
+      else unfoldingPhaseRules(goal)
     } else if (goal.post.hasBlocks) {
       // Block phase: get rid of blocks
       postBlockPhaseRules
@@ -137,14 +137,41 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       List(unOrderedSymbolicExecutionRules:_*)
   }
 
-  protected def unfoldingPhaseRules: List[SynthesisRule] = List(
-    LogicalRules.FrameUnfolding,
-    UnificationRules.HeapUnifyUnfolding,
-    UnfoldingRules.AbduceCall,
-    UnfoldingRules.Open,
-    UnfoldingRules.Close,
-//    UnfoldingRules.AbduceCall, // HERE: move AbduceCall here to achieve old behavior
-  )
+  protected def unfoldingPhaseRules(goal:Goal): List[SynthesisRule] = {
+
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfUnfoldingPhaseRules = goal.env.ordersOfUnfoldingPhaseRules
+    val orderOfUnfoldingPhaseRules = ordersOfUnfoldingPhaseRules.apply(index.toInt)
+
+    val unOrderedUnfoldingPhaseRules =
+      List(
+        LogicalRules.FrameUnfolding,
+        UnificationRules.HeapUnifyUnfolding,
+        UnfoldingRules.AbduceCall,
+        UnfoldingRules.Open,
+        UnfoldingRules.Close,
+        //    UnfoldingRules.AbduceCall, // HERE: move AbduceCall here to achieve old behavior
+      )
+
+    if (goal.env.config.evolutionary) {
+      List(
+        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(0)),
+        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(1)),
+        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(2)),
+        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(3)),
+        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(4))
+      )
+    } else
+      List(unOrderedUnfoldingPhaseRules:_*)
+  }
 
   protected def unfoldingPostPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfoldingFinal,
