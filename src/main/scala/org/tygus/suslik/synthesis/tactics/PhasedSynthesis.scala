@@ -22,7 +22,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     else if (goal.sketch != Hole)
     // Until we encounter a hole, symbolically execute the sketch
       anyPhaseRules(goal).filterNot(_.isInstanceOf[GeneratesCode]) ++
-        symbolicExecutionRules ++
+        symbolicExecutionRules(goal) ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
     else anyPhaseRules(goal) ++ specBasedRules(node)
@@ -58,18 +58,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     }
   }
 
-  val unorderedAnyPhaseRules = Vector (
-    LogicalRules.StarPartial,
-    LogicalRules.NilNotLval,
-    LogicalRules.Inconsistency,
-    FailRules.PostInconsistent,
-    LogicalRules.SubstLeft,
-    UnificationRules.SubstRight,
-    //    LogicalRules.WeakenPre,
-    OperationalRules.ReadRule,
-    BranchRules.Branch
-  )
-
   protected def anyPhaseRules(goal:Goal): List[SynthesisRule] = {
 
     val index =
@@ -83,6 +71,18 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     val ordersOfAnyPhaseRules = goal.env.ordersOfAnyPhaseRules
     val orderOfAnyPhaseRules = ordersOfAnyPhaseRules.apply(index.toInt)
+
+    val unorderedAnyPhaseRules = Vector (
+      LogicalRules.StarPartial,
+      LogicalRules.NilNotLval,
+      LogicalRules.Inconsistency,
+      FailRules.PostInconsistent,
+      LogicalRules.SubstLeft,
+      UnificationRules.SubstRight,
+      //    LogicalRules.WeakenPre,
+      OperationalRules.ReadRule,
+      BranchRules.Branch
+    )
 
     if (goal.env.config.evolutionary) {
       List(
@@ -99,17 +99,43 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       List(unorderedAnyPhaseRules:_*)
   }
 
-  protected def symbolicExecutionRules: List[SynthesisRule] =
+  protected def symbolicExecutionRules(goal:Goal): List[SynthesisRule] = {
 
-    List(
-      SymbolicExecutionRules.Open,
-      SymbolicExecutionRules.GuidedRead,
-      SymbolicExecutionRules.GuidedWrite,
-      SymbolicExecutionRules.GuidedAlloc,
-      SymbolicExecutionRules.GuidedFree,
-      SymbolicExecutionRules.Conditional,
-//    SymbolicExecutionRules.GuidedCall, // TODO: Fix this later with new call rule
-    )
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfSymbolicExecutionRules = goal.env.ordersOfSymbolicExecutionRules
+    val orderOfSymbolicExecutionRules = ordersOfSymbolicExecutionRules.apply(index.toInt)
+
+    val unOrderedSymbolicExecutionRules =
+      Vector(
+        SymbolicExecutionRules.Open,
+        SymbolicExecutionRules.GuidedRead,
+        SymbolicExecutionRules.GuidedWrite,
+        SymbolicExecutionRules.GuidedAlloc,
+        SymbolicExecutionRules.GuidedFree,
+        SymbolicExecutionRules.Conditional,
+        //    SymbolicExecutionRules.GuidedCall, // TODO: Fix this later with new call rule
+      )
+
+    if (goal.env.config.evolutionary) {
+      List(
+        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(0)),
+        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(1)),
+        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(2)),
+        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(3)),
+        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(4)),
+        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(5))
+      )
+    } else
+      List(unOrderedSymbolicExecutionRules:_*)
+  }
 
   protected def unfoldingPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfolding,

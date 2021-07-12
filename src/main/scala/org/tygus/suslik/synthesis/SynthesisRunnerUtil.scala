@@ -150,13 +150,15 @@ trait SynthesisRunnerUtil {
     val directoryPath = os.pwd
     val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     val jsonData      = ujson.read(jsonFile)
-    val ordersOfAnyPhaseRules  = jsonData("orders_of_any_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfPurePhaseRules = jsonData("orders_of_pure_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfAnyPhaseRules          = jsonData("orders_of_any_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfPurePhaseRules         = jsonData("orders_of_pure_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfSymbolicExecutionRules = jsonData("order_of_symbolic_execution_rules").arr.map(_.arr.map(_.num).map(_.toInt))
 
     val env = Environment(predEnv, funcEnv, params,
       new SynStats(params.timeOut),
       ordersOfAnyPhaseRules,
-      ordersOfPurePhaseRules
+      ordersOfPurePhaseRules,
+      ordersOfSymbolicExecutionRules
     )
     val synthesizer = createSynthesizer(env)
 
