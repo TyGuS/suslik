@@ -104,7 +104,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       preBlockPhaseRules
     } else if (goal.hasExistentialPointers) {
       // Pointer phase: match all existential pointers
-      pointerPhaseRules
+      pointerPhaseRules(goal)
     } else {
       // Pure phase: get rid of all the heap
       purePhaseRules(goal)
@@ -281,16 +281,39 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       OperationalRules.FreeRule
   )
 
-  protected def pointerPhaseRules: List[SynthesisRule] = {
+  protected def pointerPhaseRules(goal:Goal): List[SynthesisRule] = {
 
-    List(
-      if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
-      //    LogicalRules.SubstLeft,
-      //    UnificationRules.SubstRight,
-      FailRules.HeapUnreachable,
-      LogicalRules.FrameFlat,
-      UnificationRules.HeapUnifyPointer,
-    )
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfPointerPhaseRules = goal.env.ordersOfPointerPhaseRules
+    val orderOfPointerPhaseRules = ordersOfPointerPhaseRules.apply(index.toInt)
+
+    val unOrderedPointerPhaseRulesd =
+      Vector(
+        if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
+        //    LogicalRules.SubstLeft,
+        //    UnificationRules.SubstRight,
+        FailRules.HeapUnreachable,
+        LogicalRules.FrameFlat,
+        UnificationRules.HeapUnifyPointer,
+      )
+
+      if (goal.env.config.evolutionary)
+        List(
+          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(0)),
+          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(1)),
+          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(2)),
+          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(3))
+        )
+      else List(unOrderedPointerPhaseRulesd:_*)
+
   }
 
   protected def purePhaseRules(goal: Goal): List[SynthesisRule] = {
