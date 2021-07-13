@@ -27,31 +27,55 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     + (if (goal.hasBlocks) math.pow(2,5) else 0)
     + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
 
-    val ordersOfAnyPhaseOrSpecBased = goal.env.ordersOfAnyPhaseOrSpecBased
-    val orderOfAnyPhaseOrSpecBased = ordersOfAnyPhaseOrSpecBased.apply(index.toInt)
+    def anyPhaseRulesOrSpecBasedRules = {
 
-    val unOrderedAnyPhaseOrSpecBased = Vector (
-      anyPhaseRules(goal),
-      specBasedRules(node)
-    )
+      val ordersOfAnyPhaseOrSpecBased = goal.env.ordersOfAnyPhaseOrSpecBased
+      val orderOfAnyPhaseOrSpecBased = ordersOfAnyPhaseOrSpecBased.apply(index.toInt)
 
-    val anyPhaseRulesOrSpecBasedRulesNested = {
-      if (goal.env.config.evolutionary)
-        List(
-          unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(0)),
-          unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(1))
-        ) else List(unOrderedAnyPhaseOrSpecBased:_*)
+      val unOrderedAnyPhaseOrSpecBased = Vector (
+        anyPhaseRules(goal),
+        specBasedRules(node)
+      )
+
+      val anyPhaseRulesOrSpecBasedRulesNested = {
+        if (goal.env.config.evolutionary)
+          List(
+            unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(0)),
+            unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(1))
+          ) else List(unOrderedAnyPhaseOrSpecBased:_*)
+      }
+
+      anyPhaseRulesOrSpecBasedRulesNested.flatten
+
     }
 
-    val anyPhaseRulesOrSpecBasedRules = anyPhaseRulesOrSpecBasedRulesNested.flatten
+    def sketchHole = {
 
-    if (goal.isUnsolvable)
-      Nil
-    else if (goal.sketch != Hole)
-    // Until we encounter a hole, symbolically execute the sketch
-      anyPhaseRules(goal).filterNot(_.isInstanceOf[GeneratesCode]) ++
-        symbolicExecutionRules(goal) ++
-        specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
+      val ordersOfSketchHole = goal.env.ordersOfSketchHole
+      val orderOfSketchHole = ordersOfSketchHole.apply(index.toInt)
+
+      val unOrderedSketchHole =
+        List (
+          anyPhaseRules(goal).filterNot(_.isInstanceOf[GeneratesCode]),
+          symbolicExecutionRules(goal),
+          specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
+        )
+
+      val sketchHoleNested = {
+        if (goal.env.config.evolutionary)
+          List(
+            unOrderedSketchHole(orderOfSketchHole.apply(0)),
+            unOrderedSketchHole(orderOfSketchHole.apply(1)),
+            unOrderedSketchHole(orderOfSketchHole.apply(2))
+          ) else List(unOrderedSketchHole:_*)
+      }
+
+      sketchHoleNested.flatten
+
+    }
+
+    if (goal.isUnsolvable) Nil
+    else if (goal.sketch != Hole) sketchHole // Until we encounter a hole, symbolically execute the sketch
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
     else anyPhaseRulesOrSpecBasedRules
   }
@@ -257,14 +281,17 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       OperationalRules.FreeRule
   )
 
-  protected def pointerPhaseRules: List[SynthesisRule] = List(
-    if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
-//    LogicalRules.SubstLeft,
-//    UnificationRules.SubstRight,
-    FailRules.HeapUnreachable,
-    LogicalRules.FrameFlat,
-    UnificationRules.HeapUnifyPointer,
-  )
+  protected def pointerPhaseRules: List[SynthesisRule] = {
+
+    List(
+      if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
+      //    LogicalRules.SubstLeft,
+      //    UnificationRules.SubstRight,
+      FailRules.HeapUnreachable,
+      LogicalRules.FrameFlat,
+      UnificationRules.HeapUnifyPointer,
+    )
+  }
 
   protected def purePhaseRules(goal: Goal): List[SynthesisRule] = {
 
