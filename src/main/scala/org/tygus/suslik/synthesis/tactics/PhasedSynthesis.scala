@@ -99,7 +99,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       else unfoldingPhaseRules(goal)
     } else if (goal.post.hasBlocks) {
       // Block phase: get rid of blocks
-      postBlockPhaseRules
+      postBlockPhaseRules(goal)
     } else if (goal.hasBlocks) {
       preBlockPhaseRules
     } else if (goal.hasExistentialPointers) {
@@ -270,12 +270,37 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           ))
   }
 
-  protected def postBlockPhaseRules: List[SynthesisRule] = List(
-      (if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost),
-      LogicalRules.FrameBlock,
-      UnificationRules.HeapUnifyBlock,
-      OperationalRules.AllocRule
-  )
+  protected def postBlockPhaseRules(goal: Goal): List[SynthesisRule] = {
+
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfPostBlockPhaseRules = goal.env.ordersOfPostBlockPhaseRules
+    val orderOfPostBlockPhaseRules = ordersOfPostBlockPhaseRules.apply(index.toInt)
+
+    val unOrdersOfPostBlockPhaseRules =
+      Vector(
+        (if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost),
+        LogicalRules.FrameBlock,
+        UnificationRules.HeapUnifyBlock,
+        OperationalRules.AllocRule
+      )
+
+    if (goal.env.config.evolutionary)
+      List(
+        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(0)),
+        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(1)),
+        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(2)),
+        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(3))
+      )
+    else List(unOrdersOfPostBlockPhaseRules:_*)
+  }
 
   protected def preBlockPhaseRules: List[SynthesisRule] = List(
       OperationalRules.FreeRule
