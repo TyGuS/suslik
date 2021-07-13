@@ -15,8 +15,36 @@ import scala.collection.mutable.ArrayBuffer
 class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def nextRules(node: OrNode): List[SynthesisRule] = {
+
     val goal = node.goal
-    val config = goal.env.config
+
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfAnyPhaseOrSpecBased = goal.env.ordersOfAnyPhaseOrSpecBased
+    val orderOfAnyPhaseOrSpecBased = ordersOfAnyPhaseOrSpecBased.apply(index.toInt)
+
+    val unOrderedAnyPhaseOrSpecBased = Vector (
+      anyPhaseRules(goal),
+      specBasedRules(node)
+    )
+
+    val anyPhaseRulesOrSpecBasedRulesNested = {
+      if (goal.env.config.evolutionary)
+        List(
+          unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(0)),
+          unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(1))
+        ) else List(unOrderedAnyPhaseOrSpecBased:_*)
+    }
+
+    val anyPhaseRulesOrSpecBasedRules = anyPhaseRulesOrSpecBasedRulesNested.flatten
+
     if (goal.isUnsolvable)
       Nil
     else if (goal.sketch != Hole)
@@ -25,14 +53,15 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         symbolicExecutionRules(goal) ++
         specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
     else if (goal.callGoal.nonEmpty) callAbductionRules(goal)
-    else anyPhaseRules(goal) ++ specBasedRules(node)
+    else anyPhaseRulesOrSpecBasedRules
   }
 
   def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
 
   protected def specBasedRules(node: OrNode): List[SynthesisRule] = {
+
     val goal = node.goal
-    val config = goal.env.config
+
     if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
       val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules(goal).contains).headOption

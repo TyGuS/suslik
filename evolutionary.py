@@ -20,6 +20,7 @@ NUMB_OF_ANY_PHASE_RULE = 8
 NUMB_OF_PURE_PHASE_RULE = 10
 NUMB_OF_SYMBOLIC_EXECUTION_RULE = 6
 NUMB_OF_UNFOLDING_PHASE_RULE = 5
+NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 5
@@ -40,7 +41,8 @@ class Individual(list):
                  orders_of_any_phase_rules=None,
                  orders_of_pure_phase_rules=None,
                  orders_of_symbolic_execution_rules=None,
-                 orders_of_unfolding_phase_rules=None):
+                 orders_of_unfolding_phase_rules=None,
+                 orders_of_any_phase_rules_or_spec_based_rules=None):
         super().__init__()
         self.population_id = population_id
         self.individual_id = individual_id
@@ -79,6 +81,15 @@ class Individual(list):
         print("Number of items in orders_of_unfolding_phase_rules = ", len(orders_of_unfolding_phase_rules))
         self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
 
+        if orders_of_any_phase_rules_or_spec_based_rules is None:
+            orders_of_any_phase_rules_or_spec_based_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_any_phase_rules_or_spec_based_rules.append\
+                    (random.sample(range(NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE),
+                                   NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))
+        print("Number of items in orders_of_unfolding_phase_rules = ", len(orders_of_any_phase_rules_or_spec_based_rules))
+        self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
+
     def get_individual_id(self):
         return self.individual_id
 
@@ -115,7 +126,8 @@ class Individual(list):
             tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
         for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
-
+        for order_of_any_phase_rules_or_spec_based_rules in self.orders_of_any_phase_rules_or_spec_based_rules:
+            tools.mutShuffleIndexes(order_of_any_phase_rules_or_spec_based_rules, indpb=INDPB)
 
     def json_file_path(self):
         json_file_name = "search_parameter" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
@@ -129,7 +141,8 @@ class Individual(list):
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
             "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
-            "orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules
+            "orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules,
+            "orders_of_any_phase_rules_or_spec_based_rules": self.orders_of_any_phase_rules_or_spec_based_rules
         }
 
         with open(self.json_file_path(), 'w') as new_json_file_to_write:
@@ -175,11 +188,11 @@ class Individual(list):
             "individual_ID": self.individual_id,
             "rank": self.rank,
             "number_of_nan": self.nan,
-            "search_time": self.time,
-            "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
-            "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
-            "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
-            "orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules
+            "search_time": self.time
+            #"orders_of_any_phase_rules": self.orders_of_any_phase_rules,
+            #"orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
+            #"orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
+            #"orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules
         }
 
     def write_json_result(self):

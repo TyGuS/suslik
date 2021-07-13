@@ -200,7 +200,8 @@ case class Environment(predicates: PredicateEnv,
                        ordersOfAnyPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
                        ordersOfPurePhaseRules: ArrayBuffer[ArrayBuffer[Int]],
                        ordersOfSymbolicExecutionRules: ArrayBuffer[ArrayBuffer[Int]],
-                       ordersOfUnfoldingPhaseRules: ArrayBuffer[ArrayBuffer[Int]]
+                       ordersOfUnfoldingPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
+                       ordersOfAnyPhaseOrSpecBased: ArrayBuffer[ArrayBuffer[Int]]
                       ) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")

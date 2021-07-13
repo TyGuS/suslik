@@ -41,7 +41,18 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     // Is goal the earliest branching point for guard cond?
     // Yes if there is no smaller unknown in goal that has all variables of cond
     def isBranchingPoint(goal: Goal, cond: Expr): Boolean =
-      unknownCond(goal).sameVar(minimalUnknown(goal.pre.phi, cond.vars))
+      try
+        {
+          unknownCond(goal).sameVar(minimalUnknown(goal.pre.phi, cond.vars))
+        }
+      catch
+      {
+        case _: UnsupportedOperationException =>
+          {
+            true
+          }
+      }
+
 
     // Once the guard of the then-branch has been determined,
     // substitute the unknown in the else-branch
@@ -101,6 +112,7 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         pre = goal.pre.phi
         if SMTSolving.valid((pre && cond) ==> goal.universalPost)
         if SMTSolving.sat((pre && cond).toExpr)
+        if goal.pre.phi.unknowns.exists(u => cond.vars.subsetOf(u.params)) // minimalUnknown throws an exception if this set is empty.
         unknown = Branch.minimalUnknown(goal.pre.phi, cond.vars)
         thenGoal = goal.spawnChild(goal.pre.copy(phi = goal.pre.phi.substUnknown(unknown, cond)))
       } yield {
