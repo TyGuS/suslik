@@ -205,7 +205,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val orderOfUnfoldingPhaseRules = ordersOfUnfoldingPhaseRules.apply(index.toInt)
 
     val unOrderedUnfoldingPhaseRules =
-      List(
+      Vector(
         LogicalRules.FrameUnfolding,
         UnificationRules.HeapUnifyUnfolding,
         UnfoldingRules.AbduceCall,
@@ -238,36 +238,70 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   )
 
   protected def callAbductionRules(goal: Goal): List[SynthesisRule] = {
-    List(//LogicalRules.SubstLeft,
-      UnificationRules.SubstRight,
-      FailRules.PostInconsistent,
-      FailRules.CheckPost) ++
-      (if (goal.post.sigma.apps.nonEmpty)
-        List(LogicalRules.FrameUnfoldingFinal,
-          UnificationRules.HeapUnifyUnfolding)
-      else if (goal.post.sigma.blocks.nonEmpty)
-        List(LogicalRules.FrameBlock,
-          UnificationRules.HeapUnifyBlock,
+
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfCallAbductionRules = goal.env.ordersOfCallAbductionRules
+    val orderOfCallAbductionRules = ordersOfCallAbductionRules.apply(index.toInt)
+
+    val unOrderedCallAbductionRulesNested: Vector[List[SynthesisRule]]  =
+      Vector(
+        //LogicalRules.SubstLeft,
+        List (UnificationRules.SubstRight),
+        List (FailRules.PostInconsistent),
+        List(FailRules.CheckPost),
+        (if (goal.post.sigma.apps.nonEmpty)
+          List(
+            LogicalRules.FrameUnfoldingFinal,
+            UnificationRules.HeapUnifyUnfolding)
+        else if (goal.post.sigma.blocks.nonEmpty)
+          List(
+            LogicalRules.FrameBlock,
+            UnificationRules.HeapUnifyBlock,
 //          OperationalRules.AllocRule
-        )
-      else if (goal.hasExistentialPointers)
-        List(LogicalRules.FrameFlat,
+          )
+        else if (goal.hasExistentialPointers)
+          List(
+            LogicalRules.FrameFlat,
 //          OperationalRules.WriteRule,
-          UnificationRules.HeapUnifyPointer)
-      else
-        List(UnfoldingRules.CallRule,
-          UnificationRules.SubstRight,
-          LogicalRules.FrameFlat,
+            UnificationRules.HeapUnifyPointer)
+        else
+          List(
+            UnfoldingRules.CallRule,
+            UnificationRules.SubstRight,
+            LogicalRules.FrameFlat,
 //          OperationalRules.WriteRule,
-          UnificationRules.PickArg,
-          UnificationRules.PickCard,
-          LogicalRules.GhostWrite,
-          UnificationRules.HeapUnifyPure,
-          LogicalRules.SimplifyConditional,
-          OperationalRules.WriteRule,
+            UnificationRules.PickArg,
+            UnificationRules.PickCard,
+            LogicalRules.GhostWrite,
+            UnificationRules.HeapUnifyPure,
+            LogicalRules.SimplifyConditional,
+            OperationalRules.WriteRule,
 //          DelegatePureSynthesis.PureSynthesisNonfinal
-          UnificationRules.Pick
-          ))
+            UnificationRules.Pick
+            )
+          )
+      )
+
+    val orderedCallAbductionRulesNested =
+      if (goal.env.config.evolutionary)
+        List(
+          unOrderedCallAbductionRulesNested(orderOfCallAbductionRules.apply(0)),
+          unOrderedCallAbductionRulesNested(orderOfCallAbductionRules.apply(1)),
+          unOrderedCallAbductionRulesNested(orderOfCallAbductionRules.apply(2)),
+          unOrderedCallAbductionRulesNested(orderOfCallAbductionRules.apply(3))
+        )
+      else
+        List(unOrderedCallAbductionRulesNested:_*)
+
+    orderedCallAbductionRulesNested.flatten
   }
 
   protected def postBlockPhaseRules(goal: Goal): List[SynthesisRule] = {
