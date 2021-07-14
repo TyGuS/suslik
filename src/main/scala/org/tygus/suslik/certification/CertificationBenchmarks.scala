@@ -17,7 +17,7 @@ import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.report.StopWatch.timed
-import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
+import org.tygus.suslik.synthesis.tactics.{AutomaticSimple, AutomaticPhased}
 import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisException, SynthesisRunnerUtil, dotSus, dotSyn}
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
 import scopt.OptionParser
@@ -81,7 +81,10 @@ class CertificationBenchmarks(
   }
 
   override def createSynthesizer(env: Environment): Synthesis = {
-    val tactic = new PhasedSynthesis(env.config)
+    val tactic = if (env.config.simple)
+        new AutomaticSimple(env.config)
+      else
+        new AutomaticPhased(env.config)
     val trace = new ProofTraceCert()
     new Synthesis(tactic, log, trace)
   }

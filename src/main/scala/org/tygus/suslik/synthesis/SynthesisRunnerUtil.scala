@@ -136,8 +136,10 @@ trait SynthesisRunnerUtil {
           new InteractivePhased(env.config, env.stats)
       } else if (env.config.script.nonEmpty)
         new ReplaySynthesis(env.config)
+      else if (env.config.simple)
+        new AutomaticSimple(env.config)
       else
-        new PhasedSynthesis(env.config)
+        new AutomaticPhased(env.config)
     val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
       env.config.traceToJsonFile match {
         case None => ProofTraceNone
