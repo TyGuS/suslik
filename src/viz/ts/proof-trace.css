@@ -256,14 +256,3 @@
     padding: .1em .5em;
     background: #ddd;
 }
-
-#notifications {
-    position: fixed;
-    top: 0;
-    right: 0;
-}
-#notifications > div {
-    background: #fbb;
-    color: #333;
-    padding: 9px;
-}

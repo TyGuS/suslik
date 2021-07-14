@@ -40,6 +40,7 @@ class ProofInteraction extends EventEmitter {
             this.ws.addEventListener('open', resolve);
             this.ws.addEventListener('error', reject)
         });
+        this.ws.addEventListener('error', err => this.emit('error', err));
         if (spec) this.sendSpec(spec, mode);
     }
 
@@ -56,6 +57,10 @@ class ProofInteraction extends EventEmitter {
     }
 
     _send(json: any, $type?: string) {
+        if (this.ws.readyState !== WebSocket.OPEN) {
+            this.emit('error', {message: 'disconnected from server'});
+            return;
+        }
         this.ws.send(JSON.stringify($type ? {$type, ...json} : json))
     }
     
