@@ -7,8 +7,8 @@ import org.tygus.suslik.language.PrettyPrinting
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * @author Ilya Sergey
-  */
+ * @author Ilya Sergey
+ */
 
 sealed trait InputFormat
 case object dotSyn extends InputFormat
@@ -58,7 +58,7 @@ case class SynConfig(
                       startTime: Long = 0,
                       // genetic algorithm to improve rule orderings.
                       evolutionary: Boolean = false,
-                      generationID: Int = 0,
+                      populationID: Int = 0,
                       individualID: Int = 0,
                       //orderOfAnyPhaseRuless: ArrayBuffer[ArrayBuffer[Int]] = ArrayBuffer[ArrayBuffer[Int]](),
                       /**

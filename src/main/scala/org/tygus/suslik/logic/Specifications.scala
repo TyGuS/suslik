@@ -30,10 +30,10 @@ object Specifications extends SepLogicUtils {
     def subst(s: Map[Var, Expr]): Assertion = Assertion(phi.subst(s), sigma.subst(s))
 
     /**
-      * @param takenNames  -- names that are already taken
-      * @param globalNames -- variables that shouldn't be renamed
-      * @return
-      */
+     * @param takenNames  -- names that are already taken
+     * @param globalNames -- variables that shouldn't be renamed
+     * @return
+     */
     def refresh(takenNames: Set[Var], globalNames: Set[Var]): (Assertion, SubstVar) = {
       val varsToRename = (vars -- globalNames).toList
       val freshSubst = refreshVars(varsToRename, takenNames ++ globalNames)
@@ -57,23 +57,23 @@ object Specifications extends SepLogicUtils {
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
 
-    def cost: Double = sigma.cost
+    def cost: Int = sigma.cost
   }
 
   /**
-    * Spatial pre-post pair; used to determine independence of rule applications.
-    */
+   * Spatial pre-post pair; used to determine independence of rule applications.
+   */
   case class Footprint(pre: Assertion, post: Assertion) {
     def -(other: Footprint): Footprint = Footprint(pre - other.pre, post - other.post)
   }
 
   /**
-    * A label uniquely identifies a goal within a derivation tree (but not among alternative derivations!)
-    * Here depths represents how deep we should go down a linear segment of a derivation tree
-    * and children represents which branch to take at each fork.
-    * For example, a label ([2, 1], [0]) means go 2 steps down from the root, take 0-th child, then go 1 more step down.
-    * This label is pretty-printed as "2-0.1"
-    */
+   * A label uniquely identifies a goal within a derivation tree (but not among alternative derivations!)
+   * Here depths represents how deep we should go down a linear segment of a derivation tree
+   * and children represents which branch to take at each fork.
+   * For example, a label ([2, 1], [0]) means go 2 steps down from the root, take 0-th child, then go 1 more step down.
+   * This label is pretty-printed as "2-0.1"
+   */
   case class GoalLabel(depths: List[Int], children: List[Int]) extends PrettyPrinting with Ordered[GoalLabel]  {
     override def pp: String = {
       val d :: ds = depths.reverse
@@ -99,8 +99,8 @@ object Specifications extends SepLogicUtils {
   }
 
   /**
-    * Main class for contextual Hoare-style specifications
-    */
+   * Main class for contextual Hoare-style specifications
+   */
   case class Goal(pre: Assertion,
                   post: Assertion,
                   gamma: Gamma, // types of all variables (program, universal, and existential)
@@ -119,7 +119,7 @@ object Specifications extends SepLogicUtils {
     extends PrettyPrinting with PureLogicUtils {
 
     override def pp: String =
-//      s"${label.pp}\n" +
+    //      s"${label.pp}\n" +
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
         s"[${universalGhosts.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}]" +
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
@@ -145,7 +145,7 @@ object Specifications extends SepLogicUtils {
     def companionCandidates: List[Goal] = {
       val allCands = ancestors.dropWhile(!_.hasProgressed).drop(1).filter(_.isCompanion).reverse
       if (env.config.auxAbduction) allCands else allCands.take(1)
-  }
+    }
 
     // Turn this goal into a helper function specification
     def toFunSpec: FunSpec = {
@@ -179,10 +179,10 @@ object Specifications extends SepLogicUtils {
       // Sort heaplets from old to new and simplify pure parts
       val preSimple = Assertion(simplify(pre.phi), pre.sigma)
       val postSimple = Assertion(simplify(post.phi), post.sigma)
-//      val usedVars = preSimple.vars ++ postSimple.vars ++ programVars.toSet ++
-//        callGoal.map(cg => cg.calleePost.vars ++ cg.callerPost.vars).getOrElse(Set())
-//      val newGamma = gammaFinal.filterKeys(usedVars.contains)
-//      val newUniversalGhosts = this.universalGhosts.intersect(usedVars) ++ preSimple.vars -- programVars
+      //      val usedVars = preSimple.vars ++ postSimple.vars ++ programVars.toSet ++
+      //        callGoal.map(cg => cg.calleePost.vars ++ cg.callerPost.vars).getOrElse(Set())
+      //      val newGamma = gammaFinal.filterKeys(usedVars.contains)
+      //      val newUniversalGhosts = this.universalGhosts.intersect(usedVars) ++ preSimple.vars -- programVars
       val newUniversalGhosts = this.universalGhosts ++ preSimple.vars -- programVars
 
       Goal(preSimple, postSimple,
@@ -264,28 +264,15 @@ object Specifications extends SepLogicUtils {
     // Size of the specification in this goal (in AST nodes)
     def specSize: Int = pre.size + post.size
 
-    // TODO refactor these
-    private val generationID  = env.config.generationID
-    private val individualID  = env.config.individualID
-    private val fileName      = "search_parameters_" + generationID.toString + "_" + individualID.toString + ".json"
-    private val directoryPath = os.pwd
-    private val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
-    private val jsonData      = ujson.read(jsonFile)
-    private val weight_of_cost_no_call_goal_pre = jsonData("weight_of_cost_no_call_goal_pre").num: Double
-    private val weight_of_cost_no_call_goal_post = jsonData("weight_of_cost_no_call_goal_post").num: Double
-    private val weight_of_cost_call_goal = jsonData("weight_of_cost_call_goal").num: Double
-    private val weight_of_cost_call_goal_pre = jsonData("weight_of_cost_call_goal_pre").num: Double
-    private val weight_of_cost_call_goal_post = jsonData("weight_of_cost_call_goal_post").num: Double
-
     /**
-      * Cost of a goal:
-      * for now just the number of heaplets in pre and post
-      */
+     * Cost of a goal:
+     * for now just the number of heaplets in pre and post
+     */
     //    lazy val cost: Int = pre.cost.max(post.cost)
-    lazy val cost: Double = callGoal match {
-        case None => weight_of_cost_no_call_goal_pre * pre.cost + weight_of_cost_no_call_goal_post * post.cost  // + existentials.size //
-        case Some(cg) => weight_of_cost_call_goal + weight_of_cost_call_goal_pre * cg.callerPre.cost + weight_of_cost_call_goal_post * cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
-      }
+    lazy val cost: Int = callGoal match {
+      case None => 3*pre.cost + post.cost  // + existentials.size //
+      case Some(cg) => 10 + 3*cg.callerPre.cost + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
+    }
   }
 
   def resolvePrePost(gamma0: Gamma, env: Environment, pre: Assertion, post: Assertion): Gamma = {
@@ -315,13 +302,13 @@ object Specifications extends SepLogicUtils {
   }
 
   /**
-    * Stored information necessary to compute call arguments and the goal after call
-    * when in call abduction mode
-    * @param callerPre precondition of the goal where call abduction started
-    * @param callerPost postcondition of the goal where call abduction started
-    * @param calleePost postcondiiton of the companion goal
-    * @param call call statement
-    */
+   * Stored information necessary to compute call arguments and the goal after call
+   * when in call abduction mode
+   * @param callerPre precondition of the goal where call abduction started
+   * @param callerPost postcondition of the goal where call abduction started
+   * @param calleePost postcondiiton of the companion goal
+   * @param call call statement
+   */
   case class SuspendedCallGoal(callerPre: Assertion,
                                callerPost: Assertion,
                                calleePost: Assertion,
@@ -341,7 +328,7 @@ object Specifications extends SepLogicUtils {
 
     def actualCall: Call = call.copy(args = call.args.map(_.subst(freshToActual)))
 
-    lazy val cost: Double = calleePost.cost
+    lazy val cost: Int = calleePost.cost
   }
 }
 

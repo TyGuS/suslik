@@ -9,8 +9,8 @@ import org.tygus.suslik.util.SynLogLevels
 import scopt.OptionParser
 
 /**
-  * @author Ilya Sergey
-  */
+ * @author Ilya Sergey
+ */
 
 object SynthesisRunner extends SynthesisRunnerUtil {
 
@@ -18,31 +18,31 @@ object SynthesisRunner extends SynthesisRunnerUtil {
   override implicit val log = new Log(SynLogLevels.Verbose)
 
   /**
-    * Command line args:
-    *
-    * fileName                       a synthesis file name (the file under the specified folder, called filename.syn)
-    *
-    * -r, --trace <value>            print the entire derivation trace; default: true
-    * -t, --timeout <value>          timeout for the derivation; default (in milliseconds): 300000 (5 min)
-    * -a, --assert <value>           check that the synthesized result against the expected one; default: true
-    * -c, --maxCloseDepth <value>    maximum unfolding depth in the post-condition; default: 1
-    * -o, --maxOpenDepth <value>     maximum unfolding depth in the pre-condition; default: 1
-    * -x, --auxAbduction <value>     abduce auxiliary functions; default: false
-    * -b, --branchAbduction <value>  abduce conditional branches; default: false
-    * --phased <value>               split rules into unfolding and flat phases; default: true
-    * -d, --depth <value>            depth first search; default: false
-    * -i, --interactive <value>      interactive mode; default: false
-    * -s, --printStats <value>       print synthesis stats; default: true
-    * -e, --printEnv <value>         print synthesis context; default: false
-    * -f, --printFail <value>        print failed rule applications; default: false
-    * -l, --log <value>              log results to a csv file; default: true
-    * --memoization <value>          enable memoization; default: true
-    * --certTarget <value>           set certification target; default: none
-    * --certDest <value>             write certificate to path; default: none
-    *
-    * --help                         prints the help reference
-    *
-    */
+   * Command line args:
+   *
+   * fileName                       a synthesis file name (the file under the specified folder, called filename.syn)
+   *
+   * -r, --trace <value>            print the entire derivation trace; default: true
+   * -t, --timeout <value>          timeout for the derivation; default (in milliseconds): 300000 (5 min)
+   * -a, --assert <value>           check that the synthesized result against the expected one; default: true
+   * -c, --maxCloseDepth <value>    maximum unfolding depth in the post-condition; default: 1
+   * -o, --maxOpenDepth <value>     maximum unfolding depth in the pre-condition; default: 1
+   * -x, --auxAbduction <value>     abduce auxiliary functions; default: false
+   * -b, --branchAbduction <value>  abduce conditional branches; default: false
+   * --phased <value>               split rules into unfolding and flat phases; default: true
+   * -d, --depth <value>            depth first search; default: false
+   * -i, --interactive <value>      interactive mode; default: false
+   * -s, --printStats <value>       print synthesis stats; default: true
+   * -e, --printEnv <value>         print synthesis context; default: false
+   * -f, --printFail <value>        print failed rule applications; default: false
+   * -l, --log <value>              log results to a csv file; default: true
+   * --memoization <value>          enable memoization; default: true
+   * --certTarget <value>           set certification target; default: none
+   * --certDest <value>             write certificate to path; default: none
+   *
+   * --help                         prints the help reference
+   *
+   */
   def main(args: Array[String]): Unit = handleInput(args)
 
   override def doRun(testName: String, desc: String, in: String, out: String, params: SynConfig): Unit = {
@@ -97,7 +97,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     implicit val certTargetRead: scopt.Read[CertificationTarget] =
       scopt.Read.reads {
         case "coq" => coq.Coq
-        case t => throw SynthesisException(s"Certification target $t is not supported") 
+        case t => throw SynthesisException(s"Certification target $t is not supported")
       }
 
     private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =
@@ -229,25 +229,25 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     }).text("write certificate to path; default: none")
 
     /**
-      * Evolutionary Computation
-      */
+     * Evolutionary Computation
+     */
 
     opt[Boolean]("evolutionary").action(cfg { b =>
       _.copy(evolutionary = b)
     }).text("evolutionary computation to improve rule orderings; default: false")
 
-    opt[Int]("generationID").action(cfg { d =>
-      _.copy(generationID = d)
-    }).text("generation ID used during evolutionary computation; default: 0")
+    opt[Int]("populationID").action(cfg { d =>
+      _.copy(populationID = d)
+    }).text("population ID used during evolutionary computation; default: 0")
 
     opt[Int]("individualID").action(cfg { d =>
       _.copy(individualID = d)
     }).text("individual ID used during evolutionary computation; default: 0")
 
     /**
-      * [EVALUATION] these dummy flags are solely used for the evaluation purposes.
-      * They are populated based on the `flags` list in SynConfig.
-      */
+     * [EVALUATION] these dummy flags are solely used for the evaluation purposes.
+     * They are populated based on the `flags` list in SynConfig.
+     */
     val robustness_flags_name = (1 to SynConfig().flags.length).toList.map(a => "flag" + a)
     robustness_flags_name.foreach(arg_str =>
       opt[Boolean](name = arg_str).action { (b, rc) =>

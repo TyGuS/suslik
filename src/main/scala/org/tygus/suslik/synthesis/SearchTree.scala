@@ -8,8 +8,8 @@ import org.tygus.suslik.synthesis.rules.Rules.{GoalUpdater, RuleResult, Synthesi
 import org.tygus.suslik.util.SynStats
 
 /**
-  * And-or tree that represents the space of all possible derivations
-  */
+ * And-or tree that represents the space of all possible derivations
+ */
 object SearchTree {
 
   // Node's position in the search tree
@@ -32,11 +32,11 @@ object SearchTree {
   }
 
   /**
-    * Or-node in the search tree;
-    * represents a synthesis goal to solve.
-    * For this node to succeed, one of its children has to succeed.
-    */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Double = 0.0) {
+   * Or-node in the search tree;
+   * represents a synthesis goal to solve.
+   * For this node to succeed, one of its children has to succeed.
+   */
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -106,9 +106,9 @@ object SearchTree {
     // Yes if there's a incomplete and-node on the way from n to me
     private def isFailedDescendant(n: OrNode): Boolean =
       n.andAncestors.find(an => an.childSolutions.length < an.nChildren) match {
-      case None => false
-      case Some(an) => an.hasAncestor(this.id)
-    }
+        case None => false
+        case Some(an) => an.hasAncestor(this.id)
+      }
 
     // And nodes that are proper ancestors of this node in the search tree
     def andAncestors: List[AndNode] = parent match {
@@ -153,7 +153,7 @@ object SearchTree {
         }
     }
 
-    lazy val cost: Double = {
+    lazy val cost: Int = {
       goal.cost.max(extraCost)
     }
 
@@ -162,10 +162,10 @@ object SearchTree {
   }
 
   /**
-    * And-node in the search tree;
-    * represents a set of premises of a rule application, whose result should be combined with kont.
-    * For this node to succeed, all of its children (premises, subgoals) have to succeed.
-    */
+   * And-node in the search tree;
+   * represents a set of premises of a rule application, whose result should be combined with kont.
+   * For this node to succeed, all of its children (premises, subgoals) have to succeed.
+   */
   class AndNode(_id: NodeId, _parent: OrNode, _result: RuleResult) {
     val id: NodeId = _id                                      // Unique id within the search tree
     val parent: OrNode = _parent                              // Parent or-node
@@ -191,7 +191,7 @@ object SearchTree {
       val origGoal = childGoals(nextChildIndex)
       val goal = updates(nextChildIndex)(childSolutions)(origGoal)
       val j = if (nChildren == 1) -1 else nextChildIndex
-      val extraCost = (0.0 +: childGoals.drop(nextChildIndex + 1).map(_.cost:Double)).max
+      val extraCost = (0 +: childGoals.drop(nextChildIndex + 1).map(_.cost)).max
       nextChildIndex = nextChildIndex + 1
       OrNode(j +: this.id, goal, Some(this), parent.extraCost.max(extraCost))
     }
