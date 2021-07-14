@@ -143,7 +143,9 @@ class MainDocument extends EventEmitter {
             this.pt.append(ProofTrace.Data.fromEntries(values.map(x => x[0])),
                            {expand: this.options.expandImmediately});
         }, this.options.throttle));
-        
+        pi.on('error', err =>
+            this.emit('error', {message: `oops: ${err.message}`}));
+
         this.emit('open', pt);
         return pt;
     }

@@ -23,3 +23,17 @@ div.gutter.gutter-horizontal {
   cursor: col-resize;
   background: #ddd;
 }
+
+
+#notifications {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 99;
+}
+
+#notifications > div {
+  background: #fbb;
+  color: #333;
+  padding: 9px 1em;
+}
