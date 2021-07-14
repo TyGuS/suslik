@@ -1,6 +1,8 @@
 package org.tygus.suslik.report
 
 import java.io.{BufferedWriter, File, FileWriter}
+import scala.language.implicitConversions
+import scala.util.DynamicVariable
 import org.tygus.suslik.language.Expressions
 import org.tygus.suslik.logic.{Block, Heaplet, PointsTo, SApp, Specifications}
 import org.tygus.suslik.logic.Specifications.Goal
@@ -10,8 +12,6 @@ import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.rules.Rules
 import org.tygus.suslik.synthesis.rules.Rules.SynthesisRule
 import upickle.default.{macroRW, ReadWriter => RW}
-
-import scala.language.implicitConversions
 
 
 sealed abstract class ProofTrace {
@@ -39,7 +39,13 @@ object ProofTrace {
   case class DerivationTrail(from: Goal, to: Seq[Goal], rule: SynthesisRule,
                              subst: Map[String, OrVec])
 
-  var current: ProofTrace = ProofTraceNone  // oops, not thread-safe
+  def current: ProofTrace = _current.value
+  def current_=(trace: ProofTrace): Unit = _current.value = trace
+
+  def using[T](trace: ProofTrace)(op: => T): T = _current.withValue(trace)(op)
+
+  // need to be thread-local, for `SynthesisServer`
+  private val _current = new DynamicVariable[ProofTrace](ProofTraceNone)
 }
 
 object ProofTraceNone extends ProofTrace

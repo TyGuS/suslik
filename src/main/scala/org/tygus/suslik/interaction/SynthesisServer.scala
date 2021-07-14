@@ -25,6 +25,8 @@ import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunner, SynthesisRunnerUtil}
 import org.tygus.suslik.util.SynStats
 
+import scala.collection.mutable
+
 
 class SynthesisServer {
 
@@ -204,14 +206,22 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
 
 object AsyncSynthesisRunner {
 
+  trait Guard[T] extends mutable.Set[T] {
+    def using[R](t: T, op: => R): R = {
+      synchronized { this += t }
+      try op finally synchronized { this -= t }
+    }
+  }
+
+  class ThreadBuffer extends mutable.HashSet[Thread] with Guard[Thread] {
+    def usingCurrent[R](op: => R): R = using(Thread.currentThread(), op)
+  }
+
   class ArrayBlockingQueueWithCancel[E](capacity: Int)
       extends ArrayBlockingQueue[E](capacity) {
-    private var waiting: Option[Thread] = None
-    override def take(): E = {
-      assert(waiting.isEmpty)  /* allow at most one consumer thread */
-      waiting = Some(Thread.currentThread())
-      try super.take() finally { waiting = None }
-    }
+    private val waiting = new ThreadBuffer
+    override def take(): E = waiting.usingCurrent { super.take() }
+    override def put(e: E): Unit = waiting.usingCurrent { super.put(e) }
     def cancel() { waiting foreach (_.interrupt()) }
   }
 
@@ -228,7 +238,7 @@ object AsyncSynthesisRunner {
       implicit val log: Log = this.log
       implicit val ctx: Log.Context = Log.Context(goal)
 
-      val expansions = expansionsForNode(node)
+      val expansions = ProofTrace.using(trace) { expansionsForNode(node) }
 
       expansions.find(_.subgoals.isEmpty) match {
         case Some(e) =>
