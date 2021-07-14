@@ -1,9 +1,10 @@
 package org.tygus.suslik.synthesis
 
 import java.io.File
-
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.language.PrettyPrinting
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * @author Ilya Sergey
@@ -59,6 +60,7 @@ case class SynConfig(
                       evolutionary: Boolean = false,
                       generationID: Int = 0,
                       individualID: Int = 0,
+                      //orderOfAnyPhaseRuless: ArrayBuffer[ArrayBuffer[Int]] = ArrayBuffer[ArrayBuffer[Int]](),
                       /**
                        * [EVALUATION] these dummy `flags` are solely used for the evaluation purposes.
                        * By default they have no meaning, but one can use them to turn on/off some

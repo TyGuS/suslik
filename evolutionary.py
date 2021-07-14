@@ -1,4 +1,5 @@
 import array
+import os
 import random
 import json
 import copy
@@ -16,32 +17,43 @@ from deap import creator
 from deap import tools
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
-IND_SIZE = 8
+NUMB_OF_ANY_PHASE_RULE = 8
+NUMB_OF_PURE_PHASE_RULE = 10
+NUMB_OF_SYMBOLIC_EXECUTION_RULE = 6
+NUMB_OF_UNFOLDING_PHASE_RULE = 5
+NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2
+NUMB_OF_SKETCH_HOLE = 3
+NUMB_OF_POINTER_PHASE_RULE = 4
+NUMB_OF_POST_BLOCK_PHASE_RULE = 4
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-GENERATION_SIZE = 10
-MAXIMUM_NUMBER_OF_GENERATIONS = 50
+POPULATION_SIZE = 5
+MAXIMUM_NUMBER_OF_GENERATIONS = 30
 INDPB = 0.1
+NUMB_OF_FEATURES = 7
+NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
 
 class Individual(list):
-    """This class describe SuSLik's search strategy for individuals in each generation."""
+    """This class describe SuSLik's search strategy for individuals in each population."""
 
-    def __init__(self, generation_id,
+    def __init__(self,
+                 population_id,
                  individual_id,
+                 rank,
                  nan=10,
                  time=9999999999.0,
-                 rule_ordering=None,
-                 weight_of_cost_no_call_goal_pre: float = 3.0,
-                 weight_of_cost_no_call_goal_post: float = 1.0,
-                 weight_of_cost_call_goal: float = 10.0,
-                 weight_of_cost_call_goal_pre: float = 3.0,
-                 weight_of_cost_call_goal_post: float = 1.0):
+                 orders_of_any_phase_rules=None,
+                 orders_of_pure_phase_rules=None,
+                 orders_of_symbolic_execution_rules=None,
+                 orders_of_unfolding_phase_rules=None,
+                 orders_of_any_phase_rules_or_spec_based_rules=None,
+                 orders_of_sketch_hole=None,
+                 orders_of_pointer_phase_rules=None,
+                 orders_of_post_block_phase_rules=None):
         super().__init__()
-        if rule_ordering is None:
-            rule_ordering = random.sample(range(IND_SIZE), IND_SIZE)
-        self.generation_id = generation_id
+        self.population_id = population_id
         self.individual_id = individual_id
-        self.rule_ordering = rule_ordering
+        self.rank = rank
         self.nan = nan
         self.time = time
         self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre
@@ -53,14 +65,83 @@ class Individual(list):
     def json_search_parameter_file_path(self):
         return PATH_TO_TACTICS + "search_parameters_" + str(self.generation_id) + "_" + str(self.individual_id) + ".json"
 
+        if orders_of_any_phase_rules is None:
+            orders_of_any_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_any_phase_rules.append(random.sample(range(NUMB_OF_ANY_PHASE_RULE), NUMB_OF_ANY_PHASE_RULE))
+        print("Number of items in orders_of_any_phase_rules = ", len(orders_of_any_phase_rules))
+        self.orders_of_any_phase_rules = orders_of_any_phase_rules
+
+        if orders_of_pure_phase_rules is None:
+            orders_of_pure_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_pure_phase_rules.append\
+                    (random.sample(range(NUMB_OF_PURE_PHASE_RULE), NUMB_OF_PURE_PHASE_RULE))
+        print("Number of items in orders_of_pure_phase_rules = ", len(orders_of_pure_phase_rules))
+        self.orders_of_pure_phase_rules = orders_of_pure_phase_rules
+
+        if orders_of_symbolic_execution_rules is None:
+            orders_of_symbolic_execution_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_symbolic_execution_rules.append\
+                    (random.sample(range(NUMB_OF_SYMBOLIC_EXECUTION_RULE), NUMB_OF_SYMBOLIC_EXECUTION_RULE))
+        print("Number of items in orders_of_symbolic_execution_rules = ", len(orders_of_symbolic_execution_rules))
+        self.orders_of_symbolic_execution_rules = orders_of_symbolic_execution_rules
+
+        if orders_of_unfolding_phase_rules is None:
+            orders_of_unfolding_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_unfolding_phase_rules.append\
+                    (random.sample(range(NUMB_OF_UNFOLDING_PHASE_RULE), NUMB_OF_UNFOLDING_PHASE_RULE))
+        print("Number of items in orders_of_unfolding_phase_rules = ", len(orders_of_unfolding_phase_rules))
+        self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
+
+        if orders_of_any_phase_rules_or_spec_based_rules is None:
+            orders_of_any_phase_rules_or_spec_based_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_any_phase_rules_or_spec_based_rules.append\
+                    (random.sample(range(NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE),
+                                   NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))
+        print("Number of items in orders_of_unfolding_phase_rules = ", len(orders_of_any_phase_rules_or_spec_based_rules))
+        self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
+
+        if orders_of_sketch_hole is None:
+            orders_of_sketch_hole = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_sketch_hole.append(random.sample(range(NUMB_OF_SKETCH_HOLE), NUMB_OF_SKETCH_HOLE))
+        print("Number of items in orders_of_sketch_hole = ", len(orders_of_sketch_hole))
+        self.orders_of_sketch_hole = orders_of_sketch_hole
+
+        if orders_of_pointer_phase_rules is None:
+            orders_of_pointer_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_pointer_phase_rules.append\
+                    (random.sample(range(NUMB_OF_POINTER_PHASE_RULE), NUMB_OF_POINTER_PHASE_RULE))
+        print("Number of items in orders_of_pointer_phase_rules = ", len(orders_of_pointer_phase_rules))
+        self.orders_of_pointer_phase_rules = orders_of_pointer_phase_rules
+
+        if orders_of_post_block_phase_rules is None:
+            orders_of_post_block_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_post_block_phase_rules.append\
+                    (random.sample(range(NUMB_OF_POST_BLOCK_PHASE_RULE), NUMB_OF_POST_BLOCK_PHASE_RULE))
+        print("Number of items in orders_of_pointer_phase_rules = ", len(orders_of_post_block_phase_rules))
+        self.orders_of_post_block_phase_rules = orders_of_post_block_phase_rules
+
     def get_individual_id(self):
         return self.individual_id
 
     def set_individual_id(self, individual_id):
         self.individual_id = individual_id
 
-    def set_generation_id(self, generation_id):
-        self.generation_id = generation_id
+    def get_population_id(self):
+        return self.population_id
+
+    def set_population_id(self, population_id):
+        self.population_id = population_id
+
+    def set_rank(self, rank):
+        self.rank = rank
 
     def get_time(self):
         return self.time
@@ -74,53 +155,42 @@ class Individual(list):
     def set_nan(self, nan):
         self.nan = nan
 
-    def set_weight_of_cost_no_call_goal_pre(self, weight_of_cost_no_call_goal_pre):
-        self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre
+    def mutate(self):
+        for order_of_any_phase_rules in self.orders_of_any_phase_rules:
+            tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
+        for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
+            tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
+        for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
+            tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
+        for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
+            tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
+        for order_of_any_phase_rules_or_spec_based_rules in self.orders_of_any_phase_rules_or_spec_based_rules:
+            tools.mutShuffleIndexes(order_of_any_phase_rules_or_spec_based_rules, indpb=INDPB)
+        for order_of_sketch_hole in self.orders_of_sketch_hole:
+            tools.mutShuffleIndexes(order_of_sketch_hole, indpb=INDPB)
+        for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
+            tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
+        for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
+            tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
 
-    def get_weight_of_cost_no_call_goal_pre(self):
-        return self.weight_of_cost_no_call_goal_pre
-
-    def set_weight_of_cost_no_call_goal_post(self, weight_of_cost_no_call_goal_post):
-        self.weight_of_cost_no_call_goal_post = weight_of_cost_no_call_goal_post
-
-    def get_weight_of_cost_no_call_goal_post(self):
-        return self.weight_of_cost_no_call_goal_post
-
-    def set_weight_of_cost_call_goal(self, weight_of_cost_call_goal):
-        self.weight_of_cost_call_goal = weight_of_cost_call_goal
-
-    def get_weight_of_cost_call_goal(self):
-        return self.weight_of_cost_call_goal
+    def json_file_path(self):
+        json_file_name = "search_parameter" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
+        path = PATH_TO_TACTICS + json_file_name
+        return path
 
     def set_weight_of_cost_call_goal_pre(self, weight_of_cost_call_goal_pre):
         self.weight_of_cost_call_goal_pre = weight_of_cost_call_goal_pre
 
-    def get_weight_of_cost_call_goal_pre(self):
-        return self.weight_of_cost_call_goal_pre
-
-    def set_weight_of_cost_call_goal_post(self, weight_of_cost_call_goal_post):
-        self.weight_of_cost_call_goal_post = weight_of_cost_call_goal_post
-
-    def get_weight_of_cost_call_goal_post(self):
-        return self.weight_of_cost_call_goal_post
-
-    def mutate(self):
-        tools.mutShuffleIndexes(self.rule_ordering, indpb=INDPB)
-        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
-        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
-        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(0.8, 1.2)
-        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
-        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
-
-    def write_json_search_parameter_file(self):
-
-        json_search_parameter_to_write = {
-            "order_of_any_phase_rules": self.rule_ordering,
-            "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
-            "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
-            "weight_of_cost_call_goal": self.weight_of_cost_call_goal,
-            "weight_of_cost_call_goal_pre": self.weight_of_cost_call_goal_pre,
-            "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
+        json_data_to_write = {
+            "numbOfAnyPhaseRules": NUMB_OF_ANY_PHASE_RULE,
+            "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
+            "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
+            "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
+            "orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules,
+            "orders_of_any_phase_rules_or_spec_based_rules": self.orders_of_any_phase_rules_or_spec_based_rules,
+            "orders_of_sketch_hole": self.orders_of_sketch_hole,
+            "orders_of_pointer_phase_rules": self.orders_of_pointer_phase_rules,
+            "orders_of_post_block_phase_rules": self.orders_of_post_block_phase_rules
         }
 
         with open(self.json_search_parameter_file_path(), 'w') as new_json_file_to_write:
@@ -153,32 +223,37 @@ class Individual(list):
     def is_not_good_enough(self):
         return (self.nan > MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS) or (self.time > MAXIMUM_TOTAL_TIME)
 
+    # Note that we use the rank of individual in the file name.
     def json_result_file_path(self):
-        return "robo-evaluation-utils/result" + "_" + str(self.generation_id) + "_" + str(self.individual_id) \
+        return "robo-evaluation-utils/result" + "_" + str(self.population_id) + "_" + str(self.rank) \
                          + ".json"
 
     def json_result(self):
         return {
             "generation_ID": self.generation_id,
             "individual_ID": self.individual_id,
+            "rank": self.rank,
             "number_of_nan": self.nan,
-            "search_time": self.time,
-            "rule_ordering": self.rule_ordering
+            "search_time": self.time
+            #"orders_of_any_phase_rules": self.orders_of_any_phase_rules,
+            #"orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
+            #"orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
+            #"orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules
         }
 
     def write_json_result(self):
 
         with open(self.json_result_file_path(), 'w') as json_result_file_to_write:
-            json.dump(json_result(), json_result_file_to_write)
+            json.dump(self.json_result(), json_result_file_to_write)
 
+def get_total_time(individual: Individual):
+    return individual.get_time()
 
-def select(generation):
-    best_individuals = generation[:GENERATION_SIZE]
-    return best_individuals
+def get_number_of_nans(individual: Individual):
+    return individual.get_nan()
 
+toolbox = base.Toolbox()
 
-def json_result_file_path(generation_id: int):
-    return "robo-evaluation-utils/result" + "_" + str(generation_id) + ".json"
 
 # -----------------------
 # operator registration
@@ -186,67 +261,74 @@ def json_result_file_path(generation_id: int):
 def main():
     random.seed(169)
 
-    # create an initial generation of 20 individuals (where each individual is a list of integers)
-    individual_ids = list(range(0, GENERATION_SIZE))
+    try:
+        os.mkdir(PATH_TO_TACTICS)
+    except:
+        print("Oops! The directory for parameters already exists. Anyway, we keep going.")
+
+    # create an initial population of 20 individuals (where each individual is a list of integers)
+    individual_ids = list(range(0, POPULATION_SIZE))
 
     # initialize the generation
     generation = []
     for individual_id in individual_ids:
-        generation.append(Individual(0, individual_id, 0, 0.0, None))
+        population.append(Individual(population_id=0, individual_id=individual_id, rank=0))
 
-    # write down json files containing search parameters
-    for individual in generation:
-        individual.write_json_search_parameter_file()
-
-    # evaluate the entire generation
-    for individual in generation:
+    # evaluate the entire population
+    for individual in population:
         individual.evaluate()
+
+    # sort populations
+    population.sort(key=get_total_time)
+    population.sort(key=get_number_of_nans)
+
+    # set the rank
+    rank = 0
+    for individual in population:
+        individual.set_rank(rank)
+        rank = rank + 1
+
+    for individual in population:
+        individual.write_json_result()
 
     # current number of generation
     generation_id = 0
 
-    write_json_result(generation_id, generation)
-
-    offspring1 = generation[:]
-
     # begin the evolution
     while all((individual.is_not_good_enough()) for individual in generation) \
             and generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
-
-        # mutate the best from the previous round
-        offspring2 = copy.deepcopy(offspring1)
-
-        for individual in offspring2:
-            individual.mutate()
-
-        generation[:] = offspring1 + offspring2
-
-        # update generation_id
         generation_id = generation_id + 1
         print("----- generation %i -----" % generation_id)
-        for individual in generation:
-            individual.set_generation_id(generation_id)
 
-        # update individual_id
-        individual_id = 0
-        for individual in generation:
+        # select the next generation individuals
+        offspring1 = population[:POPULATION_SIZE]
+
+        for individual in offspring1:
+            individual.set_population_id(generation_id)
+
+        # mutate the best from the previous round
+        offspring2 = copy.deepcopy(offspring1) + copy.deepcopy(offspring1[:2])
+
+        # for offspring2, 1) mutate, 2) set ind-id, 3) set generation-id, 4) evaluate
+        individual_id = POPULATION_SIZE
+        for individual in offspring2:
+            individual.mutate()
             individual.set_individual_id(individual_id)
             individual_id = individual_id + 1
-
-        # write down json files containing search parameters
-        for individual in generation:
-            individual.write_json_search_parameter_file()
-
-        # evaluate the entire generation
-        for individual in offspring2:
             individual.evaluate()
 
-        write_json_result(generation_id, generation)
+        population[:] = offspring1 + offspring2
 
-        # sort and select the next generation individuals
-        generation.sort(key=get_total_time)
-        generation.sort(key=get_number_of_nans)
-        offspring1 = select(generation)
+        # sort populations
+        population.sort(key=get_total_time)
+        population.sort(key=get_number_of_nans)
+        print("----- population size is %i -----" % len(population))
+        rank = 0
+        for individual in population:
+            print("----- writing result for ind-id %i -----" % individual.individual_id)
+            individual.set_rank(rank)
+            rank = rank + 1
+            individual.write_json_result()
 
     return 0
 
