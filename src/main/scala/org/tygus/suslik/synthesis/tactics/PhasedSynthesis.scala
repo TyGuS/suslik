@@ -92,7 +92,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       if (lastUnfoldingRule.contains(HeapUnifyUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfoldingFinal))
-        unfoldingNoUnfoldPhaseRules
+        unfoldingNoUnfoldPhaseRules(goal)
       else if (lastUnfoldingRule.contains(Close))
       // Once a rule that works on post was used, only use those
         unfoldingPostPhaseRules(goal)
@@ -258,10 +258,35 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   }
 
-  protected def unfoldingNoUnfoldPhaseRules: List[SynthesisRule] = List(
-    LogicalRules.FrameUnfoldingFinal,
-    UnificationRules.HeapUnifyUnfolding,
-  )
+  protected def unfoldingNoUnfoldPhaseRules(goal: Goal): List[SynthesisRule] = {
+
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfUnfoldingNoUnfoldPhaseRules = goal.env.ordersOfUnfoldingNoUnfoldPhaseRules
+    val orderOfUnfoldingNoUnfoldPhaseRules = ordersOfUnfoldingNoUnfoldPhaseRules.apply(index.toInt)
+
+    val unOrderedUnfoldingNoUnfoldPhaseRules =
+      Vector (
+        LogicalRules.FrameUnfoldingFinal,
+        UnificationRules.HeapUnifyUnfolding
+      )
+
+    if (goal.env.config.evolutionary)
+      List(
+        unOrderedUnfoldingNoUnfoldPhaseRules(orderOfUnfoldingNoUnfoldPhaseRules.apply(0)),
+        unOrderedUnfoldingNoUnfoldPhaseRules(orderOfUnfoldingNoUnfoldPhaseRules.apply(1))
+      )
+    else
+      List(unOrderedUnfoldingNoUnfoldPhaseRules:_*)
+
+  }
 
   protected def callAbductionRules(goal: Goal): List[SynthesisRule] = {
 

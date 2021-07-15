@@ -160,6 +160,7 @@ trait SynthesisRunnerUtil {
     val ordersOfPostBlockPhaseRules           = jsonData("orders_of_post_block_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
     val ordersOfCallAbductionRules            = jsonData("orders_of_call_abduction_rules").arr.map(_.arr.map(_.num).map(_.toInt))
     val ordersOfUnfoldingPostPhaseRules       = jsonData("orders_of_unfolding_post_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfUnfoldingNoUnfoldPhaseRules   = jsonData("orders_of_unfolding_no_unfold_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
 
     val env = Environment(predEnv, funcEnv, params,
       new SynStats(params.timeOut),
@@ -172,7 +173,8 @@ trait SynthesisRunnerUtil {
       ordersOfPointerPhaseRules,
       ordersOfPostBlockPhaseRules,
       ordersOfCallAbductionRules,
-      ordersOfUnfoldingPostPhaseRules
+      ordersOfUnfoldingPostPhaseRules,
+      ordersOfUnfoldingNoUnfoldPhaseRules
     )
     val synthesizer = createSynthesizer(env)
 
