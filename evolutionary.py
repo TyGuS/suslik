@@ -25,6 +25,7 @@ NUMB_OF_SKETCH_HOLE = 3
 NUMB_OF_POINTER_PHASE_RULE = 4
 NUMB_OF_POST_BLOCK_PHASE_RULE = 4
 NUMB_OF_CALL_ABDUCTION_RULE = 4
+NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 5
@@ -50,7 +51,8 @@ class Individual(list):
                  orders_of_sketch_hole=None,
                  orders_of_pointer_phase_rules=None,
                  orders_of_post_block_phase_rules=None,
-                 orders_of_call_abduction_rules=None):
+                 orders_of_call_abduction_rules=None,
+                 orders_of_unfolding_post_phase_rules=None):
         super().__init__()
         self.population_id = population_id
         self.individual_id = individual_id
@@ -129,6 +131,14 @@ class Individual(list):
         print("Number of items in orders_of_pointer_phase_rules = ", len(orders_of_call_abduction_rules))
         self.orders_of_call_abduction_rules = orders_of_call_abduction_rules
 
+        if orders_of_unfolding_post_phase_rules is None:
+            orders_of_unfolding_post_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATION):
+                orders_of_unfolding_post_phase_rules.append \
+                    (random.sample(range(NUMB_OF_UNFOLDING_POST_PHASE_RULE), NUMB_OF_UNFOLDING_POST_PHASE_RULE))
+        print("Number of items in orders_of_unfolding_post_phase_rules = ", len(orders_of_unfolding_post_phase_rules))
+        self.orders_of_unfolding_post_phase_rules = orders_of_unfolding_post_phase_rules
+
     def get_individual_id(self):
         return self.individual_id
 
@@ -156,7 +166,7 @@ class Individual(list):
     def set_nan(self, nan):
         self.nan = nan
 
-    def mutate(self):
+    def mutate(self): #TODO: refactor
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
         for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
@@ -175,6 +185,8 @@ class Individual(list):
             tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
         for order_of_call_abduction_rules in self.orders_of_call_abduction_rules:
             tools.mutShuffleIndexes(order_of_call_abduction_rules, indpb=INDPB)
+        for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
+            tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
 
     def json_file_path(self):
         json_file_name = "search_parameter" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
@@ -193,7 +205,8 @@ class Individual(list):
             "orders_of_sketch_hole": self.orders_of_sketch_hole,
             "orders_of_pointer_phase_rules": self.orders_of_pointer_phase_rules,
             "orders_of_post_block_phase_rules": self.orders_of_post_block_phase_rules,
-            "orders_of_call_abduction_rules": self.orders_of_call_abduction_rules
+            "orders_of_call_abduction_rules": self.orders_of_call_abduction_rules,
+            "orders_of_unfolding_post_phase_rules": self.orders_of_unfolding_post_phase_rules
         }
 
         with open(self.json_file_path(), 'w') as new_json_file_to_write:

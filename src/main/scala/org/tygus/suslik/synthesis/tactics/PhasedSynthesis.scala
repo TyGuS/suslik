@@ -95,7 +95,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         unfoldingNoUnfoldPhaseRules
       else if (lastUnfoldingRule.contains(Close))
       // Once a rule that works on post was used, only use those
-        unfoldingPostPhaseRules
+        unfoldingPostPhaseRules(goal)
       else unfoldingPhaseRules(goal)
     } else if (goal.post.hasBlocks) {
       // Block phase: get rid of blocks
@@ -226,11 +226,37 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       List(unOrderedUnfoldingPhaseRules:_*)
   }
 
-  protected def unfoldingPostPhaseRules: List[SynthesisRule] = List(
-    LogicalRules.FrameUnfoldingFinal,
-    UnificationRules.HeapUnifyUnfolding,
-    UnfoldingRules.Close,
-  )
+  protected def unfoldingPostPhaseRules(goal: Goal): List[SynthesisRule] = {
+
+    val index =
+      (if (goal.isUnsolvable) math.pow(2,0) else 0)
+    + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+    + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+    + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+    + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+    + (if (goal.hasBlocks) math.pow(2,5) else 0)
+    + (if (goal.hasExistentialPointers) math.pow(2,6) else 0)
+
+    val ordersOfUnfoldingPostPhaseRules = goal.env.ordersOfUnfoldingPostPhaseRules
+    val orderOfUnfoldingPostPhaseRules = ordersOfUnfoldingPostPhaseRules.apply(index.toInt)
+
+    val unOrderedUnfoldingPostPhaseRule =
+      List(
+        LogicalRules.FrameUnfoldingFinal,
+        UnificationRules.HeapUnifyUnfolding,
+        UnfoldingRules.Close,
+      )
+
+    if (goal.env.config.evolutionary) {
+      List(
+        unOrderedUnfoldingPostPhaseRule(orderOfUnfoldingPostPhaseRules.apply(0)),
+        unOrderedUnfoldingPostPhaseRule(orderOfUnfoldingPostPhaseRules.apply(1)),
+        unOrderedUnfoldingPostPhaseRule(orderOfUnfoldingPostPhaseRules.apply(2))
+      )
+    } else
+      List(unOrderedUnfoldingPostPhaseRule:_*)
+
+  }
 
   protected def unfoldingNoUnfoldPhaseRules: List[SynthesisRule] = List(
     LogicalRules.FrameUnfoldingFinal,

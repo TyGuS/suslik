@@ -205,7 +205,8 @@ case class Environment(predicates: PredicateEnv,
                        ordersOfSketchHole: ArrayBuffer[ArrayBuffer[Int]],
                        ordersOfPointerPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
                        ordersOfPostBlockPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
-                       ordersOfCallAbductionRules: ArrayBuffer[ArrayBuffer[Int]]
+                       ordersOfCallAbductionRules: ArrayBuffer[ArrayBuffer[Int]],
+                       ordersOfUnfoldingPostPhaseRules: ArrayBuffer[ArrayBuffer[Int]]
                       ) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")
