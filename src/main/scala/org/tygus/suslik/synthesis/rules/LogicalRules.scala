@@ -263,7 +263,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))
           val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
           assert(goal.callGoal.isEmpty)
-          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, List(newGoal), this,
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(newGoal), this,
             Map("x" -> x.pp, "e" -> e.pp)))
           List(RuleResult(List(newGoal), kont, this, goal))
         }

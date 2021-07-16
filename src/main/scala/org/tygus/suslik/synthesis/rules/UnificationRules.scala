@@ -288,6 +288,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
       val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
       val kont = SubstVarProducer(v, arg) >> IdProducer >> ExtractHelper(goal)
+
+      ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(
+        goal, Seq(newGoal), this, sigma))
+
       List(RuleResult(List(newGoal), kont, this, goal))
     }
   }
