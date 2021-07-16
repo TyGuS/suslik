@@ -4,6 +4,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
 import org.tygus.suslik.language.Expressions
+import org.tygus.suslik.language.Expressions.Subst
 import org.tygus.suslik.logic.{Block, Heaplet, PointsTo, SApp, Specifications}
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.Memoization
@@ -41,6 +42,11 @@ object ProofTrace {
 
   case class DerivationTrail(from: Goal, to: Seq[Goal], rule: SynthesisRule,
                              subst: Map[String, OrVec])
+
+  object DerivationTrail {
+    def withSubst(from: Goal, to: Seq[Goal], rule: SynthesisRule, subst: Subst): DerivationTrail =
+      apply(from, to, rule, subst.map { case (k, v) => k.pp -> (v.pp: OrVec) })
+  }
 
   def current: ProofTrace = _current.value
   def current_=(trace: ProofTrace): Unit = _current.value = trace
@@ -197,8 +203,29 @@ object ProofTraceJson {
       case ("Var", Seq(Leaf(v))) => Var(v)
       case ("IntConst", Seq(Leaf(v))) => IntConst(Integer.parseInt(v))
       case ("BoolConst", Seq(Leaf(v))) => BoolConst(v == "true")
+      case ("{}", elems) => SetLiteral(elems.map(_.toExpr).toList)
+      case ("ite", Seq(cond, left, right)) => IfThenElse(cond.toExpr, left.toExpr, right.toExpr)
+      case ("Unknown", Leaf(name) +: params :+ subst) =>
+        Unknown(name, params.map(_.toVar).toSet, subst.toSubst)
+      case (kop, Seq(arg)) =>
+        UNOP.get(kop) match {
+          case Some(op) => UnaryExpr(op, arg.toExpr)
+          case _ => throw new RuntimeException(s"unknown unary operator: '${kop}'")
+        }
+      case (kop, Seq(arg0, arg1)) =>
+        BINOP.get(kop) match {
+          case Some(op: BinOp) => BinaryExpr(op, arg0.toExpr, arg1.toExpr)
+          case Some(op: OverloadedBinOp) => OverloadedBinaryExpr(op, arg0.toExpr, arg1.toExpr)
+          case _ => throw new RuntimeException(s"unknown binary operator: '${kop}'")
+        }
       case _ => throw new RuntimeException(s"error in expression: '${this}'")
     }
+
+    def toVar: Var = toExpr.asInstanceOf[Var]
+
+    def toSubst: Subst = subtrees.map { case AST("↦", Seq(v, e)) => v.toVar -> e.toExpr } .toMap
+
+    def toHeaplet: Heaplet = ???
   }
 
   object AST {
@@ -213,8 +240,9 @@ object ProofTraceJson {
       case Var(name) => "Var" -: AST(name)
       case IntConst(_) => "IntConst" -: AST(e.pp)
       case BoolConst(_) => "BoolConst" -: AST(e.pp)
-      case UnaryExpr(op, arg) => op.pp -: fromExpr(arg)
-      case BinaryExpr(op, left, right) => AST(op.pp, Seq(left, right).map(fromExpr))
+      case UnaryExpr(op, arg) => labelOf(op) -: fromExpr(arg)
+      case BinaryExpr(op, left, right) => AST(labelOf(op), Seq(left, right).map(fromExpr))
+      case OverloadedBinaryExpr(op, left, right) => AST(labelOf(op), Seq(left, right).map(fromExpr))
       case SetLiteral(elems) => AST("{}", elems.map(fromExpr))
       case IfThenElse(cond, left, right) => AST("ite", Seq(cond, left, right).map(fromExpr))
       case Unknown(name, params, pendingSubst) =>
@@ -228,13 +256,37 @@ object ProofTraceJson {
     def fromHeaplet(heaplet: Heaplet): AST = heaplet match {
       case PointsTo(loc, offset, value) => AST("↦", Seq(fromExpr(loc), AST(offset), fromExpr(value)))
       case Block(loc, sz) => AST("[]", Seq(fromExpr(loc), AST(sz)))
-      case SApp(pred, args, tag, card) => AST("SApp", AST(pred) +: args.map(fromExpr))
+      case SApp(pred, args, tag, card) => AST("SApp",
+        Seq(AST(pred), AST("()", args.map(fromExpr)), AST(tag.pp), fromExpr(card)))
     }
 
     object Leaf {
       def unapply(t: AST): Option[String] =
         if (t.subtrees.isEmpty) Some(t.root) else None
     }
+
+    /* Operator serialization */
+    import Expressions._
+    val UNOP = Map("not" -> OpNot, "u-" -> OpUnaryMinus, "lower" -> OpLower, "upper" -> OpUpper)
+    val BINOP = Map("==" -> OpOverloadedEq, "<=" -> OpOverloadedLeq, "-" -> OpOverloadedMinus,
+      "+" -> OpOverloadedPlus, "*" -> OpOverloadedStar, "in" -> OpOverloadedIn,
+      "!=" -> OpNotEqual, ">" -> OpGt, ">=" -> OpGeq,
+      "==[bool]" -> OpBoolEq, "->" -> OpImplication,
+      "<=[int]" -> OpLeq, "<" -> OpLt, "&&" -> OpAnd, "||" -> OpOr,
+      "+[int]" -> OpPlus, "-[int]" -> OpMinus, "*[int]" -> OpMultiply,
+      "++" -> OpUnion, "--" -> OpDiff, "*[set[int]]" -> OpIntersect,
+      "in[int]" -> OpIn, "==[loc]" -> OpEq,
+      "==[set[int]]" -> OpSetEq, "<=[set[int]]" -> OpSubset
+      /** @todo interval operators */
+    )
+
+    def labelOf(op: UnOp): String = mustGet(UNOP, op)
+    def labelOf(op: BinOp): String = mustGet(BINOP, op)
+    def labelOf(op: OverloadedBinOp): String = mustGet(BINOP, op)
+
+    private def mustGet[A](m: Map[String, A], op: A): String =
+      m.toSeq.find(_._2 == op).getOrElse
+        { throw new NoSuchElementException(s"operator not found: ${op}") } ._1
   }
 }
 
