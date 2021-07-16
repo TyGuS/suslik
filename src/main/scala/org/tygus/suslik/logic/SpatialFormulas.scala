@@ -154,7 +154,7 @@ case class PTag(calls: Int = 0, unrolls: Int = 0) extends PrettyPrinting {
 
 /**
   *
-  * @card is a cardinality of a current call.
+  * @param card is a cardinality of a current call.
   *
   *       Predicate application
   */
