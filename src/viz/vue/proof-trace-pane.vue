@@ -3,15 +3,17 @@
             :class="{'proof-trace-filter--only-success': options.proofOnly,
                      'proof-trace-filter--only-expanded': options.expandedOnly}"
             @mousedown="panStart" @mousemove="panMove" @mouseup="panEnd"
-            @mousewheel="zoomPad">
+            @mousewheel="zoomPad" @scroll="onScroll">
         <app-toolbar :options="options" @action="toplevelAction($event)"/>
         <app-context-menu ref="contextMenu" @action="toplevelAction"/>
-        <template v-for="(t,id) in traces">
-            <div class="proof-trace-pane-area" :style="{'--zoom': zoom/100}" :key="id">
-                <proof-trace :root="t.root" :highlight="jointHigh"
-                    @action="toplevelAction($event, id)"/>
-            </div>
-        </template>
+        <div ref="area">
+            <template v-for="(t,id) in traces">
+                <div class="proof-trace-pane-rendered" :style="{'--zoom': zoom/100}" :key="id">
+                    <proof-trace :root="t.root" :highlight="jointHigh"
+                        @action="toplevelAction($event, id)"/>
+                </div>
+            </template>
+        </div>
         <!--
         <proof-interaction :choices="interaction && interaction.choices"
             @action="$emit('interaction:action', $event)"/> -->
@@ -26,12 +28,16 @@ import ProofInteraction from './proof-interaction.vue';
 
 
 export default {
-    data: () => ({traces: {}, options: {}, zoom: 100, 
+    data: () => ({traces: {}, options: {}, zoom: 100, pscroll: {x: 0, y: 0},
          interaction: {}, highlight: {'special': [[]]}}),
     computed: {
         jointHigh() {
             return {'interact-focus': this.interaction?.focused, ...this.highlight};
         }
+    },
+    mounted() {
+        requestAnimationFrame(() =>
+            this._areaOffset = {x: this.$refs.area.offsetLeft, y: this.$refs.area.offsetTop});
     },
     methods: {
         toplevelAction(ev, id) {
@@ -41,10 +47,18 @@ export default {
             }
             this.$emit('action', ev);
         },
-        setZoom(newValue) {
-            var u = this.zoom, v = this.zoom = newValue;
-            this.$el.scrollTop *= v / u;
-            this.$el.scrollLeft *= v / u;
+        onScroll() {
+            var sc = {x: this.$el.scrollLeft, y: this.$el.scrollTop};
+            if (sc.x !== Math.round(this.pscroll.x) || sc.y !== Math.round(this.pscroll.y))
+                this.pscroll = sc;
+        },
+        setZoom(newValue, around = {x:0, y:0}) {
+            var u = this.zoom, v = this.zoom = newValue,
+                sc = {x: (this.pscroll.x - around.x) * v / u + around.x,
+                      y: (this.pscroll.y - around.y) * v / u + around.y};
+            this.$el.scrollTop = Math.round(sc.y);
+            this.$el.scrollLeft = Math.round(sc.x);
+            this.pscroll = sc;
         },
         panStart(ev) {
             if (!ev.target.closest('.proof-trace-node')) {
@@ -63,8 +77,10 @@ export default {
         },
         zoomPad(ev) {
             if (ev.ctrlKey) {
-                console.log(ev.offsetX, ev.offsetY);
-                this.setZoom(this.zoom - ev.deltaY);
+                var o = this._areaOffset,
+                    xy = {x: o.x - (ev.pageX - this.$el.offsetLeft),
+                          y: o.y - (ev.pageY - this.$el.offsetTop)};
+                this.setZoom(this.zoom - ev.deltaY, xy);
                 ev.stopPropagation();
                 ev.preventDefault();
             }
