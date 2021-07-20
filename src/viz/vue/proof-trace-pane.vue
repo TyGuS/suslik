@@ -8,7 +8,9 @@
         <app-context-menu ref="contextMenu" @action="toplevelAction"/>
         <div ref="area">
             <template v-for="(t,id) in traces">
-                <div class="proof-trace-pane-rendered" :style="{'--zoom': zoom/100}" :key="id">
+                <div class="proof-trace-pane-rendered" :key="id"
+                        :class="{active: id === activeTrace}"
+                        :style="{'--zoom': zoom/100}">
                     <proof-trace :root="t.root" :highlight="jointHigh"
                         @action="toplevelAction($event, id)"/>
                 </div>
@@ -20,6 +22,12 @@
     </div>
 </template>
 
+<style>
+.proof-trace-pane .proof-trace-pane-rendered:not(.active) {
+    display: none;
+}
+</style>
+
 <script>
 import AppToolbar from './app-toolbar.vue';
 import AppContextMenu from './app-context-menu';
@@ -29,7 +37,9 @@ import ProofInteraction from './proof-interaction.vue';
 
 export default {
     data: () => ({traces: {}, options: {}, zoom: 100, pscroll: {x: 0, y: 0},
-         interaction: {}, highlight: {'special': [[]]}}),
+                  activeTrace: undefined,
+                  /* these are defunct for now... */
+                  interaction: {}, highlight: {'special': [[]]}}),
     computed: {
         jointHigh() {
             return {'interact-focus': this.interaction?.focused, ...this.highlight};

@@ -97,7 +97,8 @@ class ProofTrace extends EventEmitter {
         // - compute transitive success
         // This has to be computed over *all* data; can optimize by only
         // considering ancestors of newly indexed nodes
-        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+        var nodesBottomUp = this.data.nodes.slice().sort((a, b) => b.id.length - a.id.length)
+        for (let node of nodesBottomUp) {
             if (!this.nodeIndex.statusById.get(node.id)) {
                 let children = (this.nodeIndex.childrenById.get(node.id) || [])
                                 .map(c => this.nodeIndex.statusById.get(c.id));
@@ -122,7 +123,7 @@ class ProofTrace extends EventEmitter {
         // Build subtreeSizeById
         // (same here)
         var sz = this.nodeIndex.subtreeSizeById;
-        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+        for (let node of nodesBottomUp) {
             let children = (this.nodeIndex.childrenById.get(node.id) || []);
             update(sz, node, 1 + children.map(u => sz.get(u.id) || 1)
                                          .reduce((x,y) => x + y, 0));
@@ -183,7 +184,8 @@ class ProofTrace extends EventEmitter {
         if (this.root) {
             this.view.root = this.createNode(this.root);
             this.expandNode(this.view.root);
-            this.expandNode(this.view.root.children[0]);
+            if (this.view.root.children?.[0])  /* a bit arbitrary I know */
+                this.expandNode(this.view.root.children[0]);
         }
 
         Vue.set(pane.traces, this.id, this.view);
@@ -251,12 +253,12 @@ class ProofTrace extends EventEmitter {
         }
     }
 
-    expandNode(nodeView: View.Node, focus: boolean = false) {
+    expandNode(nodeView: View.Node, focus: boolean = false, emit: boolean = true) {
         nodeView.focus = focus;
         nodeView.expanded = true;
         nodeView.children = this.children(nodeView.value)
             .map(node => this.createNode(node));
-        this.emit('expand', nodeView);
+        if (emit) this.emit('expand', nodeView);
     }
 
     expandOrNode(nodeView: View.Node, focus: boolean = false) {
@@ -286,7 +288,7 @@ class ProofTrace extends EventEmitter {
     }
 
     expandAll(nodeView: View.Node = this.view.root) {
-        this.expandNode(nodeView);
+        this.expandNode(nodeView, false, false);
         for (let c of nodeView.children)
             this.expandAll(c);
     }

@@ -14,53 +14,71 @@ import './ide.css';
 
 
 class SuSLikApp extends EventEmitter {
-    app: Vue
+    view: Vue
     notifications: JQuery
 
     doc: MainDocument
+    docsById = new Map<string, MainDocument>()
+
+    panes: {proofTrace: any, benchmarks: any, editors: any}
 
     constructor(notifications: JQuery) {
         super();
         this.notifications = notifications;
-        this.app = new Vue(app).$mount();
+        this.view = new Vue(app).$mount();
+        this.panes = <any>this.view.$refs;  /* I like the sound they make when they break */
 
-        (<Vue>this.app.$refs.proofTrace).$on('action', ev => {
+        this.panes.proofTrace.$on('action', ev => {
             this.emit('proofTrace:action', ev);
         });
-        (<Vue>this.app.$refs.benchmarks).$on('action', ev => {
+        this.panes.benchmarks.$on('action', ev => {
             this.emit('benchmarks:action', ev);
         });
     }
 
-    get $el() { return this.app.$el; }
+    get $el() { return this.view.$el; }
 
     get options() {
-        return (<any>this.app.$refs.proofTrace).options;
+        return this.panes.proofTrace.options;
     }
 
     add(doc: MainDocument) {
-        this.doc?.close();
+        this.docsById.get(doc.id)?.close();
+        this.docsById.set(doc.id, doc);
         this.doc = doc;
         doc.on('error', err => this.message(err.message));
+        this.switchTo(doc.id);
+    }
+
+    has(docId: string) {
+        return this.docsById.has(docId);
+    }
+
+    switchTo(docId: string) {
+        this.panes.proofTrace.activeTrace = docId;
+    }
+
+    clear() {
+        for (let doc of this.docsById.values()) doc.close();
+        this.docsById.clear();
+        this.doc = undefined;
     }
 
     setBenchmarks(bmData: BenchmarksDB.Data) {
-        var bm = <any>this.app.$refs.benchmarks;
+        var bm = this.panes.benchmarks;
         bm.data = bmData;
-        bm.show = true;
     }
 
     hideBenchmarks() {
-        var bm = <any>this.app.$refs.benchmarks;
-        //bm.show = false;
+        /** @todo */
     }
 
     setEditorText(text: string) {
-        (<any>this.app.$refs.editors).open(text);
+        this.panes.editors.open(text);
     }
 
     getEditorText() {
-        return (<any>this.app.$refs.editors).current();
+        return this.panes.editors.current();
     }
 
     message(msg: string) {
