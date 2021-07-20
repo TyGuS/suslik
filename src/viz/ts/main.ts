@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import Vue from 'vue';
 import { SuSLikApp, MainDocument, DragDropJson } from './app';
 import { ProofInteraction } from './proof-interaction';
 import { BenchmarksDB } from './benchmarks';
@@ -30,28 +31,39 @@ $(async () => {
 
     async function startBenchmark(w: {dir: string, fn: string}, mode: ProofMode = ProofMode.INTERACTIVE) {
         var spec = bench.getSpec(w.dir, w.fn),
-            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any,
+            doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
                                    OPTIONS[mode]);
         app.hideBenchmarks();
+        app.clear();
         app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         app.add(doc);
         doc.new();
         await doc.pi.start(spec, mode);
     }
 
+    /** @todo Pretty hideous duplication do refactor please */
     async function restartBenchmark(mode: ProofMode = ProofMode.INTERACTIVE) {
-        console.log(app.getEditorText());
         var spec = BenchmarksDB.Data.parseSpec('todo', app.getEditorText()),
-            doc = new MainDocument('benchmark-0', app.app.$refs.proofTrace as any,
+            doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
                                    OPTIONS[mode]);
         app.add(doc);
         doc.new();
         await doc.pi.start(spec, mode);
     }
 
+    async function switchMode(mode: ProofMode) {
+        var docId = `benchmark-0-${mode}`;
+        if (app.has(docId))
+            app.switchTo(docId);
+        else
+            restartBenchmark(mode);
+    }
+
     function proofMode() {
         return app.options.auto ? ProofMode.AUTOMATIC : ProofMode.INTERACTIVE;
     }
+
+    app.view.$watch(proofMode, switchMode);  /* neat ;) */
 
     const OPTIONS: {[mode: string]: MainDocument.Options} = {
         [ProofMode.AUTOMATIC]: {throttle: 750},
@@ -75,7 +87,7 @@ $(async () => {
     var drop = new DragDropJson($('html'));
     drop.on('open', async ({file}) => {
         try {
-            var doc = new MainDocument('json-0', app.app.$refs.proofTrace as any)
+            var doc = new MainDocument('json-0', app.panes.proofTrace)
             await doc.open(file);
             app.add(doc);
         }
