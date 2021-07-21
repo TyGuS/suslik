@@ -58,7 +58,7 @@ ul.benchmark-list ul li::before {
 export default {
     data: () => ({data: {}, show: true}),
     methods: {
-        isBenchmark(fn) { return fn.endsWith('.syn'); },
+        isBenchmark(fn) { return fn.match(/\.(sus|syn)$/); },
         select(a) {
             this.$emit('action', {type: 'select', ...a});
         }
