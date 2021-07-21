@@ -226,8 +226,11 @@ object Specifications extends SepLogicUtils {
     // Variables currently used only in specs
     def ghosts: Set[Var] = pre.vars ++ post.vars -- programVars
 
-    // Currently used ghosts that appear only in the postcondition
-    def existentials: Set[Var] = post.vars -- allUniversals
+    // Variables used in the suspended call (if it exists)
+    private def callVars: Set[Var] = callGoal.map(_.actualCall.args.flatMap(_.vars).toSet).getOrElse(Set())
+
+    // Currently used ghosts that appear only in the postcondition (or suspened call)
+    def existentials: Set[Var] = post.vars ++ callVars -- allUniversals
 
     // Determine whether `x` is a ghost variable wrt. given spec and gamma
     def isGhost(x: Var): Boolean = ghosts.contains(x)

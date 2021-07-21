@@ -116,7 +116,7 @@ abstract class PhasedSynthesis(config: SynConfig) extends Tactic {
           UnificationRules.SubstRight,
           LogicalRules.FrameFlat,
 //          OperationalRules.WriteRule,
-          UnificationRules.PickArg,
+//          UnificationRules.PickArg,
           UnificationRules.PickCard,
           LogicalRules.GhostWrite,
           UnificationRules.HeapUnifyPure,
