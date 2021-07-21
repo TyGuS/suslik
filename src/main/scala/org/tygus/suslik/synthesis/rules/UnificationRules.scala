@@ -173,7 +173,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
           val kont = IdProducer >> ExtractHelper(goal)
-          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, List(newGoal), this,
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(newGoal), this,
             Map("x" -> x.pp, "e" -> e.pp)))
           List(RuleResult(List(newGoal), kont, this, goal))
         }
@@ -279,6 +279,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
       val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
       val kont = ExistentialProducer(sigma) >> IdProducer >> ExtractHelper(goal)
+
+      ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(
+        goal, Seq(newGoal), this, sigma))
+
       List(RuleResult(List(newGoal), kont, this, goal))
     }
   }

@@ -10,8 +10,10 @@ class BenchmarksDB {
     getSpec(dir: string, fn: string): BenchmarksDB.Data.Spec {
         return {
             name: `${dir}:${fn}`, 
-            defs: this.getDefs(dir),
-            ...this.getInputSpec(dir, fn),
+            spec: {
+                defs: this.getDefs(dir),
+                ...this.getInputSpec(dir, fn)
+            }
         };
     }
 
@@ -21,11 +23,15 @@ class BenchmarksDB {
     }
 
     getInputSpec(dir: string, fn: string) {
-        var prog = this.data[dir][fn],
-            hashline = prog.match(/^#[.]?(.*)/)?.[1],
-            params = hashline && hashline.trim().split(/\s+/),
-            in_ = prog.match(/###+([^]*?)###+/)[1];
-        return {in: in_, params};
+        var prog = this.data[dir][fn];
+        return {...BenchmarksDB.Data.parseInputSpec(prog),
+                config: {inputFormat: this.getFormat(fn)}};
+    }
+
+    getFormat(fn: string): [string] {
+        return fn.endsWith('.syn') ? ['syn'] :
+               fn.endsWith('.sus') ? ['sus'] :
+               undefined;
     }
 
     static async load(url = './benchmarks.db.json') {
@@ -39,14 +45,33 @@ namespace BenchmarksDB {
     export namespace Data {
         export type Spec = {
             name?: string
-            defs: string[]
-            in: string
+            spec: {
+                defs: string[]
+                in: string
+                config?: SpecConfig
+            }
             params?: string[]
+        }
+
+        export type SpecConfig = {
+            inputFormat?: [string]  /* contained in an array to serialize as Option[String] in Scala */
+        }
+
+        export function parseSpec(name: string, text: string): Spec {
+            return {name, spec: {defs: [], ...parseInputSpec(text)}};
+        }
+
+        export function parseInputSpec(text: string) {
+            var hashline = text.match(/^#[.]?(.*)\n([^]*)/),
+                enclosure = text.match(/###+([^]*?)###+/),
+                params = hashline?.[1].trim().split(/\s+/),
+                in_ = enclosure?.[1] || hashline?.[2] || text;
+            return {in: in_, params};
         }
 
         export function unparseSpec(spec: Spec) {
             var params = spec.params ? [`# ${spec.params.join(' ')}`] : [];
-            return [...params, ...spec.defs, spec.in].join('\n');
+            return [...params, ...spec.spec.defs, spec.spec.in].join('\n');
         }
     }
 }

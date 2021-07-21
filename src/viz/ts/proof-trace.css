@@ -3,7 +3,7 @@
     padding-left: .5em;
 }
 
-.proof-trace-pane-area {
+.proof-trace-pane-rendered {
     transform: scale(var(--zoom));
     transform-origin: 0 0;
 }
@@ -255,15 +255,4 @@
 #hint:not(:empty) {
     padding: .1em .5em;
     background: #ddd;
-}
-
-#notifications {
-    position: fixed;
-    top: 0;
-    right: 0;
-}
-#notifications > div {
-    background: #fbb;
-    color: #333;
-    padding: 9px;
 }

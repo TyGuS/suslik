@@ -19,12 +19,14 @@
     "array-equal": "^1.0.0",
     "find": "^0.3.0",
     "jquery": "^3.5.0",
+    "lodash": "^4.17.21",
     "split.js": "^1.6.4",
     "vue": "^2.6.13",
     "vue-context": "^5.2.0"
   },
   "devDependencies": {
     "@types/jquery": "^3.3.34",
+    "@types/lodash": "^4.14.170",
     "@types/node": "^13.11.1",
     "@vue/component-compiler-utils": "^3.2.0",
     "cssnano": "^5.0.6",

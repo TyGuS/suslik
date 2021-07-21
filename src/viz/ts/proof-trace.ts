@@ -12,6 +12,7 @@ import './menu.css';
 
 class ProofTrace extends EventEmitter {
 
+    id: string
     data: Data
     root: Data.NodeEntry
 
@@ -26,25 +27,26 @@ class ProofTrace extends EventEmitter {
         viewById: JSONMap<Data.NodeId, View.Node>
     }
 
-    view: Vue & View.Props
+    view: View.Props
 
     _actionHook = new VueEventHook('action')
     _dirty: {nodes: Set<Data.NodeEntry>} = {nodes: new Set}
 
-    constructor(data: ProofTrace.Data, view?: Vue & View.Props) {
+    constructor(id: string, data: ProofTrace.Data, pane?: Vue & View.PaneProps) {
         super();
+        this.id = id;
         this.data = data;
         this.root = this.data.nodes[0];
 
         this.createIndex();
-        this.createView(view);
+        this.createView(pane);
     }
 
-    append(data: Data) {
+    append(data: Data, opts: {expand?: boolean} = {}) {
         Data.append(this.data, data);
         this.updateIndex(data);
         for (let node of data.nodes)
-            this.addNode(node);
+            this.addNode(node, opts);
         this.refreshView();
     }
 
@@ -95,7 +97,8 @@ class ProofTrace extends EventEmitter {
         // - compute transitive success
         // This has to be computed over *all* data; can optimize by only
         // considering ancestors of newly indexed nodes
-        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+        var nodesBottomUp = this.data.nodes.slice().sort((a, b) => b.id.length - a.id.length)
+        for (let node of nodesBottomUp) {
             if (!this.nodeIndex.statusById.get(node.id)) {
                 let children = (this.nodeIndex.childrenById.get(node.id) || [])
                                 .map(c => this.nodeIndex.statusById.get(c.id));
@@ -120,7 +123,7 @@ class ProofTrace extends EventEmitter {
         // Build subtreeSizeById
         // (same here)
         var sz = this.nodeIndex.subtreeSizeById;
-        for (let node of this.data.nodes.sort((a, b) => b.id.length - a.id.length)) {
+        for (let node of nodesBottomUp) {
             let children = (this.nodeIndex.childrenById.get(node.id) || []);
             update(sz, node, 1 + children.map(u => sz.get(u.id) || 1)
                                          .reduce((x,y) => x + y, 0));
@@ -175,17 +178,19 @@ class ProofTrace extends EventEmitter {
             .sort(byId2); // modifies the list but that's ok
     }
 
-    createView(view?: Vue & View.Props) {
-        this.view = view || <any>new Vue(ProofTracePane).$mount();
+    createView(pane: Vue & View.PaneProps) {
+        this.view = {root: undefined};
         this._dirty.nodes.clear();
         if (this.root) {
             this.view.root = this.createNode(this.root);
             this.expandNode(this.view.root);
-            this.expandNode(this.view.root.children[0]);
+            if (this.view.root.children?.[0])  /* a bit arbitrary I know */
+                this.expandNode(this.view.root.children[0]);
         }
 
+        Vue.set(pane.traces, this.id, this.view);
         this._actionHook.attach(
-            this.view, (ev: View.ActionEvent) => this.viewAction(ev));
+            pane, (ev: View.ActionEvent) => this.viewAction(ev));
     }
 
     refreshView() {
@@ -198,7 +203,7 @@ class ProofTrace extends EventEmitter {
         this._actionHook.detach();
     }
 
-    addNode(node: Data.NodeEntry) {
+    addNode(node: Data.NodeEntry, opts: {expand?: boolean}) {
         if (node.id.length == 0) {  // this is the root
             this.root = node;
             this.view.root = this.createNode(node);
@@ -209,7 +214,10 @@ class ProofTrace extends EventEmitter {
             if (parentView) {
                 parentView.children ??= [];
                 parentView.children.push(this.createNode(node));
-                parentView.expanded = true; /** @todo only if view is visible */
+                if (opts.expand) {   /** @todo only if parent is visible */
+                    parentView.focus = true;
+                    parentView.expanded = true;
+                }
             }
         }
     }
@@ -245,12 +253,12 @@ class ProofTrace extends EventEmitter {
         }
     }
 
-    expandNode(nodeView: View.Node, focus: boolean = false) {
+    expandNode(nodeView: View.Node, focus: boolean = false, emit: boolean = true) {
         nodeView.focus = focus;
         nodeView.expanded = true;
         nodeView.children = this.children(nodeView.value)
             .map(node => this.createNode(node));
-        this.emit('expand', nodeView);
+        if (emit) this.emit('expand', nodeView);
     }
 
     expandOrNode(nodeView: View.Node, focus: boolean = false) {
@@ -280,7 +288,7 @@ class ProofTrace extends EventEmitter {
     }
 
     expandAll(nodeView: View.Node = this.view.root) {
-        this.expandNode(nodeView);
+        this.expandNode(nodeView, false, false);
         for (let c of nodeView.children)
             this.expandAll(c);
     }
@@ -413,6 +421,8 @@ namespace ProofTrace {
     // =========
     export namespace View {
         
+        export type PaneProps = {traces: {[id: string]: Props}};
+
         export type Props = {root: View.Node};
 
         export type Node = {

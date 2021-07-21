@@ -4,10 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import find from 'find';
 
-const BENCHMARKS_ROOT = 'src/test/resources/synthesis/all-benchmarks';
+const BENCHMARKS_ROOT = 'src/test/resources/synthesis/all-benchmarks',
+      TUTORIAL_ROOT = 'src/test/resources/synthesis/tutorial';
 
 function main() {
-    var dir = BENCHMARKS_ROOT,
+    var physical = TUTORIAL_ROOT, logical = 'tutorial',
         collection = {};
 
     function bucket(k) {
@@ -16,10 +17,10 @@ function main() {
         return v;
     }
 
-    find.eachfile(/\.(syn|def)$/, dir, fn => {
-        var rel = path.relative(dir, fn),
+    find.eachfile(/\.(sus|syn|def)$/, physical, fn => {
+        var rel = path.join(logical, path.relative(physical, fn)),
             reldir = path.dirname(rel), base = path.basename(rel);
-        console.log(reldir, base);
+        console.log(reldir, '/', base);
         bucket(reldir)[base] = fs.readFileSync(fn, 'utf-8');
     }).end(() => {
         fs.writeFileSync('dist/benchmarks.db.json', JSON.stringify(collection));

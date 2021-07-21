@@ -13,23 +13,24 @@ class ProofInteraction extends EventEmitter {
     ws: WebSocket
 
     pt: ProofTrace
-    view: Vue & View.Props
+    view: View.Props
 
     _actionHook = new VueEventHook('interaction:action')
 
     defaultMode = ProofInteraction.Data.ProofMode.INTERACTIVE
 
-    constructor(pt: ProofTrace) {
+    constructor(pt: ProofTrace, pane: Vue) {
         super();
         this.wsURL = this._wsURL();
         this.pt = pt;
         this.view = <any>pt.view;
         this.view.interaction = {focused: [], choices: undefined};
-        this._actionHook.attach(this.view, action => this.handleAction(action));
+        this._actionHook.attach(pane, action => this.handleAction(action));
     }
 
     destroy() {
         this._actionHook.detach();
+        this.ws?.close();
     }
 
     async start(spec?: Data.Spec, mode?: Data.ProofMode) {
@@ -39,6 +40,7 @@ class ProofInteraction extends EventEmitter {
             this.ws.addEventListener('open', resolve);
             this.ws.addEventListener('error', reject)
         });
+        this.ws.addEventListener('error', err => this.emit('error', err));
         if (spec) this.sendSpec(spec, mode);
     }
 
@@ -55,6 +57,10 @@ class ProofInteraction extends EventEmitter {
     }
 
     _send(json: any, $type?: string) {
+        if (this.ws.readyState !== WebSocket.OPEN) {
+            this.emit('error', {message: 'disconnected from server'});
+            return;
+        }
         this.ws.send(JSON.stringify($type ? {$type, ...json} : json))
     }
     

@@ -21,9 +21,25 @@
 </template>
 
 <script>
+import _ from 'lodash';
 import arreq from 'array-equal';
 
 import ProofTraceNode from './proof-trace-node.vue';
+
+
+const COALESCE_INTERVAL = 150; /* ms; for exposeq */
+
+var exposeq = { /** @oops this is global */
+    boxes: [],
+    push(box) { this.boxes.push(box); return this.union(); },
+    debounceFlush: _.debounce(() => exposeq.boxes = [], COALESCE_INTERVAL),
+    union() {
+        var bx = this.boxes;
+        var left = Math.min(...bx.map(b => b.left)), right = Math.max(...bx.map(b => b.right)),
+            top = Math.min(...bx.map(b => b.top)), bottom = Math.max(...bx.map(b => b.bottom));
+        return DOMRect.fromRect({x: left, y: top, width: right - left, height: bottom - top});
+    }
+};
 
 
 export default {
@@ -32,10 +48,9 @@ export default {
     data: () => ({statusClass: undefined}),
     mounted() {
         this.$watch('root.expanded', () => {
-            requestAnimationFrame(() => {
-                if (this.root.focus && this.$refs.subtrees)
-                    this.focusElement(this.$refs.subtrees);
-            });
+            if (this.root?.focus && this.$refs.subtrees)
+                requestAnimationFrame(() =>
+                    this.focusElement(this.$refs.subtrees));
         });
         if (this.$refs.nroot)
             this.statusClass = this.$refs.nroot.statusClass;
@@ -51,17 +66,19 @@ export default {
         },
         expandAll() { this.action({type: 'expandAll', target: this.root})},
         focusElement(el) {
-            var box = el.getBoundingClientRect(), clrse = 50,
-                viewport = window.visualViewport,
-                v = (box.bottom + clrse) - viewport.height,
-                hl = box.left - clrse - viewport.width * 0.33,
-                hr = (box.right + clrse) - viewport.width,
+            var pane = el.closest('.ide-pane') || document.body,
+                box = exposeq.push(el.getBoundingClientRect()), clrse = 50,
+                viewport = pane.getBoundingClientRect(), //window.visualViewport,
+                v = (box.bottom - viewport.top + clrse) - viewport.height,
+                hl = box.left - viewport.left - clrse /*- viewport.width * 0.33*/,
+                hr = (box.right - viewport.left + clrse) - viewport.width,
                 h = Math.min(hl, hr);
-            window.scrollBy({left: Math.max(h, 0), top: Math.max(v, 0), behavior: 'smooth'});
+            pane.scrollBy({left: Math.max(h, 0), top: Math.max(v, 0), behavior: 'smooth'});
+            exposeq.debounceFlush();
         },
         getHigh(id) {
             return Object.entries(this.highlight || {})
-                .map(([k, v]) => v.some(x => arreq(x, id)) ? k : undefined)
+                .map(([k, v]) => v?.some(x => arreq(x, id)) ? k : undefined)
                 .filter(x => x);
         }
     },

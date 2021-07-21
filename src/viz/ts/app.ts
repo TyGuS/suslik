@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import _ from 'lodash';
 import $ from 'jquery';
 import Vue from 'vue';
 
@@ -12,28 +13,101 @@ import './ide.css';
 
 
 
-class MainDocument extends EventEmitter {
+class SuSLikApp extends EventEmitter {
+    view: Vue
+    notifications: JQuery
 
-    app: Vue
+    doc: MainDocument
+    docsById = new Map<string, MainDocument>()
+
+    panes: {proofTrace: any, benchmarks: any, editors: any}
+
+    constructor(notifications: JQuery) {
+        super();
+        this.notifications = notifications;
+        this.view = new Vue(app).$mount();
+        this.panes = <any>this.view.$refs;  /* I like the sound they make when they break */
+
+        this.panes.proofTrace.$on('action', ev => {
+            this.emit('proofTrace:action', ev);
+        });
+        this.panes.benchmarks.$on('action', ev => {
+            this.emit('benchmarks:action', ev);
+        });
+    }
+
+    get $el() { return this.view.$el; }
+
+    get options() {
+        return this.panes.proofTrace.options;
+    }
+
+    add(doc: MainDocument) {
+        this.docsById.get(doc.id)?.close();
+        this.docsById.set(doc.id, doc);
+        this.doc = doc;
+        doc.on('error', err => this.message(err.message));
+        this.switchTo(doc.id);
+    }
+
+    has(docId: string) {
+        return this.docsById.has(docId);
+    }
+
+    switchTo(docId: string) {
+        this.panes.proofTrace.activeTrace = docId;
+    }
+
+    clear() {
+        for (let doc of this.docsById.values()) doc.close();
+        this.docsById.clear();
+        this.doc = undefined;
+    }
+
+    setBenchmarks(bmData: BenchmarksDB.Data) {
+        var bm = this.panes.benchmarks;
+        bm.data = bmData;
+    }
+
+    hideBenchmarks() {
+        /** @todo */
+    }
+
+    setEditorText(text: string) {
+        this.panes.editors.open(text);
+    }
+
+    getEditorText() {
+        return this.panes.editors.current();
+    }
+
+    message(msg: string) {
+        var div = $('<div>').text(msg);
+        this.notifications.append(div);
+        setTimeout(() => div.remove(), 4000);
+    }
+}
+
+
+class MainDocument extends EventEmitter {
+    id: string
+    pane: Vue & ProofTrace.View.PaneProps
+    options: DocumentOptions
+
     pt: ProofTrace
     pi: ProofInteraction
-    notifications: JQuery
 
     props: any
 
     storage: {'suslik:doc:lastUrl'?: string} = <any>localStorage;
 
-    constructor(container: JQuery, notifications: JQuery) {
+    constructor(id: string, pane: Vue & ProofTrace.View.PaneProps,
+                options: DocumentOptions = {}) {
         super();
-        this.app = new Vue(app).$mount();
-        this.notifications = notifications;
-
-        (<Vue>this.app.$refs.benchmarks).$on('action', ev => {
-            this.emit('benchmarks:action', ev);
-        });
+        this.id = id;
+        this.pane = pane;
+        this.options = options;
     }
-
-    get $el() { return this.app.$el; }
 
     new() {
         return this.setProofTrace(ProofTrace.Data.empty());
@@ -50,7 +124,7 @@ class MainDocument extends EventEmitter {
             catch (e) {
                 if (!opts.silent) {
                     var msg = (e instanceof SyntaxError) ? 'JSON format error' : 'read error';
-                    this.message(`Cannot open '${opts.name}': ${msg}`);
+                    this.emit('error', {message: `Cannot open '${opts.name}': ${msg}`});
                 }
             }
         }
@@ -64,15 +138,15 @@ class MainDocument extends EventEmitter {
     }
 
     openRecent(opts?: OpenOptions) {
-        return this.openUrl(this.storage['suslik:doc:lastUrl'] || DEFAULT_URL, opts);
+        return this.openUrl(this.storage['suslik:doc:lastUrl'] || MainDocument.DEFAULT_URL, opts);
     }
 
     setProofTrace(ptData: ProofTrace.Data) {
         this.pt?.destroy();
         this.pi?.destroy();
 
-        var pt = new ProofTrace(ptData, this.app.$refs.proofTrace as any),
-            pi = new ProofInteraction(pt);
+        var pt = new ProofTrace(this.id, ptData, this.pane),
+            pi = new ProofInteraction(pt, this.pane);
         this.pt = pt;
         this.pi = pi;
         pt.on('expand', (nodeView: ProofTrace.View.Node) => {
@@ -82,41 +156,39 @@ class MainDocument extends EventEmitter {
                 if (this.pi) this.pi.sendExpandRequest(nodeView.value.id);
             }
         });
-        pi.on('trace', u =>
-            this.pt.append(ProofTrace.Data.fromEntries([u])));
+
+        pi.on('trace', throttleCollate((values: [any][]) => {
+            this.pt.append(ProofTrace.Data.fromEntries(values.map(x => x[0])),
+                           {expand: this.options.expandImmediately});
+        }, this.options.throttle));
+        pi.on('error', err =>
+            this.emit('error', {message: `oops: ${err.message}`}));
 
         this.emit('open', pt);
         return pt;
-    }
-
-    setBenchmarks(bmData: BenchmarksDB.Data) {
-        var bm = <any>this.app.$refs.benchmarks;
-        bm.data = bmData;
-        bm.show = true;
-    }
-
-    hideBenchmarks() {
-        var bm = <any>this.app.$refs.benchmarks;
-        //bm.show = false;
-    }
-
-    setEditorText(text: string) {
-        (<any>this.app.$refs.editors).open(text);
     }
 
     async read(file: File) {
         return new TextDecoder().decode(await file.arrayBuffer());
     }
 
-    message(msg: string) {
-        var div = $('<div>').text(msg);
-        this.notifications.append(div);
-        setTimeout(() => div.remove(), 4000);
+    close() {
+        this.pt?.destroy();
+        this.pi?.destroy();
     }
 }
 
-type OpenOptions = {name?: string, silent?: boolean};
-const DEFAULT_URL = '/trace.json';
+namespace MainDocument {
+    export type Options = {
+        throttle?: number           /* min delay between trace updates */
+        expandImmediately?: true    /* whether to expand nodes as soon as they are received */
+    };
+    export type OpenOptions = {name?: string, silent?: boolean};
+    export const DEFAULT_URL = '/trace.json';
+}
+
+import DocumentOptions = MainDocument.Options;
+import OpenOptions = MainDocument.OpenOptions;
 
 
 class DragDropJson extends EventEmitter {
@@ -141,5 +213,16 @@ class DragDropJson extends EventEmitter {
 }
 
 
+/**
+ * Service routine; throttle call then invoke with accumulated
+ * lists of args.
+ */
+function throttleCollate<T extends any[]>(func: (c: T[]) => void, wait?: number) {
+    var queue = [],
+        tflush = _.throttle(() => { func(queue); queue = []; }, wait);
+    return (...args: any[]) => { queue.push(args); tflush(); };
+}
 
-export { MainDocument, OpenOptions, DragDropJson }
+
+
+export { SuSLikApp, MainDocument, OpenOptions, DragDropJson }

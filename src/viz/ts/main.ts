@@ -1,8 +1,9 @@
 import $ from 'jquery';
-import { MainDocument, DragDropJson } from './app';
-import { ProofTrace } from './proof-trace';
+import { SuSLikApp, MainDocument, DragDropJson } from './app';
 import { ProofInteraction } from './proof-interaction';
 import { BenchmarksDB } from './benchmarks';
+
+import ProofMode = ProofInteraction.Data.ProofMode;
 
 
 
@@ -20,24 +21,64 @@ if (typeof nw !== 'undefined') {
 
 
 $(async () => {
-    var doc = new MainDocument($('#proof-trace-pane'), $('#notifications'));
-    doc.on('open', pt => Object.assign(window, {pt}));
+    var app = new SuSLikApp($('#notifications'));
 
-    document.querySelector('#document-area').replaceWith(doc.$el);
+    document.querySelector('#document-area').replaceWith(app.$el);
 
     const bench = await BenchmarksDB.load();
-    doc.setBenchmarks(bench.data);
+    app.setBenchmarks(bench.data);
 
-    async function startBenchmark(w: {dir: string, fn: string}) {
-        var spec = bench.getSpec(w.dir, w.fn);
-        doc.hideBenchmarks();
+    var activeBenchmark: BenchmarksDB.Data.Spec = undefined;
+
+    async function startBenchmark(w: {dir: string, fn: string}, mode: ProofMode = ProofMode.INTERACTIVE) {
+        var spec = bench.getSpec(w.dir, w.fn),
+            doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
+                                   OPTIONS[mode]);
+        app.hideBenchmarks();
+        app.clear();
+        app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
+        app.add(doc);
         doc.new();
-        doc.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
-        await doc.pi.start(spec);
-        Object.assign(window, {spec});
+        activeBenchmark = spec;
+        await doc.pi.start(spec, mode);
     }
 
-    doc.on('benchmarks:action', startBenchmark);
+    /** @todo Pretty hideous duplication do refactor please */
+    async function restartBenchmark(mode: ProofMode = ProofMode.INTERACTIVE) {
+        var spec = BenchmarksDB.Data.parseSpec(activeBenchmark.name, app.getEditorText()),
+            doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
+                                   OPTIONS[mode]);
+        app.add(doc);
+        doc.new();
+        spec.spec.config = activeBenchmark.spec.config;
+        await doc.pi.start(spec, mode);
+    }
+
+    async function switchMode(mode: ProofMode) {
+        var docId = `benchmark-0-${mode}`;
+        if (app.has(docId))
+            app.switchTo(docId);
+        else
+            restartBenchmark(mode);
+    }
+
+    function proofMode() {
+        return app.options.auto ? ProofMode.AUTOMATIC : ProofMode.INTERACTIVE;
+    }
+
+    app.view.$watch(proofMode, switchMode);  /* neat ;) */
+
+    const OPTIONS: {[mode: string]: MainDocument.Options} = {
+        [ProofMode.AUTOMATIC]: {throttle: 750},
+        [ProofMode.INTERACTIVE]: {expandImmediately: true}
+    };
+
+    app.on('benchmarks:action', w => startBenchmark(w, proofMode()));
+    app.on('proofTrace:action', (action) => {
+        switch (action.type) {
+            case 'restart': restartBenchmark(proofMode()); break;
+        }
+    });
 
     /*
     try {
@@ -45,12 +86,13 @@ $(async () => {
     }
     catch (e) { console.error('open failed:', e); }
     */
-    doc.new();
 
     var drop = new DragDropJson($('html'));
     drop.on('open', async ({file}) => {
         try {
+            var doc = new MainDocument('json-0', app.panes.proofTrace)
             await doc.open(file);
+            app.add(doc);
         }
         catch (e) { console.error('open failed:', e); }
     });
@@ -61,5 +103,5 @@ $(async () => {
         startBenchmark(JSON.parse(openOnStart));
     }
 
-    Object.assign(window, {doc, bench});
+    Object.assign(window, {app, bench});
 });
