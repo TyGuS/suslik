@@ -206,7 +206,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
        if (goal.post.sigma.isEmp) goal.existentials else goal.existentials.intersect(goal.post.sigma.vars)
 
       def uniCandidates(ex: Var): Set[Var] = {
-        if (goal.post.sigma.isEmp) goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)
+        if (!goal.isProgramLevelExistential(ex) && goal.post.sigma.isEmp) goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)
         else goal.programVars.toSet
 //        goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)
       }
