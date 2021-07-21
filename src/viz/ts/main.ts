@@ -1,5 +1,4 @@
 import $ from 'jquery';
-import Vue from 'vue';
 import { SuSLikApp, MainDocument, DragDropJson } from './app';
 import { ProofInteraction } from './proof-interaction';
 import { BenchmarksDB } from './benchmarks';
@@ -29,6 +28,8 @@ $(async () => {
     const bench = await BenchmarksDB.load();
     app.setBenchmarks(bench.data);
 
+    var activeBenchmark: BenchmarksDB.Data.Spec = undefined;
+
     async function startBenchmark(w: {dir: string, fn: string}, mode: ProofMode = ProofMode.INTERACTIVE) {
         var spec = bench.getSpec(w.dir, w.fn),
             doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
@@ -38,16 +39,18 @@ $(async () => {
         app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         app.add(doc);
         doc.new();
+        activeBenchmark = spec;
         await doc.pi.start(spec, mode);
     }
 
     /** @todo Pretty hideous duplication do refactor please */
     async function restartBenchmark(mode: ProofMode = ProofMode.INTERACTIVE) {
-        var spec = BenchmarksDB.Data.parseSpec('todo', app.getEditorText()),
+        var spec = BenchmarksDB.Data.parseSpec(activeBenchmark.name, app.getEditorText()),
             doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
                                    OPTIONS[mode]);
         app.add(doc);
         doc.new();
+        spec.spec.config = activeBenchmark.spec.config;
         await doc.pi.start(spec, mode);
     }
 

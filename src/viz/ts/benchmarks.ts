@@ -10,8 +10,10 @@ class BenchmarksDB {
     getSpec(dir: string, fn: string): BenchmarksDB.Data.Spec {
         return {
             name: `${dir}:${fn}`, 
-            defs: this.getDefs(dir),
-            ...this.getInputSpec(dir, fn)
+            spec: {
+                defs: this.getDefs(dir),
+                ...this.getInputSpec(dir, fn)
+            }
         };
     }
 
@@ -22,7 +24,14 @@ class BenchmarksDB {
 
     getInputSpec(dir: string, fn: string) {
         var prog = this.data[dir][fn];
-        return BenchmarksDB.Data.parseInputSpec(prog);
+        return {...BenchmarksDB.Data.parseInputSpec(prog),
+                config: {inputFormat: this.getFormat(fn)}};
+    }
+
+    getFormat(fn: string): [string] {
+        return fn.endsWith('.syn') ? ['syn'] :
+               fn.endsWith('.sus') ? ['sus'] :
+               undefined;
     }
 
     static async load(url = './benchmarks.db.json') {
@@ -36,13 +45,20 @@ namespace BenchmarksDB {
     export namespace Data {
         export type Spec = {
             name?: string
-            defs: string[]
-            in: string
+            spec: {
+                defs: string[]
+                in: string
+                config?: SpecConfig
+            }
             params?: string[]
         }
 
+        export type SpecConfig = {
+            inputFormat?: [string]  /* contained in an array to serialize as Option[String] in Scala */
+        }
+
         export function parseSpec(name: string, text: string): Spec {
-            return {name, defs: [], ...parseInputSpec(text)};
+            return {name, spec: {defs: [], ...parseInputSpec(text)}};
         }
 
         export function parseInputSpec(text: string) {
@@ -55,7 +71,7 @@ namespace BenchmarksDB {
 
         export function unparseSpec(spec: Spec) {
             var params = spec.params ? [`# ${spec.params.join(' ')}`] : [];
-            return [...params, ...spec.defs, spec.in].join('\n');
+            return [...params, ...spec.spec.defs, spec.spec.in].join('\n');
         }
     }
 }

@@ -12,17 +12,16 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
-import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import org.tygus.suslik.interaction.AsyncSynthesisRunner.ChooseMessage
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import org.tygus.suslik.language.Statements
-import org.tygus.suslik.logic.{Environment, FunSpec, Specifications}
+import org.tygus.suslik.logic.{Environment, Specifications}
 import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson}
 import org.tygus.suslik.report.ProofTraceJson.GoalEntry
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, NodeId, OrNode}
 import org.tygus.suslik.synthesis.Termination.isTerminatingExpansion
 import org.tygus.suslik.synthesis.rules.Rules
 import org.tygus.suslik.synthesis.tactics._
-import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisRunner, SynthesisRunnerUtil}
+import org.tygus.suslik.synthesis.{InputFormat, SynConfig, Synthesis, SynthesisRunner, SynthesisRunnerUtil}
 import org.tygus.suslik.util.SynStats
 
 import scala.collection.mutable
@@ -141,7 +140,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     * @return a configured `Synthesis` instance
     */
   override def createSynthesizer(env: Environment): Synthesis = {
-    val tactic =
+    val tactic =  /** @todo this is defunct */
       new PhasedSynthesis(env.config) {
         override def filterExpansions(allExpansions: Seq[Rules.RuleResult]): Seq[Rules.RuleResult] = {
           allExpansions.find(_.subgoals.isEmpty) match {
@@ -157,8 +156,8 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     val stats = new SynStats(2500)
     val config = SynConfig()
     isynth = new IterativeUnorderedSynthesis(new AutomaticSimple(env.config), log, trace)(stats, config)
-    new Synthesis(new AutomaticSimple(env.config), log, trace)
-    //isynth
+    //new Synthesis(new AutomaticSimple(env.config), log, trace)
+    isynth
   }
 
   /**
@@ -181,10 +180,22 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     synthesizeFromSpec(spec.name, textFromSpec(spec),
                        noOutputCheck, configFromSpec(spec))
 
-  def textFromSpec(spec: SpecMessage): String = (spec.defs :+ spec.in).mkString("\n")
+  def textFromSpec(spec: SpecMessage): String = (spec.spec.defs :+ spec.spec.in).mkString("\n")
 
-  def configFromSpec(spec: SpecMessage): SynConfig =
-    SynthesisRunner.parseParams("." +: spec.params.toArray, config)
+  def configFromSpec(spec: SpecMessage): SynConfig = {
+    val configOptions = spec.spec.config.inputFormat.toSeq map { fmt =>
+      (c: SynConfig) => c.copy(inputFormat = parseInputFormatSpecifier(fmt))
+    }
+    val startConfig = configOptions.foldLeft(config)((c, f) => f(c))
+    SynthesisRunner.parseParams("." +: spec.params.toArray, startConfig)
+  }
+
+  import org.tygus.suslik.synthesis.{dotSyn, dotSus}
+
+  def parseInputFormatSpecifier(fmt: String): InputFormat = fmt match {
+    case "syn" => dotSyn; case "sus" => dotSus;
+    case _ => throw new RuntimeException(s"unrecognized input format '${fmt}")
+  }
 
   def grow(id: NodeId): Unit =
     cached.get(id) match {
@@ -290,11 +301,22 @@ object AsyncSynthesisRunner {
   sealed abstract class ClientMessage(val tag: String)
   object ClientMessage { implicit val rw: RW[ClientMessage] = macroRW }
 
-  case class SpecMessage(mode: String = "automatic",
-                         name: String, defs: Seq[String], in: String,
+  case class SpecMessage(mode: String = "automatic", name: String,
+                         spec: SpecEntry,
                          params: Seq[String] = Seq()) extends ClientMessage("Spec")
   object SpecMessage {
     implicit val rw: RW[SpecMessage] = macroRW
+  }
+
+  case class SpecEntry(defs: Seq[String], in: String,
+                       config: SpecConfigEntry = SpecConfigEntry())
+  object SpecEntry {
+    implicit val rw: RW[SpecEntry] = macroRW
+  }
+
+  case class SpecConfigEntry(inputFormat: Option[String] = None)
+  object SpecConfigEntry {
+    implicit val rw: RW[SpecConfigEntry] = macroRW
   }
 
   case class ExpandRequestMessage(id: NodeId) extends ClientMessage("ExpandRequest")
@@ -328,7 +350,7 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
   def offer: Sink[String, Future[Done]] =
     Sink.foreachAsync[String](1) { s => Future { wrapError {
       read[ClientMessage](s) match {
-        case sp@SpecMessage(mode, _, _, _, _) => mode match {
+        case sp@SpecMessage(mode, _, _, _) => mode match {
           case "automatic" => goAutomatic(sp)
           case "interactive" => goInteractive(sp)
         }
