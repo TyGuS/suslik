@@ -24,10 +24,8 @@ abstract class SimpleSynthesis (config: SynConfig) extends Tactic {
       FailRules.PostInconsistent,
       LogicalRules.FrameSimple,
       UnificationRules.HeapUnifySimple,
-      UnificationRules.HeapUnifyPointer,
-      UnificationRules.PickArg,
-      UnificationRules.PickCard,
-      OperationalRules.WriteRule,
+      UnificationRules.UnifyPointerSimple,
+      OperationalRules.WriteSimple,
       UnificationRules.Pick)
   }
 
@@ -44,11 +42,10 @@ abstract class SimpleSynthesis (config: SynConfig) extends Tactic {
     UnfoldingRules.Close,
     LogicalRules.FrameSimple,
     UnificationRules.HeapUnifySimple,
-    UnificationRules.HeapUnifyPointer,
+    UnificationRules.UnifyPointerSimple,
     OperationalRules.FreeRule,
     OperationalRules.AllocRule,
-    UnificationRules.PickCard,
-    OperationalRules.WriteRule,
+    OperationalRules.WriteSimple,
     UnificationRules.Pick
  )
 

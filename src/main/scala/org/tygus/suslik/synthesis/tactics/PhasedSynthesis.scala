@@ -110,7 +110,7 @@ abstract class PhasedSynthesis(config: SynConfig) extends Tactic {
       else if (goal.hasExistentialPointers)
         List(LogicalRules.FrameFlat,
 //          OperationalRules.WriteRule,
-          UnificationRules.HeapUnifyPointer)
+          UnificationRules.UnifyPointerFlat)
       else
         List(UnfoldingRules.CallRule,
           UnificationRules.SubstRight,
@@ -144,7 +144,7 @@ abstract class PhasedSynthesis(config: SynConfig) extends Tactic {
 //    UnificationRules.SubstRight,
     FailRules.HeapUnreachable,
     LogicalRules.FrameFlat,
-    UnificationRules.HeapUnifyPointer,
+    UnificationRules.UnifyPointerFlat,
   )
 
   protected def purePhaseRules: List[SynthesisRule] = {
