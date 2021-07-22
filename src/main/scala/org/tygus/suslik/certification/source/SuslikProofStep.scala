@@ -356,7 +356,7 @@ case class AbduceCall(
           }
         case _ => fail_with_bad_proof_structure()
       }
-      case UnificationRules.HeapUnifyPointer => node.kont match {
+      case UnificationRules.UnifyPointerFlat => node.kont match {
         case SubstVarProducer(from, to) >> IdProducer >> ExtractHelper(goal) =>
           node.children match {
             case ::(head, Nil) => SuslikProofStep.HeapUnifyPointer(from, to)
