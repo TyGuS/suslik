@@ -136,6 +136,10 @@
     background: #eee;
 }
 
+.proof-trace-formula span.null-cardinality {
+    display: none;
+}
+
 .proof-trace:not(:last-child) {
     border-top: 1px solid #aaa;
     margin-right: 0;
