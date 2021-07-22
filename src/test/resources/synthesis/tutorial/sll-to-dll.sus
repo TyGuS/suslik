@@ -13,9 +13,9 @@ predicate dll(loc x, loc y, set s) {
 
 
 
-// void to_dll (loc x, loc prev)
-// { sll(x, s) }
-// { dll(x, prev, s) }
+//void to_dll (loc x, loc prev)
+//{ sll(x, s) }
+//{ dll(x, prev, s) }
 void to_dll (loc x)
 { sll(x, s) }
 { dll(x, 0, s) }

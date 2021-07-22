@@ -180,7 +180,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
           andNode = AndNode(i +: node.id, node, e)
-          if isTerminatingExpansion(andNode) // termination check
+          if config.simple || isTerminatingExpansion(andNode) // termination check (disabled in simple mode)
           () = trace.add(andNode, andNode.nChildren)
         } yield {
           andNode.nextChild // take the first goal from each new and-node; the first goal always exists

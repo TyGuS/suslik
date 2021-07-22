@@ -105,7 +105,7 @@ trait SynthesisRunnerUtil {
   }
 
   def prepareSynthesisTask(text: String, params: SynConfig = defaultConfig) = {
-    val parser = new SSLParser
+    val parser = new SSLParser(params)
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
       case `dotSus` => parser.parseGoalSUS(text)

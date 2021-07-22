@@ -17,11 +17,10 @@ object Preprocessor extends SepLogicUtils {
     val Program(preds, funs, goal) = prog
     val funMap = funs.map(fs => fs.name -> fs).toMap
 
-    // [Cardinality] Instrument predicates with missing cardinality constraints
-    // val newPreds = preds
+    // [Cardinality] Instrument predicates with missing cardinality constraints, unless in simple mode
+    val newPreds = if (params.simple) preds
+                   else preds.map(p => p.copy(clauses = p.clauses.map(addCardConstraints)))
 
-    // Enable predicate instrumentation
-    val newPreds = preds.map(p => p.copy(clauses = p.clauses.map(addCardConstraints)))
     val predMap = newPreds.map(ps => ps.name -> ps).toMap
     (List(goal.spec), predMap, funMap, goal.body)
   }

@@ -17,7 +17,7 @@ import org.tygus.suslik.util.SynStats
 class OverloadedOperatorsTests extends FunSpec with Matchers with SynthesisRunnerUtil {
 
   def resolveFromSpec(testName: String, text: String, out: String = "nope", params: SynConfig = defaultConfig): Specifications.Goal = {
-    val parser = new SSLParser
+    val parser = new SSLParser(params)
     val res = parser.parseGoal(text)
     if (!res.successful) {
       throw SynthesisException(s"Failed to parse the input:\n$res")
