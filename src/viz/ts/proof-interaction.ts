@@ -13,7 +13,7 @@ class ProofInteraction extends EventEmitter {
     ws: WebSocket
 
     pt: ProofTrace
-    view: View.Props
+    view: View.State
 
     _actionHook = new VueEventHook('interaction:action')
 
@@ -23,8 +23,8 @@ class ProofInteraction extends EventEmitter {
         super();
         this.wsURL = this._wsURL();
         this.pt = pt;
-        this.view = <any>pt.view;
-        this.view.interaction = {focused: [], choices: undefined};
+        this.view = (<any>pane).interaction = {focused: [], choices: undefined, result: undefined} //<any>pt.view;
+        //this.view.interaction = {focused: [], choices: undefined, result: undefined};
         this._actionHook.attach(pane, action => this.handleAction(action));
     }
 
@@ -73,11 +73,14 @@ class ProofInteraction extends EventEmitter {
         this.emit('message', msg);
 
         if (Array.isArray(msg)) {
-            this.view.interaction.focused = this.getNodesForChoices(msg);
-            this.view.interaction.choices = msg;
+            this.view.focused = this.getNodesForChoices(msg);
+            this.view.choices = msg;
             this.emit('choose', msg);
         }
-        else if (msg.procs) this.emit('done', msg);
+        else if (msg.procs) {
+            this.view.result = msg;
+            this.emit('done', msg);
+        }
         else if (msg.error) this.emit('error', {message: msg.error});
         else this.emit('trace', msg);
     }
@@ -85,7 +88,7 @@ class ProofInteraction extends EventEmitter {
     handleAction(action: View.Action) {
         switch (action.type) {
         case 'select':
-            this.view.interaction.choices = undefined; // clear choices
+            this.view.choices = undefined; // clear choices
             this.sendChoose(action.goal.id);
             break;
         }
@@ -146,6 +149,7 @@ namespace ProofInteraction {
         export type State = {
             focused: ProofTrace.Data.NodeId[]
             choices: ProofTrace.Data.GoalEntry[]
+            result: {procs: {pp: string}[]}
         };
 
         export type Action = {

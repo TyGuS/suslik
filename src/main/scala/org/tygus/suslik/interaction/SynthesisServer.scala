@@ -168,7 +168,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     wrapError {
       try {
         val ret = super.synthesizeFromSpec(testName, text, out, params)
-        outbound.put(write(SynthesisResultEntry(ret.map(_.toString))))
+        outbound.put(write(SynthesisResultEntry(ret.map(x => SynthesizedProcedureEntry(x.pp)))))
         ret
       }
       catch {
@@ -286,9 +286,14 @@ object AsyncSynthesisRunner {
     implicit val rw: RW[ExpansionChoiceEntry] = macroRW
   }
 
-  case class SynthesisResultEntry(procs: Seq[String])
+  case class SynthesisResultEntry(procs: Seq[SynthesizedProcedureEntry])
   object SynthesisResultEntry {
     implicit val rw: RW[SynthesisResultEntry] = macroRW
+  }
+
+  case class SynthesizedProcedureEntry(pp: String)
+  object SynthesizedProcedureEntry {
+    implicit val rw: RW[SynthesizedProcedureEntry] = macroRW
   }
 
   case class SynthesisErrorEntry(error: String)
