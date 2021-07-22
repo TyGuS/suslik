@@ -34,11 +34,11 @@ $(async () => {
         var spec = bench.getSpec(w.dir, w.fn),
             doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
                                    OPTIONS[mode]);
+        doc.new();
         app.hideBenchmarks();
         app.clear();
         app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         app.add(doc);
-        doc.new();
         activeBenchmark = spec;
         await doc.pi.start(spec, mode);
     }
@@ -48,8 +48,8 @@ $(async () => {
         var spec = BenchmarksDB.Data.parseSpec(activeBenchmark.name, app.getEditorText()),
             doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
                                    OPTIONS[mode]);
-        app.add(doc);
         doc.new();
+        app.add(doc);
         spec.spec.config = activeBenchmark.spec.config;
         await doc.pi.start(spec, mode);
     }

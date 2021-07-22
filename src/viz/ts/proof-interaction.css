@@ -10,3 +10,9 @@
 .proof-trace .proof-trace-highlight-interact-focus {
     outline: 3px solid violet;
 }
+
+.proof-interaction-result div.procedure {
+    font-family: Courier, Consolas, 'Courier New', monospace;
+    font-size: 10pt;
+    white-space: pre;
+}

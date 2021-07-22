@@ -16,9 +16,9 @@
                 </div>
             </template>
         </div>
-        <!--
         <proof-interaction :choices="interaction && interaction.choices"
-            @action="$emit('interaction:action', $event)"/> -->
+            :result="interaction && interaction.result"
+            @action="$emit('interaction:action', $event)"/>
     </div>
 </template>
 
