@@ -457,9 +457,10 @@ namespace ProofTrace {
                     return {kind: 'whitespace', text: s};
                 else if (s.match(/^[(){}[\]]$/))
                     return {kind: 'brace', text: s};
-                else if (mo = s.match(/^<(\w+)>$/)) {
+                else if (s === '<0>')
+                    return {kind: 'null-cardinality', text: '<??>'}
+                else if (mo = s.match(/^<(\w+)>$/))
                     return {kind: 'cardinality', text: s, pp: pprintIdentifier(mo[1])};
-                }
                 else if (s != '')
                     return {kind: 'unknown', text: s};
             })
@@ -477,12 +478,6 @@ namespace ProofTrace {
 import Data = ProofTrace.Data;
 import View = ProofTrace.View;
 
-export { ProofTrace }  /** @todo Kremlin bug? */
-
-
-// @ts-ignore
-import ProofTracePane from '../vue/proof-trace-pane.vue';
-
 
 abstract class KeyedMap<K, V, K0> {
     _map: Map<K0, V> = new Map();
@@ -498,3 +493,7 @@ abstract class KeyedMap<K, V, K0> {
 class JSONMap<K, V> extends KeyedMap<K, V, string> {
     key(k: K) { return JSON.stringify(k); }
 }
+
+
+
+export { ProofTrace }
