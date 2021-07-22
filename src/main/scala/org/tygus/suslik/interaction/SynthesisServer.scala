@@ -109,7 +109,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   val cached = new collection.mutable.HashMap[NodeId, OrNode]()
   val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  val config: SynConfig = SynConfig()
+  val config: SynConfig = SynConfig(timeOut = 15000)
   protected var isynth: IterativeUnorderedSynthesis = null
 
   protected val trace: ProofTraceJson = new ProofTraceJson {
@@ -140,7 +140,13 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     * @return a configured `Synthesis` instance
     */
   override def createSynthesizer(env: Environment): Synthesis = {
-    val tactic =  /** @todo this is defunct */
+    val tactic =
+      if (env.config.simple)
+        new AutomaticSimple(env.config)
+      else
+        new AutomaticPhased(env.config)
+      /** @todo this is defunct */
+      /*
       new PhasedSynthesis(env.config) {
         override def filterExpansions(allExpansions: Seq[Rules.RuleResult]): Seq[Rules.RuleResult] = {
           allExpansions.find(_.subgoals.isEmpty) match {
@@ -151,12 +157,9 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
               allExpansions.filter(_.subgoals.exists(goal => goal.label.pp.contains(choice)))
           }
         }
-      }
+      }*/
 
-    val stats = new SynStats(2500)
-    val config = SynConfig()
-    isynth = new IterativeUnorderedSynthesis(new AutomaticSimple(env.config), log, trace)(stats, config)
-    //new Synthesis(new AutomaticSimple(env.config), log, trace)
+    isynth = new IterativeUnorderedSynthesis(tactic, log, trace)(env.stats, env.config)
     isynth
   }
 

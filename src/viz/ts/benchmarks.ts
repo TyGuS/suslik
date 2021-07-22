@@ -58,7 +58,8 @@ namespace BenchmarksDB {
         }
 
         export function parseSpec(name: string, text: string): Spec {
-            return {name, spec: {defs: [], ...parseInputSpec(text)}};
+            var inputSpec = parseInputSpec(text);
+            return {name, spec: {defs: [], ...inputSpec}, params: inputSpec.params};
         }
 
         export function parseInputSpec(text: string) {
