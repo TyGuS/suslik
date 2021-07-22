@@ -109,7 +109,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   val cached = new collection.mutable.HashMap[NodeId, OrNode]()
   val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  val config: SynConfig = SynConfig(timeOut = 15000)
+  val config: SynConfig = SynConfig(timeOut = 15000, maxOpenDepth = 2, maxCloseDepth = 2)
   protected var isynth: IterativeUnorderedSynthesis = null
 
   protected val trace: ProofTraceJson = new ProofTraceJson {
