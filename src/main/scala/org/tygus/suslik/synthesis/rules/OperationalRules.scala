@@ -26,7 +26,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l' * Q} ---> *x.f := l' ; S
 
   */
-  object WriteRule extends SynthesisRule with GeneratesCode with InvertibleRule {
+  abstract class WriteAbstract extends SynthesisRule with GeneratesCode {
 
     override def toString: Ident = "Write"
 
@@ -62,6 +62,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
 
   }
+
+  object WriteRule extends WriteAbstract with InvertibleRule
+
+  object WriteSimple extends WriteAbstract
 
   /*
   Read rule: create a fresh typed read

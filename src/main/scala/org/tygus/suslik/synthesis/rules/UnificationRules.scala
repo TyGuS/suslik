@@ -103,7 +103,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   object HeapUnifyBlock extends HeapUnify with BlockPhase
 
-  object HeapUnifyPointer extends HeapUnify with FlatPhase with InvertibleRule {
+  object HeapUnifyPure extends HeapUnify with FlatPhase
+
+  abstract class UnifyPointer extends SynthesisRule {
     override def toString: String = "UnifyLHS"
 
     override def apply(goal: Goal): Seq[RuleResult] = {
@@ -140,7 +142,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     }
   }
 
-  object HeapUnifyPure extends HeapUnify with FlatPhase
+  object UnifyPointerFlat extends UnifyPointer with FlatPhase with InvertibleRule
+
+  object UnifyPointerSimple extends UnifyPointer with PhaseDisabled
 
   /*
     X ∈ GV(post) / GV (pre)
