@@ -66,7 +66,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
   protected def synthesize(goal: Goal)
                           (stats: SynStats): Option[Solution] = {
-    init(goal)
+    SearchTree.init(goal)
     processWorkList(stats, goal.env.config)
   }
 
