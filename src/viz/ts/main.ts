@@ -50,7 +50,8 @@ $(async () => {
         app.add(doc);
         adjustParams(spec, mode);
         activeBenchmark.spec = spec;
-        await doc.pi.start(spec, mode.proof);
+        if (mode.proof !== ProofMode.AUTOMATIC)  // `startBenchmark` is a misnomer at this point... :/
+            await doc.pi.start(spec, mode.proof);
     }
 
     /** @todo Pretty hideous duplication do refactor please */
@@ -64,6 +65,10 @@ $(async () => {
         adjustParams(spec, mode);
         spec.spec.config = activeBenchmark.spec.spec.config;
         await doc.pi.start(spec, mode.proof);
+    }
+
+    function stopBenchmark() {
+        app.doc.pi?.stop();
     }
 
     function makeDocId(name: string, mode: {proof: ProofMode, simple: boolean}) {
@@ -100,7 +105,9 @@ $(async () => {
     app.on('benchmarks:action', w => startBenchmark(w, currentMode()));
     app.on('proofTrace:action', (action) => {
         switch (action.type) {
+            case 'start':
             case 'restart': restartBenchmark(currentMode()); break;
+            case 'stop': stopBenchmark(); break;
         }
     });
 
@@ -125,7 +132,7 @@ $(async () => {
     var openOnStart = localStorage['openOnStart'];
     openOnStart = openOnStart ? JSON.parse(openOnStart) : DEFAULT_SCRATCH;
     if (openOnStart) {
-        startBenchmark(openOnStart);
+        startBenchmark(openOnStart, currentMode());
     }
 
     Object.assign(window, {app, bench});
