@@ -188,7 +188,7 @@ class ProofTrace extends EventEmitter {
                 this.expandNode(this.view.root.children[0]);
         }
 
-        Vue.set(pane.traces, this.id, this.view);
+        Vue.set(pane.docs, this.id, {trace: this.view});
         this._actionHook.attach(
             pane, (ev: View.ActionEvent) => this.viewAction(ev));
     }
@@ -294,6 +294,8 @@ class ProofTrace extends EventEmitter {
     }
 
     viewAction(ev: View.ActionEvent) {
+        if (ev.id !== this.id) return;
+
         switch (ev.type) {
         case 'expand':
             this.expandOrNode(ev.target, true); break;
@@ -421,7 +423,7 @@ namespace ProofTrace {
     // =========
     export namespace View {
         
-        export type PaneProps = {traces: {[id: string]: Props}};
+        export type PaneProps = {docs: {[id: string]: {trace: Props}}};
 
         export type Props = {root: View.Node};
 
@@ -436,6 +438,7 @@ namespace ProofTrace {
         };
 
         export type ActionEvent = {
+            id?: string /* document id */
             type: "expand" | "collapse" | "expandAll" | "menu"
                 | "copyNodeId" | "copyGoalId" | "copyGoal",
             target: Node

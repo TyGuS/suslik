@@ -7,23 +7,25 @@
         <app-toolbar :options="options" @action="toplevelAction($event)"/>
         <app-context-menu ref="contextMenu" @action="toplevelAction"/>
         <div ref="area">
-            <template v-for="(t,id) in traces">
-                <div class="proof-trace-pane-rendered" :key="id"
-                        :class="{active: id === activeTrace}"
-                        :style="{'--zoom': zoom/100}">
-                    <proof-trace :root="t.root" :highlight="jointHigh"
-                        @action="toplevelAction($event, id)"/>
+            <template v-for="(doc,id) in docs">
+                <div class="proof-trace-area" :key="id"
+                        :class="{active: id === activeTrace}">
+                    <div class="proof-trace-pane-rendered"
+                            :style="{'--zoom': zoom/100}">
+                        <proof-trace :root="doc.trace.root" :highlight="jointHigh"
+                            @action="toplevelAction($event, id)"/>
+                    </div>
+                    <proof-interaction :choices="doc.interaction && doc.interaction.choices"
+                        :result="doc.interaction && doc.interaction.result"
+                        @action="$emit('interaction:action', {id, ...$event})"/>
                 </div>
             </template>
         </div>
-        <proof-interaction :choices="interaction && interaction.choices"
-            :result="interaction && interaction.result"
-            @action="$emit('interaction:action', $event)"/>
     </div>
 </template>
 
 <style>
-.proof-trace-pane .proof-trace-pane-rendered:not(.active) {
+.proof-trace-pane .proof-trace-area:not(.active) {
     display: none;
 }
 </style>
@@ -36,10 +38,10 @@ import ProofInteraction from './proof-interaction.vue';
 
 
 export default {
-    data: () => ({traces: {}, options: {}, zoom: 100, pscroll: {x: 0, y: 0},
+    data: () => ({docs: {}, options: {}, zoom: 100, pscroll: {x: 0, y: 0},
                   activeTrace: undefined,
-                  /* these are defunct for now... */
-                  interaction: {}, highlight: {'special': [[]]}}),
+                  /* this is defunct for now... */
+                  highlight: {'special': [[]]}}),
     computed: {
         jointHigh() {
             return {'interact-focus': this.interaction?.focused, ...this.highlight};
