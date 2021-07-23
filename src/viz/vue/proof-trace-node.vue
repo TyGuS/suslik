@@ -19,6 +19,7 @@
         <div v-if="value.goal && value.goal.callGoal" ref="subordinate"
                 class="proof-trace-node-subordinate" :class="{show: !!showCall}"
                 :style="showCall">
+            <div class="title"><span class="goal-id">↖️{{value.goal.callGoal[0].id}}</span></div>
             <proof-trace-goal :value="value.goal.callGoal[0]"/>
         </div>
     </div>
@@ -32,7 +33,6 @@ div.proof-trace-node-subordinate {
     position: absolute;
     top: var(--top);
     left: var(--left);
-    background: #fffe;
 }
 div.proof-trace-node-subordinate:not(.show) {
     display: none;
