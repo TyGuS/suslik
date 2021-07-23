@@ -1,6 +1,6 @@
 <template>
     <label class="switch">
-        <input :value="value" @input="$emit('input', $event.target.checked)"
+        <input :checked="value" @input="$emit('input', $event.target.checked)"
             type="checkbox">
         <span class="slider round"></span>
     </label>

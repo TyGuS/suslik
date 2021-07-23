@@ -25,58 +25,89 @@ $(async () => {
 
     document.querySelector('#document-area').replaceWith(app.$el);
 
-    const bench = await BenchmarksDB.load();
+    const bench = await BenchmarksDB.load(),
+          DEFAULT_SCRATCH = {dir: 'scratchpath', fn: 'untitled-0.sus'}
+    bench.data[DEFAULT_SCRATCH.dir] = {
+        [DEFAULT_SCRATCH.fn]: '// write your own stuff here'
+    };
     app.setBenchmarks(bench.data);
 
-    var activeBenchmark: BenchmarksDB.Data.Spec = undefined;
+    var activeBenchmark: {name: string, spec: BenchmarksDB.Data.Spec} = {
+        name: 'benchmark-0', /** @todo */
+        spec: undefined
+    };
 
-    async function startBenchmark(w: {dir: string, fn: string}, mode: ProofMode = ProofMode.INTERACTIVE) {
+    async function startBenchmark(w: {dir: string, fn: string}, mode: {proof: ProofMode, simple: boolean} = {proof: ProofMode.INTERACTIVE, simple: false}) {
         var spec = bench.getSpec(w.dir, w.fn),
-            doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
-                                   OPTIONS[mode]);
+            docId = makeDocId(activeBenchmark.name, mode),
+            doc = new MainDocument(docId, app.panes.proofTrace,
+                                   OPTIONS[mode.proof]);
         doc.new();
-        app.hideBenchmarks();
+        //app.hideBenchmarks();
+        app.setActiveBenchmark({path: w});
         app.clear();
         app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         app.add(doc);
-        activeBenchmark = spec;
-        await doc.pi.start(spec, mode);
+        adjustParams(spec, mode);
+        activeBenchmark.spec = spec;
+        if (mode.proof !== ProofMode.AUTOMATIC)  // `startBenchmark` is a misnomer at this point... :/
+            await doc.pi.start(spec, mode.proof);
     }
 
     /** @todo Pretty hideous duplication do refactor please */
-    async function restartBenchmark(mode: ProofMode = ProofMode.INTERACTIVE) {
+    async function restartBenchmark(mode: {proof: ProofMode, simple: boolean} = {proof: ProofMode.INTERACTIVE, simple: false}) {
         var spec = BenchmarksDB.Data.parseSpec(activeBenchmark.name, app.getEditorText()),
-            doc = new MainDocument(`benchmark-0-${mode}`, app.panes.proofTrace,
-                                   OPTIONS[mode]);
+            docId = makeDocId(activeBenchmark.name, mode),
+            doc = new MainDocument(docId, app.panes.proofTrace,
+                                   OPTIONS[mode.proof]);
         doc.new();
         app.add(doc);
-        spec.spec.config = activeBenchmark.spec.config;
-        await doc.pi.start(spec, mode);
+        adjustParams(spec, mode);
+        spec.spec.config = activeBenchmark.spec.spec.config;
+        await doc.pi.start(spec, mode.proof);
     }
 
-    async function switchMode(mode: ProofMode) {
-        var docId = `benchmark-0-${mode}`;
+    function stopBenchmark() {
+        app.doc.pi?.stop();
+    }
+
+    function makeDocId(name: string, mode: {proof: ProofMode, simple: boolean}) {
+        return `${name}-${mode.proof}${mode.simple ? '-simple' : ''}`;
+    }
+
+    function adjustParams(spec: BenchmarksDB.Data.Spec, mode: {proof: ProofMode, simple: boolean}) {
+        if (mode.simple)
+            spec.params = ['--simple', 'true', ...(spec.params || [])];
+    }
+
+    async function switchMode(mode: {proof: ProofMode, simple: boolean}) {
+        var docId = makeDocId(activeBenchmark.name, mode);
         if (app.has(docId))
             app.switchTo(docId);
         else
             restartBenchmark(mode);
     }
 
-    function proofMode() {
-        return app.options.auto ? ProofMode.AUTOMATIC : ProofMode.INTERACTIVE;
+    function currentMode() {
+        return {
+            proof: app.options.auto ? ProofMode.AUTOMATIC : ProofMode.INTERACTIVE,
+            simple: app.options.simple
+        }
     }
 
-    app.view.$watch(proofMode, switchMode);  /* neat ;) */
+    app.view.$watch(currentMode, switchMode);  /* neat ;) */
 
     const OPTIONS: {[mode: string]: MainDocument.Options} = {
         [ProofMode.AUTOMATIC]: {throttle: 750},
         [ProofMode.INTERACTIVE]: {expandImmediately: true}
     };
 
-    app.on('benchmarks:action', w => startBenchmark(w, proofMode()));
+    app.on('benchmarks:action', w => startBenchmark(w, currentMode()));
     app.on('proofTrace:action', (action) => {
         switch (action.type) {
-            case 'restart': restartBenchmark(proofMode()); break;
+            case 'start':
+            case 'restart': restartBenchmark(currentMode()); break;
+            case 'stop': stopBenchmark(); break;
         }
     });
 
@@ -98,9 +129,10 @@ $(async () => {
     });
 
     /* Start a benchmark on load if instructed so by local config */
-    var openOnStart = localStorage['openOnStart']
+    var openOnStart = localStorage['openOnStart'];
+    openOnStart = openOnStart ? JSON.parse(openOnStart) : DEFAULT_SCRATCH;
     if (openOnStart) {
-        startBenchmark(JSON.parse(openOnStart));
+        startBenchmark(openOnStart, currentMode());
     }
 
     Object.assign(window, {app, bench});

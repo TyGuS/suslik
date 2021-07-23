@@ -14,7 +14,7 @@ import './ide.css';
 
 
 class SuSLikApp extends EventEmitter {
-    view: Vue
+    view: Vue & SuSLikApp.Props
     notifications: JQuery
 
     doc: MainDocument
@@ -25,7 +25,7 @@ class SuSLikApp extends EventEmitter {
     constructor(notifications: JQuery) {
         super();
         this.notifications = notifications;
-        this.view = new Vue(app).$mount();
+        this.view = <any>new Vue(app).$mount();
         this.panes = <any>this.view.$refs;  /* I like the sound they make when they break */
 
         this.panes.proofTrace.$on('action', ev => {
@@ -55,7 +55,12 @@ class SuSLikApp extends EventEmitter {
     }
 
     switchTo(docId: string) {
-        this.panes.proofTrace.activeTrace = docId;
+        var doc = this.docsById.get(docId);
+        if (doc) {
+            this.panes.proofTrace.activeTrace = docId;
+            this.doc = doc;
+        }
+        else console.warn(`no such document: '${docId}'`)
     }
 
     clear() {
@@ -67,6 +72,10 @@ class SuSLikApp extends EventEmitter {
     setBenchmarks(bmData: BenchmarksDB.Data) {
         var bm = this.panes.benchmarks;
         bm.data = bmData;
+    }
+
+    setActiveBenchmark(activeBenchmark: SuSLikApp.BenchmarkEntry) {
+        this.view.activeBenchmark = activeBenchmark;
     }
 
     hideBenchmarks() {
@@ -89,9 +98,20 @@ class SuSLikApp extends EventEmitter {
 }
 
 
+namespace SuSLikApp {
+    export type BenchmarkEntry = {
+        path: {dir: string, fn: string}
+    };
+
+    export type Props = {
+        activeBenchmark: BenchmarkEntry
+    }
+}
+
+
 class MainDocument extends EventEmitter {
     id: string
-    pane: Vue & ProofTrace.View.PaneProps
+    pane: Vue & ProofTrace.View.PaneProps & ProofInteraction.View.PaneProps
     options: DocumentOptions
 
     pt: ProofTrace
@@ -101,7 +121,7 @@ class MainDocument extends EventEmitter {
 
     storage: {'suslik:doc:lastUrl'?: string} = <any>localStorage;
 
-    constructor(id: string, pane: Vue & ProofTrace.View.PaneProps,
+    constructor(id: string, pane: Vue & ProofTrace.View.PaneProps & ProofInteraction.View.PaneProps,
                 options: DocumentOptions = {}) {
         super();
         this.id = id;
