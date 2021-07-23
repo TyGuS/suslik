@@ -201,7 +201,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
    */
 
   object Pick extends SynthesisRule {
-    override def toString: String = "PickExist"
+    override def toString: String = "Pick"
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val constants = List(IntConst(0), SetLiteral(List()), eTrue, eFalse)
