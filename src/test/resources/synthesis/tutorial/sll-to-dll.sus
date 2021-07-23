@@ -18,12 +18,12 @@ predicate dll(loc x, loc y, set s) {
 
 
 
-// void to_dll(loc x, loc prev)
-// { sll_reserved(x, s) }
-// { dll(x, prev, s) }
-void to_dll(loc x)
+void to_dll(loc x, loc prev)
 { sll_reserved(x, s) }
-{ dll(x, 0, s) }
+{ dll(x, prev, s) }
+// void to_dll(loc x)
+// { sll_reserved(x, s) }
+// { dll(x, 0, s) }
 // void to_dll(loc ret)
 // { ret :-> x ** sll(x, s) }
 // { ret :-> y ** dll(y, 0, s) }

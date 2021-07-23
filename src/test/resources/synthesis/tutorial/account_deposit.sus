@@ -1,0 +1,12 @@
+// deposit into a bank account
+
+predicate account(loc x, int bal) {
+ |  true  => { bal >= 0 ; [x, 1] ** x :-> bal }
+ }
+
+void deposit (loc acc, int amt)
+{ amt >= 0 ; account(acc, b) }
+{ account(acc, amt + b) }
+{
+  ??
+}
