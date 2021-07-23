@@ -6,15 +6,38 @@
             @contextmenu.prevent="action({type: 'menu', $event})">
         <div @mousedown="stopDbl" class="title">
             <span class="pp">{{value.pp}}</span>
-            <span class="cost" v-if="value.cost >= 0">{{value.cost}}</span>
+            <span class="call" v-if="value.goal && value.goal.callGoal" 
+                @mouseenter="peekCall" @mouseleave="unpeekCall" @click.stop></span>
+            <!--
+            <span class="cost" v-if="value.cost >= 0">{{value.cost}}</span> -->
             <span class="num-descendants">{{numDescendants}}</span>
             <span class="goal-id" v-if="value.goal">{{value.goal.id}}</span>
             <span class="tag" v-else>{{tag}}</span>
         </div>
         <proof-trace-goal v-if="value.goal" :value="value.goal"
             @click.native.stop="action"/>
+        <div v-if="value.goal && value.goal.callGoal" ref="subordinate"
+                class="proof-trace-node-subordinate" :class="{show: !!showCall}"
+                :style="showCall">
+            <proof-trace-goal :value="value.goal.callGoal[0]"/>
+        </div>
     </div>
 </template>
+
+<style>
+.proof-trace-node .title > span.call {
+    cursor: pointer;
+}
+div.proof-trace-node-subordinate {
+    position: absolute;
+    top: var(--top);
+    left: var(--left);
+    background: #fffe;
+}
+div.proof-trace-node-subordinate:not(.show) {
+    display: none;
+}
+</style>
 
 <script>
 import $ from 'jquery';
@@ -24,7 +47,7 @@ import ProofTraceGoal from './proof-trace-goal.vue';
 
 export default {
     props: ['value', 'status', 'derivation', 'numDescendants', 'highlight'],
-    data: () => ({_anchor: false}),
+    data: () => ({_anchor: false, showCall: false}),
     computed: {
         tag() {
             var pfx = (this.value.tag == ProofTrace.Data.NodeType.OrNode) ? 2 : 1;
@@ -53,8 +76,8 @@ export default {
                 var subst = Object.entries(d.subst).map(([k,v]) => `${k} ↦ ${v}`);
                 $('#hint').text(`${d.ruleName} @ ${subst.join(', ')}`);
             }
-            else
-                $('#hint').text(JSON.stringify(this.value.id));
+            /*else
+                $('#hint').text(JSON.stringify(this.value.id));*/
         },
         hideId() { $('#hint').empty(); },
 
@@ -82,6 +105,15 @@ export default {
             var a = this.$data._anchor;
             if (a && (Math.abs(ev.pageX - a.x) > 3 || Math.abs(ev.pageY - a.y) > 3))
                 ev.stopPropagation();
+        },
+
+        peekCall(ev) {
+            var el = ev.target;
+            this.showCall = {'--left': `${el.offsetLeft + el.offsetWidth}px`,
+                             '--top': `${el.offsetTop}px`};
+        },
+        unpeekCall() {
+            this.showCall = undefined;
         }
     },
     components: { ProofTraceGoal }

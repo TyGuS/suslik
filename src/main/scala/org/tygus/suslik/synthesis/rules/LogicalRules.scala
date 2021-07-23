@@ -138,6 +138,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPost = Assertion(post.phi, newPostSigma)
           val newGoal = goal.spawnChild(newPre, newPost)
           val kont = IdProducer >> ExtractHelper(goal)
+
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(newGoal), this,
+            Map("Pre" -> hPre.pp, "Post" -> hPost.pp)))
+
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -264,7 +268,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
           assert(goal.callGoal.isEmpty)
           ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(newGoal), this,
-            Map("x" -> x.pp, "e" -> e.pp)))
+            Map(x.pp -> e.pp)))
           List(RuleResult(List(newGoal), kont, this, goal))
         }
         case _ => Nil

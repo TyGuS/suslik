@@ -3,10 +3,10 @@ package org.tygus.suslik.report
 import java.io.{BufferedWriter, File, FileWriter}
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
-import org.tygus.suslik.language.Expressions
-import org.tygus.suslik.language.Expressions.Subst
+import org.tygus.suslik.language.{Expressions, PrettyPrinting}
+import org.tygus.suslik.language.Expressions.{ExprSubst, Subst}
 import org.tygus.suslik.logic.{Block, Heaplet, PointsTo, SApp, Specifications}
-import org.tygus.suslik.logic.Specifications.Goal
+import org.tygus.suslik.logic.Specifications.{Goal, SuspendedCallGoal}
 import org.tygus.suslik.synthesis.Memoization
 import org.tygus.suslik.synthesis.Memoization.GoalStatus
 import org.tygus.suslik.synthesis.SearchTree.{AndNode, OrNode, SearchNode}
@@ -44,7 +44,9 @@ object ProofTrace {
                              subst: Map[String, OrVec])
 
   object DerivationTrail {
-    def withSubst(from: Goal, to: Seq[Goal], rule: SynthesisRule, subst: Subst): DerivationTrail =
+    def withSubst[A <: PrettyPrinting, B <: PrettyPrinting](from: Goal, to: Seq[Goal],
+                                                            rule: SynthesisRule,
+                                                            subst: Map[A, B]): DerivationTrail =
       apply(from, to, rule, subst.map { case (k, v) => k.pp -> (v.pp: OrVec) })
   }
 
@@ -128,7 +130,8 @@ object ProofTraceJson {
                        sketch: String,
                        programVars: Seq[(String, String)],
                        existentials: Seq[(String, String)],
-                       ghosts: Seq[(String, String)])
+                       ghosts: Seq[(String, String)],
+                       callGoal: Option[GoalEntry] = None /* suspended call goal */)
   object GoalEntry {
     type Id = String
     implicit val rw: RW[GoalEntry] = macroRW
@@ -136,10 +139,22 @@ object ProofTraceJson {
     def apply(goal: Goal): GoalEntry = apply(goal.label.pp,
       AssertionEntry(goal.pre), AssertionEntry(goal.post), goal.sketch.pp,
       vars(goal, goal.programVars), vars(goal, goal.existentials),
-      vars(goal, goal.universalGhosts))
+      vars(goal, goal.universalGhosts), goal.callGoal.map(callInfo(goal, _)))
 
     private def vars(goal: Goal, vs: Iterable[Expressions.Var]) =
       vs.map(v => (goal.getType(v).pp, v.pp)).toSeq
+
+    private def callInfo(goal: Goal, callGoal: SuspendedCallGoal) = {
+      val funSpec = goal.ancestorWithLabel(callGoal.call.companion.get).get.toFunSpec
+      val toActual = compose(callGoal.companionToFresh, callGoal.freshToActual)
+      apply("<call>",
+        AssertionEntry(funSpec.pre.subst(toActual)),
+        AssertionEntry(funSpec.post.subst(toActual)), callGoal.actualCall.pp,
+        Seq(), Seq(), Seq())
+    }
+
+    /** @oops copied from PureLogicUtils */
+    def compose(subst1: Subst, subst2: Subst): Subst = subst1.map { case (k, e) => k -> e.subst(subst2) }
   }
 
   case class AssertionEntry(pp: String, phi: Seq[AST], sigma: Seq[AST])

@@ -102,6 +102,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         newGoal = goal.spawnChild(post = f.pre, gamma = newGamma, callGoal = suspendedCallGoal)
       } yield {
         val kont: StmtProducer = AbduceCallProducer(f) >> IdProducer >> ExtractHelper(goal)
+
+        ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(newGoal), this,
+          Map("fun" -> f.name, "args" -> f.params.map(_._1.pp))))
+
         RuleResult(List(newGoal), kont, this, goal)
       }
     }
@@ -134,6 +138,10 @@ object UnfoldingRules extends SepLogicUtils with RuleUtils {
         val newGoal = goal.spawnChild(pre = newPre, post = newPost, callGoal = None, isCompanion = true)
         val postCallTransition = Transition(goal, newGoal)
         val kont: StmtProducer = SubstMapProducer(callGoal.freshToActual) >> PrependProducer(call) >> ExtractHelper(goal)
+
+        ProofTrace.current.add(ProofTrace.DerivationTrail(goal, List(newGoal), this,
+          Map("fun" -> call.fun.name, "args" -> call.args.map(_.toString))))
+
         List(RuleResult(List(newGoal), kont, this,
           List(postCallTransition) ++ companionTransition(callGoal, goal)))
       }

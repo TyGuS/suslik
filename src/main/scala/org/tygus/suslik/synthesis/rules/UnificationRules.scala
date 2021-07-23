@@ -57,6 +57,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
         val kont = UnificationProducer(t, s, sub) >> IdProducer >> ExtractHelper(goal)
+
+        ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(goal, List(newGoal), this, sub))
+
         RuleResult(List(newGoal), kont, this, goal)
       }
       nubBy[RuleResult, Assertion](alternatives, sub => sub.subgoals.head.post)
@@ -185,8 +188,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
           val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
-          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, List(newGoal), this,
-            Map("x" -> x.pp, "e" -> e.pp)))
+          ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(goal, Seq(newGoal), this, sigma))
           List(RuleResult(List(newGoal), kont, this, goal))
         }
         case _ => Nil
@@ -224,7 +226,11 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         kont = SubstProducer(ex, v) >> IdProducer >> ExtractHelper(goal)
-      } yield RuleResult(List(newGoal), kont, this, goal)
+      } yield {
+        ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(
+          goal, Seq(newGoal), this, sigma))
+        RuleResult(List(newGoal), kont, this, goal)
+      }
     }
   }
 

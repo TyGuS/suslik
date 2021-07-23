@@ -3,7 +3,12 @@
         <proof-trace-vars :value="value.programVars"  class="proof-trace-program-vars"/>
         <proof-trace-vars :value="value.existentials" class="proof-trace-existentials"/>
         <proof-trace-formula class="proof-trace-pre" :pp="value.pre.pp" :env="env"/>
-        <span class="synth-arrow">⤳</span>
+        <template v-if="value.sketch.trim() == '??'">
+            <span class="synth-arrow">⤳</span>
+        </template>
+        <template v-else>
+            <span class="proof-trace-sketch">{{value.sketch}}</span>
+        </template>
         <proof-trace-formula class="proof-trace-post" :pp="value.post.pp" :env="env"/>
     </div>
 </template>
