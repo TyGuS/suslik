@@ -243,6 +243,26 @@
     display: inline;
 }
 
+.proof-trace-node-subordinate {
+    background: #fffe;
+    border: 1px solid #aaa;
+}
+.proof-trace-node-subordinate > .title {
+    text-align: right;
+    padding: 0 .25em;
+    font-size: 90%;
+    margin-bottom: -.25em;
+}
+.proof-trace-node-subordinate > .title span.goal-id {
+    border: 1px solid #aaf;
+    border-radius: 5px;
+    padding: 0 3px;
+    background: #bbf2;
+}
+.proof-trace-node-subordinate > .proof-trace-goal {
+    border: none;
+}
+
 /* Filters */
 
 .proof-trace-filter--only-success .proof-trace:not(.Succeeded):not(.Succeeded\*) {

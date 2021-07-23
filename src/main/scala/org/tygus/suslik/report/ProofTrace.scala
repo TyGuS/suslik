@@ -147,7 +147,7 @@ object ProofTraceJson {
     private def callInfo(goal: Goal, callGoal: SuspendedCallGoal) = {
       val funSpec = goal.ancestorWithLabel(callGoal.call.companion.get).get.toFunSpec
       val toActual = compose(callGoal.companionToFresh, callGoal.freshToActual)
-      apply("<call>",
+      apply(callGoal.call.companion.get.pp,
         AssertionEntry(funSpec.pre.subst(toActual)),
         AssertionEntry(funSpec.post.subst(toActual)), callGoal.actualCall.pp,
         Seq(), Seq(), Seq())
