@@ -32,7 +32,7 @@ class SearchTree {
 
 object SearchTree {
 
-  // need to be thread-local, for `SynthesisServer`
+  // needs to be thread-local, for `SynthesisServer`
   private val _current = new DynamicVariable[SearchTree](new SearchTree)
   def st: SearchTree = _current.value
 

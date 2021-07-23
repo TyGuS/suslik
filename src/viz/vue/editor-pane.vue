@@ -38,7 +38,13 @@ export default {
         },
         makeEditorState(text) {
             var doc = text && Text.of(text.split('\n'));
-            return EditorState.create({doc, extensions: [basicSetup, suslikLanguage]})
+            return EditorState.create({doc, extensions: [
+                basicSetup, suslikLanguage, this.makeUpdateListener()]})
+        },
+        makeUpdateListener() {
+            return EditorView.updateListener.of(v => {
+                if (v.docChanged) this.$emit('change');
+            });
         }
     }
 }

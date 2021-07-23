@@ -34,6 +34,7 @@ class SuSLikApp extends EventEmitter {
         this.panes.benchmarks.$on('action', ev => {
             this.emit('benchmarks:action', ev);
         });
+        this.view.$on('editor:change', () => this.clearMessages());
     }
 
     get $el() { return this.view.$el; }
@@ -46,7 +47,7 @@ class SuSLikApp extends EventEmitter {
         this.docsById.get(doc.id)?.close();
         this.docsById.set(doc.id, doc);
         this.doc = doc;
-        doc.on('error', err => this.message(err.message));
+        doc.on('error', err => this.message(err.message, err.sticky));
         this.switchTo(doc.id);
     }
 
@@ -67,6 +68,7 @@ class SuSLikApp extends EventEmitter {
         for (let doc of this.docsById.values()) doc.close();
         this.docsById.clear();
         this.doc = undefined;
+        this.clearMessages();
     }
 
     setBenchmarks(bmData: BenchmarksDB.Data) {
@@ -90,10 +92,16 @@ class SuSLikApp extends EventEmitter {
         return this.panes.editors.current();
     }
 
-    message(msg: string) {
+    message(msg: string, sticky = false) {
         var div = $('<div>').text(msg);
         this.notifications.append(div);
-        setTimeout(() => div.remove(), 4000);
+        div.on('click', () => div.fadeOut());
+        if (!sticky)
+            setTimeout(() => div.fadeOut(), SuSLikApp.MESSAGE_DURATION);
+    }
+
+    clearMessages() {
+        this.notifications.empty();
     }
 }
 
@@ -106,6 +114,8 @@ namespace SuSLikApp {
     export type Props = {
         activeBenchmark: BenchmarkEntry
     }
+
+    export const MESSAGE_DURATION = 4000;
 }
 
 
@@ -182,7 +192,7 @@ class MainDocument extends EventEmitter {
                            {expand: this.options.expandImmediately});
         }, this.options.throttle));
         pi.on('error', err =>
-            this.emit('error', {message: `oops: ${err.message}`}));
+            this.emit('error', {...err, message: `oops: ${err.message}`}));
 
         this.emit('open', pt);
         return pt;
