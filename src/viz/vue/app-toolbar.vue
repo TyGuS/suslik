@@ -4,11 +4,17 @@
             <button @click="action('restart')">↻</button>
         </div>
         <form>
+            <!--
             Show:
             <input type="checkbox" name="proof-only" id="proof-only" v-model="options.proofOnly">
             <label for="proof-only">Proof only</label>
             <input type="checkbox" name="expanded-only" id="expanded-only" v-model="options.expandedOnly">
             <label for="expended-only">Expanded only</label>
+            -->
+            <span style="margin-left: 2em">Traditional</span>
+            <slider-switch v-model="options.simple"></slider-switch>
+            <span>Simplified</span>
+
             <span style="margin-left: 2em">Manual</span>
             <slider-switch v-model="options.auto"></slider-switch>
             <span>Auto</span> 
