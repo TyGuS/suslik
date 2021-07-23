@@ -1,5 +1,6 @@
 package org.tygus.suslik.logic
 
+import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
@@ -117,6 +118,8 @@ object Specifications extends SepLogicUtils {
                  )
 
     extends PrettyPrinting with PureLogicUtils {
+
+    val uid: String = LanguageUtils.getTotallyFreshName("goal")
 
     override def pp: String = {
       def postWithCall: String = {
