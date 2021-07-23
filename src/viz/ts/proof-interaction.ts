@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import Vue from 'vue';
 
 import { VueEventHook } from './infra/event-hooks';
 import type { ProofTrace } from './proof-trace';
@@ -19,12 +20,18 @@ class ProofInteraction extends EventEmitter {
 
     defaultMode = ProofInteraction.Data.ProofMode.INTERACTIVE
 
-    constructor(pt: ProofTrace, pane: Vue) {
+    constructor(pt: ProofTrace, pane: Vue & View.PaneProps) {
         super();
         this.wsURL = this._wsURL();
         this.pt = pt;
-        this.view = (<any>pane).interaction = {focused: [], choices: undefined, result: undefined} //<any>pt.view;
-        //this.view.interaction = {focused: [], choices: undefined, result: undefined};
+        this.createView(pane);
+    }
+
+    get id() { return this.pt.id; }
+
+    createView(pane: Vue & View.PaneProps) {
+        this.view = {focused: [], choices: undefined, result: undefined};
+        Vue.set(pane.docs[this.id], 'interaction', this.view);
         this._actionHook.attach(pane, action => this.handleAction(action));
     }
 
@@ -141,11 +148,8 @@ namespace ProofInteraction {
 
     export namespace View {
 
-        export type Props = {
-            interaction: ProofInteraction.View.State
-            highlight: {[kind: string]: ProofTrace.Data.NodeId[]}
-        };
-    
+        export type PaneProps = {docs: {[id: string]: {interaction: State}}};
+        
         export type State = {
             focused: ProofTrace.Data.NodeId[]
             choices: ProofTrace.Data.GoalEntry[]
