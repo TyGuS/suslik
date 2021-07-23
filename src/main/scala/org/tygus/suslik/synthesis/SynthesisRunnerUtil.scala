@@ -2,6 +2,7 @@ package org.tygus.suslik.synthesis
 
 import java.io.{File, PrintWriter}
 import java.nio.file.Paths
+
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.source.SuslikProofStep
@@ -170,9 +171,6 @@ trait SynthesisRunnerUtil {
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
 
-    def printHotNode(hotNode: AndNode, descs: Int): String =
-      s"${hotNode.rule.toString} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
-
     def printRuleApplication(name: String, stat: RuleStat): String =
       s"$name: succeeded ${stat.numSuccess} times (${stat.timeSuccess}ms), failed ${stat.numFail} times (${stat.timeFail}ms)"
 
@@ -200,7 +198,10 @@ trait SynthesisRunnerUtil {
     sresult._1 match {
       case Nil =>
         printStats(sresult._2)
-        throw SynthesisException(s"Failed to synthesise:\n$sresult")
+        if (sresult._2.timedOut)
+          throw SynTimeOutException(s"Timeout after ${(sresult._2.duration / 1000.0).round.toInt} seconds")
+        else
+          throw SynthesisException(s"Failed to synthesise due to unrealizable spec or incompleteness")
       case procs =>
         val result = if (params.printSpecs) {
           procs.map(p => {

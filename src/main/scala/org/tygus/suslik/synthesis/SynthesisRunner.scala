@@ -66,7 +66,8 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       synthesizeFromSpec(testName, in, out, params)
     } catch {
       case SynthesisException(msg) =>
-        System.err.println("Synthesis failed:")
+        System.err.println(msg)
+      case SynTimeOutException(msg) =>
         System.err.println(msg)
     }
   }
