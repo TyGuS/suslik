@@ -65,6 +65,7 @@ $(async () => {
             doc = new MainDocument(docId, app.panes.proofTrace,
                                    OPTIONS[mode.proof]);
         doc.new();
+        app.clearMessages();
         app.add(doc);
         adjustParams(spec, mode);
         spec.spec.config = activeBenchmark.spec.spec.config;

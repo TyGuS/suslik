@@ -168,7 +168,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
     */
   override def synthesizeFromSpec(testName: String, text: String, out: String,
                                   params: SynConfig): List[Statements.Procedure] =
-    wrapError {
+    wrapError(sticky = true) {
       try {
         val ret = super.synthesizeFromSpec(testName, text, out, params)
         outbound.put(write(SynthesisResultEntry(ret.map(x => SynthesizedProcedureEntry(x.pp)))))
@@ -176,6 +176,9 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
       }
       catch {
         case _: InterruptedException => List() /* can happen if `inbound` is cancelled */
+      }
+      finally {
+        outbound.put(serializeStats())
       }
     }
 
@@ -206,16 +209,20 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
       case _ => logger.warn(s"requested unknown node ${id.mkString(",")}")
     }
 
-  protected def wrapError[T](op: => T): T = {
+  protected def wrapError[T](op: => T): T = wrapError(sticky = false)(op)
+
+  protected def wrapError[T](sticky: Boolean)(op: => T): T = {
     try op catch {
       case e: Throwable =>
         logger.error("Error", e)
-        outbound.put(write(SynthesisErrorEntry(e.toString))); throw e
+        outbound.put(write(SynthesisErrorEntry(e.toString, sticky))); throw e
     }
   }
 
   protected def serializeChoices(allExpansions: Seq[Rules.RuleResult]): String =
     write(allExpansions.map(ExpansionChoiceEntry.from))
+
+  protected def serializeStats(): String = if (isynth != null) write(isynth.serializeStats()) else "{}"
 }
 
 object AsyncSynthesisRunner {
@@ -272,6 +279,9 @@ object AsyncSynthesisRunner {
     protected def submitNodes(nodes: Seq[OrNode]): Unit = {
       for (node <- nodes) trace.add(node)
     }
+
+    def serializeStats(): SynthesisStatsEntry =
+      SynthesisStatsEntry("SynthesisStatsEntry", stats.duration)
   }
 
   type GoalLabel = String
@@ -299,9 +309,14 @@ object AsyncSynthesisRunner {
     implicit val rw: RW[SynthesizedProcedureEntry] = macroRW
   }
 
-  case class SynthesisErrorEntry(error: String)
+  case class SynthesisErrorEntry(error: String, sticky: Boolean = false)
   object SynthesisErrorEntry {
     implicit val rw: RW[SynthesisErrorEntry] = macroRW
+  }
+
+  case class SynthesisStatsEntry(tag: String, duration: Long)
+  object SynthesisStatsEntry {
+    implicit val rw: RW[SynthesisStatsEntry] = macroRW
   }
 
   /* Messages sent from the client */
