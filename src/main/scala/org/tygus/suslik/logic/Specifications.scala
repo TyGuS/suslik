@@ -321,7 +321,7 @@ object Specifications extends SepLogicUtils {
     * when in call abduction mode
     * @param callerPre precondition of the goal where call abduction started
     * @param callerPost postcondition of the goal where call abduction started
-    * @param calleePost postcondiiton of the companion goal
+    * @param calleePost postcondition of the companion goal
     * @param call call statement
     */
   case class SuspendedCallGoal(callerPre: Assertion,
