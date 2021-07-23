@@ -15,6 +15,7 @@
 <script>
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
 import {Text} from "@codemirror/text";
+import {suslikLanguage} from '../ts/editor';
 
 
 export default {
@@ -37,7 +38,7 @@ export default {
         },
         makeEditorState(text) {
             var doc = text && Text.of(text.split('\n'));
-            return EditorState.create({doc, extensions: [basicSetup]})
+            return EditorState.create({doc, extensions: [basicSetup, suslikLanguage]})
         }
     }
 }
