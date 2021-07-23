@@ -95,7 +95,8 @@ class ProofInteraction extends EventEmitter {
             this.view.result = msg;
             this.emit('done', msg);
         }
-        else if (msg.error) this.emit('error', {message: msg.error});
+        else if (msg.tag === 'SynthesisStatsEntry') { console.log('stats', msg); /** @todo */ }
+        else if (msg.error) this.emit('error', {message: msg.error, sticky: msg.sticky});
         else this.emit('trace', msg);
     }
 

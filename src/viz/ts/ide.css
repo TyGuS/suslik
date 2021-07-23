@@ -36,4 +36,5 @@ div.gutter.gutter-horizontal {
   background: #fbb;
   color: #333;
   padding: 9px 1em;
+  white-space: pre-wrap;
 }

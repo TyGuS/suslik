@@ -4,7 +4,7 @@
             <benchmark-list-pane :selected="activeBenchmark && activeBenchmark.path" ref="benchmarks"/>
         </div>
         <div class="app--ide--split-area">
-            <editor-pane ref="editors"/>
+            <editor-pane ref="editors" @change="$emit('editor:change', $event)"/>
         </div>
         <div class="app--ide--split-area">
             <proof-trace-pane ref="proofTrace"/>
