@@ -25,7 +25,11 @@ $(async () => {
 
     document.querySelector('#document-area').replaceWith(app.$el);
 
-    const bench = await BenchmarksDB.load();
+    const bench = await BenchmarksDB.load(),
+          DEFAULT_SCRATCH = {dir: 'scratchpath', fn: 'untitled-0.sus'}
+    bench.data[DEFAULT_SCRATCH.dir] = {
+        [DEFAULT_SCRATCH.fn]: '// write your own stuff here'
+    };
     app.setBenchmarks(bench.data);
 
     var activeBenchmark: {name: string, spec: BenchmarksDB.Data.Spec} = {
@@ -39,7 +43,8 @@ $(async () => {
             doc = new MainDocument(docId, app.panes.proofTrace,
                                    OPTIONS[mode.proof]);
         doc.new();
-        app.hideBenchmarks();
+        //app.hideBenchmarks();
+        app.setActiveBenchmark({path: w});
         app.clear();
         app.setEditorText(BenchmarksDB.Data.unparseSpec(spec));
         app.add(doc);
@@ -117,9 +122,10 @@ $(async () => {
     });
 
     /* Start a benchmark on load if instructed so by local config */
-    var openOnStart = localStorage['openOnStart']
+    var openOnStart = localStorage['openOnStart'];
+    openOnStart = openOnStart ? JSON.parse(openOnStart) : DEFAULT_SCRATCH;
     if (openOnStart) {
-        startBenchmark(JSON.parse(openOnStart));
+        startBenchmark(openOnStart);
     }
 
     Object.assign(window, {app, bench});

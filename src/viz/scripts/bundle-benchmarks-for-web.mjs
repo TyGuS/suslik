@@ -8,7 +8,7 @@ const BENCHMARKS_ROOT = 'src/test/resources/synthesis/all-benchmarks',
       TUTORIAL_ROOT = 'ext/tutorial';
 
 function main() {
-    var physical = TUTORIAL_ROOT, logical = 'tutorial',
+    var physical = TUTORIAL_ROOT, logical = '.',
         collection = {};
 
     function bucket(k) {

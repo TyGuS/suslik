@@ -1,7 +1,7 @@
 <template>
     <div class="app--ide">
         <div class="app--ide--split-area">
-            <benchmark-list-pane ref="benchmarks"/>
+            <benchmark-list-pane :selected="activeBenchmark && activeBenchmark.path" ref="benchmarks"/>
         </div>
         <div class="app--ide--split-area">
             <editor-pane ref="editors"/>
@@ -27,7 +27,10 @@ import Split from 'split.js';
 
 
 export default {
-    data: () => ({sizes: {benchmarks: 10, editors: 45, proofTrace: 45}}),
+    data: () => ({
+        sizes: {benchmarks: 10, editors: 45, proofTrace: 45},
+        activeBenchmark: undefined
+    }),
     mounted() {
         this.makeResizable(this.$el);
     },
