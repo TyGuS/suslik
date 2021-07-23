@@ -25,11 +25,15 @@ $(async () => {
 
     document.querySelector('#document-area').replaceWith(app.$el);
 
-    const bench = await BenchmarksDB.load(),
-          DEFAULT_SCRATCH = {dir: 'scratchpath', fn: 'untitled-0.sus'}
+    const bench = await BenchmarksDB.load();
+    if (window.location.search !== '?cheater!')
+        delete bench.data['solutions'];  // :P
+
+    const DEFAULT_SCRATCH = {dir: 'scratchpath', fn: 'untitled-0.sus'}
     bench.data[DEFAULT_SCRATCH.dir] = {
         [DEFAULT_SCRATCH.fn]: '// write your own stuff here'
     };
+
     app.setBenchmarks(bench.data);
 
     var activeBenchmark: {name: string, spec: BenchmarksDB.Data.Spec} = {
