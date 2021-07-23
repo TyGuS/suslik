@@ -7,6 +7,7 @@ import org.tygus.suslik.logic.Specifications.{Assertion, Goal, GoalLabel, Suspen
 import org.tygus.suslik.synthesis.SearchTree.{NodeId, OrNode}
 
 import scala.collection.mutable
+import scala.util.DynamicVariable
 
 object Memoization {
   /**
@@ -114,6 +115,11 @@ object Memoization {
 
   }
 
-  implicit val memo: Memo = new Memo()
+  // need to be thread-local, for `SynthesisServer`
+  implicit def memo: Memo = _current.value
+  private val _current = new DynamicVariable[Memo](new Memo())
 
+  def init(): Unit = {
+    _current.value = new Memo()
+  }
 }
