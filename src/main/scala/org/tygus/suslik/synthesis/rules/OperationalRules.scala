@@ -5,6 +5,7 @@ import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.{ExtractHelper, PrependProducer, StmtProducer, SubstVarProducer}
+import org.tygus.suslik.report.ProofTrace
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -54,6 +55,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val subGoal = goal.spawnChild(newPre)
           val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> ExtractHelper(goal)
 
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(subGoal), this,
+            Map("to" -> x.pp, "offset" -> offset.toString, "value" -> e2.pp)))
+
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some((hl, hr)) =>
           ruleAssert(assertion = false, s"Write rule matched unexpected heaplets ${hl.pp} and ${hr.pp}")
@@ -99,6 +103,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
             gamma = goal.gamma + (y -> tpy),
             programVars = y :: goal.programVars)
           val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(subGoal), this,
+            Map("to" -> y.pp, "from" -> x.pp, "offset" -> offset.toString)))
+
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some(pts@PointsTo(x@Var(_), offset, e)) =>
           val y = freshVar(goal.vars, e.pp)

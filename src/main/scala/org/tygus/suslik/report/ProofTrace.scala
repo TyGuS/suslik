@@ -100,7 +100,7 @@ abstract class ProofTraceJson extends ProofTrace {
   override def add(derivationTrail: DerivationTrail) {
     val d = derivationTrail
     writeObject(DerivationTrailEntry("DerivationTrail",
-      d.from.label.pp, d.to.map(_.label.pp), d.rule.toString, d.subst))
+      d.from.uid, d.to.map(_.uid), d.rule.toString, d.subst))
   }
 }
 
@@ -125,6 +125,7 @@ object ProofTraceJson {
   }
 
   case class GoalEntry(id: GoalEntry.Id,
+                       uid: GoalEntry.Uid,
                        pre: AssertionEntry,
                        post: AssertionEntry,
                        sketch: String,
@@ -134,9 +135,10 @@ object ProofTraceJson {
                        callGoal: Option[GoalEntry] = None /* suspended call goal */)
   object GoalEntry {
     type Id = String
+    type Uid = String
     implicit val rw: RW[GoalEntry] = macroRW
 
-    def apply(goal: Goal): GoalEntry = apply(goal.label.pp,
+    def apply(goal: Goal): GoalEntry = apply(goal.label.pp, goal.uid,
       AssertionEntry(goal.pre), AssertionEntry(goal.post), goal.sketch.pp,
       vars(goal, goal.programVars), vars(goal, goal.existentials),
       vars(goal, goal.universalGhosts), goal.callGoal.map(callInfo(goal, _)))
@@ -145,9 +147,10 @@ object ProofTraceJson {
       vs.map(v => (goal.getType(v).pp, v.pp)).toSeq
 
     private def callInfo(goal: Goal, callGoal: SuspendedCallGoal) = {
-      val funSpec = goal.ancestorWithLabel(callGoal.call.companion.get).get.toFunSpec
+      val companion = goal.ancestorWithLabel(callGoal.call.companion.get).get
+      val funSpec = companion.toFunSpec
       val toActual = compose(callGoal.companionToFresh, callGoal.freshToActual)
-      apply(callGoal.call.companion.get.pp,
+      apply(callGoal.call.companion.get.pp, companion.uid,
         AssertionEntry(funSpec.pre.subst(toActual)),
         AssertionEntry(funSpec.post.subst(toActual)), callGoal.actualCall.pp,
         Seq(), Seq(), Seq())
@@ -198,8 +201,8 @@ object ProofTraceJson {
     )
 
   case class DerivationTrailEntry(tag: String,
-                                  from: GoalEntry.Id,
-                                  to: Seq[GoalEntry.Id],
+                                  from: GoalEntry.Uid,
+                                  to: Seq[GoalEntry.Uid],
                                   ruleName: String,
                                   subst: Map[String, OrVec])
   object DerivationTrailEntry {

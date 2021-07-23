@@ -18,12 +18,12 @@ class ProofTrace extends EventEmitter {
 
     nodeIndex: {
         byId: JSONMap<Data.NodeId, Data.NodeEntry>
-        byGoalId: JSONMap<Data.GoalId, Data.NodeEntry>
+        byGoalUid: JSONMap<Data.GoalId, Data.NodeEntry>
         childrenById: JSONMap<Data.NodeId, Data.NodeEntry[]>
         subtreeSizeById: JSONMap<Data.NodeId, number>
         statusById: JSONMap<Data.NodeId, Data.StatusEntry>
         derivationById: JSONMap<Data.NodeId, Data.DerivationTrailEntry>
-        derivationByGoalId: JSONMap<Data.GoalId, Data.DerivationTrailEntry>
+        derivationByGoalUid: JSONMap<Data.GoalId, Data.DerivationTrailEntry>
         viewById: JSONMap<Data.NodeId, View.Node>
     }
 
@@ -52,10 +52,10 @@ class ProofTrace extends EventEmitter {
 
     createIndex() {
         this.nodeIndex = {
-            byId: new JSONMap, byGoalId: new JSONMap,
+            byId: new JSONMap, byGoalUid: new JSONMap,
             childrenById: new JSONMap, subtreeSizeById: new JSONMap,
             statusById: new JSONMap, derivationById: new JSONMap,
-            derivationByGoalId: new JSONMap,
+            derivationByGoalUid: new JSONMap,
             viewById: new JSONMap
         };
         this.updateIndex(this.data);
@@ -66,7 +66,7 @@ class ProofTrace extends EventEmitter {
         for (let node of data.nodes) {
             this.nodeIndex.byId.set(node.id, node);
             if (node.goal)
-                this.nodeIndex.byGoalId.set(node.goal.id, node);
+                this.nodeIndex.byGoalUid.set(node.goal.uid, node);
         }
 
         // Build childrenById
@@ -131,9 +131,9 @@ class ProofTrace extends EventEmitter {
 
         // Build derivationById, derivationByGoalId
         for (let deriv of data.trail) {
-            for (let goal of deriv.to) {
-                this.nodeIndex.derivationByGoalId.set(goal, deriv);
-                let node = this.nodeIndex.byGoalId.get(goal),
+            for (let goalUid of deriv.to) {
+                this.nodeIndex.derivationByGoalUid.set(goalUid, deriv);
+                let node = this.nodeIndex.byGoalUid.get(goalUid),
                     parent = node && this.parent(node);
                 if (parent)
                     update(this.nodeIndex.derivationById, parent, deriv);
@@ -142,7 +142,7 @@ class ProofTrace extends EventEmitter {
 
         for (let node of data.nodes) {
             if (node.goal) {
-                var deriv = this.nodeIndex.derivationByGoalId.get(node.goal.id);
+                var deriv = this.nodeIndex.derivationByGoalUid.get(node.goal.uid);
                 if (deriv)
                     update(this.nodeIndex.derivationById, this.parent(node), deriv);
             }
@@ -338,13 +338,15 @@ namespace ProofTrace {
 
         export type GoalEntry = {
             id: GoalId
+            uid: GoalUid
             pre: AssertionEntry, post: AssertionEntry, sketch: string,
             programVars:  [string, string][]
             existentials: [string, string][]
             ghosts:       [string, string][]
         };
 
-        export type GoalId = string
+        export type GoalId = string   /* this is actually the label */
+        export type GoalUid = string
 
         export type AssertionEntry = {
             pp: String,
