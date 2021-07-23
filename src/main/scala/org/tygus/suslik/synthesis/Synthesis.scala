@@ -44,7 +44,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     log.print("Initial specification:", Console.RESET)
     log.print(s"${goal.pp}\n", Console.BLUE)
     SMTSolving.init()
-    memo.clear()
+    Memoization.init()
     ProofTrace.current = trace
     try {
       synthesize(goal)(stats = stats) match {
