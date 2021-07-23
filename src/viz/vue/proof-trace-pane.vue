@@ -37,6 +37,9 @@ import ProofTrace from './proof-trace.vue';
 import ProofInteraction from './proof-interaction.vue';
 
 
+function bounded(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+
 export default {
     data: () => ({docs: {}, options: {simple: false, auto: true}, zoom: 100, pscroll: {x: 0, y: 0},
                   activeTrace: undefined,
@@ -92,7 +95,7 @@ export default {
                 var o = this._areaOffset,
                     xy = {x: o.x - (ev.pageX - this.$el.offsetLeft),
                           y: o.y - (ev.pageY - this.$el.offsetTop)};
-                this.setZoom(this.zoom - ev.deltaY, xy);
+                this.setZoom(bounded(this.zoom - ev.deltaY, 10, 100), xy);
                 ev.stopPropagation();
                 ev.preventDefault();
             }

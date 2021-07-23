@@ -92,8 +92,13 @@ class SuSLikApp extends EventEmitter {
         return this.panes.editors.current();
     }
 
+    /* Notifications Part */
+
+    private _fading: JQuery
+
     message(msg: string, sticky = false) {
         var div = $('<div>').text(msg);
+        this._fading?.remove();
         this.notifications.append(div);
         div.on('click', () => div.fadeOut());
         if (!sticky)
@@ -101,7 +106,9 @@ class SuSLikApp extends EventEmitter {
     }
 
     clearMessages() {
-        this.notifications.empty();
+        var msgs = this.notifications.children('div');
+        this._fading = msgs;
+        msgs.fadeOut(100);
     }
 }
 
