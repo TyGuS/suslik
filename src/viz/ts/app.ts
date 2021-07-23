@@ -14,7 +14,7 @@ import './ide.css';
 
 
 class SuSLikApp extends EventEmitter {
-    view: Vue
+    view: Vue & SuSLikApp.Props
     notifications: JQuery
 
     doc: MainDocument
@@ -25,7 +25,7 @@ class SuSLikApp extends EventEmitter {
     constructor(notifications: JQuery) {
         super();
         this.notifications = notifications;
-        this.view = new Vue(app).$mount();
+        this.view = <any>new Vue(app).$mount();
         this.panes = <any>this.view.$refs;  /* I like the sound they make when they break */
 
         this.panes.proofTrace.$on('action', ev => {
@@ -69,6 +69,10 @@ class SuSLikApp extends EventEmitter {
         bm.data = bmData;
     }
 
+    setActiveBenchmark(activeBenchmark: SuSLikApp.BenchmarkEntry) {
+        this.view.activeBenchmark = activeBenchmark;
+    }
+
     hideBenchmarks() {
         /** @todo */
     }
@@ -85,6 +89,17 @@ class SuSLikApp extends EventEmitter {
         var div = $('<div>').text(msg);
         this.notifications.append(div);
         setTimeout(() => div.remove(), 4000);
+    }
+}
+
+
+namespace SuSLikApp {
+    export type BenchmarkEntry = {
+        path: {dir: string, fn: string}
+    };
+
+    export type Props = {
+        activeBenchmark: BenchmarkEntry
     }
 }
 
