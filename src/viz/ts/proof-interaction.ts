@@ -51,6 +51,13 @@ class ProofInteraction extends EventEmitter {
         if (spec) this.sendSpec(spec, mode);
     }
 
+    /**
+     * For auto mode, terminates ongoing computation.
+     */
+    stop() {
+        this.destroy();  // possibly can still allow expanding nodes after termination; not currently supported
+    }
+
     sendSpec(spec: Data.Spec, mode: Data.ProofMode = this.defaultMode) {
         this._send({mode, ...spec}, ProofInteraction.Data.Classes.SPEC);
     }

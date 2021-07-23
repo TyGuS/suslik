@@ -38,7 +38,7 @@ import ProofInteraction from './proof-interaction.vue';
 
 
 export default {
-    data: () => ({docs: {}, options: {}, zoom: 100, pscroll: {x: 0, y: 0},
+    data: () => ({docs: {}, options: {simple: false, auto: true}, zoom: 100, pscroll: {x: 0, y: 0},
                   activeTrace: undefined,
                   /* this is defunct for now... */
                   highlight: {'special': [[]]}}),
