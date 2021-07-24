@@ -1,4 +1,5 @@
 import { StreamLanguage, StreamParser, StringStream } from '@codemirror/stream-parser';
+import { defaultHighlightStyle, classHighlightStyle }  from '@codemirror/highlight';
 
 
 class SuslikSyntaxHighlighting implements StreamParser<{}> {
@@ -32,7 +33,7 @@ namespace SuslikSyntaxHighlighting {
             ("bool|int|loc|set|void").split("|");
     
         var operators =
-          ("+|-|==|!=|<|<=|>|>=|&&|\|\||==>|**|:->|?|:|,|\||;").split("|");
+          ("+|-|==|!=|<|<=|>|>=|&&|\|\||=>==>|**|:->|?|:|,|\||;").split("|");
     
         // regexp must not have capturing parentheses. Use (?:) instead.
         // regexps are ordered -> the first match is used
@@ -60,7 +61,7 @@ namespace SuslikSyntaxHighlighting {
                 },
                 {
                     token : 'operator',
-                    regex : /\*\*|\+|-|==|!=|<|<=|>|>=|&&|\|\||==>|:->|:|\?/
+                    regex : /\*\*|\+|-|==|!=|<|<=|>|>=|&&|\|\||=>|==>|:->|:|\?\??/
                 },
                 {
                     token : 'paren',
@@ -81,4 +82,8 @@ namespace SuslikSyntaxHighlighting {
 
 const parser = new SuslikSyntaxHighlighting();
 
-export const suslikLanguage = StreamLanguage.define(parser);
+export const suslikLanguage = [
+    StreamLanguage.define(parser),
+    defaultHighlightStyle,
+    classHighlightStyle
+];

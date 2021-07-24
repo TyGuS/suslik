@@ -24,6 +24,9 @@ div.gutter.gutter-horizontal {
   background: #ddd;
 }
 
+.cm-editor .cmt-operator {
+  color: #88d;
+}
 
 #notifications {
   position: fixed;
