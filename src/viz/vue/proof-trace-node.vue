@@ -5,7 +5,7 @@
             @mouseover="showRefs" @mouseout="hideRefs"
             @contextmenu.prevent="action({type: 'menu', $event})">
         <div @mousedown="stopDbl" class="title">
-            <span class="pp">{{value.pp}}</span>
+            <span class="pp">{{label}}</span>
             <span class="call" v-if="value.goal && value.goal.callGoal" 
                 @mouseenter="peekCall" @mouseleave="unpeekCall" @click.stop></span>
             <!--
@@ -49,6 +49,11 @@ export default {
     props: ['value', 'status', 'derivation', 'numDescendants', 'highlight'],
     data: () => ({_anchor: false, showCall: false}),
     computed: {
+        label() {
+            var path = this.value.pp.split('-');
+            return (this.value.tag == ProofTrace.Data.NodeType.AndNode) ?
+                path.slice(-1)[0] : path.join(' ▹ ');
+        },
         tag() {
             var pfx = (this.value.tag == ProofTrace.Data.NodeType.OrNode) ? 2 : 1;
             return this.value.id.slice(0, pfx)
