@@ -13,6 +13,7 @@ import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.{Environment, Specifications}
 import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJson}
@@ -120,7 +121,11 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   }
 
   def goAutomatic(spec: SpecMessage): Unit = {
-    new Thread(() => synthesizeFromSpec(spec)).start()
+    def inThread(op: => Unit) { new Thread(() => op).start() }
+    inThread {
+      LanguageUtils.resetFreshNameGenerator()
+      synthesizeFromSpec(spec)
+    }
   }
 
   def goInteractive(spec: SpecMessage): Unit = {
