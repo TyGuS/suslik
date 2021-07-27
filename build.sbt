@@ -59,8 +59,9 @@ parallelExecution in Test := false
 assemblyJarName in assembly := "suslik.jar"
 
 assemblyMergeStrategy in assembly := {
- case PathList("META-INF", xs @ _*) => MergeStrategy.discard
- case x => MergeStrategy.first
+  case PathList("META-INF", _*) => MergeStrategy.discard
+  case x if Assembly.isConfigFile(x) => MergeStrategy.concat
+  case _ => MergeStrategy.first
 }
 
 enablePlugins(JavaAppPackaging)
