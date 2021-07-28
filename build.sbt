@@ -50,7 +50,7 @@ console / initialCommands :=
        | root.setLevel(Level.OFF)
        | """.stripMargin
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
 assembly / assemblyJarName := "suslik.jar"
 assembly / mainClass := Some("org.tygus.suslik.synthesis.SynthesisRunner")
