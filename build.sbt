@@ -10,7 +10,7 @@ scalaVersion := "2.12.12"
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint")
 scalacOptions += "-target:jvm-1.8"
 
-resolvers in ThisBuild ++= Seq(
+ThisBuild / resolvers ++= Seq(
     Resolver.sonatypeRepo("releases"),
     Resolver.sonatypeRepo("snapshots")
 )
@@ -38,10 +38,10 @@ libraryDependencies ++= Seq(
 
 scalacOptions ++= Seq()
 
-logLevel in ThisBuild := Level.Warn
+ThisBuild / logLevel := Level.Warn
 
 //  creating a logger and setting level to warn/whatever for console
-initialCommands in console :=
+console / initialCommands :=
     """|
        | import ch.qos.logback.classic.Logger
        | import org.slf4j.LoggerFactory
@@ -50,15 +50,13 @@ initialCommands in console :=
        | root.setLevel(Level.OFF)
        | """.stripMargin
 
-mainClass in assembly := Some("org.tygus.suslik.synthesis.SynthesisRunner")
-
-test in assembly := {}
-
 parallelExecution in Test := false
 
-assemblyJarName in assembly := "suslik.jar"
+assembly / assemblyJarName := "suslik.jar"
+assembly / mainClass := Some("org.tygus.suslik.synthesis.SynthesisRunner")
+assembly / test := {}
 
-assemblyMergeStrategy in assembly := {
+assembly / assemblyMergeStrategy := {
   case PathList("META-INF", _*) => MergeStrategy.discard
   case x if Assembly.isConfigFile(x) => MergeStrategy.concat
   case _ => MergeStrategy.first
