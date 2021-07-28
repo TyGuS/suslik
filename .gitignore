@@ -139,6 +139,7 @@ node_modules
 /scratch
 
 # logs, stats, and other outputs
+/logs
 *.log
 *.csv
 *results.tex
