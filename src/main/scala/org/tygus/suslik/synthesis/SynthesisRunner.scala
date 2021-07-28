@@ -96,7 +96,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
         runSingleTestFromDir(dir, fName, synConfig)
       case Some(RunConfig(synConfig, _, "server")) =>
         new SynthesisServer().start() /** @todo use config! */
-      case None =>
+      case _ =>
         System.err.println("Bad argument format.")
     }
   }
