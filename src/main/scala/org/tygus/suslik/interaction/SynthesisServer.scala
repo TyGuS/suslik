@@ -111,7 +111,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   val logger: Logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
   val config: SynConfig = SynConfig(timeOut = 15000, maxOpenDepth = 2, maxCloseDepth = 2)
-  protected var isynth: IterativeUnorderedSynthesis = null
+  protected var isynth: IterativeUnorderedSynthesis = _
 
   protected val trace: ProofTraceJson = new ProofTraceJson {
     override def add(node: OrNode): Unit =
@@ -121,7 +121,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
   }
 
   def goAutomatic(spec: SpecMessage): Unit = {
-    def inThread(op: => Unit) { new Thread(() => op).start() }
+    def inThread(op: => Unit): Unit = { new Thread(() => op).start() }
     inThread {
       LanguageUtils.resetFreshNameGenerator()
       synthesizeFromSpec(spec)
@@ -205,7 +205,7 @@ class AsyncSynthesisRunner extends SynthesisRunnerUtil {
 
   def parseInputFormatSpecifier(fmt: String): InputFormat = fmt match {
     case "syn" => dotSyn; case "sus" => dotSus;
-    case _ => throw new RuntimeException(s"unrecognized input format '${fmt}")
+    case _ => throw new RuntimeException(s"unrecognized input format '$fmt'")
   }
 
   def grow(id: NodeId): Unit =
@@ -248,7 +248,7 @@ object AsyncSynthesisRunner {
     private val waiting = new ThreadBuffer
     override def take(): E = waiting.usingCurrent { super.take() }
     override def put(e: E): Unit = waiting.usingCurrent { super.put(e) }
-    def cancel() { waiting foreach (_.interrupt()) }
+    def cancel(): Unit = { waiting foreach (_.interrupt()) }
   }
 
   /**
@@ -365,6 +365,8 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
   import upickle.default.read
   import AsyncSynthesisRunner._
 
+  protected val HARD_MAX_TIMEOUT: Long = 3600 * 1000
+
   {
     logger.info("client session started")
   }
@@ -398,4 +400,11 @@ class ClientSessionSynthesis(implicit ec: ExecutionContext) extends AsyncSynthes
         case _ => logger.warn("received a non-text message"); Nil
       }.to(offer.mapMaterializedValue(m => m.foreach(done))),
       subscribe.map(TextMessage(_)))
+
+  protected def adjustConfig(config: SynConfig): SynConfig =
+    config.copy(timeOut = Math.min(config.timeOut, HARD_MAX_TIMEOUT))
+
+  override def synthesizeFromSpec(testName: String, text: String, out: String,
+                                  params: SynConfig): List[Statements.Procedure] =
+    super.synthesizeFromSpec(testName, text, out, adjustConfig(params))
 }
