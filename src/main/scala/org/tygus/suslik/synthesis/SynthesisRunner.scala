@@ -9,6 +9,8 @@ import org.tygus.suslik.report.Log
 import org.tygus.suslik.util.SynLogLevels
 import scopt.OptionParser
 
+import scala.concurrent.duration.{Duration, MILLISECONDS}
+
 /**
   * @author Ilya Sergey
   */
@@ -16,7 +18,7 @@ import scopt.OptionParser
 object SynthesisRunner extends SynthesisRunnerUtil {
 
   // Enable verbose logging
-  override implicit val log = new Log(SynLogLevels.Verbose)
+  override implicit val log: Log = new Log(SynLogLevels.Verbose)
 
   /**
     * Command line args:
@@ -114,6 +116,12 @@ object SynthesisRunner extends SynthesisRunnerUtil {
         case _ => NoCert
       }
 
+    implicit val durationRead: scopt.Read[Duration] =
+      scopt.Read.reads { s =>
+        try { Duration(s.toLong, MILLISECONDS) /** @todo make default be seconds? */ }
+        catch { case _: NumberFormatException => Duration(s) }
+      }
+
     private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =
       Function.uncurried { c:C => lens =>= f(c) }
 
@@ -129,8 +137,8 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(traceLevel = l)
     }).text("print the entire derivation trace; default: false")
 
-    opt[Long]('t', "timeout").action(cfg { t =>
-      _.copy(timeOut = t)
+    opt[Duration]('t', "timeout").action(cfg { t =>
+      _.copy(timeOut = t.toMillis)
     }).text("timeout for the derivation; default (in milliseconds): 1800000 (30 min)")
 
     opt[Boolean]('a', "assert").action(cfg { b =>
