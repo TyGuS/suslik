@@ -29,7 +29,7 @@ import operator
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
 TIMEOUT      = '-t=5000'                                          # Timeout option for suslik
-TEST_DIR     = 'src/test/resources/synthesis/paper-benchmarks/'   # Root directory for the tests
+TEST_DIR     = 'src/test/resources/synthesis/all-benchmarks/'     # Root directory for the tests
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
 CSV_TEMP     = 'stats-temp.csv'                                   # Intermediate CSV file produced by suslik
 EVAL_FOLDER  = 'robo-evaluation-utils'                            # the folder with most of the eval utils and stats
@@ -251,43 +251,83 @@ def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_
             results[meta[0]][conf[0]][group.name][b.name].rules = 'FAIL'
 
   return results
-
-###################################################################
-
 ALL_BENCHMARKS = [
     BenchmarkGroup("Integers", [
         Benchmark('ints/swap', 'swap two'),
         Benchmark('ints/min2', 'min of two'),
     ]),
-    BenchmarkGroup("Linked List", [
-        Benchmark('sll-bounds/sll-len', 'length'),
-        Benchmark('sll-bounds/sll-max', 'max'),
-        Benchmark('sll-bounds/sll-min', 'min'),
-        Benchmark('sll/sll-singleton', 'singleton'),
-        Benchmark('sll/sll-free', 'dispose'),
-        Benchmark('sll/sll-init', 'initialize'),
-        Benchmark('sll/sll-copy', 'copy'),
-        Benchmark('sll/sll-append', 'append'),
-        Benchmark('sll/sll-delete-all', 'delete'),
+    BenchmarkGroup("Singly Linked List", [
+        Benchmark('sll/len', 'length'),
+        Benchmark('sll/max', 'max'),
+        Benchmark('sll/min', 'min'),
+        Benchmark('sll/singleton', 'singleton'),
+        Benchmark('sll/free', 'deallocate'),
+        Benchmark('sll/init', 'initialize'),
+        Benchmark('sll/copy', 'copy'),
+        Benchmark('sll/append', 'append'),
+        Benchmark('sll/delete-all', 'delete'),
+        Benchmark('sll/free2', 'deallocate two'),
+        Benchmark('sll/multi-append', 'append three'),
+        Benchmark('sll/append-copy', 'non-destructive append'),
+        Benchmark('sll/union', 'union'),
+        Benchmark('sll/intersect', 'intersection'),
+        Benchmark('sll/diff', 'difference'),
+        Benchmark('sll/unique', 'deduplicate'),
     ]),
     BenchmarkGroup("Sorted list", [
-        Benchmark('srtl/srtl-prepend', 'prepend'),
-        Benchmark('srtl/srtl-insert', 'insert'),
+        Benchmark('srtl/prepend', 'prepend'),
+        Benchmark('srtl/insert', 'insert'),
         Benchmark('srtl/insertion-sort', 'insertion sort'),
+        Benchmark('srtl/sort', 'sort'),
+        Benchmark('srtl/reverse', 'reverse'),
+        Benchmark('srtl/merge', 'merge'),
     ]),
-    BenchmarkGroup("Tree", [
-        Benchmark('tree/tree-size', 'size'),
-        Benchmark('tree/tree-free', 'dispose'),
-        Benchmark('tree/tree-copy', 'copy'),
-        Benchmark('tree/tree-flatten', 'flatten w/append'),
-        Benchmark('tree/tree-flatten-acc', 'flatten w/acc'),
+    BenchmarkGroup("Doubly Linked List", [
+        Benchmark('dll/singleton', 'singleton'),
+        Benchmark('dll/copy', 'copy'),
+        Benchmark('dll/append', 'append'),
+        Benchmark('dll/delete-all', 'delete'),
+        Benchmark('dll/from-sll', 'single to double'),
+    ]),
+    BenchmarkGroup("List of Lists", [
+        Benchmark('multi-list/free', 'deallocate'),
+        Benchmark('multi-list/flatten', 'flatten'),
+        Benchmark('multi-list/len', 'length'),
+    ]),
+    BenchmarkGroup("Binary Tree", [
+        Benchmark('tree/size', 'size'),
+        Benchmark('tree/free', 'deallocate'),
+        Benchmark('tree/free2', 'deallocate two'),
+        Benchmark('tree/copy', 'copy'),
+        Benchmark('tree/flatten-helper', 'flatten w/append'),
+        Benchmark('tree/flatten-acc', 'flatten w/acc'),
+        Benchmark('tree/flatten', 'flatten'),
+        Benchmark('tree/flatten-dll', 'flatten to dll in place'),
+        Benchmark('tree/flatten-dll-linear', 'flatten to dll w/null'),
     ]),
     BenchmarkGroup("BST", [
-        Benchmark('bst/bst-insert', 'insert'),
-        Benchmark('bst/bst-left-rotate', 'rotate left'),
-        Benchmark('bst/bst-right-rotate', 'rotate right'),
+        Benchmark('bst/insert', 'insert'),
+        Benchmark('bst/left-rotate', 'rotate left'),
+        Benchmark('bst/right-rotate', 'rotate right'),
+        Benchmark('bst/min', 'find min'),
+        Benchmark('bst/max', 'find max'),
+        Benchmark('bst/delete-root', 'delete root'),
+        Benchmark('bst/list-to-bst', 'from list'),
+        Benchmark('bst/to-srtl', 'to sorted list'),
     ]),
+     BenchmarkGroup("Rose Tree", [
+         Benchmark('rose-tree/free', 'deallocate'),
+         Benchmark('rose-tree/flatten', 'flatten'),
+         Benchmark('rose-tree/copy', 'copy'),
+     ]),
+     BenchmarkGroup("Packed Tree", [
+    #    Benchmark('packed/pack', 'pack'),
+         Benchmark('packed/unpack', 'unpack'),
+     ]),
   ]
+
+###################################################################
+
 
 ROBUSTNESS      = ALL_BENCHMARKS.copy()
 

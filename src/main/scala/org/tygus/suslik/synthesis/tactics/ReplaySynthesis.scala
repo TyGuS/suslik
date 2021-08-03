@@ -12,7 +12,9 @@ class ReplaySynthesis(config: SynConfig) extends PhasedSynthesis(config) {
     else {
       val choice = script.head
       script = script.tail
-      val res = allExpansions(choice - 1)
+      println("script is ")
+      script.foreach(println)
+      val res = allExpansions(choice) //- 1)
       List(res)
     }
   }
