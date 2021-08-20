@@ -6,13 +6,8 @@ import copy
 from subprocess import call
 
 import roboevaluation
-
-import numpy
 import pandas
-
-from deap import algorithms
 from deap import base
-from deap import creator
 from deap import tools
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
@@ -44,6 +39,7 @@ class Individual(list):
                  rank,
                  nan=10,
                  time=9999999999.0,
+                 is_for_training=True,
                  orders_of_any_phase_rules=None,
                  orders_of_pure_phase_rules=None,
                  orders_of_symbolic_execution_rules=None,
@@ -60,6 +56,7 @@ class Individual(list):
         self.individual_id = individual_id
         self.rank = rank
         self.nan = nan
+        self.is_for_training = is_for_training
         self.time = time
 
         if orders_of_any_phase_rules is None:
@@ -241,7 +238,6 @@ class Individual(list):
         else:
             data = roboevaluation.VALIDATION_DATA
 
-
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
             roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.population_id,
@@ -273,7 +269,8 @@ class Individual(list):
             "individual_ID": self.individual_id,
             "rank": self.rank,
             "number_of_nan": self.nan,
-            "search_time": self.time
+            "search_time": self.time,
+            "is_for_training": self.is_for_training
         }
 
     def write_json_result(self):
@@ -301,15 +298,14 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    # evaluate default strategy
-    generation_id = 0
-    default = Individual(population_id=generation_id, individual_id=0, rank=0)
+    # evaluate the default strategy
+    default = Individual(population_id=0, individual_id=0, rank=0, is_for_training=False)
     best_individual_after_evolution = default
     best_individual_after_evolution.evaluate(for_training=False)
     best_individual_after_evolution.write_json_result()
-    best_individual_after_evolution.set_population_id(generation_id + 1)
 
     # create an initial population of POPULATION_SIZE individuals
+    generation_id = 1
     individual_ids = list(range(0, POPULATION_SIZE))
     population = []
     for individual_id in individual_ids:
@@ -369,6 +365,7 @@ def main():
             individual.write_json_result()
 
     # cross-validation
+    # evaluate the best individual
     best_individual_after_evolution = population[0]
     best_individual_after_evolution.set_population_id(generation_id + 1)
     best_individual_after_evolution.evaluate(for_training=False)

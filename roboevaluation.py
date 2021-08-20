@@ -9,7 +9,7 @@ import random
 
 ###
 #
-# @author Andreea Costea
+# @author Andreea Costea and Yutaka Nagashima
 # adapted of evaluation.py
 #
 # Script for evaluation. For changing the evaluation configuration via the application's
