@@ -190,6 +190,19 @@ class Individual(list):
         for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
 
+    def default(self):
+        self.orders_of_any_phase_rules_or_spec_based_rules = range(0, NUMB_OF_ANY_PHASE_RULE)
+        self.orders_of_pure_phase_rules = range(0, NUMB_OF_PURE_PHASE_RULE)
+        self.orders_of_symbolic_execution_rules = range(0, NUMB_OF_SYMBOLIC_EXECUTION_RULE)
+        self.orders_of_unfolding_phase_rules = range(0, NUMB_OF_UNFOLDING_PHASE_RULE)
+        self.orders_of_any_phase_rules_or_spec_based_rules = range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE)
+        self.orders_of_sketch_hole = range(0, NUMB_OF_SKETCH_HOLE)
+        self.orders_of_pointer_phase_rules = range(0, NUMB_OF_POINTER_PHASE_RULE)
+        self.orders_of_post_block_phase_rules = range(0, NUMB_OF_POST_BLOCK_PHASE_RULE)
+        self.orders_of_call_abduction_rules = range(0, NUMB_OF_CALL_ABDUCTION_RULE)
+        self.orders_of_unfolding_post_phase_rules = range(0, NUMB_OF_UNFOLDING_POST_PHASE_RULE)
+        self.orders_of_unfolding_no_unfold_phase_rules = range(0, NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES)
+
     def json_file_path(self):
         json_file_name = "search_parameter" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
         path = PATH_TO_TACTICS + json_file_name
@@ -220,16 +233,21 @@ class Individual(list):
             self.individual_id) + '.csv'
         return path
 
-    def evaluate(self):
+    def evaluate(self, for_training=True):
 
         self.write_order_json()
+        if for_training:
+            data = roboevaluation.TRAINING_DATA
+        else:
+            data = roboevaluation.VALIDATION_DATA
+
 
         results1 = roboevaluation.evaluate_n_times(
-            1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
+            1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
             roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.population_id,
             self.individual_id)
 
-        roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, roboevaluation.ALL_BENCHMARKS,
+        roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
                                     results1, self.csv_path())
 
         df = pandas.read_csv(filepath_or_buffer=self.csv_path(), na_values=['FAIL', '-'])
@@ -256,10 +274,6 @@ class Individual(list):
             "rank": self.rank,
             "number_of_nan": self.nan,
             "search_time": self.time
-            #"orders_of_any_phase_rules": self.orders_of_any_phase_rules,
-            #"orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
-            #"orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
-            #"orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules
         }
 
     def write_json_result(self):
@@ -287,13 +301,19 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    # create an initial population of 20 individuals (where each individual is a list of integers)
-    individual_ids = list(range(0, POPULATION_SIZE))
+    # evaluate default strategy
+    generation_id = 0
+    default = Individual(population_id=generation_id, individual_id=0, rank=0)
+    best_individual_after_evolution = default
+    best_individual_after_evolution.evaluate(for_training=False)
+    best_individual_after_evolution.write_json_result()
+    best_individual_after_evolution.set_population_id(generation_id + 1)
 
-    # initialize the population
+    # create an initial population of POPULATION_SIZE individuals
+    individual_ids = list(range(0, POPULATION_SIZE))
     population = []
     for individual_id in individual_ids:
-        population.append(Individual(population_id=0, individual_id=individual_id, rank=0))
+        population.append(Individual(population_id=generation_id, individual_id=individual_id, rank=0))
 
     # evaluate the entire population
     for individual in population:
@@ -311,9 +331,6 @@ def main():
 
     for individual in population:
         individual.write_json_result()
-
-    # current number of generation
-    generation_id = 0
 
     # begin the evolution
     while all((individual.is_not_good_enough()) for individual in population) \
@@ -350,6 +367,12 @@ def main():
             individual.set_rank(rank)
             rank = rank + 1
             individual.write_json_result()
+
+    # cross-validation
+    best_individual_after_evolution = population[0]
+    best_individual_after_evolution.set_population_id(generation_id + 1)
+    best_individual_after_evolution.evaluate(for_training=False)
+    best_individual_after_evolution.write_json_result()
 
     return 0
 

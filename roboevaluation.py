@@ -1,8 +1,11 @@
+import copy
 from subprocess import call
 import os, os.path
 import csv
 import functools
 import operator
+from deap import tools
+import random
 
 ###
 #
@@ -45,7 +48,7 @@ CONFIG       = [DEFCONFIG]                                        # Configuratio
 PATH1        = ""                                                  # Along with TEST_DIR gives full path to the benchmarks
 METACONFIG1  = [ DEFCONFIG ]                                       # Meta Configurations
 CONFIG1      = [ ('mut', '') ]                                     # Configurations
-STATS1       = EVAL_FOLDER + '/stats-performance.csv'              # Output file with all the stats
+STATS1       = EVAL_FOLDER + '/stats-performance.csv'              # Output file with all the statssRESULTS1     = EVAL_FOLDER + '/all_results1'                       # Output file with synthesis results
 RESULTS1     = EVAL_FOLDER + '/all_results1'                       # Output file with synthesis results
 LATEX_FILE1  = EVAL_FOLDER + '/table1.tex'                         # Output file for generating a latex table
 
@@ -69,9 +72,10 @@ class SynthesisResult:
 
 
 class Benchmark:
-  def __init__(self, name, description):
+  def __init__(self, name, description, is_for_training):
     self.name        = name         # Test file name
     self.description = description  # Description (in the table)
+    self.is_for_training = is_for_training # 0 for validation, 1 for evolution (training)
     self.res         = None         # the result will be an object of class SynthesisResult
 
   def __str__(self):
@@ -121,6 +125,22 @@ class BenchmarkGroup:
         res[b.name] = b.run_benchmark(testFileName, args, results_file,csv_in, csv_out, evolution, population_id, individual_id)
     return res
 
+
+def get_benchmark_group_for_training(group:BenchmarkGroup):
+    benchmarks_for_training = []
+    for benchmark in group.benchmarks:
+        if benchmark.is_for_training:
+            print(benchmark.name)
+            benchmarks_for_training.append(copy.deepcopy(benchmark))
+    return BenchmarkGroup(group.name, benchmarks_for_training)
+
+def get_benchmark_group_for_validation(group:BenchmarkGroup):
+    benchmarks_for_validation = []
+    for benchmark in group.benchmarks:
+        if not benchmark.is_for_training:
+            print(benchmark.name)
+            benchmarks_for_validation.append(copy.deepcopy(benchmark))
+    return BenchmarkGroup(group.name, benchmarks_for_validation)
 
 ###################################################################
 
@@ -251,85 +271,96 @@ def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_
             results[meta[0]][conf[0]][group.name][b.name].rules = 'FAIL'
 
   return results
+
+PORTION_OF_TRAINING = 0.5
+random.seed
+
+def mutBit(i,indpb):
+    if random.random() < indpb:
+        return not i
+    else:
+        return i
+
+
 ALL_BENCHMARKS = [
     BenchmarkGroup("Integers", [
-        Benchmark('ints/swap', 'swap two'),
-        Benchmark('ints/min2', 'min of two'),
+        Benchmark('ints/swap', 'swap two', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('ints/min2', 'min of two', mutBit(0, PORTION_OF_TRAINING)),
     ]),
     BenchmarkGroup("Singly Linked List", [
-        Benchmark('sll/len', 'length'),
-        Benchmark('sll/max', 'max'),
-        Benchmark('sll/min', 'min'),
-        Benchmark('sll/singleton', 'singleton'),
-        Benchmark('sll/free', 'deallocate'),
-        Benchmark('sll/init', 'initialize'),
-        Benchmark('sll/copy', 'copy'),
-        Benchmark('sll/append', 'append'),
-        Benchmark('sll/delete-all', 'delete'),
-        Benchmark('sll/free2', 'deallocate two'),
-        Benchmark('sll/multi-append', 'append three'),
-        Benchmark('sll/append-copy', 'non-destructive append'),
-        Benchmark('sll/union', 'union'),
-        Benchmark('sll/intersect', 'intersection'),
-        Benchmark('sll/diff', 'difference'),
-        Benchmark('sll/unique', 'deduplicate'),
+        Benchmark('sll/len', 'length', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/max', 'max', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/min', 'min', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/singleton', 'singleton', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/free', 'deallocate', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/init', 'initialize', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/copy', 'copy', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/append', 'append', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/delete-all', 'delete', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/free2', 'deallocate two', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/multi-append', 'append three', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/append-copy', 'non-destructive append', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/union', 'union', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/intersect', 'intersection', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/diff', 'difference', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('sll/unique', 'deduplicate', mutBit(0, PORTION_OF_TRAINING)),
     ]),
     BenchmarkGroup("Sorted list", [
-        Benchmark('srtl/prepend', 'prepend'),
-        Benchmark('srtl/insert', 'insert'),
-        Benchmark('srtl/insertion-sort', 'insertion sort'),
-        Benchmark('srtl/sort', 'sort'),
-        Benchmark('srtl/reverse', 'reverse'),
-        Benchmark('srtl/merge', 'merge'),
+        Benchmark('srtl/prepend', 'prepend', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('srtl/insert', 'insert', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('srtl/insertion-sort', 'insertion sort', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('srtl/sort', 'sort', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('srtl/reverse', 'reverse', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('srtl/merge', 'merge', mutBit(0, PORTION_OF_TRAINING)),
     ]),
     BenchmarkGroup("Doubly Linked List", [
-        Benchmark('dll/singleton', 'singleton'),
-        Benchmark('dll/copy', 'copy'),
-        Benchmark('dll/append', 'append'),
-        Benchmark('dll/delete-all', 'delete'),
-        Benchmark('dll/from-sll', 'single to double'),
+        Benchmark('dll/singleton', 'singleton', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('dll/copy', 'copy', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('dll/append', 'append', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('dll/delete-all', 'delete', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('dll/from-sll', 'single to double', mutBit(0, PORTION_OF_TRAINING)),
     ]),
     BenchmarkGroup("List of Lists", [
-        Benchmark('multi-list/free', 'deallocate'),
-        Benchmark('multi-list/flatten', 'flatten'),
-        Benchmark('multi-list/len', 'length'),
+        Benchmark('multi-list/free', 'deallocate', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('multi-list/flatten', 'flatten', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('multi-list/len', 'length', mutBit(0, PORTION_OF_TRAINING)),
     ]),
     BenchmarkGroup("Binary Tree", [
-        Benchmark('tree/size', 'size'),
-        Benchmark('tree/free', 'deallocate'),
-        Benchmark('tree/free2', 'deallocate two'),
-        Benchmark('tree/copy', 'copy'),
-        Benchmark('tree/flatten-helper', 'flatten w/append'),
-        Benchmark('tree/flatten-acc', 'flatten w/acc'),
-        Benchmark('tree/flatten', 'flatten'),
-        Benchmark('tree/flatten-dll', 'flatten to dll in place'),
-        Benchmark('tree/flatten-dll-linear', 'flatten to dll w/null'),
+        Benchmark('tree/size', 'size', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/free', 'deallocate', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/free2', 'deallocate two', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/copy', 'copy', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/flatten-helper', 'flatten w/append', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/flatten-acc', 'flatten w/acc', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/flatten', 'flatten', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/flatten-dll', 'flatten to dll in place', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('tree/flatten-dll-linear', 'flatten to dll w/null', mutBit(0, PORTION_OF_TRAINING)),
     ]),
     BenchmarkGroup("BST", [
-        Benchmark('bst/insert', 'insert'),
-        Benchmark('bst/left-rotate', 'rotate left'),
-        Benchmark('bst/right-rotate', 'rotate right'),
-        Benchmark('bst/min', 'find min'),
-        Benchmark('bst/max', 'find max'),
-        Benchmark('bst/delete-root', 'delete root'),
-        Benchmark('bst/list-to-bst', 'from list'),
-        Benchmark('bst/to-srtl', 'to sorted list'),
+        Benchmark('bst/insert', 'insert', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('bst/left-rotate', 'rotate left', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('bst/right-rotate', 'rotate right', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('bst/min', 'find min', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('bst/max', 'find max', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('bst/delete-root', 'delete root', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('bst/list-to-bst', 'from list', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('bst/to-srtl', 'to sorted list', mutBit(0, PORTION_OF_TRAINING)),
     ]),
      BenchmarkGroup("Rose Tree", [
-         Benchmark('rose-tree/free', 'deallocate'),
-         Benchmark('rose-tree/flatten', 'flatten'),
-         Benchmark('rose-tree/copy', 'copy'),
+         Benchmark('rose-tree/free', 'deallocate', mutBit(0, PORTION_OF_TRAINING)),
+         Benchmark('rose-tree/flatten', 'flatten', mutBit(0, PORTION_OF_TRAINING)),
+         Benchmark('rose-tree/copy', 'copy', mutBit(0, PORTION_OF_TRAINING)),
      ]),
      BenchmarkGroup("Packed Tree", [
     #    Benchmark('packed/pack', 'pack'),
-         Benchmark('packed/unpack', 'unpack'),
+         Benchmark('packed/unpack', 'unpack', mutBit(0, PORTION_OF_TRAINING)),
      ]),
   ]
 
+TRAINING_DATA = list(map(get_benchmark_group_for_training, ALL_BENCHMARKS))
+VALIDATION_DATA = list(map(get_benchmark_group_for_validation, ALL_BENCHMARKS))
+
 ###################################################################
-
-
-ROBUSTNESS      = ALL_BENCHMARKS.copy()
 
 def read_csv(csv_in):
   '''Read stats file into the results dictionary'''
@@ -365,7 +396,7 @@ def format_time(t):
   #  PERFORMANCE  #
   #################
 
-def write_stats1(metaconfigs, configs, groups, results,stats_file):
+def write_stats1(metaconfigs, configs, groups, results, stats_file):
   '''Write stats from dictionary into a file'''
   with open(stats_file, 'wt') as stats:
     headings     = ['Code','Spec','Time','Backtrackings','Rules']     #configuration dependent headings
@@ -485,15 +516,11 @@ if __name__ == '__main__':
   #  PERFORMANCE  #
   #################
 
-  if (cl_opts.performance):
-      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1, CSV_IN, CSV_TEMP)
-      write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results1, STATS1)
-
   if (cl_opts.latex):
     res = read_csv_all(STATS1,True)
     write_stats1_tex(CONFIG1,res,LATEX_FILE1)
 
   if (cl_opts.performance):
-      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, ALL_BENCHMARKS, RESULTS1, CSV_IN, CSV_TEMP,
+      results1 = evaluate_n_times(repetitions, METACONFIG1, CONFIG1, TRAINING_DATA, RESULTS1, CSV_IN, CSV_TEMP,
                                   cl_opts.population, cl_opts.individual)
-      write_stats1(METACONFIG1, CONFIG1, ALL_BENCHMARKS, results1, STATS1)
+      write_stats1(METACONFIG1, CONFIG1, TRAINING_DATA, results1, STATS1)
