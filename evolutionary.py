@@ -39,7 +39,6 @@ class Individual(list):
                  rank,
                  nan=10,
                  time=9999999999.0,
-                 is_for_training=True,
                  orders_of_any_phase_rules=None,
                  orders_of_pure_phase_rules=None,
                  orders_of_symbolic_execution_rules=None,
@@ -56,7 +55,6 @@ class Individual(list):
         self.individual_id = individual_id
         self.rank = rank
         self.nan = nan
-        self.is_for_training = is_for_training
         self.time = time
 
         if orders_of_any_phase_rules is None:
@@ -259,24 +257,30 @@ class Individual(list):
         return (self.nan > MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS) or (self.time > MAXIMUM_TOTAL_TIME)
 
     # Note that we use the rank of individual in the file name.
-    def json_result_file_path(self):
-        return "robo-evaluation-utils/result" + "_" + str(self.population_id) + "_" + str(self.rank) \
-                         + ".json"
+    def json_result_file_path(self, is_for_training=True):
 
-    def json_result(self):
+        if is_for_training:
+            result_type = "_training"
+        else:
+            result_type = "_validation"
+
+        return "robo-evaluation-utils/result" + "_" + str(self.population_id) + "_" + str(self.rank) \
+                         + result_type + ".json"
+
+    def json_result(self, is_for_training=True):
         return {
             "generation_ID": self.population_id,
             "individual_ID": self.individual_id,
             "rank": self.rank,
             "number_of_nan": self.nan,
             "search_time": self.time,
-            "is_for_training": self.is_for_training
+            "is_for_training": is_for_training
         }
 
-    def write_json_result(self):
+    def write_json_result(self, for_training=True):
 
-        with open(self.json_result_file_path(), 'w') as json_result_file_to_write:
-            json.dump(self.json_result(), json_result_file_to_write)
+        with open(self.json_result_file_path(for_training), 'w') as json_result_file_to_write:
+            json.dump(self.json_result(for_training), json_result_file_to_write)
 
 def get_total_time(individual: Individual):
     return individual.get_time()
@@ -299,10 +303,9 @@ def main():
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
     # evaluate the default strategy
-    default = Individual(population_id=0, individual_id=0, rank=0, is_for_training=False)
-    best_individual_after_evolution = default
-    best_individual_after_evolution.evaluate(for_training=False)
-    best_individual_after_evolution.write_json_result()
+    default = Individual(population_id=0, individual_id=0, rank=0)
+    default.evaluate(for_training=False)
+    default.write_json_result(for_training=False)
 
     # create an initial population of POPULATION_SIZE individuals
     generation_id = 1
@@ -327,6 +330,11 @@ def main():
 
     for individual in population:
         individual.write_json_result()
+
+    best_individual_so_far = copy.deepcopy(population[0])
+    print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
+    best_individual_so_far.evaluate(for_training=False)
+    best_individual_so_far.write_json_result(for_training=False)
 
     # begin the evolution
     while all((individual.is_not_good_enough()) for individual in population) \
@@ -364,12 +372,18 @@ def main():
             rank = rank + 1
             individual.write_json_result()
 
+        best_individual_so_far = copy.deepcopy(population[0])
+        print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
+        best_individual_so_far.evaluate(for_training=False)
+        best_individual_so_far.write_json_result(for_training=False)
+
     # cross-validation
     # evaluate the best individual
-    best_individual_after_evolution = population[0]
+    best_individual_after_evolution = copy.deepcopy(population[0])
     best_individual_after_evolution.set_population_id(generation_id + 1)
+    print("----- cross validation as generation number %i -----" % best_individual_after_evolution.individual_id)
     best_individual_after_evolution.evaluate(for_training=False)
-    best_individual_after_evolution.write_json_result()
+    best_individual_after_evolution.write_json_result(for_training=False)
 
     return 0
 
