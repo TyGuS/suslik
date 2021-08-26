@@ -352,7 +352,7 @@ ALL_BENCHMARKS = [
          Benchmark('rose-tree/copy', 'copy', mutBit(0, PORTION_OF_TRAINING)),
      ]),
      BenchmarkGroup("Packed Tree", [
-    #    Benchmark('packed/pack', 'pack'),
+         Benchmark('packed/pack', 'pack', mutBit(0, PORTION_OF_TRAINING)),
          Benchmark('packed/unpack', 'unpack', mutBit(0, PORTION_OF_TRAINING)),
      ]),
   ]
