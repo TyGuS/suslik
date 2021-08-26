@@ -57,7 +57,7 @@ object Specifications extends SepLogicUtils {
     // Size of the assertion (in AST nodes)
     def size: Int = phi.size + sigma.size
 
-    def cost: Int = sigma.cost
+    def cost: Double = sigma.cost
   }
 
   /**
@@ -269,9 +269,9 @@ object Specifications extends SepLogicUtils {
      * for now just the number of heaplets in pre and post
      */
     //    lazy val cost: Int = pre.cost.max(post.cost)
-    lazy val cost: Int = callGoal match {
-      case None => 3*pre.cost + post.cost  // + existentials.size //
-      case Some(cg) => 10 + 3*cg.callerPre.cost + cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
+    lazy val cost: Double = callGoal match {
+      case None => env.weight_of_cost_no_call_goal_pre * pre.cost + env.weight_of_cost_no_call_goal_post * post.cost  // + existentials.size //
+      case Some(cg) => env.weight_of_cost_call_goal + env.weight_of_cost_call_goal_pre * cg.callerPre.cost + env.weight_of_cost_call_goal_post * cg.callerPost.cost // + (cg.callerPost.vars -- allUniversals).size //
     }
   }
 
@@ -328,7 +328,7 @@ object Specifications extends SepLogicUtils {
 
     def actualCall: Call = call.copy(args = call.args.map(_.subst(freshToActual)))
 
-    lazy val cost: Int = calleePost.cost
+    lazy val cost: Double = calleePost.cost
   }
 }
 

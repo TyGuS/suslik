@@ -207,7 +207,12 @@ case class Environment(predicates: PredicateEnv,
                        ordersOfPostBlockPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
                        ordersOfCallAbductionRules: ArrayBuffer[ArrayBuffer[Int]],
                        ordersOfUnfoldingPostPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
-                       ordersOfUnfoldingNoUnfoldPhaseRules: ArrayBuffer[ArrayBuffer[Int]]
+                       ordersOfUnfoldingNoUnfoldPhaseRules: ArrayBuffer[ArrayBuffer[Int]],
+                       weight_of_cost_no_call_goal_pre: Double,
+                       weight_of_cost_no_call_goal_post: Double,
+                       weight_of_cost_call_goal: Double,
+                       weight_of_cost_call_goal_pre: Double,
+                       weight_of_cost_call_goal_post: Double
                       ) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")

@@ -24,7 +24,7 @@ NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 5
+POPULATION_SIZE = 10
 MAXIMUM_NUMBER_OF_GENERATIONS = 30
 INDPB = 0.1
 NUMB_OF_FEATURES = 7
@@ -49,13 +49,23 @@ class Individual(list):
                  orders_of_post_block_phase_rules=None,
                  orders_of_call_abduction_rules=None,
                  orders_of_unfolding_post_phase_rules=None,
-                 orders_of_unfolding_no_unfold_phase_rules=None):
+                 orders_of_unfolding_no_unfold_phase_rules=None,
+                 weight_of_cost_no_call_goal_pre: float = 3.0,
+                 weight_of_cost_no_call_goal_post: float = 1.0,
+                 weight_of_cost_call_goal: float = 10.0,
+                 weight_of_cost_call_goal_pre: float = 3.0,
+                 weight_of_cost_call_goal_post: float = 1.0):
         super().__init__()
         self.population_id = population_id
         self.individual_id = individual_id
         self.rank = rank
         self.nan = nan
         self.time = time
+        self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre
+        self.weight_of_cost_no_call_goal_post = weight_of_cost_no_call_goal_post
+        self.weight_of_cost_call_goal = weight_of_cost_call_goal
+        self.weight_of_cost_call_goal_pre = weight_of_cost_call_goal_pre
+        self.weight_of_cost_call_goal_post = weight_of_cost_call_goal_post
 
         if orders_of_any_phase_rules is None:
             orders_of_any_phase_rules = []
@@ -184,19 +194,30 @@ class Individual(list):
             tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
         for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
+        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
+        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
+        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(0.8, 1.2)
+        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
+        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
 
+    # TODO: This only supports the static optimisation. (compiler-time optimisation)
     def default(self):
-        self.orders_of_any_phase_rules_or_spec_based_rules = range(0, NUMB_OF_ANY_PHASE_RULE)
-        self.orders_of_pure_phase_rules = range(0, NUMB_OF_PURE_PHASE_RULE)
-        self.orders_of_symbolic_execution_rules = range(0, NUMB_OF_SYMBOLIC_EXECUTION_RULE)
-        self.orders_of_unfolding_phase_rules = range(0, NUMB_OF_UNFOLDING_PHASE_RULE)
-        self.orders_of_any_phase_rules_or_spec_based_rules = range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE)
-        self.orders_of_sketch_hole = range(0, NUMB_OF_SKETCH_HOLE)
-        self.orders_of_pointer_phase_rules = range(0, NUMB_OF_POINTER_PHASE_RULE)
-        self.orders_of_post_block_phase_rules = range(0, NUMB_OF_POST_BLOCK_PHASE_RULE)
-        self.orders_of_call_abduction_rules = range(0, NUMB_OF_CALL_ABDUCTION_RULE)
-        self.orders_of_unfolding_post_phase_rules = range(0, NUMB_OF_UNFOLDING_POST_PHASE_RULE)
-        self.orders_of_unfolding_no_unfold_phase_rules = range(0, NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES)
+        self.orders_of_any_phase_rules_or_spec_based_rules = [list(range(0, NUMB_OF_ANY_PHASE_RULE))]
+        self.orders_of_pure_phase_rules = [list(range(0, NUMB_OF_PURE_PHASE_RULE))]
+        self.orders_of_symbolic_execution_rules = [list(range(0, NUMB_OF_SYMBOLIC_EXECUTION_RULE))]
+        self.orders_of_unfolding_phase_rules = [list(range(0, NUMB_OF_UNFOLDING_PHASE_RULE))]
+        self.orders_of_any_phase_rules_or_spec_based_rules = [list(range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))]
+        self.orders_of_sketch_hole = [list(range(0, NUMB_OF_SKETCH_HOLE))]
+        self.orders_of_pointer_phase_rules = [list(range(0, NUMB_OF_POINTER_PHASE_RULE))]
+        self.orders_of_post_block_phase_rules = [list(range(0, NUMB_OF_POST_BLOCK_PHASE_RULE))]
+        self.orders_of_call_abduction_rules = [list(range(0, NUMB_OF_CALL_ABDUCTION_RULE))]
+        self.orders_of_unfolding_post_phase_rules = [list(range(0, NUMB_OF_UNFOLDING_POST_PHASE_RULE))]
+        self.orders_of_unfolding_no_unfold_phase_rules = [list(range(0, NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES))]
+        self.weight_of_cost_no_call_goal_pre = 3.0
+        self.weight_of_cost_no_call_goal_post = 1.0
+        self.weight_of_cost_call_goal = 10.0
+        self.weight_of_cost_call_goal_pre = 3.0
+        self.weight_of_cost_call_goal_post = 1.0
 
     def json_file_path(self):
         json_file_name = "search_parameter" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
@@ -217,7 +238,12 @@ class Individual(list):
             "orders_of_post_block_phase_rules": self.orders_of_post_block_phase_rules,
             "orders_of_call_abduction_rules": self.orders_of_call_abduction_rules,
             "orders_of_unfolding_post_phase_rules": self.orders_of_unfolding_post_phase_rules,
-            "orders_of_unfolding_no_unfold_phase_rules": self.orders_of_unfolding_no_unfold_phase_rules
+            "orders_of_unfolding_no_unfold_phase_rules": self.orders_of_unfolding_no_unfold_phase_rules,
+            "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
+            "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
+            "weight_of_cost_call_goal": self.weight_of_cost_call_goal,
+            "weight_of_cost_call_goal_pre": self.weight_of_cost_call_goal_pre,
+            "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
         }
 
         with open(self.json_file_path(), 'w') as new_json_file_to_write:
@@ -260,12 +286,20 @@ class Individual(list):
     def json_result_file_path(self, is_for_training=True):
 
         if is_for_training:
-            result_type = "_training"
+            result_type = "_training_"
         else:
-            result_type = "_validation"
+            result_type = "_validation_"
 
-        return "robo-evaluation-utils/result" + "_" + str(self.population_id) + "_" + str(self.rank) \
-                         + result_type + ".json"
+        return "robo-evaluation-utils/result" + result_type + str(self.population_id) + "_" + str(self.rank) + ".json"
+
+    def json_overall_result_file_path(self, is_for_training=True):
+
+        if is_for_training:
+            result_type = "_overall_training"
+        else:
+            result_type = "_overall_validation"
+
+        return "robo-evaluation-utils/result" + result_type + ".json"
 
     def json_result(self, is_for_training=True):
         return {
@@ -274,13 +308,25 @@ class Individual(list):
             "rank": self.rank,
             "number_of_nan": self.nan,
             "search_time": self.time,
-            "is_for_training": is_for_training
+            "is_for_training": is_for_training,
+            "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
+            "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
+            "weight_of_cost_call_goal": self.weight_of_cost_call_goal,
+            "weight_of_cost_call_goal_pre": self.weight_of_cost_call_goal_pre,
+            "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
         }
 
     def write_json_result(self, for_training=True):
 
         with open(self.json_result_file_path(for_training), 'w') as json_result_file_to_write:
             json.dump(self.json_result(for_training), json_result_file_to_write)
+
+    def write_overall_json_result(self, for_training=True):
+        with open(self.json_overall_result_file_path(for_training), 'a') as \
+                json_overall_validation_result_file_to_write:
+            json.dump(self.json_result(for_training), json_overall_validation_result_file_to_write)
+            json_overall_validation_result_file_to_write.write("\n")
+            json_overall_validation_result_file_to_write.close()
 
 def get_total_time(individual: Individual):
     return individual.get_time()
@@ -304,8 +350,13 @@ def main():
 
     # evaluate the default strategy
     default = Individual(population_id=0, individual_id=0, rank=0)
+    default.default()
     default.evaluate(for_training=False)
     default.write_json_result(for_training=False)
+    default.write_overall_json_result(for_training=False)
+    default.evaluate(for_training=True)
+    default.write_json_result(for_training=True)
+    default.write_overall_json_result(for_training=True)
 
     # create an initial population of POPULATION_SIZE individuals
     generation_id = 1
@@ -332,9 +383,11 @@ def main():
         individual.write_json_result()
 
     best_individual_so_far = copy.deepcopy(population[0])
+    best_individual_so_far.write_overall_json_result(for_training=True)
     print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
     best_individual_so_far.evaluate(for_training=False)
     best_individual_so_far.write_json_result(for_training=False)
+    best_individual_so_far.write_overall_json_result(for_training=False)
 
     # begin the evolution
     while all((individual.is_not_good_enough()) for individual in population) \
@@ -345,14 +398,19 @@ def main():
         # select the next generation individuals
         offspring1 = population[:POPULATION_SIZE]
 
+        # update individual_id of offspring1 (the ones that survived the previous selection)
+        individual_id = 0
+        for individual in offspring1:
+            individual.set_individual_id(individual_id)
+            individual_id = individual_id + 1
+
         for individual in offspring1:
             individual.set_population_id(generation_id)
 
-        # mutate the best from the previous round
-        offspring2 = copy.deepcopy(offspring1) + copy.deepcopy(offspring1[:2])
+        # copy the best ones from the previous round.
+        offspring2 = copy.deepcopy(offspring1) #+ copy.deepcopy(offspring1[:2])
 
-        # for offspring2, 1) mutate, 2) set ind-id, 3) set generation-id, 4) evaluate
-        individual_id = POPULATION_SIZE
+        # for offspring2, 1) mutate, 2) set ind-id, 3) set individual_id, 4) evaluate
         for individual in offspring2:
             individual.mutate()
             individual.set_individual_id(individual_id)
@@ -373,9 +431,11 @@ def main():
             individual.write_json_result()
 
         best_individual_so_far = copy.deepcopy(population[0])
+        best_individual_so_far.write_overall_json_result(for_training=True)
         print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
         best_individual_so_far.evaluate(for_training=False)
         best_individual_so_far.write_json_result(for_training=False)
+        best_individual_so_far.write_overall_json_result(for_training=False)
 
     # cross-validation
     # evaluate the best individual

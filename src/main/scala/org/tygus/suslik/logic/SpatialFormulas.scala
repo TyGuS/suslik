@@ -264,7 +264,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
   // Size of the formula (in AST nodes)
   def size: Int = chunks.map(_.size).sum
 
-  def cost: Int = chunks.map(_.cost).sum
+  def cost: Double = chunks.map(_.cost).sum
 
   //  def cost: Int = chunks.foldLeft(0)((m, c) => m.max(c.cost))
 }
