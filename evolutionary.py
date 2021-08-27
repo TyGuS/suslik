@@ -22,7 +22,7 @@ NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 3#10
+POPULATION_SIZE = 8
 MAXIMUM_NUMBER_OF_GENERATIONS = 10
 INDPB = 0.1
 NUMB_OF_FEATURES = 7
@@ -264,9 +264,15 @@ class Individual(list):
         with open(self.json_file_path(), 'w') as new_json_file_to_write:
             json.dump(json_data_to_write, new_json_file_to_write)
 
-    def csv_path(self):
-        path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.group_id) + "_" + str(self.generation_id) \
-               + '_' + str(self.individual_id) + '.csv'
+    def csv_path(self, is_for_training=True):
+
+        if is_for_training:
+            result_type = "_training_"
+        else:
+            result_type = "_validation_"
+
+        path = roboevaluation.EVAL_FOLDER + '/stats-performance' + result_type + str(self.group_id) + "_" \
+               + str(self.generation_id) + '_' + str(self.individual_id) + '.csv'
         return path
 
     def evaluate(self, for_training=True):
@@ -283,9 +289,9 @@ class Individual(list):
             self.group_id, self.generation_id, self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
-                                    results1, self.csv_path())
+                                    results1, self.csv_path(is_for_training=for_training))
 
-        df = pandas.read_csv(filepath_or_buffer=self.csv_path(), na_values=['FAIL', '-'])
+        df = pandas.read_csv(filepath_or_buffer=self.csv_path(is_for_training=for_training), na_values=['FAIL', '-'])
 
         number_of_nans = int(df['Time(mut)'].isna().sum())
         total_time = df['Time(mut)'].sum()
@@ -380,6 +386,7 @@ def main():
     generation_id = 1
     individual_ids = list(range(0, POPULATION_SIZE))
 
+    # group_M is a group that starts at the manually tuned parameters.
     group_M = []
     for individual_id in individual_ids:
         new_individual = copy.deepcopy(default)
