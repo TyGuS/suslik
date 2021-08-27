@@ -240,9 +240,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(groupID = d)
     }).text("group ID identifies different initial parameter; default value 0 corresponds to starting at manually tuned values")
 
-    opt[Int]("populationID").action(cfg { d =>
-      _.copy(populationID = d)
-    }).text("population ID used during evolutionary computation; default value 0 is the manually tuned valued by SuSLik developers")
+    opt[Int]("generationID").action(cfg { d =>
+      _.copy(generationID = d)
+    }).text("generation ID used during evolutionary computation; default value 0 is the manually tuned valued by SuSLik developers")
 
     opt[Int]("individualID").action(cfg { d =>
       _.copy(individualID = d)

@@ -29,11 +29,11 @@ NUMB_OF_FEATURES = 7
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
 
 class Individual(list):
-    """This class describe SuSLik's search strategy for individuals in each population."""
+    """This class describe SuSLik's search strategy for individuals in each generation of each group."""
 
     def __init__(self,
-                 group_id,  # group_id = 0 corresponds to initial population created by mutating the manually tuned one.
-                 population_id,
+                 group_id,  # group_id = 0 corresponds to initial group created by mutating the manually tuned one.
+                 generation_id,
                  individual_id,
                  rank,
                  nan=100,
@@ -57,7 +57,7 @@ class Individual(list):
                  weight_of_cost_call_goal_post: float = 1.0):
         super().__init__()
         self.group_id = group_id
-        self.population_id = population_id
+        self.generation_id = generation_id
         self.individual_id = individual_id
         self.rank = rank
         self.nan = nan
@@ -161,11 +161,11 @@ class Individual(list):
     def set_individual_id(self, individual_id):
         self.individual_id = individual_id
 
-    def get_population_id(self):
-        return self.population_id
+    def get_generation_id(self):
+        return self.generation_id
 
-    def set_population_id(self, population_id):
-        self.population_id = population_id
+    def set_generation_id(self, generation_id):
+        self.generation_id = generation_id
 
     def set_rank(self, rank):
         self.rank = rank
@@ -234,7 +234,7 @@ class Individual(list):
         self.weight_of_cost_call_goal_post = 1.0
 
     def json_file_path(self):
-        json_file_name = "search_parameter" + "_" + str(self.group_id) + "_" + str(self.population_id) + "_" + \
+        json_file_name = "search_parameter" + "_" + str(self.group_id) + "_" + str(self.generation_id) + "_" + \
                          str(self.individual_id) + ".json"
         path = PATH_TO_TACTICS + json_file_name
         return path
@@ -265,7 +265,7 @@ class Individual(list):
             json.dump(json_data_to_write, new_json_file_to_write)
 
     def csv_path(self):
-        path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.group_id) + "_" + str(self.population_id) \
+        path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.group_id) + "_" + str(self.generation_id) \
                + '_' + str(self.individual_id) + '.csv'
         return path
 
@@ -280,7 +280,7 @@ class Individual(list):
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
             roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True,
-            self.group_id, self.population_id, self.individual_id)
+            self.group_id, self.generation_id, self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
                                     results1, self.csv_path())
@@ -305,7 +305,7 @@ class Individual(list):
         else:
             result_type = "_validation_"
 
-        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + "_" +str(self.population_id) + "_" \
+        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + "_" +str(self.generation_id) + "_" \
                + str(self.rank) + ".json"
 
     def json_overall_result_file_path(self, is_for_training=True):
@@ -320,7 +320,7 @@ class Individual(list):
     def json_result(self, is_for_training=True):
         return {
             "group_ID": self.group_id,
-            "generation_ID": self.population_id,
+            "generation_ID": self.generation_id,
             "individual_ID": self.individual_id,
             "rank": self.rank,
             "number_of_nan": self.nan,
@@ -367,7 +367,7 @@ def main():
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
     # evaluate the default strategy
-    default = Individual(group_id=0, population_id=0, individual_id=0, rank=0)
+    default = Individual(group_id=0, generation_id=0, individual_id=0, rank=0)
     default.default()
     default.evaluate(for_training=False)
     default.write_json_result(for_training=False)
@@ -376,7 +376,7 @@ def main():
     default.write_json_result(for_training=True)
     default.write_overall_json_result(for_training=True)
 
-    # create an initial population of POPULATION_SIZE individuals
+    # create an initial groups of POPULATION_SIZE individuals
     generation_id = 1
     individual_ids = list(range(0, POPULATION_SIZE))
 
@@ -385,15 +385,15 @@ def main():
         new_individual = copy.deepcopy(default)
         new_individual.set_group_id(0)
         new_individual.set_individual_id(individual_id)
-        new_individual.set_population_id(generation_id)
+        new_individual.set_generation_id(generation_id)
         new_individual.mutate()
         group_M.append(new_individual)
 
     group_A = []
     group_B = []
     for individual_id in individual_ids:
-        group_A.append(Individual(group_id=1, population_id=generation_id, individual_id=individual_id, rank=0))
-        group_B.append(Individual(group_id=2, population_id=generation_id, individual_id=individual_id, rank=0))
+        group_A.append(Individual(group_id=1, generation_id=generation_id, individual_id=individual_id, rank=0))
+        group_B.append(Individual(group_id=2, generation_id=generation_id, individual_id=individual_id, rank=0))
 
     groups = [group_M, group_A, group_B]
 
@@ -443,7 +443,7 @@ def main():
                 individual_id = individual_id + 1
 
             for individual in offspring1:
-                individual.set_population_id(generation_id)
+                individual.set_generation_id(generation_id)
 
             # copy the best ones from the previous round.
             offspring2 = copy.deepcopy(offspring1) #+ copy.deepcopy(offspring1[:2])
