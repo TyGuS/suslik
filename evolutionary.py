@@ -37,8 +37,9 @@ class Individual(list):
                  population_id,
                  individual_id,
                  rank,
-                 nan=10,
+                 nan=100,
                  time=9999999999.0,
+                 ancestors=None,
                  orders_of_any_phase_rules=None,
                  orders_of_pure_phase_rules=None,
                  orders_of_symbolic_execution_rules=None,
@@ -66,6 +67,10 @@ class Individual(list):
         self.weight_of_cost_call_goal = weight_of_cost_call_goal
         self.weight_of_cost_call_goal_pre = weight_of_cost_call_goal_pre
         self.weight_of_cost_call_goal_post = weight_of_cost_call_goal_post
+
+        if ancestors is None:
+            ancestors = []
+        self.ancestors = ancestors
 
         if orders_of_any_phase_rules is None:
             orders_of_any_phase_rules = []
@@ -170,6 +175,9 @@ class Individual(list):
 
     def set_nan(self, nan):
         self.nan = nan
+
+    def update_ancestor_with_current_individual_id(self):
+        self.ancestors.append(self.individual_id)
 
     def mutate(self): #TODO: refactor
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
@@ -308,6 +316,7 @@ class Individual(list):
             "rank": self.rank,
             "number_of_nan": self.nan,
             "search_time": self.time,
+            "ancestors": self.ancestors,
             "is_for_training": is_for_training,
             "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
             "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
@@ -398,7 +407,11 @@ def main():
         # select the next generation individuals
         offspring1 = population[:POPULATION_SIZE]
 
-        # update individual_id of offspring1 (the ones that survived the previous selection)
+        # firstly update ancestors using the current individual_id
+        for individual in offspring1:
+            individual.update_ancestor_with_current_individual_id()
+
+        # secondly update individual_id of offspring1 (the ones that survived the previous selection)
         individual_id = 0
         for individual in offspring1:
             individual.set_individual_id(individual_id)
