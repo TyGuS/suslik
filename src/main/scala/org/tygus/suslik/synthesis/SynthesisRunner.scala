@@ -236,9 +236,13 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(evolutionary = b)
     }).text("evolutionary computation to improve rule orderings; default: false")
 
+    opt[Int]("groupID").action(cfg { d =>
+      _.copy(groupID = d)
+    }).text("group ID identifies different initial parameter; default value 0 corresponds to starting at manually tuned values")
+
     opt[Int]("populationID").action(cfg { d =>
       _.copy(populationID = d)
-    }).text("population ID used during evolutionary computation; default: 0")
+    }).text("population ID used during evolutionary computation; default value 0 is the manually tuned valued by SuSLik developers")
 
     opt[Int]("individualID").action(cfg { d =>
       _.copy(individualID = d)

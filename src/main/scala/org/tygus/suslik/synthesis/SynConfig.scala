@@ -58,6 +58,7 @@ case class SynConfig(
                       startTime: Long = 0,
                       // genetic algorithm to improve rule orderings.
                       evolutionary: Boolean = false,
+                      groupID: Int = 0,
                       populationID: Int = 0,
                       individualID: Int = 0,
                       //orderOfAnyPhaseRuless: ArrayBuffer[ArrayBuffer[Int]] = ArrayBuffer[ArrayBuffer[Int]](),

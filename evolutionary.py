@@ -1,9 +1,7 @@
-import array
 import os
 import random
 import json
 import copy
-from subprocess import call
 
 import roboevaluation
 import pandas
@@ -24,8 +22,8 @@ NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 10
-MAXIMUM_NUMBER_OF_GENERATIONS = 30
+POPULATION_SIZE = 3#10
+MAXIMUM_NUMBER_OF_GENERATIONS = 10
 INDPB = 0.1
 NUMB_OF_FEATURES = 7
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
@@ -34,6 +32,7 @@ class Individual(list):
     """This class describe SuSLik's search strategy for individuals in each population."""
 
     def __init__(self,
+                 group_id,  # group_id = 0 corresponds to initial population created by mutating the manually tuned one.
                  population_id,
                  individual_id,
                  rank,
@@ -57,6 +56,7 @@ class Individual(list):
                  weight_of_cost_call_goal_pre: float = 3.0,
                  weight_of_cost_call_goal_post: float = 1.0):
         super().__init__()
+        self.group_id = group_id
         self.population_id = population_id
         self.individual_id = individual_id
         self.rank = rank
@@ -149,6 +149,12 @@ class Individual(list):
                                    NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES))
         self.orders_of_unfolding_no_unfold_phase_rules = orders_of_unfolding_no_unfold_phase_rules
 
+    def get_group_id(self):
+        return self.group_id
+
+    def set_group_id(self, group_id):
+        self.group_id = group_id
+
     def get_individual_id(self):
         return self.individual_id
 
@@ -228,7 +234,8 @@ class Individual(list):
         self.weight_of_cost_call_goal_post = 1.0
 
     def json_file_path(self):
-        json_file_name = "search_parameter" + "_" + str(self.population_id) + "_" + str(self.individual_id) + ".json"
+        json_file_name = "search_parameter" + "_" + str(self.group_id) + "_" + str(self.population_id) + "_" + \
+                         str(self.individual_id) + ".json"
         path = PATH_TO_TACTICS + json_file_name
         return path
 
@@ -258,8 +265,8 @@ class Individual(list):
             json.dump(json_data_to_write, new_json_file_to_write)
 
     def csv_path(self):
-        path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.population_id) + '_' + str(
-            self.individual_id) + '.csv'
+        path = roboevaluation.EVAL_FOLDER + '/stats-performance_' + str(self.group_id) + "_" + str(self.population_id) \
+               + '_' + str(self.individual_id) + '.csv'
         return path
 
     def evaluate(self, for_training=True):
@@ -272,8 +279,8 @@ class Individual(list):
 
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
-            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True, self.population_id,
-            self.individual_id)
+            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True,
+            self.group_id, self.population_id, self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
                                     results1, self.csv_path())
@@ -298,19 +305,21 @@ class Individual(list):
         else:
             result_type = "_validation_"
 
-        return "robo-evaluation-utils/result" + result_type + str(self.population_id) + "_" + str(self.rank) + ".json"
+        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + "_" +str(self.population_id) + "_" \
+               + str(self.rank) + ".json"
 
     def json_overall_result_file_path(self, is_for_training=True):
 
         if is_for_training:
-            result_type = "_overall_training"
+            result_type = "_overall_training_"
         else:
-            result_type = "_overall_validation"
+            result_type = "_overall_validation_"
 
-        return "robo-evaluation-utils/result" + result_type + ".json"
+        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + ".json"
 
     def json_result(self, is_for_training=True):
         return {
+            "group_ID": self.group_id,
             "generation_ID": self.population_id,
             "individual_ID": self.individual_id,
             "rank": self.rank,
@@ -358,7 +367,7 @@ def main():
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
     # evaluate the default strategy
-    default = Individual(population_id=0, individual_id=0, rank=0)
+    default = Individual(group_id=0, population_id=0, individual_id=0, rank=0)
     default.default()
     default.evaluate(for_training=False)
     default.write_json_result(for_training=False)
@@ -370,93 +379,101 @@ def main():
     # create an initial population of POPULATION_SIZE individuals
     generation_id = 1
     individual_ids = list(range(0, POPULATION_SIZE))
-    population = []
+
+    group_M = []
     for individual_id in individual_ids:
-        population.append(Individual(population_id=generation_id, individual_id=individual_id, rank=0))
+        new_individual = copy.deepcopy(default)
+        new_individual.set_group_id(0)
+        new_individual.set_individual_id(individual_id)
+        new_individual.set_population_id(generation_id)
+        new_individual.mutate()
+        group_M.append(new_individual)
 
-    # evaluate the entire population
-    for individual in population:
-        individual.evaluate()
+    group_A = []
+    group_B = []
+    for individual_id in individual_ids:
+        group_A.append(Individual(group_id=1, population_id=generation_id, individual_id=individual_id, rank=0))
+        group_B.append(Individual(group_id=2, population_id=generation_id, individual_id=individual_id, rank=0))
 
-    # sort populations
-    population.sort(key=get_total_time)
-    population.sort(key=get_number_of_nans)
+    groups = [group_M, group_A, group_B]
 
-    # set the rank
-    rank = 0
-    for individual in population:
-        individual.set_rank(rank)
-        rank = rank + 1
-
-    for individual in population:
-        individual.write_json_result()
-
-    best_individual_so_far = copy.deepcopy(population[0])
-    best_individual_so_far.write_overall_json_result(for_training=True)
-    print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
-    best_individual_so_far.evaluate(for_training=False)
-    best_individual_so_far.write_json_result(for_training=False)
-    best_individual_so_far.write_overall_json_result(for_training=False)
-
-    # begin the evolution
-    while all((individual.is_not_good_enough()) for individual in population) \
-            and generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
-        generation_id = generation_id + 1
-        print("----- generation %i -----" % generation_id)
-
-        # select the next generation individuals
-        offspring1 = population[:POPULATION_SIZE]
-
-        # firstly update ancestors using the current individual_id
-        for individual in offspring1:
-            individual.update_ancestor_with_current_individual_id()
-
-        # secondly update individual_id of offspring1 (the ones that survived the previous selection)
-        individual_id = 0
-        for individual in offspring1:
-            individual.set_individual_id(individual_id)
-            individual_id = individual_id + 1
-
-        for individual in offspring1:
-            individual.set_population_id(generation_id)
-
-        # copy the best ones from the previous round.
-        offspring2 = copy.deepcopy(offspring1) #+ copy.deepcopy(offspring1[:2])
-
-        # for offspring2, 1) mutate, 2) set ind-id, 3) set individual_id, 4) evaluate
-        for individual in offspring2:
-            individual.mutate()
-            individual.set_individual_id(individual_id)
-            individual_id = individual_id + 1
+    # evaluate all groups
+    for group in groups:
+        for individual in group:
             individual.evaluate()
 
-        population[:] = offspring1 + offspring2
+    # sort each group
+    for group in groups:
+        group.sort(key=get_total_time)
+        group.sort(key=get_number_of_nans)
 
-        # sort populations
-        population.sort(key=get_total_time)
-        population.sort(key=get_number_of_nans)
-        print("----- population size is %i -----" % len(population))
+    # set the rank, write resulting JSON file
+    for group in groups:
         rank = 0
-        for individual in population:
-            print("----- writing result for ind-id %i -----" % individual.individual_id)
+        for individual in group:
             individual.set_rank(rank)
             rank = rank + 1
             individual.write_json_result()
 
-        best_individual_so_far = copy.deepcopy(population[0])
+    for group in groups:
+        best_individual_so_far = copy.deepcopy(group[0])
         best_individual_so_far.write_overall_json_result(for_training=True)
-        print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
         best_individual_so_far.evaluate(for_training=False)
         best_individual_so_far.write_json_result(for_training=False)
         best_individual_so_far.write_overall_json_result(for_training=False)
 
-    # cross-validation
-    # evaluate the best individual
-    best_individual_after_evolution = copy.deepcopy(population[0])
-    best_individual_after_evolution.set_population_id(generation_id + 1)
-    print("----- cross validation as generation number %i -----" % best_individual_after_evolution.individual_id)
-    best_individual_after_evolution.evaluate(for_training=False)
-    best_individual_after_evolution.write_json_result(for_training=False)
+    # begin the evolution
+    while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
+        generation_id = generation_id + 1
+        print("----- generation %i -----" % generation_id)
+
+        for group in groups:
+
+            # select the next generation individuals
+            offspring1 = group[:POPULATION_SIZE]
+
+            # firstly update ancestors using the current individual_id
+            for individual in offspring1:
+                individual.update_ancestor_with_current_individual_id()
+
+            # secondly update individual_id of offspring1 (the ones that survived the previous selection)
+            individual_id = 0
+            for individual in offspring1:
+                individual.set_individual_id(individual_id)
+                individual_id = individual_id + 1
+
+            for individual in offspring1:
+                individual.set_population_id(generation_id)
+
+            # copy the best ones from the previous round.
+            offspring2 = copy.deepcopy(offspring1) #+ copy.deepcopy(offspring1[:2])
+
+            # for offspring2, 1) mutate, 2) set ind-id, 3) set individual_id, 4) evaluate
+            for individual in offspring2:
+                individual.mutate()
+                individual.set_individual_id(individual_id)
+                individual_id = individual_id + 1
+                individual.evaluate()
+
+            group[:] = offspring1 + offspring2
+
+            # sort group
+            group.sort(key=get_total_time)
+            group.sort(key=get_number_of_nans)
+
+            rank = 0
+            for individual in group:
+                print("----- writing result for ind-id %i -----" % individual.individual_id)
+                individual.set_rank(rank)
+                rank = rank + 1
+                individual.write_json_result()
+
+            best_individual_so_far = copy.deepcopy(group[0])
+            best_individual_so_far.write_overall_json_result(for_training=True)
+            print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
+            best_individual_so_far.evaluate(for_training=False)
+            best_individual_so_far.write_json_result(for_training=False)
+            best_individual_so_far.write_overall_json_result(for_training=False)
 
     return 0
 
