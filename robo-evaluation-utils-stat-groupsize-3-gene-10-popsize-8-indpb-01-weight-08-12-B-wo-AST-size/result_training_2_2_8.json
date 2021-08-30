@@ -1,0 +1,1 @@
+{"group_ID": 2, "generation_ID": 2, "individual_ID": 4, "rank": 8, "number_of_nan": 24, "search_time": 6.8, "ancestors": [2], "is_for_training": true, "weight_of_cost_no_call_goal_pre": 3.0, "weight_of_cost_no_call_goal_post": 1.0, "weight_of_cost_call_goal": 10.0, "weight_of_cost_call_goal_pre": 3.0, "weight_of_cost_call_goal_post": 1.0}

@@ -1,0 +1,28 @@
+Group, Name,Code(mut),Spec(mut),Time(mut),Backtrackings(mut),Rules(mut)
+Integers,min of two,10,9,0.6,3,41
+Singly Linked List,max,FAIL,22,-,FAIL,6723
+Singly Linked List,initialize,13,8,2.9,4,1269
+Singly Linked List,copy,FAIL,12,-,FAIL,5952
+Singly Linked List,append,FAIL,17,-,FAIL,3349
+Singly Linked List,non-destructive append,FAIL,21,-,FAIL,5845
+Singly Linked List,intersection,FAIL,16,-,FAIL,3676
+Singly Linked List,difference,FAIL,14,-,FAIL,3297
+Sorted list,prepend,FAIL,29,-,FAIL,196
+Sorted list,sort,FAIL,9,-,FAIL,3979
+Sorted list,reverse,36,9,9.1,11,2672
+Sorted list,merge,FAIL,23,-,FAIL,2627
+Doubly Linked List,singleton,FAIL,13,-,FAIL,147
+Doubly Linked List,append,FAIL,20,-,FAIL,3487
+Doubly Linked List,delete,FAIL,18,-,FAIL,4104
+List of Lists,deallocate,32,3,2.7,11,575
+List of Lists,flatten,FAIL,12,-,FAIL,3510
+List of Lists,length,FAIL,12,-,FAIL,1616
+Binary Tree,deallocate two,FAIL,4,-,FAIL,7502
+Binary Tree,copy,FAIL,12,-,FAIL,4689
+Binary Tree,flatten,FAIL,10,-,FAIL,5300
+Binary Tree,flatten to dll in place,FAIL,5,-,FAIL,3838
+Binary Tree,flatten to dll w/null,FAIL,5,-,FAIL,3772
+BST,insert,FAIL,21,-,FAIL,1449
+BST,find max,FAIL,25,-,FAIL,4663
+BST,from list,FAIL,15,-,FAIL,2137
+Packed Tree,pack,FAIL,36,-,FAIL,2148

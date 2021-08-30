@@ -1,0 +1,27 @@
+Group, Name,Code(mut),Spec(mut),Time(mut),Backtrackings(mut),Rules(mut)
+Singly Linked List,singleton,11,12,0.7,4,56
+Singly Linked List,initialize,13,8,1.1,4,133
+Singly Linked List,deallocate two,25,4,0.6,9,66
+Singly Linked List,non-destructive append,FAIL,21,-,FAIL,2644
+Singly Linked List,deduplicate,73,10,4.4,22,698
+Sorted list,prepend,11,29,0.8,4,71
+Sorted list,insert,77,21,3.0,22,363
+Sorted list,sort,47,9,2.7,14,350
+Sorted list,reverse,36,9,1.9,11,219
+Sorted list,merge,FAIL,23,-,FAIL,1538
+Doubly Linked List,singleton,14,13,0.7,5,58
+Doubly Linked List,append,32,20,5.6,10,1584
+List of Lists,flatten,53,12,1.8,17,258
+Binary Tree,size,32,13,2.6,9,518
+Binary Tree,deallocate,16,2,0.4,6,26
+Binary Tree,deallocate two,47,4,1.1,16,213
+Binary Tree,flatten to dll in place,48,5,4.8,15,1359
+Binary Tree,flatten to dll w/null,FAIL,5,-,FAIL,5706
+BST,rotate left,FAIL,74,-,FAIL,4558
+BST,rotate right,FAIL,74,-,FAIL,4275
+BST,find min,FAIL,25,-,FAIL,1753
+BST,find max,FAIL,25,-,FAIL,1740
+BST,delete root,FAIL,41,-,FAIL,1669
+Rose Tree,deallocate,24,2,0.6,9,47
+Rose Tree,flatten,FAIL,10,-,FAIL,4163
+Packed Tree,pack,FAIL,36,-,FAIL,2941

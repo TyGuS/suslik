@@ -1,0 +1,29 @@
+Group, Name,Code(mut),Spec(mut),Time(mut),Backtrackings(mut),Rules(mut)
+Integers,swap two,12,12,0.2,4,10
+Integers,min of two,10,9,0.5,3,27
+Singly Linked List,length,21,15,1.1,6,105
+Singly Linked List,max,50,22,4.1,14,572
+Singly Linked List,min,50,22,4.2,14,572
+Singly Linked List,deallocate,11,2,0.3,4,16
+Singly Linked List,copy,35,12,1.5,12,199
+Singly Linked List,append,29,17,1.5,9,212
+Singly Linked List,delete,41,16,2.2,12,261
+Singly Linked List,append three,55,21,2.6,16,562
+Singly Linked List,union,84,14,7.5,25,1566
+Singly Linked List,intersection,FAIL,16,-,FAIL,3140
+Singly Linked List,difference,84,14,8.1,25,1585
+Sorted list,insertion sort,22,18,1.8,7,260
+Doubly Linked List,copy,68,15,8.1,23,2207
+Doubly Linked List,delete,67,18,4.7,19,810
+Doubly Linked List,single to double,69,11,1.6,24,195
+List of Lists,deallocate,32,3,0.7,11,54
+List of Lists,length,82,12,8.9,25,2130
+Binary Tree,copy,49,12,4.2,17,1015
+Binary Tree,flatten w/append,51,10,1.1,18,122
+Binary Tree,flatten w/acc,66,17,1.7,22,251
+Binary Tree,flatten,77,10,2.4,25,480
+BST,insert,FAIL,21,-,FAIL,3240
+BST,from list,85,15,10.7,27,1130
+BST,to sorted list,67,15,7.5,21,1398
+Rose Tree,copy,FAIL,12,-,FAIL,3353
+Packed Tree,unpack,FAIL,25,-,FAIL,2681
