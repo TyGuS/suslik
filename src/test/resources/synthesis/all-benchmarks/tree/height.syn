@@ -1,0 +1,9 @@
+should be able to synthesize tree height
+
+#####
+
+{ 0 <= h; r :-> 0 ** treeH(x, h) }
+void tree_height(loc x, loc r)
+{true ; r :-> h ** treeH(x, h) }
+
+#####

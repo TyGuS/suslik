@@ -1,0 +1,10 @@
+avl height
+
+#####
+
+
+{0 <= n /\ 0 <= h; r :-> 0 ** avl(x, n, h) }
+void tree_height(loc x, loc r)
+{true ; r :-> h ** avl(x, n, h) }
+
+#####
