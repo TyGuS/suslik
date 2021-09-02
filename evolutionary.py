@@ -22,8 +22,8 @@ NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 8
-MAXIMUM_NUMBER_OF_GENERATIONS = 10
+POPULATION_SIZE = 10
+MAXIMUM_NUMBER_OF_GENERATIONS = 9
 INDPB = 0.1
 NUMB_OF_FEATURES = 7
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
@@ -39,6 +39,7 @@ class Individual(list):
                  nan=100,
                  time=9999999999.0,
                  ancestors=None,
+                 ancestor_ranks=None,
                  orders_of_any_phase_rules=None,
                  orders_of_pure_phase_rules=None,
                  orders_of_symbolic_execution_rules=None,
@@ -71,6 +72,10 @@ class Individual(list):
         if ancestors is None:
             ancestors = []
         self.ancestors = ancestors
+
+        if ancestor_ranks is None:
+            ancestor_ranks = []
+        self.ancestor_ranks = ancestor_ranks
 
         if orders_of_any_phase_rules is None:
             orders_of_any_phase_rules = []
@@ -185,6 +190,9 @@ class Individual(list):
     def update_ancestor_with_current_individual_id(self):
         self.ancestors.append(self.individual_id)
 
+    def update_ancestor_ranks_with_current_rank(self):
+        self.ancestor_ranks.append(self.rank)
+
     def mutate(self): #TODO: refactor
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
@@ -216,7 +224,7 @@ class Individual(list):
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     def default(self):
-        self.orders_of_any_phase_rules_or_spec_based_rules = [list(range(0, NUMB_OF_ANY_PHASE_RULE))]
+        self.orders_of_any_phase_rules = [list(range(0, NUMB_OF_ANY_PHASE_RULE))]
         self.orders_of_pure_phase_rules = [list(range(0, NUMB_OF_PURE_PHASE_RULE))]
         self.orders_of_symbolic_execution_rules = [list(range(0, NUMB_OF_SYMBOLIC_EXECUTION_RULE))]
         self.orders_of_unfolding_phase_rules = [list(range(0, NUMB_OF_UNFOLDING_PHASE_RULE))]
@@ -300,9 +308,6 @@ class Individual(list):
 
         return number_of_nans, total_time
 
-    def is_not_good_enough(self):
-        return (self.nan > MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS) or (self.time > MAXIMUM_TOTAL_TIME)
-
     # Note that we use the rank of individual in the file name.
     def json_result_file_path(self, is_for_training=True):
 
@@ -332,6 +337,7 @@ class Individual(list):
             "number_of_nan": self.nan,
             "search_time": self.time,
             "ancestors": self.ancestors,
+            "ancestor_ranks": self.ancestor_ranks,
             "is_for_training": is_for_training,
             "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
             "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
@@ -442,6 +448,7 @@ def main():
             # firstly update ancestors using the current individual_id
             for individual in offspring1:
                 individual.update_ancestor_with_current_individual_id()
+                individual.update_ancestor_ranks_with_current_rank()
 
             # secondly update individual_id of offspring1 (the ones that survived the previous selection)
             individual_id = 0
