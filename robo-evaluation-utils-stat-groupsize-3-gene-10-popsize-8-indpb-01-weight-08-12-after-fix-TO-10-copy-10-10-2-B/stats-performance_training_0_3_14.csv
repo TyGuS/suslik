@@ -1,0 +1,25 @@
+Group, Name,Code(mut),Spec(mut),Time(mut),Backtrackings(mut),Rules(mut)
+Integers,min of two,10,9,0.4,3,21
+Singly Linked List,max,90,22,4.8,27,700
+Singly Linked List,deallocate,11,2,0.4,4,16
+Singly Linked List,append,19,17,1.6,6,284
+Singly Linked List,delete,48,16,2.3,15,387
+Singly Linked List,deallocate two,25,4,0.8,9,68
+Singly Linked List,non-destructive append,66,21,6.2,22,2335
+Singly Linked List,deduplicate,FAIL,10,-,FAIL,2491
+Sorted list,prepend,11,29,0.6,4,42
+Sorted list,insert,93,21,4.6,28,751
+Sorted list,reverse,49,9,2.3,13,361
+Doubly Linked List,single to double,69,11,1.5,24,257
+List of Lists,deallocate,32,3,0.9,11,76
+List of Lists,flatten,60,12,2.7,20,561
+Binary Tree,size,35,13,1.5,10,347
+Binary Tree,deallocate,16,2,0.5,6,26
+Binary Tree,deallocate two,47,4,1.4,16,213
+Binary Tree,flatten w/append,51,10,1.7,18,304
+BST,rotate left,15,74,8.5,5,2137
+BST,from list,FAIL,15,-,FAIL,1516
+BST,to sorted list,FAIL,15,-,FAIL,2587
+Rose Tree,deallocate,24,2,0.7,9,47
+Rose Tree,flatten,FAIL,10,-,FAIL,3553
+Packed Tree,pack,FAIL,36,-,FAIL,2598

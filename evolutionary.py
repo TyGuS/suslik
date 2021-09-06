@@ -403,12 +403,12 @@ def main():
         group_M.append(new_individual)
 
     group_A = []
-    group_B = []
+    #group_B = []
     for individual_id in individual_ids:
         group_A.append(Individual(group_id=1, generation_id=generation_id, individual_id=individual_id, rank=0))
-        group_B.append(Individual(group_id=2, generation_id=generation_id, individual_id=individual_id, rank=0))
+        #group_B.append(Individual(group_id=2, generation_id=generation_id, individual_id=individual_id, rank=0))
 
-    groups = [group_M, group_A, group_B]
+    groups = [group_M, group_A]#, group_B]
 
     # evaluate all groups
     for group in groups:
@@ -460,7 +460,7 @@ def main():
                 individual.set_generation_id(generation_id)
 
             # copy the best ones from the previous round.
-            offspring2 = copy.deepcopy(offspring1) #+ copy.deepcopy(offspring1[:2])
+            offspring2 = copy.deepcopy(offspring1) + copy.deepcopy(offspring1[:2])
 
             # for offspring2, 1) mutate, 2) set ind-id, 3) set individual_id, 4) evaluate
             for individual in offspring2:
