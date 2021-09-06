@@ -15,6 +15,7 @@ import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceCert, ProofTraceJson,
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
+import spray.json.enrichAny
 
 import scala.io.Source
 
@@ -112,7 +113,7 @@ trait SynthesisRunnerUtil {
         new ReplaySynthesis(env.config)
       else
         new PhasedSynthesis(env.config)
-    val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
+    val trace : ProofTrace = if ((env.config.certTarget != NoCert) || env.config.simplifiedProofTree) new ProofTraceCert() else {
       env.config.traceToJsonFile match {
         case None => ProofTraceNone
         case Some(file) => new ProofTraceJson(file)
@@ -233,13 +234,20 @@ trait SynthesisRunnerUtil {
               testPrintln(s"File ${o.filename}:\n", Console.MAGENTA)
               testPrintln(s"${o.body}")
             })
-          } else {
+          }  else {
             certificate.outputs.foreach(o => {
               val path = Paths.get(params.certDest.getCanonicalPath, o.filename).toFile
               new PrintWriter(path) { write(o.body); close() }
               testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
             })
           }
+        } else if (params.traceToJsonFile.isDefined && params.simplifiedProofTree) {
+          import org.tygus.suslik.certification.ProofTreeJSON._
+          val root = CertTree.root.getOrElse(throw SynthesisException("Search tree is uninitialized"))
+          val tree = SuslikProofStep.of_certtree(root)
+          val out_file = params.traceToJsonFile.get
+          new PrintWriter(out_file) { write (tree.toJson.prettyPrint); close () }
+          testPrintln(s"\nproof tree exported to $out_file", Console.MAGENTA)
         }
     }
   }

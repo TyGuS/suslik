@@ -196,6 +196,11 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(traceToJsonFile = Some(new File(fn)))
     }).text("dump entire proof search trace to a json file; default: none")
 
+    opt[Boolean]('g', "simplifiedProofTree").action(cfg { b =>
+      _.copy(simplifiedProofTree = b)
+    }).text("convert dumped proof tree into a simplified format; default: false")
+
+
     opt[Boolean](name = "memo").action(cfg { b =>
       _.copy(memoization = b)
     }).text("enable memoization; default: true")

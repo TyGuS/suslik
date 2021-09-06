@@ -4,7 +4,7 @@ package org.tygus.suslik.language
   * @author Ilya Sergey
   */
 
-abstract class SSLType extends PrettyPrinting {
+sealed abstract trait SSLType extends PrettyPrinting {
   def supertype(target: Option[SSLType]): Option[SSLType] = target match {
     case None => Some(this)
     case Some(t1) if this == t1 => Some(this)
