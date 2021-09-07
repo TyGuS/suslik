@@ -1,0 +1,33 @@
+Group, Name,Code(mut),Spec(mut),Time(mut),Backtrackings(mut),Rules(mut)
+Integers,swap two,12,12,0.2,4,9
+Integers,min of two,10,9,0.5,3,25
+Singly Linked List,length,21,15,1.1,6,127
+Singly Linked List,min,41,22,4.2,11,703
+Singly Linked List,singleton,11,12,0.5,4,35
+Singly Linked List,initialize,13,8,1.0,4,115
+Singly Linked List,append,19,17,1.0,6,113
+Singly Linked List,delete,41,16,2.0,12,316
+Singly Linked List,append three,48,21,2.7,14,688
+Singly Linked List,non-destructive append,FAIL,21,-,FAIL,2440
+Singly Linked List,deduplicate,FAIL,10,-,FAIL,1996
+Sorted list,prepend,11,29,0.6,4,42
+Sorted list,reverse,49,9,2.4,13,374
+Sorted list,merge,FAIL,23,-,FAIL,1451
+Doubly Linked List,singleton,14,13,0.5,5,36
+Doubly Linked List,copy,71,15,9.1,24,3256
+Doubly Linked List,append,32,20,3.6,10,1080
+Doubly Linked List,delete,67,18,5.5,19,1413
+Doubly Linked List,single to double,69,11,1.7,24,268
+List of Lists,deallocate,32,3,0.9,11,76
+Binary Tree,size,32,13,1.7,9,258
+Binary Tree,deallocate two,47,4,1.2,16,213
+Binary Tree,flatten w/append,51,10,1.9,18,338
+Binary Tree,flatten w/acc,66,17,1.9,22,305
+Binary Tree,flatten,74,10,3.2,24,762
+Binary Tree,flatten to dll in place,51,5,4.5,16,1294
+Binary Tree,flatten to dll w/null,FAIL,5,-,FAIL,3592
+BST,rotate left,FAIL,74,-,FAIL,1765
+BST,find min,FAIL,25,-,FAIL,1791
+BST,to sorted list,FAIL,15,-,FAIL,2076
+Rose Tree,deallocate,24,2,0.7,9,47
+Rose Tree,copy,FAIL,12,-,FAIL,3099
