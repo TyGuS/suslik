@@ -442,7 +442,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val ordersOfPointerPhaseRules = goal.env.ordersOfPointerPhaseRules
     val orderOfPointerPhaseRules = ordersOfPointerPhaseRules.apply(index.toInt)
 
-    val unOrderedPointerPhaseRulesd =
+    val unOrderedPointerPhaseRules =
       Vector(
         if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
         //    LogicalRules.SubstLeft,
@@ -454,12 +454,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
       if (goal.env.config.evolutionary)
         List(
-          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(0)),
-          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(1)),
-          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(2)),
-          unOrderedPointerPhaseRulesd(orderOfPointerPhaseRules.apply(3))
+          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(0)),
+          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(1)),
+          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(2)),
+          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(3))
         )
-      else List(unOrderedPointerPhaseRulesd:_*)
+      else List(unOrderedPointerPhaseRules:_*)
 
   }
 
