@@ -1,6 +1,6 @@
 # -p true -c 2
 
-flatten the tree into a doubly-linked list in place
+flatten the avl-tree into a doubly-linked list in place
 
 ####
 

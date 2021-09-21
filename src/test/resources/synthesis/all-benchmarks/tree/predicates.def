@@ -21,3 +21,40 @@ predicate treeN(loc x, int n) {
                      [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1) ** treeN(r, n2)}
 }
 
+predicate treeNH(loc x, int n, int h) {
+|  x == 0        => { n == 0 /\ h == 0; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 /\
+                      0 <= h1  /\  0 <= h2 /\ ((h == h1 + 1 /\ h2 < h1) ||  (h == h2 + 1 /\ h1 <= h2));
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeNH(l, n1, h1) ** treeNH(r, n2, h2)}
+}
+
+predicate treeH(loc x, int h) {
+|  x == 0        => { h == 0; emp }
+|  not (x == 0)  => {
+                      0 <= h1  /\  0 <= h2 /\ m == (h1 <= h2 ? h2 : h1) /\ h == m + 1 ;
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeH(l, h1) ** treeH(r, h2)}
+}
+
+/*
+
+predicate treeH(loc x, int h) {
+|  x == 0        => { h == 0; emp }
+|  not (x == 0)  => {
+                      0 <= h1  /\  0 <= h2 /\ ((h == h1 + 1 /\ h2 < h1) ||  (h == h2 + 1 /\ h1 <= h2));
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeH(l, h1) ** treeH(r, h2)}
+}
+
+predicate treeH(loc x, int h) {
+|  x == 0        => { h == 0; emp }
+|  not (x == 0)  => {
+                      0 <= h1  /\  0 <= h2 /\ h == m + 1 /\ ((m == h1 /\ h2 <= h1) ||  (m == h2 /\ h1 < h2));
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeH(l, h1) ** treeH(r, h2)}
+}
+
+predicate treeNH(loc x, int n, int h) {
+|  x == 0        => { n == 0 /\ h == 0; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 /\
+                      0 <= h1  /\  0 <= h2 /\ h1<=m /\ h2<=m /\ h == m + 1 ;
+                     [x, 3] ** x :-> v ** (x + 1) :-> l ** (x + 2) :-> r ** treeNH(l, n1, h1) ** treeNH(r, n2, h2)}
+}
+*/
