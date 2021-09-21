@@ -1,0 +1,19 @@
+should be able to deallocate a tree
+###
+
+{true; avl(x, n, h)}
+  void avl_free(loc x)
+{true ; emp }
+
+###
+
+void avl_free (loc x) {
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let r = *(x + 2);
+    avl_free(l);
+    avl_free(r);
+    free(x);
+  }
+}

@@ -1,0 +1,14 @@
+# -c 2 -o 2 -f 3 -p true
+
+flatten a tree into a doubly-linked list in learn time
+
+####
+
+{ avlNHS(x, n, h, s) }
+void flatten(loc x)
+{ dll(x, 0, s) }
+
+####
+
+###
+

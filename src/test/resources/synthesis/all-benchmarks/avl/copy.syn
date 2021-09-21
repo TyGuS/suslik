@@ -1,0 +1,30 @@
+should be able to synthesize a tree copy (with elements)
+
+#####
+
+{true ; r :-> x ** avl(x, n, h)}
+void avl_copy(loc r)
+{true ; r :-> y ** avl(x, n, h) ** avl(y, n, h) }
+
+#####
+
+{r :-> x ** avl(x, n, h)<_alpha_8>}
+{r :-> y ** avl(x, n, h)<_alpha_9> ** avl(y, n, h)<_alpha_10>}
+void avl_copy (loc r) {
+  let x = *r;
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    *r = l;
+    avl_copy(r);
+    let y1 = *r;
+    *r = rx;
+    avl_copy(r);
+    let y2 = *r;
+    let y = malloc(3);
+    *r = y;
+    *(y + 1) = y1;
+    *(y + 2) = y2;
+  }
+}
