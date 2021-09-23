@@ -450,6 +450,12 @@ object Expressions {
       case _ => 1
     }
 
+    // check if the top-level is a conjunction for SubstRight.
+    // TODO: should I have it as a recursive function?
+    def isOpAndWithBoolEq: Boolean = this match {
+      case BinaryExpr(OpAnd, _, BinaryExpr(OpBoolEq, _, _)) => true
+      case _ => false
+    }
 
     def conjuncts: List[Expr] = this match {
       case BoolConst(true) => Nil

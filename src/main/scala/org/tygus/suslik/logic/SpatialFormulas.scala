@@ -60,6 +60,11 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     case _ => 1
   }
 
+  def isPointsTo: Boolean = this match {
+    case PointsTo(loc, offset, value) => true
+    case _ => false
+  }
+
 }
 
 /**
@@ -225,6 +230,10 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   def isEmp: Boolean = chunks.isEmpty
 
+  def hasMoreThan2Heaplets: Boolean = chunks.length > 2: Boolean
+
+  def hasMoreThan1PointsTos: Boolean = chunks.filter(_.isPointsTo).length > 1: Boolean
+
   // Add h to chunks (multiset semantics)
   def **(h: Heaplet): SFormula = SFormula(h :: chunks)
 
@@ -276,4 +285,3 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
  * @param ptss how many points-to chunks there are with each offset?
  */
 case class SProfile(apps: Map[Ident, Int], blocks: Map[Int, Int], ptss: Map[Int, Int])
-

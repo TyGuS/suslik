@@ -20,16 +20,11 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val goal = node.goal
 
     val index = {
-      if (is_static)
+      if (false)
         0
       else
-        (if (goal.isUnsolvable) math.pow(2,0) else 0
-          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-          + (if (goal.hasBlocks) math.pow(2,5) else 0)
-          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+        (if (goal.post.isOpAndWithBoolEq) math.pow(2,0) else 0 //for SubstRight
+          + (if (goal.post.isForStarPartial) math.pow(2,1) else 0)) //for StarPartial
     }
 
     def anyPhaseRulesOrSpecBasedRules = {
@@ -119,16 +114,11 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def anyPhaseRules(goal:Goal): List[SynthesisRule] = {
 
     val index = {
-      if (is_static)
+      if (false)
         0
       else
-        (if (goal.isUnsolvable) math.pow(2,0) else 0
-          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-          + (if (goal.hasBlocks) math.pow(2,5) else 0)
-          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+        (if (goal.post.isOpAndWithBoolEq) math.pow(2,0) else 0 //for SubstRight
+          + (if (goal.post.isForStarPartial) math.pow(2,1) else 0)) //for StarPartial
     }
 
     val ordersOfAnyPhaseRules = goal.env.ordersOfAnyPhaseRules

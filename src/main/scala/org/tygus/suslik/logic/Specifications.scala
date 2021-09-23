@@ -3,6 +3,7 @@ package org.tygus.suslik.logic
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
+import ujson.IndexedValue.True
 
 import scala.Ordering.Implicits._
 
@@ -23,6 +24,10 @@ object Specifications extends SepLogicUtils {
       for (s@SApp(_, _, _, _) <- sigma.chunks if p(s)) yield s
 
     def hasBlocks: Boolean = sigma.chunks.exists(_.isInstanceOf[Block])
+
+    def isOpAndWithBoolEq: Boolean = phi.conjuncts.exists(_.isOpAndWithBoolEq) // For SubstRight
+
+    def isForStarPartial: Boolean = sigma.hasMoreThan2Heaplets && sigma.hasMoreThan1PointsTos // For StarPartial
 
     // Difference between two assertions
     def -(other: Assertion): Assertion = Assertion(PFormula(phi.conjuncts -- other.phi.conjuncts), sigma - other.sigma)
