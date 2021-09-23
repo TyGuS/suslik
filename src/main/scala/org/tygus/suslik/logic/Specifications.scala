@@ -331,5 +331,3 @@ object Specifications extends SepLogicUtils {
     lazy val cost: Double = calleePost.cost
   }
 }
-
-

@@ -5,8 +5,8 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
 
 /**
-  * Separation logic fragment
-  */
+ * Separation logic fragment
+ */
 sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet] with Ordered[Heaplet] with SepLogicUtils {
 
   // Collect certain sub-expressions
@@ -63,8 +63,8 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
 }
 
 /**
-  * var + offset :-> value
-  */
+ * var + offset :-> value
+ */
 case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
@@ -100,8 +100,8 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
 }
 
 /**
-  * block(var, size)
-  */
+ * block(var, size)
+ */
 case class Block(loc: Expr, sz: Int) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(loc = loc.resolveOverloading(gamma))
@@ -135,11 +135,11 @@ case class PTag(calls: Int = 0, unrolls: Int = 0) extends PrettyPrinting {
 }
 
 /**
-  *
-  * @card is a cardinality of a current call.
-  *
-  *       Predicate application
-  */
+ *
+ * @card is a cardinality of a current call.
+ *
+ *       Predicate application
+ */
 case class SApp(pred: Ident, args: Seq[Expr], tag: PTag, card: Expr) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(args = args.map(_.resolveOverloading(gamma)))
@@ -270,11 +270,10 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 }
 
 /**
-  * Profile of a spatial formula (contains properties that cannot be changed by unification)
-  * @param apps how maybe applications there are of each predicate?
-  * @param blocks how many blocks there are of each size?
-  * @param ptss how many points-to chunks there are with each offset?
-  */
+ * Profile of a spatial formula (contains properties that cannot be changed by unification)
+ * @param apps how maybe applications there are of each predicate?
+ * @param blocks how many blocks there are of each size?
+ * @param ptss how many points-to chunks there are with each offset?
+ */
 case class SProfile(apps: Map[Ident, Int], blocks: Map[Int, Int], ptss: Map[Int, Int])
-
 

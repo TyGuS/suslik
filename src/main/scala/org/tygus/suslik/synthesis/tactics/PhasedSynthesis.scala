@@ -24,12 +24,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     def anyPhaseRulesOrSpecBasedRules = {
@@ -123,12 +123,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfAnyPhaseRules = goal.env.ordersOfAnyPhaseRules
@@ -168,12 +168,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfSymbolicExecutionRules = goal.env.ordersOfSymbolicExecutionRules
@@ -210,12 +210,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfUnfoldingPhaseRules = goal.env.ordersOfUnfoldingPhaseRules
@@ -250,12 +250,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfUnfoldingPostPhaseRules = goal.env.ordersOfUnfoldingPostPhaseRules
@@ -286,12 +286,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfUnfoldingNoUnfoldPhaseRules = goal.env.ordersOfUnfoldingNoUnfoldPhaseRules
@@ -320,12 +320,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfCallAbductionRules = goal.env.ordersOfCallAbductionRules
@@ -345,28 +345,28 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           List(
             LogicalRules.FrameBlock,
             UnificationRules.HeapUnifyBlock,
-//          OperationalRules.AllocRule
+            //          OperationalRules.AllocRule
           )
         else if (goal.hasExistentialPointers)
           List(
             LogicalRules.FrameFlat,
-//          OperationalRules.WriteRule,
+            //          OperationalRules.WriteRule,
             UnificationRules.HeapUnifyPointer)
         else
           List(
             UnfoldingRules.CallRule,
             UnificationRules.SubstRight,
             LogicalRules.FrameFlat,
-//          OperationalRules.WriteRule,
+            //          OperationalRules.WriteRule,
             UnificationRules.PickArg,
             UnificationRules.PickCard,
             LogicalRules.GhostWrite,
             UnificationRules.HeapUnifyPure,
             LogicalRules.SimplifyConditional,
             OperationalRules.WriteRule,
-//          DelegatePureSynthesis.PureSynthesisNonfinal
+            //          DelegatePureSynthesis.PureSynthesisNonfinal
             UnificationRules.Pick
-            )
+          )
           )
       )
 
@@ -391,12 +391,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfPostBlockPhaseRules = goal.env.ordersOfPostBlockPhaseRules
@@ -421,7 +421,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
   protected def preBlockPhaseRules: List[SynthesisRule] = List(
-      OperationalRules.FreeRule
+    OperationalRules.FreeRule
   )
 
   protected def pointerPhaseRules(goal:Goal): List[SynthesisRule] = {
@@ -431,12 +431,12 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfPointerPhaseRules = goal.env.ordersOfPointerPhaseRules
@@ -452,47 +452,47 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         UnificationRules.HeapUnifyPointer,
       )
 
-      if (goal.env.config.evolutionary)
-        List(
-          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(0)),
-          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(1)),
-          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(2)),
-          unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(3))
-        )
-      else List(unOrderedPointerPhaseRules:_*)
+    if (goal.env.config.evolutionary)
+      List(
+        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(0)),
+        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(1)),
+        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(2)),
+        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(3))
+      )
+    else List(unOrderedPointerPhaseRules:_*)
 
   }
 
   protected def purePhaseRules(goal: Goal): List[SynthesisRule] = {
 
     val unorderedPurePhaseRules =
-    Vector(
-      if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
-      LogicalRules.EmpRule,
-//      LogicalRules.SubstLeft,
-//      UnificationRules.SubstRight,
-      FailRules.HeapUnreachable,
-      LogicalRules.FrameFlat,
-      UnificationRules.PickCard,
-      LogicalRules.GhostWrite,
-      UnificationRules.HeapUnifyPure,
-      LogicalRules.SimplifyConditional,
-      OperationalRules.WriteRule,
-      if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick)
-//    ++
-//    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
+      Vector(
+        if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
+        LogicalRules.EmpRule,
+        //      LogicalRules.SubstLeft,
+        //      UnificationRules.SubstRight,
+        FailRules.HeapUnreachable,
+        LogicalRules.FrameFlat,
+        UnificationRules.PickCard,
+        LogicalRules.GhostWrite,
+        UnificationRules.HeapUnifyPure,
+        LogicalRules.SimplifyConditional,
+        OperationalRules.WriteRule,
+        if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick)
+    //    ++
+    //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
 
     val index = {
       if (is_static)
         0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
-      + (if (goal.sketch != Hole) math.pow(2,1) else 0)
-      + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
-      + (if (goal.hasPredicates()) math.pow(2,3) else 0)
-      + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
-      + (if (goal.hasBlocks) math.pow(2,5) else 0)
-      + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
+          + (if (goal.sketch != Hole) math.pow(2,1) else 0)
+          + (if (goal.callGoal.nonEmpty) math.pow(2,2) else 0)
+          + (if (goal.hasPredicates()) math.pow(2,3) else 0)
+          + (if (goal.post.hasBlocks) math.pow(2,4) else 0)
+          + (if (goal.hasBlocks) math.pow(2,5) else 0)
+          + (if (goal.hasExistentialPointers) math.pow(2,6) else 0))
     }
 
     val ordersOfPurePhaseRules = goal.env.ordersOfPurePhaseRules

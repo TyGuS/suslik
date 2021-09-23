@@ -148,3 +148,7 @@ node_modules
 # traces
 *.out
 *results.tex
+
+# evolutionary computation
+*.json
+.bsp/sbt.json

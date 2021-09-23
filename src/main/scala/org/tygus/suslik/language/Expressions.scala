@@ -4,8 +4,8 @@ import org.tygus.suslik.logic.{Gamma, PureLogicUtils}
 import org.tygus.suslik.synthesis.SynthesisException
 
 /**
-  * @author Ilya Sergey
-  */
+ * @author Ilya Sergey
+ */
 
 object Expressions {
 
@@ -402,7 +402,7 @@ object Expressions {
           gamma1 <- left.resolve(gamma, Some(lTarget))
           gamma2 <- right.resolve(gamma1, Some(rTarget))
           is_exactly_defined = (left.getType(gamma2).contains(lTarget)
-                            && right.getType(gamma2).contains(rTarget))
+            && right.getType(gamma2).contains(rTarget))
         } yield (gamma2, is_exactly_defined)
         val exact_gammas = possible_gammas.filter {case (_, exact) => exact}
         exact_gammas.size match{
@@ -452,10 +452,10 @@ object Expressions {
 
 
     def conjuncts: List[Expr] = this match {
-        case BoolConst(true) => Nil
-        case BinaryExpr(OpAnd, left, right) => left.conjuncts ++ right.conjuncts
-        case OverloadedBinaryExpr(OpAnd, left, right) => left.conjuncts ++ right.conjuncts
-        case x => List(x)
+      case BoolConst(true) => Nil
+      case BinaryExpr(OpAnd, left, right) => left.conjuncts ++ right.conjuncts
+      case OverloadedBinaryExpr(OpAnd, left, right) => left.conjuncts ++ right.conjuncts
+      case x => List(x)
     }
 
     def resolveOverloading(gamma: Gamma): Expr = this match {
@@ -465,15 +465,15 @@ object Expressions {
           expr.left.resolveOverloading(gamma),
           expr.right.resolveOverloading(gamma))
       case Var(_)
-      | BoolConst(_)
-      | IntConst(_)
-      | Unknown(_,_,_) => this
+           | BoolConst(_)
+           | IntConst(_)
+           | Unknown(_,_,_) => this
       case UnaryExpr(op, e) => UnaryExpr(op, e.resolveOverloading(gamma))
       case BinaryExpr(op, l, r) => BinaryExpr(op, l.resolveOverloading(gamma), r.resolveOverloading(gamma))
       case SetLiteral(elems) => SetLiteral(elems.map(_.resolveOverloading(gamma)))
       case IfThenElse(c, t, e) =>IfThenElse(c.resolveOverloading(gamma),
-                                            t.resolveOverloading(gamma),
-                                            e.resolveOverloading(gamma))
+        t.resolveOverloading(gamma),
+        e.resolveOverloading(gamma))
 
     }
   }
@@ -498,8 +498,8 @@ object Expressions {
 
   case class IntConst(value: Integer) extends Const(value) {
     /**
-      * Let's have this instead of the dedicated Nil constructor
-      */
+     * Let's have this instead of the dedicated Nil constructor
+     */
     def isNull: Boolean = value == 0
 
     def getType(gamma: Gamma): Option[SSLType] = Some(IntType)
@@ -608,10 +608,10 @@ object Expressions {
   }
 
   /**
-    * Unknown predicate (to be replaced by a term)
-    * @param name Predicate name
-    * @param params Variables that may appear in the instantiation
-    */
+   * Unknown predicate (to be replaced by a term)
+   * @param name Predicate name
+   * @param params Variables that may appear in the instantiation
+   */
   case class Unknown(name: String, params: Set[Var], pendingSubst: Subst = Map()) extends Expr with PureLogicUtils {
     override def getType(gamma: Gamma): Option[SSLType] = Some(BoolType)
 
@@ -623,11 +623,11 @@ object Expressions {
     def sameVar(other: Unknown): Boolean = other.name == name && other.params == params
 
     override def substUnknown(sigma: UnknownSubst): Expr =
-      // Find unknown but ignore pending subst
+    // Find unknown but ignore pending subst
       sigma.find({case (k, _) => sameVar(k)}) match {
-      case None => this
-      case Some((_,e)) => e.subst(pendingSubst)
-    }
+        case None => this
+        case Some((_,e)) => e.subst(pendingSubst)
+      }
   }
 
   /*
@@ -650,7 +650,3 @@ object Expressions {
   def least[A <: Expr](s: Set[Var]): List[Var] = if (s.isEmpty) Nil else List(s.min(Ordering[Expr]))
 
 }
-
-
-
-
