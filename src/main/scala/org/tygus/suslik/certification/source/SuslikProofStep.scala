@@ -316,6 +316,11 @@ case class AbduceCall(
             case ::(head, Nil) => SuslikProofStep.Read(from, to, stmt)
             case ls => fail_with_bad_children(ls, 1)
           }
+        case PrependProducer(stmt@Load(to, _, _, _)) >> ExtractHelper(_) =>
+          node.children match {
+            case ::(head, Nil) => SuslikProofStep.Read(to, to, stmt)
+            case ls => fail_with_bad_children(ls, 1)
+          }
         case _ => fail_with_bad_proof_structure()
       }
       case UnfoldingRules.AbduceCall => node.kont match {
@@ -371,7 +376,8 @@ case class AbduceCall(
               val pre = goal.pre
               val post = goal.post
 
-              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameUnfolding.heapletFilter(hPost)
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean =
+                hPre.eqModTags(hPostc) && LogicalRules.FrameUnfolding.heapletFilter(hPost)
 
               findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                 case None => ???
