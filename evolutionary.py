@@ -23,10 +23,12 @@ NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 10
-MAXIMUM_NUMBER_OF_GENERATIONS = 9
+MAXIMUM_NUMBER_OF_GENERATIONS = 20
 INDPB = 0.1
 NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
+NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 3
+NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
 
 
 class Individual(list):
@@ -80,7 +82,7 @@ class Individual(list):
 
         if orders_of_any_phase_rules is None:
             orders_of_any_phase_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION):
+            for i in range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES):
                 orders_of_any_phase_rules.append(random.sample(range(NUMB_OF_ANY_PHASE_RULE), NUMB_OF_ANY_PHASE_RULE))
         self.orders_of_any_phase_rules = orders_of_any_phase_rules
 
@@ -107,7 +109,7 @@ class Individual(list):
 
         if orders_of_any_phase_rules_or_spec_based_rules is None:
             orders_of_any_phase_rules_or_spec_based_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION):
+            for i in range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES):
                 orders_of_any_phase_rules_or_spec_based_rules.append \
                     (random.sample(range(NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE),
                                    NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))
@@ -224,25 +226,64 @@ class Individual(list):
         self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
+    # TODO: The use of the * opeartor is WRONG! FIXME. Use append.
     def default(self):
-        self.orders_of_any_phase_rules = [list(range(0, NUMB_OF_ANY_PHASE_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_pure_phase_rules = [list(range(0, NUMB_OF_PURE_PHASE_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_symbolic_execution_rules = [list(
-            range(0, NUMB_OF_SYMBOLIC_EXECUTION_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_unfolding_phase_rules = [list(
-            range(0, NUMB_OF_UNFOLDING_PHASE_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_any_phase_rules_or_spec_based_rules = [list(
-            range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_sketch_hole = [list(range(0, NUMB_OF_SKETCH_HOLE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_pointer_phase_rules = [list(range(0, NUMB_OF_POINTER_PHASE_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_post_block_phase_rules = [list(
-            range(0, NUMB_OF_POST_BLOCK_PHASE_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_call_abduction_rules = [list(
-            range(0, NUMB_OF_CALL_ABDUCTION_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_unfolding_post_phase_rules = [list(
-            range(0, NUMB_OF_UNFOLDING_POST_PHASE_RULE))] * NUMB_OF_FEATURE_COMBINATION
-        self.orders_of_unfolding_no_unfold_phase_rules = [list(
-            range(0, NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES))] * NUMB_OF_FEATURE_COMBINATION
+
+        orders_of_any_phase_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES)):
+            orders_of_any_phase_rules.append(list(range(0, NUMB_OF_ANY_PHASE_RULE)))
+        self.orders_of_any_phase_rules = orders_of_any_phase_rules
+
+        orders_of_pure_phase_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_pure_phase_rules.append(list(range(0, NUMB_OF_PURE_PHASE_RULE)))
+        self.orders_of_pure_phase_rules = orders_of_pure_phase_rules
+
+        orders_of_symbolic_execution_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_symbolic_execution_rules.append(list(range(0, NUMB_OF_SYMBOLIC_EXECUTION_RULE)))
+        self.orders_of_symbolic_execution_rules = orders_of_symbolic_execution_rules
+
+        orders_of_unfolding_phase_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_unfolding_phase_rules.append(list(range(0, NUMB_OF_UNFOLDING_PHASE_RULE)))
+        self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
+
+        orders_of_any_phase_rules_or_spec_based_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES)):
+            orders_of_any_phase_rules_or_spec_based_rules.append(list(range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE)))
+        self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
+
+        orders_of_sketch_hole = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_sketch_hole.append(list(range(0, NUMB_OF_SKETCH_HOLE)))
+        self.orders_of_sketch_hole = orders_of_sketch_hole
+
+        orders_of_pointer_phase_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_pointer_phase_rules.append(list(range(0, NUMB_OF_POINTER_PHASE_RULE)))
+        self.orders_of_pointer_phase_rules = orders_of_pointer_phase_rules
+
+        orders_of_post_block_phase_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_post_block_phase_rules.append(list(range(0, NUMB_OF_POST_BLOCK_PHASE_RULE)))
+        self.orders_of_post_block_phase_rules = orders_of_post_block_phase_rules
+
+        orders_of_call_abduction_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_call_abduction_rules.append(list(range(0, NUMB_OF_CALL_ABDUCTION_RULE)))
+        self.orders_of_call_abduction_rules = orders_of_call_abduction_rules
+
+        orders_of_unfolding_post_phase_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_unfolding_post_phase_rules.append(list(range(0, NUMB_OF_UNFOLDING_POST_PHASE_RULE)))
+        self.orders_of_unfolding_post_phase_rules = orders_of_unfolding_post_phase_rules
+
+        orders_of_unfolding_no_unfold_phase_rules = []
+        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+            orders_of_unfolding_no_unfold_phase_rules.append(list(range(0, NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES)))
+        self.orders_of_unfolding_no_unfold_phase_rules = orders_of_unfolding_no_unfold_phase_rules
+
         self.weight_of_cost_no_call_goal_pre = 3.0
         self.weight_of_cost_no_call_goal_post = 1.0
         self.weight_of_cost_call_goal = 10.0
@@ -390,6 +431,13 @@ def main():
 
     # evaluate the default strategy
     default = Individual(group_id=0, generation_id=0, individual_id=0, rank=0)
+    default.default()
+    default.evaluate(for_training=False)
+    default.write_json_result(for_training=False)
+    default.write_overall_json_result(for_training=False)
+    default.evaluate(for_training=True)
+    default.write_json_result(for_training=True)
+    default.write_overall_json_result(for_training=True)
 
     # create an initial groups of POPULATION_SIZE individuals
     generation_id = 1

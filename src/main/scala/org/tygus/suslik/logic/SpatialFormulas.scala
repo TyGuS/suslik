@@ -64,7 +64,6 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     case PointsTo(loc, offset, value) => true
     case _ => false
   }
-
 }
 
 /**

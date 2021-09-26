@@ -24,7 +24,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.post.isOpAndWithBoolEq) math.pow(2,0) else 0 //for SubstRight
-          + (if (goal.post.isForStarPartial) math.pow(2,1) else 0)) //for StarPartial
+          + (if (goal.post.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
+          + (if (goal.hasHeapletPointsGhostInPre) math.pow(2,2) else 0) // for Read
+          )
     }
 
     def anyPhaseRulesOrSpecBasedRules = {
@@ -118,7 +120,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         0
       else
         (if (goal.post.isOpAndWithBoolEq) math.pow(2,0) else 0 //for SubstRight
-          + (if (goal.post.isForStarPartial) math.pow(2,1) else 0)) //for StarPartial
+          + (if (goal.post.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
+          + (if (goal.hasHeapletPointsGhostInPre) math.pow(2,2) else 0) // for Read
+          )
     }
 
     val ordersOfAnyPhaseRules = goal.env.ordersOfAnyPhaseRules

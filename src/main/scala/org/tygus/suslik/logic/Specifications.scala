@@ -215,6 +215,17 @@ object Specifications extends SepLogicUtils {
       case _ => false
     }
 
+    // isHeapletPointsToGhostInPre has to be defined here since it uses isGhost defined here.
+    // TODO: Should isHeapletPointsToGhostInPre be refactor with isGhostPoints in logic/OperationalRules.scala?
+    def isHeapletPointsToGhostInPre(heaplet: Heaplet): Boolean = heaplet match {
+      case PointsTo(x@Var(_), _, e) =>
+        !isGhost(x) && e.vars.intersect(ghosts).nonEmpty
+      case _ => false
+    }
+
+    // TODO: Should hasHeapletPointsGhostInPre be refactor with isGhostPoints in logic/OperationalRules.scala?
+    def hasHeapletPointsGhostInPre: Boolean = this.pre.sigma.chunks.exists(isHeapletPointsToGhostInPre)
+
     // All variables this goal has ever used
     def vars: Set[Var] = gamma.keySet
 
