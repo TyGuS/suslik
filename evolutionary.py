@@ -28,9 +28,15 @@ INDPB = 0.1
 NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 3
-NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
+NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
 NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 1
 NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES = 2
+NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES
+NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 1
+NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
+NUMB_OF_FEATURES_FOR_POST_UNFOLDING_PHASE_RULES = 1
+NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_UNFOLDING_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POST_UNFOLDING_PHASE_RULES
 
 
 class Individual(list):
@@ -84,7 +90,7 @@ class Individual(list):
 
         if orders_of_any_phase_rules is None:
             orders_of_any_phase_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES):
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
                 orders_of_any_phase_rules.append(random.sample(range(NUMB_OF_ANY_PHASE_RULE), NUMB_OF_ANY_PHASE_RULE))
         self.orders_of_any_phase_rules = orders_of_any_phase_rules
 
@@ -104,14 +110,14 @@ class Individual(list):
 
         if orders_of_unfolding_phase_rules is None:
             orders_of_unfolding_phase_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION):
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
                 orders_of_unfolding_phase_rules.append \
                     (random.sample(range(NUMB_OF_UNFOLDING_PHASE_RULE), NUMB_OF_UNFOLDING_PHASE_RULE))
         self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
 
         if orders_of_any_phase_rules_or_spec_based_rules is None:
             orders_of_any_phase_rules_or_spec_based_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES):
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
                 orders_of_any_phase_rules_or_spec_based_rules.append \
                     (random.sample(range(NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE),
                                    NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))
@@ -139,14 +145,14 @@ class Individual(list):
 
         if orders_of_call_abduction_rules is None:
             orders_of_call_abduction_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION):
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES):
                 orders_of_call_abduction_rules.append \
                     (random.sample(range(NUMB_OF_CALL_ABDUCTION_RULE), NUMB_OF_CALL_ABDUCTION_RULE))
         self.orders_of_call_abduction_rules = orders_of_call_abduction_rules
 
         if orders_of_unfolding_post_phase_rules is None:
             orders_of_unfolding_post_phase_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION):
+            for i in range(NUMB_OF_FEATURES_FOR_POST_UNFOLDING_PHASE_RULES):
                 orders_of_unfolding_post_phase_rules.append \
                     (random.sample(range(NUMB_OF_UNFOLDING_POST_PHASE_RULE), NUMB_OF_UNFOLDING_POST_PHASE_RULE))
         self.orders_of_unfolding_post_phase_rules = orders_of_unfolding_post_phase_rules
@@ -232,7 +238,7 @@ class Individual(list):
     def default(self):
 
         orders_of_any_phase_rules = []
-        for i in list(range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES)):
+        for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES)):
             orders_of_any_phase_rules.append(list(range(0, NUMB_OF_ANY_PHASE_RULE)))
         self.orders_of_any_phase_rules = orders_of_any_phase_rules
 
@@ -247,12 +253,12 @@ class Individual(list):
         self.orders_of_symbolic_execution_rules = orders_of_symbolic_execution_rules
 
         orders_of_unfolding_phase_rules = []
-        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+        for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES)):
             orders_of_unfolding_phase_rules.append(list(range(0, NUMB_OF_UNFOLDING_PHASE_RULE)))
         self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
 
         orders_of_any_phase_rules_or_spec_based_rules = []
-        for i in list(range(NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES)):
+        for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES)):
             orders_of_any_phase_rules_or_spec_based_rules.append(list(range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE)))
         self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
 
@@ -272,12 +278,12 @@ class Individual(list):
         self.orders_of_post_block_phase_rules = orders_of_post_block_phase_rules
 
         orders_of_call_abduction_rules = []
-        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+        for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES)):
             orders_of_call_abduction_rules.append(list(range(0, NUMB_OF_CALL_ABDUCTION_RULE)))
         self.orders_of_call_abduction_rules = orders_of_call_abduction_rules
 
         orders_of_unfolding_post_phase_rules = []
-        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+        for i in list(range(NUMB_OF_FEATURES_FOR_POST_UNFOLDING_PHASE_RULES)):
             orders_of_unfolding_post_phase_rules.append(list(range(0, NUMB_OF_UNFOLDING_POST_PHASE_RULE)))
         self.orders_of_unfolding_post_phase_rules = orders_of_unfolding_post_phase_rules
 
@@ -434,12 +440,12 @@ def main():
     # evaluate the default strategy
     default = Individual(group_id=0, generation_id=0, individual_id=0, rank=0)
     default.default()
-    default.evaluate(for_training=False)
-    default.write_json_result(for_training=False)
-    default.write_overall_json_result(for_training=False)
-    default.evaluate(for_training=True)
-    default.write_json_result(for_training=True)
-    default.write_overall_json_result(for_training=True)
+    #default.evaluate(for_training=False)
+    #default.write_json_result(for_training=False)
+    #default.write_overall_json_result(for_training=False)
+    #default.evaluate(for_training=True)
+    #default.write_json_result(for_training=True)
+    #default.write_overall_json_result(for_training=True)
 
     # create an initial groups of POPULATION_SIZE individuals
     generation_id = 1

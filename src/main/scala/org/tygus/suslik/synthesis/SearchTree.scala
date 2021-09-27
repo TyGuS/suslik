@@ -122,6 +122,11 @@ object SearchTree {
     // Rules that lead to this node
     def ruleHistory: List[SynthesisRule] = andAncestors.map(_.rule)
 
+    // Check if a rule has already been applied.
+    def hasBeenApplied(rule: SynthesisRule) = {
+      ruleHistory.contains(rule)
+    }
+
     // Number of proper ancestors
     def depth: Int = ancestors.length
 
