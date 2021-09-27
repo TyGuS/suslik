@@ -450,6 +450,13 @@ object Expressions {
       case _ => 1
     }
 
+    // check if the top-level is a conjunction for HeapUnifyPure.
+    // TODO: should I have it as a recursive function?
+    def isOpAnd: Boolean = this match {
+      case BinaryExpr(OpAnd, _, _) => true
+      case _ => false
+    }
+
     // check if the top-level is a conjunction for SubstRight.
     // TODO: should I have it as a recursive function?
     def isOpAndWithBoolEq: Boolean = this match {

@@ -479,6 +479,14 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val index = {
       if (is_static)
         0
+      else {
+        (if (goal.pre.hasOpAnd && goal.post.hasOpAnd) math.pow(2,0) else 0) // For HeapUnifyPure
+      }
+    }
+
+    val index = {
+      if (is_static)
+        0
       else
         (if (goal.isUnsolvable) math.pow(2,0) else 0
           + (if (goal.sketch != Hole) math.pow(2,1) else 0)

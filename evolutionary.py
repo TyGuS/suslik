@@ -29,6 +29,8 @@ NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 3
 NUMB_OF_FEATURE_COMBINATION_FOR_ANY_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
+NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 1
+NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES
 
 
 class Individual(list):
@@ -88,7 +90,7 @@ class Individual(list):
 
         if orders_of_pure_phase_rules is None:
             orders_of_pure_phase_rules = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION):
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
                 orders_of_pure_phase_rules.append \
                     (random.sample(range(NUMB_OF_PURE_PHASE_RULE), NUMB_OF_PURE_PHASE_RULE))
         self.orders_of_pure_phase_rules = orders_of_pure_phase_rules
@@ -235,7 +237,7 @@ class Individual(list):
         self.orders_of_any_phase_rules = orders_of_any_phase_rules
 
         orders_of_pure_phase_rules = []
-        for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
+        for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES)):
             orders_of_pure_phase_rules.append(list(range(0, NUMB_OF_PURE_PHASE_RULE)))
         self.orders_of_pure_phase_rules = orders_of_pure_phase_rules
 

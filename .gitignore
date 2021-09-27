@@ -152,3 +152,4 @@ node_modules
 # evolutionary computation
 *.json
 .bsp/sbt.json
+*all_results1

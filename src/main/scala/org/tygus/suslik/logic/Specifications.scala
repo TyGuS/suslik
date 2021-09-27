@@ -25,6 +25,8 @@ object Specifications extends SepLogicUtils {
 
     def hasBlocks: Boolean = sigma.chunks.exists(_.isInstanceOf[Block])
 
+    def hasOpAnd: Boolean = phi.conjuncts.exists(_.isOpAnd) // For UnifyPure (a.k.a. HeapUnifyPure)
+
     def isOpAndWithBoolEq: Boolean = phi.conjuncts.exists(_.isOpAndWithBoolEq) // For SubstRight
 
     def isForStarPartial: Boolean = sigma.hasMoreThan2Heaplets && sigma.hasMoreThan1PointsTos // For StarPartial
