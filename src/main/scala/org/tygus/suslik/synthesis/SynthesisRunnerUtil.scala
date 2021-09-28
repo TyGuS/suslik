@@ -159,7 +159,10 @@ trait SynthesisRunnerUtil {
     val ordersOfSketchHole                    = jsonData("orders_of_sketch_hole").arr.map(_.arr.map(_.num).map(_.toInt))
     val ordersOfPointerPhaseRules             = jsonData("orders_of_pointer_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
     val ordersOfPostBlockPhaseRules           = jsonData("orders_of_post_block_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfCallAbductionRules            = jsonData("orders_of_call_abduction_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfCallAbductionRules1           = jsonData("orders_of_call_abduction_rules_1").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfCallAbductionRules2           = jsonData("orders_of_call_abduction_rules_2").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfCallAbductionRules3           = jsonData("orders_of_call_abduction_rules_3").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfCallAbductionRules4           = jsonData("orders_of_call_abduction_rules_4").arr.map(_.arr.map(_.num).map(_.toInt))
     val ordersOfUnfoldingPostPhaseRules       = jsonData("orders_of_unfolding_post_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
     val ordersOfUnfoldingNoUnfoldPhaseRules   = jsonData("orders_of_unfolding_no_unfold_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
     val weight_of_cost_no_call_goal_pre       = jsonData("weight_of_cost_no_call_goal_pre").num
@@ -178,7 +181,10 @@ trait SynthesisRunnerUtil {
       ordersOfSketchHole,
       ordersOfPointerPhaseRules,
       ordersOfPostBlockPhaseRules,
-      ordersOfCallAbductionRules,
+      ordersOfCallAbductionRules1,
+      ordersOfCallAbductionRules2,
+      ordersOfCallAbductionRules3,
+      ordersOfCallAbductionRules4,
       ordersOfUnfoldingPostPhaseRules,
       ordersOfUnfoldingNoUnfoldPhaseRules,
       weight_of_cost_no_call_goal_pre,

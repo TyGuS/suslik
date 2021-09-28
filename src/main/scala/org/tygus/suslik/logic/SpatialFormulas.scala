@@ -229,7 +229,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   def isEmp: Boolean = chunks.isEmpty
 
-  def hasMoreThan2Heaplets: Boolean = chunks.length > 2: Boolean
+  def hasMoreThan1Heaplets: Boolean = chunks.length > 1: Boolean
 
   def hasMoreThan1PointsTos: Boolean = chunks.filter(_.isPointsTo).length > 1: Boolean
 

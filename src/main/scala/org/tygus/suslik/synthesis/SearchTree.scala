@@ -123,8 +123,14 @@ object SearchTree {
     def ruleHistory: List[SynthesisRule] = andAncestors.map(_.rule)
 
     // Check if a rule has already been applied.
-    def hasBeenApplied(rule: SynthesisRule) = {
+    def isAfter(rule: SynthesisRule) = {
       ruleHistory.contains(rule)
+    }
+
+    // Check if a rule was applied to the parent of this node.
+    def isJustAfter(rule:SynthesisRule) = parent match {
+      case None => false
+      case Some(parent) => (parent.rule == rule)
     }
 
     // Number of proper ancestors
