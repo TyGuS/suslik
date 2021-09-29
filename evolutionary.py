@@ -78,6 +78,7 @@ class Individual(list):
                  runtime_rule_order_selection=True, # a.k.a dynamic optimisation
                  nan=100,
                  time=9999999999.0,
+                 backtracking=9999999999,
                  ancestors=None,
                  ancestor_ranks=None,
                  orders_of_any_phase_rules=None,
@@ -107,6 +108,7 @@ class Individual(list):
         self.runtime_rule_order_selection = runtime_rule_order_selection
         self.nan = nan
         self.time = time
+        self.backtracking = backtracking
         self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre
         self.weight_of_cost_no_call_goal_post = weight_of_cost_no_call_goal_post
         self.weight_of_cost_call_goal = weight_of_cost_call_goal
@@ -246,11 +248,17 @@ class Individual(list):
     def get_time(self):
         return self.time
 
+    def get_backtracking(self):
+        return self.backtracing
+
     def get_nan(self):
         return self.nan
 
     def set_time(self, time):
         self.time = time
+
+    def set_backtracking(self, backtracking):
+        self.backtracking = backtracking
 
     def set_nan(self, nan):
         self.nan = nan
@@ -443,10 +451,11 @@ class Individual(list):
 
         number_of_nans = int(df['Time(mut)'].isna().sum())
         total_time = df['Time(mut)'].sum()
+        total_backtracking = int(df['Backtrackings(mut)'].isna().sum())
 
-        self.nan, self.time = (number_of_nans, total_time)
+        self.nan, self.time, self.backtracking = (number_of_nans, total_time, total_backtracking)
 
-        return number_of_nans, total_time
+        return number_of_nans, total_time, total_backtracking
 
     # Note that we use the rank of individual in the file name.
     def json_result_file_path(self, is_for_training=True):
@@ -476,12 +485,13 @@ class Individual(list):
             "rank": self.rank,
             "number_of_nan": self.nan,
             "search_time": self.time,
+            "backtracking": self.backtracing,
             "ancestors": self.ancestors,
             "ancestor_ranks": self.ancestor_ranks,
             "is_for_training": is_for_training,
             "population_size": POPULATION_SIZE,
             "independent_probability": INDPB,
-            "timeout": TIMEOUT,
+            "timeout": roboevaluation.TIMEOUT,
             "lower_multiplicand_for_cost": LOWER_MULTIPLICAND_FOR_COST,
             "upper_multiplicand_for_cost": UPPER_MULTIPLICAND_FOR_COST,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
@@ -508,6 +518,8 @@ class Individual(list):
 def get_total_time(individual: Individual):
     return individual.get_time()
 
+def get_total_backtracking(individual: Individual):
+    return individual.get_backtracking()
 
 def get_number_of_nans(individual: Individual):
     return individual.get_nan()
@@ -545,7 +557,7 @@ def main():
     group_m = []
     for individual_id in individual_ids:
         new_individual = copy.deepcopy(default)
-        new_individual.set_runtime_rule_order_selection(True)
+        new_individual.set_runtime_rule_order_selection(False)#TODO
         new_individual.set_group_id(0)
         new_individual.set_individual_id(individual_id)
         new_individual.set_generation_id(generation_id)
@@ -568,7 +580,7 @@ def main():
 
     # sort each group
     for group in groups:
-        group.sort(key=get_total_time)
+        group.sort(key=get_total_backtracking)
         group.sort(key=get_number_of_nans)
 
     # set the rank, write resulting JSON file
@@ -623,7 +635,7 @@ def main():
             group[:] = offspring1 + offspring2
 
             # sort group
-            group.sort(key=get_total_time)
+            group.sort(key=get_total_backtracking)
             group.sort(key=get_number_of_nans)
 
             rank = 0
