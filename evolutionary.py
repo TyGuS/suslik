@@ -7,6 +7,7 @@ import roboevaluation
 import pandas
 from deap import base
 from deap import tools
+#from pprint import pformat
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
 NUMB_OF_ANY_PHASE_RULE = 8
@@ -27,8 +28,10 @@ NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 10
-MAXIMUM_NUMBER_OF_GENERATIONS = 200
+MAXIMUM_NUMBER_OF_GENERATIONS = 1000
 INDPB = 0.2
+LOWER_MULTIPLICAND_FOR_COST = 0.8
+UPPER_MULTIPLICAND_FOR_COST = 1.2
 
 NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
@@ -72,6 +75,7 @@ class Individual(list):
                  generation_id,
                  individual_id,
                  rank,
+                 runtime_rule_order_selection=True, # a.k.a dynamic optimisation
                  nan=100,
                  time=9999999999.0,
                  ancestors=None,
@@ -100,6 +104,7 @@ class Individual(list):
         self.generation_id = generation_id
         self.individual_id = individual_id
         self.rank = rank
+        self.runtime_rule_order_selection = runtime_rule_order_selection
         self.nan = nan
         self.time = time
         self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre
@@ -235,6 +240,9 @@ class Individual(list):
     def set_rank(self, rank):
         self.rank = rank
 
+    def set_runtime_rule_order_selection(self, runtime_rule_order_selection):
+        self.runtime_rule_order_selection = runtime_rule_order_selection
+
     def get_time(self):
         return self.time
 
@@ -282,11 +290,11 @@ class Individual(list):
             tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
         for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
-        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
-        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
-        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(0.8, 1.2)
-        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(0.8, 1.2)
-        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(0.8, 1.2)
+        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     # TODO: The use of the * opeartor is WRONG! FIXME. Use append.
@@ -377,6 +385,7 @@ class Individual(list):
     def write_order_json(self):
 
         json_data_to_write = {
+            "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
             "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
@@ -398,8 +407,10 @@ class Individual(list):
             "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
         }
 
+        #asd = pformat(json_data_to_write)
         with open(self.json_file_path(), 'w') as new_json_file_to_write:
-            json.dump(json_data_to_write, new_json_file_to_write)
+            #new_json_file_to_write.write(asd)
+            json.dump(json_data_to_write, new_json_file_to_write, indent=2)
 
     def csv_path(self, is_for_training=True):
 
@@ -468,6 +479,12 @@ class Individual(list):
             "ancestors": self.ancestors,
             "ancestor_ranks": self.ancestor_ranks,
             "is_for_training": is_for_training,
+            "population_size": POPULATION_SIZE,
+            "independent_probability": INDPB,
+            "timeout": TIMEOUT,
+            "lower_multiplicand_for_cost": LOWER_MULTIPLICAND_FOR_COST,
+            "upper_multiplicand_for_cost": UPPER_MULTIPLICAND_FOR_COST,
+            "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
             "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
             "weight_of_cost_call_goal": self.weight_of_cost_call_goal,
@@ -478,7 +495,7 @@ class Individual(list):
     def write_json_result(self, for_training=True):
 
         with open(self.json_result_file_path(for_training), 'w') as json_result_file_to_write:
-            json.dump(self.json_result(for_training), json_result_file_to_write)
+            json.dump(self.json_result(for_training), json_result_file_to_write, indent=2)
 
     def write_overall_json_result(self, for_training=True):
         with open(self.json_overall_result_file_path(for_training), 'a') as \
@@ -511,14 +528,14 @@ def main():
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
     # evaluate the default strategy
-    default = Individual(group_id=0, generation_id=0, individual_id=0, rank=0)
-    #default.default()
-    #default.evaluate(for_training=False)
-    #default.write_json_result(for_training=False)
-    #default.write_overall_json_result(for_training=False)
-    #default.evaluate(for_training=True)
-    #default.write_json_result(for_training=True)
-    #default.write_overall_json_result(for_training=True)
+    default = Individual(group_id=0, generation_id=0, individual_id=0, rank=0, runtime_rule_order_selection=False)
+    default.default()
+    default.evaluate(for_training=False)
+    default.write_json_result(for_training=False)
+    default.write_overall_json_result(for_training=False)
+    default.evaluate(for_training=True)
+    default.write_json_result(for_training=True)
+    default.write_overall_json_result(for_training=True)
 
     # create an initial groups of POPULATION_SIZE individuals
     generation_id = 1
@@ -528,6 +545,7 @@ def main():
     group_m = []
     for individual_id in individual_ids:
         new_individual = copy.deepcopy(default)
+        new_individual.set_runtime_rule_order_selection(True)
         new_individual.set_group_id(0)
         new_individual.set_individual_id(individual_id)
         new_individual.set_generation_id(generation_id)
@@ -537,7 +555,8 @@ def main():
     group_a = []
     # group_B = []
     for individual_id in individual_ids:
-        group_a.append(Individual(group_id=1, generation_id=generation_id, individual_id=individual_id, rank=0))
+        group_a.append(Individual(group_id=1, generation_id=generation_id, individual_id=individual_id, rank=0,
+                                  runtime_rule_order_selection=True))
         # group_B.append(Individual(group_id=2, generation_id=generation_id, individual_id=individual_id, rank=0))
 
     groups = [group_m]#, group_a]  # , group_B]

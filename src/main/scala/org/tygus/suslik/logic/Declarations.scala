@@ -215,7 +215,8 @@ case class Environment(predicates: PredicateEnv,
                        weight_of_cost_no_call_goal_post: Double,
                        weight_of_cost_call_goal: Double,
                        weight_of_cost_call_goal_pre: Double,
-                       weight_of_cost_call_goal_post: Double
+                       weight_of_cost_call_goal_post: Double,
+                       runtime_rule_order_selection: Boolean
                       ) {
   def pp: String = {
     val ps = predicates.values.toSet.toList.map((x: InductivePredicate) => x.pp).mkString("; ")

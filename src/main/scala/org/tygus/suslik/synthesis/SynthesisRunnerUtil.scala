@@ -170,6 +170,7 @@ trait SynthesisRunnerUtil {
     val weight_of_cost_call_goal              = jsonData("weight_of_cost_call_goal").num
     val weight_of_cost_call_goal_pre          = jsonData("weight_of_cost_call_goal_pre").num
     val weight_of_cost_call_goal_post         = jsonData("weight_of_cost_call_goal_post").num
+    val runtime_rule_order_selection          = jsonData("runtime_rule_order_selection").bool: Boolean
 
     val env = Environment(predEnv, funcEnv, params,
       new SynStats(params.timeOut),
@@ -191,7 +192,8 @@ trait SynthesisRunnerUtil {
       weight_of_cost_no_call_goal_post,
       weight_of_cost_call_goal,
       weight_of_cost_call_goal_pre,
-      weight_of_cost_call_goal_post
+      weight_of_cost_call_goal_post,
+      runtime_rule_order_selection
     )
     val synthesizer = createSynthesizer(env)
 
