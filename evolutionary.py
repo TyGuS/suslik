@@ -249,7 +249,7 @@ class Individual(list):
         return self.time
 
     def get_backtracking(self):
-        return self.backtracing
+        return self.backtracking
 
     def get_nan(self):
         return self.nan
@@ -485,7 +485,7 @@ class Individual(list):
             "rank": self.rank,
             "number_of_nan": self.nan,
             "search_time": self.time,
-            "backtracking": self.backtracing,
+            "backtracking": self.backtracking,
             "ancestors": self.ancestors,
             "ancestor_ranks": self.ancestor_ranks,
             "is_for_training": is_for_training,
