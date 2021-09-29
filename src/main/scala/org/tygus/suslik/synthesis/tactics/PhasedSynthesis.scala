@@ -21,18 +21,27 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     val goal = node.goal
 
-    // TODO: maybe I should compute "index" separately for anyPhaseRulesOrSpecBasedRules and sketchHole.
-    val index = {
-      if (goal.env.runtime_rule_order_selection)
-        (   (if (goal.post.hasOpBoolEq) math.pow(2,0) else 0) //for SubstRight
-          + (if (goal.pre.hasOpBoolEq) math.pow(2,1) else 0) //for SubstLeft
-          //+ (if (goal.pre.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
-          + (if (goal.hasHeapletPointsGhostInPre) math.pow(2,2) else 0) // for Read
-          )
-      else 0
-    }
-
     def anyPhaseRulesOrSpecBasedRules = {
+
+      val index = {
+        if (goal.env.runtime_rule_order_selection) {
+          if (goal.env.fewer_feature_combinations) {
+            if (goal.post.hasOpBoolEq) {0} else {
+              if (goal.pre.hasOpBoolEq) {1} else {
+                if (goal.hasHeapletPointsGhostInPre) {2}
+                else {3}
+              }
+            }
+          }
+          else {
+            (   (if (goal.post.hasOpBoolEq) math.pow(2,0) else 0) //for SubstRight
+              + (if (goal.pre.hasOpBoolEq) math.pow(2,1) else 0) //for SubstLeft
+              //+ (if (goal.pre.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
+              + (if (goal.hasHeapletPointsGhostInPre) math.pow(2,2) else 0) // for Read
+              )
+          }
+        } else 0
+      }
 
       val ordersOfAnyPhaseOrSpecBased = goal.env.ordersOfAnyPhaseOrSpecBased
       val orderOfAnyPhaseOrSpecBased = ordersOfAnyPhaseOrSpecBased.apply(index.toInt)
@@ -56,6 +65,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     def sketchHole = {
 
+      val index = 0
       val ordersOfSketchHole = goal.env.ordersOfSketchHole
       val orderOfSketchHole = ordersOfSketchHole.apply(index.toInt)
 
@@ -119,13 +129,21 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def anyPhaseRules(goal:Goal): List[SynthesisRule] = {
 
     val index = {
-      if (goal.env.runtime_rule_order_selection)
-        (   (if (goal.post.hasOpBoolEq) math.pow(2,0) else 0) //for SubstRight
-          + (if (goal.pre.hasOpBoolEq) math.pow(2,1) else 0) //for SubstLeft
-          //+ (if (goal.pre.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
-          + (if (goal.hasHeapletPointsGhostInPre) math.pow(2,2) else 0) // for Read
-          )
-      else 0
+      if (goal.env.runtime_rule_order_selection) {
+        if (goal.env.fewer_feature_combinations) {
+          if (goal.hasHeapletPointsGhostInPre) {0} else {
+            if (goal.pre.hasOpBoolEq) {1} else {
+              if (goal.post.hasOpBoolEq) {2} else {3}
+            }
+          }
+        }
+        else {
+            (if (goal.post.hasOpBoolEq) {math.pow(2,0)} else {0}) //for SubstRight
+          + (if (goal.pre.hasOpBoolEq) {math.pow(2,1)} else {0}) //for SubstLeft
+            //+ (if (goal.pre.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
+          + (if (goal.hasHeapletPointsGhostInPre) {math.pow(2,2)} else {0}) // for Read
+        }
+      } else 0
     }
 
     val ordersOfAnyPhaseRules = goal.env.ordersOfAnyPhaseRules
@@ -160,12 +178,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   protected def symbolicExecutionRules(goal:Goal): List[SynthesisRule] = {
 
-    val index = {
-      if (is_static)
-        0
-      else
-        0
-    }
+    val index = {0}
 
     val ordersOfSymbolicExecutionRules = goal.env.ordersOfSymbolicExecutionRules
     val orderOfSymbolicExecutionRules = ordersOfSymbolicExecutionRules.apply(index.toInt)
@@ -199,8 +212,15 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val goal = node.goal
     val index = {
       if (goal.env.runtime_rule_order_selection) {
-          (if (node.isAfter(SymbolicExecutionRules.Open)) math.pow(2,0) else 0)
-        + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 1) else 0) // for LogicalRules.FrameUnfolding
+        if (goal.env.fewer_feature_combinations) {
+          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
+            if (node.isAfter(SymbolicExecutionRules.Open)) {1} else {2}
+          }
+        }
+        else {
+          (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,0) else 0)
+          + (if (node.isAfter(SymbolicExecutionRules.Open)) math.pow(2, 1) else 0) // for LogicalRules.FrameUnfolding
+        }
       } // UnfoldingRules.Close
       else 0
     }
@@ -233,13 +253,25 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def unfoldingPostPhaseRules(node: OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
-    val index = {
-      if (goal.env.runtime_rule_order_selection)
-        {
-          (if (node.isAfter(SymbolicExecutionRules.Open)) math.pow(2,0) else 0) // for UnfoldingRules.Close
+    val index =
+      if (goal.env.runtime_rule_order_selection) {
+        if (goal.env.fewer_feature_combinations) {
+          if (node.isAfter(SymbolicExecutionRules.Open)) {
+            0
+          } else {
+            1
+          } // for UnfoldingRules.Close
         }
+        else {
+          (if (node.isAfter(SymbolicExecutionRules.Open)) {
+            math.pow(2, 0)
+          } else {
+            0
+          }) // for UnfoldingRules.Close
+        }
+      }
       else {0}
-    }
+
 
     val ordersOfUnfoldingPostPhaseRules = goal.env.ordersOfUnfoldingPostPhaseRules
     val orderOfUnfoldingPostPhaseRules = ordersOfUnfoldingPostPhaseRules.apply(index.toInt)
@@ -291,38 +323,42 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     val goal = node.goal
 
-    val index1 = {
-      if (goal.env.runtime_rule_order_selection)
-        (  (if (goal.post.hasOpBoolEq) math.pow(2,0) else 0) //for SubstRight
-          + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 1) else 0) // for LogicalRules.FrameUnfoldingFinal
-          )
-      else 0
-    }
+    val index1 =
+      if (goal.env.runtime_rule_order_selection) {
+        if (goal.env.fewer_feature_combinations) {
+          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {// for LogicalRules.FrameUnfoldingFinal
+            if (goal.post.hasOpBoolEq) {1} else {2} //for SubstRight
+          }
+        }
+        else {
+            (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 0) else 0) // for LogicalRules.FrameUnfoldingFinal
+          + (if (goal.post.hasOpBoolEq) math.pow(2,1) else 0) //for SubstRight
+        }
+      }
+      else {0}
 
-    val index2 = {
-      if (goal.env.runtime_rule_order_selection)
-        (    (if (goal.post.hasOpBoolEq) math.pow(2, 0) else 0) //for SubstRight
-          + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 1) else 0) // for LogicalRules.FrameBlock
-          )
-      else 0
-    }
+    val index2 = index1
 
-    val index3 = {
-      if (goal.env.runtime_rule_order_selection)
-        (    (if (goal.post.hasOpBoolEq) math.pow(2, 0) else 0) //for SubstRight
-          + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 1) else 0) // for LogicalRules.FrameFlat
-          )
-      else 0
-    }
+    val index3 = index1
 
-      val index4 = {
-        if (goal.env.runtime_rule_order_selection)
+    val index4 =
+      if (goal.env.runtime_rule_order_selection) {
+        if (goal.env.fewer_feature_combinations) {
+          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
+            if (node.isJustAfter(AbduceCall)) {1} else {
+              if (goal.post.hasOpBoolEq) {2} else {
+                if (node.isAfter(OperationalRules.ReadRule)) {3} else {4}
+              }
+            }
+          }
+        } else
           (   (if (node.isAfter(OperationalRules.ReadRule)) math.pow(2, 0) else 0) // for OperationalRules.WriteRule
             + (if (node.isJustAfter(AbduceCall)) math.pow(2, 1) else 0) // for UnfoldingRules.CallRule
             + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 2) else 0) // for LogicalRules.FrameFlat
-            //+ (if (goal.post.hasOpBoolEq) math.pow(2, 3) else 0)) //for SubstRight
-            )
-        else 0
+            + (if (goal.post.hasOpBoolEq) math.pow(2, 3) else 0) //for SubstRight
+        )
+      } else {
+        0
       }
 
     val ordersOfCallAbductionRules1 = goal.env.ordersOfCallAbductionRules1
@@ -477,9 +513,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   protected def postBlockPhaseRules(goal: Goal): List[SynthesisRule] = {
 
-    val index = {
-      if (goal.env.runtime_rule_order_selection) 0 else 0
-    }
+    val index = {0}
 
     val ordersOfPostBlockPhaseRules = goal.env.ordersOfPostBlockPhaseRules
     val orderOfPostBlockPhaseRules = ordersOfPostBlockPhaseRules.apply(index.toInt)
@@ -525,7 +559,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         //    UnificationRules.SubstRight,
         FailRules.HeapUnreachable,
         LogicalRules.FrameFlat,
-        UnificationRules.HeapUnifyPointer,
+        UnificationRules.HeapUnifyPointer
       )
 
     if (goal.env.config.evolutionary)
@@ -556,17 +590,23 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         UnificationRules.HeapUnifyPure,
         LogicalRules.SimplifyConditional,
         OperationalRules.WriteRule,
-        if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick)
+        if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick
+      )
     //    ++
     //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
 
     val index = {
-      if (goal.env.runtime_rule_order_selection)
-        (
+      if (goal.env.runtime_rule_order_selection) {
+        if (goal.env.fewer_feature_combinations) {
+          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
+            if (node.isAfter(OperationalRules.ReadRule)) {1} else {2}
+          }
+        } else {
           (if (node.isAfter(OperationalRules.ReadRule)) math.pow(2,0) else 0) // OperationalRules.WriteRule
-            + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,1) else 0) // for LogicalRules.FrameFlat
-        )
-      else 0
+          + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,1) else 0) // for LogicalRules.FrameFlat
+        }
+      }
+      else {0}
     }
 
     val ordersOfPurePhaseRules = goal.env.ordersOfPurePhaseRules

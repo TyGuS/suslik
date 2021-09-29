@@ -29,42 +29,51 @@ MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 10
 MAXIMUM_NUMBER_OF_GENERATIONS = 1000
-INDPB = 0.2
+INDPB = 0.1
 LOWER_MULTIPLICAND_FOR_COST = 0.8
 UPPER_MULTIPLICAND_FOR_COST = 1.2
 
+FEWER_FEATURE_COMBINATION = True
+
 NUMB_OF_FEATURES = 2
-NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
-
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 3
-NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
-
 NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 2
-NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES
-
+NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 2
-NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1
-
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 2
-NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2
-
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3 = 2
-NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3
-
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4 = 3
-NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4
-
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4 = 4
 NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES = 1
-NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
-
 NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES = 1
-NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
-
 NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 2
-NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
-
 NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 1
-NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES
+
+if FEWER_FEATURE_COMBINATION:
+    NUMB_OF_FEATURE_COMBINATION = 1 + NUMB_OF_FEATURES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES = 1 + NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES
+else:
+    NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES = 2 ** NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES
 
 
 class Individual(list):
@@ -76,6 +85,7 @@ class Individual(list):
                  individual_id,
                  rank,
                  runtime_rule_order_selection=True, # a.k.a dynamic optimisation
+                 fewer_feature_combinations=True,
                  nan=100,
                  time=9999999999.0,
                  backtracking=9999999999,
@@ -106,6 +116,7 @@ class Individual(list):
         self.individual_id = individual_id
         self.rank = rank
         self.runtime_rule_order_selection = runtime_rule_order_selection
+        self.fewer_feature_combinations = fewer_feature_combinations
         self.nan = nan
         self.time = time
         self.backtracking = backtracking
@@ -160,7 +171,7 @@ class Individual(list):
 
         if orders_of_sketch_hole is None:
             orders_of_sketch_hole = []
-            for i in range(NUMB_OF_FEATURE_COMBINATION):
+            for i in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
                 orders_of_sketch_hole.append(random.sample(range(NUMB_OF_SKETCH_HOLE), NUMB_OF_SKETCH_HOLE))
         self.orders_of_sketch_hole = orders_of_sketch_hole
 
@@ -244,6 +255,9 @@ class Individual(list):
 
     def set_runtime_rule_order_selection(self, runtime_rule_order_selection):
         self.runtime_rule_order_selection = runtime_rule_order_selection
+
+    def set_fewer_feature_combinations(self, fewer_feature_combinations):
+        self.fewer_feature_combinations = fewer_feature_combinations
 
     def get_time(self):
         return self.time
@@ -394,6 +408,7 @@ class Individual(list):
 
         json_data_to_write = {
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
+            "fewer_feature_combinations": self.fewer_feature_combinations,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
             "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
@@ -415,9 +430,7 @@ class Individual(list):
             "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
         }
 
-        #asd = pformat(json_data_to_write)
         with open(self.json_file_path(), 'w') as new_json_file_to_write:
-            #new_json_file_to_write.write(asd)
             json.dump(json_data_to_write, new_json_file_to_write, indent=2)
 
     def csv_path(self, is_for_training=True):
@@ -495,6 +508,7 @@ class Individual(list):
             "lower_multiplicand_for_cost": LOWER_MULTIPLICAND_FOR_COST,
             "upper_multiplicand_for_cost": UPPER_MULTIPLICAND_FOR_COST,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
+            "fewer_feature_combinations": self.fewer_feature_combinations,
             "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
             "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
             "weight_of_cost_call_goal": self.weight_of_cost_call_goal,
@@ -510,7 +524,7 @@ class Individual(list):
     def write_overall_json_result(self, for_training=True):
         with open(self.json_overall_result_file_path(for_training), 'a') as \
                 json_overall_validation_result_file_to_write:
-            json.dump(self.json_result(for_training), json_overall_validation_result_file_to_write)
+            json.dump(self.json_result(for_training), json_overall_validation_result_file_to_write, indent=2)
             json_overall_validation_result_file_to_write.write("\n")
             json_overall_validation_result_file_to_write.close()
 
@@ -518,8 +532,10 @@ class Individual(list):
 def get_total_time(individual: Individual):
     return individual.get_time()
 
+
 def get_total_backtracking(individual: Individual):
     return individual.get_backtracking()
+
 
 def get_number_of_nans(individual: Individual):
     return individual.get_nan()
@@ -552,26 +568,33 @@ def main():
     # create an initial groups of POPULATION_SIZE individuals
     generation_id = 1
     individual_ids = list(range(0, POPULATION_SIZE))
+    individual_ids_wo_0 = list(range(1, POPULATION_SIZE))
 
-    # group_m is a group that starts at the manually tuned parameters.
-    group_m = []
-    for individual_id in individual_ids:
+    # group_manual_static is a group that starts at the manually tuned parameters and use static ordering.
+    default_in_fst_gen = copy.deepcopy(default)
+    default_in_fst_gen.set_runtime_rule_order_selection(False)
+
+    default_in_fst_gen.set_group_id(0)
+    default_in_fst_gen.set_individual_id(0)
+    default_in_fst_gen.set_generation_id(generation_id)
+    group_manual_static = [default_in_fst_gen]
+    for individual_id in individual_ids_wo_0:
         new_individual = copy.deepcopy(default)
-        new_individual.set_runtime_rule_order_selection(False)#TODO
+        new_individual.set_runtime_rule_order_selection(False)
         new_individual.set_group_id(0)
         new_individual.set_individual_id(individual_id)
         new_individual.set_generation_id(generation_id)
         new_individual.mutate()
-        group_m.append(new_individual)
+        group_manual_static.append(new_individual)
 
-    group_a = []
-    # group_B = []
-    for individual_id in individual_ids:
-        group_a.append(Individual(group_id=1, generation_id=generation_id, individual_id=individual_id, rank=0,
-                                  runtime_rule_order_selection=True))
-        # group_B.append(Individual(group_id=2, generation_id=generation_id, individual_id=individual_id, rank=0))
+    # group_manual_dynamic is a group that starts at the manually tuned parameters and choose orders at runtime.
+    group_manual_dynamic = copy.deepcopy(group_manual_static)
+    for individual in group_manual_dynamic:
+        individual.set_runtime_rule_order_selection(True)
+        individual.set_fewer_feature_combinations(FEWER_FEATURE_COMBINATION)
+        individual.set_group_id(1)
 
-    groups = [group_m]#, group_a]  # , group_B]
+    groups = [group_manual_static, group_manual_dynamic]
 
     # evaluate all groups
     for group in groups:
@@ -580,7 +603,7 @@ def main():
 
     # sort each group
     for group in groups:
-        group.sort(key=get_total_backtracking)
+        group.sort(key=get_total_time)
         group.sort(key=get_number_of_nans)
 
     # set the rank, write resulting JSON file
@@ -635,7 +658,7 @@ def main():
             group[:] = offspring1 + offspring2
 
             # sort group
-            group.sort(key=get_total_backtracking)
+            group.sort(key=get_total_time)
             group.sort(key=get_number_of_nans)
 
             rank = 0
