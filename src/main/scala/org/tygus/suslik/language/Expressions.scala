@@ -457,13 +457,13 @@ object Expressions {
       case _ => false
     }
 
-    def isOpEq: Boolean = this match {
-      case BinaryExpr(OpAnd, _, _) => true
+    def isOpBoolEq: Boolean = this match {
+      case BinaryExpr(OpBoolEq, _, _) => true
       case _ => false
     }
 
-    def isOpBoolEq: Boolean = this match {
-      case BinaryExpr(OpBoolEq, _, _) => true
+    def isOpEq: Boolean = this match {
+      case BinaryExpr(OpEq, _, _) => true
       case _ => false
     }
 

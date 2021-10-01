@@ -1,10 +1,12 @@
 package org.tygus.suslik.synthesis.tactics
 
 import org.tygus.suslik.language.Statements._
+import org.tygus.suslik.logic.{Heaplet, PointsTo}
 import org.tygus.suslik.logic.Specifications.Goal
 import org.tygus.suslik.synthesis.SearchTree.OrNode
 import org.tygus.suslik.synthesis._
-import org.tygus.suslik.synthesis.rules.LogicalRules.{FrameUnfolding, FrameUnfoldingFinal}
+import org.tygus.suslik.synthesis.rules.BranchRules.AbduceBranch
+import org.tygus.suslik.synthesis.rules.LogicalRules.{FrameUnfolding, FrameUnfoldingFinal, StarPartial}
 import org.tygus.suslik.synthesis.rules.OperationalRules.WriteRule
 import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, SynthesisRule}
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.{AbduceCall, Close}
@@ -16,6 +18,89 @@ import scala.collection.mutable.ArrayBuffer
 class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   val is_static = true
+
+  def preferBranch(node:OrNode): Boolean = node.isJustAfter(AbduceBranch)
+
+  def twoPointersFromSameLoc(chunks: List[Heaplet]): Boolean = chunks match {
+    case Nil => false
+    case fstElement :: tailElements => fstElement match {
+      case PointsTo(loc, _, _) => tailElements.exists(tailElement => tailElement match {
+        case PointsTo(loc2, _, _) => loc.compare(loc2) == 0: Boolean
+        case _ => false
+      }) || twoPointersFromSameLoc(tailElements)
+      case _ => twoPointersFromSameLoc(tailElements)
+    }
+  }
+
+  def preferStarPartial(goal:Goal) = {
+    val chunks = goal.pre.sigma.chunks
+    twoPointersFromSameLoc(chunks)
+  }
+
+  // just after StarPartial
+  def preferInconsistency(node:OrNode): Boolean = node.isJustAfter(StarPartial)
+
+  // has a ghost variable in the spacial part of the pre-condition
+  def preferReadRule(goal: Goal): Boolean = {
+    val heapsInPre = goal.pre.sigma.chunks: List[Heaplet]
+    val varsInSpacialPre = heapsInPre.map(_.vars).flatten
+    goal.ghosts.exists(ghostV => varsInSpacialPre.contains(ghostV))
+  }
+
+  // equality in the pure part of the post-condition and existential in the pure part of the post-condition
+  def preferSubstRight(goal: Goal) = {
+    if ((goal.post.phi.conjuncts.exists(_.isOpEq)) || (goal.post.phi.conjuncts.exists(_.isOpBoolEq)))
+      (goal.existentials.exists(existential => goal.post.phi.vars.contains(existential)))
+    else false
+  }
+
+  // equality in the pure part of the pre-condition
+  def preferSubstLeft(goal: Goal) = {
+    (goal.pre.phi.conjuncts.exists(_.isOpEq)) || (goal.pre.phi.conjuncts.exists(_.isOpBoolEq))
+  }
+
+  // both pre- and post-conditions are empty
+  def preferEmp(goal: Goal) = goal.pre.sigma.isEmp && goal.post.sigma.isEmp
+
+  // just after a write rule
+  def preferFrameAfterWrite(node: OrNode) = {
+    (node.isJustAfter(OperationalRules.WriteRule)) || (node.isJustAfter(LogicalRules.GhostWrite))
+  }
+
+  // just after Alloc
+  def preferWrite(node: OrNode) = {
+    node.isJustAfter(OperationalRules.AllocRule)
+  }
+
+  // has an existential in the spacial part of the post-condition
+  def preferUnifyHeap(goal: Goal) = {
+    val heapsInPost = goal.post.sigma.chunks: List[Heaplet]
+    val varsInSpacialPost = heapsInPost.map(_.vars).flatten
+    goal.existentials.exists(existential => varsInSpacialPost.contains(existential))
+  }
+
+  def preferFrameAfterUnifyHeap(node: OrNode): Boolean = {
+    if (node.isJustAfter(UnificationRules.HeapUnifyUnfolding)) true
+    else {
+      if (node.isJustAfter(UnificationRules.HeapUnifyBlock)) true
+      else (node.isJustAfter(UnificationRules.HeapUnifyPointer))
+    }
+  }
+
+  def preferWriteIfPointers(goal:Goal) = {
+    val heapsInPre = goal.pre.sigma.chunks
+    val heapsInPost = goal.post.sigma.chunks
+    if (heapsInPre.isEmpty || heapsInPost.isEmpty) false
+    else heapsInPre.exists(heapInPre => heapsInPost.exists(_.fromSameToDifferent(heapInPre)))
+  }
+
+
+  def preferPickOrHeapUnifyPure(goal: Goal) = {
+    val varsInPurePost = goal.post.phi.vars
+    goal.existentials.exists(existential => varsInPurePost.contains(existential))
+  }
+
+  def preferClose(node: OrNode): Boolean = node.isAfter(UnfoldingRules.Open)
 
   def nextRules(node: OrNode): List[SynthesisRule] = {
 
