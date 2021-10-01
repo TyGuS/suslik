@@ -68,7 +68,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
   // just after Alloc
-  def preferWrite(node: OrNode) = {
+  def preferWriteAfterAlloc(node: OrNode) = {
     node.isJustAfter(OperationalRules.AllocRule)
   }
 
@@ -102,6 +102,26 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def preferClose(node: OrNode): Boolean = node.isAfter(UnfoldingRules.Open)
 
+  def preferAnyPhaseRulesStrongly(node: OrNode): Boolean = {
+    val goal = node.goal: Goal
+    (preferInconsistency(node)) || (preferStarPartial(goal)) || (preferBranch(node))
+  }
+
+  def preferSpecBasedRulesStrongly(node:OrNode): Boolean = {
+    val goal = node.goal: Goal
+    (preferEmp(goal)) || (preferFrameAfterWrite(node)) || (preferWriteAfterAlloc(node))
+  }
+
+  def preferAnyPhaseRulesWeakly(node: OrNode): Boolean = {
+    val goal = node.goal: Goal
+    (preferReadRule(goal) || preferSubstRight(goal) || preferSubstLeft(goal))
+  }
+
+  def preferSpecBasedRulesWeakly(node: OrNode): Boolean = {
+    val goal = node.goal: Goal
+    (preferUnifyHeap(goal)) || (preferFrameAfterUnifyHeap(node)) || (preferWriteIfPointers(goal)) || (preferPickOrHeapUnifyPure(goal))
+  }
+
   def nextRules(node: OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
@@ -111,18 +131,20 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       val index = {
         if (goal.env.runtime_rule_order_selection) {
           if (goal.env.fewer_feature_combinations) {
-            if (goal.post.hasOpBoolEq) {0} else {
-              if (goal.pre.hasOpBoolEq) {1} else {
-                if (goal.hasHeapletPointsGhostInPre) {2}
-                else {3}
+            if (preferAnyPhaseRulesStrongly(node)) {0} else {
+              if (preferSpecBasedRulesStrongly(node)) {1} else {
+                if (preferAnyPhaseRulesWeakly(node)) {2} else {
+                  if (preferSpecBasedRulesWeakly(node)) {3}
+                  else {4}
+                }
               }
             }
           }
           else {
-            (   (if (goal.post.hasOpBoolEq) math.pow(2,0) else 0) //for SubstRight
-              + (if (goal.pre.hasOpBoolEq) math.pow(2,1) else 0) //for SubstLeft
-              //+ (if (goal.pre.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
-              + (if (goal.hasHeapletPointsGhostInPre) math.pow(2,2) else 0) // for Read
+            (   (if (preferAnyPhaseRulesStrongly(node)) math.pow(2,0) else 0) //for SubstRight
+              + (if (preferSpecBasedRulesStrongly(node)) math.pow(2,1) else 0) //for SubstLeft
+              + (if (preferAnyPhaseRulesWeakly(node)) math.pow(2,2) else 0) //for StarPartial
+              + (if (preferSpecBasedRulesWeakly(node)) math.pow(2,3) else 0) // for Read
               )
           }
         } else 0
@@ -404,6 +426,13 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   }
 
+  // TODO:
+  // Inner4
+  // - disjunction of
+  //   - call after UnfoldingRules.AbduceCall
+  //   - frame because of write
+  // - write after Alloc or because of preferWriteIfPointers
+  // - pick or HeapUnifyPure because of existential in pure post
   protected def callAbductionRules(node: OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
@@ -658,6 +687,10 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   }
 
+  //TODO: I should check
+  // - frame
+  // - write
+  // - HeapUnifyPure or Pick
   protected def purePhaseRules(node: OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
