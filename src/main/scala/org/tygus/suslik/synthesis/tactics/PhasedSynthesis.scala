@@ -21,30 +21,30 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def preferBranch(node:OrNode): Boolean = node.isJustAfter(AbduceBranch)
 
-  def twoPointersFromSameLoc(chunks: List[Heaplet]): Boolean = chunks match {
+  def twoPointersFromSameLocAndOffsetToDiffValue(chunks: List[Heaplet]): Boolean = chunks match {
     case Nil => false
     case fstElement :: tailElements => fstElement match {
-      case PointsTo(loc, _, _) => tailElements.exists(tailElement => tailElement match {
-        case PointsTo(loc2, _, _) => loc.compare(loc2) == 0: Boolean
+      case PointsTo(loc, offset, value) => tailElements.exists(tailElement => tailElement match {
+        case PointsTo(loc2, offset2, value2) =>
+          (loc.compare(loc2) == 0) && (offset.compare(offset2) == 0) && (value.compare(value2) != 0): Boolean
         case _ => false
-      }) || twoPointersFromSameLoc(tailElements)
-      case _ => twoPointersFromSameLoc(tailElements)
+      }) || twoPointersFromSameLocAndOffsetToDiffValue(tailElements)
+      case _ => twoPointersFromSameLocAndOffsetToDiffValue(tailElements)
     }
   }
 
   def preferStarPartial(goal:Goal) = {
-    val chunks = goal.pre.sigma.chunks
-    twoPointersFromSameLoc(chunks)
+    val heapsInPre = goal.pre.sigma.chunks
+    twoPointersFromSameLocAndOffsetToDiffValue(heapsInPre)
   }
 
   // just after StarPartial
   def preferInconsistency(node:OrNode): Boolean = node.isJustAfter(StarPartial)
 
-  // has a ghost variable in the spacial part of the pre-condition
+  // has a ghost variable pointed to by a non-ghost in the spacial part of the pre-condition
   def preferReadRule(goal: Goal): Boolean = {
     val heapsInPre = goal.pre.sigma.chunks: List[Heaplet]
-    val varsInSpacialPre = heapsInPre.map(_.vars).flatten
-    goal.ghosts.exists(ghostV => varsInSpacialPre.contains(ghostV))
+    heapsInPre.exists(goal.isHeapletPointsToGhostInPre)
   }
 
   // equality in the pure part of the post-condition and existential in the pure part of the post-condition
