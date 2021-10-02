@@ -122,6 +122,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     (preferUnifyHeap(goal)) || (preferFrameAfterUnifyHeap(node)) || (preferWriteIfPointers(goal)) || (preferPickOrHeapUnifyPure(goal))
   }
 
+  def preferCall(node: OrNode): Boolean = node.isJustAfter(UnfoldingRules.AbduceCall)
+
   def nextRules(node: OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
@@ -154,7 +156,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       val orderOfAnyPhaseOrSpecBased = ordersOfAnyPhaseOrSpecBased.apply(index.toInt)
 
       val unOrderedAnyPhaseOrSpecBased = Vector (
-        anyPhaseRules(goal),
+        anyPhaseRules(node),
         specBasedRules(node)
       )
 
@@ -178,7 +180,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
       val unOrderedSketchHole =
         List (
-          anyPhaseRules(goal).filterNot(_.isInstanceOf[GeneratesCode]),
+          anyPhaseRules(node).filterNot(_.isInstanceOf[GeneratesCode]),
           symbolicExecutionRules(goal),
           specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
         )
@@ -210,7 +212,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     if (goal.hasPredicates()) {
       // Unfolding phase: get rid of predicates
-      val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules(goal).contains).headOption
+      val lastUnfoldingRule = node.ruleHistory.dropWhile(anyPhaseRules(node).contains).headOption
       if (lastUnfoldingRule.contains(HeapUnifyUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfolding) ||
         lastUnfoldingRule.contains(FrameUnfoldingFinal))
@@ -233,22 +235,39 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     }
   }
 
-  protected def anyPhaseRules(goal:Goal): List[SynthesisRule] = {
+  // TODO:
+  // - Branch
+  // - Inconsistency
+  // - StarPartial
+  // - Read
+  // - SubstRight
+  // - SubstLeft
+  protected def anyPhaseRules(node:OrNode): List[SynthesisRule] = {
+
+    val goal = node.goal
 
     val index = {
       if (goal.env.runtime_rule_order_selection) {
         if (goal.env.fewer_feature_combinations) {
-          if (goal.hasHeapletPointsGhostInPre) {0} else {
-            if (goal.pre.hasOpBoolEq) {1} else {
-              if (goal.post.hasOpBoolEq) {2} else {3}
+          if (preferBranch(node)) {0} else {
+            if (preferInconsistency(node)) {1} else {
+              if (preferStarPartial(goal)) {2} else {
+                if (preferReadRule(goal)) {3} else {
+                  if (preferSubstRight(goal)) {4} else {
+                    if (preferSubstLeft(goal)) {5} else {6}
+                  }
+                }
+              }
             }
           }
         }
         else {
-            (if (goal.post.hasOpBoolEq) {math.pow(2,0)} else {0}) //for SubstRight
-          + (if (goal.pre.hasOpBoolEq) {math.pow(2,1)} else {0}) //for SubstLeft
-            //+ (if (goal.pre.isForStarPartial) math.pow(2,1) else 0) //for StarPartial
-          + (if (goal.hasHeapletPointsGhostInPre) {math.pow(2,2)} else {0}) // for Read
+            (if (preferBranch(node)) {math.pow(2,0)} else {0})
+          + (if (preferInconsistency(node)) {math.pow(2,1)} else {0})
+          + (if (preferStarPartial(goal)) {math.pow(2,2)} else {0})
+          + (if (preferReadRule(goal)) {math.pow(2,3)} else {0})
+          + (if (preferSubstRight(goal)) {math.pow(2,4)} else {0})
+          + (if (preferSubstLeft(goal)) {math.pow(2,5)} else {0})
         }
       } else 0
     }
@@ -317,19 +336,20 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def unfoldingPhaseRules(node:OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
-    val index = {
-      if (goal.env.runtime_rule_order_selection) {
-        if (goal.env.fewer_feature_combinations) {
-          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
-            if (node.isAfter(SymbolicExecutionRules.Open)) {1} else {2}
-          }
-        }
-        else {
-          (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,0) else 0)
-          + (if (node.isAfter(SymbolicExecutionRules.Open)) math.pow(2, 1) else 0) // for LogicalRules.FrameUnfolding
-        }
-      } // UnfoldingRules.Close
-      else 0
+    //TODO: check for a predicate in the post and Open in the past
+    val index = { 0
+      //if (goal.env.runtime_rule_order_selection) {
+      //  if (goal.env.fewer_feature_combinations) {
+      //    if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
+      //      if (node.isAfter(SymbolicExecutionRules.Open)) {1} else {2}
+      //    }
+      //  }
+      //  else {
+      //    (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,0) else 0)
+      //    + (if (node.isAfter(SymbolicExecutionRules.Open)) math.pow(2, 1) else 0) // for LogicalRules.FrameUnfolding
+      //  }
+      //} // UnfoldingRules.Close
+      //else 0
     }
 
     val ordersOfUnfoldingPhaseRules = goal.env.ordersOfUnfoldingPhaseRules
@@ -360,24 +380,24 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def unfoldingPostPhaseRules(node: OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
-    val index =
-      if (goal.env.runtime_rule_order_selection) {
-        if (goal.env.fewer_feature_combinations) {
-          if (node.isAfter(SymbolicExecutionRules.Open)) {
-            0
-          } else {
-            1
-          } // for UnfoldingRules.Close
-        }
-        else {
-          (if (node.isAfter(SymbolicExecutionRules.Open)) {
-            math.pow(2, 0)
-          } else {
-            0
-          }) // for UnfoldingRules.Close
-        }
-      }
-      else {0}
+    val index = 0
+      //if (goal.env.runtime_rule_order_selection) {
+      //  if (goal.env.fewer_feature_combinations) {
+      //    if (node.isAfter(SymbolicExecutionRules.Open)) {
+      //      0
+      //    } else {
+      //      1
+      //    } // for UnfoldingRules.Close
+      //  }
+      //  else {
+      //    (if (node.isAfter(SymbolicExecutionRules.Open)) {
+      //      math.pow(2, 0)
+      //    } else {
+      //      0
+      //    }) // for UnfoldingRules.Close
+      //  }
+      //}
+      //else {0}
 
 
     val ordersOfUnfoldingPostPhaseRules = goal.env.ordersOfUnfoldingPostPhaseRules
@@ -403,9 +423,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   protected def unfoldingNoUnfoldPhaseRules(goal: Goal): List[SynthesisRule] = {
 
-    val index = {
-      if (goal.env.runtime_rule_order_selection) 0 else 0
-    }
+    val index = {0}
 
     val ordersOfUnfoldingNoUnfoldPhaseRules = goal.env.ordersOfUnfoldingNoUnfoldPhaseRules
     val orderOfUnfoldingNoUnfoldPhaseRules = ordersOfUnfoldingNoUnfoldPhaseRules.apply(index.toInt)
@@ -437,19 +455,19 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     val goal = node.goal
 
-    val index1 =
-      if (goal.env.runtime_rule_order_selection) {
-        if (goal.env.fewer_feature_combinations) {
-          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {// for LogicalRules.FrameUnfoldingFinal
-            if (goal.post.hasOpBoolEq) {1} else {2} //for SubstRight
-          }
-        }
-        else {
-            (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 0) else 0) // for LogicalRules.FrameUnfoldingFinal
-          + (if (goal.post.hasOpBoolEq) math.pow(2,1) else 0) //for SubstRight
-        }
-      }
-      else {0}
+    val index1 = 0
+      // if (goal.env.runtime_rule_order_selection) {
+      //   if (goal.env.fewer_feature_combinations) {
+      //     if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {// for LogicalRules.FrameUnfoldingFinal
+      //       if (goal.post.hasOpBoolEq) {1} else {2} //for SubstRight
+      //     }
+      //   }
+      //   else {
+      //       (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 0) else 0) // for LogicalRules.FrameUnfoldingFinal
+      //     + (if (goal.post.hasOpBoolEq) math.pow(2,1) else 0) //for SubstRight
+      //   }
+      // }
+      // else {0}
 
     val index2 = index1
 
@@ -458,18 +476,21 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val index4 =
       if (goal.env.runtime_rule_order_selection) {
         if (goal.env.fewer_feature_combinations) {
-          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
-            if (node.isJustAfter(AbduceCall)) {1} else {
-              if (goal.post.hasOpBoolEq) {2} else {
-                if (node.isAfter(OperationalRules.ReadRule)) {3} else {4}
+          if (preferCall(node)) {0} else {
+            if (preferFrameAfterWrite(node)) {1} else {
+              if (preferWriteAfterAlloc(node) || preferWriteIfPointers(goal)) {2} else {
+                if (preferPickOrHeapUnifyPure(goal)) {3} else {
+                  if (preferSubstRight(goal)) {4} else {5}
+                }
               }
             }
           }
         } else
-          (   (if (node.isAfter(OperationalRules.ReadRule)) math.pow(2, 0) else 0) // for OperationalRules.WriteRule
-            + (if (node.isJustAfter(AbduceCall)) math.pow(2, 1) else 0) // for UnfoldingRules.CallRule
-            + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2, 2) else 0) // for LogicalRules.FrameFlat
-            + (if (goal.post.hasOpBoolEq) math.pow(2, 3) else 0) //for SubstRight
+          (   (if (preferCall(node)) math.pow(2, 0) else 0)
+            + (if (preferFrameAfterWrite(node)) math.pow(2, 1) else 0)
+            + (if (preferWriteAfterAlloc(node) || preferWriteIfPointers(goal)) math.pow(2, 2) else 0)
+            + (if (preferPickOrHeapUnifyPure(goal)) math.pow(2, 3) else 0)
+            + (if (preferSubstRight(goal)) math.pow(2, 4) else 0)
         )
       } else {
         0
@@ -657,10 +678,10 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   protected def pointerPhaseRules(node:OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
-    val index = {
-      if (goal.env.runtime_rule_order_selection)
-        (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,0) else 0) // for LogicalRules.FrameFlat
-      else 0
+    val index = { 0
+      //if (goal.env.runtime_rule_order_selection)
+      //  (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,0) else 0) // for LogicalRules.FrameFlat
+      //else 0
     }
 
     val ordersOfPointerPhaseRules = goal.env.ordersOfPointerPhaseRules
@@ -713,18 +734,18 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     //    ++
     //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
 
-    val index = {
-      if (goal.env.runtime_rule_order_selection) {
-        if (goal.env.fewer_feature_combinations) {
-          if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
-            if (node.isAfter(OperationalRules.ReadRule)) {1} else {2}
-          }
-        } else {
-          (if (node.isAfter(OperationalRules.ReadRule)) math.pow(2,0) else 0) // OperationalRules.WriteRule
-          + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,1) else 0) // for LogicalRules.FrameFlat
-        }
-      }
-      else {0}
+    val index = {0
+    //  if (goal.env.runtime_rule_order_selection) {
+    //    if (goal.env.fewer_feature_combinations) {
+    //      if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
+    //        if (node.isAfter(OperationalRules.ReadRule)) {1} else {2}
+    //      }
+    //    } else {
+    //      (if (node.isAfter(OperationalRules.ReadRule)) math.pow(2,0) else 0) // OperationalRules.WriteRule
+    //      + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,1) else 0) // for LogicalRules.FrameFlat
+    //    }
+    //  }
+    //  else {0}
     }
 
     val ordersOfPurePhaseRules = goal.env.ordersOfPurePhaseRules

@@ -19,9 +19,9 @@ NUMB_OF_SKETCH_HOLE = 3
 NUMB_OF_POINTER_PHASE_RULE = 4
 NUMB_OF_POST_BLOCK_PHASE_RULE = 4
 NUMB_OF_CALL_ABDUCTION_RULE = 4
-NUMB_OF_CALL_ABDUCTION_RULE_1 = 5
-NUMB_OF_CALL_ABDUCTION_RULE_2 = 5
-NUMB_OF_CALL_ABDUCTION_RULE_3 = 5
+NUMB_OF_CALL_ABDUCTION_RULE_1 = 0
+NUMB_OF_CALL_ABDUCTION_RULE_2 = 0
+NUMB_OF_CALL_ABDUCTION_RULE_3 = 0
 NUMB_OF_CALL_ABDUCTION_RULE_4 = 12
 NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
@@ -30,24 +30,24 @@ MAXIMUM_TOTAL_TIME = 50.0
 POPULATION_SIZE = 10
 MAXIMUM_NUMBER_OF_GENERATIONS = 1000
 INDPB = 0.1
-LOWER_MULTIPLICAND_FOR_COST = 0.8
-UPPER_MULTIPLICAND_FOR_COST = 1.2
+LOWER_MULTIPLICAND_FOR_COST = 0.9
+UPPER_MULTIPLICAND_FOR_COST = 1.1
 
 FEWER_FEATURE_COMBINATION = True
 
 NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES = 4
-NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 3
+NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 6
 NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 2
 NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES = 0
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 2
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 2
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3 = 2
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4 = 4
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 0
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 0
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3 = 0
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4 = 5
 NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES = 1
 NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES = 1
-NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 2
-NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 1
+NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 0
+NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 0
 
 if FEWER_FEATURE_COMBINATION:
     NUMB_OF_FEATURE_COMBINATION = 1 + NUMB_OF_FEATURES
@@ -291,37 +291,37 @@ class Individual(list):
     def mutate(self):  # TODO: refactor
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
-        for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
-            tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
-        for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
-            tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
-        for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
-            tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
+        #for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
+        #    tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
+        #for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
+        #    tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
+        #for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
+        #    tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
         for order_of_any_phase_rules_or_spec_based_rules in self.orders_of_any_phase_rules_or_spec_based_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules_or_spec_based_rules, indpb=INDPB)
-        for order_of_sketch_hole in self.orders_of_sketch_hole:
-            tools.mutShuffleIndexes(order_of_sketch_hole, indpb=INDPB)
-        for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
-            tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
-        for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
-            tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
-        for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
-            tools.mutShuffleIndexes(order_of_call_abduction_rules_1, indpb=INDPB)
-        for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
-            tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
-        for order_of_call_abduction_rules_3 in self.orders_of_call_abduction_rules_3:
-            tools.mutShuffleIndexes(order_of_call_abduction_rules_3, indpb=INDPB)
+        #for order_of_sketch_hole in self.orders_of_sketch_hole:
+        #    tools.mutShuffleIndexes(order_of_sketch_hole, indpb=INDPB)
+        #for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
+        #    tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
+        #for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
+        #    tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
+        #for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
+        #    tools.mutShuffleIndexes(order_of_call_abduction_rules_1, indpb=INDPB)
+        #for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
+        #    tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
+        #for order_of_call_abduction_rules_3 in self.orders_of_call_abduction_rules_3:
+        #    tools.mutShuffleIndexes(order_of_call_abduction_rules_3, indpb=INDPB)
         for order_of_call_abduction_rules_4 in self.orders_of_call_abduction_rules_4:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_4, indpb=INDPB)
-        for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
-            tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
-        for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
-            tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
-        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        #for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
+        #    tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
+        #for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
+        #    tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
+        #self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        #self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        #self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        #self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        #self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     # TODO: The use of the * opeartor is WRONG! FIXME. Use append.
@@ -599,7 +599,7 @@ def main():
         individual.set_fewer_feature_combinations(FEWER_FEATURE_COMBINATION)
         individual.set_group_id(1)
 
-    groups = [group_manual_static, group_manual_dynamic]
+    groups = [group_manual_dynamic]#,group_manual_static]
 
     # evaluate all groups
     for group in groups:
