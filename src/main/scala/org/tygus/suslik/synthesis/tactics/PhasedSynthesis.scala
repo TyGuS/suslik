@@ -234,13 +234,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     }
   }
 
-  // TODO:
-  // - Branch
-  // - Inconsistency
-  // - StarPartial
-  // - Read
-  // - SubstRight
-  // - SubstLeft
   protected def anyPhaseRules(node:OrNode): List[SynthesisRule] = {
 
     val goal = node.goal
@@ -503,7 +496,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     val unOrderedCallAbductionRulesNested1: Vector[SynthesisRule] =
           Vector(
-            //LogicalRules.SubstLeft,
             UnificationRules.SubstRight,
             FailRules.PostInconsistent,
             FailRules.CheckPost,
@@ -512,49 +504,40 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     val unOrderedCallAbductionRulesNested2: Vector[SynthesisRule] =
           Vector(
-            //LogicalRules.SubstLeft,
             UnificationRules.SubstRight,
             FailRules.PostInconsistent,
             FailRules.CheckPost,
             LogicalRules.FrameBlock,
             UnificationRules.HeapUnifyBlock
-            //          OperationalRules.AllocRule
           )
 
     val unOrderedCallAbductionRulesNested3: Vector[SynthesisRule] =
           Vector(
-            //LogicalRules.SubstLeft,
             UnificationRules.SubstRight,
             FailRules.PostInconsistent,
             FailRules.CheckPost,
             LogicalRules.FrameFlat,
-            //          OperationalRules.WriteRule,
             UnificationRules.HeapUnifyPointer
           )
 
     val unOrderedCallAbductionRulesNested4: Vector[SynthesisRule] =
           Vector(
-            //LogicalRules.SubstLeft,
             UnificationRules.SubstRight,
             FailRules.PostInconsistent,
             FailRules.CheckPost,
             UnfoldingRules.CallRule,
-            //UnificationRules.SubstRight, // This was probably a typo in the original SuSLik.
             LogicalRules.FrameFlat,
-            //          OperationalRules.WriteRule,
             UnificationRules.PickArg,
             UnificationRules.PickCard,
             LogicalRules.GhostWrite,
             UnificationRules.HeapUnifyPure,
             LogicalRules.SimplifyConditional,
             OperationalRules.WriteRule,
-            //          DelegatePureSynthesis.PureSynthesisNonfinal
             UnificationRules.Pick
           )
 
     val defaultOrderedCallAbductionRulesNest =
       List(
-        //LogicalRules.SubstLeft,
         List (UnificationRules.SubstRight),
         List (FailRules.PostInconsistent),
         List(FailRules.CheckPost),
@@ -566,26 +549,21 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           List(
             LogicalRules.FrameBlock,
             UnificationRules.HeapUnifyBlock,
-            //          OperationalRules.AllocRule
           )
         else if (goal.hasExistentialPointers)
           List(
             LogicalRules.FrameFlat,
-            //          OperationalRules.WriteRule,
             UnificationRules.HeapUnifyPointer)
         else
           List(
             UnfoldingRules.CallRule,
-            // UnificationRules.SubstRight, // This was probably a typo in the original SuSLik.
             LogicalRules.FrameFlat,
-            //          OperationalRules.WriteRule,
             UnificationRules.PickArg,
             UnificationRules.PickCard,
             LogicalRules.GhostWrite,
             UnificationRules.HeapUnifyPure,
             LogicalRules.SimplifyConditional,
             OperationalRules.WriteRule,
-            //          DelegatePureSynthesis.PureSynthesisNonfinal
             UnificationRules.Pick
           )
           )
@@ -683,8 +661,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     val unOrderedPointerPhaseRules =
       Vector(
         if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
-        //    LogicalRules.SubstLeft,
-        //    UnificationRules.SubstRight,
         FailRules.HeapUnreachable,
         LogicalRules.FrameFlat,
         UnificationRules.HeapUnifyPointer
@@ -713,8 +689,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       Vector(
         if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost,
         LogicalRules.EmpRule,
-        //      LogicalRules.SubstLeft,
-        //      UnificationRules.SubstRight,
         FailRules.HeapUnreachable,
         LogicalRules.FrameFlat,
         UnificationRules.PickCard,
@@ -724,8 +698,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         OperationalRules.WriteRule,
         if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick
       )
-    //    ++
-    //    (if (config.branchAbduction) List(UnificationRules.Pick) else List())
 
     val index = {0
     //  if (goal.env.runtime_rule_order_selection) {
