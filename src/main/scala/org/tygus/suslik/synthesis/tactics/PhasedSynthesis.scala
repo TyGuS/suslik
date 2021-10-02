@@ -49,9 +49,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   // equality in the pure part of the post-condition and existential in the pure part of the post-condition
   def preferSubstRight(goal: Goal) = {
-    if ((goal.post.phi.conjuncts.exists(_.isOpEq)) || (goal.post.phi.conjuncts.exists(_.isOpBoolEq)))
-      (goal.existentials.exists(existential => goal.post.phi.vars.contains(existential)))
-    else false
+    goal.post.phi.conjuncts.exists(_.isOpEq) || goal.post.phi.conjuncts.exists(_.isOpBoolEq) ||
+      goal.existentials.exists(existential => goal.post.phi.vars.contains(existential))
   }
 
   // equality in the pure part of the pre-condition
