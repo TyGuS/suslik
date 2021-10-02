@@ -250,24 +250,18 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       if (goal.env.runtime_rule_order_selection) {
         if (goal.env.fewer_feature_combinations) {
           if (preferBranch(node)) {0} else {
-            if (preferInconsistency(node)) {1} else {
-              if (preferStarPartial(goal)) {2} else {
-                if (preferReadRule(goal)) {3} else {
-                  if (preferSubstRight(goal)) {4} else {
-                    if (preferSubstLeft(goal)) {5} else {6}
-                  }
+            if (preferInconsistency(node) && preferStarPartial(goal)) {1} else {
+                if (preferReadRule(goal)) {2} else {
+                  if (preferSubstRight(goal) && preferSubstLeft(goal)) {3} else {4}
                 }
               }
-            }
           }
         }
         else {
             (if (preferBranch(node)) {math.pow(2,0)} else {0})
-          + (if (preferInconsistency(node)) {math.pow(2,1)} else {0})
-          + (if (preferStarPartial(goal)) {math.pow(2,2)} else {0})
-          + (if (preferReadRule(goal)) {math.pow(2,3)} else {0})
-          + (if (preferSubstRight(goal)) {math.pow(2,4)} else {0})
-          + (if (preferSubstLeft(goal)) {math.pow(2,5)} else {0})
+          + (if (preferInconsistency(node) && preferStarPartial(goal)) {math.pow(2,1)} else {0})
+          + (if (preferReadRule(goal)) {math.pow(2,2)} else {0})
+          + (if (preferSubstRight(goal) && preferSubstLeft(goal)) {math.pow(2,3)} else {0})
         }
       } else 0
     }
