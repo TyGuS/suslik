@@ -268,7 +268,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       FailRules.PostInconsistent,
       LogicalRules.SubstLeft,
       UnificationRules.SubstRight,
-      //    LogicalRules.WeakenPre,
       OperationalRules.ReadRule,
       BranchRules.Branch
     )
@@ -431,12 +430,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   }
 
   // TODO:
-  // Inner4
-  // - disjunction of
-  //   - call after UnfoldingRules.AbduceCall
-  //   - frame because of write
-  // - write after Alloc or because of preferWriteIfPointers
-  // - pick or HeapUnifyPure because of existential in pure post
   protected def callAbductionRules(node: OrNode): List[SynthesisRule] = {
 
     val goal = node.goal

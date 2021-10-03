@@ -68,9 +68,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   def fromSameToDifferent(anotherHeap:Heaplet): Boolean = this match{
     case PointsTo(loc1, offset1, value1) => anotherHeap match {
       case PointsTo(loc2, offset2, value2) =>
-        if ((loc1.compare(loc2) == 0) && (offset1.compare(offset2) == 0))
-          {value1.compare(value2) != 0}
-        else false
+        (loc1.compare(loc2) == 0) && (offset1.compare(offset2) == 0) && (value1.compare(value2) != 0)
       case _ => false
     }
     case _ => false
