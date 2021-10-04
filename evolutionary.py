@@ -38,7 +38,7 @@ FEWER_FEATURE_COMBINATION = True
 NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES = 4
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 4
-NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 2
+NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 4
 NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 0
@@ -291,8 +291,8 @@ class Individual(list):
     def mutate(self):  # TODO: refactor
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
-        #for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
-        #    tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
+        for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
+            tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
         #for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
         #    tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
         #for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:

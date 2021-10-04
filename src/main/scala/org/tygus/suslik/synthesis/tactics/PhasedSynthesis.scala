@@ -693,17 +693,25 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       )
 
     val index = {0
-    //  if (goal.env.runtime_rule_order_selection) {
-    //    if (goal.env.fewer_feature_combinations) {
-    //      if (node.isJustAfter(OperationalRules.WriteRule)) {0} else {
-    //        if (node.isAfter(OperationalRules.ReadRule)) {1} else {2}
-    //      }
-    //    } else {
-    //      (if (node.isAfter(OperationalRules.ReadRule)) math.pow(2,0) else 0) // OperationalRules.WriteRule
-    //      + (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,1) else 0) // for LogicalRules.FrameFlat
-    //    }
-    //  }
-    //  else {0}
+      if (goal.env.runtime_rule_order_selection) {
+        if (goal.env.fewer_feature_combinations) {
+          if (preferFrameAfterWrite(node)) {0} else {
+            if (preferWriteIfPointers(goal)) {1} else {
+              if (preferWriteAfterAlloc(node)) {2} else {
+                if (preferPickOrHeapUnifyPure(goal)) {3} {
+                  4
+                }
+              }
+            }
+          }
+        } else {
+            (if (preferFrameAfterWrite(node)) math.pow(2,0) else 0)
+          + (if (preferWriteIfPointers(goal)) math.pow(2,1) else 0)
+          + (if (preferWriteAfterAlloc(node)) math.pow(2,2) else 0)
+          + (if (preferPickOrHeapUnifyPure(goal)) math.pow(2,3) else 0)
+        }
+      }
+      else {0}
     }
 
     val ordersOfPurePhaseRules = goal.env.ordersOfPurePhaseRules
