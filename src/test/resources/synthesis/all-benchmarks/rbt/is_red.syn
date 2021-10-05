@@ -1,0 +1,18 @@
+should be able to synthesize node colour
+
+#####
+
+{0 <= n ; r :-> a ** treeN(x, n, cl, bn) }
+void is_red(loc x, loc r)
+{true ; r :-> cl ** treeN(x, n, cl, bn) }
+
+#####
+
+void is_red (loc x, loc r) {
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let c = *x;
+    *r = c;
+  }
+}

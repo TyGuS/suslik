@@ -1,0 +1,70 @@
+predicate treeN(loc x, int n, int col, int bn) {
+|  x == 0        => { n == 0 /\ col == 0 /\ bn == 1 ; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2 /\ 0 <= n1 /\ 0 <= n2 ;
+                      [x, 3] ** x :-> col ** (x + 1) :-> l ** (x + 2) :-> r ** treeNB(l,r,n1,n2,col,bn) }
+}
+
+predicate treeNB(loc l, loc r, int n1, int n2, int col, int bn) {
+|  col == 1  => {
+                  col == 1 /\ bnl == bn /\ bnr == bn /\ 0 <= bnl /\ 0 <= bnr;
+                  treeN(l, n1, 0, bnl) ** treeN(r, n2, 0, bnr)}
+|  col == 0  => {
+                  col == 0 /\ bnl == bnr /\ bn == bnl + 1 /\ 0 <= bnl /\ 0 <= bnr;
+                  treeN(l, n1, a, bnl) ** treeN(r, n2, b, bnr)}
+}
+
+/*
+predicate treeN(loc x, int n, int col, int bn) {
+|  x == 0        => { n == 0 /\ col == 0 /\ bn == 1 ; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 /\
+                      col == 1 /\ bnl == bn /\ bnr == bn /\ 0 <= bnl /\ 0 <= bnr;
+                     [x, 3] ** x :-> col ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1, 0, bnl) ** treeN(r, n2, 0, bnr)}
+|  not (x == 0)  => { n == 1 + n1 + n2  /\  0 <= n1  /\  0 <= n2 /\
+                      col == 0 /\ bnl == bnr /\ bn == bnl + 1 /\ 0 <= bnl /\ 0 <= bnr;
+                     [x, 3] ** x :-> col ** (x + 1) :-> l ** (x + 2) :-> r ** treeN(l, n1, a, bnl) ** treeN(r, n2, b, bnr)}
+}
+*/
+
+/*
+predicate treeN(loc x, int n, int col, int bn) {
+|  x == 0        => { n == 0 /\ col == 0 /\ bn == 1 ; emp }
+|  not (x == 0)  => {  true;
+                      [x, 3] ** x :-> col ** (x + 1) :-> l ** (x + 2) :-> r ** treeNB(l,r,n,col,bn) }
+}
+
+predicate treeNB(loc l, loc r, int n, int col, int bn) {
+|  col == 1  => { n == 1 + n1 + n2 /\ 0 <= n1 /\ 0 <= n2 /\
+                  col == 1 /\ bnl == bn /\ bnr == bn /\ 0 <= bnl /\ 0 <= bnr;
+                  treeN(l, n1, 0, bnl) ** treeN(r, n2, 0, bnr)}
+|  col == 0  => { n == 1 + n1 + n2 /\ 0 <= n1 /\ 0 <= n2 /\
+                  col == 0 /\ bnl == bnr /\ bn == bnl + 1 /\ 0 <= bnl /\ 0 <= bnr;
+                  treeN(l, n1, a, bnl) ** treeN(r, n2, b, bnr)}
+}
+
+{0 <= n ; r :-> 0 ** treeN(x, n, cl, bnn)<_alpha_5>}
+{r :-> n ** treeN(x, n, cl, bnn)<_alpha_6>}
+void tree_size (loc x, loc r) {
+  if (x == 0) {
+  } else {
+    let c = *x;
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    if (c == 1) {
+      tree_size(l, r);
+      let n1 = *r;
+      *r = 0;
+      tree_size(rx, r);
+      let n = *r;
+      *r = 1 + n1 + n;
+    } else {
+      tree_size(l, r);
+      let n1 = *r;
+      *r = 0;
+      tree_size(rx, r);
+      let n = *r;
+      *r = 1 + n1 + n;
+    }
+  }
+}
+
+*/

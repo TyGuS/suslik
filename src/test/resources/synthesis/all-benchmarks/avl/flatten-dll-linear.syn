@@ -1,0 +1,47 @@
+# -c 2 -o 2 -f 3 -p true
+
+flatten an avl-tree into a doubly-linked list
+
+####
+
+{ avlNHS(x, n, h, s) }
+void flatten(loc x)
+{ dll(x, 0, s) }
+
+####
+
+{avlNHS(x, n, h, s)<_alpha_10>}
+{dll(x, 0, s)<_alpha_11>}
+void flatten (loc x) {
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let r = *(x + 2);
+    flatten(l);
+    flatten119(r, l, x);
+  }
+}
+
+{0 <= h1x && 0 <= h2x && 0 <= n1x && 0 <= n2x && _alpha_8x < _alpha_10 && _alpha_9x < _alpha_10 && h1x <= h2x + 1 && h2x <= h1x + 1 && not (x == 0) ; (x + 1) :-> lx ** (x + 2) :-> rx ** x :-> vx1 ** avlNHS(rx, n2x, h2x, s2x)<_alpha_9x>[0,1] ** dll(lx, 0, s1x)<_alpha_111>[1,0] ** [x, 3]}
+{dll(x, 0, {vx1} ++ s1x ++ s2x)<_alpha_11>}
+void flatten119 (loc rx, loc lx, loc x) {
+  if (rx == 0) {
+    if (lx == 0) {
+    } else {
+      *(lx + 2) = x;
+    }
+  } else {
+    let v = *rx;
+    let l = *(rx + 1);
+    let r = *(rx + 2);
+    *(rx + 2) = l;
+    *(rx + 1) = lx;
+    flatten119(l, lx, rx);
+    *(x + 2) = r;
+    *(x + 1) = rx;
+    flatten119(r, rx, x);
+  }
+}
+
+###
+

@@ -1,0 +1,42 @@
+# -p true
+
+should be able to flatten the avl into a list
+
+####
+
+{ z :-> x ** avl(x, n, h) }
+void flatten(loc z)
+{ z :-> y ** sll(y, s) }
+
+####
+
+{z :-> x ** avl(x, n, h)<_alpha_8>}
+{z :-> y ** sll(y, s)<_alpha_9>}
+void flatten (loc z) {
+  let x = *z;
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let r = *(x + 2);
+    *z = l;
+    flatten(z);
+    let y = *z;
+    *z = r;
+    flatten(z);
+    flatten134(y, x);
+  }
+}
+
+{0 <= h1x1 && 0 <= h2x1 && 0 <= n1x1 && 0 <= n2x1 && _alpha_6x1 < _alpha_8 && _alpha_7x1 < _alpha_8 && h1x1 <= h2x1 + 1 && h2x1 <= h1x1 + 1 && not (x == 0) && not (x == z) && not (z == 0) ; (x + 1) :-> lx11 ** (x + 2) :-> rx11 ** x :-> vx11 ** z :-> y2 ** sll(y, s1)<_alpha_91>[1,0] ** sll(y2, s2)<_alpha_92>[1,0] ** [x, 3]}
+{not (z == 0) ; z :-> y ** sll(y, s)<_alpha_9>}
+void flatten134 (loc y, loc x) {
+  if (y == 0) {
+    free(x);
+  } else {
+    let n = *(y + 1);
+    flatten134(n, x);
+    free(y);
+  }
+}
+#####
+

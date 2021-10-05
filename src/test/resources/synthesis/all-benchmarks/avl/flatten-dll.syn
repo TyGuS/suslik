@@ -1,0 +1,42 @@
+# -p true -c 2
+
+flatten the avl-tree into a doubly-linked list in place
+
+####
+
+{ avlNHS(x, n, h, s) }
+void flatten(loc x)
+{ dll(x, y, s) }
+
+####
+
+{avlNHS(x, n, h, s)<_alpha_10>}
+{dll(x, y, s)<_alpha_11>}
+void flatten (loc x) {
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let r = *(x + 2);
+    flatten(l);
+    flatten(r);
+    flatten128(r, l, x);
+  }
+}
+
+{0 <= h1x && 0 <= h2x && 0 <= n1x && 0 <= n2x && _alpha_8x < _alpha_10 && _alpha_9x < _alpha_10 && h1x <= h2x + 1 && h2x <= h1x + 1 && not (x == 0) ; (x + 1) :-> l ** (x + 2) :-> r ** x :-> vx1 ** dll(l, y1, s1x)<_alpha_111>[1,0] ** dll(r, y2, s2x)<_alpha_112>[1,0] ** [x, 3]}
+{dll(x, y, {vx1} ++ s1x ++ s2x)<_alpha_11>}
+void flatten128 (loc r, loc l, loc x) {
+  if (l == 0) {
+    if (r == 0) {
+    } else {
+      *(r + 2) = x;
+      *(x + 1) = r;
+    }
+  } else {
+    let v = *l;
+    let w = *(l + 1);
+    *(l + 2) = r;
+    flatten128(r, w, l);
+    *(l + 2) = x;
+  }
+}

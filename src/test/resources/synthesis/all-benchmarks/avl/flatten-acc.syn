@@ -1,0 +1,38 @@
+should be able to flatten the tree into a list given a list accumulator
+
+####
+
+{ true ; avl(x, n, h) ** z :-> y ** sll(y, acc)}
+void avl_flatten(loc x, loc z)
+{ s1 =i s ++ acc ;  z :-> t ** sll(t, s1)}
+
+####
+
+{z :-> y ** avl(x, n, h)<_alpha_8> ** sll(y, acc)<_alpha_9>}
+{s1 == s + acc ; z :-> t ** sll(t, s1)<_alpha_10>}
+void avl_flatten (loc x, loc z) {
+  let y = *z;
+  if (y == 0) {
+    avl_flatten00(x, z);
+  } else {
+    let n = *(y + 1);
+    *z = n;
+    avl_flatten(x, z);
+    let t = *z;
+    *z = y;
+    *(y + 1) = t;
+  }
+}
+
+{acc =i {} && not (z == 0) && y1 == 0 ; z :-> y1 ** avl(x, n, h)<_alpha_8>}
+{not (z == 0) ; z :-> t ** sll(t, s ++ acc)<_alpha_10>}
+void avl_flatten00 (loc x, loc z) {
+  if (x == 0) {
+  } else {
+    let l = *(x + 1);
+    let r = *(x + 2);
+    avl_flatten00(l, z);
+    avl_flatten(r, z);
+    free(x);
+  }
+}
