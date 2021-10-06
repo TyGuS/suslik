@@ -365,6 +365,21 @@ ALL_BENCHMARKS = [
          Benchmark('packed/pack', 'pack', mutBit(0, PORTION_OF_TRAINING)),
          Benchmark('packed/unpack', 'unpack', mutBit(0, PORTION_OF_TRAINING)),
      ]),
+    BenchmarkGroup("AVL Tree", [
+        Benchmark('avl/copy', 'copy', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('avl/flatten-acc', 'flatten acc', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('avl/flatten-dll-linear', 'flatten linear', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('avl/flatten-dll', 'flatten dll', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('avl/flatten', 'flatten', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('avl/free', 'free', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('avl/height', 'height', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('avl/size', 'size', mutBit(0, PORTION_OF_TRAINING)),
+    ]),
+    BenchmarkGroup("Red Black Tree", [
+        Benchmark('rbt/is_red', 'is red', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('rbt/rotate_c3', 'rotate c3', mutBit(0, PORTION_OF_TRAINING)),
+        Benchmark('rbt/size', 'size', mutBit(0, PORTION_OF_TRAINING)),
+    ]),
   ]
 
 TRAINING_DATA = list(map(get_benchmark_group_for_training, ALL_BENCHMARKS))
