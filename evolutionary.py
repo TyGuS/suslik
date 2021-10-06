@@ -7,6 +7,7 @@ import roboevaluation
 import pandas
 from deap import base
 from deap import tools
+import math
 #from pprint import pformat
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
@@ -27,7 +28,7 @@ NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 20
+POPULATION_SIZE = 10
 MAXIMUM_NUMBER_OF_GENERATIONS = 1000
 INDPB = 0.1
 LOWER_MULTIPLICAND_FOR_COST = 0.9
@@ -94,6 +95,7 @@ class Individual(list):
                  nan=100,
                  time=9999999999.0,
                  backtracking=9999999999,
+                 rules=9999999999,
                  ancestors=None,
                  ancestor_ranks=None,
                  orders_of_any_phase_rules=None,
@@ -125,6 +127,7 @@ class Individual(list):
         self.nan = nan
         self.time = time
         self.backtracking = backtracking
+        self.rules = rules
         self.weight_of_cost_no_call_goal_pre = weight_of_cost_no_call_goal_pre
         self.weight_of_cost_no_call_goal_post = weight_of_cost_no_call_goal_post
         self.weight_of_cost_call_goal = weight_of_cost_call_goal
@@ -272,6 +275,9 @@ class Individual(list):
 
     def get_nan(self):
         return self.nan
+
+    def get_rules(self):
+        return self.rules
 
     def set_time(self, time):
         self.time = time
@@ -471,9 +477,28 @@ class Individual(list):
         total_time = df['Time(mut)'].sum()
         total_backtracking = int(df['Backtrackings(mut)'].isna().sum())
 
-        self.nan, self.time, self.backtracking = (number_of_nans, total_time, total_backtracking)
+        times = df['Time(mut)']
+        df_rules = df['Rules(mut)']
+        print("before pairs_of_times_and_rules")
+        pairs_of_times_and_rules = list(zip(times, df_rules))
 
-        return number_of_nans, total_time, total_backtracking
+        def sum_non_nan_rules(pairs):
+            temp_total_numb_of_fired_rules = 0
+            for first, second in pairs:
+                if not (math.isnan(first)):
+                    temp_total_numb_of_fired_rules = temp_total_numb_of_fired_rules + second
+                else:
+                    temp_total_numb_of_fired_rules
+            return temp_total_numb_of_fired_rules
+
+        print("before calling sum_non_nan_rules")
+        total_numb_of_fired_rules = sum_non_nan_rules(pairs_of_times_and_rules)
+        print("after calling sum_non_nan_rules")
+        #total_numb_of_fired_rules = 98765
+        self.nan, self.time, self.backtracking, self.rules =\
+            (number_of_nans, total_time, total_backtracking, total_numb_of_fired_rules)
+
+        return number_of_nans, total_time, total_backtracking, total_numb_of_fired_rules
 
     # Note that we use the rank of individual in the file name.
     def json_result_file_path(self, is_for_training=True):
@@ -502,6 +527,7 @@ class Individual(list):
             "individual_ID": self.individual_id,
             "rank": self.rank,
             "number_of_nan": self.nan,
+            "fired_rules": self.rules,
             "search_time": self.time,
             "backtracking": self.backtracking,
             "ancestors": self.ancestors,
@@ -529,7 +555,7 @@ class Individual(list):
     def write_overall_json_result(self, for_training=True):
         with open(self.json_overall_result_file_path(for_training), 'a') as \
                 json_overall_validation_result_file_to_write:
-            json.dump(self.json_result(for_training), json_overall_validation_result_file_to_write, indent=2)
+            json.dump(self.json_result(for_training), json_overall_validation_result_file_to_write)
             json_overall_validation_result_file_to_write.write("\n")
             json_overall_validation_result_file_to_write.close()
 
@@ -540,6 +566,10 @@ def get_total_time(individual: Individual):
 
 def get_total_backtracking(individual: Individual):
     return individual.get_backtracking()
+
+
+def get_total_rules(individual: Individual):
+    return individual.get_rules()
 
 
 def get_number_of_nans(individual: Individual):
@@ -608,7 +638,8 @@ def main():
 
     # sort each group
     for group in groups:
-        group.sort(key=get_total_time)
+        group.sort(key=get_total_rules)
+        #group.sort(key=get_total_time)
         group.sort(key=get_number_of_nans)
 
     # set the rank, write resulting JSON file
@@ -663,7 +694,8 @@ def main():
             group[:] = offspring1 + offspring2
 
             # sort group
-            group.sort(key=get_total_time)
+            #group.sort(key=get_total_time)
+            group.sort(key=get_total_rules)
             group.sort(key=get_number_of_nans)
 
             rank = 0
