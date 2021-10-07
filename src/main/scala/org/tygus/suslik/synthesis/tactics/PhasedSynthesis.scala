@@ -692,13 +692,13 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick
       )
 
-    val index = {0
+    val index = {
       if (goal.env.runtime_rule_order_selection) {
         if (goal.env.fewer_feature_combinations) {
           if (preferFrameAfterWrite(node)) {0} else {
             if (preferWriteIfPointers(goal)) {1} else {
               if (preferWriteAfterAlloc(node)) {2} else {
-                if (preferPickOrHeapUnifyPure(goal)) {3} {
+                if (preferPickOrHeapUnifyPure(goal)) {3} else {
                   4
                 }
               }

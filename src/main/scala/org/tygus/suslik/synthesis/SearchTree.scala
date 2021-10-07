@@ -26,7 +26,7 @@ object SearchTree {
 
   // Initialize worklist: root or-node containing the top-level goal
   def init(initialGoal: Goal): Unit = {
-    val root = OrNode(Vector(), initialGoal, None)
+    val root = OrNode(Vector(), initialGoal, None, Some(1.0))
     worklist = List(root)
     successLeaves = List()
   }
@@ -36,7 +36,7 @@ object SearchTree {
    * represents a synthesis goal to solve.
    * For this node to succeed, one of its children has to succeed.
    */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Double = 0.0) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], weight: Option[Double], extraCost: Double = 0.0) {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -80,7 +80,7 @@ object SearchTree {
             val sol = an.kont(an.childSolutions) // compute solution
             an.parent.succeed(sol) // tell parent it succeeded
           } else { // there are other open subgoals: add next open subgoal to the worklist
-            Left(an.nextChild)
+            Left(an.nextChild(1.0))
           }
         }
       }
@@ -164,8 +164,9 @@ object SearchTree {
         }
     }
 
-    lazy val cost: Double = {
-      goal.cost.max(extraCost)
+    lazy val cost: Double = weight match {
+      case None => goal.cost.max(extraCost)
+      case Some(w) => w * goal.cost.max(extraCost)
     }
 
     override def equals(obj: Any): Boolean = obj.isInstanceOf[OrNode] && (obj.asInstanceOf[OrNode].id == this.id)
@@ -198,13 +199,13 @@ object SearchTree {
     def nChildren: Int = childGoals.size
 
     // Return the first previously suspended or-node and increase nextChildIndex
-    def nextChild: OrNode = {
+    def nextChild(w:Double): OrNode = {
       val origGoal = childGoals(nextChildIndex)
       val goal = updates(nextChildIndex)(childSolutions)(origGoal)
       val j = if (nChildren == 1) -1 else nextChildIndex
       val extraCost = (0.0 +: childGoals.drop(nextChildIndex + 1).map(_.cost:Double)).max
       nextChildIndex = nextChildIndex + 1
-      OrNode(j +: this.id, goal, Some(this), parent.extraCost.max(extraCost))
+      OrNode(j +: this.id, goal, Some(this), Some(w), parent.extraCost.max(extraCost))
     }
 
     def pp(d: Int = 0): String = {

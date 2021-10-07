@@ -164,15 +164,17 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
     val rules = tactic.nextRules(node)
-    val allExpansions = applyRules(rules)(node, stats, config, ctx)
-    val expansions = tactic.filterExpansions(allExpansions)
+    val rulesAndWeights: List[(SynthesisRule, Double)] = rules.map(r => (r, 1.0)) //TODO: use the value passed from nextRules
+    val allExpansionsAndWeights: Seq[(RuleResult, Double)] = applyRules(rulesAndWeights)(node, stats, config, ctx)
+    val allExpansions: Seq[RuleResult] = allExpansionsAndWeights.map(p => p._1)
+    val expansions: Seq[RuleResult] = tactic.filterExpansions(allExpansions)
 
     // Check if any of the expansions is a terminal
     expansions.find(_.subgoals.isEmpty) match {
       case Some(e) =>
         if (config.certTarget != null) {
           // [Certify]: Add a terminal node and its ancestors to the certification tree
-          CertTree.addSuccessfulPath(node, e)
+          CertTree.addSuccessfulPath(node, e: RuleResult)
         }
         trace.add(e, node)
         successLeaves = node :: successLeaves
@@ -188,11 +190,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
         // Create new nodes from the expansions
         val newNodes = for {
           (e, i) <- expansions.zipWithIndex
-          andNode = AndNode(i +: node.id, node, e)
+          andNode = AndNode(i +: node.id, node, e): AndNode
           if isTerminatingExpansion(andNode) // termination check
           () = trace.add(andNode, andNode.nChildren)
         } yield {
-          andNode.nextChild // take the first goal from each new and-node; the first goal always exists
+          andNode.nextChild(1.0) // take the first goal from each new and-node; the first goal always exists
+          //TODO: use the actual value passed by nextRules instead of 1.0
         }
 
         worklist = addNewNodes(newNodes.toList)
@@ -210,25 +213,27 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
   }
 
 
-  protected def applyRules(rules: List[SynthesisRule])(implicit node: OrNode,
-                                                       stats: SynStats,
-                                                       config: SynConfig,
-                                                       ctx: log.Context): Seq[RuleResult] = {
+  protected def applyRules(rulesAndWeights: List[(SynthesisRule, Double)])(implicit node: OrNode,
+                                                                 stats: SynStats,
+                                                                 config: SynConfig,
+                                                                 ctx: log.Context): Seq[(RuleResult, Double)] = {
     implicit val goal: Goal = node.goal
-    rules match {
+    //val rules = rulesAndWeights.map(p => p._1)//TODO: use weights!
+    rulesAndWeights match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
-      case r :: rs =>
+      case (r, w) :: rsAndWs =>
         // Invoke the rule
-        val children = stats.recordRuleApplication(r.toString, r(goal))
+        val ruleResults: Seq[RuleResult] = stats.recordRuleApplication(r.toString, r(goal))
+        val children: Seq[(RuleResult, Double)] = ruleResults.map(result => (result, w))
 
         if (children.isEmpty) {
           // Rule not applicable: try other rules
           log.print(List((s"$r FAIL", RESET)), isFail = true)
-          applyRules(rs)
+          applyRules(rsAndWs)
         } else {
           // Rule applicable: try all possible sub-derivations
-          val childFootprints = children.map(log.showChildren(goal))
-          log.print(List((s"$r (${children.size}): ${childFootprints.head}", RESET)))
+          val childFootprints = children.map(p => p._1).map(log.showChildren(goal))
+          log.print(List((s"$r (${children.map(p =>p._1).size}): ${childFootprints.head}", RESET)))
           for {c <- childFootprints.tail}
             log.print(List((s" <|>  $c", CYAN)))
 
@@ -237,7 +242,7 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
             children
           } else {
             // Both this and other rules apply
-            children ++ applyRules(rs)
+            children ++ applyRules(rsAndWs)
           }
         }
     }
