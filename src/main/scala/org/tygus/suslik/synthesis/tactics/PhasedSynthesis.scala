@@ -123,7 +123,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def preferCall(node: OrNode): Boolean = node.isJustAfter(UnfoldingRules.AbduceCall)
 
-  def nextRules(node: OrNode): List[SynthesisRule] = {
+  def nextRules(node: OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
 
@@ -167,7 +167,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           ) else List(unOrderedAnyPhaseOrSpecBased:_*)
       }
 
-      anyPhaseRulesOrSpecBasedRulesNested.flatten
+      //TODO: use the value from evolutionary.py instead of the hard-coded 1.0
+      anyPhaseRulesOrSpecBasedRulesNested.flatten.map(rule => (rule, 1.0)): List[(SynthesisRule, Double)]
 
     }
 
@@ -193,7 +194,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           ) else List(unOrderedSketchHole:_*)
       }
 
-      sketchHoleNested.flatten
+      sketchHoleNested.flatten.map(res => (res, 1.0)) //TODO: use the value from evolutionary.py
 
     }
 
@@ -203,7 +204,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     else anyPhaseRulesOrSpecBasedRules
   }
 
-  def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult] = allExpansions
+  def filterExpansions(allExpansions: Seq[(RuleResult, Double)]): Seq[(RuleResult, Double)] = allExpansions
 
   protected def specBasedRules(node: OrNode): List[SynthesisRule] = {
 
@@ -429,8 +430,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   }
 
-  // TODO:
-  protected def callAbductionRules(node: OrNode): List[SynthesisRule] = {
+  protected def callAbductionRules(node: OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
 
@@ -607,7 +607,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       else
         defaultOrderedCallAbductionRulesNest.flatten
 
-    orderedCallAbductionRulesNested
+    orderedCallAbductionRulesNested.map(res => (res, 1.0)) //TODO: use the values from evolutionary.py intead of 1.0
   }
 
   protected def postBlockPhaseRules(goal: Goal): List[SynthesisRule] = {

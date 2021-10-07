@@ -6,7 +6,7 @@ import org.tygus.suslik.synthesis.rules.Rules
 class ReplaySynthesis(config: SynConfig) extends PhasedSynthesis(config) {
   var script: List[Int] = config.script
 
-  override def filterExpansions(allExpansions: Seq[Rules.RuleResult]): Seq[Rules.RuleResult] = {
+  override def filterExpansions(allExpansions: Seq[(Rules.RuleResult, Double)]): Seq[(Rules.RuleResult, Double)] = {
     // Interactive mode: ask user to pick an expansion
     if (allExpansions.length == 1 || script.isEmpty) allExpansions
     else {

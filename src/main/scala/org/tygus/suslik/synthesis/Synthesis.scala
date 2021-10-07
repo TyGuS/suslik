@@ -163,15 +163,13 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
 
     // Apply all possible rules to the current goal to get a list of alternative expansions,
     // each of which can have multiple open subgoals
-    val rules = tactic.nextRules(node)
-    val rulesAndWeights: List[(SynthesisRule, Double)] = rules.map(r => (r, 1.0)) //TODO: use the value passed from nextRules
+    val rulesAndWeights = tactic.nextRules(node)
     val allExpansionsAndWeights: Seq[(RuleResult, Double)] = applyRules(rulesAndWeights)(node, stats, config, ctx)
-    val allExpansions: Seq[RuleResult] = allExpansionsAndWeights.map(p => p._1)
-    val expansions: Seq[RuleResult] = tactic.filterExpansions(allExpansions)
+    val expansions: Seq[(RuleResult, Double)] = tactic.filterExpansions(allExpansionsAndWeights)
 
     // Check if any of the expansions is a terminal
-    expansions.find(_.subgoals.isEmpty) match {
-      case Some(e) =>
+    expansions.find(_._1.subgoals.isEmpty) match {
+      case Some((e, _)) =>
         if (config.certTarget != null) {
           // [Certify]: Add a terminal node and its ancestors to the certification tree
           CertTree.addSuccessfulPath(node, e: RuleResult)
@@ -189,12 +187,12 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
       case None => { // no terminals: add all expansions to worklist
         // Create new nodes from the expansions
         val newNodes = for {
-          (e, i) <- expansions.zipWithIndex
+          ((e, w), i) <- expansions.zipWithIndex
           andNode = AndNode(i +: node.id, node, e): AndNode
           if isTerminatingExpansion(andNode) // termination check
           () = trace.add(andNode, andNode.nChildren)
         } yield {
-          andNode.nextChild(1.0) // take the first goal from each new and-node; the first goal always exists
+          andNode.nextChild(w) // take the first goal from each new and-node; the first goal always exists
           //TODO: use the actual value passed by nextRules instead of 1.0
         }
 

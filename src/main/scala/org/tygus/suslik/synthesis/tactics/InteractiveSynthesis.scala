@@ -6,7 +6,7 @@ import org.tygus.suslik.util.SynStats
 
 class InteractiveSynthesis(config: SynConfig, stats: SynStats) extends PhasedSynthesis(config) {
 
-  override def filterExpansions(allExpansions: Seq[Rules.RuleResult]): Seq[Rules.RuleResult] = {
+  override def filterExpansions(allExpansions: Seq[(Rules.RuleResult, Double)]): Seq[(Rules.RuleResult, Double)] = {
     // Interactive mode: ask user to pick an expansion
     val choice = if (allExpansions.length == 1) 0 else readInt
     if (0 < choice && choice <= allExpansions.size) {

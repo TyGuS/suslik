@@ -11,8 +11,8 @@ trait Tactic {
   /**
     * Which rules should be considered when expanding node
     */
-  def nextRules(node: OrNode): List[SynthesisRule]
+  def nextRules(node: OrNode): List[(SynthesisRule, Double)]
 
-  def filterExpansions(allExpansions: Seq[RuleResult]): Seq[RuleResult]
+  def filterExpansions(allExpansions: Seq[(RuleResult, Double)]): Seq[(RuleResult, Double)]
 
 }
