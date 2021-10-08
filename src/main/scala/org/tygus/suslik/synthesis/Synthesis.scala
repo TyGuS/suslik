@@ -193,7 +193,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
           () = trace.add(andNode, andNode.nChildren)
         } yield {
           andNode.nextChild(w) // take the first goal from each new and-node; the first goal always exists
-          //TODO: use the actual value passed by nextRules instead of 1.0
         }
 
         worklist = addNewNodes(newNodes.toList)
@@ -216,7 +215,6 @@ class Synthesis(tactic: Tactic, implicit val log: Log, implicit val trace: Proof
                                                                  config: SynConfig,
                                                                  ctx: log.Context): Seq[(RuleResult, Double)] = {
     implicit val goal: Goal = node.goal
-    //val rules = rulesAndWeights.map(p => p._1)//TODO: use weights!
     rulesAndWeights match {
       case Nil => Vector() // No more rules to apply: done expanding the goal
       case (r, w) :: rsAndWs =>

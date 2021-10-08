@@ -16,7 +16,7 @@ NUMB_OF_PURE_PHASE_RULE = 10
 NUMB_OF_SYMBOLIC_EXECUTION_RULE = 6
 NUMB_OF_UNFOLDING_PHASE_RULE = 5
 NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2
-NUMB_OF_SKETCH_HOLE = 3
+NUMB_OF_SKETCH_HOLE_RULE = 3
 NUMB_OF_POINTER_PHASE_RULE = 4
 NUMB_OF_POST_BLOCK_PHASE_RULE = 4
 NUMB_OF_CALL_ABDUCTION_RULE = 4
@@ -40,6 +40,8 @@ NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES = 4
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 4
 NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 4
+NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES = 0
+NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 0
 NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 0
@@ -47,7 +49,6 @@ NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3 = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4 = 5
 NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES = 1
 NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES = 1
-NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 0
 NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 0
 
 if FEWER_FEATURE_COMBINATION:
@@ -56,6 +57,9 @@ if FEWER_FEATURE_COMBINATION:
         1 + NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_SYMBOLIC_EXECUTION_PHASE_RULES = \
+        1 + NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES = 1 + NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2
@@ -63,7 +67,6 @@ if FEWER_FEATURE_COMBINATION:
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4
     NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
-    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES
 else:
     NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
@@ -71,6 +74,9 @@ else:
         2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_SYMBOLIC_EXECUTION_PHASE_RULES = \
+        2 ** NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES = 2 ** NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2
@@ -78,7 +84,6 @@ else:
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4 = 2 ** NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4
     NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
-    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES
 
 
@@ -90,7 +95,7 @@ class Individual(list):
                  generation_id,
                  individual_id,
                  rank,
-                 runtime_rule_order_selection=True, # a.k.a dynamic optimisation
+                 runtime_rule_order_selection=True,  # a.k.a dynamic optimisation
                  fewer_feature_combinations=True,
                  nan=100,
                  time=9999999999.0,
@@ -99,12 +104,18 @@ class Individual(list):
                  ancestors=None,
                  ancestor_ranks=None,
                  orders_of_any_phase_rules=None,
+                 weights_of_any_phase_rules=None,
                  orders_of_pure_phase_rules=None,
+                 weights_of_pure_phase_rules=None,
                  orders_of_symbolic_execution_rules=None,
+                 weights_of_symbolic_execution_rules=None,
                  orders_of_unfolding_phase_rules=None,
+                 weights_of_unfolding_phase_rules=None,
                  orders_of_any_phase_rules_or_spec_based_rules=None,
-                 orders_of_sketch_hole=None,
+                 orders_of_sketch_hole_rules=None,
+                 weights_of_sketch_hole_rules=None,
                  orders_of_pointer_phase_rules=None,
+                 weights_of_pointer_phase_rules=None,
                  orders_of_post_block_phase_rules=None,
                  orders_of_call_abduction_rules_1=None,
                  orders_of_call_abduction_rules_2=None,
@@ -148,12 +159,30 @@ class Individual(list):
                 orders_of_any_phase_rules.append(random.sample(range(NUMB_OF_ANY_PHASE_RULE), NUMB_OF_ANY_PHASE_RULE))
         self.orders_of_any_phase_rules = orders_of_any_phase_rules
 
+        if weights_of_any_phase_rules is None:
+            weights_of_any_phase_rules = []
+            for feature_combination_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_ANY_PHASE_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_any_phase_rules.append(ws_for_each_combination)
+            self.weights_of_any_phase_rules = weights_of_any_phase_rules
+
         if orders_of_pure_phase_rules is None:
             orders_of_pure_phase_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
                 orders_of_pure_phase_rules.append \
                     (random.sample(range(NUMB_OF_PURE_PHASE_RULE), NUMB_OF_PURE_PHASE_RULE))
         self.orders_of_pure_phase_rules = orders_of_pure_phase_rules
+
+        if weights_of_pure_phase_rules is None:
+            weights_of_pure_phase_rules = []
+            for feature_combination_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_PURE_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_pure_phase_rules.append(ws_for_each_combination)
+            self.weights_of_pure_phase_rules = weights_of_pure_phase_rules
 
         if orders_of_symbolic_execution_rules is None:
             orders_of_symbolic_execution_rules = []
@@ -162,12 +191,30 @@ class Individual(list):
                     (random.sample(range(NUMB_OF_SYMBOLIC_EXECUTION_RULE), NUMB_OF_SYMBOLIC_EXECUTION_RULE))
         self.orders_of_symbolic_execution_rules = orders_of_symbolic_execution_rules
 
+        if weights_of_symbolic_execution_rules is None:
+            weights_of_symbolic_execution_rules = []
+            for feature_combination_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_SYMBOLIC_EXECUTION_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_SYMBOLIC_EXECUTION_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_symbolic_execution_rules.append(ws_for_each_combination)
+            self.weights_of_symbolic_execution_rules = weights_of_symbolic_execution_rules
+
         if orders_of_unfolding_phase_rules is None:
             orders_of_unfolding_phase_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
                 orders_of_unfolding_phase_rules.append \
                     (random.sample(range(NUMB_OF_UNFOLDING_PHASE_RULE), NUMB_OF_UNFOLDING_PHASE_RULE))
         self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
+
+        if weights_of_unfolding_phase_rules is None:
+            weights_of_unfolding_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_UNFOLDING_PHASE_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_unfolding_phase_rules.append(ws_for_each_combination)
+            self.weights_of_unfolding_phase_rules = weights_of_unfolding_phase_rules
 
         if orders_of_any_phase_rules_or_spec_based_rules is None:
             orders_of_any_phase_rules_or_spec_based_rules = []
@@ -177,11 +224,20 @@ class Individual(list):
                                    NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))
         self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
 
-        if orders_of_sketch_hole is None:
-            orders_of_sketch_hole = []
+        if orders_of_sketch_hole_rules is None:
+            orders_of_sketch_hole_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
-                orders_of_sketch_hole.append(random.sample(range(NUMB_OF_SKETCH_HOLE), NUMB_OF_SKETCH_HOLE))
-        self.orders_of_sketch_hole = orders_of_sketch_hole
+                orders_of_sketch_hole_rules.append(random.sample(range(NUMB_OF_SKETCH_HOLE_RULE), NUMB_OF_SKETCH_HOLE_RULE))
+        self.orders_of_sketch_hole_rules = orders_of_sketch_hole_rules
+
+        if weights_of_sketch_hole_rules is None:
+            weights_of_sketch_hole_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_SKETCH_HOLE_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_sketch_hole_rules.append(ws_for_each_combination)
+            self.weights_of_sketch_hole_rules = weights_of_sketch_hole_rules
 
         if orders_of_pointer_phase_rules is None:
             orders_of_pointer_phase_rules = []
@@ -189,6 +245,15 @@ class Individual(list):
                 orders_of_pointer_phase_rules.append \
                     (random.sample(range(NUMB_OF_POINTER_PHASE_RULE), NUMB_OF_POINTER_PHASE_RULE))
         self.orders_of_pointer_phase_rules = orders_of_pointer_phase_rules
+
+        if weights_of_pointer_phase_rules is None:
+            weights_of_pointer_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_POINTER_PHASE_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_pointer_phase_rules.append(ws_for_each_combination)
+            self.weights_of_pointer_phase_rules = weights_of_pointer_phase_rules
 
         if orders_of_post_block_phase_rules is None:
             orders_of_post_block_phase_rules = []
@@ -297,18 +362,49 @@ class Individual(list):
     def mutate(self):  # TODO: refactor
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
+            for rule_index in range(NUMB_OF_ANY_PHASE_RULE):
+                weight = self.weights_of_any_phase_rules[feature_index][rule_index]
+                self.weights_of_any_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
         for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
             tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
-        #for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
-        #    tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
-        #for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
-        #    tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
+            for rule_index in range(NUMB_OF_PURE_PHASE_RULE):
+                weight = self.weights_of_pure_phase_rules[feature_index][rule_index]
+                self.weights_of_pure_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
+            tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATION):
+            for rule_index in range(NUMB_OF_SYMBOLIC_EXECUTION_RULE):
+                weight = self.weights_of_symbolic_execution_rules[feature_index][rule_index]
+                self.weights_of_symbolic_execution_rules[feature_index][rule_index] = \
+                    weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
+            tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
+            for rule_index in range(NUMB_OF_UNFOLDING_PHASE_RULE):
+                weight = self.weights_of_unfolding_rules[feature_index][rule_index]
+                self.weights_of_unfolding_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
         for order_of_any_phase_rules_or_spec_based_rules in self.orders_of_any_phase_rules_or_spec_based_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules_or_spec_based_rules, indpb=INDPB)
-        #for order_of_sketch_hole in self.orders_of_sketch_hole:
-        #    tools.mutShuffleIndexes(order_of_sketch_hole, indpb=INDPB)
-        #for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
-        #    tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
+
+        for order_of_sketch_hole in self.orders_of_sketch_hole_rules:
+            tools.mutShuffleIndexes(order_of_sketch_hole, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
+            for rule_index in range(NUMB_OF_SKETCH_HOLE_RULE):
+                weight = self.weights_of_sketch_hole_rules[feature_index][rule_index]
+                self.weights_of_sketch_hole_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
+            tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES):
+            for rule_index in range(NUMB_OF_POINTER_PHASE_RULE):
+                weight = self.weights_of_pointer_phase_rules[feature_index][rule_index]
+                self.weights_of_pointer_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
         #for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
         #    tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
         #for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
@@ -330,12 +426,11 @@ class Individual(list):
         #self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
-    # TODO: The use of the * opeartor is WRONG! FIXME. Use append.
     def default(self):
 
         orders_of_any_phase_rules = []
         for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES)):
-            orders_of_any_phase_rules.append(list(range(0, NUMB_OF_ANY_PHASE_RULE)))
+            orders_of_any_phase_rules.append(list(range(NUMB_OF_ANY_PHASE_RULE)))
         self.orders_of_any_phase_rules = orders_of_any_phase_rules
 
         orders_of_pure_phase_rules = []
@@ -358,10 +453,10 @@ class Individual(list):
             orders_of_any_phase_rules_or_spec_based_rules.append(list(range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE)))
         self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
 
-        orders_of_sketch_hole = []
+        orders_of_sketch_hole_rules = []
         for i in list(range(NUMB_OF_FEATURE_COMBINATION)):
-            orders_of_sketch_hole.append(list(range(0, NUMB_OF_SKETCH_HOLE)))
-        self.orders_of_sketch_hole = orders_of_sketch_hole
+            orders_of_sketch_hole_rules.append(list(range(0, NUMB_OF_SKETCH_HOLE_RULE)))
+        self.orders_of_sketch_hole_rules = orders_of_sketch_hole_rules
 
         orders_of_pointer_phase_rules = []
         for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES)):
@@ -421,12 +516,18 @@ class Individual(list):
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
+            "weights_of_any_phase_rules": self.weights_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
+            "weights_of_pure_phase_rules": self.weights_of_pure_phase_rules,
             "orders_of_symbolic_execution_rules": self.orders_of_symbolic_execution_rules,
+            "weights_of_symbolic_execution_rules": self.weights_of_symbolic_execution_rules,
             "orders_of_unfolding_phase_rules": self.orders_of_unfolding_phase_rules,
+            "weights_of_unfolding_phase_rules": self.weights_of_unfolding_phase_rules,
             "orders_of_any_phase_rules_or_spec_based_rules": self.orders_of_any_phase_rules_or_spec_based_rules,
-            "orders_of_sketch_hole": self.orders_of_sketch_hole,
+            "orders_of_sketch_hole_rules": self.orders_of_sketch_hole_rules,
+            "weights_of_sketch_hole_rules": self.weights_of_sketch_hole_rules,
             "orders_of_pointer_phase_rules": self.orders_of_pointer_phase_rules,
+            "weights_of_pointer_phase_rules": self.weights_of_pointer_phase_rules,
             "orders_of_post_block_phase_rules": self.orders_of_post_block_phase_rules,
             "orders_of_call_abduction_rules_1": self.orders_of_call_abduction_rules_1,
             "orders_of_call_abduction_rules_2": self.orders_of_call_abduction_rules_2,
