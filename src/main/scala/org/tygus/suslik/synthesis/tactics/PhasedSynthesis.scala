@@ -161,6 +161,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
       val anyPhaseRulesOrSpecBasedRulesNested = {
         if (goal.env.config.evolutionary)
+
           List(
             unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(0)),
             unOrderedAnyPhaseOrSpecBased(orderOfAnyPhaseOrSpecBased.apply(1))
@@ -168,7 +169,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       }
 
       //TODO: use the value from evolutionary.py instead of the hard-coded 1.0
-      anyPhaseRulesOrSpecBasedRulesNested.flatten.map(rule => (rule, 1.0)): List[(SynthesisRule, Double)]
+      anyPhaseRulesOrSpecBasedRulesNested.flatten: List[(SynthesisRule, Double)]
 
     }
 
@@ -180,9 +181,9 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
       val unOrderedSketchHole =
         List (
-          anyPhaseRules(node).filterNot(_.isInstanceOf[GeneratesCode]),
+          anyPhaseRules(node).filterNot(_._1.isInstanceOf[GeneratesCode]),
           symbolicExecutionRules(goal),
-          specBasedRules(node).filterNot(_.isInstanceOf[GeneratesCode])
+          specBasedRules(node).filterNot(_._1.isInstanceOf[GeneratesCode])
         )
 
       val sketchHoleNested = {
@@ -194,7 +195,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
           ) else List(unOrderedSketchHole:_*)
       }
 
-      sketchHoleNested.flatten.map(res => (res, 1.0)) //TODO: use the value from evolutionary.py
+      sketchHoleNested.flatten
 
     }
 
@@ -206,7 +207,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   def filterExpansions(allExpansions: Seq[(RuleResult, Double)]): Seq[(RuleResult, Double)] = allExpansions
 
-  protected def specBasedRules(node: OrNode): List[SynthesisRule] = {
+  protected def specBasedRules(node: OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
 
@@ -235,7 +236,7 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     }
   }
 
-  protected def anyPhaseRules(node:OrNode): List[SynthesisRule] = {
+  protected def anyPhaseRules(node:OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
 
@@ -273,22 +274,25 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       BranchRules.Branch
     )
 
+    val weightOfAnyPhaseRules = goal.env.weightsOfAnyPhaseRules.apply(index.toInt)
+    val unorderedPairedAnyPhaseRules = unorderedAnyPhaseRules zip weightOfAnyPhaseRules
+
     if (goal.env.config.evolutionary) {
       List(
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(2)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(3)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(4)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(5)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
-        unorderedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(0)),
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(1)),
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(2)),
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(3)),
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(4)),
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(5)),
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(6)),
+        unorderedPairedAnyPhaseRules(orderOfAnyPhaseRules.apply(7))
       )
     } else
-      List(unorderedAnyPhaseRules:_*)
+      List(unorderedPairedAnyPhaseRules:_*)
   }
 
-  protected def symbolicExecutionRules(goal:Goal): List[SynthesisRule] = {
+  protected def symbolicExecutionRules(goal:Goal): List[(SynthesisRule, Double)] = {
 
     val index = {0}
 
@@ -306,20 +310,23 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         //    SymbolicExecutionRules.GuidedCall, // TODO: Fix this later with new call rule
       )
 
+    val weightsOfSymbolicExecutionRules= goal.env.weightsOfSymbolicExecutionRules.apply(index.toInt)
+    val unorderedPairedSymbolicExecutionRules = unOrderedSymbolicExecutionRules zip weightsOfSymbolicExecutionRules
+
     if (goal.env.config.evolutionary) {
       List(
-        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(0)),
-        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(1)),
-        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(2)),
-        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(3)),
-        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(4)),
-        unOrderedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(5))
+        unorderedPairedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(0)),
+        unorderedPairedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(1)),
+        unorderedPairedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(2)),
+        unorderedPairedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(3)),
+        unorderedPairedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(4)),
+        unorderedPairedSymbolicExecutionRules(orderOfSymbolicExecutionRules.apply(5))
       )
     } else
-      List(unOrderedSymbolicExecutionRules:_*)
+      List(unorderedPairedSymbolicExecutionRules:_*)
   }
 
-  protected def unfoldingPhaseRules(node:OrNode): List[SynthesisRule] = {
+  protected def unfoldingPhaseRules(node:OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
     //TODO: check for a predicate in the post and Open in the past
@@ -351,19 +358,22 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         //    UnfoldingRules.AbduceCall, // HERE: move AbduceCall here to achieve old behavior
       )
 
+    val weightsOfUnfoldingPhaseRules = goal.env.weightsOfUnfoldingPhaseRules.apply(index.toInt)
+    val unorderedPairedUnfoldingPhaseRules = unOrderedUnfoldingPhaseRules zip weightsOfUnfoldingPhaseRules
+
     if (goal.env.config.evolutionary) {
       List(
-        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(0)),
-        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(1)),
-        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(2)),
-        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(3)),
-        unOrderedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(4))
+        unorderedPairedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(0)),
+        unorderedPairedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(1)),
+        unorderedPairedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(2)),
+        unorderedPairedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(3)),
+        unorderedPairedUnfoldingPhaseRules(orderOfUnfoldingPhaseRules.apply(4))
       )
     } else
-      List(unOrderedUnfoldingPhaseRules:_*)
+      List(unorderedPairedUnfoldingPhaseRules:_*)
   }
 
-  protected def unfoldingPostPhaseRules(node: OrNode): List[SynthesisRule] = {
+  protected def unfoldingPostPhaseRules(node: OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
     val index = 0
@@ -385,34 +395,33 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
       //}
       //else {0}
 
-
-    val ordersOfUnfoldingPostPhaseRules = goal.env.ordersOfUnfoldingPostPhaseRules
-    val orderOfUnfoldingPostPhaseRules = ordersOfUnfoldingPostPhaseRules.apply(index.toInt)
-
-    val unOrderedUnfoldingPostPhaseRule =
+    val unOrderedUnfoldingPostPhaseRules =
       List(
         LogicalRules.FrameUnfoldingFinal,
         UnificationRules.HeapUnifyUnfolding,
         UnfoldingRules.Close,
       )
 
+    val weightsOfUnfoldingPostPhaseRules = goal.env.weightsOfUnfoldingPostPhaseRules.apply(index.toInt)
+    val unorderedPairedUnfoldingPostPhaseRules = unOrderedUnfoldingPostPhaseRules zip weightsOfUnfoldingPostPhaseRules
+
+    val ordersOfUnfoldingPostPhaseRules = goal.env.ordersOfUnfoldingPostPhaseRules
+    val orderOfUnfoldingPostPhaseRules = ordersOfUnfoldingPostPhaseRules.apply(index.toInt)
+
     if (goal.env.config.evolutionary) {
       List(
-        unOrderedUnfoldingPostPhaseRule(orderOfUnfoldingPostPhaseRules.apply(0)),
-        unOrderedUnfoldingPostPhaseRule(orderOfUnfoldingPostPhaseRules.apply(1)),
-        unOrderedUnfoldingPostPhaseRule(orderOfUnfoldingPostPhaseRules.apply(2))
+        unorderedPairedUnfoldingPostPhaseRules(orderOfUnfoldingPostPhaseRules.apply(0)),
+        unorderedPairedUnfoldingPostPhaseRules(orderOfUnfoldingPostPhaseRules.apply(1)),
+        unorderedPairedUnfoldingPostPhaseRules(orderOfUnfoldingPostPhaseRules.apply(2))
       )
     } else
-      List(unOrderedUnfoldingPostPhaseRule:_*)
+      List(unorderedPairedUnfoldingPostPhaseRules:_*)
 
   }
 
-  protected def unfoldingNoUnfoldPhaseRules(goal: Goal): List[SynthesisRule] = {
+  protected def unfoldingNoUnfoldPhaseRules(goal: Goal): List[(SynthesisRule, Double)] = {
 
     val index = {0}
-
-    val ordersOfUnfoldingNoUnfoldPhaseRules = goal.env.ordersOfUnfoldingNoUnfoldPhaseRules
-    val orderOfUnfoldingNoUnfoldPhaseRules = ordersOfUnfoldingNoUnfoldPhaseRules.apply(index.toInt)
 
     val unOrderedUnfoldingNoUnfoldPhaseRules =
       Vector (
@@ -420,13 +429,19 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         UnificationRules.HeapUnifyUnfolding
       )
 
+    val weightsOfUnfoldingNoUnfoldPhaseRules = goal.env.weightsOfUnfoldingNoUnfoldPhaseRules.apply(index.toInt)
+    val unorderedPairedUnfoldingNoUnfoldPhaseRules = unOrderedUnfoldingNoUnfoldPhaseRules zip weightsOfUnfoldingNoUnfoldPhaseRules
+
+    val ordersOfUnfoldingNoUnfoldPhaseRules = goal.env.ordersOfUnfoldingNoUnfoldPhaseRules
+    val orderOfUnfoldingNoUnfoldPhaseRules = ordersOfUnfoldingNoUnfoldPhaseRules.apply(index.toInt)
+
     if (goal.env.config.evolutionary)
       List(
-        unOrderedUnfoldingNoUnfoldPhaseRules(orderOfUnfoldingNoUnfoldPhaseRules.apply(0)),
-        unOrderedUnfoldingNoUnfoldPhaseRules(orderOfUnfoldingNoUnfoldPhaseRules.apply(1))
+        unorderedPairedUnfoldingNoUnfoldPhaseRules(orderOfUnfoldingNoUnfoldPhaseRules.apply(0)),
+        unorderedPairedUnfoldingNoUnfoldPhaseRules(orderOfUnfoldingNoUnfoldPhaseRules.apply(1))
       )
     else
-      List(unOrderedUnfoldingNoUnfoldPhaseRules:_*)
+      List(unorderedPairedUnfoldingNoUnfoldPhaseRules:_*)
 
   }
 
@@ -477,16 +492,6 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
     val ordersOfCallAbductionRules1 = goal.env.ordersOfCallAbductionRules1
     val orderOfCallAbductionRules1 = ordersOfCallAbductionRules1.apply(index1.toInt)
-
-    val ordersOfCallAbductionRules2 = goal.env.ordersOfCallAbductionRules2
-    val orderOfCallAbductionRules2 = ordersOfCallAbductionRules2.apply(index2.toInt)
-
-    val ordersOfCallAbductionRules3 = goal.env.ordersOfCallAbductionRules3
-    val orderOfCallAbductionRules3 = ordersOfCallAbductionRules3.apply(index3.toInt)
-
-    val ordersOfCallAbductionRules4 = goal.env.ordersOfCallAbductionRules4
-    val orderOfCallAbductionRules4 = ordersOfCallAbductionRules4.apply(index4.toInt)
-
     val unOrderedCallAbductionRulesNested1: Vector[SynthesisRule] =
           Vector(
             UnificationRules.SubstRight,
@@ -494,25 +499,37 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
             FailRules.CheckPost,
             LogicalRules.FrameUnfoldingFinal,
             UnificationRules.HeapUnifyUnfolding)
+    val weightsOfCallAbductionRules1 = goal.env.weightsOfCallAbductionRules1.apply(index1.toInt)
+    val unorderedPairedCallAbductionRules1 = unOrderedCallAbductionRulesNested1 zip weightsOfCallAbductionRules1
 
+    val ordersOfCallAbductionRules2 = goal.env.ordersOfCallAbductionRules2
+    val orderOfCallAbductionRules2 = ordersOfCallAbductionRules2.apply(index2.toInt)
     val unOrderedCallAbductionRulesNested2: Vector[SynthesisRule] =
-          Vector(
-            UnificationRules.SubstRight,
-            FailRules.PostInconsistent,
-            FailRules.CheckPost,
-            LogicalRules.FrameBlock,
-            UnificationRules.HeapUnifyBlock
-          )
+      Vector(
+        UnificationRules.SubstRight,
+        FailRules.PostInconsistent,
+        FailRules.CheckPost,
+        LogicalRules.FrameBlock,
+        UnificationRules.HeapUnifyBlock
+      )
+    val weightsOfCallAbductionRules2 = goal.env.weightsOfCallAbductionRules2.apply(index2.toInt)
+    val unorderedPairedCallAbductionRules2 = unOrderedCallAbductionRulesNested2 zip weightsOfCallAbductionRules2
 
+    val ordersOfCallAbductionRules3 = goal.env.ordersOfCallAbductionRules3
+    val orderOfCallAbductionRules3 = ordersOfCallAbductionRules3.apply(index3.toInt)
     val unOrderedCallAbductionRulesNested3: Vector[SynthesisRule] =
-          Vector(
-            UnificationRules.SubstRight,
-            FailRules.PostInconsistent,
-            FailRules.CheckPost,
-            LogicalRules.FrameFlat,
-            UnificationRules.HeapUnifyPointer
-          )
+      Vector(
+        UnificationRules.SubstRight,
+        FailRules.PostInconsistent,
+        FailRules.CheckPost,
+        LogicalRules.FrameFlat,
+        UnificationRules.HeapUnifyPointer
+      )
+    val weightsOfCallAbductionRules3 = goal.env.weightsOfCallAbductionRules3.apply(index3.toInt)
+    val unorderedPairedCallAbductionRules3 = unOrderedCallAbductionRulesNested3 zip weightsOfCallAbductionRules3
 
+    val ordersOfCallAbductionRules4 = goal.env.ordersOfCallAbductionRules4
+    val orderOfCallAbductionRules4 = ordersOfCallAbductionRules4.apply(index4.toInt)
     val unOrderedCallAbductionRulesNested4: Vector[SynthesisRule] =
           Vector(
             UnificationRules.SubstRight,
@@ -528,27 +545,39 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
             OperationalRules.WriteRule,
             UnificationRules.Pick
           )
+    val weightsOfCallAbductionRules4 = goal.env.weightsOfCallAbductionRules4.apply(index4.toInt)
+    val unorderedPairedCallAbductionRules4 = unOrderedCallAbductionRulesNested4 zip weightsOfCallAbductionRules4
 
-    val defaultOrderedCallAbductionRulesNest =
-      List(
-        List (UnificationRules.SubstRight),
-        List (FailRules.PostInconsistent),
-        List(FailRules.CheckPost),
-        (if (goal.post.sigma.apps.nonEmpty)
+    val defaultPairedOrderedCallAbductionRules =
+       (if (goal.post.sigma.apps.nonEmpty)
           List(
+            UnificationRules.SubstRight,
+            FailRules.PostInconsistent,
+            FailRules.CheckPost,
             LogicalRules.FrameUnfoldingFinal,
-            UnificationRules.HeapUnifyUnfolding)
+            UnificationRules.HeapUnifyUnfolding
+          ) zip weightsOfCallAbductionRules1
         else if (goal.post.sigma.blocks.nonEmpty)
           List(
+            UnificationRules.SubstRight,
+            FailRules.PostInconsistent,
+            FailRules.CheckPost,
             LogicalRules.FrameBlock,
             UnificationRules.HeapUnifyBlock,
-          )
+          ) zip weightsOfCallAbductionRules2
         else if (goal.hasExistentialPointers)
           List(
+            UnificationRules.SubstRight,
+            FailRules.PostInconsistent,
+            FailRules.CheckPost,
             LogicalRules.FrameFlat,
-            UnificationRules.HeapUnifyPointer)
+            UnificationRules.HeapUnifyPointer
+          ) zip weightsOfCallAbductionRules3
         else
           List(
+            UnificationRules.SubstRight,
+            FailRules.PostInconsistent,
+            FailRules.CheckPost,
             UnfoldingRules.CallRule,
             LogicalRules.FrameFlat,
             UnificationRules.PickArg,
@@ -558,66 +587,62 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
             LogicalRules.SimplifyConditional,
             OperationalRules.WriteRule,
             UnificationRules.Pick
-          )
-          )
-      )
+          ) zip weightsOfCallAbductionRules4
+         )
 
     val orderedCallAbductionRulesNested =
       if (goal.env.config.evolutionary)
         (if (goal.post.sigma.apps.nonEmpty)
           List(
-            unOrderedCallAbductionRulesNested1(orderOfCallAbductionRules1.apply(0)),
-            unOrderedCallAbductionRulesNested1(orderOfCallAbductionRules1.apply(1)),
-            unOrderedCallAbductionRulesNested1(orderOfCallAbductionRules1.apply(2)),
-            unOrderedCallAbductionRulesNested1(orderOfCallAbductionRules1.apply(3)),
-            unOrderedCallAbductionRulesNested1(orderOfCallAbductionRules1.apply(4))
+            unorderedPairedCallAbductionRules1(orderOfCallAbductionRules1.apply(0)),
+            unorderedPairedCallAbductionRules1(orderOfCallAbductionRules1.apply(1)),
+            unorderedPairedCallAbductionRules1(orderOfCallAbductionRules1.apply(2)),
+            unorderedPairedCallAbductionRules1(orderOfCallAbductionRules1.apply(3)),
+            unorderedPairedCallAbductionRules1(orderOfCallAbductionRules1.apply(4))
           )
         else if (goal.post.sigma.blocks.nonEmpty)
           List(
-            unOrderedCallAbductionRulesNested2(orderOfCallAbductionRules2.apply(0)),
-            unOrderedCallAbductionRulesNested2(orderOfCallAbductionRules2.apply(1)),
-            unOrderedCallAbductionRulesNested2(orderOfCallAbductionRules2.apply(2)),
-            unOrderedCallAbductionRulesNested2(orderOfCallAbductionRules2.apply(3)),
-            unOrderedCallAbductionRulesNested2(orderOfCallAbductionRules2.apply(4))
+            unorderedPairedCallAbductionRules2(orderOfCallAbductionRules2.apply(0)),
+            unorderedPairedCallAbductionRules2(orderOfCallAbductionRules2.apply(1)),
+            unorderedPairedCallAbductionRules2(orderOfCallAbductionRules2.apply(2)),
+            unorderedPairedCallAbductionRules2(orderOfCallAbductionRules2.apply(3)),
+            unorderedPairedCallAbductionRules2(orderOfCallAbductionRules2.apply(4))
           )
         else if (goal.hasExistentialPointers)
           List(
-            unOrderedCallAbductionRulesNested3(orderOfCallAbductionRules3.apply(0)),
-            unOrderedCallAbductionRulesNested3(orderOfCallAbductionRules3.apply(1)),
-            unOrderedCallAbductionRulesNested3(orderOfCallAbductionRules3.apply(2)),
-            unOrderedCallAbductionRulesNested3(orderOfCallAbductionRules3.apply(3)),
-            unOrderedCallAbductionRulesNested3(orderOfCallAbductionRules3.apply(4))
+            unorderedPairedCallAbductionRules3(orderOfCallAbductionRules3.apply(0)),
+            unorderedPairedCallAbductionRules3(orderOfCallAbductionRules3.apply(1)),
+            unorderedPairedCallAbductionRules3(orderOfCallAbductionRules3.apply(2)),
+            unorderedPairedCallAbductionRules3(orderOfCallAbductionRules3.apply(3)),
+            unorderedPairedCallAbductionRules3(orderOfCallAbductionRules3.apply(4))
           )
         else
           List(
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(0)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(1)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(2)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(3)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(4)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(5)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(6)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(7)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(8)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(9)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(10)),
-            unOrderedCallAbductionRulesNested4(orderOfCallAbductionRules4.apply(11))
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(0)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(1)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(2)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(3)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(4)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(5)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(6)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(7)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(8)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(9)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(10)),
+            unorderedPairedCallAbductionRules4(orderOfCallAbductionRules4.apply(11))
           )
           )
       else
-        defaultOrderedCallAbductionRulesNest.flatten
+        defaultPairedOrderedCallAbductionRules
 
-    orderedCallAbductionRulesNested.map(res => (res, 1.0)) //TODO: use the values from evolutionary.py intead of 1.0
+    orderedCallAbductionRulesNested
   }
 
-  protected def postBlockPhaseRules(goal: Goal): List[SynthesisRule] = {
+  protected def postBlockPhaseRules(goal: Goal): List[(SynthesisRule, Double)] = {
 
     val index = {0}
 
-    val ordersOfPostBlockPhaseRules = goal.env.ordersOfPostBlockPhaseRules
-    val orderOfPostBlockPhaseRules = ordersOfPostBlockPhaseRules.apply(index.toInt)
-
-    val unOrdersOfPostBlockPhaseRules =
+    val unOrderedOfPostBlockPhaseRules =
       Vector(
         (if (config.branchAbduction) BranchRules.AbduceBranch else FailRules.CheckPost),
         LogicalRules.FrameBlock,
@@ -625,31 +650,29 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         OperationalRules.AllocRule
       )
 
+    val weightsOfPostBlockPhaseRules = goal.env.weightsOfPostBlockPhaseRules.apply(index.toInt)
+    val unorderedPairedPostBlockPhaseRules = unOrderedOfPostBlockPhaseRules zip weightsOfPostBlockPhaseRules
+
+    val ordersOfPostBlockPhaseRules = goal.env.ordersOfPostBlockPhaseRules
+    val orderOfPostBlockPhaseRules = ordersOfPostBlockPhaseRules.apply(index.toInt)
+
     if (goal.env.config.evolutionary)
       List(
-        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(0)),
-        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(1)),
-        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(2)),
-        unOrdersOfPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(3))
+        unorderedPairedPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(0)),
+        unorderedPairedPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(1)),
+        unorderedPairedPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(2)),
+        unorderedPairedPostBlockPhaseRules(orderOfPostBlockPhaseRules.apply(3))
       )
-    else List(unOrdersOfPostBlockPhaseRules:_*)
+    else List(unorderedPairedPostBlockPhaseRules:_*)
   }
 
-  protected def preBlockPhaseRules: List[SynthesisRule] = List(
-    OperationalRules.FreeRule
+  protected def preBlockPhaseRules: List[(SynthesisRule, Double)] = List(
+    (OperationalRules.FreeRule, 1.0)//TODO
   )
 
-  protected def pointerPhaseRules(node:OrNode): List[SynthesisRule] = {
+  protected def pointerPhaseRules(node:OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
-    val index = { 0
-      //if (goal.env.runtime_rule_order_selection)
-      //  (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,0) else 0) // for LogicalRules.FrameFlat
-      //else 0
-    }
-
-    val ordersOfPointerPhaseRules = goal.env.ordersOfPointerPhaseRules
-    val orderOfPointerPhaseRules = ordersOfPointerPhaseRules.apply(index.toInt)
 
     val unOrderedPointerPhaseRules =
       Vector(
@@ -659,14 +682,26 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         UnificationRules.HeapUnifyPointer
       )
 
+    val index = { 0
+      //if (goal.env.runtime_rule_order_selection)
+      //  (if (node.isJustAfter(OperationalRules.WriteRule)) math.pow(2,0) else 0) // for LogicalRules.FrameFlat
+      //else 0
+    }
+
+    val weightsOfPointerPhaseRules = goal.env.weightsOfPointerPhaseRules.apply(index.toInt)
+    val unorderedPairedPointerPhaseRules = unOrderedPointerPhaseRules zip weightsOfPointerPhaseRules
+
+    val ordersOfPointerPhaseRules = goal.env.ordersOfPointerPhaseRules
+    val orderOfPointerPhaseRules = ordersOfPointerPhaseRules.apply(index.toInt)
+
     if (goal.env.config.evolutionary)
       List(
-        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(0)),
-        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(1)),
-        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(2)),
-        unOrderedPointerPhaseRules(orderOfPointerPhaseRules.apply(3))
+        unorderedPairedPointerPhaseRules(orderOfPointerPhaseRules.apply(0)),
+        unorderedPairedPointerPhaseRules(orderOfPointerPhaseRules.apply(1)),
+        unorderedPairedPointerPhaseRules(orderOfPointerPhaseRules.apply(2)),
+        unorderedPairedPointerPhaseRules(orderOfPointerPhaseRules.apply(3))
       )
-    else List(unOrderedPointerPhaseRules:_*)
+    else List(unorderedPairedPointerPhaseRules:_*)
 
   }
 
@@ -674,9 +709,31 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
   // - frame
   // - write
   // - HeapUnifyPure or Pick
-  protected def purePhaseRules(node: OrNode): List[SynthesisRule] = {
+  protected def purePhaseRules(node: OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
+
+    val index = {
+      if (goal.env.runtime_rule_order_selection) {
+        if (goal.env.fewer_feature_combinations) {
+          if (preferFrameAfterWrite(node)) {0} else {
+            if (preferWriteIfPointers(goal)) {1} else {
+              if (preferWriteAfterAlloc(node)) {2} else {
+                if (preferPickOrHeapUnifyPure(goal)) {3} else {
+                  4
+                }
+              }
+            }
+          }
+        } else {
+          (if (preferFrameAfterWrite(node)) math.pow(2,0) else 0)
+          + (if (preferWriteIfPointers(goal)) math.pow(2,1) else 0)
+          + (if (preferWriteAfterAlloc(node)) math.pow(2,2) else 0)
+          + (if (preferPickOrHeapUnifyPure(goal)) math.pow(2,3) else 0)
+        }
+      }
+      else {0}
+    }
 
     val unorderedPurePhaseRules =
       Vector(
@@ -692,46 +749,27 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
         if (config.delegatePure) DelegatePureSynthesis.PureSynthesisFinal else UnificationRules.Pick
       )
 
-    val index = {
-      if (goal.env.runtime_rule_order_selection) {
-        if (goal.env.fewer_feature_combinations) {
-          if (preferFrameAfterWrite(node)) {0} else {
-            if (preferWriteIfPointers(goal)) {1} else {
-              if (preferWriteAfterAlloc(node)) {2} else {
-                if (preferPickOrHeapUnifyPure(goal)) {3} else {
-                  4
-                }
-              }
-            }
-          }
-        } else {
-            (if (preferFrameAfterWrite(node)) math.pow(2,0) else 0)
-          + (if (preferWriteIfPointers(goal)) math.pow(2,1) else 0)
-          + (if (preferWriteAfterAlloc(node)) math.pow(2,2) else 0)
-          + (if (preferPickOrHeapUnifyPure(goal)) math.pow(2,3) else 0)
-        }
-      }
-      else {0}
-    }
+    val weightsOfPurePhaseRules = goal.env.weightsOfPurePhaseRules.apply(index.toInt)
+    val unorderedPairedPurePhaseRules = unorderedPurePhaseRules zip weightsOfPurePhaseRules
 
     val ordersOfPurePhaseRules = goal.env.ordersOfPurePhaseRules
     val orderOfPurePhaseRules = ordersOfPurePhaseRules.apply(index.toInt)
 
     if (goal.env.config.evolutionary) {
       List(
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(0)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(1)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(2)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(3)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(4)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(5)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(6)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(7)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(8)),
-        unorderedPurePhaseRules(orderOfPurePhaseRules.apply(9))
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(0)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(1)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(2)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(3)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(4)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(5)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(6)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(7)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(8)),
+        unorderedPairedPurePhaseRules(orderOfPurePhaseRules.apply(9))
       )
     } else
-      List(unorderedPurePhaseRules:_*)
+      List(unorderedPairedPurePhaseRules:_*)
 
   }
 

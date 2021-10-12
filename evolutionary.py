@@ -15,11 +15,11 @@ NUMB_OF_ANY_PHASE_RULE = 8
 NUMB_OF_PURE_PHASE_RULE = 10
 NUMB_OF_SYMBOLIC_EXECUTION_RULE = 6
 NUMB_OF_UNFOLDING_PHASE_RULE = 5
-NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2
+NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2 #TODO: weights?
 NUMB_OF_SKETCH_HOLE_RULE = 3
 NUMB_OF_POINTER_PHASE_RULE = 4
 NUMB_OF_POST_BLOCK_PHASE_RULE = 4
-NUMB_OF_CALL_ABDUCTION_RULE = 4
+NUMB_OF_CALL_ABDUCTION_RULE = 4 #TODO: REMOVE?
 NUMB_OF_CALL_ABDUCTION_RULE_1 = 5
 NUMB_OF_CALL_ABDUCTION_RULE_2 = 5
 NUMB_OF_CALL_ABDUCTION_RULE_3 = 5
@@ -43,13 +43,14 @@ NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 4
 NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES = 0
 NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 0
 NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES = 0
+NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES = 1
+NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3 = 0
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4 = 5
 NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES = 1
-NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES = 1
-NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 0
+NUMB_OF_FEATURES_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES = 0
 
 if FEWER_FEATURE_COMBINATION:
     NUMB_OF_FEATURE_COMBINATION = 1 + NUMB_OF_FEATURES
@@ -61,13 +62,15 @@ if FEWER_FEATURE_COMBINATION:
         1 + NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES = 1 + NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3
     NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4 = 1 + NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4
-    NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
-    NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES = 1 + NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES = \
+        1 + NUMB_OF_FEATURES_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES
 else:
     NUMB_OF_FEATURE_COMBINATION = 2 ** NUMB_OF_FEATURES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES = \
@@ -85,7 +88,8 @@ else:
     NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES
     NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES = 2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES
-
+    NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES = \
+        2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES
 
 class Individual(list):
     """This class describe SuSLik's search strategy for individuals in each generation of each group."""
@@ -117,12 +121,19 @@ class Individual(list):
                  orders_of_pointer_phase_rules=None,
                  weights_of_pointer_phase_rules=None,
                  orders_of_post_block_phase_rules=None,
+                 weights_of_post_block_phase_rules=None,
                  orders_of_call_abduction_rules_1=None,
+                 weights_of_call_abduction_rules_1=None,
                  orders_of_call_abduction_rules_2=None,
+                 weights_of_call_abduction_rules_2=None,
                  orders_of_call_abduction_rules_3=None,
+                 weights_of_call_abduction_rules_3=None,
                  orders_of_call_abduction_rules_4=None,
+                 weights_of_call_abduction_rules_4=None,
                  orders_of_unfolding_post_phase_rules=None,
+                 weights_of_unfolding_post_phase_rules=None,
                  orders_of_unfolding_no_unfold_phase_rules=None,
+                 weights_of_unfolding_no_unfold_phase_rules=None,
                  weight_of_cost_no_call_goal_pre: float = 3.0,
                  weight_of_cost_no_call_goal_post: float = 1.0,
                  weight_of_cost_call_goal: float = 10.0,
@@ -151,13 +162,13 @@ class Individual(list):
 
         if ancestor_ranks is None:
             ancestor_ranks = []
-        self.ancestor_ranks = ancestor_ranks
+            self.ancestor_ranks = ancestor_ranks
 
         if orders_of_any_phase_rules is None:
             orders_of_any_phase_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
                 orders_of_any_phase_rules.append(random.sample(range(NUMB_OF_ANY_PHASE_RULE), NUMB_OF_ANY_PHASE_RULE))
-        self.orders_of_any_phase_rules = orders_of_any_phase_rules
+            self.orders_of_any_phase_rules = orders_of_any_phase_rules
 
         if weights_of_any_phase_rules is None:
             weights_of_any_phase_rules = []
@@ -173,13 +184,13 @@ class Individual(list):
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
                 orders_of_pure_phase_rules.append \
                     (random.sample(range(NUMB_OF_PURE_PHASE_RULE), NUMB_OF_PURE_PHASE_RULE))
-        self.orders_of_pure_phase_rules = orders_of_pure_phase_rules
+            self.orders_of_pure_phase_rules = orders_of_pure_phase_rules
 
         if weights_of_pure_phase_rules is None:
             weights_of_pure_phase_rules = []
             for feature_combination_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
                 ws_for_each_combination = []
-                for rule_index in range(NUMB_OF_PURE_RULE):
+                for rule_index in range(NUMB_OF_PURE_PHASE_RULE):
                     ws_for_each_combination.append(1.0)
                 weights_of_pure_phase_rules.append(ws_for_each_combination)
             self.weights_of_pure_phase_rules = weights_of_pure_phase_rules
@@ -205,7 +216,7 @@ class Individual(list):
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
                 orders_of_unfolding_phase_rules.append \
                     (random.sample(range(NUMB_OF_UNFOLDING_PHASE_RULE), NUMB_OF_UNFOLDING_PHASE_RULE))
-        self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
+            self.orders_of_unfolding_phase_rules = orders_of_unfolding_phase_rules
 
         if weights_of_unfolding_phase_rules is None:
             weights_of_unfolding_phase_rules = []
@@ -222,13 +233,13 @@ class Individual(list):
                 orders_of_any_phase_rules_or_spec_based_rules.append \
                     (random.sample(range(NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE),
                                    NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE))
-        self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
+            self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
 
         if orders_of_sketch_hole_rules is None:
             orders_of_sketch_hole_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
                 orders_of_sketch_hole_rules.append(random.sample(range(NUMB_OF_SKETCH_HOLE_RULE), NUMB_OF_SKETCH_HOLE_RULE))
-        self.orders_of_sketch_hole_rules = orders_of_sketch_hole_rules
+            self.orders_of_sketch_hole_rules = orders_of_sketch_hole_rules
 
         if weights_of_sketch_hole_rules is None:
             weights_of_sketch_hole_rules = []
@@ -244,7 +255,7 @@ class Individual(list):
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES):
                 orders_of_pointer_phase_rules.append \
                     (random.sample(range(NUMB_OF_POINTER_PHASE_RULE), NUMB_OF_POINTER_PHASE_RULE))
-        self.orders_of_pointer_phase_rules = orders_of_pointer_phase_rules
+            self.orders_of_pointer_phase_rules = orders_of_pointer_phase_rules
 
         if weights_of_pointer_phase_rules is None:
             weights_of_pointer_phase_rules = []
@@ -260,42 +271,96 @@ class Individual(list):
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES):
                 orders_of_post_block_phase_rules.append \
                     (random.sample(range(NUMB_OF_POST_BLOCK_PHASE_RULE), NUMB_OF_POST_BLOCK_PHASE_RULE))
-        self.orders_of_post_block_phase_rules = orders_of_post_block_phase_rules
+            self.orders_of_post_block_phase_rules = orders_of_post_block_phase_rules
+
+        if weights_of_post_block_phase_rules is None:
+            weights_of_post_block_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_POST_BLOCK_PHASE_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_post_block_phase_rules.append(ws_for_each_combination)
+            self.weights_of_post_block_phase_rules = weights_of_post_block_phase_rules
 
         if orders_of_call_abduction_rules_1 is None:
             orders_of_call_abduction_rules_1 = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1):
                 orders_of_call_abduction_rules_1.append \
                     (random.sample(range(NUMB_OF_CALL_ABDUCTION_RULE_1), NUMB_OF_CALL_ABDUCTION_RULE_1))
-        self.orders_of_call_abduction_rules_1 = orders_of_call_abduction_rules_1
+            self.orders_of_call_abduction_rules_1 = orders_of_call_abduction_rules_1
+
+        if weights_of_call_abduction_rules_1 is None:
+            weights_of_call_abduction_rules_1 = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_1):
+                    ws_for_each_combination.append(1.0)
+                weights_of_call_abduction_rules_1.append(ws_for_each_combination)
+            self.weights_of_call_abduction_rules_1 = weights_of_call_abduction_rules_1
 
         if orders_of_call_abduction_rules_2 is None:
             orders_of_call_abduction_rules_2 = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
                 orders_of_call_abduction_rules_2.append \
                     (random.sample(range(NUMB_OF_CALL_ABDUCTION_RULE_2), NUMB_OF_CALL_ABDUCTION_RULE_2))
-        self.orders_of_call_abduction_rules_2 = orders_of_call_abduction_rules_2
+            self.orders_of_call_abduction_rules_2 = orders_of_call_abduction_rules_2
+
+        if weights_of_call_abduction_rules_2 is None:
+            weights_of_call_abduction_rules_2 = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_2):
+                    ws_for_each_combination.append(1.0)
+                weights_of_call_abduction_rules_2.append(ws_for_each_combination)
+            self.weights_of_call_abduction_rules_2 = weights_of_call_abduction_rules_2
 
         if orders_of_call_abduction_rules_3 is None:
             orders_of_call_abduction_rules_3 = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3):
                 orders_of_call_abduction_rules_3.append \
                     (random.sample(range(NUMB_OF_CALL_ABDUCTION_RULE_3), NUMB_OF_CALL_ABDUCTION_RULE_3))
-        self.orders_of_call_abduction_rules_3 = orders_of_call_abduction_rules_3
+            self.orders_of_call_abduction_rules_3 = orders_of_call_abduction_rules_3
+
+        if weights_of_call_abduction_rules_3 is None:
+            weights_of_call_abduction_rules_3 = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_3):
+                    ws_for_each_combination.append(1.0)
+                weights_of_call_abduction_rules_3.append(ws_for_each_combination)
+            self.weights_of_call_abduction_rules_3 = weights_of_call_abduction_rules_3
 
         if orders_of_call_abduction_rules_4 is None:
             orders_of_call_abduction_rules_4 = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
                 orders_of_call_abduction_rules_4.append \
                     (random.sample(range(NUMB_OF_CALL_ABDUCTION_RULE_4), NUMB_OF_CALL_ABDUCTION_RULE_4))
-        self.orders_of_call_abduction_rules_4 = orders_of_call_abduction_rules_4
+            self.orders_of_call_abduction_rules_4 = orders_of_call_abduction_rules_4
+
+        if weights_of_call_abduction_rules_4 is None:
+            weights_of_call_abduction_rules_4 = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_4):
+                    ws_for_each_combination.append(1.0)
+                weights_of_call_abduction_rules_4.append(ws_for_each_combination)
+            self.weights_of_call_abduction_rules_4 = weights_of_call_abduction_rules_4
 
         if orders_of_unfolding_post_phase_rules is None:
             orders_of_unfolding_post_phase_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES):
                 orders_of_unfolding_post_phase_rules.append \
                     (random.sample(range(NUMB_OF_UNFOLDING_POST_PHASE_RULE), NUMB_OF_UNFOLDING_POST_PHASE_RULE))
-        self.orders_of_unfolding_post_phase_rules = orders_of_unfolding_post_phase_rules
+            self.orders_of_unfolding_post_phase_rules = orders_of_unfolding_post_phase_rules
+
+        if weights_of_unfolding_post_phase_rules is None:
+            weights_of_unfolding_post_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_UNFOLDING_POST_PHASE_RULE):
+                    ws_for_each_combination.append(1.0)
+                weights_of_unfolding_post_phase_rules.append(ws_for_each_combination)
+            self.weights_of_unfolding_post_phase_rules = weights_of_unfolding_post_phase_rules
 
         if orders_of_unfolding_no_unfold_phase_rules is None:
             orders_of_unfolding_no_unfold_phase_rules = []
@@ -303,7 +368,16 @@ class Individual(list):
                 orders_of_unfolding_no_unfold_phase_rules.append \
                     (random.sample(range(NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES),
                                    NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES))
-        self.orders_of_unfolding_no_unfold_phase_rules = orders_of_unfolding_no_unfold_phase_rules
+            self.orders_of_unfolding_no_unfold_phase_rules = orders_of_unfolding_no_unfold_phase_rules
+
+        if weights_of_unfolding_no_unfold_phase_rules is None:
+            weights_of_unfolding_no_unfold_phase_rules = []
+            for i in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES):
+                ws_for_each_combination = []
+                for rule_index in range(NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES):
+                    ws_for_each_combination.append(1.0)
+                weights_of_unfolding_no_unfold_phase_rules.append(ws_for_each_combination)
+            self.weights_of_unfolding_no_unfold_phase_rules = weights_of_unfolding_no_unfold_phase_rules
 
     def get_group_id(self):
         return self.group_id
@@ -376,7 +450,7 @@ class Individual(list):
 
         for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
             tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATION):
+        for feature_index in range(NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES):
             for rule_index in range(NUMB_OF_SYMBOLIC_EXECUTION_RULE):
                 weight = self.weights_of_symbolic_execution_rules[feature_index][rule_index]
                 self.weights_of_symbolic_execution_rules[feature_index][rule_index] = \
@@ -386,8 +460,8 @@ class Individual(list):
             tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
             for rule_index in range(NUMB_OF_UNFOLDING_PHASE_RULE):
-                weight = self.weights_of_unfolding_rules[feature_index][rule_index]
-                self.weights_of_unfolding_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                weight = self.weights_of_unfolding_phase_rules[feature_index][rule_index]
+                self.weights_of_unfolding_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
 
         for order_of_any_phase_rules_or_spec_based_rules in self.orders_of_any_phase_rules_or_spec_based_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules_or_spec_based_rules, indpb=INDPB)
@@ -405,20 +479,56 @@ class Individual(list):
             for rule_index in range(NUMB_OF_POINTER_PHASE_RULE):
                 weight = self.weights_of_pointer_phase_rules[feature_index][rule_index]
                 self.weights_of_pointer_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
-        #for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
-        #    tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
-        #for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
-        #    tools.mutShuffleIndexes(order_of_call_abduction_rules_1, indpb=INDPB)
-        #for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
-        #    tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
-        #for order_of_call_abduction_rules_3 in self.orders_of_call_abduction_rules_3:
-        #    tools.mutShuffleIndexes(order_of_call_abduction_rules_3, indpb=INDPB)
+
+        for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
+            tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES):
+            for rule_index in range(NUMB_OF_POST_BLOCK_PHASE_RULE):
+                weight = self.weights_of_post_block_phase_rules[feature_index][rule_index]
+                self.weights_of_post_block_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
+            tools.mutShuffleIndexes(order_of_call_abduction_rules_1, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1):
+            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_1):
+                weight = self.weights_of_call_abduction_rules_1[feature_index][rule_index]
+                self.weights_of_call_abduction_rules_1[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
+            tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
+            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_2):
+                weight = self.weights_of_call_abduction_rules_2[feature_index][rule_index]
+                self.weights_of_call_abduction_rules_2[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_call_abduction_rules_3 in self.orders_of_call_abduction_rules_3:
+            tools.mutShuffleIndexes(order_of_call_abduction_rules_3, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3):
+            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_3):
+                weight = self.weights_of_call_abduction_rules_3[feature_index][rule_index]
+                self.weights_of_call_abduction_rules_3[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
         for order_of_call_abduction_rules_4 in self.orders_of_call_abduction_rules_4:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_4, indpb=INDPB)
-        #for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
-        #    tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
-        #for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
-        #    tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
+            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_4):
+                weight = self.orders_of_call_abduction_rules_4[feature_index][rule_index]
+                self.orders_of_call_abduction_rules_4[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
+            tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES):
+            for rule_index in range(NUMB_OF_UNFOLDING_POST_PHASE_RULE):
+                weight = self.weights_of_unfolding_post_phase_rules[feature_index][rule_index]
+                self.weights_of_unfolding_post_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
+        for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
+            tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
+        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES):
+            for rule_index in range(NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES):
+                weight = self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index]
+                self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+
         #self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
         #self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
         #self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
@@ -529,12 +639,19 @@ class Individual(list):
             "orders_of_pointer_phase_rules": self.orders_of_pointer_phase_rules,
             "weights_of_pointer_phase_rules": self.weights_of_pointer_phase_rules,
             "orders_of_post_block_phase_rules": self.orders_of_post_block_phase_rules,
+            "weights_of_post_block_phase_rules": self.weights_of_post_block_phase_rules,
             "orders_of_call_abduction_rules_1": self.orders_of_call_abduction_rules_1,
+            "weights_of_call_abduction_rules_1": self.weights_of_call_abduction_rules_1,
             "orders_of_call_abduction_rules_2": self.orders_of_call_abduction_rules_2,
+            "weights_of_call_abduction_rules_2": self.weights_of_call_abduction_rules_2,
             "orders_of_call_abduction_rules_3": self.orders_of_call_abduction_rules_3,
+            "weights_of_call_abduction_rules_3": self.weights_of_call_abduction_rules_3,
             "orders_of_call_abduction_rules_4": self.orders_of_call_abduction_rules_4,
+            "weights_of_call_abduction_rules_4": self.weights_of_call_abduction_rules_4,
             "orders_of_unfolding_post_phase_rules": self.orders_of_unfolding_post_phase_rules,
+            "weights_of_unfolding_post_phase_rules": self.weights_of_unfolding_post_phase_rules,
             "orders_of_unfolding_no_unfold_phase_rules": self.orders_of_unfolding_no_unfold_phase_rules,
+            "weights_of_unfolding_no_unfold_phase_rules": self.weights_of_unfolding_no_unfold_phase_rules,
             "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
             "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
             "weight_of_cost_call_goal": self.weight_of_cost_call_goal,

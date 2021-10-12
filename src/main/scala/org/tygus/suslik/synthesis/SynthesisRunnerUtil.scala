@@ -151,51 +151,80 @@ trait SynthesisRunnerUtil {
     val directoryPath = os.pwd
     val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     val jsonData      = ujson.read(jsonFile)
-    val ordersOfAnyPhaseRules                 = jsonData("orders_of_any_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfPurePhaseRules                = jsonData("orders_of_pure_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfSymbolicExecutionRules        = jsonData("orders_of_symbolic_execution_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfUnfoldingPhaseRules           = jsonData("orders_of_unfolding_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfAnyPhaseRulesOrSpecBasedRules = jsonData("orders_of_any_phase_rules_or_spec_based_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfSketchHole                    = jsonData("orders_of_sketch_hole").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfPointerPhaseRules             = jsonData("orders_of_pointer_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfPostBlockPhaseRules           = jsonData("orders_of_post_block_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfCallAbductionRules1           = jsonData("orders_of_call_abduction_rules_1").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfCallAbductionRules2           = jsonData("orders_of_call_abduction_rules_2").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfCallAbductionRules3           = jsonData("orders_of_call_abduction_rules_3").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfCallAbductionRules4           = jsonData("orders_of_call_abduction_rules_4").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfUnfoldingPostPhaseRules       = jsonData("orders_of_unfolding_post_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val ordersOfUnfoldingNoUnfoldPhaseRules   = jsonData("orders_of_unfolding_no_unfold_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
-    val weight_of_cost_no_call_goal_pre       = jsonData("weight_of_cost_no_call_goal_pre").num
-    val weight_of_cost_no_call_goal_post      = jsonData("weight_of_cost_no_call_goal_post").num
-    val weight_of_cost_call_goal              = jsonData("weight_of_cost_call_goal").num
-    val weight_of_cost_call_goal_pre          = jsonData("weight_of_cost_call_goal_pre").num
-    val weight_of_cost_call_goal_post         = jsonData("weight_of_cost_call_goal_post").num
-    val runtime_rule_order_selection          = jsonData("runtime_rule_order_selection").bool: Boolean
-    val fewer_feature_combinations            = jsonData("fewer_feature_combinations").bool: Boolean
+    val ordersOfAnyPhaseRules                  = jsonData("orders_of_any_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfAnyPhaseRules                 = jsonData("weights_of_any_phase_rules").arr.map(_.arr.map(_.num))
+    val ordersOfPurePhaseRules                 = jsonData("orders_of_pure_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfPurePhaseRules                = jsonData("weights_of_pure_phase_rules").arr.map(_.arr.map(_.num))
+    val ordersOfSymbolicExecutionRules         = jsonData("orders_of_symbolic_execution_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfSymbolicExecutionRules        = jsonData("weights_of_symbolic_execution_rules").arr.map(_.arr.map(_.num))
+    val ordersOfUnfoldingPhaseRules            = jsonData("orders_of_unfolding_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfUnfoldingPhaseRules           = jsonData("weights_of_unfolding_phase_rules").arr.map(_.arr.map(_.num))
+    val ordersOfAnyPhaseRulesOrSpecBasedRules  = jsonData("orders_of_any_phase_rules_or_spec_based_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val ordersOfSketchHoleRules                = jsonData("orders_of_sketch_hole_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfSketchHoleRules               = jsonData("weights_of_sketch_hole_rules").arr.map(_.arr.map(_.num))
+    val ordersOfPointerPhaseRules              = jsonData("orders_of_pointer_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfPointerPhaseRules             = jsonData("weights_of_pointer_phase_rules").arr.map(_.arr.map(_.num))
+    val ordersOfPostBlockPhaseRules            = jsonData("orders_of_post_block_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfPostBlockPhaseRules           = jsonData("weights_of_post_block_phase_rules").arr.map(_.arr.map(_.num))
+    val ordersOfCallAbductionRules1            = jsonData("orders_of_call_abduction_rules_1").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfCallAbductionRules1           = jsonData("weights_of_call_abduction_rules_1").arr.map(_.arr.map(_.num))
+    val ordersOfCallAbductionRules2            = jsonData("orders_of_call_abduction_rules_2").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfCallAbductionRules2           = jsonData("weights_of_call_abduction_rules_2").arr.map(_.arr.map(_.num))
+    val ordersOfCallAbductionRules3            = jsonData("orders_of_call_abduction_rules_3").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfCallAbductionRules3           = jsonData("weights_of_call_abduction_rules_3").arr.map(_.arr.map(_.num))
+    val ordersOfCallAbductionRules4            = jsonData("orders_of_call_abduction_rules_4").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfCallAbductionRules4           = jsonData("weights_of_call_abduction_rules_4").arr.map(_.arr.map(_.num))
+    val ordersOfUnfoldingPostPhaseRules        = jsonData("orders_of_unfolding_post_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfUnfoldingPostPhaseRules       = jsonData("weights_of_unfolding_post_phase_rules").arr.map(_.arr.map(_.num))
+    val ordersOfUnfoldingNoUnfoldPhaseRules    = jsonData("orders_of_unfolding_no_unfold_phase_rules").arr.map(_.arr.map(_.num).map(_.toInt))
+    val weightsOfUnfoldingNoUnfoldPhaseRules   = jsonData("weights_of_unfolding_no_unfold_phase_rules").arr.map(_.arr.map(_.num))
+    val weight_of_cost_no_call_goal_pre        = jsonData("weight_of_cost_no_call_goal_pre").num
+    val weight_of_cost_no_call_goal_post       = jsonData("weight_of_cost_no_call_goal_post").num
+    val weight_of_cost_call_goal               = jsonData("weight_of_cost_call_goal").num
+    val weight_of_cost_call_goal_pre           = jsonData("weight_of_cost_call_goal_pre").num
+    val weight_of_cost_call_goal_post          = jsonData("weight_of_cost_call_goal_post").num
+    val runtime_rule_order_selection           = jsonData("runtime_rule_order_selection").bool: Boolean
+    val fewer_feature_combinations             = jsonData("fewer_feature_combinations").bool: Boolean
 
-    val env = Environment(predEnv, funcEnv, params,
+    val env = Environment(
+      predEnv,
+      funcEnv,
+      params,
       new SynStats(params.timeOut),
       ordersOfAnyPhaseRules,
+      weightsOfAnyPhaseRules,
       ordersOfPurePhaseRules,
+      weightsOfPurePhaseRules,
       ordersOfSymbolicExecutionRules,
+      weightsOfSymbolicExecutionRules,
       ordersOfUnfoldingPhaseRules,
+      weightsOfUnfoldingPhaseRules,
       ordersOfAnyPhaseRulesOrSpecBasedRules,
-      ordersOfSketchHole,
+      ordersOfSketchHoleRules,
+      weightsOfSketchHoleRules,
       ordersOfPointerPhaseRules,
+      weightsOfPointerPhaseRules,
       ordersOfPostBlockPhaseRules,
+      weightsOfPostBlockPhaseRules,
       ordersOfCallAbductionRules1,
+      weightsOfCallAbductionRules1,
       ordersOfCallAbductionRules2,
+      weightsOfCallAbductionRules2,
       ordersOfCallAbductionRules3,
+      weightsOfCallAbductionRules3,
       ordersOfCallAbductionRules4,
+      weightsOfCallAbductionRules4,
       ordersOfUnfoldingPostPhaseRules,
+      weightsOfUnfoldingPostPhaseRules,
       ordersOfUnfoldingNoUnfoldPhaseRules,
+      weightsOfUnfoldingNoUnfoldPhaseRules,
       weight_of_cost_no_call_goal_pre,
       weight_of_cost_no_call_goal_post,
       weight_of_cost_call_goal,
       weight_of_cost_call_goal_pre,
       weight_of_cost_call_goal_post,
       runtime_rule_order_selection,
-      fewer_feature_combinations
+      fewer_feature_combinations=fewer_feature_combinations
     )
     val synthesizer = createSynthesizer(env)
 
