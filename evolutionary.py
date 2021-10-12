@@ -8,18 +8,16 @@ import pandas
 from deap import base
 from deap import tools
 import math
-#from pprint import pformat
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
 NUMB_OF_ANY_PHASE_RULE = 8
 NUMB_OF_PURE_PHASE_RULE = 10
 NUMB_OF_SYMBOLIC_EXECUTION_RULE = 6
 NUMB_OF_UNFOLDING_PHASE_RULE = 5
-NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2 #TODO: weights?
+NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2 #No weights
 NUMB_OF_SKETCH_HOLE_RULE = 3
 NUMB_OF_POINTER_PHASE_RULE = 4
 NUMB_OF_POST_BLOCK_PHASE_RULE = 4
-NUMB_OF_CALL_ABDUCTION_RULE = 4 #TODO: REMOVE?
 NUMB_OF_CALL_ABDUCTION_RULE_1 = 5
 NUMB_OF_CALL_ABDUCTION_RULE_2 = 5
 NUMB_OF_CALL_ABDUCTION_RULE_3 = 5
@@ -33,6 +31,7 @@ MAXIMUM_NUMBER_OF_GENERATIONS = 1000
 INDPB = 0.1
 LOWER_MULTIPLICAND_FOR_COST = 0.9
 UPPER_MULTIPLICAND_FOR_COST = 1.1
+STANDARD_DEVIATION = 0.05
 
 FEWER_FEATURE_COMBINATION = True
 
@@ -41,16 +40,16 @@ NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES = 4
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES = 4
 NUMB_OF_FEATURES_FOR_PURE_PHASE_RULES = 4
 NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES = 0
-NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 0
+NUMB_OF_FEATURES_FOR_UNFOLDING_PHASE_RULES = 3
 NUMB_OF_FEATURES_FOR_SKETCH_HOL_RULES = 0
-NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES = 1
-NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 0
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 0
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 0
-NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3 = 0
+NUMB_OF_FEATURES_FOR_POINTER_PHASE_RULES = 3
+NUMB_OF_FEATURES_FOR_UNFOLDING_POST_PHASE_RULES = 3
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_1 = 3
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_2 = 3
+NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_3 = 3
 NUMB_OF_FEATURES_FOR_CALL_ABDUCTION_RULES_4 = 5
 NUMB_OF_FEATURES_FOR_POST_BLOCK_PHASE_RULES = 1
-NUMB_OF_FEATURES_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES = 0
+NUMB_OF_FEATURES_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 
 if FEWER_FEATURE_COMBINATION:
     NUMB_OF_FEATURE_COMBINATION = 1 + NUMB_OF_FEATURES
@@ -439,14 +438,14 @@ class Individual(list):
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
             for rule_index in range(NUMB_OF_ANY_PHASE_RULE):
                 weight = self.weights_of_any_phase_rules[feature_index][rule_index]
-                self.weights_of_any_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_any_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
             tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
             for rule_index in range(NUMB_OF_PURE_PHASE_RULE):
                 weight = self.weights_of_pure_phase_rules[feature_index][rule_index]
-                self.weights_of_pure_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_pure_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
             tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
@@ -454,14 +453,14 @@ class Individual(list):
             for rule_index in range(NUMB_OF_SYMBOLIC_EXECUTION_RULE):
                 weight = self.weights_of_symbolic_execution_rules[feature_index][rule_index]
                 self.weights_of_symbolic_execution_rules[feature_index][rule_index] = \
-                    weight * random.normalvariate(1.0, 0.1)
+                    weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
             for rule_index in range(NUMB_OF_UNFOLDING_PHASE_RULE):
                 weight = self.weights_of_unfolding_phase_rules[feature_index][rule_index]
-                self.weights_of_unfolding_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_unfolding_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_any_phase_rules_or_spec_based_rules in self.orders_of_any_phase_rules_or_spec_based_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules_or_spec_based_rules, indpb=INDPB)
@@ -471,63 +470,63 @@ class Individual(list):
         for feature_index in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
             for rule_index in range(NUMB_OF_SKETCH_HOLE_RULE):
                 weight = self.weights_of_sketch_hole_rules[feature_index][rule_index]
-                self.weights_of_sketch_hole_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_sketch_hole_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
             tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES):
             for rule_index in range(NUMB_OF_POINTER_PHASE_RULE):
                 weight = self.weights_of_pointer_phase_rules[feature_index][rule_index]
-                self.weights_of_pointer_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_pointer_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
             tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES):
             for rule_index in range(NUMB_OF_POST_BLOCK_PHASE_RULE):
                 weight = self.weights_of_post_block_phase_rules[feature_index][rule_index]
-                self.weights_of_post_block_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_post_block_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_1, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1):
             for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_1):
                 weight = self.weights_of_call_abduction_rules_1[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_1[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_call_abduction_rules_1[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
             for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_2):
                 weight = self.weights_of_call_abduction_rules_2[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_2[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_call_abduction_rules_2[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_3 in self.orders_of_call_abduction_rules_3:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_3, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3):
             for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_3):
                 weight = self.weights_of_call_abduction_rules_3[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_3[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_call_abduction_rules_3[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_4 in self.orders_of_call_abduction_rules_4:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_4, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
             for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_4):
                 weight = self.weights_of_call_abduction_rules_4[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_4[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_call_abduction_rules_4[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES):
             for rule_index in range(NUMB_OF_UNFOLDING_POST_PHASE_RULE):
                 weight = self.weights_of_unfolding_post_phase_rules[feature_index][rule_index]
-                self.weights_of_unfolding_post_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_unfolding_post_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES):
             for rule_index in range(NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES):
                 weight = self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index]
-                self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         #self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
         #self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
