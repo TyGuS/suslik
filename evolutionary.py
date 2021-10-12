@@ -512,8 +512,8 @@ class Individual(list):
             tools.mutShuffleIndexes(order_of_call_abduction_rules_4, indpb=INDPB)
         for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
             for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_4):
-                weight = self.orders_of_call_abduction_rules_4[feature_index][rule_index]
-                self.orders_of_call_abduction_rules_4[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
+                weight = self.weights_of_call_abduction_rules_4[feature_index][rule_index]
+                self.weights_of_call_abduction_rules_4[feature_index][rule_index] = weight * random.normalvariate(1.0, 0.1)
 
         for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
