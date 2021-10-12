@@ -753,6 +753,7 @@ class Individual(list):
             "population_size": POPULATION_SIZE,
             "independent_probability": INDPB,
             "timeout": roboevaluation.TIMEOUT,
+            "standard_deviation_for_weights": STANDARD_DEVIATION,
             "lower_multiplicand_for_cost": LOWER_MULTIPLICAND_FOR_COST,
             "upper_multiplicand_for_cost": UPPER_MULTIPLICAND_FOR_COST,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
