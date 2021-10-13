@@ -204,8 +204,12 @@ object SearchTree {
       val goal = updates(nextChildIndex)(childSolutions)(origGoal)
       val j = if (nChildren == 1) -1 else nextChildIndex
       val extraCost = (0.0 +: childGoals.drop(nextChildIndex + 1).map(_.cost:Double)).max
+      val parent_weight = parent.weight match {
+        case Some(value) => value
+        case None => 0.0
+      }
       nextChildIndex = nextChildIndex + 1
-      OrNode(j +: this.id, goal, Some(this), Some(w), parent.extraCost.max(extraCost))
+      OrNode(j +: this.id, goal, Some(this), Some(w * parent_weight), parent.extraCost.max(extraCost))
     }
 
     def pp(d: Int = 0): String = {
