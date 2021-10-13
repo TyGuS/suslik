@@ -25,9 +25,8 @@ NUMB_OF_CALL_ABDUCTION_RULE_4 = 12
 NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
-MAXIMUM_TOTAL_TIME = 50.0
-POPULATION_SIZE = 10
-MAXIMUM_NUMBER_OF_GENERATIONS = 1000
+POPULATION_SIZE = 3
+MAXIMUM_NUMBER_OF_GENERATIONS = 2
 INDPB = 0.1
 LOWER_MULTIPLICAND_FOR_COST = 0.9
 UPPER_MULTIPLICAND_FOR_COST = 1.1
@@ -90,6 +89,13 @@ else:
     NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES = \
         2 ** NUMB_OF_FEATURES_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES
 
+
+def json_overall_result(overall_results):
+    return {
+        "overall_result": overall_results
+    }
+
+
 class Individual(list):
     """This class describe SuSLik's search strategy for individuals in each generation of each group."""
 
@@ -100,6 +106,7 @@ class Individual(list):
                  rank,
                  runtime_rule_order_selection=True,  # a.k.a dynamic optimisation
                  fewer_feature_combinations=True,
+                 only_order_no_weight=False,
                  nan=100,
                  time=9999999999.0,
                  backtracking=9999999999,
@@ -145,6 +152,7 @@ class Individual(list):
         self.rank = rank
         self.runtime_rule_order_selection = runtime_rule_order_selection
         self.fewer_feature_combinations = fewer_feature_combinations
+        self.only_order_no_weight = only_order_no_weight
         self.nan = nan
         self.time = time
         self.backtracking = backtracking
@@ -405,6 +413,9 @@ class Individual(list):
     def set_fewer_feature_combinations(self, fewer_feature_combinations):
         self.fewer_feature_combinations = fewer_feature_combinations
 
+    def set_only_order_no_weight(self, only_order_no_weight):
+        self.only_order_no_weight = only_order_no_weight
+
     def get_time(self):
         return self.time
 
@@ -432,101 +443,126 @@ class Individual(list):
     def update_ancestor_ranks_with_current_rank(self):
         self.ancestor_ranks.append(self.rank)
 
-    def mutate(self):  # TODO: refactor
+    def mutate(self):
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
-            for rule_index in range(NUMB_OF_ANY_PHASE_RULE):
-                weight = self.weights_of_any_phase_rules[feature_index][rule_index]
-                self.weights_of_any_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
+                for rule_index in range(NUMB_OF_ANY_PHASE_RULE):
+                    weight = self.weights_of_any_phase_rules[feature_index][rule_index]
+                    self.weights_of_any_phase_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
             tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
-            for rule_index in range(NUMB_OF_PURE_PHASE_RULE):
-                weight = self.weights_of_pure_phase_rules[feature_index][rule_index]
-                self.weights_of_pure_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
+                for rule_index in range(NUMB_OF_PURE_PHASE_RULE):
+                    weight = self.weights_of_pure_phase_rules[feature_index][rule_index]
+                    self.weights_of_pure_phase_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
             tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES):
-            for rule_index in range(NUMB_OF_SYMBOLIC_EXECUTION_RULE):
-                weight = self.weights_of_symbolic_execution_rules[feature_index][rule_index]
-                self.weights_of_symbolic_execution_rules[feature_index][rule_index] = \
-                    weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES):
+                for rule_index in range(NUMB_OF_SYMBOLIC_EXECUTION_RULE):
+                    weight = self.weights_of_symbolic_execution_rules[feature_index][rule_index]
+                    self.weights_of_symbolic_execution_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
-            for rule_index in range(NUMB_OF_UNFOLDING_PHASE_RULE):
-                weight = self.weights_of_unfolding_phase_rules[feature_index][rule_index]
-                self.weights_of_unfolding_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
+                for rule_index in range(NUMB_OF_UNFOLDING_PHASE_RULE):
+                    weight = self.weights_of_unfolding_phase_rules[feature_index][rule_index]
+                    self.weights_of_unfolding_phase_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_any_phase_rules_or_spec_based_rules in self.orders_of_any_phase_rules_or_spec_based_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules_or_spec_based_rules, indpb=INDPB)
 
         for order_of_sketch_hole in self.orders_of_sketch_hole_rules:
             tools.mutShuffleIndexes(order_of_sketch_hole, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
-            for rule_index in range(NUMB_OF_SKETCH_HOLE_RULE):
-                weight = self.weights_of_sketch_hole_rules[feature_index][rule_index]
-                self.weights_of_sketch_hole_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
+                for rule_index in range(NUMB_OF_SKETCH_HOLE_RULE):
+                    weight = self.weights_of_sketch_hole_rules[feature_index][rule_index]
+                    self.weights_of_sketch_hole_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
             tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES):
-            for rule_index in range(NUMB_OF_POINTER_PHASE_RULE):
-                weight = self.weights_of_pointer_phase_rules[feature_index][rule_index]
-                self.weights_of_pointer_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES):
+                for rule_index in range(NUMB_OF_POINTER_PHASE_RULE):
+                    weight = self.weights_of_pointer_phase_rules[feature_index][rule_index]
+                    self.weights_of_pointer_phase_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
             tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES):
-            for rule_index in range(NUMB_OF_POST_BLOCK_PHASE_RULE):
-                weight = self.weights_of_post_block_phase_rules[feature_index][rule_index]
-                self.weights_of_post_block_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES):
+                for rule_index in range(NUMB_OF_POST_BLOCK_PHASE_RULE):
+                    weight = self.weights_of_post_block_phase_rules[feature_index][rule_index]
+                    self.weights_of_post_block_phase_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_1, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1):
-            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_1):
-                weight = self.weights_of_call_abduction_rules_1[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_1[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1):
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_1):
+                    weight = self.weights_of_call_abduction_rules_1[feature_index][rule_index]
+                    self.weights_of_call_abduction_rules_1[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
-            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_2):
-                weight = self.weights_of_call_abduction_rules_2[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_2[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_2):
+                    weight = self.weights_of_call_abduction_rules_2[feature_index][rule_index]
+                    self.weights_of_call_abduction_rules_2[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_3 in self.orders_of_call_abduction_rules_3:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_3, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3):
-            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_3):
-                weight = self.weights_of_call_abduction_rules_3[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_3[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3):
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_3):
+                    weight = self.weights_of_call_abduction_rules_3[feature_index][rule_index]
+                    self.weights_of_call_abduction_rules_3[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_call_abduction_rules_4 in self.orders_of_call_abduction_rules_4:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_4, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
-            for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_4):
-                weight = self.weights_of_call_abduction_rules_4[feature_index][rule_index]
-                self.weights_of_call_abduction_rules_4[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
+                for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_4):
+                    weight = self.weights_of_call_abduction_rules_4[feature_index][rule_index]
+                    self.weights_of_call_abduction_rules_4[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES):
-            for rule_index in range(NUMB_OF_UNFOLDING_POST_PHASE_RULE):
-                weight = self.weights_of_unfolding_post_phase_rules[feature_index][rule_index]
-                self.weights_of_unfolding_post_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES):
+                for rule_index in range(NUMB_OF_UNFOLDING_POST_PHASE_RULE):
+                    weight = self.weights_of_unfolding_post_phase_rules[feature_index][rule_index]
+                    self.weights_of_unfolding_post_phase_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
-        for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES):
-            for rule_index in range(NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES):
-                weight = self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index]
-                self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if not self.only_order_no_weight:
+            for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES):
+                for rule_index in range(NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES):
+                    weight = self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index]
+                    self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = \
+                        weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
         #self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
         #self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
@@ -624,6 +660,7 @@ class Individual(list):
         json_data_to_write = {
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
+            "only_order_no_weight": self.only_order_no_weight,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
             "weights_of_any_phase_rules": self.weights_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
@@ -711,7 +748,7 @@ class Individual(list):
         print("before calling sum_non_nan_rules")
         total_numb_of_fired_rules = sum_non_nan_rules(pairs_of_times_and_rules)
         print("after calling sum_non_nan_rules")
-        #total_numb_of_fired_rules = 98765
+
         self.nan, self.time, self.backtracking, self.rules =\
             (number_of_nans, total_time, total_backtracking, total_numb_of_fired_rules)
 
@@ -727,6 +764,15 @@ class Individual(list):
 
         return "robo-evaluation-utils/result" + result_type + str(self.group_id) + "_" + str(self.generation_id) + "_" \
                + str(self.rank) + ".json"
+
+    def json_tentative_overall_result_file_path(self, is_for_training=True):
+
+        if is_for_training:
+            result_type = "_tentative_overall_training_"
+        else:
+            result_type = "_tentative_overall_validation_"
+
+        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + ".json"
 
     def json_overall_result_file_path(self, is_for_training=True):
 
@@ -758,6 +804,7 @@ class Individual(list):
             "upper_multiplicand_for_cost": UPPER_MULTIPLICAND_FOR_COST,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
+            "only_order_no_weight": self.only_order_no_weight,
             "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
             "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
             "weight_of_cost_call_goal": self.weight_of_cost_call_goal,
@@ -770,12 +817,16 @@ class Individual(list):
         with open(self.json_result_file_path(for_training), 'w') as json_result_file_to_write:
             json.dump(self.json_result(for_training), json_result_file_to_write, indent=2)
 
-    def write_overall_json_result(self, for_training=True):
-        with open(self.json_overall_result_file_path(for_training), 'a') as \
+    def write_tentative_overall_json_result(self, for_training=True):
+        with open(self.json_tentative_overall_result_file_path(for_training), 'a') as \
                 json_overall_validation_result_file_to_write:
             json.dump(self.json_result(for_training), json_overall_validation_result_file_to_write)
             json_overall_validation_result_file_to_write.write("\n")
             json_overall_validation_result_file_to_write.close()
+
+    def write_overall_json_result(self, overall_results, for_training=True):
+        with open(self.json_overall_result_file_path(for_training), 'w') as json_result_file_to_write:
+            json.dump(json_overall_result(overall_results), json_result_file_to_write, indent=2)
 
 
 def get_total_time(individual: Individual):
@@ -792,7 +843,6 @@ def get_total_rules(individual: Individual):
 
 def get_number_of_nans(individual: Individual):
     return individual.get_nan()
-
 
 toolbox = base.Toolbox()
 
@@ -813,23 +863,28 @@ def main():
     default.default()
     default.evaluate(for_training=False)
     default.write_json_result(for_training=False)
-    default.write_overall_json_result(for_training=False)
+    default.write_tentative_overall_json_result(for_training=False)
+    overall_static_validation_result = [default.json_result(is_for_training=False)]
+    overall_dynamic_validation_result = copy.deepcopy(overall_static_validation_result)#TODO: I should use an Individual with a new group_id.
+
+    # We compute for_training=True first before for_training=False
+    # because we use a deep-copy of `default` in the first generation.
     default.evaluate(for_training=True)
     default.write_json_result(for_training=True)
-    default.write_overall_json_result(for_training=True)
+    default.write_tentative_overall_json_result(for_training=True)
+    overall_static_training_result = [default.json_result(is_for_training=True)]
+    overall_dynamic_training_result = copy.deepcopy(overall_static_training_result)#TODO: I should use an Individual with a new group_id.
+
 
     # create an initial groups of POPULATION_SIZE individuals
     generation_id = 1
-    individual_ids = list(range(0, POPULATION_SIZE))
     individual_ids_wo_0 = list(range(1, POPULATION_SIZE))
 
-    # group_manual_static is a group that starts at the manually tuned parameters and use static ordering.
     default_in_fst_gen = copy.deepcopy(default)
+    default_in_fst_gen.set_generation_id(1)
+    default_in_fst_gen.set_group_id(0)
     default_in_fst_gen.set_runtime_rule_order_selection(False)
 
-    default_in_fst_gen.set_group_id(0)
-    default_in_fst_gen.set_individual_id(0)
-    default_in_fst_gen.set_generation_id(generation_id)
     group_manual_static = [default_in_fst_gen]
     for individual_id in individual_ids_wo_0:
         new_individual = copy.deepcopy(default)
@@ -847,7 +902,7 @@ def main():
         individual.set_fewer_feature_combinations(FEWER_FEATURE_COMBINATION)
         individual.set_group_id(1)
 
-    groups = [group_manual_dynamic]#,group_manual_static]
+    groups = [group_manual_static, group_manual_dynamic]
 
     # evaluate all groups
     for group in groups:
@@ -857,7 +912,6 @@ def main():
     # sort each group
     for group in groups:
         group.sort(key=get_total_rules)
-        #group.sort(key=get_total_time)
         group.sort(key=get_number_of_nans)
 
     # set the rank, write resulting JSON file
@@ -868,12 +922,18 @@ def main():
             rank = rank + 1
             individual.write_json_result()
 
+    overall_static_training_result.append(group_manual_static[0].json_result(is_for_training=True))
+    overall_dynamic_training_result.append(group_manual_dynamic[0].json_result(is_for_training=True))
+
     for group in groups:
         best_individual_so_far = copy.deepcopy(group[0])
-        best_individual_so_far.write_overall_json_result(for_training=True)
+        best_individual_so_far.write_tentative_overall_json_result(for_training=True)
         best_individual_so_far.evaluate(for_training=False)
         best_individual_so_far.write_json_result(for_training=False)
-        best_individual_so_far.write_overall_json_result(for_training=False)
+        best_individual_so_far.write_tentative_overall_json_result(for_training=False)
+
+    overall_static_validation_result.append(group_manual_static[0].json_result(is_for_training=False))
+    overall_dynamic_validation_result.append(group_manual_dynamic[0].json_result(is_for_training=False))
 
     # begin the evolution
     while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
@@ -912,7 +972,6 @@ def main():
             group[:] = offspring1 + offspring2
 
             # sort group
-            #group.sort(key=get_total_time)
             group.sort(key=get_total_rules)
             group.sort(key=get_number_of_nans)
 
@@ -924,11 +983,22 @@ def main():
                 individual.write_json_result()
 
             best_individual_so_far = copy.deepcopy(group[0])
-            best_individual_so_far.write_overall_json_result(for_training=True)
+            best_individual_so_far.write_tentative_overall_json_result(for_training=True)
+            overall_static_training_result.append(group_manual_static[0].json_result(is_for_training=True))
+            overall_dynamic_training_result.append(group_manual_dynamic[0].json_result(is_for_training=True))
+
             print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
             best_individual_so_far.evaluate(for_training=False)
             best_individual_so_far.write_json_result(for_training=False)
-            best_individual_so_far.write_overall_json_result(for_training=False)
+            best_individual_so_far.write_tentative_overall_json_result(for_training=False)
+            overall_static_validation_result.append(group_manual_static[0].json_result(is_for_training=False))
+            overall_dynamic_validation_result.append(group_manual_dynamic[0].json_result(is_for_training=False))
+
+    # These are buggy: in case the first (0th) element has the "default" instance, they use wrong paths.
+    group_manual_dynamic[0].write_overall_json_result(overall_dynamic_training_result, for_training=True)
+    group_manual_dynamic[0].write_overall_json_result(overall_dynamic_validation_result, for_training=False)
+    group_manual_static[0].write_overall_json_result(overall_static_training_result, for_training=True)
+    group_manual_static[0].write_overall_json_result(overall_static_validation_result, for_training=False)
 
     return 0
 
