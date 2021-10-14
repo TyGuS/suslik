@@ -8,13 +8,14 @@ import pandas
 from deap import base
 from deap import tools
 import math
+from typing import List
 
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
 NUMB_OF_ANY_PHASE_RULE = 8
 NUMB_OF_PURE_PHASE_RULE = 10
 NUMB_OF_SYMBOLIC_EXECUTION_RULE = 6
 NUMB_OF_UNFOLDING_PHASE_RULE = 5
-NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2 #No weights
+NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE = 2  # No weights
 NUMB_OF_SKETCH_HOLE_RULE = 3
 NUMB_OF_POINTER_PHASE_RULE = 4
 NUMB_OF_POST_BLOCK_PHASE_RULE = 4
@@ -25,8 +26,8 @@ NUMB_OF_CALL_ABDUCTION_RULE_4 = 12
 NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
-POPULATION_SIZE = 3
-MAXIMUM_NUMBER_OF_GENERATIONS = 2
+POPULATION_SIZE = 10
+MAXIMUM_NUMBER_OF_GENERATIONS = 10
 INDPB = 0.1
 LOWER_MULTIPLICAND_FOR_COST = 0.9
 UPPER_MULTIPLICAND_FOR_COST = 1.1
@@ -97,13 +98,13 @@ def json_overall_result(overall_results):
 
 
 class Individual(list):
-    """This class describe SuSLik's search strategy for individuals in each generation of each group."""
+    """This class describes SuSLik's search strategy for individuals in each generation of each group."""
 
     def __init__(self,
                  group_id,  # group_id = 0 corresponds to initial group created by mutating the manually tuned one.
                  generation_id,
                  individual_id,
-                 rank,
+                 rank=999999,
                  runtime_rule_order_selection=True,  # a.k.a dynamic optimisation
                  fewer_feature_combinations=True,
                  only_order_no_weight=False,
@@ -245,7 +246,8 @@ class Individual(list):
         if orders_of_sketch_hole_rules is None:
             orders_of_sketch_hole_rules = []
             for i in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
-                orders_of_sketch_hole_rules.append(random.sample(range(NUMB_OF_SKETCH_HOLE_RULE), NUMB_OF_SKETCH_HOLE_RULE))
+                orders_of_sketch_hole_rules.append(
+                    random.sample(range(NUMB_OF_SKETCH_HOLE_RULE), NUMB_OF_SKETCH_HOLE_RULE))
             self.orders_of_sketch_hole_rules = orders_of_sketch_hole_rules
 
         if weights_of_sketch_hole_rules is None:
@@ -564,11 +566,11 @@ class Individual(list):
                     self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = \
                         weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
-        #self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        #self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        #self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        #self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        #self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        # self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        # self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        # self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        # self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        # self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     def default(self):
@@ -595,7 +597,8 @@ class Individual(list):
 
         orders_of_any_phase_rules_or_spec_based_rules = []
         for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES)):
-            orders_of_any_phase_rules_or_spec_based_rules.append(list(range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE)))
+            orders_of_any_phase_rules_or_spec_based_rules.append(
+                list(range(0, NUMB_OF_ANY_PHASE_RULE_OR_SPEC_BASED_RULE)))
         self.orders_of_any_phase_rules_or_spec_based_rules = orders_of_any_phase_rules_or_spec_based_rules
 
         orders_of_sketch_hole_rules = []
@@ -733,7 +736,7 @@ class Individual(list):
 
         times = df['Time(mut)']
         df_rules = df['Rules(mut)']
-        print("before pairs_of_times_and_rules")
+
         pairs_of_times_and_rules = list(zip(times, df_rules))
 
         def sum_non_nan_rules(pairs):
@@ -745,11 +748,9 @@ class Individual(list):
                     temp_total_numb_of_fired_rules
             return temp_total_numb_of_fired_rules
 
-        print("before calling sum_non_nan_rules")
         total_numb_of_fired_rules = sum_non_nan_rules(pairs_of_times_and_rules)
-        print("after calling sum_non_nan_rules")
 
-        self.nan, self.time, self.backtracking, self.rules =\
+        self.nan, self.time, self.backtracking, self.rules = \
             (number_of_nans, total_time, total_backtracking, total_numb_of_fired_rules)
 
         return number_of_nans, total_time, total_backtracking, total_numb_of_fired_rules
@@ -844,6 +845,97 @@ def get_total_rules(individual: Individual):
 def get_number_of_nans(individual: Individual):
     return individual.get_nan()
 
+
+class Group(list):
+    """This class describes a group of SuSLik instances."""
+
+    def __init__(self,
+                 start_at_tuned_order: bool,
+                 runtime_selection: bool,
+                 fewer_feature_comb: bool,
+                 only_order_no_weight: bool,
+                 group_id: int = 0,
+                 individuals: List[Individual] = None,
+                 overall_json_training_result = None,
+                 overall_json_validation_result = None):
+        super().__init__()
+        self.start_at_tuned_order = start_at_tuned_order
+        self.runtime_selection = runtime_selection
+        self.fewer_feature_comb = fewer_feature_comb
+        self.only_order_no_weight = only_order_no_weight
+        self.group_id = group_id
+        if individuals is None:
+            self.individuals = []
+        if overall_json_training_result is None:
+            self.overall_json_training_result = []
+        if overall_json_validation_result is None:
+            self.overall_json_validation_result = []
+
+    def mk_initial_population_and_evaluate(self):
+        for individual_id in list(range(0, POPULATION_SIZE)):
+            new_individual = Individual(group_id=self.group_id,
+                                        generation_id=0,
+                                        individual_id=individual_id,
+                                        runtime_rule_order_selection=self.runtime_selection,
+                                        fewer_feature_combinations=self.fewer_feature_comb,
+                                        only_order_no_weight=self.only_order_no_weight
+                                        )
+            if self.start_at_tuned_order:
+                new_individual.default()
+                if individual_id != 0:
+                    new_individual.mutate()
+            new_individual.evaluate(for_training=True)
+            self.individuals.append(new_individual)
+
+    def set_generation_id(self, generation_id):
+        for individual in self.individuals:
+            individual.set_generation_id(generation_id=generation_id)
+
+    def change_old_generation_to_new_generation_and_evaluate_new_individuals_for_training(self, new_generation_id):
+        # assume the individuals are already sorted.
+        survivors_of_old_generation = self.individuals[:POPULATION_SIZE]
+
+        # firstly update ancestors using the current individual_id
+        for individual in survivors_of_old_generation:
+            individual.update_ancestor_with_current_individual_id()
+            individual.update_ancestor_ranks_with_current_rank()
+
+        # secondly update individual_id and generation_id of survivors_of_old_generation
+        individual_id = 0
+        for individual in survivors_of_old_generation:
+            individual.set_generation_id(new_generation_id)
+            individual.set_individual_id(individual_id)
+            individual_id = individual_id + 1
+
+        # mutants are to be mutated
+        mutants = copy.deepcopy(survivors_of_old_generation) + copy.deepcopy(survivors_of_old_generation[:2])
+
+        for individual in mutants:
+            individual.mutate()
+            individual.set_individual_id(individual_id)
+            individual_id = individual_id + 1
+            individual.evaluate(for_training=True)
+
+        self.individuals = survivors_of_old_generation + mutants
+
+    def sort_rank_individuals_then_validate_the_best(self):
+        self.sort(key=get_total_rules)
+        self.sort(key=get_number_of_nans)
+        rank = 0
+        for individual in self.individuals:
+            individual.set_rank(rank)
+            rank = rank + 1
+            individual.write_json_result(for_training=True)
+        self.individuals[0].write_tentative_overall_json_result(for_training=True)
+        self.overall_json_training_result.append(self.individuals[0].json_result(is_for_training=True))
+        # validation
+        best_individual = copy.deepcopy(self.individuals[0])
+        best_individual.evaluate(for_training=False)
+        best_individual.write_json_result(for_training=False)
+        best_individual.write_tentative_overall_json_result(for_training=False)
+        self.overall_json_validation_result.append(best_individual.json_result(is_for_training=False))
+
+
 toolbox = base.Toolbox()
 
 
@@ -858,147 +950,67 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    # evaluate the default strategy
-    default = Individual(group_id=0, generation_id=0, individual_id=0, rank=0, runtime_rule_order_selection=False)
-    default.default()
-    default.evaluate(for_training=False)
-    default.write_json_result(for_training=False)
-    default.write_tentative_overall_json_result(for_training=False)
-    overall_static_validation_result = [default.json_result(is_for_training=False)]
-    overall_dynamic_validation_result = copy.deepcopy(overall_static_validation_result)#TODO: I should use an Individual with a new group_id.
+    # create initial groups
+    group_static_random_order = Group(
+        start_at_tuned_order=False,
+        runtime_selection=False,
+        fewer_feature_comb=FEWER_FEATURE_COMBINATION,
+        only_order_no_weight=True,
+        group_id=0
+    )
+    group_static_tuned_order = Group(
+        start_at_tuned_order=True,
+        runtime_selection=False,
+        fewer_feature_comb=FEWER_FEATURE_COMBINATION,
+        only_order_no_weight=True,
+        group_id=1
+    )
+    group_static_weight = Group(
+        start_at_tuned_order=True,
+        runtime_selection=False,
+        fewer_feature_comb=FEWER_FEATURE_COMBINATION,
+        only_order_no_weight=False,
+        group_id=2
+    )
+    group_dynamic_weight = Group(
+        start_at_tuned_order=True,
+        runtime_selection=True,
+        fewer_feature_comb=FEWER_FEATURE_COMBINATION,
+        only_order_no_weight=False,
+        group_id=3
+    )
 
-    # We compute for_training=True first before for_training=False
-    # because we use a deep-copy of `default` in the first generation.
-    default.evaluate(for_training=True)
-    default.write_json_result(for_training=True)
-    default.write_tentative_overall_json_result(for_training=True)
-    overall_static_training_result = [default.json_result(is_for_training=True)]
-    overall_dynamic_training_result = copy.deepcopy(overall_static_training_result)#TODO: I should use an Individual with a new group_id.
+    groups = [
+        #group_static_random_order,
+        #group_static_tuned_order,
+        #group_static_weight,
+        group_dynamic_weight
+    ]
 
+    for group in groups:
+        group.mk_initial_population_and_evaluate()
+        group.sort_rank_individuals_then_validate_the_best()
 
-    # create an initial groups of POPULATION_SIZE individuals
     generation_id = 1
-    individual_ids_wo_0 = list(range(1, POPULATION_SIZE))
-
-    default_in_fst_gen = copy.deepcopy(default)
-    default_in_fst_gen.set_generation_id(1)
-    default_in_fst_gen.set_group_id(0)
-    default_in_fst_gen.set_runtime_rule_order_selection(False)
-
-    group_manual_static = [default_in_fst_gen]
-    for individual_id in individual_ids_wo_0:
-        new_individual = copy.deepcopy(default)
-        new_individual.set_runtime_rule_order_selection(False)
-        new_individual.set_group_id(0)
-        new_individual.set_individual_id(individual_id)
-        new_individual.set_generation_id(generation_id)
-        new_individual.mutate()
-        group_manual_static.append(new_individual)
-
-    # group_manual_dynamic is a group that starts at the manually tuned parameters and choose orders at runtime.
-    group_manual_dynamic = copy.deepcopy(group_manual_static)
-    for individual in group_manual_dynamic:
-        individual.set_runtime_rule_order_selection(True)
-        individual.set_fewer_feature_combinations(FEWER_FEATURE_COMBINATION)
-        individual.set_group_id(1)
-
-    groups = [group_manual_static, group_manual_dynamic]
-
-    # evaluate all groups
-    for group in groups:
-        for individual in group:
-            individual.evaluate()
-
-    # sort each group
-    for group in groups:
-        group.sort(key=get_total_rules)
-        group.sort(key=get_number_of_nans)
-
-    # set the rank, write resulting JSON file
-    for group in groups:
-        rank = 0
-        for individual in group:
-            individual.set_rank(rank)
-            rank = rank + 1
-            individual.write_json_result()
-
-    overall_static_training_result.append(group_manual_static[0].json_result(is_for_training=True))
-    overall_dynamic_training_result.append(group_manual_dynamic[0].json_result(is_for_training=True))
-
-    for group in groups:
-        best_individual_so_far = copy.deepcopy(group[0])
-        best_individual_so_far.write_tentative_overall_json_result(for_training=True)
-        best_individual_so_far.evaluate(for_training=False)
-        best_individual_so_far.write_json_result(for_training=False)
-        best_individual_so_far.write_tentative_overall_json_result(for_training=False)
-
-    overall_static_validation_result.append(group_manual_static[0].json_result(is_for_training=False))
-    overall_dynamic_validation_result.append(group_manual_dynamic[0].json_result(is_for_training=False))
 
     # begin the evolution
     while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
-        generation_id = generation_id + 1
+
         print("----- generation %i -----" % generation_id)
 
         for group in groups:
+            group.change_old_generation_to_new_generation_and_evaluate_new_individuals_for_training\
+                (new_generation_id=generation_id)
+            group.sort_rank_individuals_then_validate_the_best()
 
-            # select the next generation individuals
-            offspring1 = group[:POPULATION_SIZE]
+        generation_id = generation_id + 1
 
-            # firstly update ancestors using the current individual_id
-            for individual in offspring1:
-                individual.update_ancestor_with_current_individual_id()
-                individual.update_ancestor_ranks_with_current_rank()
-
-            # secondly update individual_id of offspring1 (the ones that survived the previous selection)
-            individual_id = 0
-            for individual in offspring1:
-                individual.set_individual_id(individual_id)
-                individual_id = individual_id + 1
-
-            for individual in offspring1:
-                individual.set_generation_id(generation_id)
-
-            # copy the best ones from the previous round.
-            offspring2 = copy.deepcopy(offspring1) + copy.deepcopy(offspring1[:2])
-
-            # for offspring2, 1) mutate, 2) set ind-id, 3) set individual_id, 4) evaluate
-            for individual in offspring2:
-                individual.mutate()
-                individual.set_individual_id(individual_id)
-                individual_id = individual_id + 1
-                individual.evaluate()
-
-            group[:] = offspring1 + offspring2
-
-            # sort group
-            group.sort(key=get_total_rules)
-            group.sort(key=get_number_of_nans)
-
-            rank = 0
-            for individual in group:
-                print("----- writing result for ind-id %i -----" % individual.individual_id)
-                individual.set_rank(rank)
-                rank = rank + 1
-                individual.write_json_result()
-
-            best_individual_so_far = copy.deepcopy(group[0])
-            best_individual_so_far.write_tentative_overall_json_result(for_training=True)
-            overall_static_training_result.append(group_manual_static[0].json_result(is_for_training=True))
-            overall_dynamic_training_result.append(group_manual_dynamic[0].json_result(is_for_training=True))
-
-            print("----- cross validation for generation number %i -----" % best_individual_so_far.individual_id)
-            best_individual_so_far.evaluate(for_training=False)
-            best_individual_so_far.write_json_result(for_training=False)
-            best_individual_so_far.write_tentative_overall_json_result(for_training=False)
-            overall_static_validation_result.append(group_manual_static[0].json_result(is_for_training=False))
-            overall_dynamic_validation_result.append(group_manual_dynamic[0].json_result(is_for_training=False))
-
-    # These are buggy: in case the first (0th) element has the "default" instance, they use wrong paths.
-    group_manual_dynamic[0].write_overall_json_result(overall_dynamic_training_result, for_training=True)
-    group_manual_dynamic[0].write_overall_json_result(overall_dynamic_validation_result, for_training=False)
-    group_manual_static[0].write_overall_json_result(overall_static_training_result, for_training=True)
-    group_manual_static[0].write_overall_json_result(overall_static_validation_result, for_training=False)
+    #
+    for group in groups:
+        final_winner = copy.deepcopy(group.individuals[0])
+        final_winner.set_generation_id(generation_id=generation_id)
+        final_winner.write_overall_json_result(group.overall_json_training_result)
+        final_winner.write_overall_json_result(group.overall_json_validation_result)
 
     return 0
 
