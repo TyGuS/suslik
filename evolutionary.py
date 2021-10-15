@@ -919,8 +919,8 @@ class Group(list):
         self.individuals = survivors_of_old_generation + mutants
 
     def sort_rank_individuals_then_validate_the_best(self):
-        self.sort(key=get_total_rules)
-        self.sort(key=get_number_of_nans)
+        self.individuals.sort(key=get_total_rules)
+        self.individuals.sort(key=get_number_of_nans)
         rank = 0
         for individual in self.individuals:
             individual.set_rank(rank)
@@ -983,7 +983,7 @@ def main():
     groups = [
         #group_static_random_order,
         #group_static_tuned_order,
-        #group_static_weight,
+        group_static_weight,
         group_dynamic_weight
     ]
 
