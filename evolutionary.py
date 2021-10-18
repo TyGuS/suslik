@@ -95,6 +95,43 @@ def json_overall_result(overall_results):
     }
 
 
+def n_0s_in_a_row_aux(n:int, acc:int, ranks):
+    print("outside")
+    print("length of ranks is")
+    print(len(ranks))
+    length = len(ranks)
+    if length == 0:
+        print("from length clause")
+        return False
+    elif n == acc:
+        print("inside 1 ass is")
+        print(acc)
+        print("ranks are")
+        print(ranks)
+        return True
+    elif (n > acc) and (ranks[0] != 0):
+        print("inside 2 ass is")
+        print(acc)
+        print("ranks are")
+        print(ranks)
+        ranks.pop(0)
+        return n_0s_in_a_row_aux(n, 0, ranks)
+    elif (n > acc) and (ranks[0] == 0):
+        print("inside 3 ass is")
+        print(acc)
+        print("ranks are")
+        print(ranks)
+        ranks.pop(0)
+        return n_0s_in_a_row_aux(n, acc + 1, ranks)
+    else:
+        return False
+
+
+def n_0s_in_a_row(n:int, ranks):
+    ranks_to_pop = copy.deepcopy(ranks)
+    return n_0s_in_a_row_aux(n, 0, ranks_to_pop)
+
+
 class Individual(list):
     """This class describes SuSLik's search strategy for individuals in each generation of each group."""
 
@@ -387,6 +424,9 @@ class Individual(list):
                     ws_for_each_combination.append(1.0)
                 weights_of_unfolding_no_unfold_phase_rules.append(ws_for_each_combination)
             self.weights_of_unfolding_no_unfold_phase_rules = weights_of_unfolding_no_unfold_phase_rules
+
+    def topped_n_times_in_a_row(self, n: int):
+        n_0s_in_a_row(n, self.ranks)
 
     def get_group_id(self):
         return self.group_id
@@ -946,6 +986,11 @@ class Group(list):
         best_individual.write_tentative_overall_json_result(for_training=False)
         self.overall_json_validation_result.append(best_individual.json_result(is_for_training=False))
 
+    def same_individual_topped_n_times_in_a_row(self, n: int):
+        self.individuals.sort(key=get_total_rules)
+        self.individuals.sort(key=get_number_of_nans)
+        current_best_individual = copy.deepcopy(self.individuals[0])
+        current_best_individual.topped_n_times_in_a_row(n)
 
 toolbox = base.Toolbox()
 
@@ -1026,6 +1071,10 @@ def main():
         final_winner.set_generation_id(generation_id=generation_id)
         final_winner.write_overall_json_result(group.overall_json_training_result)
         final_winner.write_overall_json_result(group.overall_json_validation_result)
+
+    for index in range(len(groups)):
+        if groups[index].same_individual_topped_n_times_in_a_row(2):
+            groups.pop(index)
 
     return 0
 
