@@ -652,13 +652,13 @@ class Individual(list):
         self.weight_of_cost_call_goal_pre = 3.0
         self.weight_of_cost_call_goal_post = 1.0
 
-    def json_file_path(self):
+    def json_search_parameter_file_path(self):
         json_file_name = "search_parameter" + "_" + str(self.group_id) + "_" + str(self.generation_id) + "_" + \
                          str(self.individual_id) + ".json"
         path = PATH_TO_TACTICS + json_file_name
         return path
 
-    def write_order_json(self):
+    def write_json_parameter_file(self):
 
         json_data_to_write = {
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
@@ -698,10 +698,10 @@ class Individual(list):
             "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
         }
 
-        with open(self.json_file_path(), 'w') as new_json_file_to_write:
+        with open(self.json_search_parameter_file_path(), 'w') as new_json_file_to_write:
             json.dump(json_data_to_write, new_json_file_to_write, indent=2)
 
-    def csv_path(self, is_for_training=True):
+    def csv_result_file_path(self, is_for_training=True):
 
         if is_for_training:
             result_type = "_training_"
@@ -714,7 +714,6 @@ class Individual(list):
 
     def evaluate(self, for_training=True):
 
-        self.write_order_json()
         if for_training:
             data = roboevaluation.TRAINING_DATA
         else:
@@ -726,9 +725,9 @@ class Individual(list):
             self.group_id, self.generation_id, self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
-                                    results1, self.csv_path(is_for_training=for_training))
+                                    results1, self.csv_result_file_path(is_for_training=for_training))
 
-        df = pandas.read_csv(filepath_or_buffer=self.csv_path(is_for_training=for_training), na_values=['FAIL', '-'])
+        df = pandas.read_csv(filepath_or_buffer=self.csv_result_file_path(is_for_training=for_training), na_values=['FAIL', '-'])
 
         number_of_nans = int(df['Time(mut)'].isna().sum())
         total_time = df['Time(mut)'].sum()
@@ -805,12 +804,7 @@ class Individual(list):
             "upper_multiplicand_for_cost": UPPER_MULTIPLICAND_FOR_COST,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
-            "only_order_no_weight": self.only_order_no_weight,
-            "weight_of_cost_no_call_goal_pre": self.weight_of_cost_no_call_goal_pre,
-            "weight_of_cost_no_call_goal_post": self.weight_of_cost_no_call_goal_post,
-            "weight_of_cost_call_goal": self.weight_of_cost_call_goal,
-            "weight_of_cost_call_goal_pre": self.weight_of_cost_call_goal_pre,
-            "weight_of_cost_call_goal_post": self.weight_of_cost_call_goal_post
+            "only_order_no_weight": self.only_order_no_weight
         }
 
     def write_json_result(self, for_training=True):
@@ -884,6 +878,7 @@ class Group(list):
                 new_individual.default()
                 if individual_id != 0:
                     new_individual.mutate()
+            new_individual.write_json_parameter_file()
             new_individual.evaluate(for_training=True)
             self.individuals.append(new_individual)
 
@@ -905,6 +900,10 @@ class Group(list):
         for individual in survivors_of_old_generation:
             individual.set_generation_id(new_generation_id)
             individual.set_individual_id(individual_id)
+            individual.write_json_parameter_file()
+            # We should evaluate these individuals once again even though doing so is repetitive:
+            # we want to eliminate the performance effect caused by short-term OS background situations.
+            individual.evaluate(for_training=True)
             individual_id = individual_id + 1
 
         # mutants are to be mutated
@@ -914,6 +913,7 @@ class Group(list):
             individual.mutate()
             individual.set_individual_id(individual_id)
             individual_id = individual_id + 1
+            individual.write_json_parameter_file()
             individual.evaluate(for_training=True)
 
         self.individuals = survivors_of_old_generation + mutants
