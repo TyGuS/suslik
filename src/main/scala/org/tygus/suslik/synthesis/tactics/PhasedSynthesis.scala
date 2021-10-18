@@ -12,6 +12,7 @@ import org.tygus.suslik.synthesis.rules.Rules.{GeneratesCode, RuleResult, Synthe
 import org.tygus.suslik.synthesis.rules.UnfoldingRules.{AbduceCall, Close}
 import org.tygus.suslik.synthesis.rules.UnificationRules.HeapUnifyUnfolding
 import org.tygus.suslik.synthesis.rules._
+import org.tygus.suslik.synthesis.Memoization._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -63,7 +64,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
 
   // just after a write rule
   def preferFrameAfterWrite(node: OrNode) = {
-    (node.isJustAfter(OperationalRules.WriteRule)) || (node.isJustAfter(LogicalRules.GhostWrite))
+    ((node.isJustAfter(OperationalRules.WriteRule)) || (node.isJustAfter(LogicalRules.GhostWrite))) &&
+      (!(memo.isSuspended(node))) // We don't want to frame after write if we are doing an abduce call.
   }
 
   // just after Alloc
