@@ -26,12 +26,12 @@ NUMB_OF_CALL_ABDUCTION_RULE_4 = 12
 NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
-POPULATION_SIZE = 10
-MAXIMUM_NUMBER_OF_GENERATIONS = 10
+POPULATION_SIZE = 20
+MAXIMUM_NUMBER_OF_GENERATIONS = 40
 INDPB = 0.1
 STANDARD_DEVIATION = 0.05
-
 FEWER_FEATURE_COMBINATION = True
+STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES = 10
 
 NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES = 4
@@ -1041,8 +1041,8 @@ def main():
     )
 
     groups = [
-        #group_static_random_order,
-        #group_static_tuned_order,
+        group_static_random_order,
+        group_static_tuned_order,
         group_static_weight,
         group_dynamic_weight
     ]
@@ -1073,7 +1073,7 @@ def main():
         final_winner.write_overall_json_result(group.overall_json_validation_result)
 
     for index in range(len(groups)):
-        if groups[index].same_individual_topped_n_times_in_a_row(2):
+        if groups[index].same_individual_topped_n_times_in_a_row(STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
             groups.pop(index)
 
     return 0
