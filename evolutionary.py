@@ -29,8 +29,6 @@ MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 POPULATION_SIZE = 10
 MAXIMUM_NUMBER_OF_GENERATIONS = 10
 INDPB = 0.1
-LOWER_MULTIPLICAND_FOR_COST = 0.9
-UPPER_MULTIPLICAND_FOR_COST = 1.1
 STANDARD_DEVIATION = 0.05
 
 FEWER_FEATURE_COMBINATION = True
@@ -566,11 +564,11 @@ class Individual(list):
                     self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = \
                         weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
-        # self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        # self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        # self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        # self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
-        # self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * random.uniform(LOWER_MULTIPLICAND_FOR_COST, UPPER_MULTIPLICAND_FOR_COST)
+        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     def default(self):
@@ -800,8 +798,6 @@ class Individual(list):
             "independent_probability": INDPB,
             "timeout": roboevaluation.TIMEOUT,
             "standard_deviation_for_weights": STANDARD_DEVIATION,
-            "lower_multiplicand_for_cost": LOWER_MULTIPLICAND_FOR_COST,
-            "upper_multiplicand_for_cost": UPPER_MULTIPLICAND_FOR_COST,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
             "only_order_no_weight": self.only_order_no_weight
