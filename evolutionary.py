@@ -526,7 +526,7 @@ class Individual(list):
 
         for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
-        if not self.mutate_rule_based_weights:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
                 for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_2):
                     weight = self.weights_of_call_abduction_rules_2[feature_index][rule_index]
