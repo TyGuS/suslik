@@ -105,7 +105,8 @@ class Individual(list):
                  rank=999999,
                  runtime_rule_order_selection=True,  # a.k.a dynamic optimisation
                  fewer_feature_combinations=True,
-                 only_order_no_weight=False,
+                 mutate_rule_based_weights=True,
+                 mutate_heap_based_weights=True,
                  nan=100,
                  time=9999999999.0,
                  backtracking=9999999999,
@@ -151,7 +152,8 @@ class Individual(list):
         self.rank = rank
         self.runtime_rule_order_selection = runtime_rule_order_selection
         self.fewer_feature_combinations = fewer_feature_combinations
-        self.only_order_no_weight = only_order_no_weight
+        self.mutate_rule_based_weights = mutate_rule_based_weights
+        self.mutate_heap_based_weights = mutate_heap_based_weights
         self.nan = nan
         self.time = time
         self.backtracking = backtracking
@@ -413,8 +415,11 @@ class Individual(list):
     def set_fewer_feature_combinations(self, fewer_feature_combinations):
         self.fewer_feature_combinations = fewer_feature_combinations
 
-    def set_only_order_no_weight(self, only_order_no_weight):
-        self.only_order_no_weight = only_order_no_weight
+    def set_mutate_rule_based_weights(self, mutate_rule_based_weights):
+        self.mutate_rule_based_weights = mutate_rule_based_weights
+
+    def set_mutate_heap_based_weights(self, mutate_heap_based_weights):
+        self.mutate_heap_based_weights = mutate_heap_based_weights
 
     def get_time(self):
         return self.time
@@ -446,7 +451,7 @@ class Individual(list):
     def mutate(self):
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES):
                 for rule_index in range(NUMB_OF_ANY_PHASE_RULE):
                     weight = self.weights_of_any_phase_rules[feature_index][rule_index]
@@ -455,7 +460,7 @@ class Individual(list):
 
         for order_of_pure_phase_rules in self.orders_of_pure_phase_rules:
             tools.mutShuffleIndexes(order_of_pure_phase_rules, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_PURE_PHASE_RULES):
                 for rule_index in range(NUMB_OF_PURE_PHASE_RULE):
                     weight = self.weights_of_pure_phase_rules[feature_index][rule_index]
@@ -464,7 +469,7 @@ class Individual(list):
 
         for order_of_symbolic_execution_rules in self.orders_of_symbolic_execution_rules:
             tools.mutShuffleIndexes(order_of_symbolic_execution_rules, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURES_FOR_SYMBOLIC_EXECUTION_PHASE_RULES):
                 for rule_index in range(NUMB_OF_SYMBOLIC_EXECUTION_RULE):
                     weight = self.weights_of_symbolic_execution_rules[feature_index][rule_index]
@@ -473,7 +478,7 @@ class Individual(list):
 
         for order_of_unfolding_phase_rules in self.orders_of_unfolding_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_phase_rules, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_PHASE_RULES):
                 for rule_index in range(NUMB_OF_UNFOLDING_PHASE_RULE):
                     weight = self.weights_of_unfolding_phase_rules[feature_index][rule_index]
@@ -485,7 +490,7 @@ class Individual(list):
 
         for order_of_sketch_hole in self.orders_of_sketch_hole_rules:
             tools.mutShuffleIndexes(order_of_sketch_hole, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATORS_FOR_SKETCH_HOL_RULES):
                 for rule_index in range(NUMB_OF_SKETCH_HOLE_RULE):
                     weight = self.weights_of_sketch_hole_rules[feature_index][rule_index]
@@ -494,7 +499,7 @@ class Individual(list):
 
         for order_of_pointer_phase_rules in self.orders_of_pointer_phase_rules:
             tools.mutShuffleIndexes(order_of_pointer_phase_rules, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POINTER_PHASE_RULES):
                 for rule_index in range(NUMB_OF_POINTER_PHASE_RULE):
                     weight = self.weights_of_pointer_phase_rules[feature_index][rule_index]
@@ -503,7 +508,7 @@ class Individual(list):
 
         for order_of_post_block_phase_rule in self.orders_of_post_block_phase_rules:
             tools.mutShuffleIndexes(order_of_post_block_phase_rule, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_POST_BLOCK_PHASE_RULES):
                 for rule_index in range(NUMB_OF_POST_BLOCK_PHASE_RULE):
                     weight = self.weights_of_post_block_phase_rules[feature_index][rule_index]
@@ -512,7 +517,7 @@ class Individual(list):
 
         for order_of_call_abduction_rules_1 in self.orders_of_call_abduction_rules_1:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_1, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_1):
                 for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_1):
                     weight = self.weights_of_call_abduction_rules_1[feature_index][rule_index]
@@ -521,7 +526,7 @@ class Individual(list):
 
         for order_of_call_abduction_rules_2 in self.orders_of_call_abduction_rules_2:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_2, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if not self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_2):
                 for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_2):
                     weight = self.weights_of_call_abduction_rules_2[feature_index][rule_index]
@@ -530,7 +535,7 @@ class Individual(list):
 
         for order_of_call_abduction_rules_3 in self.orders_of_call_abduction_rules_3:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_3, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_3):
                 for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_3):
                     weight = self.weights_of_call_abduction_rules_3[feature_index][rule_index]
@@ -539,7 +544,7 @@ class Individual(list):
 
         for order_of_call_abduction_rules_4 in self.orders_of_call_abduction_rules_4:
             tools.mutShuffleIndexes(order_of_call_abduction_rules_4, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_CALL_ABDUCTION_RULES_4):
                 for rule_index in range(NUMB_OF_CALL_ABDUCTION_RULE_4):
                     weight = self.weights_of_call_abduction_rules_4[feature_index][rule_index]
@@ -548,7 +553,7 @@ class Individual(list):
 
         for order_of_unfolding_post_phase_rules in self.orders_of_unfolding_post_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_post_phase_rules, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_POST_PHASE_RULES):
                 for rule_index in range(NUMB_OF_UNFOLDING_POST_PHASE_RULE):
                     weight = self.weights_of_unfolding_post_phase_rules[feature_index][rule_index]
@@ -557,18 +562,24 @@ class Individual(list):
 
         for order_of_unfolding_no_unfold_phase_rules in self.orders_of_unfolding_no_unfold_phase_rules:
             tools.mutShuffleIndexes(order_of_unfolding_no_unfold_phase_rules, indpb=INDPB)
-        if not self.only_order_no_weight:
+        if self.mutate_rule_based_weights:
             for feature_index in range(NUMB_OF_FEATURE_COMBINATIONS_FOR_UNFOLDING_NO_UNFOLD_PHASE_RULES):
                 for rule_index in range(NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES):
                     weight = self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index]
                     self.weights_of_unfolding_no_unfold_phase_rules[feature_index][rule_index] = \
                         weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
-        self.weight_of_cost_no_call_goal_pre = self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
-        self.weight_of_cost_no_call_goal_post = self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
-        self.weight_of_cost_call_goal = self.weight_of_cost_call_goal * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
-        self.weight_of_cost_call_goal_pre = self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
-        self.weight_of_cost_call_goal_post = self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+        if self.mutate_heap_based_weights:
+            self.weight_of_cost_no_call_goal_pre = \
+                self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+            self.weight_of_cost_no_call_goal_post = \
+                self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+            self.weight_of_cost_call_goal = \
+                self.weight_of_cost_call_goal * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+            self.weight_of_cost_call_goal_pre = \
+                self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+            self.weight_of_cost_call_goal_post = \
+                self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     def default(self):
@@ -661,7 +672,7 @@ class Individual(list):
         json_data_to_write = {
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
-            "only_order_no_weight": self.only_order_no_weight,
+            "mutate_rule_based_weights": self.mutate_rule_based_weights,
             "orders_of_any_phase_rules": self.orders_of_any_phase_rules,
             "weights_of_any_phase_rules": self.weights_of_any_phase_rules,
             "orders_of_pure_phase_rules": self.orders_of_pure_phase_rules,
@@ -800,7 +811,8 @@ class Individual(list):
             "standard_deviation_for_weights": STANDARD_DEVIATION,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
-            "only_order_no_weight": self.only_order_no_weight
+            "mutate_rule_based_weights": self.mutate_rule_based_weights,
+            "mutate_heap_based_weights": self.mutate_heap_based_weights
         }
 
     def write_json_result(self, for_training=True):
@@ -843,7 +855,8 @@ class Group(list):
                  start_at_tuned_order: bool,
                  runtime_selection: bool,
                  fewer_feature_comb: bool,
-                 only_order_no_weight: bool,
+                 mutate_rule_based_weights: bool,
+                 mutate_heap_based_weights: bool,
                  group_id: int = 0,
                  individuals: List[Individual] = None,
                  overall_json_training_result = None,
@@ -852,7 +865,8 @@ class Group(list):
         self.start_at_tuned_order = start_at_tuned_order
         self.runtime_selection = runtime_selection
         self.fewer_feature_comb = fewer_feature_comb
-        self.only_order_no_weight = only_order_no_weight
+        self.mutate_rule_based_weights = mutate_rule_based_weights
+        self.mutate_heap_based_weights = mutate_heap_based_weights
         self.group_id = group_id
         if individuals is None:
             self.individuals = []
@@ -868,7 +882,8 @@ class Group(list):
                                         individual_id=individual_id,
                                         runtime_rule_order_selection=self.runtime_selection,
                                         fewer_feature_combinations=self.fewer_feature_comb,
-                                        only_order_no_weight=self.only_order_no_weight
+                                        mutate_rule_based_weights=self.mutate_rule_based_weights,
+                                        mutate_heap_based_weights=self.mutate_heap_based_weights
                                         )
             if self.start_at_tuned_order:
                 new_individual.default()
@@ -951,28 +966,32 @@ def main():
         start_at_tuned_order=False,
         runtime_selection=False,
         fewer_feature_comb=FEWER_FEATURE_COMBINATION,
-        only_order_no_weight=True,
+        mutate_rule_based_weights=False,
+        mutate_heap_based_weights=False,
         group_id=0
     )
     group_static_tuned_order = Group(
         start_at_tuned_order=True,
         runtime_selection=False,
         fewer_feature_comb=FEWER_FEATURE_COMBINATION,
-        only_order_no_weight=True,
+        mutate_rule_based_weights=False,
+        mutate_heap_based_weights=False,
         group_id=1
     )
     group_static_weight = Group(
         start_at_tuned_order=True,
         runtime_selection=False,
         fewer_feature_comb=FEWER_FEATURE_COMBINATION,
-        only_order_no_weight=False,
+        mutate_rule_based_weights=True,
+        mutate_heap_based_weights=False,
         group_id=2
     )
     group_dynamic_weight = Group(
         start_at_tuned_order=True,
         runtime_selection=True,
         fewer_feature_comb=FEWER_FEATURE_COMBINATION,
-        only_order_no_weight=False,
+        mutate_rule_based_weights=True,
+        mutate_heap_based_weights=False,
         group_id=3
     )
 
