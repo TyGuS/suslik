@@ -96,31 +96,15 @@ def json_overall_result(overall_results):
 
 
 def n_0s_in_a_row_aux(n:int, acc:int, ranks):
-    print("outside")
-    print("length of ranks is")
-    print(len(ranks))
     length = len(ranks)
     if length == 0:
-        print("from length clause")
         return False
     elif n == acc:
-        print("inside 1 ass is")
-        print(acc)
-        print("ranks are")
-        print(ranks)
         return True
     elif (n > acc) and (ranks[0] != 0):
-        print("inside 2 ass is")
-        print(acc)
-        print("ranks are")
-        print(ranks)
         ranks.pop(0)
         return n_0s_in_a_row_aux(n, 0, ranks)
     elif (n > acc) and (ranks[0] == 0):
-        print("inside 3 ass is")
-        print(acc)
-        print("ranks are")
-        print(ranks)
         ranks.pop(0)
         return n_0s_in_a_row_aux(n, acc + 1, ranks)
     else:
@@ -992,11 +976,13 @@ class Group(list):
         current_best_individual = copy.deepcopy(self.individuals[0])
         current_best_individual.topped_n_times_in_a_row(n)
 
+
 toolbox = base.Toolbox()
 
 
 # -----------------------
-# operator registration
+# 1. initial population
+# 2. evolution
 # -----------------------
 def main():
     random.seed(169)
