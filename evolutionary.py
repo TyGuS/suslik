@@ -856,8 +856,9 @@ class Group(list):
                  fewer_feature_comb: bool,
                  mutate_rule_based_weights: bool,
                  mutate_heap_based_weights: bool,
-                 best_individual: Individual,
+                 best_individual: Individual = None,
                  group_id: int = 0,
+                 generation_id: int = 0,
                  # TODO: numbers of data points are shared by all groups in each experiment
                  #       We should probably introduce a new class World or Experiment, which
                  #       contains all the Groups in each experiment.
@@ -873,17 +874,19 @@ class Group(list):
         self.fewer_feature_comb = fewer_feature_comb
         self.mutate_rule_based_weights = mutate_rule_based_weights
         self.mutate_heap_based_weights = mutate_heap_based_weights
-        self.best_individual = Individual(
-                group_id=999999,
-                generation_id=999999,
-                individual_id=999999,
-                runtime_rule_order_selection=runtime_selection,
-                fewer_feature_combinations=fewer_feature_comb,
-                mutate_rule_based_weights=mutate_rule_based_weights,
-                mutate_heap_based_weights=mutate_heap_based_weights,
-                numb_of_training_data_points=numb_of_training_data_points,
-                numb_of_validation_data_points=numb_of_validation_data_points
-            )
+        # initially we place a dummy individual as the best individual
+        if best_individual is None:
+            self.best_individual = Individual(
+                    group_id=999999,
+                    generation_id=999999,
+                    individual_id=999999,
+                    runtime_rule_order_selection=runtime_selection,
+                    fewer_feature_combinations=fewer_feature_comb,
+                    mutate_rule_based_weights=mutate_rule_based_weights,
+                    mutate_heap_based_weights=mutate_heap_based_weights,
+                    numb_of_training_data_points=numb_of_training_data_points,
+                    numb_of_validation_data_points=numb_of_validation_data_points
+                )
         self.group_id = group_id
         self.numb_of_training_data_points = numb_of_training_data_points
         self.numb_of_validation_data_points = numb_of_validation_data_points
