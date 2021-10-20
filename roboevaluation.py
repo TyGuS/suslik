@@ -30,7 +30,7 @@ import random
 #################
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
-TIMEOUT      = '-t=5000'                                          # Timeout option for suslik
+TIMEOUT      = '-t=1000'                                          # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/synthesis/all-benchmarks/'     # Root directory for the tests
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
 CSV_TEMP     = 'stats-temp.csv'                                   # Intermediate CSV file produced by suslik
@@ -133,7 +133,6 @@ def get_benchmark_group_for_training(group:BenchmarkGroup):
     benchmarks_for_training = []
     for benchmark in group.benchmarks:
         if benchmark.is_for_training:
-            print(benchmark.name)
             benchmarks_for_training.append(copy.deepcopy(benchmark))
     return BenchmarkGroup(group.name, benchmarks_for_training)
 
@@ -141,7 +140,6 @@ def get_benchmark_group_for_validation(group:BenchmarkGroup):
     benchmarks_for_validation = []
     for benchmark in group.benchmarks:
         if not benchmark.is_for_training:
-            print(benchmark.name)
             benchmarks_for_validation.append(copy.deepcopy(benchmark))
     return BenchmarkGroup(group.name, benchmarks_for_validation)
 
