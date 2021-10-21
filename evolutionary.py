@@ -933,9 +933,15 @@ class Group(list):
 
     # assume individuals are already sorted and evaluated.
     def write_tentative_overall_json_result(self, for_training=True):
+
+        if for_training:
+            json_result = self.individuals[0].json_result(for_training)
+        else:
+            json_result = self.best_individual.json_result(for_training)
+
         with open(self.json_tentative_overall_result_file_path(for_training), 'a') as \
                 json_overall_tentative_result_file_to_write:
-            json.dump(self.individuals[0].json_result(for_training), json_overall_tentative_result_file_to_write)
+            json.dump(json_result, json_overall_tentative_result_file_to_write)
             json_overall_tentative_result_file_to_write.write("\n")
             json_overall_tentative_result_file_to_write.close()
 
@@ -1006,7 +1012,7 @@ class Group(list):
         self.best_individual = copy.deepcopy(self.individuals[0])
         self.best_individual.evaluate(for_training=False)
         self.best_individual.write_json_result(for_training=False)
-        self.best_individual.write_tentative_overall_json_result(for_training=False)
+        self.write_tentative_overall_json_result(for_training=False)
         self.overall_json_validation_result.append(self.best_individual.json_result(is_for_training=False))
 
     def same_individual_topped_n_times_in_a_row(self, n: int):
@@ -1104,10 +1110,10 @@ def main():
 
     # final cross-validation
     for group in groups:
-        final_winner = copy.deepcopy(group.individuals[0])
-        final_winner.set_generation_id(generation_id=generation_id)
-        final_winner.write_final_overall_json_result(for_training=True)
-        final_winner.write_final_overall_json_result(for_training=False)
+        #final_winner = copy.deepcopy(group.individuals[0])
+        #final_winner.set_generation_id(generation_id=generation_id)
+        group.write_final_overall_json_result(for_training=True)
+        group.write_final_overall_json_result(for_training=False)
 
     for index in range(len(groups)):
         if groups[index].same_individual_topped_n_times_in_a_row(STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
