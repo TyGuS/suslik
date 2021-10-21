@@ -144,10 +144,11 @@ trait SynthesisRunnerUtil {
     val spec = specs.head
 
     //TODO WIP
+    val experimentID  = params.experimentID
     val groupID       = params.groupID
     val generationID  = params.generationID
     val individualID  = params.individualID
-    val fileName      = "search_parameter_" + groupID.toString + "_" + generationID.toString + "_" + individualID.toString + ".json"
+    val fileName      = "search_parameter_" + experimentID.toString + "_" + groupID.toString + "_" + generationID.toString + "_" + individualID.toString + ".json"
     val directoryPath = os.pwd
     val jsonFile      = os.read(directoryPath/"src"/"main"/"scala"/"org"/"tygus"/"suslik"/"synthesis"/"tactics"/"parameters"/fileName)
     val jsonData      = ujson.read(jsonFile)

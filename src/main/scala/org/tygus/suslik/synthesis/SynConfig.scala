@@ -58,6 +58,7 @@ case class SynConfig(
                       startTime: Long = 0,
                       // genetic algorithm to improve rule orderings.
                       evolutionary: Boolean = false,
+                      experimentID: Int = 0,
                       groupID: Int = 0,
                       generationID: Int = 0,
                       individualID: Int = 0,

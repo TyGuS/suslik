@@ -116,6 +116,7 @@ class Individual(list):
 
     def __init__(self,
                  is_default=False,
+                 experiment_id=999999,
                  group_id=999999,
                  generation_id=999999,
                  individual_id=999999,
@@ -169,6 +170,7 @@ class Individual(list):
                  ):
         super().__init__()
         self.is_default = is_default
+        self.experiment_id = experiment_id
         self.group_id = group_id
         self.generation_id = generation_id
         self.individual_id = individual_id
@@ -705,7 +707,7 @@ class Individual(list):
         self.weight_of_cost_call_goal_post = 1.0
 
     def json_search_parameter_file_path(self):
-        json_file_name = "search_parameter" + "_" + str(self.group_id) + "_" + str(self.generation_id) + "_" + \
+        json_file_name = "search_parameter" + "_" + str(self.experiment_id) + "_" + str(self.group_id) + "_" + str(self.generation_id) + "_" + \
                          str(self.individual_id) + ".json"
         path = PATH_TO_TACTICS + json_file_name
         return path
@@ -760,8 +762,8 @@ class Individual(list):
         else:
             result_type = "_validation_"
 
-        path = roboevaluation.EVAL_FOLDER + '/stats-performance' + result_type + str(self.group_id) + "_" \
-               + str(self.generation_id) + '_' + str(self.individual_id) + '.csv'
+        path = roboevaluation.EVAL_FOLDER + '/stats-performance' + result_type + str(self.experiment_id) + "_" + \
+               str(self.group_id) + "_" + str(self.generation_id) + '_' + str(self.individual_id) + '.csv'
         return path
 
     # This is sub-optimal.
@@ -776,7 +778,7 @@ class Individual(list):
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
             roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True,
-            self.group_id, self.generation_id, self.individual_id)
+            self.experiment_id, self.group_id, self.generation_id, self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
                                     results1, self.csv_result_file_path(is_for_training=for_training))
@@ -817,11 +819,12 @@ class Individual(list):
         else:
             result_type = "_validation_"
 
-        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + "_" + str(self.generation_id) + "_" \
+        return "robo-evaluation-utils/result" + result_type + str(self.experiment_id) + "_" + str(self.group_id) + "_" + str(self.generation_id) + "_" \
                + str(self.rank) + ".json"
 
     def json_result(self, is_for_training=True):
         return {
+            "experiment_id": self.experiment_id,
             "group_ID": self.group_id,
             "generation_ID": self.generation_id,
             "individual_ID": self.individual_id,
@@ -878,6 +881,7 @@ class Group(list):
                  mutate_rule_based_weights: bool,
                  mutate_heap_based_weights: bool,
                  best_individual: Individual = None,
+                 experiment_id: int = 999999,
                  group_id: int = 0,
                  numb_of_training_data_points=999999,
                  numb_of_validation_data_points=999999,
@@ -898,7 +902,9 @@ class Group(list):
         self.mutate_heap_based_weights = mutate_heap_based_weights
         # initially we place a dummy individual as the best individual
         if best_individual is None:
-            self.best_individual = Individual(
+            self.best_individual = \
+                Individual(
+                    experiment_id=999999,
                     group_id=999999,
                     generation_id=999999,
                     individual_id=999999,
@@ -907,6 +913,7 @@ class Group(list):
                     mutate_rule_based_weights=mutate_rule_based_weights,
                     mutate_heap_based_weights=mutate_heap_based_weights
                 )
+        self.experiment_id = experiment_id
         self.group_id = group_id
         self.numb_of_training_data_points = numb_of_training_data_points
         self.numb_of_validation_data_points = numb_of_validation_data_points
@@ -931,6 +938,9 @@ class Group(list):
 
         self.number_of_validation_data = number_of_validation_data
 
+    def set_experiment_id(self, experiment_id):
+        self.experiment_id = experiment_id
+
     def set_training_data(self, training_data):
         self.training_data = training_data
         self.number_of_training_data = roboevaluation.number_of_benchmarks_in_benchmark_groups(training_data)
@@ -942,6 +952,7 @@ class Group(list):
     def mk_initial_population_and_evaluate(self, training_data, validation_data):
         for individual_id in list(range(0, POPULATION_SIZE)):
             new_individual = Individual(
+                experiment_id=self.experiment_id,
                 group_id=self.group_id,
                 generation_id=0,
                 individual_id=individual_id,
@@ -973,7 +984,7 @@ class Group(list):
         else:
             result_type = "_tentative_overall_validation_"
 
-        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + ".json"
+        return "robo-evaluation-utils/result" + result_type + str(self.experiment_id) + "_" + str(self.group_id) + ".json"
 
     # assume individuals are already sorted and evaluated.
     def write_tentative_overall_json_result(self, for_training=True):
@@ -996,7 +1007,7 @@ class Group(list):
         else:
             result_type = "_final_overall_validation_"
 
-        return "robo-evaluation-utils/result" + result_type + str(self.group_id) + ".json"
+        return "robo-evaluation-utils/result" + result_type + str(self.experiment_id) + "_" + str(self.group_id) + ".json"
 
     def write_final_overall_json_result(self, for_training=True):
 
@@ -1119,13 +1130,13 @@ class Evolution(list):
 
     def __init__(self,
                  name,
-                 evolution_id: int,
-                 short_timeout: int = 3000, # used for training and validation at each generation
-                 long_timeout: int = 60000, # used for the final evaluation for AST-size/# of backtracking improvement
+                 experiment_id: int,
+                 short_timeout: int = 3000,  # used for training and validation at each generation
+                 long_timeout: int = 60000,  # used for the final evaluation for AST-size/# of backtracking improvement
                  groups: List[Group] = default_groups):
         super().__init__()
         self.name = name
-        self.evolution_id = evolution_id
+        self.experiment_id = experiment_id
         self.final_winner = []
         (training_data, number_of_training_data, validation_data, number_of_validation_data) = \
             roboevaluation.fifty_fifty_split_of_dataset(0.5)
@@ -1144,6 +1155,7 @@ class Evolution(list):
     def run_one_experiment(self):
 
         for group in self.groups:
+            group.set_experiment_id(self.experiment_id)
             group.set_training_data(self.training_data)
             group.set_validation_data(self.validation_data)
             group.mk_initial_population_and_evaluate(self.training_data, self.validation_data)
@@ -1190,7 +1202,7 @@ def main():
 
     experiment1 = Evolution(
         name="experiment1",
-        evolution_id=0
+        experiment_id=0
     )
 
     experiment1.run_one_experiment()
