@@ -5,6 +5,7 @@ import csv
 import functools
 import operator
 import random
+from typing import List
 
 ###
 #
@@ -129,12 +130,17 @@ class BenchmarkGroup:
     return res
 
 
+  def number_of_benchmarks_in_this_group(self):
+      return len(self.benchmarks)
+
+
 def get_benchmark_group_for_training(group:BenchmarkGroup):
     benchmarks_for_training = []
     for benchmark in group.benchmarks:
         if benchmark.is_for_training:
             benchmarks_for_training.append(copy.deepcopy(benchmark))
     return BenchmarkGroup(group.name, benchmarks_for_training)
+
 
 def get_benchmark_group_for_validation(group:BenchmarkGroup):
     benchmarks_for_validation = []
@@ -143,6 +149,12 @@ def get_benchmark_group_for_validation(group:BenchmarkGroup):
             benchmarks_for_validation.append(copy.deepcopy(benchmark))
     return BenchmarkGroup(group.name, benchmarks_for_validation)
 
+
+def number_of_benchmarks_in_benchmark_groups(groups:List[BenchmarkGroup]):
+    number_of_benchmarks = 0
+    for group in groups:
+        number_of_benchmarks = number_of_benchmarks + group.number_of_benchmarks_in_this_group()
+    return number_of_benchmarks
 ###################################################################
 
 
@@ -381,8 +393,9 @@ ALL_BENCHMARKS = [
   ]
 
 TRAINING_DATA = list(map(get_benchmark_group_for_training, ALL_BENCHMARKS))
+NUMBER_OF_TRAINING_DATA: int = number_of_benchmarks_in_benchmark_groups(TRAINING_DATA)
 VALIDATION_DATA = list(map(get_benchmark_group_for_validation, ALL_BENCHMARKS))
-
+NUMBER_OF_VALIDATION_DATA: int = number_of_benchmarks_in_benchmark_groups(VALIDATION_DATA)
 ###################################################################
 
 def read_csv(csv_in):

@@ -1030,8 +1030,8 @@ group_static_random_order = Group(
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
     group_id=0,
-    numb_of_training_data_points=len(roboevaluation.TRAINING_DATA),
-    numb_of_validation_data_points=len(roboevaluation.VALIDATION_DATA)
+    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
+    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
 )
 
 group_static_tuned_order = Group(
@@ -1042,8 +1042,8 @@ group_static_tuned_order = Group(
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
     group_id=1,
-    numb_of_training_data_points=len(roboevaluation.TRAINING_DATA),
-    numb_of_validation_data_points=len(roboevaluation.VALIDATION_DATA)
+    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
+    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
 )
 
 group_static_weight = Group(
@@ -1054,8 +1054,8 @@ group_static_weight = Group(
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
     group_id=2,
-    numb_of_training_data_points=len(roboevaluation.TRAINING_DATA),
-    numb_of_validation_data_points=len(roboevaluation.VALIDATION_DATA)
+    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
+    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
 )
 
 group_dynamic_weight = Group(
@@ -1066,8 +1066,8 @@ group_dynamic_weight = Group(
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
     group_id=3,
-    numb_of_training_data_points=len(roboevaluation.TRAINING_DATA),
-    numb_of_validation_data_points=len(roboevaluation.VALIDATION_DATA)
+    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
+    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
 )
 
 groups = [
