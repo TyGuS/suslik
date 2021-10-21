@@ -10,6 +10,7 @@ from deap import tools
 import math
 from typing import List
 
+PORTION_OF_TRAINING = 0.5
 PATH_TO_TACTICS = "src/main/scala/org/tygus/suslik/synthesis/tactics/parameters/"
 NUMB_OF_ANY_PHASE_RULE = 8
 NUMB_OF_PURE_PHASE_RULE = 10
@@ -114,17 +115,16 @@ class Individual(list):
     """This class describes SuSLik's search strategy for individuals in each generation of each group."""
 
     def __init__(self,
-                 group_id,
-                 generation_id,
-                 individual_id,
+                 is_default=False,
+                 group_id=999999,
+                 generation_id=999999,
+                 individual_id=999999,
                  rank=999999,
                  runtime_rule_order_selection=True,  # a.k.a dynamic optimisation
                  fewer_feature_combinations=True,
                  mutate_rule_based_weights=True,
                  mutate_heap_based_weights=True,
                  nan=999999,
-                 numb_of_training_data_points=999999,
-                 numb_of_validation_data_points=999999,
                  time=9999999999.0,
                  backtracking=9999999999,
                  rules=9999999999,
@@ -161,8 +161,14 @@ class Individual(list):
                  weight_of_cost_no_call_goal_post: float = 1.0,
                  weight_of_cost_call_goal: float = 10.0,
                  weight_of_cost_call_goal_pre: float = 3.0,
-                 weight_of_cost_call_goal_post: float = 1.0):
+                 weight_of_cost_call_goal_post: float = 1.0,
+                 training_data=None,
+                 number_of_training_data=999999,
+                 validation_data=None,
+                 number_of_validation_data=999999
+                 ):
         super().__init__()
+        self.is_default = is_default
         self.group_id = group_id
         self.generation_id = generation_id
         self.individual_id = individual_id
@@ -172,8 +178,6 @@ class Individual(list):
         self.mutate_rule_based_weights = mutate_rule_based_weights
         self.mutate_heap_based_weights = mutate_heap_based_weights
         self.nan = nan
-        self.numb_of_training_data_points = numb_of_training_data_points,
-        self.numb_of_validation_data_points = numb_of_validation_data_points,
         self.time = time
         self.backtracking = backtracking
         self.rules = rules
@@ -407,6 +411,20 @@ class Individual(list):
                 weights_of_unfolding_no_unfold_phase_rules.append(ws_for_each_combination)
             self.weights_of_unfolding_no_unfold_phase_rules = weights_of_unfolding_no_unfold_phase_rules
 
+        if training_data is None:
+            self.training_data = []
+        else:
+            self.training_data = training_data
+
+        self.number_of_training_data = number_of_training_data
+
+        if validation_data is None:
+            self.validation_data = []
+        else:
+            self.validation_data = validation_data
+
+        self.number_of_validation_data = number_of_validation_data
+
     def topped_n_times_in_a_row(self, n: int):
         n_0s_in_a_row(n, self.ranks)
 
@@ -471,6 +489,8 @@ class Individual(list):
         self.ancestor_ranks.append(self.rank)
 
     def mutate(self):
+        self.is_default = False
+
         for order_of_any_phase_rules in self.orders_of_any_phase_rules:
             tools.mutShuffleIndexes(order_of_any_phase_rules, indpb=INDPB)
         if self.mutate_rule_based_weights:
@@ -605,6 +625,7 @@ class Individual(list):
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     def default(self):
+        self.is_default = True
 
         orders_of_any_phase_rules = []
         for i in list(range(NUMB_OF_FEATURE_COMBINATIONS_FOR_ANY_PHASE_RULES)):
@@ -748,9 +769,9 @@ class Individual(list):
     def evaluate(self, for_training=True):
 
         if for_training:
-            data = roboevaluation.TRAINING_DATA
+            data = self.training_data
         else:
-            data = roboevaluation.VALIDATION_DATA
+            data = self.validation_data
 
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
@@ -806,8 +827,8 @@ class Individual(list):
             "individual_ID": self.individual_id,
             "rank": self.rank,
             "number_of_nan": self.nan,
-            "numb_of_training_data_points": self.numb_of_training_data_points,
-            "numb_of_validation_data_points": self.numb_of_validation_data_points,
+            "number_of_training_data": self.number_of_training_data,
+            "number_of_validation_data": self.number_of_validation_data,
             "fired_rules": self.rules,
             "search_time": self.time,
             "backtracking": self.backtracking,
@@ -858,15 +879,16 @@ class Group(list):
                  mutate_heap_based_weights: bool,
                  best_individual: Individual = None,
                  group_id: int = 0,
-                 generation_id: int = 0,
-                 # TODO: numbers of data points are shared by all groups in each experiment
-                 #       We should probably introduce a new class World or Experiment, which
-                 #       contains all the Groups in each experiment.
                  numb_of_training_data_points=999999,
                  numb_of_validation_data_points=999999,
                  individuals: List[Individual] = None,
                  overall_json_training_result=None,
-                 overall_json_validation_result=None):
+                 overall_json_validation_result=None,
+                 training_data=None,
+                 number_of_training_data=999999,
+                 validation_data=None,
+                 number_of_validation_data=999999
+                 ):
         super().__init__()
         self.name = name
         self.start_at_tuned_order = start_at_tuned_order
@@ -883,9 +905,7 @@ class Group(list):
                     runtime_rule_order_selection=runtime_selection,
                     fewer_feature_combinations=fewer_feature_comb,
                     mutate_rule_based_weights=mutate_rule_based_weights,
-                    mutate_heap_based_weights=mutate_heap_based_weights,
-                    numb_of_training_data_points=numb_of_training_data_points,
-                    numb_of_validation_data_points=numb_of_validation_data_points
+                    mutate_heap_based_weights=mutate_heap_based_weights
                 )
         self.group_id = group_id
         self.numb_of_training_data_points = numb_of_training_data_points
@@ -897,7 +917,29 @@ class Group(list):
         if overall_json_validation_result is None:
             self.overall_json_validation_result = []
 
-    def mk_initial_population_and_evaluate(self):
+        if training_data is None:
+            self.training_data = []
+        else:
+            self.training_data = training_data
+
+        self.number_of_training_data = number_of_training_data
+
+        if validation_data is None:
+            self.validation_data = []
+        else:
+            self.validation_data = validation_data
+
+        self.number_of_validation_data = number_of_validation_data
+
+    def set_training_data(self, training_data):
+        self.training_data = training_data
+        self.number_of_training_data = roboevaluation.number_of_benchmarks_in_benchmark_groups(training_data)
+
+    def set_validation_data(self, validation_data):
+        self.validation_data = validation_data
+        self.number_of_validation_data = roboevaluation.number_of_benchmarks_in_benchmark_groups(validation_data)
+
+    def mk_initial_population_and_evaluate(self, training_data, validation_data):
         for individual_id in list(range(0, POPULATION_SIZE)):
             new_individual = Individual(
                 group_id=self.group_id,
@@ -907,8 +949,10 @@ class Group(list):
                 fewer_feature_combinations=self.fewer_feature_comb,
                 mutate_rule_based_weights=self.mutate_rule_based_weights,
                 mutate_heap_based_weights=self.mutate_heap_based_weights,
-                numb_of_training_data_points=self.numb_of_training_data_points,
-                numb_of_validation_data_points=self.numb_of_validation_data_points
+                training_data=training_data,
+                validation_data=validation_data,
+                number_of_training_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(training_data),
+                number_of_validation_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(validation_data)
             )
             if self.start_at_tuned_order:
                 new_individual.default()
@@ -1029,9 +1073,7 @@ group_static_random_order = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
-    group_id=0,
-    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
-    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
+    group_id=0
 )
 
 group_static_tuned_order = Group(
@@ -1041,9 +1083,7 @@ group_static_tuned_order = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
-    group_id=1,
-    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
-    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
+    group_id=1
 )
 
 group_static_weight = Group(
@@ -1053,9 +1093,7 @@ group_static_weight = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
-    group_id=2,
-    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
-    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
+    group_id=2
 )
 
 group_dynamic_weight = Group(
@@ -1065,18 +1103,78 @@ group_dynamic_weight = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
-    group_id=3,
-    numb_of_training_data_points=roboevaluation.NUMBER_OF_TRAINING_DATA,
-    numb_of_validation_data_points=roboevaluation.NUMBER_OF_VALIDATION_DATA
+    group_id=3
 )
 
-groups = [
+default_groups = [
     group_static_random_order,
     group_static_tuned_order,
     group_static_weight,
     group_dynamic_weight
 ]
 
+
+class Evolution(list):
+    """This class describes an experiment of genetic algorithm, involving multiple groups of SuSLik instances."""
+
+    def __init__(self,
+                 name,
+                 evolution_id: int,
+                 short_timeout: int = 3000, # used for training and validation at each generation
+                 long_timeout: int = 60000, # used for the final evaluation for AST-size/# of backtracking improvement
+                 groups: List[Group] = default_groups):
+        super().__init__()
+        self.name = name
+        self.evolution_id = evolution_id
+        self.final_winner = []
+        (training_data, number_of_training_data, validation_data, number_of_validation_data) = \
+            roboevaluation.fifty_fifty_split_of_dataset(0.5)
+        self.training_data = training_data
+        self.number_of_training_data = number_of_training_data
+        self.validation_data = validation_data
+        self.number_of_validation_data = number_of_validation_data
+        default_ind = Individual(is_default=True)
+        default_ind.default()
+        self.default_individual = default_ind
+        self.final_winner = []
+        self.short_timeout = short_timeout
+        self.long_timeout = long_timeout
+        self.groups = groups
+
+    def run_one_experiment(self):
+
+        for group in self.groups:
+            group.set_training_data(self.training_data)
+            group.set_validation_data(self.validation_data)
+            group.mk_initial_population_and_evaluate(self.training_data, self.validation_data)
+            group.sort_rank_individuals_then_validate_the_best()
+
+        generation_id = 1
+
+        # begin the evolution
+        while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
+
+            print("----- generation %i -----" % generation_id)
+
+            for group in default_groups:
+                group.change_old_generation_to_new_generation_and_evaluate_new_individuals_for_training \
+                    (new_generation_id=generation_id)
+                group.sort_rank_individuals_then_validate_the_best()
+
+            generation_id = generation_id + 1
+
+        # final cross-validation
+        for group in default_groups:
+            # final_winner = copy.deepcopy(group.individuals[0])
+            # final_winner.set_generation_id(generation_id=generation_id)
+            group.write_final_overall_json_result(for_training=True)
+            group.write_final_overall_json_result(for_training=False)
+
+        for index in range(len(default_groups)):
+            if default_groups[index].same_individual_topped_n_times_in_a_row \
+                        (STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
+                default_groups.pop(index)
+        return 0
 
 # -----------------------
 # 1. initial population
@@ -1090,34 +1188,12 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    for group in groups:
-        group.mk_initial_population_and_evaluate()
-        group.sort_rank_individuals_then_validate_the_best()
+    experiment1 = Evolution(
+        name="experiment1",
+        evolution_id=0
+    )
 
-    generation_id = 1
-
-    # begin the evolution
-    while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
-
-        print("----- generation %i -----" % generation_id)
-
-        for group in groups:
-            group.change_old_generation_to_new_generation_and_evaluate_new_individuals_for_training \
-                (new_generation_id=generation_id)
-            group.sort_rank_individuals_then_validate_the_best()
-
-        generation_id = generation_id + 1
-
-    # final cross-validation
-    for group in groups:
-        #final_winner = copy.deepcopy(group.individuals[0])
-        #final_winner.set_generation_id(generation_id=generation_id)
-        group.write_final_overall_json_result(for_training=True)
-        group.write_final_overall_json_result(for_training=False)
-
-    for index in range(len(groups)):
-        if groups[index].same_individual_topped_n_times_in_a_row(STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
-            groups.pop(index)
+    experiment1.run_one_experiment()
 
     return 0
 

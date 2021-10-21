@@ -11,9 +11,9 @@ import roboevaluation
 def main():
     print("Hello from evolutionary_postprocess.py")
     print(roboevaluation.SUSLIK_JAR)
-    print(evolutionary.groups[1].start_at_tuned_order)
+    print(evolutionary.default_groups[1].start_at_tuned_order)
 
-    for group in evolutionary.groups:
+    for group in evolutionary.default_groups:
 
         with open(group.json_final_overall_result_file_path(is_for_training=True),
                   'r') as final_overall_training_result:
