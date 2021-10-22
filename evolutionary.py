@@ -28,7 +28,7 @@ NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
 POPULATION_SIZE = 2
-MAXIMUM_NUMBER_OF_GENERATIONS = 3
+MAXIMUM_NUMBER_OF_GENERATIONS = 2
 INDPB = 0.1
 STANDARD_DEVIATION = 0.05
 FEWER_FEATURE_COMBINATION = True
@@ -428,7 +428,7 @@ class Individual(list):
         self.number_of_validation_data = number_of_validation_data
 
     def topped_n_times_in_a_row(self, n: int):
-        n_0s_in_a_row(n, self.ranks)
+        n_0s_in_a_row(n, self.ancestor_ranks)
 
     def get_group_id(self):
         return self.group_id
