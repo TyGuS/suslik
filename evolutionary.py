@@ -452,6 +452,9 @@ class Individual(list):
     def get_group_id(self):
         return self.group_id
 
+    def set_timeout(self, timeout):
+        self.timeout = timeout
+
     def set_group_id(self, group_id):
         self.group_id = group_id
 
@@ -787,7 +790,10 @@ class Individual(list):
 
     # This is sub-optimal.
     # Probably there is a way to achieve a higher level of decoupling from roboevaluation.
-    def evaluate(self, for_training=True):
+    def evaluate(self, for_training=True, timeout=None):
+
+        if timeout is None:
+            timeout = self.timeout # which is the shorter timeout used for training
 
         if for_training:
             data = self.training_data
@@ -857,7 +863,7 @@ class Individual(list):
             "is_for_training": is_for_training,
             "population_size": POPULATION_SIZE,
             "independent_probability": INDPB,
-            "timeout": roboevaluation.TIMEOUT,
+            "timeout": self.timeout,
             "standard_deviation_for_weights": STANDARD_DEVIATION,
             "runtime_rule_order_selection": self.runtime_rule_order_selection,
             "fewer_feature_combinations": self.fewer_feature_combinations,
@@ -1030,6 +1036,25 @@ class Group(list):
             json_overall_tentative_result_file_to_write.write("\n")
             json_overall_tentative_result_file_to_write.close()
 
+    def json_final_long_timeout_result_file_path(self, is_for_training=True):
+
+        if is_for_training:
+            result_type = "_final_long_timeout_training_"
+        else:
+            result_type = "_final_long_timeout_validation_"
+
+        return "robo-evaluation-utils/result" + result_type + str(self.experiment_id) + "_" + str(self.group_id) + ".json"
+
+    def write_final_long_timeout_json_result(self, for_training=True):
+
+        if for_training:
+            json_result = self.individuals[0].json_result(for_training)
+        else:
+            json_result = self.best_individual.json_result(for_training)
+
+        with open(self.json_final_long_timeout_result_file_path(for_training), 'w') as json_result_file_to_write:
+            json.dump(json_result, json_result_file_to_write, indent=2)
+
     def json_final_overall_result_file_path(self, is_for_training=True):
 
         if is_for_training:
@@ -1167,9 +1192,9 @@ group_dynamic_weight = Group(
 )
 
 default_groups = [
-    group_static_random_order,
-    group_static_tuned_order,
-    group_static_weight,
+    #group_static_random_order,
+    #group_static_tuned_order,
+    #group_static_weight,
     group_dynamic_weight
 ]
 
@@ -1220,6 +1245,7 @@ class Evolution(list):
             group.set_rich_get_richer(self.rich_get_richer)
 
         generation_id = 1
+        popped_groups = [] #groups t stopped evolving.
 
         # begin the evolution
         while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
@@ -1234,13 +1260,15 @@ class Evolution(list):
             for index in range(len(self.groups)):
                 if self.groups[index].same_individual_topped_n_times_in_a_row \
                             (STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
-                    self.groups.pop(index)
+                    popped_groups.append(self.groups.pop(index))
 
             for index in range(len(self.groups)):
                 if POPULATION_SIZE == self.groups[index].number_of_same_individual_topped_recently_in_a_row():
-                    self.groups.pop(index)
+                    popped_groups.append(self.groups.pop(index))
 
             generation_id = generation_id + 1
+
+        self.groups = self.groups + popped_groups
 
         # final cross-validation
         for group in self.groups:
@@ -1248,6 +1276,10 @@ class Evolution(list):
             # final_winner.set_generation_id(generation_id=generation_id)
             group.write_final_overall_json_result(for_training=True)
             group.write_final_overall_json_result(for_training=False)
+            group.best_individual.evaluate(for_training=False, timeout=self.long_timeout)
+            group.best_individual.write_final_long_timeout_json_result(for_training=False)
+            group.individuals[0].evaluate(for_training=True, timeout=self.long_timeout)
+            group.individuals[0].write_final_long_timeout_json_result(for_training=True)
 
         return 0
 
