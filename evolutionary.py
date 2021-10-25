@@ -430,6 +430,24 @@ class Individual(list):
     def topped_n_times_in_a_row(self, n: int):
         n_0s_in_a_row(n, self.ancestor_ids)
 
+    def number_of_recent_0s_in_a_row_aux(self, acc, copied_ranks):
+        # I have to used deeply copied ranks, so that I can "pop" it without affecting other parts.
+        length = len(copied_ranks)
+        if length == 0:
+            return acc
+        elif copied_ranks[0] == 0:
+            copied_ranks.pop(0)
+            return self.number_of_recent_0s_in_a_row_aux(acc + 1, copied_ranks)
+        else:
+            return acc
+
+    def number_of_recent_0s_in_a_row(self):
+        copied_ranks = copy.deepcopy(self.ranks)
+        return self.number_of_recent_0s_in_a_row_aux(0, copied_ranks)
+
+    def topped_how_many_times_in_a_row(self, n: int):
+        n_0s_in_a_row(n, self.ancestor_ids)
+
     def get_group_id(self):
         return self.group_id
 
@@ -891,7 +909,8 @@ class Group(list):
                  training_data=None,
                  number_of_training_data=999999,
                  validation_data=None,
-                 number_of_validation_data=999999
+                 number_of_validation_data=999999,
+                 rich_get_richer=True
                  ):
         super().__init__()
         self.name = name
@@ -938,6 +957,8 @@ class Group(list):
 
         self.number_of_validation_data = number_of_validation_data
 
+        self.rich_get_richer = rich_get_richer
+
     def set_experiment_id(self, experiment_id):
         self.experiment_id = experiment_id
 
@@ -948,6 +969,9 @@ class Group(list):
     def set_validation_data(self, validation_data):
         self.validation_data = validation_data
         self.number_of_validation_data = roboevaluation.number_of_benchmarks_in_benchmark_groups(validation_data)
+
+    def set_rich_get_richer(self, rich_get_richer):
+        self.rich_get_richer = rich_get_richer
 
     def mk_initial_population_and_evaluate(self, training_data, validation_data):
         for individual_id in list(range(0, POPULATION_SIZE)):
@@ -1042,12 +1066,24 @@ class Group(list):
             individual_id = individual_id + 1
 
         # mutants are to be mutated
-        mutants = copy.deepcopy(survivors_of_old_generation) + copy.deepcopy(survivors_of_old_generation[:2])
+        if self.rich_get_richer:
+            number_of_champions_copy = self.number_of_same_individual_topped_recently_in_a_row()
+            if POPULATION_SIZE > number_of_champions_copy:
+                number_of_winners = POPULATION_SIZE - number_of_champions_copy
+            else:
+                number_of_winners = 1
+            mutants = copy.deepcopy(survivors_of_old_generation[:number_of_winners])
+            index = 0
+            while index < number_of_winners:
+                mutants.append(copy.deepcopy(self.best_individual))
+                index += 1
+        else:
+            mutants = copy.deepcopy(survivors_of_old_generation)
 
         for individual in mutants:
             individual.mutate()
             individual.set_individual_id(individual_id)
-            individual_id = individual_id + 1
+            individual_id += 1
             individual.write_json_parameter_file()
             individual.evaluate(for_training=True)
 
@@ -1059,7 +1095,7 @@ class Group(list):
         rank = 0
         for individual in self.individuals:
             individual.set_rank(rank)
-            rank = rank + 1
+            rank += 1
             individual.write_json_result(for_training=True)
         self.write_tentative_overall_json_result(for_training=True)
         self.overall_json_training_result.append(self.individuals[0].json_result(is_for_training=True))
@@ -1070,10 +1106,13 @@ class Group(list):
         self.write_tentative_overall_json_result(for_training=False)
         self.overall_json_validation_result.append(self.best_individual.json_result(is_for_training=False))
 
+    # assume best_individual is already updated
     def same_individual_topped_n_times_in_a_row(self, n: int):
-        self.individuals.sort(key=get_total_rules)
-        self.individuals.sort(key=get_number_of_nans)
-        self.best_individual.topped_n_times_in_a_row(n)
+        return self.best_individual.topped_n_times_in_a_row(n)
+
+    # assume best_individual is already updated
+    def number_of_same_individual_topped_recently_in_a_row(self):
+        return self.best_individual.number_of_recent_0s_in_a_row()
 
 
 # Groups that evolve independently
@@ -1084,7 +1123,8 @@ group_static_random_order = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
-    group_id=0
+    group_id=0,
+    rich_get_richer=True
 )
 
 group_static_tuned_order = Group(
@@ -1094,7 +1134,8 @@ group_static_tuned_order = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
-    group_id=1
+    group_id=1,
+    rich_get_richer=True
 )
 
 group_static_weight = Group(
@@ -1104,7 +1145,8 @@ group_static_weight = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
-    group_id=2
+    group_id=2,
+    rich_get_richer=True
 )
 
 group_dynamic_weight = Group(
@@ -1114,7 +1156,8 @@ group_dynamic_weight = Group(
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
-    group_id=3
+    group_id=3,
+    rich_get_richer=True
 )
 
 default_groups = [
@@ -1133,7 +1176,8 @@ class Evolution(list):
                  experiment_id: int,
                  short_timeout: int = 3000,  # used for training and validation at each generation
                  long_timeout: int = 60000,  # used for the final evaluation for AST-size/# of backtracking improvement
-                 groups: List[Group] = default_groups):
+                 groups: List[Group] = copy.deepcopy(default_groups),
+                 rich_get_richer: bool = True):
         super().__init__()
         self.name = name
         self.experiment_id = experiment_id
@@ -1151,6 +1195,7 @@ class Evolution(list):
         self.short_timeout = short_timeout
         self.long_timeout = long_timeout
         self.groups = groups
+        self.rich_get_richer = rich_get_richer
 
     def run_one_experiment(self):
 
@@ -1160,6 +1205,7 @@ class Evolution(list):
             group.set_validation_data(self.validation_data)
             group.mk_initial_population_and_evaluate(self.training_data, self.validation_data)
             group.sort_rank_individuals_then_validate_the_best()
+            group.set_rich_get_richer(self.rich_get_richer)
 
         generation_id = 1
 
@@ -1168,7 +1214,7 @@ class Evolution(list):
 
             print("----- generation %i -----" % generation_id)
 
-            for group in default_groups:
+            for group in self.groups:
                 group.change_old_generation_to_new_generation_and_evaluate_new_individuals_for_training \
                     (new_generation_id=generation_id)
                 group.sort_rank_individuals_then_validate_the_best()
@@ -1176,17 +1222,23 @@ class Evolution(list):
             generation_id = generation_id + 1
 
         # final cross-validation
-        for group in default_groups:
+        for group in self.groups:
             # final_winner = copy.deepcopy(group.individuals[0])
             # final_winner.set_generation_id(generation_id=generation_id)
             group.write_final_overall_json_result(for_training=True)
             group.write_final_overall_json_result(for_training=False)
 
-        for index in range(len(default_groups)):
-            if default_groups[index].same_individual_topped_n_times_in_a_row \
+        for index in range(len(self.groups)):
+            if self.groups[index].same_individual_topped_n_times_in_a_row\
                         (STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
-                default_groups.pop(index)
+                self.groups.pop(index)
+
+        for index in range(len(self.groups)):
+            if POPULATION_SIZE == self.groups[index].number_of_same_individual_topped_recently_in_a_row():
+                self.groups.pop(index)
+
         return 0
+
 
 # -----------------------
 # 1. initial population
@@ -1200,11 +1252,19 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    experiment1 = Evolution(
-        name="experiment1",
-        experiment_id=0
+    experiment0 = Evolution(
+        name="experiment0",
+        experiment_id=0,
+        rich_get_richer=True
     )
 
+    experiment1 = Evolution(
+        name="experiment1",
+        experiment_id=1,
+        rich_get_richer=True
+    )
+
+    experiment0.run_one_experiment()
     experiment1.run_one_experiment()
 
     return 0
