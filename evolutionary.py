@@ -115,6 +115,7 @@ class Individual(list):
 
     def __init__(self,
                  is_default=False,
+                 timeout=999999,
                  experiment_id=999999,
                  group_id=999999,
                  generation_id=999999,
@@ -169,6 +170,7 @@ class Individual(list):
                  ):
         super().__init__()
         self.is_default = is_default
+        self.timeout = timeout
         self.experiment_id = experiment_id
         self.group_id = group_id
         self.generation_id = generation_id
@@ -441,7 +443,7 @@ class Individual(list):
             return acc
 
     def number_of_recent_0s_in_a_row(self):
-        copied_ranks = copy.deepcopy(self.rank)
+        copied_ranks = copy.deepcopy(self.ancestor_ranks)
         return self.number_of_recent_0s_in_a_row_aux(0, copied_ranks)
 
     def topped_how_many_times_in_a_row(self, n: int):
@@ -794,7 +796,7 @@ class Individual(list):
 
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
-            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, True,
+            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, self.timeout, True,
             self.experiment_id, self.group_id, self.generation_id, self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
@@ -895,6 +897,7 @@ class Group(list):
                  fewer_feature_comb: bool,
                  mutate_rule_based_weights: bool,
                  mutate_heap_based_weights: bool,
+                 timeout=999999,
                  best_individual: Individual = None,
                  experiment_id: int = 999999,
                  group_id: int = 0,
@@ -916,10 +919,12 @@ class Group(list):
         self.fewer_feature_comb = fewer_feature_comb
         self.mutate_rule_based_weights = mutate_rule_based_weights
         self.mutate_heap_based_weights = mutate_heap_based_weights
+        self.timeout = timeout
         # initially we place a dummy individual as the best individual
         if best_individual is None:
             self.best_individual = \
                 Individual(
+                    timeout=999999,
                     experiment_id=999999,
                     group_id=999999,
                     generation_id=999999,
@@ -958,6 +963,9 @@ class Group(list):
 
     def set_experiment_id(self, experiment_id):
         self.experiment_id = experiment_id
+        
+    def set_timeout(self, timeout):
+        self.timeout = timeout
 
     def set_training_data(self, training_data):
         self.training_data = training_data
@@ -973,6 +981,7 @@ class Group(list):
     def mk_initial_population_and_evaluate(self, training_data, validation_data):
         for individual_id in list(range(0, POPULATION_SIZE)):
             new_individual = Individual(
+                timeout=self.timeout,
                 experiment_id=self.experiment_id,
                 group_id=self.group_id,
                 generation_id=0,
@@ -1194,12 +1203,18 @@ class Evolution(list):
         self.groups = groups
         self.rich_get_richer = rich_get_richer
 
+    # -----------------------
+    # 1. initial population
+    # 2. evolution
+    # 3. final valition with a long timeout
+    # -----------------------
     def run_one_experiment(self):
 
         for group in self.groups:
             group.set_experiment_id(self.experiment_id)
             group.set_training_data(self.training_data)
             group.set_validation_data(self.validation_data)
+            group.set_timeout(self.short_timeout)
             group.mk_initial_population_and_evaluate(self.training_data, self.validation_data)
             group.sort_rank_individuals_then_validate_the_best()
             group.set_rich_get_richer(self.rich_get_richer)
@@ -1237,10 +1252,37 @@ class Evolution(list):
         return 0
 
 
-# -----------------------
-# 1. initial population
-# 2. evolution
-# -----------------------
+experiment0 = Evolution(
+    name="experiment0",
+    experiment_id=0,
+    rich_get_richer=True,
+    groups=copy.deepcopy(default_groups)
+)
+
+experiment1 = Evolution(
+    name="experiment1",
+    experiment_id=1,
+    rich_get_richer=True,
+    groups=copy.deepcopy(default_groups)
+)
+
+experiment2 = Evolution(
+    name="experiment2",
+    experiment_id=2,
+    rich_get_richer=True,
+    groups=copy.deepcopy(default_groups)
+)
+
+experiment3 = Evolution(
+    name="experiment3",
+    experiment_id=3,
+    rich_get_richer=True,
+    groups=copy.deepcopy(default_groups)
+)
+
+experiments = [experiment0, experiment1, experiment2, experiment3]
+
+
 def main():
     random.seed(169)
 
@@ -1249,22 +1291,8 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    experiment0 = Evolution(
-        name="experiment0",
-        experiment_id=0,
-        rich_get_richer=True,
-        groups=copy.deepcopy(default_groups)
-    )
-
-    experiment1 = Evolution(
-        name="experiment1",
-        experiment_id=1,
-        rich_get_richer=True,
-        groups=copy.deepcopy(default_groups)
-    )
-
-    experiment0.run_one_experiment()
-    experiment1.run_one_experiment()
+    for experiment in experiments:
+        experiment.run_one_experiment()
 
     return 0
 
