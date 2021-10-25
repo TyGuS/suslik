@@ -5,7 +5,6 @@ import copy
 
 import roboevaluation
 import pandas
-from deap import base
 from deap import tools
 import math
 from typing import List
@@ -442,7 +441,7 @@ class Individual(list):
             return acc
 
     def number_of_recent_0s_in_a_row(self):
-        copied_ranks = copy.deepcopy(self.ranks)
+        copied_ranks = copy.deepcopy(self.rank)
         return self.number_of_recent_0s_in_a_row_aux(0, copied_ranks)
 
     def topped_how_many_times_in_a_row(self, n: int):
@@ -633,15 +632,15 @@ class Individual(list):
 
         if self.mutate_heap_based_weights:
             self.weight_of_cost_no_call_goal_pre = \
-                self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+                self.weight_of_cost_call_goal_pre * random.normalvariate(1.0, STANDARD_DEVIATION)
             self.weight_of_cost_no_call_goal_post = \
-                self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+                self.weight_of_cost_call_goal_post * random.normalvariate(1.0, STANDARD_DEVIATION)
             self.weight_of_cost_call_goal = \
-                self.weight_of_cost_call_goal * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+                self.weight_of_cost_call_goal * random.normalvariate(1.0, STANDARD_DEVIATION)
             self.weight_of_cost_call_goal_pre = \
-                self.weight_of_cost_call_goal_pre * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+                self.weight_of_cost_call_goal_pre * random.normalvariate(1.0, STANDARD_DEVIATION)
             self.weight_of_cost_call_goal_post = \
-                self.weight_of_cost_call_goal_post * weight * random.normalvariate(1.0, STANDARD_DEVIATION)
+                self.weight_of_cost_call_goal_post * random.normalvariate(1.0, STANDARD_DEVIATION)
 
     # TODO: This only supports the static optimisation. (compiler-time optimisation)
     def default(self):
@@ -817,9 +816,7 @@ class Individual(list):
             temp_total_numb_of_fired_rules = 0
             for first, second in pairs:
                 if not (math.isnan(first)):
-                    temp_total_numb_of_fired_rules = temp_total_numb_of_fired_rules + second
-                else:
-                    temp_total_numb_of_fired_rules
+                    temp_total_numb_of_fired_rules += second
             return temp_total_numb_of_fired_rules
 
         total_numb_of_fired_rules = sum_non_nan_rules(pairs_of_times_and_rules)
@@ -1176,7 +1173,7 @@ class Evolution(list):
                  experiment_id: int,
                  short_timeout: int = 3000,  # used for training and validation at each generation
                  long_timeout: int = 60000,  # used for the final evaluation for AST-size/# of backtracking improvement
-                 groups: List[Group] = copy.deepcopy(default_groups),
+                 groups: List[Group] = [],
                  rich_get_richer: bool = True):
         super().__init__()
         self.name = name
@@ -1255,13 +1252,15 @@ def main():
     experiment0 = Evolution(
         name="experiment0",
         experiment_id=0,
-        rich_get_richer=True
+        rich_get_richer=True,
+        groups=copy.deepcopy(default_groups)
     )
 
     experiment1 = Evolution(
         name="experiment1",
         experiment_id=1,
-        rich_get_richer=True
+        rich_get_richer=True,
+        groups=copy.deepcopy(default_groups)
     )
 
     experiment0.run_one_experiment()
