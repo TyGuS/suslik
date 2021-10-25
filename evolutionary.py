@@ -129,7 +129,7 @@ class Individual(list):
                  time=9999999999.0,
                  backtracking=9999999999,
                  rules=9999999999,
-                 ancestors=None,
+                 ancestor_ids=None,
                  ancestor_ranks=None,
                  orders_of_any_phase_rules=None,
                  weights_of_any_phase_rules=None,
@@ -189,9 +189,9 @@ class Individual(list):
         self.weight_of_cost_call_goal_pre = weight_of_cost_call_goal_pre
         self.weight_of_cost_call_goal_post = weight_of_cost_call_goal_post
 
-        if ancestors is None:
-            ancestors = []
-        self.ancestors = ancestors
+        if ancestor_ids is None:
+            ancestor_ids = []
+        self.ancestor_ids = ancestor_ids
 
         if ancestor_ranks is None:
             ancestor_ranks = []
@@ -428,7 +428,7 @@ class Individual(list):
         self.number_of_validation_data = number_of_validation_data
 
     def topped_n_times_in_a_row(self, n: int):
-        n_0s_in_a_row(n, self.ancestor_ranks)
+        n_0s_in_a_row(n, self.ancestor_ids)
 
     def get_group_id(self):
         return self.group_id
@@ -485,7 +485,7 @@ class Individual(list):
         self.nan = nan
 
     def update_ancestor_with_current_individual_id(self):
-        self.ancestors.append(self.individual_id)
+        self.ancestor_ids.append(self.individual_id)
 
     def update_ancestor_ranks_with_current_rank(self):
         self.ancestor_ranks.append(self.rank)
@@ -835,7 +835,7 @@ class Individual(list):
             "fired_rules": self.rules,
             "search_time": self.time,
             "backtracking": self.backtracking,
-            "ancestors": self.ancestors,
+            "ancestor_ids": self.ancestor_ids,
             "ancestor_ranks": self.ancestor_ranks,
             "is_for_training": is_for_training,
             "population_size": POPULATION_SIZE,
@@ -1025,7 +1025,7 @@ class Group(list):
         # assume the individuals are already sorted.
         survivors_of_old_generation = self.individuals[:POPULATION_SIZE]
 
-        # firstly update ancestors using the current individual_id
+        # firstly update ancestor_ids using the current individual_id
         for individual in survivors_of_old_generation:
             individual.update_ancestor_with_current_individual_id()
             individual.update_ancestor_ranks_with_current_rank()
