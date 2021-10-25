@@ -1231,6 +1231,15 @@ class Evolution(list):
                     (new_generation_id=generation_id)
                 group.sort_rank_individuals_then_validate_the_best()
 
+            for index in range(len(self.groups)):
+                if self.groups[index].same_individual_topped_n_times_in_a_row \
+                            (STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
+                    self.groups.pop(index)
+
+            for index in range(len(self.groups)):
+                if POPULATION_SIZE == self.groups[index].number_of_same_individual_topped_recently_in_a_row():
+                    self.groups.pop(index)
+
             generation_id = generation_id + 1
 
         # final cross-validation
@@ -1239,15 +1248,6 @@ class Evolution(list):
             # final_winner.set_generation_id(generation_id=generation_id)
             group.write_final_overall_json_result(for_training=True)
             group.write_final_overall_json_result(for_training=False)
-
-        for index in range(len(self.groups)):
-            if self.groups[index].same_individual_topped_n_times_in_a_row\
-                        (STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
-                self.groups.pop(index)
-
-        for index in range(len(self.groups)):
-            if POPULATION_SIZE == self.groups[index].number_of_same_individual_topped_recently_in_a_row():
-                self.groups.pop(index)
 
         return 0
 
