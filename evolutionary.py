@@ -31,7 +31,7 @@ MAXIMUM_NUMBER_OF_GENERATIONS = 2
 INDPB = 0.1
 STANDARD_DEVIATION = 0.05
 FEWER_FEATURE_COMBINATION = True
-STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES = 10
+STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES = 15
 
 NUMB_OF_FEATURES = 2
 NUMB_OF_FEATURES_FOR_ANY_PHASE_RULES_OR_SPEC_BASED_RULES = 4
@@ -1109,7 +1109,7 @@ class Group(list):
                 mutants.append(copy.deepcopy(self.best_individual))
                 index += 1
         else:
-            mutants = copy.deepcopy(survivors_of_old_generation)
+            mutants = copy.deepcopy(survivors_of_old_generation) + copy.deepcopy(survivors_of_old_generation[:1])
 
         for individual in mutants:
             individual.mutate()
@@ -1155,7 +1155,7 @@ group_static_random_order = Group(
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
     group_id=0,
-    rich_get_richer=True
+    rich_get_richer=False
 )
 
 group_static_tuned_order = Group(
@@ -1166,7 +1166,7 @@ group_static_tuned_order = Group(
     mutate_rule_based_weights=False,
     mutate_heap_based_weights=False,
     group_id=1,
-    rich_get_richer=True
+    rich_get_richer=False
 )
 
 group_static_weight = Group(
@@ -1177,7 +1177,7 @@ group_static_weight = Group(
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
     group_id=2,
-    rich_get_richer=True
+    rich_get_richer=False
 )
 
 group_dynamic_weight = Group(
@@ -1188,7 +1188,7 @@ group_dynamic_weight = Group(
     mutate_rule_based_weights=True,
     mutate_heap_based_weights=False,
     group_id=3,
-    rich_get_richer=True
+    rich_get_richer=False
 )
 
 default_groups = [
@@ -1207,8 +1207,7 @@ class Evolution(list):
                  experiment_id: int,
                  short_timeout: int = 3000,  # used for training and validation at each generation
                  long_timeout: int = 60000,  # used for the final evaluation for AST-size/# of backtracking improvement
-                 groups: List[Group] = [],
-                 rich_get_richer: bool = True):
+                 groups: List[Group] = []):
         super().__init__()
         self.name = name
         self.experiment_id = experiment_id
@@ -1226,12 +1225,11 @@ class Evolution(list):
         self.short_timeout = short_timeout
         self.long_timeout = long_timeout
         self.groups = groups
-        self.rich_get_richer = rich_get_richer
 
     # -----------------------
     # 1. initial population
     # 2. evolution
-    # 3. final valition with a long timeout
+    # 3. final validation with a long timeout
     # -----------------------
     def run_one_experiment(self):
 
@@ -1242,7 +1240,6 @@ class Evolution(list):
             group.set_timeout(self.short_timeout)
             group.mk_initial_population_and_evaluate(self.training_data, self.validation_data)
             group.sort_rank_individuals_then_validate_the_best()
-            group.set_rich_get_richer(self.rich_get_richer)
 
         generation_id = 1
         popped_groups = [] #groups t stopped evolving.
@@ -1272,14 +1269,14 @@ class Evolution(list):
 
         # final cross-validation
         for group in self.groups:
-            # final_winner = copy.deepcopy(group.individuals[0])
-            # final_winner.set_generation_id(generation_id=generation_id)
+            # produce final overall JSON files.
             group.write_final_overall_json_result(for_training=True)
             group.write_final_overall_json_result(for_training=False)
+            # obtain statistics on the final winners for a long timeout
             group.best_individual.evaluate(for_training=False, timeout=self.long_timeout)
-            group.best_individual.write_final_long_timeout_json_result(for_training=False)
+            group.write_final_long_timeout_json_result(for_training=False)
             group.individuals[0].evaluate(for_training=True, timeout=self.long_timeout)
-            group.individuals[0].write_final_long_timeout_json_result(for_training=True)
+            group.write_final_long_timeout_json_result(for_training=True)
 
         return 0
 
@@ -1287,28 +1284,24 @@ class Evolution(list):
 experiment0 = Evolution(
     name="experiment0",
     experiment_id=0,
-    rich_get_richer=True,
     groups=copy.deepcopy(default_groups)
 )
 
 experiment1 = Evolution(
     name="experiment1",
     experiment_id=1,
-    rich_get_richer=True,
     groups=copy.deepcopy(default_groups)
 )
 
 experiment2 = Evolution(
     name="experiment2",
     experiment_id=2,
-    rich_get_richer=True,
     groups=copy.deepcopy(default_groups)
 )
 
 experiment3 = Evolution(
     name="experiment3",
     experiment_id=3,
-    rich_get_richer=True,
     groups=copy.deepcopy(default_groups)
 )
 

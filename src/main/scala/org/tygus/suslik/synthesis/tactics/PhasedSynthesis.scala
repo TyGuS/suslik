@@ -237,7 +237,8 @@ class PhasedSynthesis(config: SynConfig) extends Tactic {
     }
   }
 
-  protected def anyPhaseRules(node:OrNode): List[(SynthesisRule, Double)] = {
+  protected def anyPhaseRules
+  (node:OrNode): List[(SynthesisRule, Double)] = {
 
     val goal = node.goal
 
