@@ -26,8 +26,8 @@ NUMB_OF_CALL_ABDUCTION_RULE_4 = 12
 NUMB_OF_UNFOLDING_POST_PHASE_RULE = 3
 NUMB_OF_UNFOLDING_NO_UNFOLD_PHASE_RULES = 2
 MAXIMUM_NUMBER_OF_FAILED_SYNTHESIS = 0
-POPULATION_SIZE = 2
-MAXIMUM_NUMBER_OF_GENERATIONS = 2
+POPULATION_SIZE = 20
+MAXIMUM_NUMBER_OF_GENERATIONS = 40
 INDPB = 0.1
 STANDARD_DEVIATION = 0.05
 FEWER_FEATURE_COMBINATION = True
@@ -1164,7 +1164,7 @@ group_static_tuned_order = Group(
     runtime_selection=False,
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=False,
-    mutate_heap_based_weights=False,
+    mutate_heap_based_weights=True,
     group_id=1,
     rich_get_richer=False
 )
@@ -1175,7 +1175,7 @@ group_static_weight = Group(
     runtime_selection=False,
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=True,
-    mutate_heap_based_weights=False,
+    mutate_heap_based_weights=True,
     group_id=2,
     rich_get_richer=False
 )
@@ -1192,9 +1192,9 @@ group_dynamic_weight = Group(
 )
 
 default_groups = [
-    #group_static_random_order,
-    #group_static_tuned_order,
-    #group_static_weight,
+    group_static_random_order,
+    group_static_tuned_order,
+    group_static_weight,
     group_dynamic_weight
 ]
 
@@ -1207,7 +1207,7 @@ class Evolution(list):
                  experiment_id: int,
                  short_timeout: int = 3000,  # used for training and validation at each generation
                  long_timeout: int = 60000,  # used for the final evaluation for AST-size/# of backtracking improvement
-                 groups: List[Group] = []):
+                 groups: List[Group] = None):
         super().__init__()
         self.name = name
         self.experiment_id = experiment_id
@@ -1218,13 +1218,31 @@ class Evolution(list):
         self.number_of_training_data = number_of_training_data
         self.validation_data = validation_data
         self.number_of_validation_data = number_of_validation_data
-        default_ind = Individual(is_default=True)
+        default_ind = Individual(
+            is_default=True,
+            timeout=long_timeout,
+            experiment_id=experiment_id,
+            group_id=-1,
+            generation_id=0,
+            individual_id=-1,
+            runtime_rule_order_selection=False,
+            fewer_feature_combinations=False,
+            mutate_rule_based_weights=False,
+            mutate_heap_based_weights=False,
+            training_data=training_data,
+            validation_data=validation_data,
+            number_of_training_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(training_data),
+            number_of_validation_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(validation_data)
+        )
         default_ind.default()
         self.default_individual = default_ind
         self.final_winner = []
         self.short_timeout = short_timeout
         self.long_timeout = long_timeout
-        self.groups = groups
+        if groups is None:
+            self.groups = []
+        else:
+            self.groups = groups
 
     # -----------------------
     # 1. initial population
@@ -1266,6 +1284,11 @@ class Evolution(list):
             generation_id = generation_id + 1
 
         self.groups = self.groups + popped_groups
+
+        # final validation of the default SuSLik with a long timeout
+        self.default_individual.write_json_parameter_file()
+        self.default_individual.evaluate(for_training=False, timeout=self.long_timeout)
+        self.default_individual.write_json_result(for_training=False)
 
         # final cross-validation
         for group in self.groups:
