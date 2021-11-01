@@ -1192,7 +1192,7 @@ group_dynamic_weight = Group(
 )
 
 default_groups = [
-    #group_static_random_order,
+    group_static_random_order,
     group_static_tuned_order,
     group_static_weight,
     group_dynamic_weight
