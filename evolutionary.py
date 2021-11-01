@@ -1164,7 +1164,7 @@ group_static_tuned_order = Group(
     runtime_selection=False,
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=False,
-    mutate_heap_based_weights=True,
+    mutate_heap_based_weights=False,
     group_id=1,
     rich_get_richer=False
 )
@@ -1175,7 +1175,7 @@ group_static_weight = Group(
     runtime_selection=False,
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=True,
-    mutate_heap_based_weights=True,
+    mutate_heap_based_weights=False,
     group_id=2,
     rich_get_richer=False
 )
@@ -1192,7 +1192,7 @@ group_dynamic_weight = Group(
 )
 
 default_groups = [
-    group_static_random_order,
+    #group_static_random_order,
     group_static_tuned_order,
     group_static_weight,
     group_dynamic_weight
