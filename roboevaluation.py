@@ -31,7 +31,6 @@ from typing import List
 #################
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'target/scala-2.12/suslik.jar'                     # Path to suslik.jar
-TIMEOUT      = '-t=1000'                                          # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/synthesis/all-benchmarks/'     # Root directory for the tests
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik
 CSV_TEMP     = 'stats-temp.csv'                                   # Intermediate CSV file produced by suslik
@@ -100,7 +99,7 @@ class Benchmark:
 
     with open(results_file, "at") as outfile:
       print ('Running ' + file + ' ' + (' '.join(fargs)))
-      call([JAVA8, '-jar', SUSLIK_JAR, file, TIMEOUT] + fargs + args_evolution, stdout=outfile)
+      call([JAVA8, '-jar', SUSLIK_JAR, file, timeout] + fargs + args_evolution, stdout=outfile)
       self.res = read_csv(csv_in)
       return self.res # returns a SynthesisResult object
 

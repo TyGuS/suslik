@@ -1164,7 +1164,7 @@ group_static_tuned_order = Group(
     runtime_selection=False,
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=False,
-    mutate_heap_based_weights=True,
+    mutate_heap_based_weights=False,
     group_id=1,
     rich_get_richer=False
 )
@@ -1175,7 +1175,7 @@ group_static_weight = Group(
     runtime_selection=False,
     fewer_feature_comb=FEWER_FEATURE_COMBINATION,
     mutate_rule_based_weights=True,
-    mutate_heap_based_weights=True,
+    mutate_heap_based_weights=False,
     group_id=2,
     rich_get_richer=False
 )
@@ -1205,7 +1205,7 @@ class Evolution(list):
     def __init__(self,
                  name,
                  experiment_id: int,
-                 short_timeout: int = 3000,  # used for training and validation at each generation
+                 short_timeout: int = 2500,  # used for training and validation at each generation
                  long_timeout: int = 60000,  # used for the final evaluation for AST-size/# of backtracking improvement
                  groups: List[Group] = None):
         super().__init__()
