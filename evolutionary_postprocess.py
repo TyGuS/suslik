@@ -9,64 +9,60 @@ import roboevaluation
 # Call this Python script only after running evolutionary.py.
 # -----------------------
 def main():
-    print("Hello from evolutionary_post_process.py")
-    print(roboevaluation.SUSLIK_JAR)
-    print(evolutionary.default_groups[0].start_at_tuned_order)
+
+    training_or_validation = ['training', 'validation']
 
     for experiment in evolutionary.experiments:
-        print("experiment_id is")
-        print(experiment.experiment_id)
-        for group in evolutionary.default_groups:
+        print("experiment_id is", experiment.experiment_id, ".")
 
-            print("group_id is")
-            print(group.group_id)
+        for type_of_run in training_or_validation:
 
-            group.set_experiment_id(experiment.experiment_id)
-            with open(group.json_final_overall_result_file_path(is_for_training=True),
-                      'r') as final_overall_training_result:
-                json_overall_training_result = final_overall_training_result.read()
+            if type_of_run == 'training':
+                is_for_training = True
+                number_of_data_str = 'number_of_training_data'
+            else:
+                is_for_training = False
+                number_of_data_str = 'number_of_validation_data'
 
-            overall_training_result = json.loads(json_overall_training_result)
-            numb_of_generations = len(overall_training_result["overall_result"])
-            index_of_the_last_generation = numb_of_generations - 1
-            training_result_list = overall_training_result["overall_result"]
-            last_generation_training_result = training_result_list[index_of_the_last_generation]
-            print("ancestor ranks on a training dataset are:")
-            print(last_generation_training_result["ancestor_ranks"])
+            pch = 0
+            for group in evolutionary.default_groups:
+                print()
+                print("=== Experiment ID:", str(experiment.experiment_id) + ", Group ID:", str(group.group_id) +
+                      ", Type:", type_of_run, "===")
 
-            numbers_of_nans_training = []
-            for top_individual_in_a_generation in training_result_list:
-                numbers_of_nans_training.append(top_individual_in_a_generation["number_of_nan"])
-            print("number of unsolved prolems by ancestors are:")
-            print(numbers_of_nans_training)
+                # Group is shared by multiple experiments. So, we have to set experiment_id here.
+                group.set_experiment_id(experiment.experiment_id)
 
-            with open(group.json_final_overall_result_file_path(is_for_training=False),
-                      'r') as final_overall_validation_result:
-                json_overall_validation_result = final_overall_validation_result.read()
+                with open(group.json_final_overall_result_file_path(is_for_training=is_for_training), 'r') \
+                        as final_overall_result:
+                    json_overall_result = final_overall_result.read()
 
-            # The validation set and training set should have the same number of generations.
-            overall_validation_result = json.loads(json_overall_validation_result)
-            validation_result_list = overall_validation_result['overall_result']
-            last_generation_validation_result = validation_result_list[index_of_the_last_generation]
-            print("number of unsolved problems in the training dataset by ancestors are:")
-            print(last_generation_validation_result['ancestor_ranks'])
-            numbers_of_nans_validation = []
-            for top_individual_in_a_generation in validation_result_list:
-                numbers_of_nans_validation.append(top_individual_in_a_generation['number_of_nan'])
-            print("number of unsolved problems in the validation dataset by ancestors are:")
-            print(numbers_of_nans_validation)
+                overall_result = json.loads(json_overall_result)
+                numb_of_generations = len(overall_result["overall_result"])
+                index_of_the_last_generation = numb_of_generations - 1
+                result_list = overall_result["overall_result"]
 
-            print("hohoho <-",(* numbers_of_nans_validation,))
-            baseline = []
-            for _ in validation_result_list:
-                baseline.append(1.0)
-            print("baseline <- c", (* baseline,))
-            print("hohoho <-", (*numbers_of_nans_validation,))
-            print('plot(baseline,type = "l",col = "black", xlab = "generation", ' +
-                  'ylab = "unsolved goals within 3 seconds")')
+                number_of_data = result_list[0][number_of_data_str]
+                number_of_data_str = str(number_of_data)
 
-            print('lines(runtime_weight, type="b", col="black", pch="25"')
+                numbers_of_unsolved_goals = []
+                for top_individual_in_a_generation in result_list:
+                    numbers_of_unsolved_goals.append(top_individual_in_a_generation['number_of_nan'])
 
+                relative_numbers_of_unsolved_goals = []
+                for number_of_unsolved_goals in numbers_of_unsolved_goals:
+                    relative_numbers_of_unsolved_goals.append(number_of_unsolved_goals / numbers_of_unsolved_goals[0])
+
+                baseline = []
+                for _ in result_list:
+                    baseline.append(1.0)
+                print("baseline <- c", (*baseline,))
+                print('plot(baseline,type="l", col="black", xlab="generation", ' +
+                      'ylab="unsolved goals within ' + str(experiment.short_timeout) + ' milliseconds")')
+                print("relative_number_of_unsolved_goals_in_group_" + str(group.group_id), "<- c",
+                      (*relative_numbers_of_unsolved_goals,))
+                print('lines(' + "relative_number_of_unsolved_goals_in_group_" + str(group.group_id) +
+                      ', type="b", col="black", pch="' + str(pch) + '")')
 
 
 if __name__ == "__main__":
