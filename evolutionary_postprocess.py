@@ -65,7 +65,40 @@ def main():
                 print("relative_number_of_unsolved_goals_in_group_" + str(group.group_id), "<- c",
                       (*relative_numbers_of_unsolved_goals,))
                 print('lines(' + "relative_number_of_unsolved_goals_in_group_" + str(group.group_id) +
-                      ', type="b", col="black", pch="' + str(pch) + '")')
+                      ', type="b", col="black", pch=' + str(pch) + ')')
+
+    # Show ancestors' ranks of the final champion for each group
+    for experiment in evolutionary.experiments:
+
+        print()
+        print('### Experiment ID:', str(experiment.experiment_id) + '. Ancestor Ranks ###')
+
+        baseline = []
+        generation_index = 0
+        while generation_index <= evolutionary.MAXIMUM_NUMBER_OF_GENERATIONS:
+            baseline.append(0)
+            generation_index += 1
+
+        print("baseline <- c", (*baseline,))
+        print('plot(baseline, type="l", col="white", xlab="generation", ' + 'ylab="ancestors\' ranks", ' +
+              'ylim=c(0,22))')
+
+        pch = 0
+
+        for group in evolutionary.default_groups:
+            # Group is shared by multiple experiments. So, we have to set experiment_id here.
+            group.set_experiment_id(experiment.experiment_id)
+
+            with open(group.json_final_overall_result_file_path(is_for_training=True), 'r') \
+                    as final_overall_result:
+                json_overall_result = final_overall_result.read()
+
+            overall_result = json.loads(json_overall_result)
+            ancestors_ranks = overall_result["overall_result"][-2]["ancestor_ranks"]
+
+            print("ancestors_ranks_of_" + str(group.group_id), "<- c", (*ancestors_ranks,))
+            print('lines(' + "ancestors_ranks_of_" + str(group.group_id) + ', type="b", col="black", pch=' +
+                  str(pch) + ')')
 
 
 if __name__ == "__main__":
