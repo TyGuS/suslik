@@ -33,7 +33,8 @@ def main():
 
             print("baseline <- c", (*baseline,))
             print('plot(baseline,type="l", col="black", xlab="generation", ' +
-                  'ylab="unsolved goals within ' + str(experiment.short_timeout) + ' milliseconds")')
+                  'ylab="unsolved goals in the ' + type_of_run + ' dataset")')
+            #within ' +  str(experiment.short_timeout) + ' milliseconds")')
 
             pch = 0
             for group in evolutionary.default_groups:
