@@ -13,9 +13,10 @@ def main():
     training_or_validation = ['training', 'validation']
 
     for experiment in evolutionary.experiments:
-        print("experiment_id is", experiment.experiment_id, ".")
 
         for type_of_run in training_or_validation:
+            print()
+            print('### Experiment ID:', str(experiment.experiment_id) + ", Type:", type_of_run, '###')
 
             if type_of_run == 'training':
                 is_for_training = True
@@ -24,11 +25,18 @@ def main():
                 is_for_training = False
                 number_of_data_str = 'number_of_validation_data'
 
+            baseline = []
+            generation_index = 0
+            while generation_index <= evolutionary.MAXIMUM_NUMBER_OF_GENERATIONS:
+                baseline.append(1.0)
+                generation_index += 1
+
+            print("baseline <- c", (*baseline,))
+            print('plot(baseline,type="l", col="black", xlab="generation", ' +
+                  'ylab="unsolved goals within ' + str(experiment.short_timeout) + ' milliseconds")')
+
             pch = 0
             for group in evolutionary.default_groups:
-                print()
-                print("=== Experiment ID:", str(experiment.experiment_id) + ", Group ID:", str(group.group_id) +
-                      ", Type:", type_of_run, "===")
 
                 # Group is shared by multiple experiments. So, we have to set experiment_id here.
                 group.set_experiment_id(experiment.experiment_id)
@@ -53,12 +61,6 @@ def main():
                 for number_of_unsolved_goals in numbers_of_unsolved_goals:
                     relative_numbers_of_unsolved_goals.append(number_of_unsolved_goals / numbers_of_unsolved_goals[0])
 
-                baseline = []
-                for _ in result_list:
-                    baseline.append(1.0)
-                print("baseline <- c", (*baseline,))
-                print('plot(baseline,type="l", col="black", xlab="generation", ' +
-                      'ylab="unsolved goals within ' + str(experiment.short_timeout) + ' milliseconds")')
                 print("relative_number_of_unsolved_goals_in_group_" + str(group.group_id), "<- c",
                       (*relative_numbers_of_unsolved_goals,))
                 print('lines(' + "relative_number_of_unsolved_goals_in_group_" + str(group.group_id) +
