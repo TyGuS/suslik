@@ -3,6 +3,9 @@ import random
 import json
 import copy
 
+import asyncio
+import time
+
 import roboevaluation
 import pandas
 from deap import tools
@@ -983,10 +986,9 @@ class Group(list):
 
     def set_rich_get_richer(self, rich_get_richer):
         self.rich_get_richer = rich_get_richer
-
-    def mk_initial_population_and_evaluate(self, training_data, validation_data):
-        for individual_id in list(range(0, POPULATION_SIZE)):
-            new_individual = Individual(
+    
+    async def evaluate_individual(self,individual_id,training_data,validation_data):
+        new_individual = Individual(
                 timeout=self.timeout,
                 experiment_id=self.experiment_id,
                 group_id=self.group_id,
@@ -1001,13 +1003,53 @@ class Group(list):
                 number_of_training_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(training_data),
                 number_of_validation_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(validation_data)
             )
-            if self.start_at_tuned_order:
+        if self.start_at_tuned_order:
                 new_individual.default()
                 if individual_id != 0:
                     new_individual.mutate()
-            new_individual.write_json_parameter_file()
-            new_individual.evaluate(for_training=True)
-            self.individuals.append(new_individual)
+        new_individual.write_json_parameter_file()
+        new_individual.evaluate(for_training=True)
+        self.individuals.append(new_individual)
+        return
+    
+    async def mk_initial_population_and_evaluate_helper(self,training_data,validation_data):
+        indvs = [self.evaluate_individual(i,training_data,validation_data) for i in range(POPULATION_SIZE)]
+        await asyncio.wait(indvs)
+        
+
+    def mk_initial_population_and_evaluate(self, training_data, validation_data):
+        try:
+            start_time = time.time()
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self.mk_initial_population_and_evaluate_helper(training_data,validation_data))
+            print('Process takes {} seconds'.format(time.time() - start_time))
+        except:
+            print("Derivation Failed")
+            raise RuntimeError("Unable to finish executing making of initial population and evaluation")
+        # TODO: Figure out how to parallelize the initial population
+        # for individual_id in list(range(0, POPULATION_SIZE)):
+        #     new_individual = Individual(
+        #         timeout=self.timeout,
+        #         experiment_id=self.experiment_id,
+        #         group_id=self.group_id,
+        #         generation_id=0,
+        #         individual_id=individual_id,
+        #         runtime_rule_order_selection=self.runtime_selection,
+        #         fewer_feature_combinations=self.fewer_feature_comb,
+        #         mutate_rule_based_weights=self.mutate_rule_based_weights,
+        #         mutate_heap_based_weights=self.mutate_heap_based_weights,
+        #         training_data=training_data,
+        #         validation_data=validation_data,
+        #         number_of_training_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(training_data),
+        #         number_of_validation_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(validation_data)
+        #     )
+        #     if self.start_at_tuned_order:
+        #         new_individual.default()
+        #         if individual_id != 0:
+        #             new_individual.mutate()
+        #     new_individual.write_json_parameter_file()
+        #     new_individual.evaluate(for_training=True)
+        #     self.individuals.append(new_individual)
 
     def set_generation_id(self, generation_id):
         for individual in self.individuals:
@@ -1086,6 +1128,7 @@ class Group(list):
             individual.update_ancestor_ranks_with_current_rank()
 
         # secondly update individual_id and generation_id of survivors_of_old_generation
+        # TODO : Parallelize this component
         individual_id = 0
         for individual in survivors_of_old_generation:
             individual.set_generation_id(new_generation_id)
@@ -1250,7 +1293,9 @@ class Evolution(list):
     # 3. final validation with a long timeout
     # -----------------------
     def run_one_experiment(self):
-
+        import time
+        start = time.time()
+        print("----Starting First Generation")
         for group in self.groups:
             group.set_experiment_id(self.experiment_id)
             group.set_training_data(self.training_data)
@@ -1259,49 +1304,51 @@ class Evolution(list):
             group.mk_initial_population_and_evaluate(self.training_data, self.validation_data)
             group.sort_rank_individuals_then_validate_the_best()
 
-        generation_id = 1
-        popped_groups = [] #groups t stopped evolving.
+        end = time.time()
+        print("----Finished with first generation. Time taken was {}s".format(end-start))
+        # generation_id = 1
+        # popped_groups = [] #groups t stopped evolving.
 
-        # begin the evolution
-        while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
+        # # begin the evolution
+        # while generation_id <= MAXIMUM_NUMBER_OF_GENERATIONS:
 
-            print("----- generation %i -----" % generation_id)
+        #     print("----- generation %i -----" % generation_id)
 
-            for group in self.groups:
-                group.change_old_generation_to_new_generation_and_evaluate_new_individuals_for_training \
-                    (new_generation_id=generation_id)
-                group.sort_rank_individuals_then_validate_the_best()
+        #     for group in self.groups:
+        #         group.change_old_generation_to_new_generation_and_evaluate_new_individuals_for_training \
+        #             (new_generation_id=generation_id)
+        #         group.sort_rank_individuals_then_validate_the_best()
 
-            for index in range(len(self.groups)):
-                if self.groups[index].same_individual_topped_n_times_in_a_row \
-                            (STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
-                    popped_groups.append(self.groups.pop(index))
+        #     for index in range(len(self.groups)):
+        #         if self.groups[index].same_individual_topped_n_times_in_a_row \
+        #                     (STOP_EVOLUTION_AFTER_SAME_INDIVIDUAL_TOPS_N_TIMES):
+        #             popped_groups.append(self.groups.pop(index))
 
-            for index in range(len(self.groups)):
-                if POPULATION_SIZE == self.groups[index].number_of_same_individual_topped_recently_in_a_row():
-                    popped_groups.append(self.groups.pop(index))
+        #     for index in range(len(self.groups)):
+        #         if POPULATION_SIZE == self.groups[index].number_of_same_individual_topped_recently_in_a_row():
+        #             popped_groups.append(self.groups.pop(index))
 
-            generation_id = generation_id + 1
+        #     generation_id = generation_id + 1
 
-        self.groups = self.groups + popped_groups
+        # self.groups = self.groups + popped_groups
 
-        # final validation of the default SuSLik with a long timeout
-        self.default_individual.write_json_parameter_file()
-        self.default_individual.evaluate(for_training=False, timeout=self.long_timeout)
-        self.default_individual.write_json_result(for_training=False)
+        # # final validation of the default SuSLik with a long timeout
+        # self.default_individual.write_json_parameter_file()
+        # self.default_individual.evaluate(for_training=False, timeout=self.long_timeout)
+        # self.default_individual.write_json_result(for_training=False)
 
-        # final cross-validation
-        for group in self.groups:
-            # produce final overall JSON files.
-            group.write_final_overall_json_result(for_training=True)
-            group.write_final_overall_json_result(for_training=False)
-            # obtain statistics on the final winners for a long timeout
-            group.best_individual.evaluate(for_training=False, timeout=self.long_timeout)
-            group.write_final_long_timeout_json_result(for_training=False)
-            group.individuals[0].evaluate(for_training=True, timeout=self.long_timeout)
-            group.write_final_long_timeout_json_result(for_training=True)
+        # # final cross-validation
+        # for group in self.groups:
+        #     # produce final overall JSON files.
+        #     group.write_final_overall_json_result(for_training=True)
+        #     group.write_final_overall_json_result(for_training=False)
+        #     # obtain statistics on the final winners for a long timeout
+        #     group.best_individual.evaluate(for_training=False, timeout=self.long_timeout)
+        #     group.write_final_long_timeout_json_result(for_training=False)
+        #     group.individuals[0].evaluate(for_training=True, timeout=self.long_timeout)
+        #     group.write_final_long_timeout_json_result(for_training=True)
 
-        return 0
+        # return 0
 
 
 experiment0 = Evolution(
@@ -1339,7 +1386,7 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    for experiment in experiments:
+    for experiment in experiments[0]:
         experiment.run_one_experiment()
 
     return 0
