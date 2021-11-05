@@ -1386,7 +1386,7 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    for experiment in experiments[0]:
+    for experiment in experiments:
         experiment.run_one_experiment()
 
     return 0
