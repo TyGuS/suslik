@@ -100,10 +100,15 @@ class Benchmark:
     timeout_str = '-t=' + str(timeout)
 
     with open(results_file, "at") as outfile:
-      print ('Running ' + file + ' ' + (' '.join(fargs)))
-      call([JAVA8, '-jar', SUSLIK_JAR, file, timeout_str] + fargs + args_evolution, stdout=outfile)
-      self.res = read_csv(csv_in)
-      return self.res # returns a SynthesisResult object
+      try:
+        print ('Running ' + file + ' ' + (' '.join(fargs)))
+        call([JAVA8, '-jar', SUSLIK_JAR, file, timeout_str] + fargs + args_evolution, stdout=outfile)
+        self.res = read_csv(csv_in)
+        return self.res # returns a SynthesisResult object
+      except Exception as e:
+        print("({}) Run_Benchmark : Encountered Error of class {}".format(e.__class__))
+        print(e)
+        print('----')
 
 
 ###################################################################
@@ -126,13 +131,17 @@ class BenchmarkGroup:
         args = []
     res = dict()
     for b in self.benchmarks:
-      test = TEST_DIR + b.name
-      testFileName = test + '.syn'
-      if not os.path.isfile(testFileName):
-        print ("Test file not found:", testFileName)
-      else:
-        res[b.name] = b.run_benchmark(testFileName, args, results_file,csv_in, csv_out, timeout, evolution,
-                                      experiment_id, group_id, generation_id, individual_id)
+      try:
+        test = TEST_DIR + b.name
+        testFileName = test + '.syn'
+        if not os.path.isfile(testFileName):
+          print ("Test file not found:", testFileName)
+        else:
+          res[b.name] = b.run_benchmark(testFileName, args, results_file,csv_in, csv_out, timeout, evolution,
+                                        experiment_id, group_id, generation_id, individual_id)
+      except Exception as e:
+        print("({})Run_Group: Ran into Error of type {}".format(individual_id,e.__class__))
+        print(e)
     return res
 
 
@@ -159,8 +168,12 @@ class Config:
     '''Runs all the groups with one configuration'''
     print ('>>>', self.name)
     for group in self.groups:
-      self.res[group.name] = group.run_group(results_file, csv_in, csv_out, meta_args + self.args, timeout, evolution,
-                                             experiment_id, group_id, generation_id, individual_id) # a map from filename to result
+      try:
+        self.res[group.name] = group.run_group(results_file, csv_in, csv_out, meta_args + self.args, timeout, evolution,
+                                              experiment_id, group_id, generation_id, individual_id) # a map from filename to result
+      except Exception as e:
+        print("Run_Config: Ran into an error when trying run config for individual {} with exception class of {}".format(individual_id,e.__class__))
+        print(e)
     with open(csv_out, "at") as tempfile:
       tempfile.write('>>>' + self.name + '\n')
       for group in self.groups:
@@ -195,14 +208,18 @@ class MetaConfig:
     print ('***********')
     print ('**', self.name)
     print ('***********')
-    with open(csv_out, "at") as tempfile:
-      tempfile.write('****' + self.name + '\n')
-    for conf in self.configs:
-      cnf = Config(groups, conf)
-      res_conf  = cnf.run_config(self.args, csv_in, csv_out, results_file, timeout, evolution,
-                                 experiment_id, group_id, generation_id, individual_id)
-      self.res[conf[0]] = res_conf
-    return self.res  # a dictionary from group to result of running the whole group
+    try:
+      with open(csv_out, "at") as tempfile:
+        tempfile.write('****' + self.name + '\n')
+      for conf in self.configs:
+        cnf = Config(groups, conf)
+        res_conf  = cnf.run_config(self.args, csv_in, csv_out, results_file, timeout, evolution,
+                                  experiment_id, group_id, generation_id, individual_id)
+        self.res[conf[0]] = res_conf
+      return self.res  # a dictionary from group to result of running the whole group
+    except Exception as e:
+      print("----Run_Metaconfig: Encountered error of {} for individual {}".format(e.__class__,individual_id))
+      print(e)
 
 
 ###################################################################
@@ -219,16 +236,21 @@ def foldl(func, acc, xs):
 def evaluate(metaconfigs, configs, groups, results_file, csv_in, csv_out, timeout=999999, evolution=False,
              experiment_id=0,group_id=0, generation_id=0, individual_id=0):
   '''Test all the configurations defined in METACONFIG + CONFIG '''
-  results = dict()
-  for metaconf in metaconfigs:
-      cnf = MetaConfig(configs, metaconf)
-      results[metaconf[0]] = cnf.run_metaconfig(groups, csv_in, csv_out, results_file, timeout, evolution, experiment_id,
-                                                group_id, generation_id, individual_id)
-  return results
+  try:
+    results = dict()
+    for metaconf in metaconfigs:
+        cnf = MetaConfig(configs, metaconf)
+        results[metaconf[0]] = cnf.run_metaconfig(groups, csv_in, csv_out, results_file, timeout, evolution, experiment_id,
+                                                  group_id, generation_id, individual_id)
+    return results
+  except Exception as e:
+    print("----Encountered Error in evaluate for individual {} of type {}".format(individual_id,e.__class__))
+    print(e)
 
 
 def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_out, timeout=999999, evolution=False,
                      experiment_id=0,group_id=0, generation_id=0, individual_id=0):
+                     
   res_lst = []
   for i in range(n):
     groups0 = groups.copy()
@@ -236,15 +258,14 @@ def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_
       os.remove(results_file)
     res_lst.append(evaluate(metaconfigs, configs, groups0, results_file, csv_in, csv_out, timeout, evolution,
                             experiment_id,group_id,generation_id, individual_id))
-
+  
+  print("-----For Individual {}, res_lst is ".format(res_lst))
   results = res_lst[0].copy()
-
   # compute mean result
   for group in groups:
     for b in group.benchmarks:
       for meta in metaconfigs:
         for conf in configs:
-
           try:
             lst = [int(res_lst[i][meta[0]][conf[0]][group.name][b.name].code_size,10) for i in range(n)]
             results[meta[0]][conf[0]][group.name][b.name].code_size = int(foldl(operator.add, 0, lst) / n)
@@ -274,7 +295,7 @@ def evaluate_n_times(n, metaconfigs, configs, groups, results_file, csv_in, csv_
             results[meta[0]][conf[0]][group.name][b.name].rules = int(foldl(operator.add, 0, lst) / n)
           except:
             results[meta[0]][conf[0]][group.name][b.name].rules = 'FAIL'
-
+  print("----Finished Generating Results for {}".format(individual_id))
   return results
 
 def number_of_benchmarks_in_benchmark_groups(groups: List[BenchmarkGroup]):
@@ -412,6 +433,7 @@ def read_csv(csv_in):
     row = next(statsReader) #assumes that the csv contains stats about one single file
     toberemoved = row.keys()
     print(toberemoved)
+    
     # The structure below is dependent on suslik's csv output
     name         = row['Name']
     time         = float(row['Time'])/1000

@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import random
 import json
@@ -794,7 +795,6 @@ class Individual(list):
     # This is sub-optimal.
     # Probably there is a way to achieve a higher level of decoupling from roboevaluation.
     def evaluate(self, for_training=True, timeout=None):
-
         if timeout is None:
             timeout = self.timeout # which is the shorter timeout used for training
 
@@ -1012,22 +1012,97 @@ class Group(list):
         self.individuals.append(new_individual)
         return
     
-    async def mk_initial_population_and_evaluate_helper(self,training_data,validation_data):
-        indvs = [self.evaluate_individual(i,training_data,validation_data) for i in range(POPULATION_SIZE)]
-        await asyncio.wait(indvs)
+    def parallel_evaluate(self,individual):
+        try:
+            timeout = self.timeout # which is the shorter timeout used for training
+            data = self.training_data
+            
+            results1 = roboevaluation.evaluate_n_times(
+                1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
+                roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, individual.timeout, True,
+                individual.experiment_id, individual.group_id, individual.generation_id, individual.individual_id)
+            
+            return results1
+        except Exception as e:
+            print("Encountered Error of type {} in Individual {}. Terminating Early".format(e.__class__,individual.individual_id))
+            print(e)
+            return {}
+        
+        
+    
+    def mk_initial_population_and_evaluate(self, training_data, validation_data):
+        def create_individual(idx):
+            print("Creating Individual {}".format(idx))
+            new_individual = Individual(
+                timeout=self.timeout,
+                experiment_id=self.experiment_id,
+                group_id=self.group_id,
+                generation_id=0,
+                individual_id=idx,
+                runtime_rule_order_selection=self.runtime_selection,
+                fewer_feature_combinations=self.fewer_feature_comb,
+                mutate_rule_based_weights=self.mutate_rule_based_weights,
+                mutate_heap_based_weights=self.mutate_heap_based_weights,
+                training_data=training_data,
+                validation_data=validation_data,
+                number_of_training_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(training_data),
+                number_of_validation_data=roboevaluation.number_of_benchmarks_in_benchmark_groups(validation_data)
+            )
+            return new_individual
+        
+        from multiprocessing import Pool
+        individuals = [create_individual(i) for i in range(2)]
+        for ind in individuals:
+            ind.write_json_parameter_file()
+        
+        with Pool(3) as p:
+            result = p.map(self.parallel_evaluate,individuals)
+            p.close()
+            p.join()
+            print("----Finished Evaluating all individuals")
+            print(result)
+            
+            
+        for indiv,res in zip(individuals,result):
+            roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, training_data, res, indiv.csv_result_file_path(is_for_training=True))
+            
+        raise ValueError("LMAO")
+
+        for ind in individuals:
+            self.individuals.append(ind)
+        return
+        
+        # import pdb
+        # pdb.set_trace()
         
 
-    def mk_initial_population_and_evaluate(self, training_data, validation_data):
-        try:
-            start_time = time.time()
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self.mk_initial_population_and_evaluate_helper(training_data,validation_data))
-            print('Process takes {} seconds'.format(time.time() - start_time))
-        except:
-            print("Derivation Failed")
-            raise RuntimeError("Unable to finish executing making of initial population and evaluation")
+        # for individual,idx in enumerate(individuals):
+        #     if self.start_at_tuned_order:
+        #         individual.default()
+        #         if idx != 0:
+        #             individual.mutate()
+        #     individual.write_json_parameter_file()
+        #     individual.evaluate(for_training=True)
+        #     self.individuals.append(individual)
+
+            
+        # return
+
+        # try:
+        #     start_time = time.time()
+        #     loop = asyncio.get_event_loop()
+        #     loop.run_until_complete(self.mk_initial_population_and_evaluate_helper(training_data,validation_data))
+        #     print('Process takes {} seconds'.format(time.time() - start_time))
+        # except:
+        #     print("Derivation Failed")
+        #     raise RuntimeError("Unable to finish executing making of initial population and evaluation")
         # TODO: Figure out how to parallelize the initial population
+
+        # import pdb
+        # pdb.set_trace()
         # for individual_id in list(range(0, POPULATION_SIZE)):
+        #     import pdb
+        #     pdb.set_trace()
         #     new_individual = Individual(
         #         timeout=self.timeout,
         #         experiment_id=self.experiment_id,
@@ -1296,6 +1371,7 @@ class Evolution(list):
         import time
         start = time.time()
         print("----Starting First Generation")
+
         for group in self.groups:
             group.set_experiment_id(self.experiment_id)
             group.set_training_data(self.training_data)
@@ -1386,8 +1462,9 @@ def main():
     except:
         print("Oops! The directory for parameters already exists. Anyway, we keep going.")
 
-    for experiment in experiments:
-        experiment.run_one_experiment()
+    experiments[0].run_one_experiment()
+    # for experiment in experiments:
+    #     experiment.run_one_experiment()
 
     return 0
 
