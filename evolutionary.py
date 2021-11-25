@@ -781,6 +781,11 @@ class Individual(list):
         with open(self.json_search_parameter_file_path(), 'w') as new_json_file_to_write:
             json.dump(json_data_to_write, new_json_file_to_write, indent=2)
 
+    def ids_as_string(self):
+        result = str(self.experiment_id) + "_" + str(self.group_id) + "_" + str(self.generation_id) + '_' + \
+                 str(self.individual_id)
+        return result
+
     def csv_result_file_path(self, is_for_training=True):
 
         if is_for_training:
@@ -788,9 +793,29 @@ class Individual(list):
         else:
             result_type = "_validation_"
 
-        path = roboevaluation.EVAL_FOLDER + '/stats-performance' + result_type + str(self.experiment_id) + "_" + \
-               str(self.group_id) + "_" + str(self.generation_id) + '_' + str(self.individual_id) + '.csv'
-        return path
+        return roboevaluation.EVAL_FOLDER + '/stats-performance' + result_type + self.ids_as_string() + '.csv'
+
+    def all_results1_path(self, is_for_training=True):
+
+        if is_for_training:
+            result_type = "_training_"
+        else:
+            result_type = "_validation_"
+
+        return roboevaluation.RESULTS1 + result_type + self.ids_as_string()
+
+    def csv_in_path(self):
+
+        return roboevaluation.CSV_IN + "_" + self.ids_as_string() + '.csv'
+
+    def csv_temp_path(self, is_for_training=True):
+
+        if is_for_training:
+            result_type = "_training_"
+        else:
+            result_type = "_validation_"
+
+        return roboevaluation.CSV_TEMP + result_type + self.ids_as_string() + '.csv'
 
     # This is sub-optimal.
     # Probably there is a way to achieve a higher level of decoupling from roboevaluation.
@@ -805,7 +830,7 @@ class Individual(list):
 
         results1 = roboevaluation.evaluate_n_times(
             1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
-            roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, self.timeout, True,
+            self.all_results1_path(), self.csv_in_path(), self.csv_temp_path(), self.timeout, True,
             self.experiment_id, self.group_id, self.generation_id, self.individual_id)
 
         roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
@@ -987,7 +1012,8 @@ class Group(list):
     def set_rich_get_richer(self, rich_get_richer):
         self.rich_get_richer = rich_get_richer
     
-    async def evaluate_individual(self,individual_id,training_data,validation_data):
+    #async def evaluate_individual(self,individual_id,training_data,validation_data):
+    def evaluate_individual(self, individual_id, training_data, validation_data):
         new_individual = Individual(
                 timeout=self.timeout,
                 experiment_id=self.experiment_id,
@@ -1012,17 +1038,22 @@ class Group(list):
         self.individuals.append(new_individual)
         return
     
-    def parallel_evaluate(self,individual):
+    def parallel_evaluate(self, individual):
         try:
             timeout = self.timeout # which is the shorter timeout used for training
             data = self.training_data
-            
+
+            print('===parallel_evaluate===', individual.all_results1_path(), individual.csv_in_path(),
+                  individual.csv_temp_path())
+
             results1 = roboevaluation.evaluate_n_times(
                 1, roboevaluation.METACONFIG1, roboevaluation.CONFIG1, data,
-                roboevaluation.RESULTS1, roboevaluation.CSV_IN, roboevaluation.CSV_TEMP, individual.timeout, True,
-                individual.experiment_id, individual.group_id, individual.generation_id, individual.individual_id)
-            
+                individual.all_results1_path(), individual.csv_in_path(), individual.csv_temp_path(),
+                individual.timeout, True, individual.experiment_id, individual.group_id, individual.generation_id,
+                individual.individual_id)
+
             return results1
+
         except Exception as e:
             print("Encountered Error of type {} in Individual {}. Terminating Early".format(e.__class__,individual.individual_id))
             print(e)
@@ -1052,26 +1083,25 @@ class Group(list):
         
         from multiprocessing import Pool
         individuals = [create_individual(i) for i in range(2)]
+
         for ind in individuals:
             ind.write_json_parameter_file()
         
         with Pool(3) as p:
-            result = p.map(self.parallel_evaluate,individuals)
-            p.close()
-            p.join()
-            print("----Finished Evaluating all individuals")
-            print(result)
-            
-            
-        for indiv,res in zip(individuals,result):
-            roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, training_data, res, indiv.csv_result_file_path(is_for_training=True))
-            
-        raise ValueError("LMAO")
+            result = p.map(self.parallel_evaluate, individuals)
+         #   p.close()
+         #   p.join()
+
+        for indiv, res in zip(individuals, result):
+            print('just before roboevaluation.write_stats1')
+            roboevaluation.write_stats1(roboevaluation.METACONFIG1, roboevaluation.CONFIG1, training_data, res,
+                                        indiv.csv_result_file_path(is_for_training=True))
+
+        #raise ValueError("LMAO")
 
         for ind in individuals:
             self.individuals.append(ind)
         return
-        
         # import pdb
         # pdb.set_trace()
         

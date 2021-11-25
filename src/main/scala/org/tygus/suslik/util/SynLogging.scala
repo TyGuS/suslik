@@ -184,12 +184,16 @@ object SynStatUtil {
 
   import java.io.{File, FileWriter}
 
-  val myStats = "stats.csv"
-  val myFile = new File(myStats)
-  val initRow: String =
-    List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Backtrackings", "Applications", "Num Statements", "Goals generated", "Rules applied", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
-
   def init(config: SynConfig){
+    val experimentID = config.experimentID
+    val groupID = config.groupID
+    val generationID = config.generationID
+    val individualID = config.individualID
+    val ids = experimentID.toString + "_" + groupID.toString + "_" + generationID.toString + "_" + individualID.toString
+    val myStats = if (config.evolutionary) "robo-evaluation-utils/stats_" + ids + ".csv" else "stats.csv"
+    val myFile = new File(myStats)
+    val initRow: String =
+      List("Name", "Time", "Spec Size", "Num Procs", "Code Size", "Backtrackings", "Applications", "Num Statements", "Goals generated", "Rules applied", "Max Worklist Size", "SMT Cache").mkString(", ") + "\n"
     if (config.logToFile) {
       if (myFile.exists()) myFile.delete()
       myFile.createNewFile()
@@ -227,6 +231,15 @@ object SynStatUtil {
 
       val specSize = spec.pre.size + spec.post.size
       val data = s"$name, $time, $specSize, $statRow, ${config.pp}\n"
+
+      // refactor with the previous code block to produce myFile.
+      val experimentID = config.experimentID
+      val groupID = config.groupID
+      val generationID = config.generationID
+      val individualID = config.individualID
+      val ids = experimentID.toString + "_" + groupID.toString + "_" + generationID.toString + "_" + individualID.toString
+      val myStats = if (config.evolutionary) "robo-evaluation-utils/stats_" + ids + ".csv" else "stats.csv"
+      val myFile = new File(myStats)
       using(new FileWriter(myFile, true))(_.write(data))
     }
   }
