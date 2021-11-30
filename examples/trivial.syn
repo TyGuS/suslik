@@ -1,0 +1,11 @@
+Do nothing (wow!)
+
+###
+
+{ 10 > 1; emp }
+
+  void doNothing()
+
+{ true ; emp }
+
+#####

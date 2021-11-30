@@ -13,7 +13,8 @@ import scopt.OptionParser
   * @author Ilya Sergey
   */
 
-object SynthesisRunner extends SynthesisRunnerUtil {
+object
+SynthesisRunner extends SynthesisRunnerUtil {
 
   // Enable verbose logging
   override implicit val log = new Log(SynLogLevels.Verbose)
@@ -195,6 +196,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     opt[String]('j', "traceToJsonFile").action(cfg { fn =>
       _.copy(traceToJsonFile = Some(new File(fn)))
     }).text("dump entire proof search trace to a json file; default: none")
+
+    opt[String](name="proofScript").action(cfg {fn =>
+      _.copy(proofScript = Some(new File(fn)))
+    })
 
     opt[Boolean]('g', "simplifiedProofTree").action(cfg { b =>
       _.copy(simplifiedProofTree = b)

@@ -46,7 +46,8 @@ case class SynConfig(
                       certSetRepr: Boolean = false,
                       // Internal (not directly settable through CLI)
                       inputFormat: InputFormat = dotSyn,
-                      script: List[Int] = List()
+                      script: List[Int] = List(),
+                      proofScript: Option[File] = None,
                     ) extends PrettyPrinting {
 
   override def pp: String =

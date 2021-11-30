@@ -111,8 +111,10 @@ trait SynthesisRunnerUtil {
         new InteractiveSynthesis(env.config, env.stats)
       else if (env.config.script.nonEmpty)
         new ReplaySynthesis(env.config)
-      else
-        new PhasedSynthesis(env.config)
+      else (env.config.proofScript) match {
+        case Some(script) => ScriptSynthesis.buildFromFile(script)
+        case None => new PhasedSynthesis(env.config)
+      }
     val trace : ProofTrace = if ((env.config.certTarget != NoCert) || env.config.simplifiedProofTree) new ProofTraceCert() else {
       env.config.traceToJsonFile match {
         case None => ProofTraceNone

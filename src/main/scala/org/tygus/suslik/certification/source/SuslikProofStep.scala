@@ -377,7 +377,7 @@ case class AbduceCall(
               val post = goal.post
 
               def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean =
-                hPre.eqModTags(hPostc) && LogicalRules.FrameUnfolding.heapletFilter(hPost)
+                hPre.eqModTags(hPost) && LogicalRules.FrameUnfolding.heapletFilter(hPost)
 
               findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                 case None => ???

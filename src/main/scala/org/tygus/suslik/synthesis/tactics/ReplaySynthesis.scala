@@ -1,7 +1,7 @@
 package org.tygus.suslik.synthesis.tactics
 
-import org.tygus.suslik.synthesis.SynConfig
-import org.tygus.suslik.synthesis.rules.Rules
+import org.tygus.suslik.synthesis.{SearchTree, SynConfig}
+import org.tygus.suslik.synthesis.rules.{FixedRules, Rules}
 
 class ReplaySynthesis(config: SynConfig) extends PhasedSynthesis(config) {
   var script: List[Int] = config.script
@@ -17,3 +17,4 @@ class ReplaySynthesis(config: SynConfig) extends PhasedSynthesis(config) {
     }
   }
 }
+
