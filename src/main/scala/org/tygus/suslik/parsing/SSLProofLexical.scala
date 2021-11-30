@@ -8,7 +8,11 @@ import scala.util.parsing.combinator.lexical.StdLexical
 class SSLProofLexical extends SSLLexical {
 
   // Add tactics
-  reserved += ("done")
+  reserved += ("Emp", "HaltAndPrintGoal", "StarPartial", "NilNotLval", "Read", "Frame",
+    "SubstL", "SubstR", "Write", "CheckPost"
+  )
+
+  delimiters += ("->")
 
 
 }

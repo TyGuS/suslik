@@ -1,0 +1,11 @@
+Reading and framing test (for proof scripts)
+
+###
+
+{ true; r :-> a }
+
+  void readR(loc r)
+
+{ true ; r :-> a }
+
+#####

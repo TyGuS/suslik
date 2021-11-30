@@ -9,16 +9,16 @@ import org.tygus.suslik.synthesis.rules.{FixedRules, Rules}
 import scala.io.Source
 
 case class ScriptSynthesis(script: List[FixedRules]) extends Tactic {
-  var rule_stream : Iterator[FixedRules] = FixedRules.to_iterator(script)
+  var rule_stream : List[FixedRules] = FixedRules.to_iterator(script).toList
 
   override def nextRules(node: SearchTree.OrNode): List[Rules.SynthesisRule] = {
-    if (rule_stream.hasNext) {
-      val rule = rule_stream.next()
-      List(rule)
-    } else {
-      List()
+    rule_stream match {
+      case Nil => Nil
+      case ::(hd,tl) => {
+        rule_stream = tl
+        List(hd)
+      }
     }
-
   }
 
   override def filterExpansions(allExpansions: Seq[Rules.RuleResult]): Seq[Rules.RuleResult] =
@@ -29,8 +29,8 @@ object ScriptSynthesis {
     val allLines = Source.fromFile(scriptFile).getLines().toList.mkString("\n")
     val parser = new SSLProofParser
     val res = parser.parseProof(allLines)
-    if (!res.successful) {
-      throw SynthesisException("Could not parse proof")
+    if (!res.successful || res.get.isEmpty) {
+      throw SynthesisException(s"Could not parse proof ${res}")
     }
     println(res.get)
     ScriptSynthesis(res.get)

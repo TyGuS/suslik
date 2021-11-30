@@ -1,0 +1,11 @@
+
+StarPartial(x != y);
+NilNotLval(x,y);
+Read(a->a1,x,0);
+SubstL(a->a1);
+Read(b->b1,y,0);
+SubstL(b->b1);
+CheckPost((x != 0), (x != y), (y != 0));
+Write(y,0,a1);
+Write(x,0,b1);
+Emp

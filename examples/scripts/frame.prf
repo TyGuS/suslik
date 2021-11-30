@@ -1,0 +1,4 @@
+Read(a->a1,r,0);
+SubstL(a->a1);
+Frame(r :-> a1);
+Emp
