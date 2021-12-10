@@ -1,0 +1,47 @@
+# -o 2 -c 2 --extended true
+
+should be able to compute a length of a multi-list
+
+unfortunately the structure of the list has to be mutable,
+otherwise it cannot set up a proper heap to make a recursive call to the helper function :(
+
+###
+
+{ r :-> x ** multilist(x, len, s, mut, imm, imm, mut, imm) }
+  void multilist_length(loc r)
+{ r :-> len ** multilist(x, len, s, mut, imm, imm, mut, imm) }
+
+###
+
+{r :-> x ** multilist(x, len, s)<_alpha_3>}
+{r :-> len ** multilist(x, len, s)<_alpha_4>}
+void multilist_length (loc r) {
+  let x = *r;
+  if (x == 0) {
+  } else {
+    multilist_length10(x, r);
+  }
+}
+
+{len == len1x1 + size2x1 && s =i s1x1 ++ s2x1 ; (x + 1) :-> tx1 ** r :-> x ** x :-> hx1 ** multilist(tx1, size2x1, s2x1)<_alpha_2x1>[0,1] ** sll(hx1, len1x1, s1x1)<_alpha_1x1>[0,1] ** [x, 2]}
+{not (r == 0) ; r :-> len ** multilist(x, len, s)<_alpha_4>}
+void multilist_length10 (loc x, loc r) {
+  let hx = *x;
+  let t = *(x + 1);
+  if (hx == 0) {
+    *r = t;
+    multilist_length(r);
+  } else {
+    let n = *(hx + 1);
+    *x = n;
+    multilist_length10(x, r);
+    let l = *r;
+    let h = *x;
+    *x = hx;
+    *(hx + 1) = h;
+    *r = l + 1;
+  }
+}
+
+###
+
