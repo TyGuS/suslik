@@ -35,10 +35,10 @@ class PermissionBenchmarks extends FunSpec with Matchers with SynthesisRunnerUti
     runAllTestsFromDir("permissions/rose-tree")
   }
 
-//  describe("Binary search tree") {
-//    runAllTestsFromDir("permissions/bst")
-//  }
-//
+  describe("Binary search tree") {
+    runAllTestsFromDir("permissions/bst")
+  }
+
 //  describe("Packed tree") {
 //    runAllTestsFromDir("permissions/packed")
 //  }
