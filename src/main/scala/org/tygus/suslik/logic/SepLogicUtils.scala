@@ -42,8 +42,8 @@ trait SepLogicUtils extends PureLogicUtils {
                            pr: (Heaplet, Heaplet) => Boolean,
                            pre: SFormula,
                            post: SFormula): Option[(Heaplet, Heaplet)] = {
-    (for {hl <- pre.chunks.toStream if pl(hl)
-          hr <- post.chunks.toStream if pr(hl, hr)} yield (hl, hr)).headOption
+    (for {hl <- pre.chunks if pl(hl)
+          hr <- post.chunks if pr(hl, hr)} yield (hl, hr)).headOption
   }
 
   /**

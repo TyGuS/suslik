@@ -1,0 +1,20 @@
+predicate sll(loc x, interval s, int len, perm p, perm n, perm a) {
+|  x == 0        => { len == 0 && s == [] ; emp }
+|  not (x == 0)  => { len == len1 + 1  &&  len1 >= 0 &&
+                      s == [v] + s1 ;
+                      [x, 2]@a ** x :->@p v ** (x + 1) :->@n nxt ** sll(nxt, s1, len1, p, n, a) }
+}
+
+predicate srtl(loc x, interval s, int len, perm p, perm n, perm a) {
+|  x == 0        => { len == 0 && s == [] ; emp }
+|  not (x == 0)  => { len == len1 + 1  &&  len1 >= 0 &&
+                      s == [v] + s1 && lower s == v ;
+                      [x, 2]@a ** x :->@p v ** (x + 1) :->@n nxt ** srtl(nxt, s1, len1, p, n, a) }
+}
+
+predicate descl(loc x, interval s, int len, perm p, perm n, perm a) {
+|  x == 0        => { len == 0 && s == [] ; emp }
+|  not (x == 0)  => { len == len1 + 1  &&  len1 >= 0 &&
+                      s == [v] + s1 && upper s == v ;
+                      [x, 2]@a ** x :->@p v ** (x + 1) :->@n nxt ** descl(nxt, s1, len1, p, n, a) }
+}

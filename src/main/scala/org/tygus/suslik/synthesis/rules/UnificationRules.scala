@@ -22,7 +22,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
   abstract class HeapUnify extends SynthesisRule {
     override def toString: String = "Unify"
 
-    def heapletFilter(h: Heaplet): Boolean
+    // Which postcondition heaplets should be considered for unification?
+    def heapletFilter(h: Heaplet, post: SFormula): Boolean
 
     // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
     def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
@@ -35,10 +36,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       if (!profilesMatch(pre.sigma, post.sigma, goal.callGoal.isEmpty)) return Nil
 
 //      val postCandidates = post.sigma.chunks.filter(p => p.vars.exists(goal.isExistential) && heapletFilter(p))
-      val postCandidates = post.sigma.chunks.filter(p => heapletFilter(p))
+      val postCandidates = post.sigma.chunks.filter(p => heapletFilter(p, post.sigma))
 
       val alternatives = for {
-        s <- postCandidates.take(1) // DANGER: in block phase this relies on alloc and unify discovering existential heaplets in the same order
+        s <- postCandidates.take(1)
         t <- pre.sigma.chunks
         if !s.eqModTags(t)
         sub <- t.unify(s)

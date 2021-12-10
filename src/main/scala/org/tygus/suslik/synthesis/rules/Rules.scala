@@ -59,7 +59,7 @@ object Rules {
   trait GeneratesCode
 
   trait UnfoldingPhase {
-    def heapletFilter(h: Heaplet): Boolean = {
+    def heapletFilter(h: Heaplet, post: SFormula): Boolean = {
       h.isInstanceOf[SApp]
     }
 
@@ -69,8 +69,9 @@ object Rules {
   }
 
   trait BlockPhase {
-    def heapletFilter(h: Heaplet): Boolean = {
-      h.isInstanceOf[Block]
+    // This must be the first block heaplet in the post (this is a focusing technique)
+    def heapletFilter(h: Heaplet, post: SFormula): Boolean = {
+      h.isInstanceOf[Block] && post.chunks.filter(_.isInstanceOf[Block]).indexOf(h) == 0
     }
 
     def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
@@ -80,7 +81,8 @@ object Rules {
   }
 
   trait FlatPhase {
-    def heapletFilter(h: Heaplet): Boolean = true
+    // This must be the first heaplet in the post (this is a focusing technique)
+    def heapletFilter(h: Heaplet, post: SFormula): Boolean = post.chunks.indexOf(h) == 0
 
     def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = {
       if (exact) pre.profile.ptss == post.profile.ptss else multiSubset(post.profile.ptss, pre.profile.ptss)

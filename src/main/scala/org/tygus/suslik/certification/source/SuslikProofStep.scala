@@ -371,7 +371,7 @@ case class AbduceCall(
               val pre = goal.pre
               val post = goal.post
 
-              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameUnfolding.heapletFilter(hPost)
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameUnfolding.heapletFilter(hPost, post.sigma)
 
               findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                 case None => ???
@@ -389,7 +389,7 @@ case class AbduceCall(
               val pre = goal.pre
               val post = goal.post
 
-              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameUnfoldingFinal.heapletFilter(hPost)
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameUnfoldingFinal.heapletFilter(hPost, post.sigma)
 
               findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                 case None => ???
@@ -407,7 +407,7 @@ case class AbduceCall(
               val pre = goal.pre
               val post = goal.post
 
-              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameBlock.heapletFilter(hPost)
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameBlock.heapletFilter(hPost, post.sigma)
 
               findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                 case None => ???
@@ -425,7 +425,7 @@ case class AbduceCall(
               val pre = goal.pre
               val post = goal.post
 
-              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameFlat.heapletFilter(hPost)
+              def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && LogicalRules.FrameFlat.heapletFilter(hPost, post.sigma)
 
               findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
                 case None => ???

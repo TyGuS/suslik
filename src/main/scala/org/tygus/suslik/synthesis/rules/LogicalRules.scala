@@ -112,7 +112,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
    Remove an equivalent heaplet from pre and post
    */
   abstract class Frame extends SynthesisRule {
-    def heapletFilter(h: Heaplet): Boolean
+    def heapletFilter(h: Heaplet, post: SFormula): Boolean
 
     override def toString: String = "Frame"
 
@@ -124,7 +124,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       val post = goal.post
       if (!profilesMatch(pre.sigma, post.sigma, goal.callGoal.isEmpty)) return Nil
 
-      def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && heapletFilter(hPost)
+      def isMatch(hPre: Heaplet, hPost: Heaplet): Boolean = hPre.eqModTags(hPost) && heapletFilter(hPost, post.sigma)
 
       findMatchingHeaplets(_ => true, isMatch, pre.sigma, post.sigma) match {
         case None => Nil
@@ -292,7 +292,11 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // When do two heaplets match
       def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && pointsToGhosts(hr)
 
-      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
+      // This is a simple focusing optimization:
+      // since in the flat phase all pairs of heaplets must go,
+      // we are only working on the first heaplet in the post (and its matching heaplet in the pre)
+      val firstHeaplet = SFormula(goal.post.sigma.chunks.take(1))
+      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, firstHeaplet) match {
         case None => Nil
         case Some((_, hr@PointsTo(x, offset, e2, p))) =>
           val ex = freshVar(goal.vars, goal.progLevelPrefix)

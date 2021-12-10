@@ -44,7 +44,11 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       // When do two heaplets match
       def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && noGhosts(hr)
 
-      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
+      // This is a simple focusing optimization:
+      // since in the flat phase all pairs of heaplets must go,
+      // we are only working on the first heaplet in the post (and its matching heaplet in the pre)
+      val firstHeaplet = SFormula(goal.post.sigma.chunks.take(1))
+      findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, firstHeaplet) match {
         case None => Nil
         case Some((hl@PointsTo(x@Var(_), offset, _, p1), hr@PointsTo(_, _, e2, p2))) =>
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)

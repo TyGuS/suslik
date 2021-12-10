@@ -15,31 +15,31 @@ class PermissionBenchmarks extends FunSpec with Matchers with SynthesisRunnerUti
     runAllTestsFromDir("permissions/sll")
   }
 
-//  describe("Sorted lists") {
-//    runAllTestsFromDir("all-benchmarks/srtl")
-//  }
-//
+  describe("Sorted lists") {
+    runAllTestsFromDir("permissions/srtl")
+  }
+
   describe("Doubly-linked lists") {
-    runAllTestsFromDir("all-benchmarks/dll")
+    runAllTestsFromDir("permissions/dll")
   }
 
 //  describe("Lists of lists") {
-//    runAllTestsFromDir("all-benchmarks/multi-list")
+//    runAllTestsFromDir("permissions/multi-list")
 //  }
 //
 //  describe("Trees") {
-//    runAllTestsFromDir("all-benchmarks/tree")
+//    runAllTestsFromDir("permissions/tree")
 //  }
 
   describe("Rose tree") {
-    runAllTestsFromDir("all-benchmarks/rose-tree")
+    runAllTestsFromDir("permissions/rose-tree")
   }
 
 //  describe("Binary search tree") {
-//    runAllTestsFromDir("all-benchmarks/bst")
+//    runAllTestsFromDir("permissions/bst")
 //  }
 //
 //  describe("Packed tree") {
-//    runAllTestsFromDir("all-benchmarks/packed")
+//    runAllTestsFromDir("permissions/packed")
 //  }
 }

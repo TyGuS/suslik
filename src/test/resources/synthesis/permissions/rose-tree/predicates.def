@@ -1,7 +1,7 @@
 predicate rose_tree(loc x, set s, perm p, perm l, perm a) {
 |  x == 0        => { s == {} ; emp }
 |  not (x == 0)  => { s == {v} ++ s1 ;
-                      [x, 2]@a ** x :->@p v ** (x + 1) :->@l b ** buds(b, s1)}
+                      [x, 2]@a ** x :->@p v ** (x + 1) :->@l b ** buds(b, s1, p, l, a)}
 }
 
 predicate buds(loc x, set s, perm p, perm l, perm a) {
