@@ -1,0 +1,12 @@
+# -o 2
+
+should be able to deallocate a rose tree
+
+###
+
+{ rose_tree(x, s, mut, mut, mut) }
+  void rose_tree_free(loc x)
+{ emp }
+
+###
+

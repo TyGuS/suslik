@@ -30,11 +30,11 @@ class PermissionBenchmarks extends FunSpec with Matchers with SynthesisRunnerUti
 //  describe("Trees") {
 //    runAllTestsFromDir("all-benchmarks/tree")
 //  }
-//
-//  describe("Rose tree") {
-//    runAllTestsFromDir("all-benchmarks/rose-tree")
-//  }
-//
+
+  describe("Rose tree") {
+    runAllTestsFromDir("all-benchmarks/rose-tree")
+  }
+
 //  describe("Binary search tree") {
 //    runAllTestsFromDir("all-benchmarks/bst")
 //  }

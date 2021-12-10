@@ -1,0 +1,18 @@
+predicate rose_tree(loc x, set s, perm p, perm l, perm a) {
+|  x == 0        => { s =i {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 ;
+                      [x, 2]@a ** x :->@p v ** (x + 1) :->@l b ** buds(b, s1)}
+}
+
+predicate buds(loc x, set s, perm p, perm l, perm a) {
+|  x == 0        => { s == {}; emp }
+|  not (x == 0)  => { s == s1 ++ s2 ;
+                      [x, 2]@a ** x :->@l r ** rose_tree(r, s1, p, l, a)
+                      ** (x + 1) :->@l nxt ** buds(nxt, s2, p, l, a) }
+}
+
+predicate sll(loc x, set s, perm p, perm n, perm a) {
+|  x == 0        => { s == {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2]@a ** x :->@p v ** (x + 1) :->@n nxt
+                                        ** sll(nxt, s1, p, n, a) }
+}
