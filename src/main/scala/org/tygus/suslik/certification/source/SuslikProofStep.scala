@@ -202,7 +202,7 @@ case class AbduceCall(
           // find all pointers that are not yet known to be non-null
           def find_pointers(p: PFormula, s: SFormula): Set[Expr] = {
             // All pointers
-            val allPointers = (for (PointsTo(l, _, _) <- s.chunks) yield l).toSet
+            val allPointers = (for (PointsTo(l, _, _, _) <- s.chunks) yield l).toSet
             allPointers.filter(
               x => !p.conjuncts.contains(x |/=| NilPtr) && !p.conjuncts.contains(NilPtr |/=| x)
             )
@@ -446,7 +446,7 @@ case class AbduceCall(
       }
       case OperationalRules.FreeRule => node.kont match {
         case PrependProducer(stmt@Statements.Free(Var(name))) >> ExtractHelper(_) =>
-          val size: Int = node.goal.pre.sigma.blocks.find({ case Block(Var(ploc), sz) => ploc == name }).map({ case Block(_, sz) => sz }) match {
+          val size: Int = node.goal.pre.sigma.blocks.find({ case Block(Var(ploc), _, _) => ploc == name }).map({ case Block(_, sz, _) => sz }) match {
             case Some(value) => value
             case None => 1
           }

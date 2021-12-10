@@ -164,14 +164,14 @@ object ProofSpecTranslation {
     heaplets.foldLeft((initial_map, List(): List[CSApp]))({
       case ((map, acc), ty: Heaplet) =>
         ty match {
-          case ty@PointsTo(loc@Var(name), offset, value) =>
+          case ty@PointsTo(loc@Var(name), offset, value,_) =>
             val updated_map = map.get(name) match {
               case None => map.updated(name, (List(ty), None))
               case Some((points_to_acc: List[_], block_acc)) =>
                 map.updated(name, (List(ty) ++ points_to_acc, block_acc))
             }
             (updated_map, acc: List[CSApp])
-          case ty@Block(loc@Var(name), sz) =>
+          case ty@Block(loc@Var(name), sz,_) =>
             val updated_map = map.get(name) match {
               case None => map.updated(name, (List(), Some(ty)))
               case Some((points_to_acc, None)) => map.updated(name, (points_to_acc, Some(ty)))
@@ -188,10 +188,10 @@ object ProofSpecTranslation {
     // mapping into a VST Data at declaration
     val blocks: List[CDataAt] = map.map({ case (var_nam, (points_to, o_block)) =>
       o_block match {
-        case Some((_@Block(loc, sz))) =>
+        case Some(_@Block(loc, sz,_)) =>
           val loc_pos = translate_expression(context)(loc)
           val o_array: Array[Option[ProofCExpr]] = Array.fill(sz)(None)
-          points_to.foreach({ case PointsTo(_, offset, value) =>
+          points_to.foreach({ case PointsTo(_, offset, value,_) =>
             o_array.update(offset, Some(translate_expression(context)(value)))
           })
           val elems = o_array.map(_.get).toList
@@ -202,10 +202,10 @@ object ProofSpecTranslation {
           }
 
           (points_to.head: PointsTo) match {
-            case PointsTo(loc, 0, value) =>
+            case PointsTo(loc, 0, value,_) =>
               val c_value = translate_expression(context)(value)
               CDataAt(translate_expression(context)(loc), List(c_value))
-            case PointsTo(_, _, _) =>
+            case PointsTo(_, _, _, _) =>
               throw TranslationException("found points to information without a block that references a non-zero element (i.e (x + 1) :-> 2)")
           }
       }
@@ -231,8 +231,8 @@ object ProofSpecTranslation {
     })
     // collect all cardinality_params and their associated types
     val cardinality_params: Map[String, CoqCardType] = (f.pre.sigma.chunks ++ f.post.sigma.chunks).flatMap({
-      case PointsTo(loc, offset, value) => None
-      case Block(loc, sz) => None
+      case PointsTo(_,_,_,_) => None
+      case Block(_,_,_) => None
       case SApp(pred, args, tag, Var(name)) => Some(name, CoqCardType(pred))
       case _ => throw TranslationException("ERR: Expecting all predicate applications to be abstract variables")
     }).toMap

@@ -15,8 +15,8 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     def collector(acc: Set[R])(h: Heaplet): Set[R] = h match {
       case PointsTo(v, _, value, perm) =>
         acc ++ v.collect(p) ++ value.collect(p) ++ perm.collect(p)
-      case Block(v, _) =>
-        acc ++ v.collect(p)
+      case Block(v, _, perm) =>
+        acc ++ v.collect(p) ++ perm.collect(p)
       case SApp(_, args, _, card) =>
         args.foldLeft(acc)((a, e) => a ++ e.collect(p)) ++
           // [Cardinality] add the cardinality variable
@@ -51,7 +51,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   // Size of the heaplet (in AST nodes)
   def size: Int = this match {
     case PointsTo(loc, _, value, _) => 1 + loc.size + value.size
-    case Block(loc, _) => 1 + loc.size
+    case Block(loc, _, _) => 1 + loc.size
     case SApp(_, args, _, _) => args.map(_.size).sum
   }
 
@@ -59,7 +59,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     case SApp(_, _, PTag(c, u), _) => 2 + 2*(c + u)
     case _ => 1
   }
-
+  
   protected def ppPermWithDefault(perm: Expr): String  = perm match {
     case PermConst(Mutable) => ""
     case _ => s"@${perm.pp}"
@@ -69,7 +69,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
 /**
   * var + offset :-> value
   */
-case class PointsTo(loc: Expr, offset: Int = 0, value: Expr, perm: Expr = PermConst(Mutable)) extends Heaplet {
+case class PointsTo(loc: Expr, offset: Int = 0, value: Expr, perm: Expr = eMut) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
     this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma), perm = perm.resolveOverloading(gamma))
@@ -107,19 +107,24 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr, perm: Expr = PermCo
 /**
   * block(var, size)
   */
-case class Block(loc: Expr, sz: Int) extends Heaplet {
+case class Block(loc: Expr, sz: Int, perm: Expr = eMut) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet = this.copy(loc = loc.resolveOverloading(gamma))
 
   override def pp: Ident = {
-    s"[${loc.pp}, $sz]"
+    s"[${loc.pp}, $sz]${ppPermWithDefault(perm)}"
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet = {
-    Block(loc.subst(sigma), sz)
+    Block(loc.subst(sigma), sz, perm.subst(sigma))
   }
 
-  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = loc.resolve(gamma, Some(LocType))
+  def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
+    for {
+      gamma1 <- loc.resolve(gamma, Some(LocType))
+      gamma2 <- perm.resolve(gamma1, Some(PermType))
+    } yield gamma2
+  }
 
   override def compare(that: Heaplet) = that match {
     case SApp(pred, args, tag, card) => -1
@@ -127,7 +132,7 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
   }
 
   override def unify(that: Heaplet): Option[ExprSubst] = that match {
-    case Block(l, s) if sz == s => Some(Map(loc -> l))
+    case Block(l, s, p) if sz == s => Some(Map(loc -> l, perm -> p))
     case _ => None
   }
 }
@@ -211,7 +216,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
     List(ptss, apps, blocks).flatMap(pt).mkString(" ** ")
   }
 
-  def blocks: List[Block] = for (b@Block(_, _) <- chunks) yield b
+  def blocks: List[Block] = for (b@Block(_, _, _) <- chunks) yield b
 
   def apps: List[SApp] = for (b@SApp(_, _, _, _) <- chunks) yield b
 
@@ -230,7 +235,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   def isEmp: Boolean = chunks.isEmpty
 
-  def block_size (expr: Expr) = blocks find { case Block(loc,_) if loc == expr => true case _ => false } map (v => v.sz)
+  def block_size (expr: Expr) = blocks find { case Block(loc,_,_) if loc == expr => true case _ => false } map (v => v.sz)
 
   // Add h to chunks (multiset semantics)
   def **(h: Heaplet): SFormula = SFormula(h :: chunks)

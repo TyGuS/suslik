@@ -55,18 +55,18 @@ class VSTProgramInterpreter extends Interpreter[SuslikProofStep, StatementStep, 
       case (name, CoqIntValType) => (Var(name), IntType)
     })
     val block_map = chunks.flatMap({
-      case Block(Var(ptr), sz) => Some((ptr, sz))
+      case Block(Var(ptr), sz, _) => Some((ptr, sz))
       case _ => None
     }).toMap
     val free_ptrs = chunks.flatMap({
-      case PointsTo(Var(loc), 0, value) if !(block_map contains loc) => Some((loc, 1))
+      case PointsTo(Var(loc), 0, value, _) if !(block_map contains loc) => Some((loc, 1))
       case _ => None
     }).toMap
     (block_map ++ free_ptrs).map {
       case (ptr, sz) =>
       val types : Array[Option[VSTCType]] = Array.fill(sz)(None)
       chunks.foreach({
-        case PointsTo(Var(ptr_prime), offset, value) if ptr_prime == ptr =>
+        case PointsTo(Var(ptr_prime), offset, value, _) if ptr_prime == ptr =>
           types.update(offset, value.getType(gamma).flatMap({
             case IntType => Some(CoqIntValType)
             case LocType => Some(CoqPtrValType)

@@ -2,13 +2,13 @@ bla
 
 ###
 
-{ a == mut ; r :->@a 0 }
+{ [r, 2] ** r :->@imm 0 ** (r + 1) :-> 1 }
 
 void test(loc r)
 
-{ r :->@a 1 }
+{ emp }
 
 ###
 
-void maxish (loc r, int x, int y) {
+void test (loc r) {
 }

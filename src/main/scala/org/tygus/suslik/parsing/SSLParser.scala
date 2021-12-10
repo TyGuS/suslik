@@ -53,7 +53,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     ("true" | "false") ^^ (b => BoolConst(java.lang.Boolean.parseBoolean(b)))
 
   def permLiteral: Parser[Const] =
-    ("imm" | "mut") ^^ (p => PermConst(if(p == "imm") Permissions.Immutable else Permissions.Mutable))
+    ("imm" | "mut") ^^ (p => if(p == "imm") eImm else eMut)
 
   def setLiteral: Parser[Expr] =
     "{" ~> repsep(expr, ",") <~ "}" ^^ SetLiteral
@@ -134,8 +134,8 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def heaplet: Parser[Heaplet] = {
     val maybePerm = opt("@" ~> expr)
-    ((identWithOffset <~ ":->") ~ maybePerm ~ expr ^^ { case (a, o) ~ p ~ b => PointsTo(Var(a), o, b, p.getOrElse(PermConst(Permissions.Mutable))) }
-        ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
+    ((identWithOffset <~ ":->") ~ maybePerm ~ expr ^^ { case (a, o) ~ p ~ b => PointsTo(Var(a), o, b, p.getOrElse(eMut)) }
+        ||| ("[" ~> (ident ~ ("," ~> numericLit)) <~ "]") ~ maybePerm ^^ { case a ~ s ~ p => Block(Var(a), Integer.parseInt(s), p.getOrElse(eMut)) }
         ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("<" ~> expr <~ ">") ^^ {
         case name ~ args ~ v => SApp(name, args, PTag(), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
       }

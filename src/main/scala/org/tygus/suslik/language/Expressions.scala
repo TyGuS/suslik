@@ -659,6 +659,8 @@ object Expressions {
   def eTrue: Expr = BoolConst(true)
   def eFalse: Expr = BoolConst(false)
   def emptyInt: Expr = BinaryExpr(OpRange, IntConst(1), IntConst(0))
+  def eMut: PermConst = PermConst(Permissions.Mutable)
+  def eImm: PermConst = PermConst(Permissions.Immutable)
 
   /*
   Substitutions

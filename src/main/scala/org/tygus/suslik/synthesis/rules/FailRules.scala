@@ -67,7 +67,7 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       assert(!(goal.hasPredicates() || goal.hasBlocks))
       if ((goal.pre.sigma.profile == goal.post.sigma.profile) && // profiles must match
         goal.post.sigma.chunks.forall {
-          case pts@PointsTo(v@Var(_), _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
+          case pts@PointsTo(v@Var(_), _, _, _) => goal.isExistential(v) || // each post heaplet is either existential pointer
             findHeaplet(sameLhs(pts), goal.pre.sigma).isDefined
           case _ => false
         }) // or has a heaplet in pre with the same LHS

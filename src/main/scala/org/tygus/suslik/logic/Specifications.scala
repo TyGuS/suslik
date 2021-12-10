@@ -212,7 +212,7 @@ object Specifications extends SepLogicUtils {
     def hasBlocks: Boolean = pre.hasBlocks || post.hasBlocks
 
     def hasExistentialPointers: Boolean = post.sigma.chunks.exists {
-      case PointsTo(x@Var(_), _, _) => isExistential(x)
+      case PointsTo(x@Var(_), _, _, _) => isExistential(x)
       case _ => false
     }
 

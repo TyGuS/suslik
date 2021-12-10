@@ -1,6 +1,5 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.Permissions.Mutable
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
@@ -160,7 +159,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
       def noGhostsAndIsBlock(h: Heaplet): Boolean = h match {
-        case b@Block(loc, sz) => noGhosts(b) && SMTSolving.valid(goal.pre.phi ==> (loc |=| name))
+        case b@Block(loc, _, p) => noGhosts(b) && SMTSolving.valid(goal.pre.phi ==> (loc |=| name) && (p |=| eMut))
         case _ => false
       }
 
@@ -174,7 +173,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         // todo: make findNamedHeaplets find parts with different name but equal values wrt pure part
         findNamedHeaplets(goal, x) match {
           case None => throw SynthesisException("No block at this location or some record fields are unknown: " + cmd.pp)
-          case Some((h@Block(_, _), pts)) =>
+          case Some((h@Block(_, _, _), pts)) =>
             val newPre = Assertion(pre.phi, pre.sigma - h - mkSFormula(pts.toList))
             val subGoal = goal.spawnChild(newPre, sketch = rest)
             val kont: StmtProducer = PrependFromSketchProducer(cmd)

@@ -79,9 +79,9 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       def lcpLen(s1: String, s2: String): Int = s1.zip(s2).takeWhile(Function.tupled(_ == _)).length
 
       val alternatives = for {
-        PointsTo(y, oy, _) <- postPtss
+        PointsTo(y, oy, _, _) <- postPtss
         if y.vars.exists(goal.isExistential)
-        t@PointsTo(x, ox, _) <- prePtss
+        t@PointsTo(x, ox, _, _) <- prePtss
 //        if post.sigma.block_size(y) == pre.sigma.block_size(x)
         if ox == oy
         if !postPtss.exists(sameLhs(t))

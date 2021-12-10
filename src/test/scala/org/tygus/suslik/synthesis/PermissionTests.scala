@@ -6,7 +6,7 @@ import org.tygus.suslik.language._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Preprocessor.pTrue
 import org.tygus.suslik.logic.Specifications.Assertion
-import org.tygus.suslik.logic.{Environment, FunSpec, PFormula, PointsTo, SFormula}
+import org.tygus.suslik.logic.{Block, Environment, FunSpec, PFormula, PointsTo, SFormula}
 import org.tygus.suslik.util.SynStats
 
 class PermissionTests extends FunSuite with SynthesisRunnerUtil  {
@@ -31,8 +31,8 @@ class PermissionTests extends FunSuite with SynthesisRunnerUtil  {
 
   val spec2 = FunSpec("test2", VoidType,
     List((Var("r"), LocType)),
-    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),PermConst(Permissions.Immutable))))), //pre
-    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(1),PermConst(Permissions.Immutable)))))  //post
+    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),eImm)))), //pre
+    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(1),eImm))))  //post
   )
 
   test("Cannot write if both heaplets immutable") {
@@ -44,8 +44,8 @@ class PermissionTests extends FunSuite with SynthesisRunnerUtil  {
 
   val spec3 = FunSpec("test3", VoidType,
     List((Var("r"), LocType)),
-    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),PermConst(Permissions.Mutable))))), //pre
-    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(1),PermConst(Permissions.Immutable)))))  //post
+    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),eMut)))), //pre
+    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(1),eImm))))  //post
   )
 
   test("Cannot write if one is immutable") {
@@ -57,8 +57,8 @@ class PermissionTests extends FunSuite with SynthesisRunnerUtil  {
 
   val spec4 = FunSpec("test4", VoidType,
     List((Var("r"), LocType)),
-    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),PermConst(Permissions.Mutable))))), //pre
-    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),PermConst(Permissions.Immutable)))))  //post
+    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),eMut)))), //pre
+    Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(0),eImm))))  //post
   )
 
   test("Cannot unify if different mutability") {
@@ -83,7 +83,7 @@ class PermissionTests extends FunSuite with SynthesisRunnerUtil  {
 
   val spec6 = FunSpec("test6", VoidType,
     List((Var("r"), LocType)),
-    Assertion(PFormula(Var("a") |=| PermConst(Permissions.Mutable)), SFormula(List(PointsTo(Var("r"),0,IntConst(0),Var("a"))))), //pre
+    Assertion(PFormula(Var("a") |=| eMut), SFormula(List(PointsTo(Var("r"),0,IntConst(0),Var("a"))))), //pre
     Assertion(pTrue, SFormula(List(PointsTo(Var("r"),0,IntConst(1),Var("a")))))  //post
   )
 
@@ -94,4 +94,42 @@ class PermissionTests extends FunSuite with SynthesisRunnerUtil  {
     assert(sresult._1.nonEmpty)
   }
 
+  val spec7 = FunSpec("test7", VoidType,
+    List((Var("r"), LocType)),
+    Assertion(pTrue, SFormula(List(Block(Var("r"), 2, eImm), PointsTo(Var("r"),0,IntConst(0)), PointsTo(Var("r"),1,IntConst(1))))), //pre
+    Assertion(pTrue, SFormula(List()))  //post
+  )
+
+  test("Cannot deallocate when block is immutable") {
+    val env = Environment(Map(), Map(), params, new SynStats(params.timeOut))
+    val synthesizer = createSynthesizer(env)
+    val sresult = synthesizer.synthesizeProc(spec7, env, Hole)
+    assert(sresult._1.isEmpty)
+  }
+
+  val spec8 = FunSpec("test8", VoidType,
+    List((Var("r"), LocType)),
+    Assertion(pTrue, SFormula(List(Block(Var("r"), 2), PointsTo(Var("r"),0,IntConst(0), eImm), PointsTo(Var("r"),1,IntConst(1))))), //pre
+    Assertion(pTrue, SFormula(List()))  //post
+  )
+
+  test("Cannot deallocate when some pointer inside the block is immutable") {
+    val env = Environment(Map(), Map(), params, new SynStats(params.timeOut))
+    val synthesizer = createSynthesizer(env)
+    val sresult = synthesizer.synthesizeProc(spec8, env, Hole)
+    assert(sresult._1.isEmpty)
+  }
+
+  val spec9 = FunSpec("test9", VoidType,
+    List((Var("r"), LocType)),
+    Assertion(pTrue, SFormula(List(Block(Var("r"), 2), PointsTo(Var("r"),0,IntConst(0)), PointsTo(Var("r"),1,IntConst(1))))), //pre
+    Assertion(pTrue, SFormula(List()))  //post
+  )
+
+  test("Can deallocate when everything inside the block is mutable") {
+    val env = Environment(Map(), Map(), params, new SynStats(params.timeOut))
+    val synthesizer = createSynthesizer(env)
+    val sresult = synthesizer.synthesizeProc(spec9, env, Hole)
+    assert(sresult._1.nonEmpty)
+  }
 }

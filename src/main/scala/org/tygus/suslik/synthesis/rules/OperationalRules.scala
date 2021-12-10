@@ -1,8 +1,8 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.Permissions.Mutable
 import org.tygus.suslik.language.Expressions._
-import org.tygus.suslik.language.{Statements, _}
+import org.tygus.suslik.language._
+import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.{ExtractHelper, PrependProducer, StmtProducer, SubstVarProducer}
@@ -48,7 +48,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case None => Nil
         case Some((hl@PointsTo(x@Var(_), offset, _, p1), hr@PointsTo(_, _, e2, p2))) =>
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
-          val newPost = Assertion(post.phi && (p1 |=| PermConst(Permissions.Mutable)) && (p2 |=| PermConst(Permissions.Mutable)), goal.post.sigma - hr)
+          val newPost = Assertion(post.phi && (p1 |=| eMut) && (p2 |=| eMut), goal.post.sigma - hr)
           val subGoal = goal.spawnChild(newPre, newPost)
           val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> ExtractHelper(goal)
 
@@ -119,7 +119,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
       def isExistBlock: Heaplet => Boolean = {
-        case Block(x@Var(_), _) => goal.isExistential(x)
+        case Block(x@Var(_), _, _) => goal.isExistential(x)
         case _ => false
       }
 
@@ -133,7 +133,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findTargetHeaplets(goal) match {
         case None => Nil
-        case Some((Block(x@Var(_), sz), pts)) =>
+        case Some((Block(x@Var(_), sz, _), _)) =>
           val y = freshVar(goal.vars, x.name)
           val tpy = LocType
 
@@ -166,7 +166,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     override def toString: Ident = "Free"
 
-    def findTargetHeaplets(goal: Goal): Option[(Block, Seq[Heaplet])] = {
+    def findTargetHeaplets(goal: Goal): Option[(Block, Seq[PointsTo])] = {
       // Heaplets have no ghosts
       def noGhosts(h: Heaplet): Boolean = h.vars.forall(v => goal.isProgramVar(v))
 
@@ -175,14 +175,17 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
+      val post = goal.post
 
       findTargetHeaplets(goal) match {
         case None => Nil
-        case Some((h@Block(x@Var(_), _), pts)) =>
+        case Some((h@Block(x@Var(_), _, p), pts)) =>
           val toRemove = mkSFormula(pts.toList) ** h
           val newPre = Assertion(pre.phi, pre.sigma - toRemove)
+          val newPurePost = post.phi && (p |=| eMut) && PFormula(pts.map(_.perm |=| eMut).toSet)
+          val newPost = Assertion(newPurePost, post.sigma)
 
-          val subGoal = goal.spawnChild(newPre)
+          val subGoal = goal.spawnChild(newPre, newPost)
           val kont: StmtProducer = PrependProducer(Free(x)) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))

@@ -79,14 +79,14 @@ trait SepLogicUtils extends PureLogicUtils {
     */
   def findBlockAndChunks(pBlock: Heaplet => Boolean,
                          pPts: Heaplet => Boolean,
-                         sigma: SFormula): Option[(Block, Seq[Heaplet])] = {
+                         sigma: SFormula): Option[(Block, Seq[PointsTo])] = {
     findHeaplet(h => h.isInstanceOf[Block] && pBlock(h), sigma) match {
       case None => None
-      case Some(h@Block(x@Var(_), sz)) =>
+      case Some(h@Block(x@Var(_), sz, _)) =>
         val ptsMb = for (off <- 0 until sz) yield
           findHeaplet(h => sameLhs(PointsTo(x, off, IntConst(0)))(h) && pPts(h), sigma)
 //        Some((h, pts.flatten))
-        val pts = ptsMb.flatten
+        val pts = ptsMb.flatten.map(_.asInstanceOf[PointsTo])
         if (pts.length == sz) Some((h, pts))
         else None
       case Some(h) => throw SynthesisException(s"Not supported: ${h.pp} (${h.getClass.getName})")
@@ -155,8 +155,8 @@ trait SepLogicUtils extends PureLogicUtils {
   def findLargestMatchingHeap(small: SFormula, large: SFormula): Seq[SFormula] = {
 
     def findMatchingFor(h: Heaplet, stuff: Seq[Heaplet]): Seq[Heaplet] = h match {
-      case Block(loc, sz) => stuff.filter {
-        case Block(_, _sz) => sz == _sz
+      case Block(_, sz, _) => stuff.filter {
+        case Block(_, _sz, _) => sz == _sz
         case _ => false
       }
       case PointsTo(_, offset, _, _) =>
