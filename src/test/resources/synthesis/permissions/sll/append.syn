@@ -2,9 +2,9 @@ singly-linked list: append
 
 #####
 
-{ sll(x1, s1, imm, mut, imm) ** sll(x2, s2, imm, mut, imm) ** ret :-> x2 }
+{ sll(x1, s1, a, mut, b) ** sll(x2, s2, a, mut, b) ** ret :-> x2 }
 void sll_append (loc x1, loc ret)
-{ s == s1 ++ s2 ; sll(y, s, imm, mut, imm) ** ret :-> y }
+{ s == s1 ++ s2 ; sll(y, s, a, mut, b) ** ret :-> y }
 
 #####
 

@@ -1,0 +1,25 @@
+predicate sll(loc x, set s, perm p, perm n, perm a) {
+|  x == 0        => { s == {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2]@a ** x :->@p v ** (x + 1) :->@n nxt
+                                        ** sll(nxt, s1, p, n, a) }
+}
+
+predicate tree(loc x, set s, perm p, perm n, perm a) {
+|  x == 0        => {s == {} ; emp}
+|  not (x == 0)  => {s == {v} ++ s1 ++ s2 ;
+                     [x, 3]@a ** x :->@p v ** (x + 1) :->@n l ** (x + 2) :->@n r
+                     ** tree(l, s1, p, n, a) ** tree(r, s2, p, n, a)}
+}
+
+predicate dll(loc x, loc z, set s, perm p, perm n, perm a) {
+|  x == 0 => { s == {} ; emp }
+|  not (x == 0) =>
+   { s == {v} ++ s1 ; [x, 3]@a ** x :->@p v ** (x + 1) :->@n w ** (x + 2) :->@n z ** dll(w, x, s1, p, n, a) }
+}
+
+predicate treeN(loc x, int n, perm p, perm c, perm a) {
+|  x == 0        => { n == 0 ; emp }
+|  not (x == 0)  => { n == 1 + n1 + n2  &&  0 <= n1  &&  0 <= n2 ;
+                     [x, 3]@a ** x :->@p v ** (x + 1) :->@c l ** (x + 2) :->@c r
+                     ** treeN(l, n1, p, c, a) ** treeN(r, n2, p, c, a)}
+}

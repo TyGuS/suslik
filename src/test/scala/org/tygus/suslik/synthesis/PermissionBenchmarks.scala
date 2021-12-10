@@ -27,9 +27,9 @@ class PermissionBenchmarks extends FunSpec with Matchers with SynthesisRunnerUti
 //    runAllTestsFromDir("permissions/multi-list")
 //  }
 //
-//  describe("Trees") {
-//    runAllTestsFromDir("permissions/tree")
-//  }
+  describe("Trees") {
+    runAllTestsFromDir("permissions/tree")
+  }
 
   describe("Rose tree") {
     runAllTestsFromDir("permissions/rose-tree")
