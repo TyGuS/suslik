@@ -1,0 +1,11 @@
+predicate dll(loc x, loc z, set s, perm p, perm n, perm a) {
+|  x == 0 => { s == {} ; emp }
+|  not (x == 0) =>
+   { s == {v} ++ s1 ; [x, 3]@a ** x :->@p v ** (x + 1) :->@n w ** (x + 2) :->@n z ** dll(w, x, s1, p, n, a) }
+}
+
+predicate sll(loc x, set s, perm p, perm n, perm a) {
+|  x == 0        => { s == {} ; emp }
+|  not (x == 0)  => { s == {v} ++ s1 ; [x, 2]@a ** x :->@p v ** (x + 1) :->@n nxt
+                                        ** sll(nxt, s1, p, n, a) }
+}

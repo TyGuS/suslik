@@ -19,10 +19,10 @@ class PermissionBenchmarks extends FunSpec with Matchers with SynthesisRunnerUti
 //    runAllTestsFromDir("all-benchmarks/srtl")
 //  }
 //
-//  describe("Doubly-linked lists") {
-//    runAllTestsFromDir("all-benchmarks/dll")
-//  }
-//
+  describe("Doubly-linked lists") {
+    runAllTestsFromDir("all-benchmarks/dll")
+  }
+
 //  describe("Lists of lists") {
 //    runAllTestsFromDir("all-benchmarks/multi-list")
 //  }
