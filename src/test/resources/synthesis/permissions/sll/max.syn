@@ -1,13 +1,12 @@
 # -b true -c 2
 
 singly-linked list: max
-note: there is an incompleteness in reasoning that requires mutable permission on next pointers :(
 
 #####
 
-{ ret :-> a ** sll_bounded(x, n, s, imm, mut, imm) }
+{ ret :-> a ** sll_bounded(x, n, s, imm, imm, imm) }
 void sll_max (loc x, loc ret)
-{ s == [] || m == upper s ; ret :-> m ** sll_bounded(x, n, s, imm, mut, imm) }
+{ s == [] || m == upper s ; ret :-> m ** sll_bounded(x, n, s, imm, imm, imm) }
 
 #####
 
