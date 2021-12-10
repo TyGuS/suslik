@@ -1,8 +1,8 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.{Expr, Unknown, Var}
+import org.tygus.suslik.language.Expressions.{Expr, NilPtr, Unknown, Var}
 import org.tygus.suslik.language.Statements.Guarded
-import org.tygus.suslik.language.{Expressions, IntType}
+import org.tygus.suslik.language.{Expressions, IntType, LocType}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
@@ -76,13 +76,25 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
   object AbduceBranch extends SynthesisRule with GeneratesCode with InvertibleRule {
     override def toString: String = "AbduceBranch"
 
-    def atomCandidates(goal: Goal): Seq[Expr] =
+    def intInequalities(goal: Goal): Seq[Expr] = {
+      def pred(v: Var) = goal.getType(v) == IntType && goal.post.phi.vars.contains(v)
       for {
-        lhs <- goal.programVars.filter(goal.post.phi.vars.contains)
-        rhs <- goal.programVars.filter(goal.post.phi.vars.contains)
+        lhs <- goal.programVars.filter(pred)
+        rhs <- goal.programVars.filter(pred)
         if lhs != rhs
-        if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
       } yield lhs |<=| rhs
+    }
+
+//    def locEqualities(goal: Goal): Seq[Expr] = {
+//      def pred(v: Var) = goal.getType(v) == LocType && goal.post.phi.vars.contains(v)
+//      (for {
+//        lhs <- goal.programVars.filter(pred)
+//        rhs <- List(NilPtr) ++ goal.programVars.filter(pred)
+//        if lhs != rhs
+//      } yield List(lhs |=| rhs, lhs |/=| rhs)).flatten
+//    }
+
+    def atomCandidates(goal: Goal): Seq[Expr] = intInequalities(goal) // ++ locEqualities(goal)
 
     def condCandidates(goal: Goal): Seq[Expr] = {
       val atoms = atomCandidates(goal)

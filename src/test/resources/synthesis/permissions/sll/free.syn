@@ -1,0 +1,17 @@
+should be able to deallocate a linked list
+###
+
+{ sll(x, s, mut, mut, mut) }
+  void sll_free(loc x)
+{ emp }
+
+###
+
+void sll_free (loc x) {
+  if (x == 0) {
+  } else {
+    let n = *(x + 1);
+    sll_free(n);
+    free(x);
+  }
+}

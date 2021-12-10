@@ -1,0 +1,34 @@
+# -b true -c 2
+
+singly-linked list: min
+note: there is an incompleteness in reasoning that requires mutable permission on next pointers :(
+
+#####
+
+{ ret :-> a ** sll_bounded(x, n, s, imm, mut, imm) }
+void sll_min (loc x, loc ret)
+{ s == [] || m == lower s ; ret :-> m ** sll_bounded(x, n, s, imm, mut, imm) }
+
+#####
+
+void sll_min (loc x, loc ret) {
+  if (x == 0) {
+  } else {
+    let v = *x;
+    let n = *(x + 1);
+    sll_min(n, ret);
+    let m = *ret;
+    if (m <= v && v <= m) {
+    } else {
+      if (m <= v) {
+        if (n == 0) {
+          *(x + 1) = 0;
+          *ret = v;
+        } else {
+        }
+      } else {
+        *ret = v;
+      }
+    }
+  }
+}

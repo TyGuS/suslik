@@ -2,9 +2,9 @@ should be able to synthesize list copy
 
 #####
 
-{ r :-> x ** sll(x, s) }
+{ r :-> x ** sll(x, s, imm, imm, imm) }
 void sll_copy(loc r)
-{ r :-> y ** sll(x, s) ** sll(y, s) }
+{ r :-> y ** sll(x, s, imm, imm, imm) ** sll(y, s, mut, mut, mut) }
 
 #####
 
