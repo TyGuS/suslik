@@ -1,5 +1,6 @@
 package org.tygus.suslik.language
 
+import org.tygus.suslik.language.Expressions.Permissions.{Immutable, Mutable, Perm}
 import org.tygus.suslik.logic.{Gamma, PureLogicUtils}
 import org.tygus.suslik.synthesis.SynthesisException
 
@@ -72,6 +73,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpEq,
       (LocType, LocType) -> OpEq,
+      (PermType, PermType) -> OpEq,
       (IntSetType, IntSetType) -> OpSetEq,
       (IntervalType, IntervalType) -> OpIntervalEq,
       (BoolType, BoolType) -> OpBoolEq,
@@ -312,6 +314,7 @@ object Expressions {
         case c@IntConst(_) if p(c) => acc + c.asInstanceOf[R]
         case c@LocConst(_) if p(c) => acc + c.asInstanceOf[R]
         case c@BoolConst(_) if p(c) => acc + c.asInstanceOf[R]
+        case c@PermConst(_) if p(c) => acc + c.asInstanceOf[R]
         case b@BinaryExpr(_, l, r) =>
           val acc1 = if (p(b)) acc + b.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(l)
@@ -390,6 +393,7 @@ object Expressions {
       case BoolConst(_) => if (BoolType.conformsTo(target)) Some(gamma) else None
       case LocConst(_) => if (LocType.conformsTo(target)) Some(gamma) else None
       case IntConst(_) => if (IntType.conformsTo(target)) Some(gamma) else None
+      case PermConst(_) => if (PermType.conformsTo(target)) Some(gamma) else None
       case UnaryExpr(op, e) => if (op.outputType.conformsTo(target)) e.resolve(gamma, Some(op.inputType)) else None
       case BinaryExpr(op, l, r) =>
         if (op.resType.conformsTo(target)) {
@@ -471,6 +475,7 @@ object Expressions {
       | BoolConst(_)
       | LocConst(_)
       | IntConst(_)
+      | PermConst(_)
       | Unknown(_,_,_) => this
       case UnaryExpr(op, e) => UnaryExpr(op, e.resolveOverloading(gamma))
       case BinaryExpr(op, l, r) => BinaryExpr(op, l.resolveOverloading(gamma), r.resolveOverloading(gamma))
@@ -512,6 +517,20 @@ object Expressions {
 
   case class BoolConst(value: Boolean) extends Const(value) {
     def getType(gamma: Gamma): Option[SSLType] = Some(BoolType)
+  }
+
+  object Permissions extends Enumeration {
+    type Perm = Value
+    val Mutable, Immutable = Value
+  }
+
+  case class PermConst(value: Perm) extends Const(value) {
+    def getType(gamma: Gamma): Option[SSLType] = Some(PermType)
+
+    override def pp(): String = value match {
+      case Mutable => "mut"
+      case Immutable => "imm"
+    }
   }
 
   case class BinaryExpr(op: BinOp, left: Expr, right: Expr) extends Expr {

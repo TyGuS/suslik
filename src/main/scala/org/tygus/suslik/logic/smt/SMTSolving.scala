@@ -316,6 +316,7 @@ object SMTSolving extends Core
     case Var(name) => Ints(name)
     case IntConst(c) => Ints(c)
     case LocConst(c) => Ints(c)
+    case PermConst(p) => Ints(p.id)
     case UnaryExpr(OpLower, e) => {
       val s = convertIntervalExpr(e)
       new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalLowerSymbol, List(s.termDef)))

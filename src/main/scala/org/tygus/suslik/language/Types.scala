@@ -52,6 +52,7 @@ case object LocType extends SSLType {
     case Some(LocType) => Some(this)
     case Some(IntType) => Some(this)
     case Some(CardType) => Some(this)
+    case Some(PermType) => Some(this)
     case _ => None
   }
 
@@ -60,6 +61,7 @@ case object LocType extends SSLType {
     case Some(LocType) => Some(this)
     case Some(IntType) => Some(IntType)
     case Some(CardType) => Some(CardType)
+    case Some(PermType) => Some(PermType)
     case _ => None
   }
 }
@@ -95,3 +97,22 @@ case object CardType extends SSLType {
     case _ => None
   }
 }
+
+case object PermType extends SSLType {
+  override def pp: String = "perm"
+
+  override def supertype(target: Option[SSLType]): Option[SSLType] = target match {
+    case None => Some(this)
+    case Some(LocType) => Some(LocType)
+    case Some(PermType) => Some(this)
+    case _ => None
+  }
+
+  override def subtype(target: Option[SSLType]): Option[SSLType] = target match {
+    case None => Some(this)
+    case Some(LocType) => Some(this)
+    case Some(PermType) => Some(this)
+    case _ => None
+  }
+}
+

@@ -1,0 +1,14 @@
+bla
+
+###
+
+{ a == mut ; r :->@a 0 }
+
+void test(loc r)
+
+{ r :->@a 1 }
+
+###
+
+void maxish (loc r, int x, int y) {
+}

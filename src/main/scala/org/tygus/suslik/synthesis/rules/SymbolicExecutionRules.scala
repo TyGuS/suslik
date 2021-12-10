@@ -1,5 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
+import org.tygus.suslik.language.Expressions.Permissions.Mutable
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
@@ -42,7 +43,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         }
 
         def matchingHeaplet(h: Heaplet) = h match {
-          case PointsTo(h_from, h_offset, _) =>
+          case PointsTo(h_from, h_offset, _, _) =>
             SMTSolving.valid(goal.pre.phi ==> ((h_from |+| IntConst(h_offset)) |=| (to |+| IntConst(offset))))
           case _ => false
         }
@@ -86,7 +87,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         } is already used.")
 
         def isMatchingHeaplet: Heaplet => Boolean = {
-          case PointsTo(heaplet_from, h_offset, _) =>
+          case PointsTo(heaplet_from, h_offset, _, _) =>
             SMTSolving.valid(goal.pre.phi ==> ((heaplet_from |+| IntConst(h_offset)) |=| (from |+| IntConst(offset))))
           case _ => false
         }
@@ -95,7 +96,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
           case None => {
             throw SynthesisException("Read from unknown location: " + cmd.pp)
           }
-          case Some(h@PointsTo(_, _, a)) =>
+          case Some(PointsTo(_, _, a, _)) =>
             val tpy = a.getType(goal.gamma).get // the precondition knows better than the statement
             val subGoal = goal.spawnChild(
               pre = pre.copy(phi = pre.phi && (to |=| a)),

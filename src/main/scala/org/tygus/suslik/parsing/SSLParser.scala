@@ -38,6 +38,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       | "loc" ^^^ LocType
       | "set" ^^^ IntSetType
       | "interval" ^^^ IntervalType
+      | "perm" ^^^ PermType
       | "void" ^^^ VoidType)
 
   def formal: Parser[(Var, SSLType)] = typeParser ~ ident ^^ { case a ~ b => (Var(b), a) }
@@ -50,6 +51,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def boolLiteral: Parser[Const] =
     ("true" | "false") ^^ (b => BoolConst(java.lang.Boolean.parseBoolean(b)))
+
+  def permLiteral: Parser[Const] =
+    ("imm" | "mut") ^^ (p => PermConst(if(p == "imm") Permissions.Immutable else Permissions.Mutable))
 
   def setLiteral: Parser[Expr] =
     "{" ~> repsep(expr, ",") <~ "}" ^^ SetLiteral
@@ -100,7 +104,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def atom: Parser[Expr] = (
     unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
       | "(" ~> expr <~ ")"
-      | intLiteral | boolLiteral | setLiteral | locLiteral | intervalLiteral
+      | intLiteral | boolLiteral | setLiteral | locLiteral | intervalLiteral | permLiteral
       | varParser
     )
 
@@ -128,13 +132,15 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     }
   }
 
-  def heaplet: Parser[Heaplet] = (
-    (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
-      ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
-      ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("<" ~> expr <~ ">") ^^ {
-      case name ~ args ~ v => SApp(name, args, PTag(), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
-    }
-    )
+  def heaplet: Parser[Heaplet] = {
+    val maybePerm = opt("@" ~> expr)
+    ((identWithOffset <~ ":->") ~ maybePerm ~ expr ^^ { case (a, o) ~ p ~ b => PointsTo(Var(a), o, b, p.getOrElse(PermConst(Permissions.Mutable))) }
+        ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
+        ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("<" ~> expr <~ ">") ^^ {
+        case name ~ args ~ v => SApp(name, args, PTag(), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
+      }
+      )
+  }
 
   def sigma: Parser[SFormula] = (
     "emp" ^^^ emp

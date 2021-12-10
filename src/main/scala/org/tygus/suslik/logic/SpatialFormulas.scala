@@ -1,5 +1,6 @@
 package org.tygus.suslik.logic
 
+import org.tygus.suslik.language.Expressions.Permissions._
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language._
 import org.tygus.suslik.synthesis.SynthesisException
@@ -12,11 +13,10 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   // Collect certain sub-expressions
   def collect[R <: Expr](p: Expr => Boolean): Set[R] = {
     def collector(acc: Set[R])(h: Heaplet): Set[R] = h match {
-      case PointsTo(v, offset, value) =>
-        val acc1 = if (p(v)) acc + v.asInstanceOf[R] else acc
-        acc1 ++ value.collect(p)
+      case PointsTo(v, _, value, perm) =>
+        acc ++ v.collect(p) ++ value.collect(p) ++ perm.collect(p)
       case Block(v, _) =>
-        if (p(v)) acc + v.asInstanceOf[R] else acc
+        acc ++ v.collect(p)
       case SApp(_, args, _, card) =>
         args.foldLeft(acc)((a, e) => a ++ e.collect(p)) ++
           // [Cardinality] add the cardinality variable
@@ -50,7 +50,7 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
 
   // Size of the heaplet (in AST nodes)
   def size: Int = this match {
-    case PointsTo(loc, _, value) => 1 + loc.size + value.size
+    case PointsTo(loc, _, value, _) => 1 + loc.size + value.size
     case Block(loc, _) => 1 + loc.size
     case SApp(_, args, _, _) => args.map(_.size).sum
   }
@@ -60,31 +60,36 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
     case _ => 1
   }
 
+  protected def ppPermWithDefault(perm: Expr): String  = perm match {
+    case PermConst(Mutable) => ""
+    case _ => s"@${perm.pp}"
+  }
 }
 
 /**
   * var + offset :-> value
   */
-case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
+case class PointsTo(loc: Expr, offset: Int = 0, value: Expr, perm: Expr = PermConst(Mutable)) extends Heaplet {
 
   override def resolveOverloading(gamma: Gamma): Heaplet =
-    this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma))
+    this.copy(loc = loc.resolveOverloading(gamma), value = value.resolveOverloading(gamma), perm = perm.resolveOverloading(gamma))
 
   override def pp: Ident = {
     val head = if (offset <= 0) loc.pp else s"(${loc.pp} + $offset)"
-    s"$head :-> ${value.pp}"
+    s"$head :->${ppPermWithDefault(perm)} ${value.pp}"
   }
 
   def subst(sigma: Map[Var, Expr]): Heaplet = loc.subst(sigma) match {
-    case BinaryExpr(OpPlus, l, IntConst(off)) => PointsTo(l, offset + off, value.subst (sigma))
-    case _ => PointsTo (loc.subst (sigma), offset, value.subst (sigma) )
+    case BinaryExpr(OpPlus, l, IntConst(off)) => PointsTo(l, offset + off, value.subst (sigma), perm.subst(sigma))
+    case _ => PointsTo (loc.subst (sigma), offset, value.subst (sigma), perm.subst(sigma))
   }
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma] = {
     for {
       gamma1 <- loc.resolve(gamma, Some(LocType))
       gamma2 <- value.resolve(gamma1, Some(LocType))
-    } yield gamma2
+      gamma3 <- perm.resolve(gamma2, Some(PermType))
+    } yield gamma3
   }
 
   override def compare(that: Heaplet) = that match {
@@ -94,7 +99,7 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
 
   // This only unifies the rhs of the points-to, because lhss are unified by a separate rule
   override def unify(that: Heaplet): Option[ExprSubst] = that match {
-    case PointsTo(l, o, v) if l == loc && o == offset => Some(Map(value -> v))
+    case PointsTo(l, o, v, p) if l == loc && o == offset => Some(Map(value -> v, perm -> p))
     case _ => None
   }
 }
@@ -210,7 +215,7 @@ case class SFormula(chunks: List[Heaplet]) extends PrettyPrinting with HasExpres
 
   def apps: List[SApp] = for (b@SApp(_, _, _, _) <- chunks) yield b
 
-  def ptss: List[PointsTo] = for (b@PointsTo(_, _, _) <- chunks) yield b
+  def ptss: List[PointsTo] = for (b@PointsTo(_, _, _, _) <- chunks) yield b
 
   def subst(sigma: Map[Var, Expr]): SFormula = SFormula(chunks.map(_.subst(sigma)))
 

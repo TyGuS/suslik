@@ -51,8 +51,8 @@ trait SepLogicUtils extends PureLogicUtils {
     */
   def sameLhs(hl: Heaplet): Heaplet => Boolean = hr => {
     hl match {
-      case PointsTo(xl, ol, _) => hr match {
-        case PointsTo(xr, or, _) => xl == xr && ol == or
+      case PointsTo(xl, ol, _, _) => hr match {
+        case PointsTo(xr, or, _, _) => xl == xr && ol == or
         case _ => false
       }
       case _ => false
@@ -64,8 +64,8 @@ trait SepLogicUtils extends PureLogicUtils {
     */
   def sameRhs(hl: Heaplet): Heaplet => Boolean = hr => {
     hl match {
-      case PointsTo(_, _, el) => hr match {
-        case PointsTo(_, _, er) => el == er
+      case PointsTo(_, _, el, _) => hr match {
+        case PointsTo(_, _, er, _) => el == er
         case _ => false
       }
       case _ => false
@@ -159,14 +159,9 @@ trait SepLogicUtils extends PureLogicUtils {
         case Block(_, _sz) => sz == _sz
         case _ => false
       }
-      case PointsTo(loc, offset, value) =>
-        def hasBlockForLoc(_loc: Expr) = stuff.exists {
-          case Block(_loc1, _) => _loc == _loc1
-          case _ => false
-        }
-
+      case PointsTo(_, offset, _, _) =>
         stuff.filter {
-          case PointsTo(_loc, _offset, _value) => offset == _offset // && !hasBlockForLoc(_loc)
+          case PointsTo(_, _offset, _, _) => offset == _offset
           case _ => false
         }
       case SApp(pred, args, _, _) => stuff.filter {

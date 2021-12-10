@@ -41,6 +41,7 @@ trait PureLogicUtils {
     case _:IntConst => e
     case _:LocConst => e
     case _:BoolConst => e
+    case _:PermConst => e
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(propagate_not(e1),propagate_not(e2), propagate_not(e3))
     case SetLiteral(args) => SetLiteral(args.map(propagate_not))
@@ -64,6 +65,7 @@ trait PureLogicUtils {
     case _:IntConst => e
     case _:LocConst => e
     case _:BoolConst => e
+    case _:PermConst => e
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(desugar(e1),desugar(e2), desugar(e3))
     case SetLiteral(args) => SetLiteral(args.map(desugar))

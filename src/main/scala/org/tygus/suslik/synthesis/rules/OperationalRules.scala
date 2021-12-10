@@ -1,5 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
+import org.tygus.suslik.language.Expressions.Permissions.Mutable
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
@@ -36,7 +37,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       // Heaplets have no ghosts
       def noGhosts: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
+        case PointsTo(x@Var(_), _, e, _) => !goal.isGhost(x) && e.vars.forall(v => !goal.isGhost(v))
         case _ => false
       }
 
@@ -45,9 +46,9 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2))) =>
+        case Some((hl@PointsTo(x@Var(_), offset, _, p1), hr@PointsTo(_, _, e2, p2))) =>
           val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
-          val newPost = Assertion(post.phi, goal.post.sigma - hr)
+          val newPost = Assertion(post.phi && (p1 |=| PermConst(Permissions.Mutable)) && (p2 |=| PermConst(Permissions.Mutable)), goal.post.sigma - hr)
           val subGoal = goal.spawnChild(newPre, newPost)
           val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> ExtractHelper(goal)
 
@@ -76,18 +77,18 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
       val sigma = goal.pre.sigma
 
       def isGhostPoints: Heaplet => Boolean = {
-        case PointsTo(x@Var(_), _, e) =>
+        case PointsTo(x@Var(_), _, e, _) =>
            !goal.isGhost(x) && e.vars.intersect(goal.ghosts).nonEmpty
         case _ => false
       }
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
-        case Some(pts@PointsTo(x@Var(_), offset, e)) =>
+        case Some(pts@PointsTo(x@Var(_), offset, e, p)) =>
           val y = freshVar(goal.vars, e.pp)
           val tpy = e.getType(goal.gamma).get
           val newPhi = phi && (y |=| e)
-          val newSigma = (sigma - pts) ** PointsTo(x, offset, y)
+          val newSigma = (sigma - pts) ** PointsTo(x, offset, y, p)
           val subGoal = goal.spawnChild(pre = Assertion(newPhi, newSigma),
                                         gamma = goal.gamma + (y -> tpy),
                                         programVars = y :: goal.programVars)
