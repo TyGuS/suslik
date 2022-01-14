@@ -98,6 +98,8 @@ class Benchmark:
     else:
         args_evolution = []
 
+    timeout_str = '-t=' + str(timeout)
+
     with open(results_file, "at") as outfile:
       print ('Running ' + file + ' ' + (' '.join(fargs)))
       call([JAVA8, '-jar', SUSLIK_JAR, file, timeout_str] + fargs + args_evolution, stdout=outfile)
@@ -118,9 +120,11 @@ class BenchmarkGroup:
 
   # returns a dict of type string -> (SynthesisResult object) which maps
   # the name of each benchmark to the result of running the respective benchmark
-  def run_group(self, results_file, csv_in, csv_out, args = [], timeout=999999, evolution=False,
+  def run_group(self, results_file, csv_in, csv_out, args = None, timeout=999999, evolution=False,
                 experiment_id=0, group_id=0, generation_id=0, individual_id=0):
     '''Runs all the benchmarks in one group'''
+    if args is None:
+        args = []
     res = dict()
     for b in self.benchmarks:
       test = TEST_DIR + b.name
