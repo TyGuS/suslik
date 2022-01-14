@@ -87,6 +87,7 @@ class Benchmark:
     self.res = None
 
     fargs = list(filter(None, args))
+    timeout_str = '-t=' + str(timeout)
 
     if evolution:
         args_evolution = ['--evolutionary', 'True',
@@ -99,7 +100,7 @@ class Benchmark:
 
     with open(results_file, "at") as outfile:
       print ('Running ' + file + ' ' + (' '.join(fargs)))
-      call([JAVA8, '-jar', SUSLIK_JAR, file, timeout] + fargs + args_evolution, stdout=outfile)
+      call([JAVA8, '-jar', SUSLIK_JAR, file, timeout_str] + fargs + args_evolution, stdout=outfile)
       self.res = read_csv(csv_in)
       return self.res # returns a SynthesisResult object
 
