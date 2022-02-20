@@ -1,0 +1,9 @@
+should insert an item at the beginning of a list
+
+#####
+
+{true; r :-> x ** lseg(x, 0, S)}
+void llist_insert_tail(loc r, int item)
+{S1 == <item>; r:-> z ** lseg(z, y, S) ** lseg(y, 0, S1)}
+
+#####

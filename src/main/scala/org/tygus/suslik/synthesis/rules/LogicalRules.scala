@@ -256,6 +256,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
         case BinaryExpr(OpBoolEq, l, r) => extractSides(l, r)
         case BinaryExpr(OpSetEq, l, r) => extractSides(l, r)
         case BinaryExpr(OpIntervalEq, l, r) => extractSides(l, r)
+        case BinaryExpr(OpSequenceEq, l, r) => extractSides(l, r)
         case _ => None
       }, p1) match {
         case Some(((x, e), rest1)) => {

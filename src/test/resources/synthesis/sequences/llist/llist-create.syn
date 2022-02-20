@@ -1,0 +1,14 @@
+should be able to allocate a linked list
+###
+
+{ true;  r :-> 0 }
+  void llist_create(loc z, loc r)
+{ true ; r :-> x ** x :-> 0 ** [x, 1] ** lseg(z, z, S) }
+
+###
+
+void llist_create (loc z, loc r) {
+  let x = malloc(1);
+  *r = x;
+  *x = 0;
+}

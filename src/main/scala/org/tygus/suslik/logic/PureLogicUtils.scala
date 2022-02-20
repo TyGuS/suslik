@@ -44,6 +44,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(propagate_not(e1),propagate_not(e2), propagate_not(e3))
     case SetLiteral(args) => SetLiteral(args.map(propagate_not))
+    case SequenceLiteral(args) => SequenceLiteral(args.map(propagate_not))
     case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
@@ -67,6 +68,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(desugar(e1),desugar(e2), desugar(e3))
     case SetLiteral(args) => SetLiteral(args.map(desugar))
+    case SequenceLiteral(args) => SequenceLiteral(args.map(desugar))
     case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
@@ -120,6 +122,23 @@ trait PureLogicUtils {
 //    case BinaryExpr(OpBoolEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
 //      if (n1 <= n2) BinaryExpr(OpBoolEq, v1, v2) else BinaryExpr(OpBoolEq, v2, v1)
 //    case BinaryExpr(OpBoolEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpBoolEq, v, simplify(e))
+    
+    // Sequence Operations
+    
+    // Sequence Equality
+    case BinaryExpr(OpSequenceEq, Var(n1), Var(n2)) if n1 == n2 => // remove trivial equality
+      BoolConst(true)
+    case BinaryExpr(OpSequenceEq, v1@Var(n1), v2@Var(n2)) =>  // sort arguments lexicographically
+      if (n1 <= n2) BinaryExpr(OpSequenceEq, v1, v2) else BinaryExpr(OpSequenceEq, v2, v1)
+    case BinaryExpr(OpSequenceEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpSequenceEq, v, simplify(e))
+
+    // Sequence Append
+    case BinaryExpr(OpSequenceAppend, left, SequenceLiteral(s)) if s.isEmpty => simplify(left)
+    case BinaryExpr(OpSequenceAppend, SequenceLiteral(s), right) if s.isEmpty => simplify(right)
+
+    // Sequence Cons
+    //case BinaryExpr(OpSequenceCons, left, SequenceLiteral(s)) if s.isEmpty => SequenceLiteral([simplify(left)])
+
 
     case BinaryExpr(OpPlus, left, IntConst(i)) if i.toInt == 0 => simplify(left)
     case BinaryExpr(OpPlus, IntConst(i), right) if i.toInt == 0 => simplify(right)

@@ -1,0 +1,9 @@
+should insert an item at the beginning of a list
+
+#####
+
+{true; r :-> x ** lseg(x, 0, S)}
+void llist_insert_head(loc r, int item)
+{S1 == item:S; r:-> z ** lseg(z, 0, S1)}
+
+#####

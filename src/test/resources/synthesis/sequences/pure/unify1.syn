@@ -1,0 +1,12 @@
+Should solve the unification with empty sequences
+
+#####
+
+{ S == <v2> ++ S1 /\ S1 == <> ; emp}
+void foo (int v)
+{ S == <v2> ++ S11  /\  S11 == <> ; emp}
+
+#####
+
+void foo (int v) {
+}

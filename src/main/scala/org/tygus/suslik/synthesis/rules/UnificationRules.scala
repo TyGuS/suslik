@@ -141,6 +141,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpIntervalEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpSequenceEq, l, r) => extractSides(l, r)
         case _ => None
       }, p2) match {
         case Some(((x, e), rest2)) => {
@@ -167,7 +168,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "PickExist"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val constants = List(IntConst(0), SetLiteral(List()), eTrue, eFalse)
+      val constants = List(IntConst(0), SetLiteral(List()), SequenceLiteral(List()), eTrue, eFalse)
 
       val exCandidates = // goal.existentials
        if (goal.post.sigma.isEmp) goal.existentials else goal.existentials.intersect(goal.post.sigma.vars)

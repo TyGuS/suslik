@@ -75,6 +75,7 @@ object Expressions {
       (IntSetType, IntSetType) -> OpSetEq,
       (IntervalType, IntervalType) -> OpIntervalEq,
       (BoolType, BoolType) -> OpBoolEq,
+      (IntSequenceType, IntSequenceType) -> OpSequenceEq
     )
 
     override def default: BinOp = OpEq
@@ -132,6 +133,7 @@ object Expressions {
       (IntType, IntType) -> OpPlus,
       (IntSetType, IntSetType) -> OpUnion,
       (IntervalType, IntervalType) -> OpIntervalUnion,
+      (IntSequenceType, IntSequenceType) -> OpSequenceAppend
     )
 
     override def default: BinOp = OpPlus
@@ -298,7 +300,36 @@ object Expressions {
     def lType: SSLType = IntervalType
     def rType: SSLType = IntervalType
   }
-
+  object OpSequenceEq extends RelOp with SymmetricOp {
+    def level: Int = 3
+    override def pp: String = "=="
+    def lType: SSLType = IntSequenceType
+    def rType: SSLType = IntSequenceType
+  }
+  object OpSequenceCons extends BinOp {
+    def level: Int = 4
+    override def pp: String = "::"
+    def lType: SSLType = IntType
+    def rType: SSLType = IntSequenceType
+    def resType: SSLType = IntSequenceType
+  }
+  object OpSequenceAppend extends BinOp with AssociativeOp {
+    def level: Int = 4
+    override def pp: String = "++"
+    def lType: SSLType = IntSequenceType
+    def rType: SSLType = IntSequenceType
+    def resType: SSLType = IntSequenceType
+  }
+  object OpSequenceHead extends UnOp {
+    override def pp: String = "head"
+    override def inputType: SSLType = IntSequenceType
+    override def outputType: SSLType = IntType
+  }
+  object OpSequenceTail extends UnOp {
+    override def pp: String = "tail"
+    override def inputType: SSLType = IntSequenceType
+    override def outputType: SSLType = IntSequenceType
+  }
 
   sealed abstract class Expr extends PrettyPrinting with HasExpressions[Expr] with Ordered[Expr] {
 
@@ -326,6 +357,9 @@ object Expressions {
         case s@SetLiteral(elems) =>
           val acc1 = if (p(s)) acc + s.asInstanceOf[R] else acc
           elems.foldLeft(acc1)((a,e) => collector(a)(e))
+        case s@SequenceLiteral(elems) =>
+          val acc1 = if (p(s)) acc + s.asInstanceOf[R] else acc
+          elems.foldLeft(acc1)((a, e) => collector(a)(e))
         case i@IfThenElse(cond, l, r) =>
           val acc1 = if (p(i)) acc + i.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(cond)
@@ -425,6 +459,13 @@ object Expressions {
             case Some(g) => e.resolve(g, Some(IntType))
           })
         } else None
+      case SequenceLiteral(elems) =>
+        if (IntSequenceType.conformsTo(target)) {
+          elems.foldLeft[Option[Gamma]](Some(gamma))((go, e) => go match {
+            case None => None
+            case Some(g) => e.resolve(g, Some(IntType))
+          })
+        } else None
       case IfThenElse(c, t, e) =>
         for {
           gamma1 <- c.resolve(gamma, Some(BoolType))
@@ -449,6 +490,7 @@ object Expressions {
       case OverloadedBinaryExpr(_, l, r) => 1 + l.size + r.size
       case UnaryExpr(_, arg) => 1 + arg.size
       case SetLiteral(elems) => 1 + elems.map(_.size).sum
+      case SequenceLiteral(elems) => 1 + elems.map(_.size).sum
       case IfThenElse(cond, l, r) => 1 + cond.size + l.size + r.size
       case _ => 1
     }
@@ -478,6 +520,7 @@ object Expressions {
       case IfThenElse(c, t, e) =>IfThenElse(c.resolveOverloading(gamma),
                                             t.resolveOverloading(gamma),
                                             e.resolveOverloading(gamma))
+      case SequenceLiteral(elems) => SequenceLiteral(elems.map(_.resolveOverloading(gamma)))
 
     }
   }
@@ -608,6 +651,12 @@ object Expressions {
     override def subst(sigma: Subst): IfThenElse = IfThenElse(cond.subst(sigma), left.subst(sigma), right.subst(sigma))
     override def substUnknown(sigma: UnknownSubst): Expr = IfThenElse(cond.substUnknown(sigma), left.substUnknown(sigma), right.substUnknown(sigma))
     def getType(gamma: Gamma): Option[SSLType] = left.getType(gamma)
+  }
+
+  case class SequenceLiteral(elems: List[Expr]) extends Expr {
+    override def pp: String = s"[${elems.map(_.pp).mkString(",")}]"
+    override def subst(sigma: Subst): SequenceLiteral = SequenceLiteral(elems.map(_.subst(sigma)))
+    def getType(gamma: Gamma): Option[SSLType] = Some(IntSequenceType)
   }
 
   /**

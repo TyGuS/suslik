@@ -38,7 +38,8 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       | "loc" ^^^ LocType
       | "set" ^^^ IntSetType
       | "interval" ^^^ IntervalType
-      | "void" ^^^ VoidType)
+      | "void" ^^^ VoidType
+      | "seq" ^^^ IntSequenceType)
 
   def formal: Parser[(Var, SSLType)] = typeParser ~ ident ^^ { case a ~ b => (Var(b), a) }
 
@@ -63,10 +64,13 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     "[" ~> intervalInternal <~ "]"
   }
 
+  def sequenceLiteral: Parser[Expr] =
+    "<" ~> repsep(expr, ",") <~ ">" ^^ SequenceLiteral
+
   def varParser: Parser[Var] = ident ^^ Var
 
   def unOpParser: Parser[UnOp] =
-    ("not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus ||| "lower" ^^^ OpLower ||| "upper" ^^^ OpUpper)
+    ("not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus ||| "lower" ^^^ OpLower ||| "upper" ^^^ OpUpper ||| "head" ^^^ OpSequenceHead ||| "tail" ^^^ OpSequenceTail)
 
   // TODO: remove legacy ++, --, =i, /\, \/, <=i
   def termOpParser: Parser[OverloadedBinOp] = "*" ^^^ OpOverloadedStar
@@ -75,6 +79,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def addOpParser: Parser[OverloadedBinOp] = (
     ("++" ||| "+") ^^^ OpOverloadedPlus
       ||| ("--" ||| "-") ^^^ OpOverloadedMinus
+      ||| "::" ^^^ OpSequenceCons
     )
 
   def relOpParser: Parser[OverloadedBinOp] = (
@@ -100,7 +105,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def atom: Parser[Expr] = (
     unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
       | "(" ~> expr <~ ")"
-      | intLiteral | boolLiteral | setLiteral | locLiteral | intervalLiteral
+      | intLiteral | boolLiteral | setLiteral | locLiteral | intervalLiteral | sequenceLiteral
       | varParser
     )
 

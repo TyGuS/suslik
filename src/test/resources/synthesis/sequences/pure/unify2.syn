@@ -1,0 +1,13 @@
+Should solve the unification with empty sequences - 2
+
+#####
+
+{ S == <v> ++ S1 /\ S2 == <>; x :-> a}
+void elemInSet (loc x, int v)
+{  <v1> ++ S1 == S ++ S2; x :-> v1}
+
+#####
+
+void elemInSet (loc x, int v) {
+  *x = v;
+}
