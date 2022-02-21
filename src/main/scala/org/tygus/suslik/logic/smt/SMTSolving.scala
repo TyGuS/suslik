@@ -119,11 +119,18 @@ object SMTSolving extends Core
 
   def emptySequenceTerm: Term = QIdTerm(emptySequenceSymbol)
 
-  def sequencePrelude: List[String] = List(
+  /*def sequencePrelude: List[String] = List(
     "(define-sort SequenceInt () (List Int))",
     "(define-fun sempty () SequenceInt (as nil SequenceInt))",
     "(define-fun scons ((x Int) (xs SequenceInt)) SequenceInt (insert x xs))",
     "(define-fun-rec sappend ((xs SequenceInt) (ys SequenceInt)) SequenceInt (match xs ((nil ys) ((insert x xsn) (insert x (sappend xsn ys))))))"
+  )*/
+
+  def sequencePrelude: List[String] = List(
+    "(define-sort SequenceInt () (Seq Int))",
+    "(define-fun sempty () SequenceInt (as seq.empty SequenceInt))",
+    "(define-fun scons ((x Int) (xs SequenceInt)) SequenceInt (seq.++ (seq.unit x) xs))",
+    "(define-fun sappend ((xs SequenceInt) (ys SequenceInt)) SequenceInt (seq.++ xs ys))"
   )
 
   // Commands to be executed before solving starts
@@ -162,6 +169,7 @@ object SMTSolving extends Core
     this.synchronized {
       timed {
         push(1)
+        //System.out.println("HERE !! " + term);
         val res = isSat(term)
         pop(1)
         res != Success(UnSat()) // Unknown counts as SAT
@@ -431,11 +439,13 @@ object SMTSolving extends Core
 
   // Check if phi is satisfiable; all vars are implicitly existentially quantified
   def sat(phi: Expr): Boolean = {
+    //System.out.println("EXPR:  " + phi.pp);
     cache.getOrElseUpdate(phi, checkSat(convertBoolExpr(phi)))
   }
 
   // Check if phi is valid; all vars are implicitly universally quantified
   def valid(phi: Expr): Boolean = {
+    //System.out.println("EXPR:  " + phi.not.pp)
     !sat(phi.not)
   }
 

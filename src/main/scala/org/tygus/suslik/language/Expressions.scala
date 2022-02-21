@@ -654,7 +654,7 @@ object Expressions {
   }
 
   case class SequenceLiteral(elems: List[Expr]) extends Expr {
-    override def pp: String = s"[${elems.map(_.pp).mkString(",")}]"
+    override def pp: String = s"<${elems.map(_.pp).mkString(",")}>"
     override def subst(sigma: Subst): SequenceLiteral = SequenceLiteral(elems.map(_.subst(sigma)))
     def getType(gamma: Gamma): Option[SSLType] = Some(IntSequenceType)
   }
