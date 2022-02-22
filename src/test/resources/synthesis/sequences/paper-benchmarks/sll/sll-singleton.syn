@@ -1,0 +1,18 @@
+#. -c 2
+singly-linked list (as sequence): construct a list with one element
+changed specification to use a sequence, same outputted code
+
+#####
+
+{ true ; ret :-> a }
+void sll_singleton (int x, loc ret)
+{ elems == <x> ; ret :-> y ** sll(y, elems) }
+
+#####
+
+void sll_singleton (int x, loc ret) {
+  let y = malloc(2);
+  *ret = y;
+  *(y + 1) = 0;
+  *y = x;
+}

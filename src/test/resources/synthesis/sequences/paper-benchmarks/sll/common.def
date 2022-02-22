@@ -1,0 +1,4 @@
+predicate sll(loc x, seq s) {
+|  x == 0        => { s == <> ; emp }
+|  not (x == 0)  => { s == <v> ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}
