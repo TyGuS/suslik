@@ -145,6 +145,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpMinus,
       (IntSetType, IntSetType) -> OpDiff,
+      (IntSequenceType, IntType) -> OpSequenceRemove,
     )
 
     override def default: BinOp = OpMinus
@@ -320,6 +321,20 @@ object Expressions {
     def rType: SSLType = IntSequenceType
     def resType: SSLType = IntSequenceType
   }
+  object OpSequenceRemove extends BinOp {
+    def level: Int = 4
+    override def pp: String = "--"
+    def lType: SSLType = IntSequenceType
+    def rType: SSLType = IntType
+    def resType: SSLType = IntSequenceType
+  }
+  object OpSequenceAt extends BinOp {
+    def level: Int = 4
+    override def pp: String = "@"
+    def lType: SSLType = IntSequenceType
+    def rType: SSLType = IntType
+    def resType: SSLType = IntSequenceType
+  }
   object OpSequenceHead extends UnOp {
     override def pp: String = "head"
     override def inputType: SSLType = IntSequenceType
@@ -329,6 +344,20 @@ object Expressions {
     override def pp: String = "tail"
     override def inputType: SSLType = IntSequenceType
     override def outputType: SSLType = IntSequenceType
+  }
+
+  object OpSequenceLen extends UnOp {
+    override def pp: String = "len"
+    override def inputType: SSLType = IntSequenceType
+    override def outputType: SSLType = IntType
+  }
+
+  object OpSequenceIndexof extends BinOp {
+    def level: Int = 4
+    override def pp: String = "!!"
+    def lType: SSLType = IntSequenceType
+    def rType: SSLType = IntType
+    def resType: SSLType = IntType
   }
 
   sealed abstract class Expr extends PrettyPrinting with HasExpressions[Expr] with Ordered[Expr] {

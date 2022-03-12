@@ -70,7 +70,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def varParser: Parser[Var] = ident ^^ Var
 
   def unOpParser: Parser[UnOp] =
-    ("not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus ||| "lower" ^^^ OpLower ||| "upper" ^^^ OpUpper ||| "head" ^^^ OpSequenceHead ||| "tail" ^^^ OpSequenceTail)
+    ("not" ^^^ OpNot ||| "-" ^^^ OpUnaryMinus ||| "lower" ^^^ OpLower ||| "upper" ^^^ OpUpper ||| "slen" ^^^ OpSequenceLen)
 
   // TODO: remove legacy ++, --, =i, /\, \/, <=i
   def termOpParser: Parser[OverloadedBinOp] = "*" ^^^ OpOverloadedStar
@@ -80,6 +80,8 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     ("++" ||| "+") ^^^ OpOverloadedPlus
       ||| ("--" ||| "-") ^^^ OpOverloadedMinus
       ||| "::" ^^^ OpSequenceCons
+      ||| "!!" ^^^ OpSequenceIndexof
+      ||| "@" ^^^ OpSequenceAt
     )
 
   def relOpParser: Parser[OverloadedBinOp] = (

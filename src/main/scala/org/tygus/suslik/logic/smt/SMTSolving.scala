@@ -117,6 +117,14 @@ object SMTSolving extends Core
 
   def sequenceAppendSymbol = SimpleQId(SymbolId(SSymbol("sappend")))
 
+  def sequenceRemoveSymbol = SimpleQId(SymbolId(SSymbol("sremove")))
+
+  def sequenceIndexofSymbol = SimpleQId(SymbolId(SSymbol("sindexof")))
+
+  def sequenceLenSymbol = SimpleQId(SymbolId(SSymbol("slen")))
+
+  def sequenceAtSymbol = SimpleQId(SymbolId(SSymbol("seat")))
+
   def emptySequenceTerm: Term = QIdTerm(emptySequenceSymbol)
 
   /*def sequencePrelude: List[String] = List(
@@ -130,7 +138,11 @@ object SMTSolving extends Core
     "(define-sort SequenceInt () (Seq Int))",
     "(define-fun sempty () SequenceInt (as seq.empty SequenceInt))",
     "(define-fun scons ((x Int) (xs SequenceInt)) SequenceInt (seq.++ (seq.unit x) xs))",
-    "(define-fun sappend ((xs SequenceInt) (ys SequenceInt)) SequenceInt (seq.++ xs ys))"
+    "(define-fun sappend ((xs SequenceInt) (ys SequenceInt)) SequenceInt (seq.++ xs ys))",
+    "(define-fun sremove ((xs SequenceInt) (y Int)) SequenceInt (seq.replace xs (seq.unit y) sempty))",
+    "(define-fun sindexof ((xs SequenceInt) (y Int)) Int (seq.indexof xs (seq.unit y)))",
+    "(define-fun slen ((xs SequenceInt)) Int (seq.len xs))",
+    "(define-fun seat ((xs SequenceInt) (y Int)) SequenceInt (seq.at xs y))"
   )
 
   // Commands to be executed before solving starts
@@ -169,7 +181,6 @@ object SMTSolving extends Core
     this.synchronized {
       timed {
         push(1)
-        //System.out.println("HERE !! " + term);
         val res = isSat(term)
         pop(1)
         res != Success(UnSat()) // Unknown counts as SAT
@@ -285,6 +296,25 @@ object SMTSolving extends Core
 
       new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(sequenceAppendSymbol, List(l.termDef, r.termDef)))      
+    }
+
+    case BinaryExpr(OpSequenceRemove, left, right) => {
+      var l = convertSequenceExpr(left)
+      var r = convertIntExpr(right)
+
+      new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(sequenceRemoveSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpSequenceAt, left, right) => {
+          val l = convertSequenceExpr(left)
+          var r = convertIntExpr(right)
+          new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(sequenceAtSymbol, List(l.termDef, r.termDef)))
+    }
+    case IfThenElse(cond, left, right) => {
+      val c = convertBoolExpr(cond)
+      val l = convertSequenceExpr(left)
+      val r = convertSequenceExpr(right)
+      c.ite(l, r)
     }
     case _ => throw SMTUnsupportedExpr(e)
   }
@@ -404,13 +434,32 @@ object SMTSolving extends Core
       val s = convertIntervalExpr(e)
       new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalUpperSymbol, List(s.termDef)))
     }
+    case UnaryExpr(OpSequenceLen, e) => {
+      val s = convertSequenceExpr(e)
+      new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(sequenceLenSymbol, List(s.termDef)))
+    }
     case BinaryExpr(op, left, right) => {
-      val l = convertIntExpr(left)
-      val r = convertIntExpr(right)
       op match {
-        case OpPlus => l + r
-        case OpMinus => l - r
-        case OpMultiply => l * r
+        case OpPlus => {
+          val l = convertIntExpr(left)
+          val r = convertIntExpr(right)
+          l + r
+        }
+        case OpMinus => {
+          val l = convertIntExpr(left)
+          val r = convertIntExpr(right)
+          l - r
+        }
+        case OpMultiply => {
+          val l = convertIntExpr(left)
+          val r = convertIntExpr(right)
+          l * r
+        }
+        case OpSequenceIndexof => {
+          val l = convertSequenceExpr(left)
+          val r = convertIntExpr(right)
+          new TypedTerm[IntTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(sequenceIndexofSymbol, List(l.termDef, r.termDef)))
+        }
         case _ => throw SMTUnsupportedExpr(e)
       }
     }
@@ -439,13 +488,11 @@ object SMTSolving extends Core
 
   // Check if phi is satisfiable; all vars are implicitly existentially quantified
   def sat(phi: Expr): Boolean = {
-    //System.out.println("EXPR:  " + phi.pp);
     cache.getOrElseUpdate(phi, checkSat(convertBoolExpr(phi)))
   }
 
   // Check if phi is valid; all vars are implicitly universally quantified
   def valid(phi: Expr): Boolean = {
-    //System.out.println("EXPR:  " + phi.not.pp)
     !sat(phi.not)
   }
 
