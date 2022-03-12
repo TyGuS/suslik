@@ -51,9 +51,10 @@ object FailRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       val (uniPost, exPost) = goal.splitPost
       // If precondition does not contain predicates, we can't get new facts from anywhere
-      if (!SMTSolving.valid(goal.pre.phi ==> uniPost))
+      if (!SMTSolving.valid(goal.pre.phi ==> uniPost)) {
       // universal post not implied by pre
         List(RuleResult(List(goal.unsolvableChild), IdProducer, this, goal))
+      }
       else filterOutValidPost(goal, exPost, uniPost)
     }
   }

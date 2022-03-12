@@ -1,6 +1,6 @@
 package org.tygus.suslik.synthesis.rules
 
-import org.tygus.suslik.language.Expressions.{Expr, Unknown, Var}
+import org.tygus.suslik.language.Expressions.{Expr, Unknown, Var, IntConst}
 import org.tygus.suslik.language.Statements.Guarded
 import org.tygus.suslik.language.{Expressions, IntType}
 import org.tygus.suslik.logic.Specifications._
@@ -78,10 +78,9 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
-        lhs <- goal.programVars.filter(goal.post.phi.vars.contains)
-        rhs <- goal.programVars.filter(goal.post.phi.vars.contains)
+        lhs <- goal.programVars.filter(v => goal.post.phi.vars.contains(v) && goal.getType(v) == IntType) ++ List(IntConst(0))
+        rhs <- goal.programVars.filter(v => goal.post.phi.vars.contains(v) && goal.getType(v) == IntType) ++ List(IntConst(0))
         if lhs != rhs
-        if goal.getType(lhs) == IntType && goal.getType(rhs) == IntType
       } yield lhs |<=| rhs
 
     def condCandidates(goal: Goal): Seq[Expr] = {
