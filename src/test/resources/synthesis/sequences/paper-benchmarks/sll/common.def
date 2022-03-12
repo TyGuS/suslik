@@ -1,4 +1,9 @@
 predicate sll(loc x, seq s) {
-|  x == 0        => { s == <> ; emp }
-|  not (x == 0)  => { s == <v> ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+|  x == 0        => { s == <>; emp }
+|  not (x == 0)  => { s == <v> ++ s1; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}
+
+predicate sll_len(loc x, seq s, int len) {
+| x == 0 => {len == 0 /\ s == <>; emp}
+| not (x == 0) => { s == <v> ++ s1 /\ len == (1 + len1) /\ (len1 >= 0); [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll_len(nxt, s1, len1) }
 }
