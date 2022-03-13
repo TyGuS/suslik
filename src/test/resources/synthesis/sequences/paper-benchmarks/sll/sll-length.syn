@@ -1,0 +1,9 @@
+# -c 1 -o 1
+
+#####
+
+{true; sll(x, s) ** res :-> a}
+void sll_length(loc x, loc res)
+{len == slen s; sll(x, s) ** res :-> len}
+
+#####

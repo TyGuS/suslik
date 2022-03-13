@@ -1,0 +1,10 @@
+# -c 2 -o 2 -b true
+
+#####
+
+{i >= 0 /\ i < slen s; r :-> x ** lseg(x, 0, s)}
+void llist_ith(loc r, int i)
+{s == s1 ++ s2 /\ slen s1 == i; r :-> y ** lseg(x, y, s1) ** lseg(y, 0, s2) }
+
+#####
+
