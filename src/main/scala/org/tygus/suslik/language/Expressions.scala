@@ -664,7 +664,11 @@ object Expressions {
     def subst(sigma: Subst): Expr = UnaryExpr(op, arg.subst(sigma))
     override def substUnknown(sigma: UnknownSubst): Expr = UnaryExpr(op, arg.substUnknown(sigma))
     override def level = 5
-    override def pp: String = s"${op.pp} ${arg.printInContext(this)}"
+    override def pp: String = op match {
+      case OpSequenceLen => s"|${arg.printInContext(this)}|"
+      case _ => s"${op.pp} ${arg.printInContext(this)}"
+    }
+      
     def getType(gamma: Gamma): Option[SSLType] = Some(op.outputType)
   }
 
@@ -683,7 +687,7 @@ object Expressions {
   }
 
   case class SequenceLiteral(elems: List[Expr]) extends Expr {
-    override def pp: String = s"<${elems.map(_.pp).mkString(",")}>"
+    override def pp: String = s"<<${elems.map(_.pp).mkString(",")}>>"
     override def subst(sigma: Subst): SequenceLiteral = SequenceLiteral(elems.map(_.subst(sigma)))
     def getType(gamma: Gamma): Option[SSLType] = Some(IntSequenceType)
   }
