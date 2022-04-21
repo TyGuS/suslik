@@ -308,6 +308,12 @@ object SMTSolving extends Core
       new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(intervalSubsetSymbol, List(l.termDef, r.termDef)))
     }
+    case IfThenElse(cond, left, right) => {
+      val c = convertBoolExpr(cond)
+      val l = convertBoolExpr(left)
+      val r = convertBoolExpr(right)
+      c.ite(l, r)
+    }
     case Unknown(_, _, _) => True() // Treat unknown predicates as true
     case _ => throw SMTUnsupportedExpr(e)
   }
