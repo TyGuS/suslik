@@ -1,0 +1,20 @@
+#. -b true
+minimum of two integers
+
+###
+
+{ true ; r :-> null }
+
+void min(loc r, int x, int y)
+
+{ m <= x  /\  m <= y; r :-> m }
+
+###
+
+void min (loc r, int x, int y) {
+  if (x <= y) {
+    *r = x;
+  } else {
+    *r = y;
+  }
+}

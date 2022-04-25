@@ -53,6 +53,7 @@ Temporary Items
 .idea/**/workspace.xml
 .idea/**/tasks.xml
 .idea/dictionaries
+*.iml
 
 # Sensitive or high-churn files:
 .idea/**/dataSources/
@@ -142,6 +143,12 @@ node_modules
 /logs
 *.log
 *.csv
+# traces
+*.out
+
+# certification results
+certify/
+
 *results.tex
 trace.json
 *.trace.json

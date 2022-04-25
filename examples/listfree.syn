@@ -2,7 +2,7 @@ Listfree example
 
 ###
 
-{true; lseg(x, S)}
+{true; lseg(x, s)}
   void listfree(loc x)
 {true ; emp }
 

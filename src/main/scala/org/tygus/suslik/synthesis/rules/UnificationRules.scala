@@ -21,6 +21,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
   val exceptionQualifier: String = "rule-unification"
 
+
   abstract class HeapUnify extends SynthesisRule {
     override def toString: String = "Unify"
 
@@ -28,6 +29,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 
     // Do we have a chance to get rid of the relevant kind of heaplets by only unification and framing?
     def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean
+
+
 
     def apply(goal: Goal): Seq[RuleResult] = {
       val pre = goal.pre
@@ -53,7 +56,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 //        val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         val newPost = Assertion(post.phi && subExpr, newPostSigma)
         val newGoal = goal.spawnChild(post = newPost)
-        val kont = IdProducer >> ExtractHelper(goal)
+        val kont = UnificationProducer(t, s, sub) >> IdProducer >> ExtractHelper(goal)
 
         ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(goal, List(newGoal), this, sub))
 
@@ -120,6 +123,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         PointsTo(y, oy, _) <- postPtss
         if y.vars.exists(goal.isExistential)
         t@PointsTo(x, ox, _) <- prePtss
+//        if post.sigma.block_size(y) == pre.sigma.block_size(x)
         if ox == oy
         if !postPtss.exists(sameLhs(t))
       } yield (y -> x)
@@ -127,10 +131,14 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       alternatives.sortBy{ case (e1, e2) => -lcpLen(e1.pp, e2.pp) }.headOption match {
         case None => Nil
         case Some((y, x)) => {
-          val subExpr = goal.substToFormula(Map(y -> x))
+          val subst = Map(y -> x)
+          val subExpr = goal.substToFormula(subst)
           val newPost = Assertion(post.phi && subExpr, post.sigma)
           val newGoal = goal.spawnChild(post = newPost)
-          val kont = IdProducer >> ExtractHelper(goal)
+          val kont = (x, y) match {
+            case (x:Var, y:Var) => SubstVarProducer(y, x) >> IdProducer >> ExtractHelper(goal)
+            case _ =>  IdProducer >> ExtractHelper(goal)
+          }
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -179,8 +187,10 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           val _s2 = s2.subst(sigma)
           val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
           val newGoal = goal.spawnChild(post = Assertion(_p2, _s2), callGoal = newCallGoal)
-          val kont = IdProducer >> ExtractHelper(goal)
+          val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
+
           ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(goal, Seq(newGoal), this, sigma))
+
           List(RuleResult(List(newGoal), kont, this, goal))
         }
         case _ => Nil
@@ -217,7 +227,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = ExistentialProducer(sigma) >> IdProducer >> ExtractHelper(goal)
+        kont = SubstProducer(ex, v) >> IdProducer >> ExtractHelper(goal)
       } yield {
         ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(
           goal, Seq(newGoal), this, sigma))
@@ -258,7 +268,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         newPost = goal.post.subst(sigma)
         newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
         newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-        kont = ExistentialProducer(sigma) >> IdProducer >> ExtractHelper(goal)
+        kont = SubstProducer(ex, sol) >> IdProducer >> ExtractHelper(goal)
       } yield RuleResult(List(newGoal), kont, this, goal)
     }
   }
@@ -284,11 +294,12 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       if (i < 0) return Nil // no unsubstituted arguments remain
 
       val arg = companion.params(i)._1
-      val sigma = Map(callGoal.call.args(i).asInstanceOf[Var] -> arg)
+      val v = callGoal.call.args(i).asInstanceOf[Var]
+      val sigma = Map(v -> arg)
       val newPost = goal.post.subst(sigma)
       val newCallGoal = goal.callGoal.map(_.updateSubstitution(sigma))
       val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
-      val kont = ExistentialProducer(sigma) >> IdProducer >> ExtractHelper(goal)
+      val kont = SubstVarProducer(v, arg) >> IdProducer >> ExtractHelper(goal)
 
       ProofTrace.current.add(ProofTrace.DerivationTrail.withSubst(
         goal, Seq(newGoal), this, sigma))

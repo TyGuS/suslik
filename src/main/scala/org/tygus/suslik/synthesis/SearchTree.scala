@@ -32,6 +32,8 @@ class SearchTree {
 
 object SearchTree {
 
+  trait SearchNode { val id: NodeId }
+
   // needs to be thread-local, for `SynthesisServer`
   private val _current = new DynamicVariable[SearchTree](new SearchTree)
   def st: SearchTree = _current.value
@@ -59,7 +61,7 @@ object SearchTree {
     * represents a synthesis goal to solve.
     * For this node to succeed, one of its children has to succeed.
     */
-  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) {
+  case class OrNode(id: NodeId, goal: Goal, parent: Option[AndNode], extraCost: Int = 0) extends SearchNode {
     // My index among the children of parent
     def childIndex: Int = id.headOption.getOrElse(0).max(0)
 
@@ -91,9 +93,9 @@ object SearchTree {
 
     // This node has succeeded: return either its next suspended and-sibling or the solution
     def succeed(s: Solution)(implicit config: SynConfig): Either[OrNode, Solution] = {
-      memo.save(goal, Succeeded(s))
-      st.worklist = pruneDescendants(id, st.worklist) // prune all my descendants from worklist
-      st.successLeaves = st.successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
+      memo.save(goal, Succeeded(s, id))
+      worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
+      successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
         case None => Right(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
@@ -189,7 +191,7 @@ object SearchTree {
     * represents a set of premises of a rule application, whose result should be combined with kont.
     * For this node to succeed, all of its children (premises, subgoals) have to succeed.
     */
-  class AndNode(_id: NodeId, _parent: OrNode, _result: RuleResult) {
+  class AndNode(_id: NodeId, _parent: OrNode, _result: RuleResult) extends SearchNode {
     val id: NodeId = _id                                      // Unique id within the search tree
     val parent: OrNode = _parent                              // Parent or-node
     val rule: SynthesisRule = _result.rule                    // Rule that was applied to create this node from parent

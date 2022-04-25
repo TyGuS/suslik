@@ -5,11 +5,15 @@ import java.nio.file.Paths
 
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Statements
+import org.tygus.suslik.certification.CertificationTarget.NoCert
+import org.tygus.suslik.certification.source.SuslikProofStep
+import org.tygus.suslik.certification.CertTree
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report._
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceCert, ProofTraceJson, ProofTraceJsonFile, ProofTraceNone, StopWatch}
+import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
 import resource.managed
@@ -123,6 +127,57 @@ trait SynthesisRunnerUtil {
     (spec, env, body)
   }
 
+  /*
+  // Create synthesizer object, choosing search tactic based on the config
+  def createSynthesizer(env: Environment): Synthesis = {
+    val tactic =
+      if (env.config.interactive)
+        new InteractiveSynthesis(env.config, env.stats)
+      else if (env.config.script.nonEmpty)
+        new ReplaySynthesis(env.config)
+      else
+        new PhasedSynthesis(env.config)
+    val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
+      env.config.traceToJsonFile match {
+        case None => ProofTraceNone
+        case Some(file) => new ProofTraceJson(file)
+      }
+    }
+    new Synthesis(tactic, log, trace)
+  }
+  */
+
+  def synthesizeFromFile(dir: String, testName: String): Unit = {
+    val (_, _, in, out, params) = getDescInputOutput(testName)
+    synthesizeFromSpec(testName, in, out, params)
+  }
+
+  /*
+  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig) : Unit = {
+    import log.out.testPrintln
+
+    val parser = new SSLParser(params)
+    val res = params.inputFormat match {
+      case `dotSyn` => parser.parseGoalSYN(text)
+      case `dotSus` => parser.parseGoalSUS(text)
+    }
+    if (!res.successful) {
+      throw SynthesisException(s"Failed to parse the input:\n$res")
+    }
+
+    val prog = res.get
+    val (specs, predEnv, funcEnv, body) = preprocessProgram(prog, params)
+
+    if (specs.lengthCompare(1) != 0) {
+      throw SynthesisException("Expected a single synthesis goal")
+    }
+
+    val spec = specs.head
+    val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
+    (spec, env, body)
+  }
+  */
+
   // Create synthesizer object, choosing search tactic based on the config
   def createSynthesizer(env: Environment): Synthesis = {
     val tactic =
@@ -184,6 +239,11 @@ trait SynthesisRunnerUtil {
       testPrintln(StopWatch.summary.toString)
     }
 
+    def initCertTree(trace: ProofTrace): Unit = trace match {
+      case trace: ProofTraceCert => CertTree.fromTrace(trace)
+      case _ =>
+    }
+
     sresult._1 match {
       case Nil =>
         printStats(sresult._2)
@@ -200,7 +260,10 @@ trait SynthesisRunnerUtil {
         } else {
           procs.map(_.pp.trim).mkString("\n\n")
         }
-          
+
+        // [Certify] initialize and print cert tree
+        initCertTree(synthesizer.trace)
+
         if (params.printStats) {
           testPrintln(s"\n[$testName]:", Console.MAGENTA)
           testPrintln(params.pp)
@@ -215,7 +278,7 @@ trait SynthesisRunnerUtil {
         if (out != noOutputCheck) {
           val tt = out.trim.linesIterator.map(_.trim).toList
           val res = result.trim.linesIterator.map(_.trim).toList
-          if (params.assertSuccess && res != tt) {
+          if (params.assertSuccess && !res.equals(tt)) {
             throw SynthesisException(s"\nThe expected output\n$tt\ndoesn't match the result:\n$res")
           }
         }
@@ -223,17 +286,24 @@ trait SynthesisRunnerUtil {
           testPrintln(sresult._2.getExpansionChoices.mkString("\n"))
           testPrintln("-----------------------------------------------------")
         }
-        if (params.certTarget != null) {
+        if (params.certTarget != NoCert) {
           val certTarget = params.certTarget
           val targetName = certTarget.name
-          val certificate = certTarget.certify(procs.head, env)
+          val root = CertTree.root.getOrElse(throw SynthesisException("Search tree is uninitialized"))
+          val tree = SuslikProofStep.of_certtree(root)
+          val certificate = certTarget.certify(testName, procs.head, tree, root.goal, env)
           if (params.certDest == null) {
             testPrintln(s"\n$targetName certificate:", Console.MAGENTA)
-            testPrintln(certificate.body)
+            certificate.outputs.foreach(o => {
+              testPrintln(s"File ${o.filename}:\n", Console.MAGENTA)
+              testPrintln(s"${o.body}")
+            })
           } else {
-            val path = Paths.get(params.certDest.getCanonicalPath, certificate.fileName).toFile
-            new PrintWriter(path) { write(certificate.body); close() }
-            testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
+            certificate.outputs.foreach(o => {
+              val path = Paths.get(params.certDest.getCanonicalPath, o.filename).toFile
+              new PrintWriter(path) { write(o.body); close() }
+              testPrintln(s"\n$targetName certificate exported to $path", Console.MAGENTA)
+            })
           }
         }
         procs

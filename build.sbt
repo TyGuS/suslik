@@ -5,7 +5,7 @@ name := "suslik"
 
 version := "0.1.0"
 
-scalaVersion := "2.12.10"
+scalaVersion := "2.12.12"
 
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint")
 scalacOptions += "-target:jvm-1.8"
@@ -60,6 +60,11 @@ assembly / assemblyMergeStrategy := {
   case PathList("META-INF", _*) => MergeStrategy.discard
   case x if Assembly.isConfigFile(x) => MergeStrategy.concat
   case _ => MergeStrategy.first
+}
+
+assemblyMergeStrategy in assembly := {
+ case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+ case x => MergeStrategy.first
 }
 
 enablePlugins(JavaAppPackaging)

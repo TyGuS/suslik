@@ -1,0 +1,9 @@
+Morphs a list from one representation to another
+
+###
+
+{true ; r :-> null ** lseg2(x, null, s)}
+void listmorph(loc x, loc r)
+{true ; r :-> y ** lseg(y, s) }
+
+#####

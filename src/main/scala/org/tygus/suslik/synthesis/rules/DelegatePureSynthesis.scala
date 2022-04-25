@@ -4,13 +4,13 @@ package org.tygus.suslik.synthesis.rules
 import org.bitbucket.franck44.scalasmt.parser.{SMTLIB2Parser, SMTLIB2Syntax}
 import org.bitbucket.franck44.scalasmt.parser.SMTLIB2Syntax._
 import org.bitbucket.inkytonik.kiama.util.StringSource
-import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, SetLiteral, Subst}
+import org.tygus.suslik.language.Expressions.{BinaryExpr, IntConst, LocConst, SetLiteral, Subst}
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications.{Assertion, Goal}
 import org.tygus.suslik.logic.smt.SMTSolving
-import org.tygus.suslik.logic.{PFormula, Specifications}
+import org.tygus.suslik.logic.{Gamma, PFormula, Specifications}
 import org.tygus.suslik.synthesis.rules.Rules.{InvertibleRule, RuleResult, SynthesisRule}
-import org.tygus.suslik.synthesis.{ExistentialProducer, ExtractHelper, IdProducer, SynthesisException}
+import org.tygus.suslik.synthesis.{ExtractHelper, IdProducer, SubstMapProducer, SynthesisException}
 
 import scala.collection.mutable
 import scala.sys.process._
@@ -220,14 +220,20 @@ object DelegatePureSynthesis {
     case t => throw SynthesisException(s"Not supported: ${t.getClass.getName}")
   }
 
-  def parseAssignments(cvc4Res: String): Subst = {
+  def parseAssignments(cvc4Res: String, gamma: Gamma = Map.empty): Subst = {
     //〈FunDefCmd〉::=  (define-fun〈Symbol〉((〈Symbol〉 〈SortExpr〉)∗)〈SortExpr〉 〈Term〉
     parser.apply(StringSource("(model " + cvc4Res + ")")) match {
       case Failure(exception) => Map.empty
       case Success(GetModelFunDefResponseSuccess(responses)) =>
         responses.map { response =>
           val existential = response.funDef.sMTLIB2Symbol.asInstanceOf[SSymbol].simpleSymbol.drop(7)
-          val expr = parseTerm(response.funDef.term)
+          val expr = parseTerm(response.funDef.term) match {
+            case e@IntConst(v) => gamma.get(Expressions.Var(existential)) match {
+              case Some(LocType) => LocConst(v)
+              case _ => e
+            }
+            case e => e
+          }
           Expressions.Var(existential) -> expr
         }.toMap
       case Success(e) => throw SynthesisException(s"Not supported (${e.getClass.getName})")
@@ -259,12 +265,12 @@ object DelegatePureSynthesis {
       }
       else {
         //parse me
-        val assignments: Subst = parseAssignments(cvc4Res.get)
+        val assignments: Subst = parseAssignments(cvc4Res.get, goal.gamma)
         val newPost = goal.post.subst(assignments)
         val newCallGoal = goal.callGoal.map(_.updateSubstitution(assignments))
         val newGoal = goal.spawnChild(post = newPost, callGoal = newCallGoal)
         if (isFinal || !DelegatePureSynthesis.hasSecondResult(goal,assignments)) {
-          val kont = ExistentialProducer(assignments) >> IdProducer >> ExtractHelper(goal)
+          val kont = SubstMapProducer(assignments) >> IdProducer >> ExtractHelper(goal)
           val alternatives = RuleResult(List(newGoal), kont, this, goal) :: Nil
           nubBy[RuleResult, Assertion](alternatives, res => res.subgoals.head.post)
         }

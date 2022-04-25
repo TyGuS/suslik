@@ -63,7 +63,7 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
       // Otherwise: create two branches, adding unknown and its negation to precondition
       val thenGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown, pre.sigma), childId = Some(0))
       val elseGoal = goal.spawnChild(pre = Assertion(pre.phi && unknown.not, pre.sigma), childId = Some(1))
-      List(RuleResult(List(thenGoal, elseGoal), GuardedBranchProducer(thenGoal), this, goal).copy(updates =
+      List(RuleResult(List(thenGoal, elseGoal), GuardedBranchProducer(thenGoal, unknown), this, goal).copy(updates =
         List(RuleResult.noUpdate, elseGoalUpdater)))
     }
   }

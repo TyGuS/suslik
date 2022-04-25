@@ -6,7 +6,7 @@ sorted list: insert an element
 void srtl_insert (loc x, loc r)
 {n1 == n + 1 /\ lo1 == (k <= lo ? k : lo)  /\ hi1 == (hi <= k ? k : hi) ; r :-> y ** srtl(y, n1, lo1, hi1) }
 
-{ 0 <= n ; r :-> 0 ** sll(x, n, lo, hi) }
+{ 0 <= n ; r :-> null ** sll(x, n, lo, hi) }
 void insertion_sort_free (loc x, loc r)
 { true ; r :-> y ** srtl(y, n, lo, hi) }
 

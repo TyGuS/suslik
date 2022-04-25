@@ -1,0 +1,29 @@
+# -c 2 -f 1
+
+doubly-linked list: append
+
+#####
+
+{true ; dll(x1, a, s1) ** dll(x2, b, s2) ** r :-> x2}
+void dll_append (loc x1, loc r)
+{s =i s1 ++ s2 ; dll(y, c, s) ** r :-> y }
+
+#####
+
+void dll_append (loc x1, loc r) {
+  if (x1 == null) {
+  } else {
+    let w = *(x1 + 1);
+    dll_append(w, r);
+    let y = *r;
+    if (y == null) {
+      *(x1 + 1) = null;
+      *r = x1;
+    } else {
+      *(y + 2) = x1;
+      *(x1 + 1) = y;
+      *r = x1;
+    }
+  }
+}
+

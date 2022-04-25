@@ -1,0 +1,3 @@
+#!/bin/bash
+
+scala -Dfile.encoding=UTF-8 -classpath target/scala-2.12/suslik.jar org.tygus.suslik.certification.CertificationBenchmarks  $*

@@ -249,7 +249,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
         val pre = goal.pre
         val thenGoal = goal.spawnChild(Assertion(pre.phi && cond, pre.sigma), sketch = tb)
         val elseGoal = goal.spawnChild(Assertion(pre.phi && cond.not, pre.sigma), sketch = eb)
-        List(RuleResult(List(thenGoal, elseGoal), BranchProducer(List(cond, cond.not)), this, goal))
+        List(RuleResult(List(thenGoal, elseGoal), BranchProducer(None, Map.empty, Map.empty, List(cond, cond.not)), this, goal))
       }
       case (If(_, _, _), _) => {
         throw SynthesisException("Found conditional in the middle of the program. Conditionals only allowed at the end.")
@@ -268,7 +268,7 @@ object SymbolicExecutionRules extends SepLogicUtils with RuleUtils {
     def apply(goal: Goal): Seq[RuleResult] = {
       for {
         h <- goal.pre.sigma.chunks
-        selGoals <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
+        (selGoals, _, _, _) <- UnfoldingRules.Open.mkInductiveSubGoals(goal, h).toList
         (selector, subGoal) <- selGoals
         if SMTSolving.valid(goal.pre.phi ==> selector)
       } yield RuleResult(List(subGoal), IdProducer, this, goal)

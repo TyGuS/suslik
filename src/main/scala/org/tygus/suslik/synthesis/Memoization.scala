@@ -30,7 +30,7 @@ object Memoization {
   // This goal has been fully explored and failed
   case object Failed extends GoalStatus
   // This goal has been fully explored and produces solution `sol`
-  case class Succeeded(sol: Solution) extends GoalStatus
+  case class Succeeded(sol: Solution, nodeId: NodeId) extends GoalStatus
   // This goal has been expanded but not yet fully explored
   // (its descendants are still in the worklist)
   case object Expanded extends GoalStatus
@@ -68,7 +68,7 @@ object Memoization {
       cache(key) = status
       status match {
         case Failed => suspended.remove(key)
-        case Succeeded(_) => suspended.remove(key)
+        case Succeeded(_, _) => suspended.remove(key)
         case _ =>
       }
     }

@@ -308,6 +308,12 @@ object SMTSolving extends Core
       new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(intervalSubsetSymbol, List(l.termDef, r.termDef)))
     }
+    case IfThenElse(cond, left, right) => {
+      val c = convertBoolExpr(cond)
+      val l = convertBoolExpr(left)
+      val r = convertBoolExpr(right)
+      c.ite(l, r)
+    }
     case Unknown(_, _, _) => True() // Treat unknown predicates as true
     case _ => throw SMTUnsupportedExpr(e)
   }
@@ -315,6 +321,7 @@ object SMTSolving extends Core
   private def convertIntExpr(e: Expr): SMTIntTerm = e match {
     case Var(name) => Ints(name)
     case IntConst(c) => Ints(c)
+    case LocConst(c) => Ints(c)
     case UnaryExpr(OpLower, e) => {
       val s = convertIntervalExpr(e)
       new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalLowerSymbol, List(s.termDef)))

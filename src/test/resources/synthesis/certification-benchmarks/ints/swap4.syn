@@ -1,0 +1,20 @@
+should be able to synthesize a more complex swap program
+
+###
+
+{true; x :-> a ** y :-> c ** z :-> b ** t :-> q }
+void swap4 (loc x, loc z, loc y, loc t)
+{ true; x :-> q ** z :-> c ** t :-> a ** y :-> b }
+
+###
+
+void swap4 (loc x, loc z, loc y, loc t) {
+  let a = *x;
+  let c = *y;
+  let b = *z;
+  let q = *t;
+  *x = q;
+  *y = b;
+  *z = c;
+  *t = a;
+}

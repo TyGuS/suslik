@@ -2,6 +2,7 @@ package org.tygus.suslik.synthesis
 
 import java.io.File
 import org.tygus.suslik.certification.CertificationTarget
+import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.targets._
 import org.tygus.suslik.interaction.SynthesisServer
 import org.tygus.suslik.report.Log
@@ -24,24 +25,33 @@ object SynthesisRunner extends SynthesisRunnerUtil {
     *
     * fileName                       a synthesis file name (the file under the specified folder, called filename.syn)
     *
-    * -r, --trace <value>            print the entire derivation trace; default: true
+    * -r, --trace <value>            print the entire derivation trace; default: false
     * -t, --timeout <value>          timeout for the derivation; default (in milliseconds): 300000 (5 min)
-    * -a, --assert <value>           check that the synthesized result against the expected one; default: true
+    * -a, --assert <value>           check that the synthesized result against the expected one; default: false
     * -c, --maxCloseDepth <value>    maximum unfolding depth in the post-condition; default: 1
     * -o, --maxOpenDepth <value>     maximum unfolding depth in the pre-condition; default: 1
+    * -f, --maxCallDepth <value>     maximum call depth; default: 1
     * -x, --auxAbduction <value>     abduce auxiliary functions; default: false
+    * --topLevelRecursion <value>    allow top-level recursion; default: true
     * -b, --branchAbduction <value>  abduce conditional branches; default: false
+    * --maxGuardConjuncts <value>    maximum number of conjuncts in an abduced guard; default: 2
     * --phased <value>               split rules into unfolding and flat phases; default: true
-    * -d, --depth <value>            depth first search; default: false
+    * -d, --dfs <value>              depth first search; default: false
+    * --bfs <value>                  breadth first search (ignore weights); default: false
+    * --delegate <value>             delegate pure synthesis to CVC4; default: true
     * -i, --interactive <value>      interactive mode; default: false
-    * -s, --printStats <value>       print synthesis stats; default: true
+    * -s, --printStats <value>       print synthesis stats; default: false
+    * -p, --printSpecs <value>       print specifications for synthesized functions; default: false
     * -e, --printEnv <value>         print synthesis context; default: false
-    * -f, --printFail <value>        print failed rule applications; default: false
-    * -l, --log <value>              log results to a csv file; default: true
+    * --printFail <value>            print failed rule applications; default: false
+    * -l, --log <value>              log results to a csv file; default: false
     * -j, --traceToJson <filename>   dump entire proof search trace to a json file; default: none
-    * --memoization <value>          enable memoization; default: true
-    * --certTarget <value>           set certification target; default: none
-    * --certDest <value>             write certificate to path; default: none
+    * --memo <value>                 enable memoization; default: true
+    * --lexi <value>                 use lexicographic termination metric (as opposed to total size); default: false
+    * --certTarget <value>           set certification target; default: none (options: htt | vst | iris)
+    * --certDest <value>             specify the directory in which to store the certificate file; default: none
+    * --certHammerPure <value>       use hammer to solve pure lemmas instead of admitting them (HTT only); default: false
+    * --certSetRepr <value>          use SSReflect's perm_eq to represent set equality (HTT only); default: false
     *
     * --help                         prints the help reference
     *
@@ -100,8 +110,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     implicit val certTargetRead: scopt.Read[CertificationTarget] =
       scopt.Read.reads {
-        case "coq" => coq.Coq
-        case t => throw SynthesisException(s"Certification target $t is not supported") 
+        case "htt" => htt.HTT()
+        case "vst" => vst.VST()
+        case "iris" => iris.Iris()
+        case _ => NoCert
       }
 
     implicit val durationRead: scopt.Read[Duration] =
@@ -203,11 +215,19 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     opt[CertificationTarget](name="certTarget").action { (t, rc) =>
       rc.copy(synConfig = rc.synConfig.copy(certTarget = t))
-    }.text("set certification target; default: none")
+    }.text("set certification target; default: none (options: htt | vst | iris)")
 
     opt[File](name="certDest").action(cfg { f =>
       _.copy(certDest = f)
-    }).text("write certificate to path; default: none")
+    }).text("specify the directory in which to store the certificate file; default: none")
+
+    opt[Boolean](name = "certHammerPure").action(cfg { b =>
+      _.copy(certHammerPure = b)
+    }).text("use hammer to solve pure lemmas instead of admitting them (HTT only); default: false")
+
+    opt[Boolean](name = "certSetRepr").action(cfg { b =>
+      _.copy(certSetRepr = b)
+    }).text("use SSReflect's perm_eq to represent set equality (HTT only); default: false")
 
     help("help").text("prints this usage text")
 

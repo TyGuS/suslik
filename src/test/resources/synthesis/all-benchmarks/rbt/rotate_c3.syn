@@ -1,0 +1,11 @@
+# -o 2 -c 4
+
+cannot synthesise rotate
+
+#####
+
+{true ; r :-> 0 ** treeN(a, na, 1, bna) ** treeN(b, nb, 0, bna) ** treeN(c, nc, 0, bna)}
+void rotate(loc r, loc a, loc b, loc c)
+{true ; r :-> x ** treeN(x, na + nb + nc + 2, 0, bna + 1) }
+
+#####

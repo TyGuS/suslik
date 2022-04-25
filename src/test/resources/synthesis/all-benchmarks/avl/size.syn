@@ -1,0 +1,24 @@
+should be able to synthesize tree size
+
+#####
+
+
+{0 <= n ; r :-> a ** avl(x, n, h) }
+void avl_size(loc x, loc r)
+{true ; r :-> n ** avl(x, n, h) }
+
+#####
+
+void avl_size (loc x, loc r) {
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let l = *(x + 1);
+    let rx = *(x + 2);
+    avl_size(l, r);
+    let n1 = *r;
+    avl_size(rx, r);
+    let n = *r;
+    *r = 1 + n1 + n;
+  }
+}
