@@ -8,16 +8,16 @@ import scala.util.parsing.combinator.lexical.StdLexical
 class SSLLexical extends StdLexical {
 
   // Add keywords
-  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate", "in", "lower", "upper")
+  reserved += ("if", "then", "else", "true", "false", "emp", "not", "return", "predicate", "in", "lower", "upper", "head", "tail", "slen")
   reserved += ("error","magic","malloc", "free", "let", "assume")
   reserved += ("null")
 
   // Types
-  reserved += ("int", "bool", "loc", "set", "void", "interval")
+  reserved += ("int", "bool", "loc", "set", "void", "interval", "seq")
 
   delimiters += ("(", ")", "=", ";", "**", "*", ":->", "=i", "<=i", "++", "--", "..",
-      "{", "}", "/\\", "&&", "\\/", "||", "\n", "\r", "=>", "?", ":",
-      "<", ">", ",", "/",   "+", "-", "==", "!=", "==>", "<=", ">=", "[", "]", "|", "??"
+      "{", "}", "/\\", "&&", "\\/", "||", "\n", "\r", "=>", "?", ":", "::",
+      "<", ">", ",", "/",   "+", "-", "==", "!=", "==>", "<=", ">=", "[", "]", "|", "!!", "@"
   )
 
 }

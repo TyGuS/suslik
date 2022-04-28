@@ -54,11 +54,13 @@ object SMTSolving extends Core
 
   trait SetTerm
   trait IntervalTerm
+  trait SequenceTerm
 
   type SMTBoolTerm = TypedTerm[BoolTerm, Term]
   type SMTIntTerm = TypedTerm[IntTerm, Term]
   type SMTSetTerm = TypedTerm[SetTerm, Term]
   type SMTIntervalTerm = TypedTerm[IntervalTerm, Term]
+  type SMTSequenceTerm = TypedTerm[SequenceTerm, Term]
 
   def setSort: Sort = SortId(SymbolId(SSymbol("SetInt")))
 
@@ -107,6 +109,42 @@ object SMTSolving extends Core
     "(define-fun iunion ((s1 Interval) (s2 Interval)) Interval (ite (iempty s1) s2 (iinsert (lower s1) (iinsert (upper s1) s2))))",
   )
 
+  def sequenceSort: Sort = SortId(SymbolId(SSymbol("SequenceInt")))
+
+  def emptySequenceSymbol = SimpleQId(SymbolId(SSymbol("sempty")))
+
+  def sequenceConsSymbol = SimpleQId(SymbolId(SSymbol("scons")))
+
+  def sequenceAppendSymbol = SimpleQId(SymbolId(SSymbol("sappend")))
+
+  def sequenceRemoveSymbol = SimpleQId(SymbolId(SSymbol("sremove")))
+
+  def sequenceIndexofSymbol = SimpleQId(SymbolId(SSymbol("sindexof")))
+
+  def sequenceLenSymbol = SimpleQId(SymbolId(SSymbol("slen")))
+
+  def sequenceAtSymbol = SimpleQId(SymbolId(SSymbol("seat")))
+
+  def emptySequenceTerm: Term = QIdTerm(emptySequenceSymbol)
+
+  /*def sequencePrelude: List[String] = List(
+    "(define-sort SequenceInt () (List Int))",
+    "(define-fun sempty () SequenceInt (as nil SequenceInt))",
+    "(define-fun scons ((x Int) (xs SequenceInt)) SequenceInt (insert x xs))",
+    "(define-fun-rec sappend ((xs SequenceInt) (ys SequenceInt)) SequenceInt (match xs ((nil ys) ((insert x xsn) (insert x (sappend xsn ys))))))"
+  )*/
+
+  def sequencePrelude: List[String] = List(
+    "(define-sort SequenceInt () (Seq Int))",
+    "(define-fun sempty () SequenceInt (as seq.empty SequenceInt))",
+    "(define-fun scons ((x Int) (xs SequenceInt)) SequenceInt (seq.++ (seq.unit x) xs))",
+    "(define-fun sappend ((xs SequenceInt) (ys SequenceInt)) SequenceInt (seq.++ xs ys))",
+    "(define-fun sremove ((xs SequenceInt) (y Int)) SequenceInt (seq.replace xs (seq.unit y) sempty))",
+    "(define-fun sindexof ((xs SequenceInt) (y Int)) Int (seq.indexof xs (seq.unit y)))",
+    "(define-fun slen ((xs SequenceInt)) Int (seq.len xs))",
+    "(define-fun seat ((xs SequenceInt) (y Int)) SequenceInt (seq.at xs y))"
+  )
+
   // Commands to be executed before solving starts
   def prelude = if (defaultSolver == "CVC4") {
     List(
@@ -127,7 +165,7 @@ object SMTSolving extends Core
       "(assert (forall ((b1 Bool) (b2 Bool)) (= (andNot b1 b2) (and b1 (not b2)))))",
       "(define-fun difference ((s1 SetInt) (s2 SetInt)) SetInt ((_ map andNot) s1 s2))",
       "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
-    ) ++ intervalPrelude
+    ) ++ sequencePrelude ++ intervalPrelude
   } else if (defaultSolver == "Z3 <= 4.7.x") {
     // In Z3 4.7.x and below, difference is built in and intersection is called intersect
     List(
@@ -136,7 +174,7 @@ object SMTSolving extends Core
       "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
       "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))",
       "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
-    ) ++ intervalPrelude
+    ) ++ sequencePrelude ++ intervalPrelude
   } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean =
@@ -238,6 +276,66 @@ object SMTSolving extends Core
     case _ => throw SMTUnsupportedExpr(e)
   }
 
+  private def convertSequenceExpr(e: Expr): SMTSequenceTerm = e match {
+    case Var(name) => new VarTerm[SequenceTerm](name, sequenceSort)
+    case SequenceLiteral(elems) => {
+      val emptyTerm = new TypedTerm[SequenceTerm, Term](Set.empty, emptySequenceTerm)
+      makeSequenceCons(emptyTerm, elems)
+    }
+    case BinaryExpr(OpSequenceCons, left, right) => {
+      val l = convertIntExpr(left)
+      val r = convertSequenceExpr(right)
+
+      new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(sequenceConsSymbol, List(l.termDef, r.termDef)))      
+    }
+
+    case BinaryExpr(OpSequenceAppend, left, right) => {
+      val l = convertSequenceExpr(left)
+      val r = convertSequenceExpr(right)
+
+      new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(sequenceAppendSymbol, List(l.termDef, r.termDef)))      
+    }
+
+    case BinaryExpr(OpSequenceRemove, left, right) => {
+      var l = convertSequenceExpr(left)
+      var r = convertIntExpr(right)
+
+      new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(sequenceRemoveSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpSequenceAt, left, right) => {
+          val l = convertSequenceExpr(left)
+          var r = convertIntExpr(right)
+          new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(sequenceAtSymbol, List(l.termDef, r.termDef)))
+    }
+    case IfThenElse(cond, left, right) => {
+      val c = convertBoolExpr(cond)
+      val l = convertSequenceExpr(left)
+      val r = convertSequenceExpr(right)
+      c.ite(l, r)
+    }
+    case _ => throw SMTUnsupportedExpr(e)
+  }
+
+  private def makeSequenceCons(sequenceTerm: SMTSequenceTerm, elems: List[Expr]): SMTSequenceTerm = {
+    if (elems.isEmpty) {
+      sequenceTerm
+    } else {
+      val eTerms: List[SMTIntTerm] = elems.map(convertIntExpr)
+      if (defaultSolver == "CVC4") {
+        throw SolverUnsupportedExpr(defaultSolver)
+      } else if (defaultSolver == "Z3" || defaultSolver == "Z3 <= 4.7.x") {
+        def makeInsertOne(eTerm: SMTIntTerm, sequenceTerm: SMTSequenceTerm): SMTSequenceTerm =
+          new TypedTerm[SequenceTerm, Term](sequenceTerm.typeDefs ++ eTerm.typeDefs,
+            QIdAndTermsTerm(sequenceConsSymbol, List(eTerm.termDef, sequenceTerm.termDef)))
+
+        eTerms.foldRight(sequenceTerm)(makeInsertOne)
+      } else throw SolverUnsupportedExpr(defaultSolver)
+    }
+  }
+
   private def convertBoolExpr(e: Expr): SMTBoolTerm = e match {
     case Var(name) => Bools(name)
     case BoolConst(true) => True()
@@ -314,6 +412,12 @@ object SMTSolving extends Core
       val r = convertBoolExpr(right)
       c.ite(l, r)
     }
+    case BinaryExpr(OpSequenceEq, left, right) => {
+      val l = convertSequenceExpr(left)
+      val r = convertSequenceExpr(right)
+
+      l === r
+    }
     case Unknown(_, _, _) => True() // Treat unknown predicates as true
     case _ => throw SMTUnsupportedExpr(e)
   }
@@ -330,13 +434,32 @@ object SMTSolving extends Core
       val s = convertIntervalExpr(e)
       new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalUpperSymbol, List(s.termDef)))
     }
+    case UnaryExpr(OpSequenceLen, e) => {
+      val s = convertSequenceExpr(e)
+      new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(sequenceLenSymbol, List(s.termDef)))
+    }
     case BinaryExpr(op, left, right) => {
-      val l = convertIntExpr(left)
-      val r = convertIntExpr(right)
       op match {
-        case OpPlus => l + r
-        case OpMinus => l - r
-        case OpMultiply => l * r
+        case OpPlus => {
+          val l = convertIntExpr(left)
+          val r = convertIntExpr(right)
+          l + r
+        }
+        case OpMinus => {
+          val l = convertIntExpr(left)
+          val r = convertIntExpr(right)
+          l - r
+        }
+        case OpMultiply => {
+          val l = convertIntExpr(left)
+          val r = convertIntExpr(right)
+          l * r
+        }
+        case OpSequenceIndexof => {
+          val l = convertSequenceExpr(left)
+          val r = convertIntExpr(right)
+          new TypedTerm[IntTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(sequenceIndexofSymbol, List(l.termDef, r.termDef)))
+        }
         case _ => throw SMTUnsupportedExpr(e)
       }
     }

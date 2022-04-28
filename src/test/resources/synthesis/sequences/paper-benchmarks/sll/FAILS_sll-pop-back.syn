@@ -1,0 +1,10 @@
+#. -c 2 -o 2 -b true
+singly-linked list: pop back
+
+#####
+
+{true; res :-> 0 ** list :-> x1 ** sll(x1, s1)}
+void sll_pop_back (loc list, loc res, int def)
+{(s1 == <> /\ result == def) \/ (s1 == s ++ <item> /\ result == item); sll(y, s) ** list :-> y ** res :-> item }
+
+#####

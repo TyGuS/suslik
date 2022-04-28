@@ -31,6 +31,9 @@ object PureUnification extends PureLogicUtils {
       case (SetLiteral(Nil), SetLiteral(Nil)) => List(Map.empty)
       case (SetLiteral(es :: ess), SetLiteral(et :: ets)) =>
         unifyPairs( et, SetLiteral(ets), es, SetLiteral(ess), freeVars)
+      case (SequenceLiteral(Nil), SequenceLiteral(Nil)) => List(Map.empty)
+      case (SequenceLiteral(es :: ess), SequenceLiteral(et :: ets)) =>
+        unifyPairs( et, SequenceLiteral(ets), es, SequenceLiteral(ess), freeVars)
       case _ => if (source == target) List(Map.empty) else Nil
     }
   }

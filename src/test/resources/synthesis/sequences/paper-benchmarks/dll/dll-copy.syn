@@ -1,0 +1,41 @@
+# -c 2 -f 1
+
+should be able to synthesize list copy
+
+#####
+
+{true ; r :-> x ** dll(x, a, s)}
+void dll_copy(loc r)
+{true ; r :-> y ** dll(x, a, s) ** dll(y, b, s) }
+
+#####
+
+void dll_copy (loc r) {
+  let x = *r;
+  if (x == 0) {
+    *r = 0;
+  } else {
+    let vx = *x;
+    let w = *(x + 1);
+    *r = w;
+    dll_copy(r);
+    let y1 = *r;
+    if (y1 == 0) {
+      let y = malloc(3);
+      *r = y;
+      *(y + 1) = 0;
+      *y = vx;
+      *(y + 2) = 0;
+    } else {
+      let v = *y1;
+      let y = malloc(3);
+      *(y1 + 2) = y;
+      *r = y;
+      *(y + 1) = y1;
+      *y1 = vx;
+      *y = v;
+      *(y + 2) = 0;
+    }
+  }
+}
+

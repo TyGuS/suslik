@@ -1,6 +1,8 @@
 package org.tygus.suslik.synthesis.rules
 
 import org.tygus.suslik.language.CardType
+import org.tygus.suslik.language.SSLType
+import org.tygus.suslik.language.IntType
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
@@ -125,8 +127,21 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           // e must be an existential var:
           goal.isExistential(x) &&
           // if it's a program-level existential, then all vars in d must be program-level
-          (!goal.isProgramLevelExistential(x) || d.vars.subsetOf(goal.programVars.toSet))
+          (!goal.isProgramLevelExistential(x) || d.vars.subsetOf(goal.programVars.toSet)) &&
+          // no forbidden expressions if sequenceRules enabled
+          (!goal.env.config.sequenceRules || noForbiddenExprs(d))
         case _ => false
+      }
+
+      def isForbiddenExpr(e: Expr): Boolean = e match {
+        case UnaryExpr(OpSequenceLen, _) => true
+        case BinaryExpr(OpSequenceAt, _, _) => true
+        case BinaryExpr(OpSequenceIndexof, _, _) => true
+        case _ => false
+      }
+
+      def noForbiddenExprs(d: Expr): Boolean = {
+        d.collect(isForbiddenExpr).isEmpty
       }
 
       def extractSides(l: Expr, r: Expr): Option[(Var, Expr)] =
@@ -141,6 +156,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpIntervalEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpSequenceEq, l, r) => extractSides(l, r)
         case _ => None
       }, p2) match {
         case Some(((x, e), rest2)) => {
@@ -167,7 +183,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "PickExist"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val constants = List(IntConst(0), SetLiteral(List()), eTrue, eFalse)
+      val constants = if (goal.env.config.sequenceRules) List(IntConst(0), IntConst(-1), SetLiteral(List()), SequenceLiteral(List()), eTrue, eFalse)
+                      else List(IntConst(0), SetLiteral(List()), SequenceLiteral(List()), eTrue, eFalse)
 
       val exCandidates = // goal.existentials
        if (goal.post.sigma.isEmp) goal.existentials else goal.existentials.intersect(goal.post.sigma.vars)
@@ -178,9 +195,19 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
 //        goal.allUniversals.intersect(goal.pre.vars ++ goal.post.vars)
       }
 
+      def inductiveCandidates(ex: Expr, ty: SSLType): List[Expr] = {
+        ty match {
+          case IntType => List(BinaryExpr(OpPlus, ex, IntConst(1)), BinaryExpr(OpMinus, ex, IntConst(1)))
+          case _ => List()
+        }
+      }
+
       for {
         ex <- least(exCandidates) // since all existentials must go, no point trying them in different order
-        v <- toSorted(uniCandidates(ex)) ++ constants
+        val uni = toSorted(uniCandidates(ex))
+        v <- if (goal.env.config.sequenceRules) uni ++ constants ++ uni.flatMap(x => inductiveCandidates(x, x.getType(goal.gamma).get))
+             else uni ++ constants
+
         if goal.getType(ex) == v.getType(goal.gamma).get
         sigma = Map(ex -> v)
         newPost = goal.post.subst(sigma)

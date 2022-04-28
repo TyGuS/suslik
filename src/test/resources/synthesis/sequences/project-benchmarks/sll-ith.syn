@@ -1,0 +1,9 @@
+# -c 1 -o 1 -b true --sequenceRules true
+
+#####
+
+{i >= 0 /\ i < slen s; sll(x, s) ** ret :-> i}
+void sll_ith(loc x, loc ret)
+{<item> == s@i; sll(x, s) ** ret :-> item}
+
+#####

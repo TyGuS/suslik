@@ -1,0 +1,9 @@
+should be able to append two linked lists
+
+#####
+
+{ true ; r :-> x ** lseg(x, 0, Sx) ** lseg(y, 0, Sy)}
+void llist_append(loc r, loc y)
+{ S == Sx ++ Sy ; r :-> z ** lseg(z, 0, S)}
+
+#####

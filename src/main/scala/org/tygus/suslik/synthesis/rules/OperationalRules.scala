@@ -40,8 +40,20 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
         case _ => false
       }
 
+      def isForbiddenExpr: Expr => Boolean = {
+        case SequenceLiteral(_) => true
+        case _ => false
+      }
+
+      def noForbiddenExprs: Heaplet => Boolean = {
+        case PointsTo(x@Var(_), _, e) => e.collect(isForbiddenExpr).isEmpty
+        case _ => false
+      }
+
+
       // When do two heaplets match
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && noGhosts(hr)
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && noGhosts(hr) &&
+                                              (!goal.env.config.sequenceRules || noForbiddenExprs(hr))
 
       findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil

@@ -95,3 +95,7 @@ case object CardType extends SSLType {
     case _ => None
   }
 }
+
+case object IntSequenceType extends SSLType {
+  override def pp: String = "intseq"
+}

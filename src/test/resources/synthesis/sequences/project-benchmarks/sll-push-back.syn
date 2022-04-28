@@ -1,0 +1,10 @@
+#. -c 2
+singly-linked list: push back
+
+#####
+
+{true ; ret :-> x1 ** sll(x1, s1)}
+void sll_push_back (loc ret, int item)
+{(s == s1 ++ <item>) ; sll(y, s) ** ret :-> y }
+
+#####

@@ -1,0 +1,19 @@
+should be able to initialize a linked list (implemented with sequences)
+
+NEED TO RESOLVE HOW/IF THE SUBSET INTERVAL SHOULD BE DEFINED ON SEQUENCES
+###
+
+{ sll(x, s) }
+  void sll_init(loc x, int v)
+{ s1 <= <v> ; sll(x, s1) }
+
+###
+
+void sll_init (loc x, int v) {
+  if (x == 0) {
+  } else {
+    let n = *(x + 1);
+    sll_init(n, v);
+    *x = v;
+  }
+}
