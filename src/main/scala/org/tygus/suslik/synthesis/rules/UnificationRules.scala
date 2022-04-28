@@ -115,7 +115,6 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     Γ ; {φ ; P} ; {ψ ∧ X = l; Q} ---> S
   */
   object SubstRight extends SynthesisRule with InvertibleRule {
-  //object SubstRight extends SynthesisRule {
     override def toString: String = "SubstExist"
 
     def apply(goal: Goal): Seq[RuleResult] = {
@@ -129,8 +128,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
           goal.isExistential(x) &&
           // if it's a program-level existential, then all vars in d must be program-level
           (!goal.isProgramLevelExistential(x) || d.vars.subsetOf(goal.programVars.toSet)) &&
-          // no forbidden expressions
-          noForbiddenExprs(d)
+          // no forbidden expressions if sequenceRules enabled
+          (!goal.env.config.sequenceRules || noForbiddenExprs(d))
         case _ => false
       }
 
@@ -184,7 +183,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
     override def toString: String = "PickExist"
 
     def apply(goal: Goal): Seq[RuleResult] = {
-      val constants = List(IntConst(0), IntConst(-1), SetLiteral(List()), SequenceLiteral(List()), eTrue, eFalse)
+      val constants = if (goal.env.config.sequenceRules) List(IntConst(0), IntConst(-1), SetLiteral(List()), SequenceLiteral(List()), eTrue, eFalse)
+                      else List(IntConst(0), SetLiteral(List()), SequenceLiteral(List()), eTrue, eFalse)
 
       val exCandidates = // goal.existentials
        if (goal.post.sigma.isEmp) goal.existentials else goal.existentials.intersect(goal.post.sigma.vars)
@@ -205,7 +205,8 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
       for {
         ex <- least(exCandidates) // since all existentials must go, no point trying them in different order
         val uni = toSorted(uniCandidates(ex))
-        v <- uni ++ constants ++ uni.flatMap(x => inductiveCandidates(x, x.getType(goal.gamma).get))
+        v <- if (goal.env.config.sequenceRules) uni ++ constants ++ uni.flatMap(x => inductiveCandidates(x, x.getType(goal.gamma).get))
+             else uni ++ constants
 
         if goal.getType(ex) == v.getType(goal.gamma).get
         sigma = Map(ex -> v)

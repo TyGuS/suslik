@@ -78,8 +78,8 @@ object BranchRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
     def atomCandidates(goal: Goal): Seq[Expr] =
       for {
-        lhs <- goal.programVars.filter(v => goal.post.phi.vars.contains(v) && goal.getType(v) == IntType) ++ List(IntConst(0))
-        rhs <- goal.programVars.filter(v => goal.post.phi.vars.contains(v) && goal.getType(v) == IntType) ++ List(IntConst(0))
+        lhs <- goal.programVars.filter(v => goal.post.phi.vars.contains(v) && goal.getType(v) == IntType) ++ (if (goal.env.config.sequenceRules) List(IntConst(0)) else List())
+        rhs <- goal.programVars.filter(v => goal.post.phi.vars.contains(v) && goal.getType(v) == IntType) ++ (if (goal.env.config.sequenceRules) List(IntConst(0)) else List())
         if lhs != rhs
       } yield lhs |<=| rhs
 

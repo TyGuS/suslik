@@ -1,4 +1,4 @@
-# -c 2 -o 2 -b true
+# -c 2 -o 2 -b true --sequenceRules true
 
 #####
 

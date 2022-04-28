@@ -52,7 +52,8 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
 
       // When do two heaplets match
-      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && noGhosts(hr) && noForbiddenExprs(hr)
+      def isMatch(hl: Heaplet, hr: Heaplet) = sameLhs(hl)(hr) && !sameRhs(hl)(hr) && noGhosts(hr) &&
+                                              (!goal.env.config.sequenceRules || noForbiddenExprs(hr))
 
       findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
