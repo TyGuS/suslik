@@ -215,11 +215,21 @@ object Statements {
 
     // Shorten a variable v to its minimal prefix unused in the current statement.
     def simplifyVariable(v: Var): (Var, Statement) = {
-      val used = this.vars
-      val prefixes = Range(1, v.name.length).map(n => v.name.take(n))
-      prefixes.find(p => !used.contains(Var(p))) match {
-        case None => (v, this) // All shorter names are taken
-        case Some(name) => (Var(name), this.subst(v, Var(name)))
+      def pref_len(s: String, t: String): Int = {
+        if (s == "" || t == "" || s(0) != t(0)) 0
+        else 1 + pref_len(s.substring(1), t.substring(1))
+      }
+      var min_prefix = 1;
+      this.vars.foreach(other => {
+        if (other != v) {
+          val len = pref_len(v.name, other.name) + 1;
+          if (len > min_prefix) min_prefix = len;
+        }
+      });
+      if (min_prefix == v.name.length) (v, this)
+      else {
+        val new_name = v.name.take(min_prefix);
+        (Var(new_name), this.subst(v, Var(new_name)))
       }
     }
   }
