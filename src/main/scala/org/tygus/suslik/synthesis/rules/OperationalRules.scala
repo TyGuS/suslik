@@ -5,6 +5,7 @@ import org.tygus.suslik.language.{Statements, _}
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis.{ExtractHelper, PrependProducer, StmtProducer, SubstVarProducer}
+import org.tygus.suslik.report.ProofTrace
 import org.tygus.suslik.synthesis.rules.Rules._
 
 /**
@@ -26,7 +27,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
   Γ ; {φ ; x.f -> l * P} ; {ψ ; x.f -> l' * Q} ---> *x.f := l' ; S
 
   */
-  object WriteRule extends SynthesisRule with GeneratesCode with InvertibleRule {
+  abstract class WriteAbstract extends SynthesisRule with GeneratesCode {
 
     override def toString: Ident = "Write"
 
@@ -45,11 +46,17 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findMatchingHeaplets(_ => true, isMatch, goal.pre.sigma, goal.post.sigma) match {
         case None => Nil
-        case Some((hl@PointsTo(x@Var(_), offset, e1), hr@PointsTo(_, _, e2))) =>
-          val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
-          val newPost = Assertion(post.phi, goal.post.sigma - hr)
-          val subGoal = goal.spawnChild(newPre, newPost)
+        case Some((hl@PointsTo(x@Var(_), offset, _), hr@PointsTo(_, _, e2))) =>
+          // TUTORIAL:
+//          val newPre = Assertion(pre.phi, goal.pre.sigma - hl)
+//          val newPost = Assertion(post.phi, goal.post.sigma - hr)
+//          val subGoal = goal.spawnChild(newPre, newPost)
+          val newPre = Assertion(pre.phi, (goal.pre.sigma - hl) ** hr)
+          val subGoal = goal.spawnChild(newPre)
           val kont: StmtProducer = PrependProducer(Store(x, offset, e2)) >> ExtractHelper(goal)
+
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(subGoal), this,
+            Map("to" -> x.pp, "offset" -> offset.toString, "value" -> e2.pp)))
 
           List(RuleResult(List(subGoal), kont, this, goal))
         case Some((hl, hr)) =>
@@ -59,6 +66,10 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
     }
 
   }
+
+  object WriteRule extends WriteAbstract with InvertibleRule
+
+  object WriteSimple extends WriteAbstract
 
   /*
   Read rule: create a fresh typed read
@@ -83,6 +94,20 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
 
       findHeaplet(isGhostPoints, goal.pre.sigma) match {
         case None => Nil
+          // TUTORIAL:
+        case Some(pts@PointsTo(x@Var(_), offset, v@Var(name))) =>
+          val y = freshVar(goal.vars, name)
+          val tpy = v.getType(goal.gamma).get
+          val subGoal = goal.spawnChild(pre = goal.pre.subst(v, y),
+            post = goal.post.subst(v, y),
+            gamma = goal.gamma + (y -> tpy),
+            programVars = y :: goal.programVars)
+          val kont: StmtProducer = PrependProducer(Load(y, tpy, x, offset)) >> ExtractHelper(goal)
+
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(subGoal), this,
+            Map("to" -> y.pp, "from" -> x.pp, "offset" -> offset.toString)))
+
+          List(RuleResult(List(subGoal), kont, this, goal))
         case Some(pts@PointsTo(x@Var(_), offset, e)) =>
           val y = freshVar(goal.vars, e.pp)
           val tpy = e.getType(goal.gamma).get
@@ -181,7 +206,7 @@ object OperationalRules extends SepLogicUtils with RuleUtils {
           val toRemove = mkSFormula(pts.toList) ** h
           val newPre = Assertion(pre.phi, pre.sigma - toRemove)
 
-          val subGoal = goal.spawnChild(newPre)
+          val subGoal = goal.spawnChild(newPre, isCompanion = true)
           val kont: StmtProducer = PrependProducer(Free(x)) >> ExtractHelper(goal)
 
           List(RuleResult(List(subGoal), kont, this, goal))

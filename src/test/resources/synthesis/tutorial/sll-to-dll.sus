@@ -1,0 +1,33 @@
+# -c 2
+// convert a singly-linked list with a spare cell into a doubly-linked list
+
+predicate sll(loc x, set s) {
+|  x == 0  => { s == {} ; emp }
+|  x != 0  => { s == {v} + s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll(nxt, s1) }
+}
+
+predicate sll_reserved(loc x, set s) {
+|  x == 0  => { s == {} ; emp }
+|  x != 0  => { s == {v} + s1 ; [x, 3] ** x :-> v ** (x + 1) :-> nxt ** (x + 2) :-> 0 ** sll_reserved(nxt, s1) }
+}
+
+predicate dll(loc x, loc y, set s) {
+|  x == 0  => { s == {} ; emp }
+|  x != 0  => { s == {v} + s1 ; [x, 3] ** x :-> v ** (x + 1) :-> nxt ** (x + 2) :-> y ** dll(nxt, x, s1) }
+}
+
+
+
+void to_dll(loc x, loc prev)
+{ sll_reserved(x, s) }
+{ dll(x, prev, s) }
+// void to_dll(loc x)
+// { sll_reserved(x, s) }
+// { dll(x, 0, s) }
+// void to_dll(loc ret)
+// { ret :-> x ** sll(x, s) }
+// { ret :-> y ** dll(y, 0, s) }
+{
+  ??
+}
+  

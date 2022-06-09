@@ -1,0 +1,18 @@
+.proof-interaction-choices div.goal {
+    display: inline-block;
+    max-width: 20em;
+    vertical-align: top;
+    margin-right: .5em;
+    border: 1px solid #888;
+    padding: 2px;
+}
+
+.proof-trace .proof-trace-highlight-interact-focus {
+    outline: 3px solid violet;
+}
+
+.proof-interaction-result div.procedure {
+    font-family: Courier, Consolas, 'Courier New', monospace;
+    font-size: 10pt;
+    white-space: pre;
+}

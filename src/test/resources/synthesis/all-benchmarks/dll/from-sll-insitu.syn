@@ -1,0 +1,11 @@
+# -c 2
+
+should be able to convert a singly-linked list to a double-linked list
+
+#######
+
+{ sll0(x, s)}
+void sll_to_dll_insitu(loc x, loc y)
+{ dll(x, 0, s)}
+
+#######

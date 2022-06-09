@@ -7,14 +7,16 @@ import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.source.SuslikProofStep
 import org.tygus.suslik.certification.CertTree
+import org.tygus.suslik.language.Statements
 import org.tygus.suslik.logic.Environment
 import org.tygus.suslik.logic.Preprocessor._
 import org.tygus.suslik.logic.smt.SMTSolving
 import org.tygus.suslik.parsing.SSLParser
-import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceCert, ProofTraceJson, ProofTraceNone, StopWatch}
+import org.tygus.suslik.report.{Log, ProofTrace, ProofTraceJsonFile, ProofTraceCert, ProofTraceJson, ProofTraceNone, StopWatch}
 import org.tygus.suslik.synthesis.SearchTree.AndNode
 import org.tygus.suslik.synthesis.tactics._
 import org.tygus.suslik.util._
+import resource.managed
 
 import scala.io.Source
 
@@ -52,7 +54,7 @@ trait SynthesisRunnerUtil {
       case s if s.endsWith(sketchExtension) => dotSus
     }
     // The path is counted from the root
-    val allLines = Source.fromFile(file).getLines.toList
+    val allLines = readLines(file)
     val (params, lines) =
       if (allLines.nonEmpty && allLines.head.startsWith(paramPrefix)) {
         (SynthesisRunner.parseParams(allLines.head.drop(paramPrefix.length).split(' '), initialParams), allLines.tail)
@@ -103,33 +105,8 @@ trait SynthesisRunnerUtil {
     }
   }
 
-  // Create synthesizer object, choosing search tactic based on the config
-  def createSynthesizer(env: Environment): Synthesis = {
-    val tactic =
-      if (env.config.interactive)
-        new InteractiveSynthesis(env.config, env.stats)
-      else if (env.config.script.nonEmpty)
-        new ReplaySynthesis(env.config)
-      else
-        new PhasedSynthesis(env.config)
-    val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
-      env.config.traceToJsonFile match {
-        case None => ProofTraceNone
-        case Some(file) => new ProofTraceJson(file)
-      }
-    }
-    new Synthesis(tactic, log, trace)
-  }
-
-  def synthesizeFromFile(dir: String, testName: String): Unit = {
-    val (_, _, in, out, params) = getDescInputOutput(testName)
-    synthesizeFromSpec(testName, in, out, params)
-  }
-
-  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck, params: SynConfig = defaultConfig) : Unit = {
-    import log.out.testPrintln
-
-    val parser = new SSLParser
+  def prepareSynthesisTask(text: String, params: SynConfig = defaultConfig) = {
+    val parser = new SSLParser(params)
     val res = params.inputFormat match {
       case `dotSyn` => parser.parseGoalSYN(text)
       case `dotSus` => parser.parseGoalSUS(text)
@@ -147,6 +124,45 @@ trait SynthesisRunnerUtil {
 
     val spec = specs.head
     val env = Environment(predEnv, funcEnv, params, new SynStats(params.timeOut))
+    (spec, env, body)
+  }
+
+  // Create synthesizer object, choosing search tactic based on the config
+  def createSynthesizer(env: Environment): Synthesis = {
+    val tactic =
+      if (env.config.interactive) {
+        if (env.config.simple)
+          new InteractiveSimple(env.config, env.stats)
+        else
+          new InteractivePhased(env.config, env.stats)
+      } else if (env.config.script.nonEmpty)
+        new ReplaySynthesis(env.config)
+      else if (env.config.simple)
+        new AutomaticSimple(env.config)
+      else
+        new AutomaticPhased(env.config)
+    val trace : ProofTrace = if (env.config.certTarget != NoCert) new ProofTraceCert() else {
+      env.config.traceToJsonFile match {
+        case None => ProofTraceNone
+        case Some(file) => new ProofTraceJsonFile(file)
+      }
+    }
+    new Synthesis(tactic, log, trace)
+  }
+
+  def synthesizeFromFile(dir: String, testName: String,
+                         initialParams: SynConfig = defaultConfig) : List[Statements.Procedure] = {
+    val fullPath = Paths.get(dir, testName)
+    val defs = getDefsFromDir(new File(dir))
+    val (_, _, in, out, params) = getDescInputOutput(fullPath.toString, initialParams)
+    synthesizeFromSpec(testName, List(defs, in).mkString("\n"), out, params)
+  }
+
+  def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck,
+                         params: SynConfig = defaultConfig) : List[Statements.Procedure] = {
+    import log.out.testPrintln
+
+    val (spec, env, body) = prepareSynthesisTask(text, params)
     val synthesizer = createSynthesizer(env)
 
     env.stats.start()
@@ -154,9 +170,6 @@ trait SynthesisRunnerUtil {
     val duration = env.stats.duration
 
     SynStatUtil.log(testName, duration, params, spec, sresult._1, sresult._2)
-
-    def printHotNode(hotNode: AndNode, descs: Int): String =
-      s"${hotNode.rule.toString} at depth ${hotNode.parent.depth} with ${descs} descendants expanded"
 
     def printRuleApplication(name: String, stat: RuleStat): String =
       s"$name: succeeded ${stat.numSuccess} times (${stat.timeSuccess}ms), failed ${stat.numFail} times (${stat.timeFail}ms)"
@@ -185,7 +198,10 @@ trait SynthesisRunnerUtil {
     sresult._1 match {
       case Nil =>
         printStats(sresult._2)
-        throw SynthesisException(s"Failed to synthesise:\n$sresult")
+        if (sresult._2.timedOut)
+          throw SynTimeOutException(s"Timeout after ${(sresult._2.duration / 1000.0).round.toInt} seconds")
+        else
+          throw SynthesisException(s"Failed to synthesise due to unrealizable spec or incompleteness")
       case procs =>
         val result = if (params.printSpecs) {
           procs.map(p => {
@@ -241,6 +257,7 @@ trait SynthesisRunnerUtil {
             })
           }
         }
+        procs
     }
   }
 
@@ -248,7 +265,13 @@ trait SynthesisRunnerUtil {
     if (defFiles.isEmpty) return ""
     assert(defFiles.size == 1, "More than one file with definitions in the folder")
     val file = new File(defFiles.head.getAbsolutePath)
-    Source.fromFile(file).getLines.toList.mkString("\n")
+    readLines(file).mkString("\n")
+  }
+
+  def getDefsFromDir(dir: File): String = {
+    if (dir.exists() && dir.isDirectory)
+      getDefs(dir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+    else ""
   }
 
   def runAllTestsFromDir(dir: String) {
@@ -258,7 +281,7 @@ trait SynthesisRunnerUtil {
       // Create log file
       SynStatUtil.init(defaultConfig)
       // Get definitions
-      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+      val defs = getDefsFromDir(testDir)
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile
         && (f.getName.endsWith(s".$testExtension") ||
@@ -286,7 +309,7 @@ trait SynthesisRunnerUtil {
       // Maybe create log file (depending on params)
       SynStatUtil.init(params)
       // Get definitions
-      val defs = getDefs(testDir.listFiles.filter(f => f.isFile && f.getName.endsWith(s".$defExtension")).toList)
+      val defs = getDefsFromDir(testDir)
       // Get specs
       val tests = testDir.listFiles.filter(f => f.isFile
         && (f.getName.endsWith(s".$testExtension") ||
@@ -302,6 +325,9 @@ trait SynthesisRunnerUtil {
     }
   }
 
+  def readLines(file: File): List[String] =
+    managed(Source.fromFile(file)).map(_.getLines.toList)
+      .opt.get
 
   def removeSuffix(s: String, suffix: String): String = {
     if (s.endsWith(suffix)) s.substring(0, s.length - suffix.length) else s

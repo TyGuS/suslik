@@ -1,0 +1,17 @@
+// copy a singly-linked list
+
+predicate list(loc x, set s) {
+|  x == 0  => { s == {} ; emp }
+|  x != 0  => { s == {v} + s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** list(nxt, s1) }
+}
+
+
+// Create a copy of a list starting at `x`;
+// and store the address of the copy in `r`.
+void copy (loc x, loc r)
+{ list(x, s) ** r :-> a }
+{ list(x, s) ** list(y, s) ** r :-> y }
+{
+  ??
+}
+  

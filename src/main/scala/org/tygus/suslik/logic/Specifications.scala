@@ -1,5 +1,6 @@
 package org.tygus.suslik.logic
 
+import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
@@ -118,17 +119,20 @@ object Specifications extends SepLogicUtils {
 
     extends PrettyPrinting with PureLogicUtils {
 
-    override def pp: String =
+    val uid: String = LanguageUtils.getTotallyFreshName("goal")
+
+    override def pp: String = {
+      def postWithCall: String = {
+        val actualCG = callGoal.get.applySubstitution
+        s"${post.pp.init} ** ...}\n${actualCG.call.pp}${actualCG.calleePost.pp.init} ** ...}\n...\n${actualCG.callerPost.pp}"
+      }
+
 //      s"${label.pp}\n" +
       s"${programVars.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")} " +
         s"[${universalGhosts.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}]" +
         s"[${existentials.map { v => s"${getType(v).pp} ${v.pp}" }.mkString(", ")}] |-\n" +
         s"${pre.pp}\n${sketch.pp}" +
         (if (callGoal.isEmpty) post.pp else postWithCall)
-
-    def postWithCall: String = {
-      val actualCG = callGoal.get.applySubstitution
-      s"${post.pp.init} ** ...}\n${actualCG.call.pp}${actualCG.calleePost.pp.init} ** ...}\n...\n${actualCG.callerPost.pp}"
     }
 
     lazy val splitPost: (PFormula, PFormula) = {
@@ -225,8 +229,11 @@ object Specifications extends SepLogicUtils {
     // Variables currently used only in specs
     def ghosts: Set[Var] = pre.vars ++ post.vars -- programVars
 
-    // Currently used ghosts that appear only in the postcondition
-    def existentials: Set[Var] = post.vars -- allUniversals
+    // Variables used in the suspended call (if it exists)
+    private def callVars: Set[Var] = callGoal.map(_.actualCall.args.flatMap(_.vars).toSet).getOrElse(Set())
+
+    // Currently used ghosts that appear only in the postcondition (or suspened call)
+    def existentials: Set[Var] = post.vars ++ callVars -- allUniversals
 
     // Determine whether `x` is a ghost variable wrt. given spec and gamma
     def isGhost(x: Var): Boolean = ghosts.contains(x)
@@ -294,6 +301,11 @@ object Specifications extends SepLogicUtils {
   // Label of the top-level goal
   def topLabel: GoalLabel = GoalLabel(List(0), List())
 
+  def topLevelGoal(funSpec: FunSpec, env: Environment, sketch: Statement): Goal = {
+    val FunSpec(name, _, formals, pre, post, var_decl) = funSpec
+    topLevelGoal(pre, post, formals, name, env, sketch, var_decl)
+  }
+
   def topLevelGoal(pre: Assertion, post: Assertion, formals: Formals, fname: String, env: Environment, sketch: Statement, vars_decl: Formals): Goal = {
     val gamma0 = (formals ++ vars_decl).toMap // initial environemnt: derived from the formals
     val gamma = resolvePrePost(gamma0, env, pre, post)
@@ -312,7 +324,7 @@ object Specifications extends SepLogicUtils {
     * when in call abduction mode
     * @param callerPre precondition of the goal where call abduction started
     * @param callerPost postcondition of the goal where call abduction started
-    * @param calleePost postcondiiton of the companion goal
+    * @param calleePost postcondition of the companion goal
     * @param call call statement
     */
   case class SuspendedCallGoal(callerPre: Assertion,

@@ -7,18 +7,13 @@ import org.tygus.suslik.synthesis.Termination.Transition
 import org.tygus.suslik.synthesis.rules.Rules.{GoalUpdater, RuleResult, SynthesisRule}
 import org.tygus.suslik.util.SynStats
 
+import scala.util.DynamicVariable
+
 /**
   * And-or tree that represents the space of all possible derivations
   */
-object SearchTree {
-
-  // Node's position in the search tree
-  // (index of each reflexive ancestor among its siblings; youngest to oldest)
-  type NodeId = Vector[Int]
-
-  type Worklist = List[OrNode]
-
-  trait SearchNode { val id: NodeId }
+class SearchTree {
+  import SearchTree._
 
   // List of nodes to process
   var worklist: Worklist = List()
@@ -27,10 +22,37 @@ object SearchTree {
   var successLeaves: Worklist = List()
 
   // Initialize worklist: root or-node containing the top-level goal
-  def init(initialGoal: Goal): Unit = {
+  private def init(initialGoal: Goal): SearchTree = {
     val root = OrNode(Vector(), initialGoal, None)
     worklist = List(root)
     successLeaves = List()
+    this
+  }
+}
+
+object SearchTree {
+  trait SearchNode { val id: NodeId }
+
+  // needs to be thread-local, for `SynthesisServer`
+  private val _current = new DynamicVariable[SearchTree](new SearchTree)
+  def st: SearchTree = _current.value
+
+  // need to gradually get rid of those in favor of instance methods on `st`
+  def worklist: Worklist = st.worklist
+  def worklist_=(w: Worklist): Unit = { st.worklist = w }
+  def successLeaves: Worklist = st.successLeaves
+  def successLeaves_=(w: Worklist): Unit = { st.successLeaves = w }
+
+  /**
+    * Node's position in the search tree
+    * (index of each reflexive ancestor among its siblings; youngest to oldest)
+    */
+  type NodeId = Vector[Int]
+
+  type Worklist = List[OrNode]
+
+  def init(initialGoal: Goal): Unit = {
+    _current.value = new SearchTree().init(initialGoal)
   }
 
   /**
@@ -56,12 +78,12 @@ object SearchTree {
     def fail(implicit stats: SynStats, config: SynConfig): Unit = {
       memo.save(goal, Failed)
       parent match {
-        case None => assert(worklist.isEmpty)// this is the root; wl must already be empty
+        case None => assert(st.worklist.isEmpty)// this is the root; wl must already be empty
         case Some(an) => { // a subgoal has failed
           stats.addFailedNode(an)
-          worklist = pruneDescendants(an.id, worklist)  // prune all other descendants of an
-          successLeaves = pruneDescendants(an.id, successLeaves) // also from the list of succeeded leaves
-          if (!worklist.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
+          st.worklist = pruneDescendants(an.id, st.worklist)  // prune all other descendants of an
+          st.successLeaves = pruneDescendants(an.id, st.successLeaves) // also from the list of succeeded leaves
+          if (!st.worklist.exists(_.hasAncestor(an.parent.id))) { // does my grandparent have other open alternatives?
             an.parent.fail
           }
         }
@@ -71,8 +93,8 @@ object SearchTree {
     // This node has succeeded: return either its next suspended and-sibling or the solution
     def succeed(s: Solution)(implicit config: SynConfig): Either[OrNode, Solution] = {
       memo.save(goal, Succeeded(s, id))
-      worklist = pruneDescendants(id, worklist) // prune all my descendants from worklist
-      successLeaves = successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
+      st.worklist = pruneDescendants(id, st.worklist) // prune all my descendants from worklist
+      st.successLeaves = st.successLeaves.filterNot(n => this.isFailedDescendant(n))  // prune members of partially successful branches
       parent match {
         case None => Right(s) // this is the root: synthesis succeeded
         case Some(an) => { // a subgoal has succeeded
@@ -143,7 +165,7 @@ object SearchTree {
     }
 
     // The partial derivation that this node is part of (represented as a subset of success leaves)
-    def partialDerivation: List[OrNode] = successLeaves.filter(isAndSibling)
+    def partialDerivation: List[OrNode] = st.successLeaves.filter(isAndSibling)
 
     def pp(d: Int = 0): String = parent match {
       case None => "-"

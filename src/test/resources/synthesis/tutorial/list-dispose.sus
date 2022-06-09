@@ -1,0 +1,13 @@
+// dispose a singly-linked list
+
+predicate list(loc x) {
+|  x == 0  => { emp }
+|  x != 0  => { [x, 2] ** x :-> v ** (x + 1) :-> y ** list(y) }
+}
+
+void dispose(loc x)
+{ list(x) }  
+{ emp }
+{
+  ??
+}

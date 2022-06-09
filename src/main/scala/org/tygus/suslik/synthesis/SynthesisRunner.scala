@@ -1,13 +1,15 @@
 package org.tygus.suslik.synthesis
 
 import java.io.File
-
 import org.tygus.suslik.certification.CertificationTarget
 import org.tygus.suslik.certification.CertificationTarget.NoCert
 import org.tygus.suslik.certification.targets._
+import org.tygus.suslik.interaction.SynthesisServer
 import org.tygus.suslik.report.Log
 import org.tygus.suslik.util.SynLogLevels
 import scopt.OptionParser
+
+import scala.concurrent.duration.{Duration, MILLISECONDS}
 
 /**
   * @author Ilya Sergey
@@ -16,7 +18,7 @@ import scopt.OptionParser
 object SynthesisRunner extends SynthesisRunnerUtil {
 
   // Enable verbose logging
-  override implicit val log = new Log(SynLogLevels.Verbose)
+  override implicit val log: Log = new Log(SynLogLevels.Verbose)
 
   /**
     * Command line args:
@@ -66,12 +68,13 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       synthesizeFromSpec(testName, in, out, params)
     } catch {
       case SynthesisException(msg) =>
-        System.err.println("Synthesis failed:")
+        System.err.println(msg)
+      case SynTimeOutException(msg) =>
         System.err.println(msg)
     }
   }
 
-  case class RunConfig(synConfig: SynConfig, fileName: String)
+  case class RunConfig(synConfig: SynConfig, fileName: String, mode: String = "batch")
 
   val TOOLNAME = "SuSLik"
   val SCRIPTNAME = "suslik"
@@ -82,20 +85,20 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
   private def getParentDir(filePath: String): String = {
     val file = new File(filePath)
-    if (!file.exists()) {
-      "."
-    }
-    else file.getParentFile.getAbsolutePath
+    if (file.exists()) file.getParentFile.getAbsolutePath
+    else file.getParent
   }
 
   private def handleInput(args: Array[String]): Unit = {
     val newConfig = RunConfig(SynConfig(), defaultFile)
     parser.parse(args, newConfig) match {
-      case Some(RunConfig(synConfig, file)) =>
+      case Some(RunConfig(synConfig, file, "batch")) =>
         val dir = getParentDir(file)
         val fName = new File(file).getName
         runSingleTestFromDir(dir, fName, synConfig)
-      case None =>
+      case Some(RunConfig(synConfig, _, "server")) =>
+        new SynthesisServer().start() /** @todo use config! */
+      case _ =>
         System.err.println("Bad argument format.")
     }
   }
@@ -113,6 +116,12 @@ object SynthesisRunner extends SynthesisRunnerUtil {
         case _ => NoCert
       }
 
+    implicit val durationRead: scopt.Read[Duration] =
+      scopt.Read.reads { s =>
+        try { Duration(s.toLong, MILLISECONDS) /** @todo make default be seconds? */ }
+        catch { case _: NumberFormatException => Duration(s) }
+      }
+
     private def uncurryLens[A,B,C](lens: scalaz.Lens[A, B])(f: C => B => B) =
       Function.uncurried { c:C => lens =>= f(c) }
 
@@ -128,8 +137,8 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(traceLevel = l)
     }).text("print the entire derivation trace; default: false")
 
-    opt[Long]('t', "timeout").action(cfg { t =>
-      _.copy(timeOut = t)
+    opt[Duration]('t', "timeout").action(cfg { t =>
+      _.copy(timeOut = t.toMillis)
     }).text("timeout for the derivation; default (in milliseconds): 1800000 (30 min)")
 
     opt[Boolean]('a', "assert").action(cfg { b =>
@@ -176,6 +185,10 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       conf => conf.copy(extendedPure = b, delegatePure = b || conf.delegatePure)
     }).text("use extended search space for pure synthesis with CVC4; default: false")
 
+    opt[Unit](name = "simple").action(cfg { _ =>
+      _.copy(simple = true)
+    }).text("use simple, unphased rules (this is very slow); default: no")
+
     opt[Boolean]('i', "interactive").action(cfg { b =>
       _.copy(interactive = b)
     }).text("interactive mode; default: false")
@@ -192,7 +205,7 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(logToFile = b)
     }).text("log results to a csv file; default: false")
 
-    opt[String]('j', "traceToJsonFile").action(cfg { fn =>
+    opt[String]('j', "traceToJson").action(cfg { fn =>
       _.copy(traceToJsonFile = Some(new File(fn)))
     }).text("dump entire proof search trace to a json file; default: none")
 
@@ -220,12 +233,15 @@ object SynthesisRunner extends SynthesisRunnerUtil {
 
     note("\nOnce the synthesis is done execution, statistics will be available in stats.csv (rewritten every time).\n")
 
+    cmd("server")
+      .text("run a Web server for interactive mode")
+      .action((_, c) => c.copy(mode = "server"))
   }
 
   def parseParams(paramString: Array[String], params: SynConfig): SynConfig = {
     val newConfig = RunConfig(params, defaultFile)
     parser.parse(paramString, newConfig) match {
-      case Some(RunConfig(synConfig, _)) => synConfig
+      case Some(RunConfig(synConfig, _, _)) => synConfig
       case None => throw SynthesisException("Bad argument format.")
     }
   }

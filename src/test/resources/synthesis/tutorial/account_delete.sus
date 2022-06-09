@@ -1,0 +1,12 @@
+// dispose an account record
+
+predicate account(loc x, int bal) {
+ |  true  => { bal >= 0 ; [x, 1] ** x :-> bal }
+ }
+
+void delete_account (loc acc)
+{ account(acc, a) }
+{ emp }
+{
+  ??
+}

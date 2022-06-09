@@ -162,6 +162,14 @@ trait PureLogicUtils {
     None
   }
 
+  def extractEquality(e: Expr): Option[(Expr, Expr)] = e match {
+    case BinaryExpr(OpEq, l, r) => Some(l, r)
+    case BinaryExpr(OpBoolEq, l, r) => Some(l, r)
+    case BinaryExpr(OpSetEq, l, r) => Some(l, r)
+    case BinaryExpr(OpIntervalEq, l, r) => Some(l, r)
+    case _ => None
+  }
+
   /**
     * Assemble a formula from a list of conjunctions
     */

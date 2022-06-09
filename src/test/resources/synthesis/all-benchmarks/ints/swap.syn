@@ -2,7 +2,9 @@ should be able to synthesize a swap program
 
 ###
 
-{true; x :-> a ** y :-> b} void swap(loc x, loc y) {true ; x :-> b ** y :-> a}
+{true; x :-> a ** y :-> b}
+void swap(loc x, loc y)
+{true ; x :-> b ** y :-> a}
 
 ###
 

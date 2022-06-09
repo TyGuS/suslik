@@ -58,6 +58,12 @@ object Rules {
   // This rule produces code
   trait GeneratesCode
 
+  trait PhaseDisabled {
+    def heapletFilter(h: Heaplet): Boolean = true
+
+    def profilesMatch(pre: SFormula, post: SFormula, exact: Boolean): Boolean = true
+  }
+
   trait UnfoldingPhase {
     def heapletFilter(h: Heaplet): Boolean = {
       h.isInstanceOf[SApp]

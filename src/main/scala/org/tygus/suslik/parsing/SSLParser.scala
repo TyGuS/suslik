@@ -1,18 +1,18 @@
 package org.tygus.suslik.parsing
 
-import org.tygus.suslik.LanguageUtils.{cardinalityPrefix, getTotallyFreshName}
 import org.tygus.suslik.language.Expressions._
 import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.language._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
-import org.tygus.suslik.synthesis.SynthesisException
+import org.tygus.suslik.synthesis._
+import org.tygus.suslik.LanguageUtils._
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
-class SSLParser extends StandardTokenParsers with SepLogicUtils {
+class SSLParser(config: SynConfig = defaultConfig) extends StandardTokenParsers with SepLogicUtils {
 
   // Modified repN
   def repAll[T](p: => Parser[T]): Parser[List[T]] =
@@ -128,11 +128,14 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
     }
   }
 
+  private def defaultCardParameter: Expr = if (config.simple) IntConst(0)
+                                           else Var(getTotallyFreshName(cardinalityPrefix))
+
   def heaplet: Parser[Heaplet] = (
     (identWithOffset <~ ":->") ~ expr ^^ { case (a, o) ~ b => PointsTo(Var(a), o, b) }
       ||| "[" ~> (ident ~ ("," ~> numericLit)) <~ "]" ^^ { case a ~ s => Block(Var(a), Integer.parseInt(s)) }
       ||| ident ~ ("(" ~> rep1sep(expr, ",") <~ ")") ~ opt("<" ~> expr <~ ">") ^^ {
-      case name ~ args ~ v => SApp(name, args, PTag(), v.getOrElse(Var(getTotallyFreshName(cardinalityPrefix))))
+      case name ~ args ~ v => SApp(name, args, PTag(), v.getOrElse(defaultCardParameter))
     }
     )
 
@@ -154,10 +157,6 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       opt("[" ~> ident <~ "]") ~
       (("{" ~ opt("|")) ~> rep1sep(indClause, "|") <~ "}") ^^ {
       case name ~ formals ~ card ~ clauses =>
-        val c = card match {
-          case Some(s) => s
-          case None => cardName(name)
-        }
         InductivePredicate(name, formals, clauses)
     }
 
