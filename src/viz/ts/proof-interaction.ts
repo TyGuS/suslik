@@ -112,8 +112,8 @@ class ProofInteraction extends EventEmitter {
     getNodesForChoices(choices: {from: ProofTrace.Data.GoalId[]}[]): ProofTrace.Data.NodeId[] {
         var ret: ProofTrace.Data.NodeId[] = [];
         for (let choice of choices) {
-            for (let goalId of choice.from) {
-                let node = this.pt.nodeIndex.byGoalId.get(goalId);
+            for (let goalUid of choice.from) {
+                let node = this.pt.nodeIndex.byGoalUid.get(goalUid);
                 if (node) ret.push(node.id);
             }
         }

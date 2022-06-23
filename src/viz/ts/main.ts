@@ -82,7 +82,7 @@ $(async () => {
 
     function adjustParams(spec: BenchmarksDB.Data.Spec, mode: {proof: ProofMode, simple: boolean}) {
         if (mode.simple)
-            spec.params = ['--simple', 'true', ...(spec.params || [])];
+            spec.params = ['--simple', ...(spec.params || [])];
     }
 
     async function switchMode(mode: {proof: ProofMode, simple: boolean}) {
