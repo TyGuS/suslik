@@ -292,9 +292,10 @@ object ProofTraceJson {
       "<=[int]" -> OpLeq, "<" -> OpLt, "&&" -> OpAnd, "||" -> OpOr,
       "+[int]" -> OpPlus, "-[int]" -> OpMinus, "*[int]" -> OpMultiply,
       "++" -> OpUnion, "--" -> OpDiff, "*[set[int]]" -> OpIntersect,
-      "in[int]" -> OpIn, "==[loc]" -> OpEq,
-      "==[set[int]]" -> OpSetEq, "<=[set[int]]" -> OpSubset
-      /** @todo interval operators */
+      "in[set[int]]" -> OpIn, "==[loc]" -> OpEq,
+      "==[set[int]]" -> OpSetEq, "<=[set[int]]" -> OpSubset,
+      ".." -> OpRange,
+      "+[ivl]" -> OpIntervalUnion, "==[ivl]" -> OpIntervalEq, "in[ivl]" -> OpIntervalIn
     )
 
     def labelOf(op: UnOp): String = mustGet(UNOP, op)
