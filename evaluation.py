@@ -7,7 +7,7 @@ import csv
 
 JAVA8        = 'java'                                             # Path to Java8
 SUSLIK_JAR   = 'suslik.jar'                                       # Path to suslik.jar
-TIMEOUT      = '-t=120000'                                        # Timeout option for suslik
+TIMEOUT      = '-t=120'                                           # Timeout option for suslik
 TEST_DIR     = 'src/test/resources/synthesis/paper-benchmarks/'   # Root directory for the tests   
 VARIANTS     = ['phased', 'invert', 'fail', 'commute', 'none']    # Configurations
 CSV_IN       = 'stats.csv'                                        # Intermediate CSV file produced by suslik

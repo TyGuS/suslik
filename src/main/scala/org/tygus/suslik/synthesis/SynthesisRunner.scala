@@ -137,9 +137,9 @@ object SynthesisRunner extends SynthesisRunnerUtil {
       _.copy(traceLevel = l)
     }).text("print the entire derivation trace; default: false")
 
-    opt[Duration]('t', "timeout").action(cfg { t =>
-      _.copy(timeOut = t.toMillis)
-    }).text("timeout for the derivation; default (in milliseconds): 1800000 (30 min)")
+    opt[Double]('t', "timeout").action(cfg { t =>
+      _.copy(timeOut = (t * 1000).round)
+    }).text("timeout for the derivation (in seconds); default: 1800 (30 min)")
 
     opt[Boolean]('a', "assert").action(cfg { b =>
       _.copy(assertSuccess = b)

@@ -26,12 +26,14 @@ import scala.io.Source
 
 trait SynthesisRunnerUtil {
 
+  import SynthesisRunnerUtil._
+
   {
     // Warm up SMT solver:
     SMTSolving
   }
 
-  val log : Log = new Log(SynLogLevels.Test)
+  val log: Log = new Log(SynLogLevels.Test)
 
   val testSeparator = "###"
   val testExtension = "syn"
@@ -89,7 +91,7 @@ trait SynthesisRunnerUtil {
 
     def parseSus = {
       val hasDescr = lines.head.trim.startsWith("/*")
-      val desc = if(hasDescr) lines.head.trim else ""
+      val desc = if (hasDescr) lines.head.trim else ""
 
       val (spec, expectedSrc) = splitAtSeparator(lines, List(noOutputCheck))
 
@@ -192,7 +194,7 @@ trait SynthesisRunnerUtil {
         new AutomaticSimple(env.config)
       else
         new AutomaticPhased(env.config)
-    val trace : ProofTrace = env.config.traceToJsonFile match {
+    val trace: ProofTrace = env.config.traceToJsonFile match {
       case None => ProofTraceNone
       case Some(file) => new ProofTraceJsonFile(file)
     }
@@ -200,7 +202,7 @@ trait SynthesisRunnerUtil {
   }
 
   def synthesizeFromFile(dir: String, testName: String,
-                         initialParams: SynConfig = defaultConfig) : List[Statements.Procedure] = {
+                         initialParams: SynConfig = defaultConfig): List[Statements.Procedure] = {
     val fullPath = Paths.get(dir, testName)
     val defs = getDefsFromDir(new File(dir))
     val (_, _, in, out, params) = getDescInputOutput(fullPath.toString, initialParams)
@@ -208,7 +210,7 @@ trait SynthesisRunnerUtil {
   }
 
   def synthesizeFromSpec(testName: String, text: String, out: String = noOutputCheck,
-                         params: SynConfig = defaultConfig) : List[Statements.Procedure] = {
+                         params: SynConfig = defaultConfig): List[Statements.Procedure] = {
     import log.out.testPrintln
 
     val (spec, env, body) = prepareSynthesisTask(text, params)
@@ -232,9 +234,9 @@ trait SynthesisRunnerUtil {
       testPrintln(s"Final memo size: ${stats.memoSize}")
       testPrintln(s"Final size of SMT cache: ${stats.smtCacheSize}")
       testPrintln(s"Time spent cycling: ${stats.timeCycling}ms")
-//      val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
-//      testPrintln(s"Hot nodes:\n $hotNodesString")
-      val expensiveRuleString = stats.expensiveRules(5).map {case (n, s) => printRuleApplication(n, s)}.mkString("\n")
+      // val hotNodesString = stats.hotNodes(5).map{case (n, s) => printHotNode(n, s)}.mkString("\n")
+      // testPrintln(s"Hot nodes:\n $hotNodesString")
+      val expensiveRuleString = stats.expensiveRules(5).map { case (n, s) => printRuleApplication(n, s) }.mkString("\n")
       testPrintln(s"Expensive rules:\n$expensiveRuleString\n")
       testPrintln(StopWatch.summary.toString)
     }
@@ -248,7 +250,7 @@ trait SynthesisRunnerUtil {
       case Nil =>
         printStats(sresult._2)
         if (sresult._2.timedOut)
-          throw SynTimeOutException(s"Timeout after ${(sresult._2.duration / 1000.0).round.toInt} seconds")
+          throw SynTimeOutException(s"Timeout after ${formatAsSeconds(sresult._2.duration)} seconds")
         else
           throw SynthesisException(s"Failed to synthesise due to unrealizable spec or incompleteness")
       case procs =>
@@ -373,7 +375,9 @@ trait SynthesisRunnerUtil {
       }
     }
   }
+}
 
+object SynthesisRunnerUtil {
   def readLines(file: File): List[String] =
     managed(Source.fromFile(file)).map(_.getLines.toList)
       .opt.get
@@ -382,5 +386,8 @@ trait SynthesisRunnerUtil {
     if (s.endsWith(suffix)) s.substring(0, s.length - suffix.length) else s
   }
 
+  def removeTrailing0(s: String): String = "[.]?0*$".r.replaceAllIn(s, "")
+
+  def formatAsSeconds(millis: Long): String = removeTrailing0(f"${millis / 1000.0}%.3f")
 }
 
