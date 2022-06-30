@@ -39,7 +39,7 @@
   "scripts": {
     "build": "npx --package=parcel-bundler@1.12.5 -- parcel build --no-minify src/viz/index.html && node src/viz/scripts/bundle-benchmarks-for-web.mjs",
     "watch": "parcel watch --public-url=. --hmr-hostname=localhost src/viz/index.html",
-    "start": "java -jar target/scala-2.12/suslik.jar",
+    "start": "java -jar target/scala-2.12/suslik.jar server .",
     "start:dev": "sbt 'runMain org.tygus.suslik.interaction.SynthesisServer'"
   },
   "posthtml": {
