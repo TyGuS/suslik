@@ -1,0 +1,12 @@
+// create an account record
+
+predicate account(loc x, int bal) {
+ |  true  => { bal >= 0 ; [x, 1] ** x :-> bal }
+ }
+
+void create_account (loc ret)
+{ ret :-> 0 }
+{ ret :-> acc ** account(acc, 0) }
+{
+  ??
+}

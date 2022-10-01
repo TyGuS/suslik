@@ -6,8 +6,11 @@ import org.tygus.suslik.language.Statements._
 import org.tygus.suslik.logic.Specifications._
 import org.tygus.suslik.logic._
 import org.tygus.suslik.logic.smt.SMTSolving
+import org.tygus.suslik.report.ProofTrace
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
+
+import scala.Function.tupled
 
 /**
   * Logical rules simplify specs and terminate the derivation;
@@ -135,6 +138,10 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           val newPost = Assertion(post.phi, newPostSigma)
           val newGoal = goal.spawnChild(newPre, newPost)
           val kont = IdProducer >> ExtractHelper(goal)
+
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(newGoal), this,
+            Map("Pre" -> hPre.pp, "Post" -> hPost.pp)))
+
           List(RuleResult(List(newGoal), kont, this, goal))
         }
       }
@@ -149,6 +156,7 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
 
   object FrameFlat extends Frame with FlatPhase with InvertibleRule
 
+  object FrameSimple extends Frame with PhaseDisabled
 
   /*
   x ≠ nil ∉ φ
@@ -251,19 +259,16 @@ object LogicalRules extends PureLogicUtils with SepLogicUtils with RuleUtils {
           else None
         } else None
 
-      findConjunctAndRest({
-        case BinaryExpr(OpEq, l, r) => extractSides(l, r)
-        case BinaryExpr(OpBoolEq, l, r) => extractSides(l, r)
-        case BinaryExpr(OpSetEq, l, r) => extractSides(l, r)
-        case BinaryExpr(OpIntervalEq, l, r) => extractSides(l, r)
-        case _ => None
-      }, p1) match {
+      findConjunctAndRest(e => extractEquality(e).flatMap(tupled(extractSides)), p1)
+      match {
         case Some(((x, e), rest1)) => {
           val _p1 = rest1.subst(x, e)
           val _s1 = s1.subst(x, e)
           val newGoal = goal.spawnChild(Assertion(_p1, _s1), goal.post.subst(x, e))
           val kont = SubstProducer(x, e) >> IdProducer >> ExtractHelper(goal)
           assert(goal.callGoal.isEmpty)
+          ProofTrace.current.add(ProofTrace.DerivationTrail(goal, Seq(newGoal), this,
+            Map(x.pp -> e.pp)))
           List(RuleResult(List(newGoal), kont, this, goal))
         }
         case _ => Nil

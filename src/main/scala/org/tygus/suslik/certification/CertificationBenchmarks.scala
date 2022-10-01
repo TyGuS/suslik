@@ -4,7 +4,6 @@ import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.Date
-
 import org.tygus.suslik.LanguageUtils
 import org.tygus.suslik.certification.CertificationBenchmarks.{BenchmarkConfig, serialize}
 import org.tygus.suslik.certification.source.SuslikProofStep
@@ -17,7 +16,7 @@ import org.tygus.suslik.logic.Preprocessor.preprocessProgram
 import org.tygus.suslik.parsing.SSLParser
 import org.tygus.suslik.report.ProofTraceCert
 import org.tygus.suslik.report.StopWatch.timed
-import org.tygus.suslik.synthesis.tactics.PhasedSynthesis
+import org.tygus.suslik.synthesis.tactics.{AutomaticPhased, PhasedSynthesis}
 import org.tygus.suslik.synthesis.{SynConfig, Synthesis, SynthesisException, SynthesisRunnerUtil, dotSus, dotSyn}
 import org.tygus.suslik.util.{SynStatUtil, SynStats}
 import scopt.OptionParser
@@ -81,7 +80,8 @@ class CertificationBenchmarks(
   }
 
   override def createSynthesizer(env: Environment): Synthesis = {
-    val tactic = new PhasedSynthesis(env.config)
+    /** @todo merge changed `PhasedSynthesis` -> `AutomaticPhased` */
+    val tactic = new AutomaticPhased(env.config)
     val trace = new ProofTraceCert()
     new Synthesis(tactic, log, trace)
   }

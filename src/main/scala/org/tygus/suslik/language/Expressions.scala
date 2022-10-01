@@ -480,6 +480,12 @@ object Expressions {
                                             e.resolveOverloading(gamma))
 
     }
+
+    def unifySyntactic(that: Expr, unificationVars: Set[Var]): Option[Subst] = (this, that) match {
+      case (_, _)        if this == that                          => Some(Map())
+      case (v@Var(_), _) if unificationVars.contains(v)           => Some(Map(v -> that))
+      case _ => None
+    }
   }
 
   // Program-level variable: program-level or ghost

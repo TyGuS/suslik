@@ -11,8 +11,7 @@ target/
 lib_managed/
 src_managed/
 project/boot/
-project/
-project/plugins/project/
+target/
 .history
 .cache
 .lib/
@@ -95,9 +94,6 @@ fabric.properties
 # Compiled class file
 *.class
 
-# Log file
-*.log
-
 # BlueJ files
 *.ctxt
 
@@ -118,9 +114,6 @@ hs_err_pid*
 # Vim/Emacs
 *~
 .*.swp
-
-# stats
-*.csv
 
 # Emacs-generated
 .#*
@@ -146,6 +139,10 @@ node_modules
 /build
 /scratch
 
+# logs, stats, and other outputs
+/logs
+*.log
+*.csv
 # traces
 *.out
 
@@ -153,3 +150,6 @@ node_modules
 certify/
 
 *results.tex
+trace.json
+*.trace.json
+*.db.json

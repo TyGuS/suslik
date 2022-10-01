@@ -30,6 +30,10 @@ sealed abstract class Heaplet extends PrettyPrinting with HasExpressions[Heaplet
   // produce pairs of expressions that must be equal for the this and that to be the same heaplet
   def unify(that: Heaplet): Option[ExprSubst]
 
+  // Unify syntactically: find a subst for existentials in this
+  // that makes it syntactically equal to that
+  def unifySyntactic(that: Heaplet, unificationVars: Set[Var]): Option[Subst]
+
   def compare(that: Heaplet): Int = this.pp.compare(that.pp)
 
   def resolve(gamma: Gamma, env: Environment): Option[Gamma]
@@ -97,6 +101,15 @@ case class PointsTo(loc: Expr, offset: Int = 0, value: Expr) extends Heaplet {
     case PointsTo(l, o, v) if l == loc && o == offset => Some(Map(value -> v))
     case _ => None
   }
+
+  override def unifySyntactic(that: Heaplet, unificationVars: Set[Var]): Option[Subst] = that match {
+    case PointsTo(l, o, v) if o == offset =>
+      for {
+        sub1 <- loc.unifySyntactic(l, unificationVars)
+        sub2 <- value.subst(sub1).unifySyntactic(v.subst(sub1), unificationVars)
+      } yield sub1 ++ sub2
+    case _ => None
+  }
 }
 
 /**
@@ -125,6 +138,11 @@ case class Block(loc: Expr, sz: Int) extends Heaplet {
     case Block(l, s) if sz == s => Some(Map(loc -> l))
     case _ => None
   }
+
+  override def unifySyntactic(that: Heaplet, unificationVars: Set[Var]): Option[Subst] = that match {
+    case Block(l, s) if sz == s => loc.unifySyntactic(l, unificationVars)
+    case _ => None
+  }
 }
 
 case class PTag(calls: Int = 0, unrolls: Int = 0) extends PrettyPrinting {
@@ -136,7 +154,7 @@ case class PTag(calls: Int = 0, unrolls: Int = 0) extends PrettyPrinting {
 
 /**
   *
-  * @card is a cardinality of a current call.
+  * @param card is a cardinality of a current call.
   *
   *       Predicate application
   */
@@ -147,7 +165,8 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: PTag, card: Expr) extends Hea
   override def pp: String = {
     def ppCard(e: Expr) = s"<${e.pp}>"
 
-    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${tag.pp}"
+//    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}${tag.pp}"
+    s"$pred(${args.map(_.pp).mkString(", ")})${ppCard(card)}"
   }
 
 
@@ -192,6 +211,16 @@ case class SApp(pred: Ident, args: Seq[Expr], tag: PTag, card: Expr) extends Hea
     case SApp(p, as, _, c) if pred == p => Some((card :: args.toList).zip(c :: as.toList).toMap)
     case _ => None
   }
+
+  override def unifySyntactic(that: Heaplet, unificationVars: Set[Var]): Option[Subst] = that match {
+    case SApp(p, Seq(), _, c) if pred == p => card.unifySyntactic(c, unificationVars)
+    case app@SApp(p, a +: as, _, _) if pred == p => for {
+      sub1 <- args.head.unifySyntactic(a, unificationVars)
+      sub2 <- this.copy(args = args.tail).subst(sub1).unifySyntactic(app.copy(args = as), unificationVars)
+    } yield sub1 ++ sub2
+    case _ => None
+  }
+
 }
 
 

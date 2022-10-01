@@ -1,0 +1,23 @@
+# -o 2
+
+// deallocate a rose tree;
+// a rose tree is an n-ary tree that stores child nodes in a linked list;
+// this task requires uses mutual recursion
+
+predicate rtree(loc x) {
+|  x == 0  => { emp }
+|  x != 0  => { [x, 2] ** x :-> v ** (x + 1) :-> c ** children(c) }
+}
+
+predicate children(loc x) {
+|  x == 0  => { emp }
+|  x != 0  => { [x, 2] ** x :-> r ** rtree(r) ** (x + 1) :-> nxt ** children(nxt) }
+}
+
+void dispose(loc x)
+{ rtree(x) }
+{ emp }
+{
+  ??
+}
+
