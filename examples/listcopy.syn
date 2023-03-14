@@ -2,10 +2,10 @@ Copy a linked list
 
 ###
 
-{ r :-> x ** lseg(x, s) }
+{ r :-> x ** sll(x, s) }
 
   void listcopy(loc r)
 
-{ true ; r :-> y ** lseg(x, s) ** lseg(y, s) }
+{ true ; r :-> y ** sll(x, s) ** sll(y, s) }
 
 #####

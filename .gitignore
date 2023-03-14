@@ -153,3 +153,9 @@ node_modules
 certify/
 
 *results.tex
+
+.bloop
+.bsp
+.metals
+.vscode
+certificates/
